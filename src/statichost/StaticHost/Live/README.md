@@ -149,14 +149,17 @@ Rejected verification callbacks log a fixed `RejectionReason` (`Malformed` or
 nor topics enter the formatted message or structured fields. Topic correlation
 is diagnostic only, not callback authorization.
 
-Twitch callback diagnostics retain rejected timestamps and unknown message types
-as sanitized fields: values are bounded to 128 characters (including an ellipsis
-when truncated), and characters outside ASCII letters, digits, `_`, `.`, `:`,
+Twitch callback diagnostics retain rejected timestamps, unknown message types,
+and replay/in-progress message IDs as sanitized fields: values are bounded to
+128 characters (including an ellipsis when truncated), and characters outside
+ASCII letters, digits, `_`, `.`, `:`,
 `+`, and `-` are replaced with `_`. This preserves ordinary RFC3339 timestamps
 and message-type names without letting line separators or control characters
-forge log entries. Replay/in-progress message IDs and revocation bodies remain
-omitted. Signature validation, freshness checks, replay coordination, challenge
-responses, and HTTP statuses are unchanged.
+forge log entries. Revocations retain the subscription ID, type, and status using
+the same sanitizer, but omit the full body, transport URLs, and any other payload
+fields. Invalid revocation JSON still returns the original acknowledgment and
+logs that details were unavailable. Signature validation, freshness checks,
+replay coordination, challenge responses, and HTTP statuses are unchanged.
 
 Successful discovery logs `LastSuccessfulDiscoveryAt`, `LastDiscoveryLive`,
 and `NextDiscoveryAt`. The worker includes its last successful discovery time

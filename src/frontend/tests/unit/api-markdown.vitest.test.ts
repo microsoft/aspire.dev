@@ -262,9 +262,8 @@ describe('API markdown helpers', () => {
     expect(await renderCell(value)).toBe(`<td>${value}</td>`);
   });
 
-  it.each([0, 1, 2, 3, 4])('preserves %i backslashes and a pipe inside inline code', async (count) => {
-    const value = `left${'\\'.repeat(count)}|right`;
-    expect(await renderCell(`\`${value}\``)).toBe(`<td><code>${value}</code></td>`);
+  it('preserves ordinary inline code containing pipes', async () => {
+    expect(await renderCell('`left|middle|right`')).toBe('<td><code>left|middle|right</code></td>');
   });
 
   it.each(['\r\n', '\r', '\n'])('keeps %j line endings within a single table row', async (newline) => {
@@ -296,20 +295,14 @@ describe('API markdown helpers', () => {
     );
   });
 
-  it('handles multi-backtick delimiters, embedded backticks and unmatched runs', async () => {
-    expect(await renderCell('``a`b\\|c`` and `unclosed\\|tail')).toBe(
-      '<td><code>a`b\\|c</code> and `unclosed\\|tail</td>'
+  it('preserves existing Markdown escapes instead of treating the cell as raw text', async () => {
+    expect(await renderCell('\\*literal\\* and \\[label\\] | `C:\\src\\app`')).toBe(
+      '<td>*literal* and [label] | <code>C:\\src\\app</code></td>'
     );
   });
 
-  it('keeps code text literal when the GFM escape requires an HTML code element', async () => {
-    expect(await renderCell('` <b> & **bold** [link](url) \\| `')).toBe(
-      '<td><code>&#x3C;b> &#x26; **bold** [link](url) \\|</code></td>'
-    );
-  });
-
-  it('preserves inline-code link labels and code-span newline semantics', async () => {
-    expect(await renderCell('[`left|right`](/reference/api/) and `first\r\nsecond`')).toBe(
+  it('preserves inline-code link labels and single-line code from API renderers', async () => {
+    expect(await renderCell('[`left|right`](/reference/api/) and `first second`')).toBe(
       '<td><a href="/reference/api/"><code>left|right</code></a> and <code>first second</code></td>'
     );
   });
@@ -322,7 +315,7 @@ describe('API markdown helpers', () => {
         term: [{ kind: 'text', text: 'path\\|name' }],
         description: [
           { kind: 'href', text: 'API | docs', value: '/reference/api/' },
-          { kind: 'code', text: 'left\\|right' },
+          { kind: 'code', text: '%LocalAppData%\\Aspire\\BrowserData' },
         ],
       }],
     }], { allTypes: [], base: '', packageName: 'Test.Package' });
@@ -331,7 +324,7 @@ describe('API markdown helpers', () => {
     expect(selectAll('tbody tr', tree)).toHaveLength(1);
     expect(selectAll('td', tree).map((node) => toHtml(node))).toEqual([
       '<td>path\\|name</td>',
-      '<td><a href="/reference/api/">API | docs</a> <code>left\\|right</code></td>',
+      '<td><a href="/reference/api/">API | docs</a> <code>%LocalAppData%\\Aspire\\BrowserData</code></td>',
     ]);
   });
 

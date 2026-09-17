@@ -165,8 +165,8 @@ public sealed class TwitchWebhookHandlerTests
         var before = await broadcaster.GetStateAsync();
         var logger = new YouTubeRecordingLogger<TwitchWebhookHandlerTests>();
         var result = await TwitchWebhookHandler.HandleAsync(
-            revocation ? "revocation" : LiveTestHelpers.UntrustedLogPayload,
-            LiveTestHelpers.UntrustedLogPayload,
+            revocation ? "revocation" : LiveTestHelpers.LogInjectionPayload,
+            LiveTestHelpers.LogInjectionPayload,
             broadcaster,
             new TwitchOptions(),
             logger);
@@ -226,6 +226,69 @@ public sealed class TwitchWebhookHandlerTests
 
         var entry = Assert.Single(logger.Entries);
         Assert.Equal(new string('a', 125) + "...", entry.Fields["MessageType"]);
+    }
+
+    [Theory]
+    [InlineData("authorization_revoked")]
+    [InlineData("user_removed")]
+    [InlineData("version_removed")]
+    public async Task Handle_Revocation_RetainsUsefulSubscriptionDetailsOnly(string status)
+    {
+        var broadcaster = LiveTestHelpers.CreateBroadcaster();
+        var before = await broadcaster.GetStateAsync();
+        var logger = new YouTubeRecordingLogger<TwitchWebhookHandlerTests>();
+        var body = $$"""
+            {"subscription":{
+              "id":"subscription-123",
+              "type":"stream.online",
+              "status":"{{status}}",
+              "transport":{"callback":"https://example.invalid/callback?key=must-not-appear"}
+            },"extra":"body-only-marker"}
+            """;
+
+        var result = await TwitchWebhookHandler.HandleAsync(
+            "revocation", body, broadcaster, new TwitchOptions(), logger);
+
+        Assert.Equal(StatusCodes.Status204NoContent, Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode);
+        Assert.Equal(before, await broadcaster.GetStateAsync());
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal("subscription-123", entry.Fields["SubscriptionId"]);
+        Assert.Equal("stream.online", entry.Fields["SubscriptionType"]);
+        Assert.Equal(status, entry.Fields["SubscriptionStatus"]);
+        Assert.Equal(4, entry.Fields.Count);
+        LiveTestHelpers.AssertSafeLogs(logger, "must-not-appear", "example.invalid", "body-only-marker");
+    }
+
+    [Fact]
+    public async Task Handle_Revocation_SanitizesSubscriptionDetails()
+    {
+        var logger = new YouTubeRecordingLogger<TwitchWebhookHandlerTests>();
+        const string body = """{"subscription":{"id":"id\r\nnext","type":"stream.\u001bonline","status":"status\u2028next"}}""";
+
+        await TwitchWebhookHandler.HandleAsync("revocation", body,
+            LiveTestHelpers.CreateBroadcaster(), new TwitchOptions(), logger);
+
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal("id__next", entry.Fields["SubscriptionId"]);
+        Assert.Equal("stream._online", entry.Fields["SubscriptionType"]);
+        Assert.Equal("status_next", entry.Fields["SubscriptionStatus"]);
+        LiveTestHelpers.AssertSafeLogs(logger);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("[]")]
+    [InlineData("{\"subscription\":null}")]
+    [InlineData("{\"subscription\":{\"id\":42,\"type\":[],\"status\":false}}")]
+    public async Task Handle_Revocation_MissingDetailsStillAcknowledges(string body)
+    {
+        var logger = new YouTubeRecordingLogger<TwitchWebhookHandlerTests>();
+        var result = await TwitchWebhookHandler.HandleAsync("revocation", body,
+            LiveTestHelpers.CreateBroadcaster(), new TwitchOptions(), logger);
+
+        Assert.Equal(StatusCodes.Status204NoContent, Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode);
+        Assert.Single(logger.Entries);
+        LiveTestHelpers.AssertSafeLogs(logger);
     }
 
     private static string ComputeTwitchSignature(string secret, string messageId, string timestamp, byte[] body)

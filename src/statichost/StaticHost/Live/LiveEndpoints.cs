@@ -205,7 +205,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         if (!TwitchWebhookHandler.IsFresh(timestamp, time.GetUtcNow(), TimeSpan.FromMinutes(10)))
         {
             logger.LogWarning("Twitch webhook timestamp {Timestamp} (sanitized) is stale or unparseable; rejecting.",
-                TwitchWebhookHandler.SanitizeHeaderForLogging(timestamp));
+                TwitchWebhookHandler.SanitizeDiagnosticValue(timestamp));
             return Results.Unauthorized();
         }
 
@@ -228,14 +228,16 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
             if (acquisition.Status == TwitchMessageAcquisitionStatus.Completed)
             {
-                logger.LogDebug("Twitch webhook replay ignored.");
+                logger.LogDebug("Twitch webhook replay ignored for message {MessageId}.",
+                    TwitchWebhookHandler.SanitizeDiagnosticValue(messageId));
                 return Results.Ok();
             }
 
             if (acquisition.Status == TwitchMessageAcquisitionStatus.Processing)
             {
                 logger.LogDebug(
-                    "Twitch webhook is already being processed; asking Twitch to retry.");
+                    "Twitch webhook message {MessageId} is already being processed; asking Twitch to retry.",
+                    TwitchWebhookHandler.SanitizeDiagnosticValue(messageId));
                 return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
             }
 

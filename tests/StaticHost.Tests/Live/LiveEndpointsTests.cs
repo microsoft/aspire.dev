@@ -156,6 +156,8 @@ public sealed class LiveEndpointsTests
         Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
         AssertNoStore(replayResponse);
         Assert.False((await server.Broadcaster.GetCurrentAsync()).Twitch.Live);
+        Assert.Contains(server.Logs.Entries, entry =>
+            entry.Fields.TryGetValue("MessageId", out var id) && Equals(id, "test-message-1"));
     }
 
     [Fact]
@@ -163,7 +165,7 @@ public sealed class LiveEndpointsTests
     {
         await using var server = await LiveHttpServer.StartAsync();
         using var request = TwitchRequest(server, "notification", "{}",
-            timestamp: LiveTestHelpers.UntrustedLogPayload);
+            timestamp: LiveTestHelpers.LogInjectionPayload);
         using var response = await server.Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -199,10 +201,10 @@ public sealed class LiveEndpointsTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task TwitchWebhook_SignedDuplicateId_IsNotLogged(bool completed)
+    public async Task TwitchWebhook_SignedDuplicateId_IsLoggedSafely(bool completed)
     {
         await using var server = await LiveHttpServer.StartAsync();
-        const string messageId = LiveTestHelpers.UntrustedLogPayload;
+        const string messageId = LiveTestHelpers.LogInjectionPayload;
         var acquisition = await server.Coordination.AcquireTwitchMessageAsync(messageId);
         Assert.Equal(TwitchMessageAcquisitionStatus.Acquired, acquisition.Status);
         await using (var lease = Assert.IsAssignableFrom<ITwitchMessageLease>(acquisition.Lease))
@@ -217,7 +219,13 @@ public sealed class LiveEndpointsTests
             var entry = Assert.Single(server.Logs.Entries);
             Assert.Equal(LogLevel.Debug, entry.Level);
             Assert.Contains(completed ? "replay ignored" : "already being processed", entry.Message);
-            LiveTestHelpers.AssertSafeLogs(server.Logs);
+            Assert.Equal("payload-sentinel__forged-line___", entry.Fields["MessageId"]);
+            Assert.Equal(completed
+                ? "Twitch webhook replay ignored for message payload-sentinel__forged-line___."
+                : "Twitch webhook message payload-sentinel__forged-line___ is already being processed; asking Twitch to retry.",
+                entry.Message);
+            Assert.Null(entry.Exception);
+            Assert.Equal(2, entry.Fields.Count);
         }
 
         server.Logs.Entries.Clear();
@@ -227,7 +235,18 @@ public sealed class LiveEndpointsTests
         using var retryResponse = await server.Client.SendAsync(retry);
         Assert.Equal(HttpStatusCode.OK, retryResponse.StatusCode);
         Assert.Equal(!completed, (await server.Broadcaster.GetCurrentAsync()).Twitch.Live);
-        LiveTestHelpers.AssertSafeLogs(server.Logs);
+        if (completed)
+        {
+            var entry = Assert.Single(server.Logs.Entries);
+            Assert.Equal("payload-sentinel__forged-line___", entry.Fields["MessageId"]);
+            Assert.Equal("Twitch webhook replay ignored for message payload-sentinel__forged-line___.", entry.Message);
+            Assert.Null(entry.Exception);
+            Assert.Equal(2, entry.Fields.Count);
+        }
+        else
+        {
+            LiveTestHelpers.AssertSafeLogs(server.Logs);
+        }
     }
 
     [Theory]
@@ -238,8 +257,8 @@ public sealed class LiveEndpointsTests
         await using var server = await LiveHttpServer.StartAsync();
         var before = await server.Broadcaster.GetStateAsync();
         using var request = TwitchRequest(
-            server, revocation ? "revocation" : LiveTestHelpers.UntrustedLogPayload,
-            LiveTestHelpers.UntrustedLogPayload);
+            server, revocation ? "revocation" : LiveTestHelpers.LogInjectionPayload,
+            LiveTestHelpers.LogInjectionPayload);
         using var response = await server.Client.SendAsync(request);
 
         Assert.Equal(revocation ? HttpStatusCode.NoContent : HttpStatusCode.OK, response.StatusCode);
@@ -322,7 +341,7 @@ public sealed class LiveEndpointsTests
             await server.Subscriptions.TryBeginSubscriptionAsync("channel-123", server.Time.GetUtcNow()));
         var mode = invalid switch
         {
-            "mode" => LiveTestHelpers.UntrustedLogPayload,
+            "mode" => LiveTestHelpers.LogInjectionPayload,
             "unsubscribe" => "unsubscribe",
             _ => "subscribe",
         };
@@ -332,13 +351,13 @@ public sealed class LiveEndpointsTests
             {
                 "missing-topic" => "",
                 "token" => pending.Topic,
-                _ => LiveTestHelpers.UntrustedLogPayload,
+                _ => LiveTestHelpers.LogInjectionPayload,
             },
             VerifyToken = invalid == "token" ? invalidVerifyToken : pending.VerifyToken,
         };
         var before = server.Subscriptions.Current;
         using var response = await server.Client.GetAsync(
-            VerificationUrl(submitted, LiveTestHelpers.UntrustedLogPayload, mode: mode));
+            VerificationUrl(submitted, LiveTestHelpers.LogInjectionPayload, mode: mode));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         AssertNoStore(response);
@@ -356,10 +375,10 @@ public sealed class LiveEndpointsTests
         LiveTestHelpers.AssertSafeLogs(server.Logs, pending.Topic, pending.VerifyToken, "verification-secret-sentinel");
 
         using var confirmation = await server.Client.GetAsync(
-            VerificationUrl(pending, LiveTestHelpers.UntrustedLogPayload));
+            VerificationUrl(pending, LiveTestHelpers.LogInjectionPayload));
         Assert.Equal(HttpStatusCode.OK, confirmation.StatusCode);
         Assert.Equal("text/plain", confirmation.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(LiveTestHelpers.UntrustedLogPayload, await confirmation.Content.ReadAsStringAsync());
+        Assert.Equal(LiveTestHelpers.LogInjectionPayload, await confirmation.Content.ReadAsStringAsync());
         Assert.True(await server.Subscriptions.GetRenewAtAsync() > server.Time.GetUtcNow());
         LiveTestHelpers.AssertSafeLogs(server.Logs, pending.Topic, pending.VerifyToken, "verification-secret-sentinel");
     }
