@@ -316,6 +316,7 @@ public sealed class LiveEndpointsTests
     public async Task YouTubeVerification_RejectionLogsOnlyClassificationsAndSafeFields(
         string invalid, bool configured)
     {
+        const string invalidVerifyToken = "verification-secret-sentinel\r\nforged-line\u0085\u2028\u2029";
         await using var server = await LiveHttpServer.StartAsync(youtubeConfigured: configured);
         var pending = Assert.IsType<YouTubeWebSubSubscriptionRequest>(
             await server.Subscriptions.TryBeginSubscriptionAsync("channel-123", server.Time.GetUtcNow()));
@@ -333,7 +334,7 @@ public sealed class LiveEndpointsTests
                 "token" => pending.Topic,
                 _ => LiveTestHelpers.UntrustedLogPayload,
             },
-            VerifyToken = invalid == "token" ? LiveTestHelpers.UntrustedLogPayload : pending.VerifyToken,
+            VerifyToken = invalid == "token" ? invalidVerifyToken : pending.VerifyToken,
         };
         var before = server.Subscriptions.Current;
         using var response = await server.Client.GetAsync(
@@ -352,7 +353,7 @@ public sealed class LiveEndpointsTests
             entry.Fields["ModeClassification"]);
         Assert.Equal(invalid != "missing-topic", entry.Fields["TopicPresent"]);
         Assert.Equal(configured ? (bool?)(invalid == "token") : null, entry.Fields["MatchesConfiguredTopic"]);
-        LiveTestHelpers.AssertSafeLogs(server.Logs, pending.Topic, pending.VerifyToken);
+        LiveTestHelpers.AssertSafeLogs(server.Logs, pending.Topic, pending.VerifyToken, "verification-secret-sentinel");
 
         using var confirmation = await server.Client.GetAsync(
             VerificationUrl(pending, LiveTestHelpers.UntrustedLogPayload));
@@ -360,7 +361,7 @@ public sealed class LiveEndpointsTests
         Assert.Equal("text/plain", confirmation.Content.Headers.ContentType?.MediaType);
         Assert.Equal(LiveTestHelpers.UntrustedLogPayload, await confirmation.Content.ReadAsStringAsync());
         Assert.True(await server.Subscriptions.GetRenewAtAsync() > server.Time.GetUtcNow());
-        LiveTestHelpers.AssertSafeLogs(server.Logs, pending.Topic, pending.VerifyToken);
+        LiveTestHelpers.AssertSafeLogs(server.Logs, pending.Topic, pending.VerifyToken, "verification-secret-sentinel");
     }
 
     [Theory]
