@@ -321,7 +321,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
                 verifyToken,
                 leaseSeconds))
         {
-            YouTubeDiagnostics.LogRejectedVerification(
+            LogRejectedVerification(
                 logger, mode, topic, options.Value.YouTube.ChannelId, malformed: true);
             return Results.NotFound();
         }
@@ -348,7 +348,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
         if (!confirmed)
         {
-            YouTubeDiagnostics.LogRejectedVerification(
+            LogRejectedVerification(
                 logger, mode, topic, options.Value.YouTube.ChannelId, malformed: false);
             return Results.NotFound();
         }
@@ -357,6 +357,25 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             "YouTube {Operation} acknowledged; callback lease {LeaseSeconds}s. A matching retry does not extend the lease or reset subscription backoff.",
             "WebSubVerification", leaseSeconds);
         return Results.Text(challenge, "text/plain");
+    }
+
+    private static void LogRejectedVerification(
+        ILogger logger, string mode, string topic, string channelId, bool malformed)
+    {
+        var modeClassification = mode switch
+        {
+            "subscribe" => "Subscribe",
+            "unsubscribe" => "Unsubscribe",
+            _ => "Unknown",
+        };
+        bool? matchesConfiguredTopic = string.IsNullOrEmpty(channelId)
+            ? null
+            : string.Equals(topic, YouTubeWebSubSubscriptionTransitions.TopicFor(channelId), StringComparison.Ordinal);
+        logger.LogWarning(
+            "YouTube {Operation} rejected: {RejectionReason}; mode {ModeClassification}, " +
+            "topic present {TopicPresent}, matches configured topic {MatchesConfiguredTopic}.",
+            "WebSubVerification", malformed ? "Malformed" : "Unexpected", modeClassification,
+            !string.IsNullOrEmpty(topic), matchesConfiguredTopic);
     }
 
     private static async Task<IResult> YouTubeWebhook(
