@@ -6,7 +6,13 @@
   -- route module imports and test props are intentionally dynamic in this harness
 */
 import { describe, expect, it, vi } from 'vitest';
+import { createMarkdownProcessor } from '@astrojs/markdown-remark';
+import { selectAll } from 'hast-util-select';
+import { toHtml } from 'hast-util-to-html';
+import rehypeParse from 'rehype-parse';
+import { unified } from 'unified';
 
+import { escapeTableCell } from '@utils/api-markdown-shared';
 import {
   renderCSharpDocMarkdown,
   renderCSharpMemberKindMarkdown,
@@ -236,6 +242,83 @@ describe('API markdown routes', () => {
 });
 
 describe('API markdown helpers', () => {
+  const tableProcessor = createMarkdownProcessor({ smartypants: false, syntaxHighlight: false });
+
+  async function renderCell(value: string) {
+    const processor = await tableProcessor;
+    const result = await processor.render(
+      `| Value | Sentinel |\n| --- | --- |\n| ${escapeTableCell(value)} | intact |`
+    );
+    const tree = unified().use(rehypeParse, { fragment: true }).parse(result.code);
+    expect(selectAll('tbody tr', tree)).toHaveLength(1);
+    const cells = selectAll('td', tree);
+    expect(cells).toHaveLength(2);
+    expect(toHtml(cells[1])).toBe('<td>intact</td>');
+    return toHtml(cells[0]);
+  }
+
+  it.each([0, 1, 2, 3, 4])('preserves %i literal backslashes before a pipe in a GFM cell', async (count) => {
+    const value = `left${'\\'.repeat(count)}|right`;
+    expect(await renderCell(value)).toBe(`<td>${value}</td>`);
+  });
+
+  it.each([0, 1, 2, 3, 4])('preserves %i backslashes and a pipe inside inline code', async (count) => {
+    const value = `left${'\\'.repeat(count)}|right`;
+    expect(await renderCell(`\`${value}\``)).toBe(`<td><code>${value}</code></td>`);
+  });
+
+  it.each(['\r\n', '\r', '\n'])('keeps %j line endings within a single table row', async (newline) => {
+    expect(await renderCell(`first${newline}second`)).toBe('<td>first<br>second</td>');
+  });
+
+  it('preserves links, emphasis, code spans and literal paths in rendered table cells', async () => {
+    expect(await renderCell(
+      '[API | docs](/reference/api/) **important** `C:\\src\\app` and C:\\src\\app\\'
+    )).toBe(
+      '<td><a href="/reference/api/">API | docs</a> <strong>important</strong> '
+      + '<code>C:\\src\\app</code> and C:\\src\\app\\</td>'
+    );
+  });
+
+  it('handles multi-backtick delimiters, embedded backticks and unmatched runs', async () => {
+    expect(await renderCell('``a`b\\|c`` and `unclosed\\|tail')).toBe(
+      '<td><code>a`b\\|c</code> and `unclosed\\|tail</td>'
+    );
+  });
+
+  it('keeps code text literal when the GFM escape requires an HTML code element', async () => {
+    expect(await renderCell('` <b> & **bold** [link](url) \\| `')).toBe(
+      '<td><code>&#x3C;b> &#x26; **bold** [link](url) \\|</code></td>'
+    );
+  });
+
+  it('preserves inline-code link labels and code-span newline semantics', async () => {
+    expect(await renderCell('[`left|right`](/reference/api/) and `first\r\nsecond`')).toBe(
+      '<td><a href="/reference/api/"><code>left|right</code></a> and <code>first second</code></td>'
+    );
+  });
+
+  it('preserves rich Markdown from the C# documentation table renderer', async () => {
+    const markdown = renderCSharpDocMarkdown([{
+      kind: 'list',
+      style: 'table',
+      items: [{
+        term: [{ kind: 'text', text: 'path\\|name' }],
+        description: [
+          { kind: 'href', text: 'API | docs', value: '/reference/api/' },
+          { kind: 'code', text: 'left\\|right' },
+        ],
+      }],
+    }], { allTypes: [], base: '', packageName: 'Test.Package' });
+    const result = await (await tableProcessor).render(markdown);
+    const tree = unified().use(rehypeParse, { fragment: true }).parse(result.code);
+    expect(selectAll('tbody tr', tree)).toHaveLength(1);
+    expect(selectAll('td', tree).map((node) => toHtml(node))).toEqual([
+      '<td>path\\|name</td>',
+      '<td><a href="/reference/api/">API | docs</a> <code>left\\|right</code></td>',
+    ]);
+  });
+
   it('normalizes note blockquotes to a single level', () => {
     const markdown = renderCSharpDocMarkdown(
       [

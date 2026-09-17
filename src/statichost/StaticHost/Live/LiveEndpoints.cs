@@ -204,7 +204,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         // replayed indefinitely.
         if (!TwitchWebhookHandler.IsFresh(timestamp, time.GetUtcNow(), TimeSpan.FromMinutes(10)))
         {
-            logger.LogWarning("Twitch webhook timestamp {Timestamp} is stale or unparseable; rejecting.", timestamp);
+            logger.LogWarning("Twitch webhook timestamp is stale or unparseable; rejecting.");
             return Results.Unauthorized();
         }
 
@@ -227,15 +227,14 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
             if (acquisition.Status == TwitchMessageAcquisitionStatus.Completed)
             {
-                logger.LogDebug("Twitch webhook replay ignored for {MessageId}.", messageId);
+                logger.LogDebug("Twitch webhook replay ignored.");
                 return Results.Ok();
             }
 
             if (acquisition.Status == TwitchMessageAcquisitionStatus.Processing)
             {
                 logger.LogDebug(
-                    "Twitch webhook {MessageId} is already being processed; asking Twitch to retry.",
-                    messageId);
+                    "Twitch webhook is already being processed; asking Twitch to retry.");
                 return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
             }
 
@@ -319,7 +318,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
                 verifyToken,
                 leaseSeconds))
         {
-            logger.LogWarning("Rejected malformed YouTube WebSub {Mode} verification for {Topic}.", mode, topic);
+            YouTubeDiagnostics.LogRejectedVerification(
+                logger, mode, topic, options.Value.YouTube.ChannelId, malformed: true);
             return Results.NotFound();
         }
 
@@ -345,7 +345,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
         if (!confirmed)
         {
-            logger.LogWarning("Rejected unexpected YouTube WebSub {Mode} verification for {Topic}.", mode, topic);
+            YouTubeDiagnostics.LogRejectedVerification(
+                logger, mode, topic, options.Value.YouTube.ChannelId, malformed: false);
             return Results.NotFound();
         }
 

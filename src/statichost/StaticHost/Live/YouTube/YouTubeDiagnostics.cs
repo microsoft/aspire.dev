@@ -97,6 +97,25 @@ internal static class YouTubeDiagnostics
             ClassifyProviderText(truncated ? reason[..BodyLimit] : reason), truncated);
     }
 
+    internal static void LogRejectedVerification(
+        ILogger logger, string mode, string topic, string channelId, bool malformed)
+    {
+        var modeClassification = mode switch
+        {
+            "subscribe" => "Subscribe",
+            "unsubscribe" => "Unsubscribe",
+            _ => "Unknown",
+        };
+        bool? matchesConfiguredTopic = string.IsNullOrEmpty(channelId)
+            ? null
+            : string.Equals(topic, YouTubeWebSubSubscriptionTransitions.TopicFor(channelId), StringComparison.Ordinal);
+        logger.LogWarning(
+            "YouTube {Operation} rejected: {RejectionReason}; mode {ModeClassification}, " +
+            "topic present {TopicPresent}, matches configured topic {MatchesConfiguredTopic}.",
+            "WebSubVerification", malformed ? "Malformed" : "Unexpected", modeClassification,
+            !string.IsNullOrEmpty(topic), matchesConfiguredTopic);
+    }
+
     private static string ClassifyProviderText(string text)
     {
         // Only fixed classifications leave this boundary, never echoed HTML, URLs,

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace StaticHost.Tests.Live;
 
 public sealed class TwitchWebhookHandlerTests
@@ -152,6 +154,39 @@ public sealed class TwitchWebhookHandlerTests
     {
         var now = new DateTimeOffset(2026, 4, 27, 20, 0, 0, TimeSpan.Zero);
         Assert.False(TwitchWebhookHandler.IsFresh(timestamp, now, TimeSpan.FromMinutes(10)));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Handle_UntrustedRevocationAndUnknownType_AreNotLogged(bool revocation)
+    {
+        var broadcaster = LiveTestHelpers.CreateBroadcaster();
+        var before = await broadcaster.GetStateAsync();
+        var logger = new YouTubeRecordingLogger<TwitchWebhookHandlerTests>();
+        var result = await TwitchWebhookHandler.HandleAsync(
+            revocation ? "revocation" : LiveTestHelpers.UntrustedLogPayload,
+            LiveTestHelpers.UntrustedLogPayload,
+            broadcaster,
+            new TwitchOptions(),
+            logger);
+        using var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var context = new DefaultHttpContext
+        {
+            RequestServices = services,
+        };
+        context.Response.Body = new MemoryStream();
+
+        await result.ExecuteAsync(context);
+
+        Assert.Equal(revocation ? StatusCodes.Status204NoContent : StatusCodes.Status200OK,
+            context.Response.StatusCode);
+        Assert.Equal(before, await broadcaster.GetStateAsync());
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(revocation ? LogLevel.Warning : LogLevel.Debug,
+            entry.Level);
+        Assert.Contains(revocation ? "subscription revoked" : "unknown message type", entry.Message);
+        LiveTestHelpers.AssertSafeLogs(logger);
     }
 
     private static string ComputeTwitchSignature(string secret, string messageId, string timestamp, byte[] body)

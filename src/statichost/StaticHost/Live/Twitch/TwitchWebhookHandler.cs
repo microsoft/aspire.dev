@@ -121,10 +121,10 @@ public static class TwitchWebhookHandler
                     return Results.Ok();
                 }
             case "revocation":
-                logger.LogWarning("Twitch EventSub subscription revoked: {Body}", bodyJson);
+                logger.LogWarning("Twitch EventSub subscription revoked; body omitted.");
                 return Results.NoContent();
             default:
-                logger.LogDebug("Twitch webhook of unknown message-type {Type}", messageType);
+                logger.LogDebug("Twitch webhook of unknown message type; type omitted.");
                 return Results.Ok();
         }
     }

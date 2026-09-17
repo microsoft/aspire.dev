@@ -4,6 +4,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
+import { selectAll } from 'hast-util-select';
+import rehypeParse from 'rehype-parse';
+import { unified } from 'unified';
 import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
 import * as searchStats from '@utils/ts-api-search-stats';
 
@@ -17,6 +20,32 @@ const surfaces = [
 ] as const;
 
 type MountSearch = (root: HTMLElement, signal: AbortSignal) => void;
+
+function readControllerScript(source: string): string {
+  const tree = unified().use(rehypeParse, { fragment: true }).parse(source);
+  const scripts = selectAll('script', tree).filter((node) =>
+    !('src' in node.properties) && !('is:inline' in node.properties)
+    && (!node.properties.type || node.properties.type === 'module'));
+  expect(scripts).toHaveLength(1);
+  return scripts[0].children.map((node) => node.type === 'text' ? node.value : '').join('');
+}
+
+describe('Astro controller script extraction', () => {
+  it.each(['script', 'ScRiPt'])('parses %s boundaries and quoted attributes, not script-like tags', (tag) => {
+    expect(readControllerScript(`
+      <script-extra>not a controller</script-extra>
+      <script src="./external.js"></script>
+      <script is:inline>not a bundled controller</script>
+      <script type="application/json">{"value": 1}</script>
+      <${tag} data-label="a > b">const value = "<script-extra>&amp;";</${tag} >
+    `)).toBe('const value = "<script-extra>&amp;";');
+  });
+
+  it('rejects missing or ambiguous controllers', () => {
+    expect(() => readControllerScript('<script-extra>no</script-extra>')).toThrow();
+    expect(() => readControllerScript('<script>one</script><script>two</script>')).toThrow();
+  });
+});
 
 describe('API search navigation lifecycle', () => {
   let events: EventTarget;
@@ -162,9 +191,14 @@ describe('API search navigation lifecycle', () => {
       if (kind === 'type' || kind === 'item') segments.push(language === 'csharp' ? '[type]' : '[item]');
       const filename = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..',
         'src', 'pages', 'reference', 'api', ...segments, 'index.astro');
-      const script = readFileSync(filename, 'utf8').match(/<script>([\s\S]*?)<\/script>/)?.[1];
+      const source = readFileSync(filename, 'utf8');
+      // The component body is Astro, not HTML (it contains self-closing scripts).
+      // Parse the trailing client-script section with the HTML parser.
+      const pageEnd = source.indexOf('</StarlightPage>');
+      expect(pageEnd).toBeGreaterThan(-1);
+      const script = readControllerScript(source.slice(pageEnd + '</StarlightPage>'.length));
       expect(script).toBeTruthy();
-      const { outputText } = transpileModule(script!, {
+      const { outputText } = transpileModule(script, {
         compilerOptions: { module: ModuleKind.CommonJS, target: ScriptTarget.ES2022 },
       });
       const modules: Record<string, unknown> = {

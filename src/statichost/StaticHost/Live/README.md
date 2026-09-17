@@ -143,6 +143,18 @@ Subscribe verification still requires the matching `hub.verify_token`,
 challenge, and valid lease; repeated matching verifications retain the original
 renewal deadline.
 
+Rejected verification callbacks log a fixed `RejectionReason` (`Malformed` or
+`Unexpected`), a `ModeClassification` (`Subscribe`, `Unsubscribe`, or `Unknown`),
+`TopicPresent`, and nullable `MatchesConfiguredTopic`. Neither submitted modes
+nor topics enter the formatted message or structured fields. Topic correlation
+is diagnostic only, not callback authorization.
+
+Twitch callback diagnostics omit raw timestamps, replay/in-progress message
+IDs, revocation bodies, and unknown message types. Fixed messages retain the
+rejection, replay, retry, revocation, or unknown-type outcome without echoing
+request content. Signature validation, freshness checks, replay coordination,
+challenge responses, and HTTP statuses are unchanged.
+
 Successful discovery logs `LastSuccessfulDiscoveryAt`, `LastDiscoveryLive`,
 and `NextDiscoveryAt`. The worker includes its last successful discovery time
 and result in subsequent failure logs, so operators can distinguish a

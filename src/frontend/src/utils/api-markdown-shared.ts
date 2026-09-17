@@ -101,7 +101,38 @@ export function indentMarkdown(markdown: string, prefix: string): string {
 }
 
 export function escapeTableCell(value: string): string {
-  return value.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+  // Backslashes are literal inside code spans, but need escaping in prose.
+  // Keep existing inline Markdown (including links) rather than escaping its syntax.
+  const delimiters = [...value.matchAll(/`+/g)];
+  let escaped = '';
+  let offset = 0;
+  for (let index = 0; index < delimiters.length; index++) {
+    const opening = delimiters[index];
+    const closingIndex = delimiters.findIndex((delimiter, candidate) =>
+      candidate > index && delimiter[0].length === opening[0].length);
+    if (closingIndex === -1) continue;
+
+    const closing = delimiters[closingIndex];
+    const end = closing.index + closing[0].length;
+    escaped += value.slice(offset, opening.index).replace(/\\/g, '\\\\');
+    let code = value.slice(opening.index + opening[0].length, closing.index)
+      .replace(/\r\n|\r|\n/g, ' ');
+    if (code.includes('\\|')) {
+      // GFM cannot represent an odd number of literal backslashes before a pipe
+      // in a code span. Use encoded HTML code text for this otherwise lossy case.
+      if (code.startsWith(' ') && code.endsWith(' ') && code.trim()) {
+        code = code.slice(1, -1);
+      }
+      escaped += `<code>${code.replace(/[^\p{Letter}\p{Number} ]/gu,
+        (character) => `&#${character.codePointAt(0)};`)}</code>`;
+    } else {
+      escaped += `${opening[0]}${code}${closing[0]}`;
+    }
+    offset = end;
+    index = closingIndex;
+  }
+  escaped += value.slice(offset).replace(/\\/g, '\\\\');
+  return escaped.replace(/\|/g, '\\|').replace(/\r\n|\r|\n/g, '<br>');
 }
 
 export function link(label: string, href: string): string {
