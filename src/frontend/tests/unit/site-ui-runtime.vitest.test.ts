@@ -13,12 +13,18 @@ const scrollComponent = readFileSync(
   new URL('../../src/components/ScrollToTop.astro', import.meta.url),
   'utf8'
 );
-const scrollSource = scrollComponent.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+const extractScript = (component: string) =>
+  component.match(/<script>([\s\S]*?)<\/script>/i)?.[1];
+const scrollSource = extractScript(scrollComponent);
 if (!scrollSource) throw new Error('Scroll-to-top runtime not found.');
 const compile = (source: string) =>
   transpileModule(source, {
     compilerOptions: { target: ScriptTarget.ES2022, module: ModuleKind.ESNext },
   }).outputText.replace(/^import .*;\r?\n/gm, '');
+
+it('extracts component scripts regardless of HTML tag casing', () => {
+  expect(extractScript('<SCRIPT>const ready = true;</SCRIPT>')).toBe('const ready = true;');
+});
 
 class Element extends EventTarget {
   id = '';
