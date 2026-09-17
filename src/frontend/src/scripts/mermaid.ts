@@ -2,17 +2,17 @@ import type { AsyncIconLoader } from 'mermaid';
 import { iconPacks } from '../../config/icon-packs.mjs';
 
 type Mermaid = (typeof import('mermaid'))['default'];
-type Theme = 'forest' | 'dark';
+type Theme = 'default' | 'dark';
 let library: Promise<Mermaid> | undefined;
 let body: HTMLElement | undefined;
-let theme: Theme = 'forest';
+let theme: Theme = 'default';
 let generation = 0;
 let nextId = 0;
 let pending = false;
 let running = false;
 const renderedThemes = new WeakMap<HTMLElement, string>();
 const readTheme = (): Theme =>
-  document.documentElement.dataset.theme === 'dark' ? 'dark' : 'forest';
+  document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default';
 
 function loadMermaid() {
   return (library ??= import('mermaid')
