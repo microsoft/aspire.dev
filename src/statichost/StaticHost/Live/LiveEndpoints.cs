@@ -350,7 +350,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         }
 
         logger.LogInformation(
-            "YouTube {Operation} verified; granted lease {LeaseSeconds}s. Verification establishes or renews the lease and resets subscription backoff.",
+            "YouTube {Operation} acknowledged; callback lease {LeaseSeconds}s. A matching retry does not extend the lease or reset subscription backoff.",
             "WebSubVerification", leaseSeconds);
         return Results.Text(challenge, "text/plain");
     }

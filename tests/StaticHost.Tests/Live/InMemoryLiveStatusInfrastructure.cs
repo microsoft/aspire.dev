@@ -117,6 +117,7 @@ internal sealed class SingleInstanceLiveStatusCoordination : ILiveStatusCoordina
 
 internal sealed class YouTubeWebSubSubscriptionState(TimeProvider? timeProvider = null) : IYouTubeWebSubSubscriptionState
 {
+    public Exception? MarkRequestSentException { get; set; }
     private readonly Lock _gate = new();
     private YouTubeWebSubSubscriptionData _state = YouTubeWebSubSubscriptionData.Empty;
 
@@ -170,6 +171,10 @@ internal sealed class YouTubeWebSubSubscriptionState(TimeProvider? timeProvider 
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (MarkRequestSentException is { } exception)
+        {
+            return ValueTask.FromException(exception);
+        }
 
         lock (_gate)
         {

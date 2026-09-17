@@ -11,6 +11,8 @@ public sealed class YouTubeClient(
     IOptionsMonitor<LiveStatusOptions> options,
     ILogger<YouTubeClient> logger) : IYouTubeClient
 {
+    internal const int ResponseBufferLimit = 1024 * 1024;
+
     /// <summary>Name of the registered <see cref="HttpClient"/> for the Data API.</summary>
     public const string HttpClientName = "youtube";
 

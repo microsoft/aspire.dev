@@ -80,7 +80,7 @@ logging HTTP request bodies is not required.
 | `OfflineDiscovery` | Interval-limited `search.list` check for a broadcast while no live video is known; not a daily quota guard. |
 | `KnownVideoStatus` | Low-cost `videos.list` check of the currently known live video. |
 | `WebSubSubscribe` | Subscription POST accepted or failed; acceptance does **not** prove callback verification. |
-| `WebSubVerification` | A matching callback verified the subscription or renewal, with the granted `LeaseSeconds`. |
+| `WebSubVerification` | A matching callback was acknowledged, with its `LeaseSeconds`; matching retries do not extend the original lease or reset backoff. |
 | `WebSubDenialReport` | An untrusted, unauthenticated `hub.mode=denied` report; not proof that Google denied a subscription. No state or polling changes. |
 | `NotificationChannelResolution` / `NotificationConfirmation` | Resolve the channel or run the confirming search after a signed notification. |
 | `BackgroundTick` | A failure outside the provider calls, such as state coordination. |
@@ -101,6 +101,9 @@ For example, `WebSubSubscribe` with endpoint
 failure, not an inbound website 503. Duration and status alone cannot establish
 the underlying provider cause.
 
+HTTP acceptance is logged before recording the sent request in Redis, so a
+subsequent persistence failure does not hide the provider's successful response.
+
 `ProviderDetail` contains only a fixed classification, such as temporary
 unavailability, transient error, invalid topic, or callback verification failure. Unknown or
 malformed bodies are omitted; `BodyTruncated` indicates the diagnostic read
@@ -114,12 +117,20 @@ example, a 503 with `Transient error; please try again later` and
 `Retry-After: 120` reports a transient error and 120 seconds; it does not stop
 polling or prove why a broadcast was missed.
 
-The callback acknowledges notifications with missing, invalid, or mismatched
+Both named YouTube HTTP clients cap response buffering at 1 MiB, including
+responses without a Content-Length header. The existing request timeouts still
+cover buffering. Responses exceeding that limit fail before diagnostic body
+classification; they are logged as request failures, not offline observations.
+The 4,096-character classification limit applies within that response-size cap.
+
+When `WebhookSecret` is configured, the callback acknowledges notifications with missing, invalid, or mismatched
 signatures with HTTP 200, as required by PubSubHubbub authenticated content
 distribution, but discards them before parsing, state updates, coordination,
 or confirmation queuing. A warning explicitly records the discard. HTTP 200
 does not mean that a notification was authenticated or processed. Development
 overrides still require both a valid signature and the dev command secret.
+If `WebhookSecret` is empty, the callback instead returns HTTP 503 before
+signature validation and logs the missing configuration.
 
 A denial GET requires `hub.topic`, but not a challenge, lease, or verification
 token. The static callback cannot authenticate these reports, so it logs only

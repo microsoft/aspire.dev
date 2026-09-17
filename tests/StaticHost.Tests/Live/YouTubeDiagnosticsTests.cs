@@ -356,8 +356,10 @@ public sealed class YouTubeDiagnosticsTests
         Assert.DoesNotContain("polling", failure.Message);
     }
 
-    [Fact]
-    public async Task SubscriptionAcceptance_DoesNotReportVerifiedLease()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SubscriptionAcceptance_DoesNotReportVerifiedLeaseEvenIfPersistenceFails(bool failPersistence)
     {
         var factory = new TestHttpClientFactory();
         factory.AddClient(YouTubeClient.HttpClientName,
@@ -367,13 +369,24 @@ public sealed class YouTubeDiagnosticsTests
         var options = Options();
         var logger = new YouTubeRecordingLogger<YouTubeWebSubService>();
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
-        var state = new YouTubeWebSubSubscriptionState(time);
+        var state = new YouTubeWebSubSubscriptionState(time)
+        {
+            MarkRequestSentException = failPersistence ? new IOException("State persistence failed") : null,
+        };
         using var broadcaster = LiveTestHelpers.CreateBroadcaster();
         using var service = new YouTubeWebSubService(
             new YouTubeClient(factory, options, NullLogger<YouTubeClient>.Instance),
             broadcaster, options, logger, time, state, new SingleInstanceLiveStatusCoordination());
 
-        await service.TickAsync(CancellationToken.None);
+        if (failPersistence)
+        {
+            var failure = await Assert.ThrowsAsync<IOException>(() => service.TickAsync(CancellationToken.None));
+            Assert.Same(state.MarkRequestSentException, failure);
+        }
+        else
+        {
+            await service.TickAsync(CancellationToken.None);
+        }
 
         var accepted = Assert.Single(logger.Entries, entry => Equals(entry.Fields["Operation"], "WebSubSubscribe"));
         Assert.Equal(LogLevel.Information, accepted.Level);

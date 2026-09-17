@@ -142,6 +142,61 @@ public sealed class YouTubeClientTests
         Assert.Single(handler.Requests);
     }
 
+    [Theory]
+    [InlineData(YouTubeClient.HttpClientName, HttpStatusCode.OK, true)]
+    [InlineData(YouTubeClient.HttpClientName, HttpStatusCode.OK, false)]
+    [InlineData(YouTubeClient.HttpClientName, HttpStatusCode.BadRequest, true)]
+    [InlineData(YouTubeClient.HttpClientName, HttpStatusCode.BadRequest, false)]
+    [InlineData(YouTubeClient.PubSubHttpClientName, HttpStatusCode.OK, true)]
+    [InlineData(YouTubeClient.PubSubHttpClientName, HttpStatusCode.OK, false)]
+    [InlineData(YouTubeClient.PubSubHttpClientName, HttpStatusCode.BadRequest, true)]
+    [InlineData(YouTubeClient.PubSubHttpClientName, HttpStatusCode.BadRequest, false)]
+    public async Task NamedYouTubeClients_BoundResponseBuffering(
+        string clientName, HttpStatusCode status, bool hasContentLength)
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.AddLiveStatus();
+        using var content = new OversizedContent(hasContentLength);
+        var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage(status) { Content = content });
+        builder.Services.AddHttpClient(clientName).ConfigurePrimaryHttpMessageHandler(() => handler);
+        using var host = builder.Build();
+        using var client = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient(clientName);
+        using var request = new HttpRequestMessage(
+            clientName == YouTubeClient.PubSubHttpClientName ? HttpMethod.Post : HttpMethod.Get,
+            "https://example.com/provider");
+
+        Assert.Equal(YouTubeClient.ResponseBufferLimit, client.MaxResponseContentBufferSize);
+        await Assert.ThrowsAsync<HttpRequestException>(() => client.SendAsync(request));
+
+        Assert.Single(handler.Requests);
+        Assert.InRange(content.BytesAttempted, 0, YouTubeClient.ResponseBufferLimit + 1024);
+        if (!hasContentLength)
+        {
+            Assert.True(content.BytesAttempted > YouTubeClient.ResponseBufferLimit);
+        }
+    }
+
+    private sealed class OversizedContent(bool hasContentLength) : HttpContent
+    {
+        public int BytesAttempted { get; private set; }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = YouTubeClient.ResponseBufferLimit * 2;
+            return hasContentLength;
+        }
+
+        protected override async Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context)
+        {
+            var chunk = new byte[1024];
+            for (var written = 0; written < YouTubeClient.ResponseBufferLimit * 2; written += chunk.Length)
+            {
+                BytesAttempted += chunk.Length;
+                await stream.WriteAsync(chunk);
+            }
+        }
+    }
+
     private static YouTubeClient CreateClient(
         RecordingHttpMessageHandler? apiHandler = null,
         RecordingHttpMessageHandler? pubSubHandler = null,

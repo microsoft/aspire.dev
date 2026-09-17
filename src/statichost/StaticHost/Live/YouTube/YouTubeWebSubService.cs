@@ -168,14 +168,14 @@ public sealed class YouTubeWebSubService(
             if (requestSent)
             {
                 var elapsedMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
-                await _subscriptions.MarkRequestSentAsync(
-                    request,
-                    _time.GetUtcNow(),
-                    cancellationToken).ConfigureAwait(false);
                 logger.LogInformation(
                     "YouTube {Operation} accepted at {AcceptedAt} after {ElapsedMs} ms; HTTP acceptance does not establish a verified lease. " +
                     "Only a matching verification callback establishes or renews the subscription.",
                     "WebSubSubscribe", _time.GetUtcNow(), elapsedMs);
+                await _subscriptions.MarkRequestSentAsync(
+                    request,
+                    _time.GetUtcNow(),
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
