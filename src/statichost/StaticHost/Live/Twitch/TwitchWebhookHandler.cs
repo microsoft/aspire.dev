@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace StaticHost.Live.Twitch;
 
@@ -54,6 +55,13 @@ public static class TwitchWebhookHandler
 
         var age = now - sent;
         return age <= maxAge && age >= TimeSpan.FromMinutes(-1);
+    }
+
+    internal static string SanitizeHeaderForLogging(string value)
+    {
+        const int maxLength = 128;
+        var bounded = value.Length > maxLength ? value[..(maxLength - 3)] + "..." : value;
+        return Regex.Replace(bounded, "[^a-zA-Z0-9_.:+-]", "_");
     }
 
     /// <summary>
@@ -124,7 +132,8 @@ public static class TwitchWebhookHandler
                 logger.LogWarning("Twitch EventSub subscription revoked; body omitted.");
                 return Results.NoContent();
             default:
-                logger.LogDebug("Twitch webhook of unknown message type; type omitted.");
+                logger.LogDebug("Twitch webhook of unknown message type {MessageType} (sanitized).",
+                    SanitizeHeaderForLogging(messageType));
                 return Results.Ok();
         }
     }

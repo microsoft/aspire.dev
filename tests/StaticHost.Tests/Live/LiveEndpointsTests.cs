@@ -159,7 +159,7 @@ public sealed class LiveEndpointsTests
     }
 
     [Fact]
-    public async Task TwitchWebhook_SignedUnparseableTimestamp_IsRejectedWithoutLoggingHeader()
+    public async Task TwitchWebhook_SignedUnparseableTimestamp_IsRejectedWithSanitizedHeader()
     {
         await using var server = await LiveHttpServer.StartAsync();
         using var request = TwitchRequest(server, "notification", "{}",
@@ -171,7 +171,28 @@ public sealed class LiveEndpointsTests
         Assert.False((await server.Broadcaster.GetCurrentAsync()).IsLive);
         var entry = Assert.Single(server.Logs.Entries);
         Assert.Equal(LogLevel.Warning, entry.Level);
-        Assert.Contains("timestamp is stale or unparseable", entry.Message);
+        Assert.Equal("payload-sentinel__forged-line___", entry.Fields["Timestamp"]);
+        Assert.Equal("Twitch webhook timestamp payload-sentinel__forged-line___ (sanitized) is stale or unparseable; rejecting.",
+            entry.Message);
+        Assert.Null(entry.Exception);
+        Assert.Equal(2, entry.Fields.Count);
+    }
+
+    [Theory]
+    [InlineData(-11)]
+    [InlineData(5)]
+    public async Task TwitchWebhook_RejectedTimestamp_RetainsDiagnosticValue(int minutesFromNow)
+    {
+        await using var server = await LiveHttpServer.StartAsync();
+        var timestamp = server.Time.GetUtcNow().AddMinutes(minutesFromNow).ToString("O");
+        using var request = TwitchRequest(server, "notification", "{}", timestamp: timestamp);
+        using var response = await server.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        AssertNoStore(response);
+        var entry = Assert.Single(server.Logs.Entries);
+        Assert.Equal(timestamp, entry.Fields["Timestamp"]);
+        Assert.Contains(timestamp, entry.Message);
         LiveTestHelpers.AssertSafeLogs(server.Logs);
     }
 
@@ -212,7 +233,7 @@ public sealed class LiveEndpointsTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task TwitchWebhook_SignedRevocationAndUnknownType_OmitUntrustedContent(bool revocation)
+    public async Task TwitchWebhook_SignedRevocationAndUnknownType_LogSafely(bool revocation)
     {
         await using var server = await LiveHttpServer.StartAsync();
         var before = await server.Broadcaster.GetStateAsync();
@@ -227,7 +248,18 @@ public sealed class LiveEndpointsTests
         var entry = Assert.Single(server.Logs.Entries);
         Assert.Equal(revocation ? LogLevel.Warning : LogLevel.Debug, entry.Level);
         Assert.Contains(revocation ? "subscription revoked" : "unknown message type", entry.Message);
-        LiveTestHelpers.AssertSafeLogs(server.Logs);
+        if (revocation)
+        {
+            LiveTestHelpers.AssertSafeLogs(server.Logs);
+        }
+        else
+        {
+            Assert.Equal("payload-sentinel__forged-line___", entry.Fields["MessageType"]);
+            Assert.Equal("Twitch webhook of unknown message type payload-sentinel__forged-line___ (sanitized).",
+                entry.Message);
+            Assert.Null(entry.Exception);
+            Assert.Equal(2, entry.Fields.Count);
+        }
     }
 
     [Fact]

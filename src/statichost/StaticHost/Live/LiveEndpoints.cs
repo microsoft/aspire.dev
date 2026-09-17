@@ -204,7 +204,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         // replayed indefinitely.
         if (!TwitchWebhookHandler.IsFresh(timestamp, time.GetUtcNow(), TimeSpan.FromMinutes(10)))
         {
-            logger.LogWarning("Twitch webhook timestamp is stale or unparseable; rejecting.");
+            logger.LogWarning("Twitch webhook timestamp {Timestamp} (sanitized) is stale or unparseable; rejecting.",
+                TwitchWebhookHandler.SanitizeHeaderForLogging(timestamp));
             return Results.Unauthorized();
         }
 

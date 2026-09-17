@@ -149,11 +149,14 @@ Rejected verification callbacks log a fixed `RejectionReason` (`Malformed` or
 nor topics enter the formatted message or structured fields. Topic correlation
 is diagnostic only, not callback authorization.
 
-Twitch callback diagnostics omit raw timestamps, replay/in-progress message
-IDs, revocation bodies, and unknown message types. Fixed messages retain the
-rejection, replay, retry, revocation, or unknown-type outcome without echoing
-request content. Signature validation, freshness checks, replay coordination,
-challenge responses, and HTTP statuses are unchanged.
+Twitch callback diagnostics retain rejected timestamps and unknown message types
+as sanitized fields: values are bounded to 128 characters (including an ellipsis
+when truncated), and characters outside ASCII letters, digits, `_`, `.`, `:`,
+`+`, and `-` are replaced with `_`. This preserves ordinary RFC3339 timestamps
+and message-type names without letting line separators or control characters
+forge log entries. Replay/in-progress message IDs and revocation bodies remain
+omitted. Signature validation, freshness checks, replay coordination, challenge
+responses, and HTTP statuses are unchanged.
 
 Successful discovery logs `LastSuccessfulDiscoveryAt`, `LastDiscoveryLive`,
 and `NextDiscoveryAt`. The worker includes its last successful discovery time
