@@ -42,11 +42,23 @@ export class PivotSelector extends HTMLElement {
     if (this.controller) return;
     this.controller = new AbortController();
     const { signal } = this.controller;
+    let initialized = false;
+    const initialize = () => {
+      if (initialized) return;
+      initialized = true;
+      this.initialize(signal);
+    };
     // A swapped element connects before Astro updates the URL and restores scroll.
-    document.addEventListener('astro:page-load', () => this.initialize(signal), {
+    document.addEventListener('astro:page-load', initialize, {
       once: true,
       signal,
     });
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initialize, {
+        once: true,
+        signal,
+      });
+    }
     document.addEventListener('astro:before-swap', () => this.dispose(), {
       once: true,
       signal,

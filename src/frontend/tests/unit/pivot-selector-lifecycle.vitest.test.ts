@@ -86,6 +86,7 @@ describe('PivotSelector element lifecycle', () => {
     vi.stubGlobal(
       'document',
       Object.assign(documentEvents, {
+        readyState: 'complete',
         documentElement: html,
         querySelectorAll: (query: string) =>
           query === 'aspire-pivot-selector'
@@ -157,6 +158,17 @@ describe('PivotSelector element lifecycle', () => {
   function pageLoad() {
     documentEvents.dispatchEvent(new Event('astro:page-load'));
   }
+
+  it('initializes at DOM readiness while an async resource keeps page-load pending', () => {
+    Reflect.set(document, 'readyState', 'loading');
+    const { selector, buttons } = createRoot();
+    documentEvents.dispatchEvent(new Event('DOMContentLoaded'));
+    expect(selector.dataset.pivotInitialized).toBe('true');
+    expect(buttons[0].classes.has('active')).toBe(true);
+    expect(getEventListeners(documentEvents, 'astro:page-load')).toHaveLength(1);
+    pageLoad();
+    expect(getEventListeners(windowEvents, 'scroll')).toHaveLength(1);
+  });
 
   function flushFrames() {
     const callbacks = [...frames.values()];

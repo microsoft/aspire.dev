@@ -304,7 +304,7 @@ describe('site-owned Mermaid runtime', () => {
     await flush();
     expect(fixture.mermaid.render).toHaveBeenCalledTimes(4);
     expect(fixture.mermaid.initialize.mock.calls.map(([config]) => config.theme)).toEqual([
-      'default',
+      'forest',
       'dark',
     ]);
     expect(fixture.mermaid.render.mock.calls.map(([, source]) => source)).toEqual([
@@ -333,7 +333,7 @@ describe('site-owned Mermaid runtime', () => {
     await flush();
     expect(fixture.diagrams[0].innerHTML).toBe('');
     expect(fixture.mermaid.initialize.mock.calls.map(([config]) => config.theme)).toEqual([
-      'default',
+      'forest',
       'dark',
     ]);
     latest.resolve({ svg: '<svg>latest dark</svg>' });
