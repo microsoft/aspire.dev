@@ -119,6 +119,57 @@ test("revokes old browse capabilities when the outer UI explicitly selects a tar
     assert.equal((await fetch(resourceUrl(await browse()))).status, 200);
 });
 
+for (const route of ["document", "resource"]) {
+    test(`in-flight ${route} responses retain their revoked browse capability`, async () => {
+        const html = '<!doctype html><title>Delayed preview</title><script src="/external.js"></script>';
+        const started = Promise.withResolvers();
+        let heldResponse;
+        let pending;
+        const delayedTarget = createServer((req, res) => {
+            res.setHeader("Content-Type", "text/html");
+            if (req.url === "/delayed") {
+                heldResponse = res;
+                started.resolve();
+                return;
+            }
+            res.end(html);
+        });
+        delayedTarget.listen(0, "127.0.0.1");
+        await once(delayedTarget, "listening");
+        const origin = `http://127.0.0.1:${delayedTarget.address().port}`;
+        try {
+            const selection = await fetch(api("/api/fetch?select=1&silent=1&u=" + encodeURIComponent(origin)));
+            assert.equal((await selection.json()).resolved.title, "Delayed preview");
+            const initial = await fetch(api("/api/proxy?u=" + encodeURIComponent(origin)));
+            const oldResource = resourceUrl(await initial.text());
+            const delayedUrl = route === "document"
+                ? api("/api/proxy?u=" + encodeURIComponent(origin + "/delayed"))
+                : new URL(oldResource.href.replace("/external.js", "/delayed"));
+            pending = fetch(delayedUrl, { signal: AbortSignal.timeout(5000) }).then((res) => res.text());
+            await Promise.race([
+                started.promise,
+                pending.then(() => assert.fail("The upstream response must remain in flight.")),
+            ]);
+
+            const reselection = await fetch(api("/api/fetch?select=1&silent=1&u=" + encodeURIComponent(targetUrl)));
+            assert.equal((await reselection.json()).resolved.title, "Local preview");
+            const currentResource = resourceUrl(await browse());
+            heldResponse.end(html);
+            const delayedHtml = await pending;
+            assert.equal(resourceUrl(delayedHtml).href, oldResource.href);
+            const currentPrefix = currentResource.pathname.split("/api/proxy")[0];
+            assert.ok(!delayedHtml.includes(currentPrefix), "old content never receives the new capability");
+            assert.equal((await fetch(oldResource)).status, 403);
+            assert.equal((await fetch(currentResource)).status, 200);
+        } finally {
+            heldResponse?.end();
+            if (pending) await Promise.allSettled([pending]);
+            delayedTarget.closeAllConnections();
+            await new Promise((resolve) => delayedTarget.close(resolve));
+        }
+    });
+}
+
 test("returns fixed errors without paths, exception messages, or stack details", async () => {
     const secret = "stack-path-sentinel";
     for (const path of ["/api/fetch", "/api/raw", "/api/agent-readiness"]) {
