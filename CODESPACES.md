@@ -6,6 +6,10 @@ Thanks for contributing to Aspire! Your development environment is ready to go.
 
 All dependencies have been installed automatically (`pnpm i` was run during setup).
 
+The devcontainer uses Node.js **24.21.0 LTS** and pnpm **12.4.1**. The Node
+image is pinned by digest in `.devcontainer/devcontainer.json`. Rebuild your
+Codespace after pulling changes to that file to use the selected toolchain.
+
 **To start the development server:**
 
 ```bash
