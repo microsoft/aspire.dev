@@ -16,6 +16,13 @@ const base: DevResource = {
 };
 
 describe('resource browser rendering', () => {
+  it('distinguishes an empty catalog from filtered zero matches', async () => {
+    const html = await renderComponent(ResourceBrowser, { props: { resources: [] } });
+    expect(html).toContain('No resources available');
+    expect(html).not.toContain('No matching resources');
+    expect(html).toMatch(/<button\b[^>]*data-reset-search[^>]*\bhidden\b/);
+  });
+
   it('uses Devicons for Hub languages and local theme-aware Rust artwork', () => {
     expect(languages.map(({ icon }) => icon)).toEqual([
       'devicon:csharp',
@@ -125,7 +132,8 @@ describe('resource browser rendering', () => {
     } } });
     expect(html).toContain('src="/feature.png"');
     expect(html).toContain('width="640" height="360"');
-    expect(html).toContain('<noscript data-resource-image>');
+    expect(html).toContain('<template data-resource-image>');
+    expect(html).toContain('<noscript><img');
     expect(html).not.toContain('class="browse-artwork-symbol');
   });
 

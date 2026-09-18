@@ -71,10 +71,11 @@ export function resourceCardHtml(resource: DevResource, image?: ResourceImages):
 
 function imageHtml(image: ResourceImages, width: number, height: number, className = ''): string {
   const classes = ['resource-image', className].filter(Boolean).join(' ');
-  if (image.light === image.dark) {
-    return `<noscript data-resource-image><img class="${classes}" src="${attribute(image.light)}" alt="" width="${width}" height="${height}" loading="lazy" decoding="async"></noscript>`;
-  }
-  return `<noscript data-resource-image><img class="${classes} browse-image-light" src="${attribute(image.light)}" alt="" width="${width}" height="${height}" loading="lazy" decoding="async"><img class="${classes} browse-image-dark" src="${attribute(image.dark)}" alt="" width="${width}" height="${height}" loading="lazy" decoding="async"></noscript>`;
+  const markup = image.light === image.dark
+    ? `<img class="${classes}" src="${attribute(image.light)}" alt="" width="${width}" height="${height}" loading="lazy" decoding="async">`
+    : `<img class="${classes} browse-image-light" src="${attribute(image.light)}" alt="" width="${width}" height="${height}" loading="lazy" decoding="async"><img class="${classes} browse-image-dark" src="${attribute(image.dark)}" alt="" width="${width}" height="${height}" loading="lazy" decoding="async">`;
+  // Astro removes noscript nodes from incoming pages before a client-side swap.
+  return `<template data-resource-image>${markup}</template><noscript>${markup}</noscript>`;
 }
 
 function iconHtml(name: string, className: string): string {

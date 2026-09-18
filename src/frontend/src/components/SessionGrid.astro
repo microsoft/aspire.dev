@@ -1,5 +1,6 @@
 ---
 import SessionCard, { type Props as SessionProps } from './SessionCard.astro';
+import '../styles/search-controls.css';
 
 interface Props {
   sessions: SessionProps[];
@@ -28,24 +29,25 @@ for (const session of sessions) {
 let globalIndex = 0;
 ---
 
-<div class="session-controls not-content">
+<div class="session-controls not-content" data-count-template={Astro.locals.t('catalogSearch.sessionsCount')}>
   <div class="controls-row">
-    <div class="search-wrapper">
-      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <div class="search-wrapper search-field search-field-wrap">
+      <svg class="search-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
         <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        <path d="m21 21-4.35-4.35" />
       </svg>
       <input
-        type="text"
-        class="session-search"
-        placeholder="Search sessions or speakers…"
-        aria-label="Search sessions"
+        type="search"
+        name="session-search"
+        spellcheck="false"
+        class="session-search search-field-input"
+        placeholder={Astro.locals.t('catalogSearch.sessionsPlaceholder')}
+        aria-label={Astro.locals.t('catalogSearch.sessionsLabel')}
         autocomplete="off"
       />
-      <button class="clear-search" aria-label="Clear search" hidden>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
+      <button type="button" class="clear-search search-field-clear" aria-label={Astro.locals.t('catalogSearch.clearSearch')} hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="m18 6-12 12M6 6l12 12" />
         </svg>
       </button>
     </div>
@@ -67,8 +69,13 @@ let globalIndex = 0;
       </button>
     </div>
   </div>
-  <div class="active-filters" hidden>
-    <span class="filter-summary"></span>
+  <div class="active-filters">
+    <span class="filter-summary search-results-summary" role="status" aria-live="polite" aria-atomic="true"></span>
+  </div>
+  <div class="no-results-msg search-empty" data-query-title={Astro.locals.t('catalogSearch.sessionsQueryEmpty')} hidden>
+    <p class="search-empty-title">{Astro.locals.t(sessions.length ? 'catalogSearch.sessionsEmpty' : 'catalogSearch.sessionsUnavailable')}</p>
+    {sessions.length > 0 && <p class="search-empty-hint">{Astro.locals.t('catalogSearch.queryGuidance')}</p>}
+    {sessions.length > 0 && <button type="button" class="search-action" data-session-recover>{Astro.locals.t('catalogSearch.clearSearch')}</button>}
   </div>
 </div>
 
@@ -130,64 +137,6 @@ let globalIndex = 0;
     min-width: 180px;
   }
 
-  .search-icon {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--sl-color-gray-3);
-    pointer-events: none;
-    width: 16px;
-    height: 16px;
-    display: block;
-    flex-shrink: 0;
-  }
-
-  .session-search {
-    width: 100%;
-    padding: 0.55rem 2.25rem 0.55rem 2.25rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--sl-color-gray-5);
-    background: var(--sl-color-gray-6);
-    color: var(--sl-color-white);
-    font-size: 0.875rem;
-    outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .session-search::placeholder {
-    color: var(--sl-color-gray-3);
-  }
-
-  .session-search:focus {
-    border-color: var(--sl-color-accent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-accent) 25%, transparent);
-  }
-
-  .clear-search {
-    position: absolute;
-    right: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    border: none;
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--sl-color-gray-3) 25%, transparent);
-    color: var(--sl-color-gray-2);
-    cursor: pointer;
-    padding: 0;
-    transition: background 0.2s ease, color 0.2s ease;
-  }
-
-  .clear-search:hover {
-    background: color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
-    color: var(--sl-color-white);
-  }
-
   .clear-search[hidden] {
     display: none;
   }
@@ -212,7 +161,7 @@ let globalIndex = 0;
     font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
     white-space: nowrap;
   }
 
@@ -240,16 +189,10 @@ let globalIndex = 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--sl-color-gray-3);
   }
 
   .active-filters[hidden] {
     display: none;
-  }
-
-  .filter-summary {
-    font-style: italic;
   }
 
   /* Hidden card via filter */
@@ -263,24 +206,18 @@ let globalIndex = 0;
   }
 
   .no-results-msg {
-    text-align: center;
-    padding: 2rem 1rem;
-    color: var(--sl-color-gray-3);
-    font-size: 0.95rem;
+    text-align: start;
+    padding: 1rem;
+    background: var(--sl-color-gray-6);
+  }
+
+  .no-results-msg[hidden] { display: none; }
+  .session-controls button:focus-visible {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 2px;
   }
 
   /* ── Light theme ── */
-  :global([data-theme='light']) .session-search {
-    background: var(--sl-color-gray-7);
-    border-color: var(--sl-color-gray-5);
-    color: var(--sl-color-white);
-  }
-
-  :global([data-theme='light']) .session-search:focus {
-    border-color: var(--sl-color-accent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-accent) 20%, transparent);
-  }
-
   :global([data-theme='light']) .filter-btn,
   :global([data-theme='light']) .tz-toggle,
   :global([data-theme='light']) .clock-toggle {
@@ -301,16 +238,6 @@ let globalIndex = 0;
   :global([data-theme='light']) .clock-toggle[data-active='true'] {
     background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
     border-color: var(--sl-color-accent);
-    color: var(--sl-color-text-accent);
-  }
-
-  :global([data-theme='light']) .clear-search {
-    background: color-mix(in srgb, var(--sl-color-gray-3) 20%, transparent);
-    color: var(--sl-color-gray-2);
-  }
-
-  :global([data-theme='light']) .clear-search:hover {
-    background: color-mix(in srgb, var(--sl-color-accent) 25%, transparent);
     color: var(--sl-color-text-accent);
   }
 
@@ -538,8 +465,19 @@ let globalIndex = 0;
 <script>
   // Conference date for timezone conversion (March 23, 2026)
   const CONF_DATE = '2026-03-23';
+  let cleanupSessionGrid: (() => void) | undefined;
 
   function initSessionGrid() {
+    cleanupSessionGrid?.();
+    const controls = document.querySelector<HTMLElement>('.session-controls');
+    if (!controls) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const animations = new Set<Animation>();
+    cleanupSessionGrid = () => {
+      controller.abort();
+      animations.forEach((animation) => animation.cancel());
+    };
     // ── Collapsible time groups ──
     const groups = document.querySelectorAll<HTMLDetailsElement>('.time-group');
 
@@ -552,7 +490,12 @@ let globalIndex = 0;
 
       summary.addEventListener('click', (e) => {
         e.preventDefault();
+        if (animation) animations.delete(animation);
         animation?.cancel();
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          details.open = !details.open;
+          return;
+        }
 
         if (details.open) {
           const startHeight = wrapper.offsetHeight;
@@ -565,6 +508,7 @@ let globalIndex = 0;
             { duration: 250, easing: 'ease-in-out' }
           );
           animation.onfinish = () => {
+            if (animation) animations.delete(animation);
             details.open = false;
             wrapper.style.overflow = '';
             wrapper.style.height = '';
@@ -582,12 +526,14 @@ let globalIndex = 0;
             { duration: 250, easing: 'ease-in-out' }
           );
           animation.onfinish = () => {
+            if (animation) animations.delete(animation);
             wrapper.style.overflow = '';
             wrapper.style.height = '';
             animation = null;
           };
         }
-      });
+        if (animation) animations.add(animation);
+      }, { signal });
     }
 
     // ── Filter state ──
@@ -597,9 +543,8 @@ let globalIndex = 0;
     const tzLabel = tzBtn?.querySelector<HTMLSpanElement>('.tz-label');
     const clockBtn = document.querySelector<HTMLButtonElement>('.clock-toggle');
     const clockLabel = clockBtn?.querySelector<HTMLSpanElement>('.clock-label');
-    const activeFilters = document.querySelector<HTMLDivElement>('.active-filters');
     const filterSummary = document.querySelector<HTMLSpanElement>('.filter-summary');
-    const timeline = document.querySelector<HTMLDivElement>('.session-timeline');
+    const emptyState = controls.querySelector<HTMLElement>('.no-results-msg');
     const cards = document.querySelectorAll<HTMLElement>('.session-card');
 
     let searchQuery = '';
@@ -730,24 +675,21 @@ let globalIndex = 0;
 
       updateGroupVisibility();
       updateFilterStatus(visibleCount, totalCount);
+      if (visibleCount === 0 && searchQuery && emptyState) {
+        const title = emptyState.querySelector('.search-empty-title');
+        if (title) title.textContent = (emptyState.dataset.queryTitle ?? '')
+          .replace('{{query}}', () => searchInput?.value.trim() ?? '');
+      }
     }
 
     function updateGroupVisibility() {
-      // Remove existing no-results message
-      const existingMsg = timeline?.querySelector('.no-results-msg');
-      existingMsg?.remove();
-
-      let anyVisible = false;
-
       for (const group of groups) {
-        const groupCards = group.querySelectorAll('.session-card');
         const visibleCards = group.querySelectorAll('.session-card:not(.filtered-out)');
 
         if (visibleCards.length === 0) {
           group.classList.add('group-hidden');
         } else {
           group.classList.remove('group-hidden');
-          anyVisible = true;
         }
 
         // Update collapsed-info pill count
@@ -758,26 +700,12 @@ let globalIndex = 0;
         }
       }
 
-      if (!anyVisible && timeline) {
-        const msg = document.createElement('p');
-        msg.className = 'no-results-msg';
-        msg.textContent = 'No sessions match your filters.';
-        timeline.appendChild(msg);
-      }
+      if (emptyState) emptyState.hidden = [...cards].some((card) => !card.classList.contains('filtered-out'));
     }
 
     function updateFilterStatus(visible: number, total: number) {
-      const hasFilters = !!searchQuery;
-
-      if (activeFilters) {
-        activeFilters.hidden = !hasFilters;
-      }
-
-      if (filterSummary && hasFilters) {
-        const parts: string[] = [];
-        if (searchQuery) parts.push(`"${searchQuery}"`);
-        filterSummary.textContent = `Showing ${visible} of ${total} — ${parts.join(', ')}`;
-      }
+      if (filterSummary) filterSummary.textContent = (controls?.dataset.countTemplate ?? '')
+        .replace('{{count}}', String(visible)).replace('{{total}}', String(total));
     }
 
     // ── Event listeners ──
@@ -787,15 +715,20 @@ let globalIndex = 0;
         clearSearchBtn.hidden = !searchQuery;
       }
       applyFilters();
-    });
+    }, { signal });
 
-    clearSearchBtn?.addEventListener('click', () => {
+    function clearSearch() {
       searchQuery = '';
       if (searchInput) searchInput.value = '';
-      clearSearchBtn.hidden = true;
+      if (clearSearchBtn) clearSearchBtn.hidden = true;
       searchInput?.focus();
       applyFilters();
-    });
+    }
+    clearSearchBtn?.addEventListener('click', clearSearch, { signal });
+    controls.querySelector('[data-session-recover]')?.addEventListener('click', clearSearch, { signal });
+    searchInput?.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') clearSearch();
+    }, { signal });
 
     function setTooltip(el: HTMLElement, text: string) {
       const tippy = (el as any)._tippy;
@@ -832,7 +765,7 @@ let globalIndex = 0;
 
       updateTzTitle();
       updateTimezoneDisplay();
-    });
+    }, { signal });
 
     // ── Clock format toggle ──
     function updateClockTitle() {
@@ -852,7 +785,7 @@ let globalIndex = 0;
       }
       updateClockTitle();
       updateTimezoneDisplay();
-    });
+    }, { signal });
 
     // Initialize clock toggle state
     if (clockBtn) {
@@ -879,9 +812,11 @@ let globalIndex = 0;
     }
     updateTzTitle();
     updateTimezoneDisplay();
+    applyFilters();
   }
 
   // Run on initial load and on Astro view transitions
   initSessionGrid();
   document.addEventListener('astro:after-swap', initSessionGrid);
+  document.addEventListener('astro:before-swap', () => cleanupSessionGrid?.());
 </script>

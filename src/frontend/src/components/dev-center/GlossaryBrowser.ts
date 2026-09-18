@@ -1,5 +1,8 @@
 import { matchesGlossaryQuery } from '../../utils/dev-center/glossary';
 import { topics } from '../../utils/dev-center/topics';
+import { createFilterHistory } from './filter-history';
+import { emptyResultsMessage } from './empty-results';
+import { setSearchActiveFilters } from '../search/search-empty-state';
 
 class GlossaryBrowser extends HTMLElement {
   private controller?: AbortController;
@@ -21,6 +24,7 @@ class GlossaryBrowser extends HTMLElement {
     const letters = [...this.querySelectorAll<HTMLAnchorElement>('[data-letter-filter]')];
     const timers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
     let letter = '';
+    let recoveryAction: ReturnType<typeof emptyResultsMessage>['action'] = 'Clear search';
 
     const close = (card: HTMLElement) => {
       clearTimeout(timers.get(card));
@@ -35,13 +39,13 @@ class GlossaryBrowser extends HTMLElement {
       card.querySelector('[data-context-label]')!.textContent = 'In practice';
     };
     const closeAll = () => cards.forEach(close);
+    const matchesFilters = (card: HTMLElement) => (!letter || card.dataset.letter === letter)
+      && (selectedTopics.size === 0 || card.dataset.topics?.split(' ').some((topic) => selectedTopics.has(topic)));
     const update = () => {
       closeAll();
       let count = 0;
       for (const card of cards) {
-        card.hidden = !matchesGlossaryQuery(card.dataset.search ?? '', query.value)
-          || Boolean(letter && card.dataset.letter !== letter)
-          || (selectedTopics.size > 0 && !card.dataset.topics?.split(' ').some((topic) => selectedTopics.has(topic)));
+        card.hidden = !matchesGlossaryQuery(card.dataset.search ?? '', query.value) || !matchesFilters(card);
         if (!card.hidden) count++;
       }
       this.querySelectorAll<HTMLElement>('[data-glossary-group]').forEach((group) => {
@@ -61,8 +65,23 @@ class GlossaryBrowser extends HTMLElement {
       this.querySelector('#glossary-search-count')!.textContent = filters.length ? `${count} of ${cards.length} terms` : `${cards.length} terms`;
       this.querySelector('#glossary-search-status')!.textContent = summary;
       clearSearch.style.display = query.value ? 'flex' : 'none';
-      clearFilters.style.display = filters.length && count > 0 ? 'inline-block' : 'none';
+      const hasFilters = selectedTopics.size > 0 || Boolean(letter);
+      clearFilters.style.display = hasFilters && count > 0 ? 'inline-block' : 'none';
+      clearFilters.textContent = query.value.trim() ? 'Reset all' : 'Clear filters';
       this.querySelector<HTMLElement>('[data-glossary-empty]')!.hidden = count > 0;
+      if (!count && cards.length) {
+        const activeFilters = topicButtons.filter(({ topic }) => selectedTopics.has(topic.id)).map(({ topic }) => `Topic: ${topic.title}`);
+        if (letter) activeFilters.push(`Letter: ${letter}`);
+        const message = emptyResultsMessage('terms', query.value, activeFilters, {
+          withoutQuery: cards.filter(matchesFilters).length,
+          withoutFilters: cards.filter((card) => matchesGlossaryQuery(card.dataset.search ?? '', query.value)).length,
+        });
+        recoveryAction = message.action;
+        this.querySelector('[data-glossary-empty] .search-empty-title')!.textContent = message.title;
+        this.querySelector('[data-glossary-empty] .search-empty-hint')!.textContent = message.hint;
+        setSearchActiveFilters(this.querySelector<HTMLElement>('[data-glossary-empty]')!, activeFilters);
+        this.querySelector('[data-clear-glossary]')!.textContent = message.action;
+      }
     };
     const save = (replace: boolean) => {
       const url = new URL(window.location.href);
@@ -73,8 +92,7 @@ class GlossaryBrowser extends HTMLElement {
       }
       if (letter) url.searchParams.set('letter', letter);
       url.hash = '';
-      if (replace) window.history.replaceState(null, '', url);
-      else if (url.href !== window.location.href) window.history.pushState(null, '', url);
+      historySync.write(url, replace);
       const returnTo = `${url.pathname}${url.search}`;
       this.querySelectorAll<HTMLAnchorElement>('[data-term-link]').forEach((link) => {
         const target = new URL(link.href);
@@ -102,19 +120,20 @@ class GlossaryBrowser extends HTMLElement {
         link.href = target.href;
       });
     };
-    const clear = () => {
-      query.value = '';
+    const clear = (filtersOnly = false) => {
+      if (!filtersOnly) query.value = '';
       selectedTopics.clear();
       letter = '';
       update();
       save(false);
     };
+    const clearQuery = () => { query.value = ''; update(); save(true); query.focus(); };
     form.hidden = false;
     form.addEventListener('submit', (event) => { event.preventDefault(); update(); save(false); }, { signal });
     form.addEventListener('reset', (event) => { event.preventDefault(); clear(); }, { signal });
     query.addEventListener('input', () => { update(); save(true); }, { signal });
-    clearSearch.addEventListener('click', () => { query.value = ''; update(); save(true); query.focus(); }, { signal });
-    clearFilters.addEventListener('click', () => { clear(); query.focus(); }, { signal });
+    clearSearch.addEventListener('click', clearQuery, { signal });
+    clearFilters.addEventListener('click', () => { clear(!query.value.trim()); query.focus(); }, { signal });
     for (const { button, topic } of topicButtons) {
       button.addEventListener('click', () => {
         if (selectedTopics.has(topic.id)) selectedTopics.delete(topic.id);
@@ -123,7 +142,10 @@ class GlossaryBrowser extends HTMLElement {
         save(false);
       }, { signal });
     }
-    this.querySelector('[data-clear-glossary]')!.addEventListener('click', () => { clear(); query.focus(); }, { signal });
+    this.querySelector('[data-clear-glossary]')!.addEventListener('click', () => {
+      if (recoveryAction === 'Clear search') clearQuery();
+      else { clear(recoveryAction === 'Clear filters'); query.focus(); }
+    }, { signal });
     for (const link of letters) {
       link.addEventListener('click', (event) => {
         event.preventDefault();
@@ -132,9 +154,6 @@ class GlossaryBrowser extends HTMLElement {
         save(false);
       }, { signal });
     }
-    window.addEventListener('popstate', restore, { signal });
-    // Reconnected elements see the previous URL until Astro finishes swapping.
-    document.addEventListener('astro:page-load', restore, { signal });
 
     const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
     for (const card of cards) {
@@ -179,7 +198,8 @@ class GlossaryBrowser extends HTMLElement {
       }
     }, { signal });
     signal.addEventListener('abort', () => timers.forEach(clearTimeout), { once: true });
-    restore();
+    const historySync = createFilterHistory(this, ['q', 'topic', 'letter'], restore, signal);
+    historySync.initialize();
   }
 
   disconnectedCallback() {

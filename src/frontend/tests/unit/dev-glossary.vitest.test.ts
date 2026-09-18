@@ -20,6 +20,13 @@ const terms: GlossaryTerm[] = readdirSync(directory).filter((file) => /\.mdx?$/.
 });
 const getTerm = (id: string) => terms.find((term) => term.id === id)!;
 
+it('distinguishes an empty glossary from filtered zero matches', async () => {
+  const html = await renderComponent(GlossaryBrowser, { props: { terms: [] } });
+  expect(html).toContain('No terms available');
+  expect(html).not.toContain('No matching terms');
+  expect(html).toMatch(/<button\b[^>]*data-clear-glossary[^>]*\bhidden\b/);
+});
+
 describe('glossary content migration', () => {
   it('migrates every original term and all API reference table entries', () => {
     expect(terms.map((term) => term.id)).toEqual(expect.arrayContaining([
@@ -214,7 +221,7 @@ describe('glossary component rendering', () => {
     expect(html).toContain('href="#glossary-A"');
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain(`${terms.length} terms`);
-    expect(html).toContain('Show all terms');
+    expect(html).toContain('Reset all');
     expect(html).toContain('<noscript>');
   });
 

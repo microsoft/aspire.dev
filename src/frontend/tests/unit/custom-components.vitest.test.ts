@@ -8,6 +8,7 @@ import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
+import CatalogSearchActiveFilters from '@components/CatalogSearchActiveFilters.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
 import ContainerImages from '@components/ContainerImages.astro';
 import ContainerRuntimeChoices from '@components/ContainerRuntimeChoices.astro';
@@ -264,10 +265,16 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['<details', 'Expandable summary', 'Expanded body'],
   },
   {
+    name: 'CatalogSearchActiveFilters preserves the localized label for its bundled renderer',
+    Component: CatalogSearchActiveFilters,
+    props: { label: 'Filtres actifs' },
+    includes: ['<catalog-search-active-filters', 'data-label="Filtres actifs"', 'data-labels="[]"', 'hidden'],
+  },
+  {
     name: 'InpageSearch keeps its API defaults',
     Component: InpageSearch,
     props: { id: 'api', placeholder: 'Search API', kinds: ['class', 'interface'], defaultStatsText: '20 types' },
-    includes: ['id="api-search-input"', '<label class="sr-only', 'Search API', 'data-kind="class"', '20 types'],
+    includes: ['id="api-search-input"', '<label class="search-sr-only', 'Search API', 'data-kind="class"', '20 types'],
   },
   {
     name: 'InpageSearch supports labeled discovery search and colored topic toggles',
@@ -277,7 +284,7 @@ const basicRenderCases: BasicRenderCase[] = [
       kinds: ['Foundations', 'Reference'], kindColors: { Foundations: 'var(--sl-color-purple)' },
       defaultStatsText: '32 terms',
     },
-    includes: ['<label class="inpage-search-label', 'Find a term', 'data-kind="Foundations"', '--filter-color: var(--sl-color-purple)', 'aria-pressed="false"'],
+    includes: ['<label class="search-field-label', 'Find a term', 'data-kind="Foundations"', '--filter-color: var(--sl-color-purple)', 'aria-pressed="false"'],
   },
   {
     name: 'CTABanner renders calls to action',
@@ -1176,7 +1183,12 @@ describe('custom Astro component render coverage', () => {
 
   it('renders SampleGrid controls and sample cards', async () => {
     const html = normalizeHtml(
-      await renderComponent(SampleGrid, { props: { samples: sampleGridSamples } })
+      await renderComponent(SampleGrid, {
+        props: { samples: sampleGridSamples },
+        locals: { t: Object.assign((key: string) =>
+          enTranslations.catalogSearch[key.replace('catalogSearch.', '') as keyof typeof enTranslations.catalogSearch] ?? key,
+          { dir: () => 'ltr' as const }) },
+      })
     );
 
     expect(html).toContain('data-samples-browser');
@@ -1191,17 +1203,14 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('theme-image');
     expect(html).toContain('data-light=');
     expect(html).toContain('data-dark=');
-    expect(html).toContain('Try removing a filter or adjusting your search.');
+    expect(html).toContain(enTranslations.catalogSearch.guidance);
 
-    // The redesigned filter UI replaces the boxy "Filtered by" bar with a
-    // single subtle "Clear all" text link in the results header, and an
-    // embedded `X` icon button inside the search input — the same compact
-    // pattern used by the in-page API search component.
     expect(html).not.toContain('data-active-filter-bar');
-    expect(html).not.toContain('Clear filters');
+    expect(html).toContain('Clear filters');
     expect(html).toContain('data-clear-all');
-    expect(html).toContain('Clear all');
+    expect(html).toContain('Reset all');
     expect(html).toContain('aria-label="Clear search"');
+    expect(html).toContain('aria-live="polite"');
 
     // The browse view persists the active search and tag filters in the
     // URL so a link like `/reference/samples/?q=redis&tags=cache` lands on a
@@ -1440,10 +1449,27 @@ describe('custom Astro component render coverage', () => {
   it('renders SessionGrid grouped by timeslot with search controls', async () => {
     const html = normalizeHtml(await renderComponent(SessionGrid, { props: { sessions } }));
 
-    expect(html).toContain('Search sessions');
+    expect(html).toContain('catalogSearch.sessionsLabel');
+    expect(html).toContain('catalogSearch.sessionsEmpty');
+    expect(html).toContain('data-session-recover');
+    expect(html).toContain('aria-live="polite"');
     expect(html).toContain('Shipping distributed apps');
     expect(html).toContain('Observability by default');
     expect(html).toContain('09:00 AM');
+  });
+
+  it('distinguishes empty gallery datasets from zero search matches', async () => {
+    const integrations = await renderComponent(Integrations, {
+      props: { integrations: [], availableDocs: [] },
+    });
+    expect(integrations).toContain('catalogSearch.integrationsUnavailable');
+    expect(integrations).not.toMatch(/<button[^>]*data-integration-recover/);
+    const samples = await renderComponent(SampleGrid, { props: { samples: [] } });
+    expect(samples).toContain('catalogSearch.samplesUnavailable');
+    expect(samples).not.toMatch(/<p[^>]*>catalogSearch.samplesEmpty<\/p>/);
+    const emptySessions = await renderComponent(SessionGrid, { props: { sessions: [] } });
+    expect(emptySessions).toContain('catalogSearch.sessionsUnavailable');
+    expect(emptySessions).not.toContain('catalogSearch.sessionsEmpty');
   });
 
   it('calculates IntegrationTotals targets from package data', async () => {

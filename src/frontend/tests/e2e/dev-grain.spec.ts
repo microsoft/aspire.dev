@@ -1,6 +1,65 @@
 import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
 
+for (const route of ['/hub/browse/', '/hub/glossary/']) {
+  test(`${route} controls container reuses passive static Hub grain`, async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('aspireConsentRequired', 'false'));
+    await page.goto(`${route}?q=zzzz-no-match&topic=foundations`);
+    const empty = page.locator('.search-empty:visible');
+    const controls = page.locator('.browse-controls, .glossary-filter-panel');
+    await expect(empty).toBeVisible();
+    await expect(empty).not.toHaveClass(/hub-grain/);
+    await page.evaluate(() => document.fonts.ready);
+    for (const theme of ['light', 'dark']) {
+      await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
+      const texture = await controls.evaluate((element) => {
+        const style = getComputedStyle(element, '::before');
+        return { image: style.backgroundImage, opacity: style.opacity, pointerEvents: style.pointerEvents, animation: style.animationName };
+      });
+      expect(texture.image).toContain('repeating-conic-gradient');
+      expect(texture.opacity).toBe('0.11');
+      expect(texture.pointerEvents).toBe('none');
+      expect(texture.animation).toBe('none');
+      const options = { animations: 'disabled', scale: 'css' } as const;
+      const image = await controls.screenshot(options);
+      const { width } = await sharp(image).metadata();
+      // Measure exposed background, not text, focus, or rounded-border rasterization.
+      const strip = { left: 16, top: 3, width: width! - 32, height: 10 };
+      const pixels = await sharp(image).extract(strip).removeAlpha().raw().toBuffer();
+      const nextPixels = await sharp(await controls.screenshot(options)).extract(strip).removeAlpha().raw().toBuffer();
+      expect(pixels.equals(nextPixels)).toBe(true);
+      const hidden = await page.addStyleTag({ content: '.hub-grain::before { opacity: 0 !important; }' });
+      const baselineImage = await controls.screenshot(options);
+      await hidden.evaluate((element) => element.remove());
+      const baseline = await sharp(baselineImage).extract(strip).removeAlpha().raw().toBuffer();
+      let difference = 0;
+      for (let index = 0; index < pixels.length; index++) difference += Math.abs(pixels[index] - baseline[index]);
+      const meanDifference = difference / pixels.length;
+      expect(meanDifference, 'The grain must actually render').toBeGreaterThan(0.02);
+      expect(meanDifference, 'The texture must remain subtle behind the text').toBeLessThan(8);
+    }
+    await page.emulateMedia({ forcedColors: 'active' });
+    expect(await controls.evaluate((element) => getComputedStyle(element, '::before').display)).toBe('none');
+    await page.emulateMedia({ forcedColors: 'none' });
+    await empty.getByRole('button', { name: 'Clear search', exact: true }).click();
+    await expect(empty).toBeHidden();
+    await expect(page.locator('main .search-field-input')).toBeFocused();
+    await expect(page).toHaveURL(/topic=foundations/);
+    await expect.poll(() => new URL(page.url()).searchParams.has('q')).toBe(false);
+    if (route === '/hub/browse/') {
+      await page.locator('[data-filter-group="type"] summary').click();
+      if (page.viewportSize()!.width < 600) {
+        expect(await page.evaluate(() => {
+          const headerBottom = document.querySelector('header')!.getBoundingClientRect().bottom;
+          return document.elementFromPoint(4, Math.ceil(headerBottom + 1))?.classList.contains('browse-filter-backdrop');
+        })).toBe(true);
+      }
+      await page.locator('[data-filter-group="type"] input[value="glossary"]').check();
+      await expect(page).toHaveURL(/type=glossary/);
+    }
+  });
+}
+
 function textureStats(pixels: number[], size: number) {
   const mean = pixels.reduce((sum, value) => sum + value, 0) / pixels.length;
   const centered = pixels.map((value) => value - mean);

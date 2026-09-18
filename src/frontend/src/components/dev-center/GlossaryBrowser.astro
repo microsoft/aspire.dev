@@ -11,8 +11,8 @@ const availableTopics = topics.filter((topic) => terms.some((term) => term.data.
 const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => term.data.legacyGroup === id)?.id));
 ---
 
-<glossary-browser class="not-content">
-  <div class="glossary-filter-panel">
+<glossary-browser class="not-content" data-filter-path={Astro.url.pathname}>
+  <div class="glossary-filter-panel hub-grain">
     <form class="glossary-controls" role="search" aria-label="Search the glossary" hidden>
       <InpageSearch
         id="glossary"
@@ -34,12 +34,10 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
   </div>
   <noscript><p>Search and filters require JavaScript. All terms and their practical examples are available below; use the letters to jump to a section.</p></noscript>
   <div id="glossary-results"></div>
-  <div data-glossary-empty hidden>
-    <div>
-      <h2>No matching terms</h2>
-      <p>Try a different search or reset your filters.</p>
-    </div>
-    <button type="button" data-clear-glossary>Show all terms</button>
+  <div class="search-empty" data-glossary-empty hidden>
+    <h2 class="search-empty-title">{terms.length ? 'No matching terms' : 'No terms available'}</h2>
+    <p class="search-empty-hint">{terms.length ? 'Try a different search or reset your filters.' : 'Glossary terms will appear here when they are available.'}</p>
+    <button type="button" class="search-action" data-clear-glossary hidden={!terms.length}>Reset all</button>
   </div>
   {letters.map((letter) => (
     <section class="glossary-group" data-glossary-group aria-labelledby={`glossary-${letter}`}>
@@ -75,10 +73,6 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
-  .glossary-controls :global(.inpage-search[data-size] .inpage-search-input) {
-    height: 2.75rem; border-radius: 0.5rem; background-color: var(--dev-control-bg); font-size: 1rem;
-  }
-  .glossary-controls :global(.inpage-search-input::placeholder) { color: var(--sl-color-gray-2); }
   .glossary-controls :global(.inpage-kind-filters) { grid-column: 1 / -1; grid-row: 2; gap: 0.25rem; margin: 0; }
   .glossary-controls :global(.api-filter-chip[data-colored]) {
     min-height: 2.25rem; padding: 0.35rem 0.65rem; border-color: transparent;
@@ -94,21 +88,14 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
   }
   .glossary-controls :global(.api-filter-dot) { display: none; }
   .glossary-controls :global(.inpage-search-stats) {
-    grid-column: 2; grid-row: 1; align-self: end; min-height: 2.75rem; min-width: 12rem;
+    grid-column: 2; grid-row: 1; align-self: end; min-height: 2.75rem; min-width: 13rem;
     justify-content: flex-start; flex-wrap: wrap; gap: 0.25rem 1rem;
-    padding: 0; font-size: 0.8125rem; color: var(--sl-color-gray-2);
+    padding: 0;
   }
   .glossary-controls :global(.inpage-clear-filters) { min-height: 2.25rem; }
   .glossary-controls :global(button:focus-visible), .glossary-alphabet a:focus-visible {
     outline: 2px solid var(--sl-color-text-accent); outline-offset: 2px;
   }
-  [data-clear-glossary] {
-    min-height: 3rem; border: 1px solid var(--sl-color-gray-4); border-radius: 0.5rem;
-    background: var(--sl-color-bg); color: var(--sl-color-text); padding: 0.65rem 1rem;
-    flex-shrink: 0; font: inherit; font-weight: 600; cursor: pointer;
-  }
-  [data-clear-glossary]:hover { border-color: var(--sl-color-text-accent); color: var(--sl-color-text-accent); }
-  [data-clear-glossary]:focus-visible { outline: 2px solid var(--sl-color-text-accent); outline-offset: 3px; }
   .glossary-alphabet {
     display: grid; grid-template-columns: 2.75rem repeat(26, minmax(1.5rem, 1fr));
     gap: 0.125rem; padding: 1rem 0 0;
@@ -126,13 +113,6 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
   #see-also { margin-top: 1.5rem; scroll-margin-top: 7rem; }
   .glossary-group h2 { scroll-margin-top: 7rem; margin-bottom: 1rem; color: var(--sl-color-text-accent); }
   .glossary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-  [data-glossary-empty]:not([hidden]) {
-    display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
-    padding: 1.5rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.75rem;
-    background: color-mix(in srgb, var(--sl-color-gray-6) 50%, var(--sl-color-bg));
-  }
-  [data-glossary-empty] h2 { margin: 0; font-size: 1.25rem; }
-  [data-glossary-empty] p { margin: 0.5rem 0 0; color: var(--sl-color-gray-2); }
   @media (min-width: 1200px) {
     .glossary-controls :global(.inpage-search) { display: flex; align-items: center; }
     .glossary-controls :global(.inpage-search-bar) { flex: 1; max-width: 32rem; }
@@ -152,6 +132,5 @@ const firstGroupTerms = new Set(legacyGroups.map(([id]) => terms.find((term) => 
   }
   @media (max-width: 767px) {
     .glossary-grid { grid-template-columns: 1fr; }
-    [data-glossary-empty]:not([hidden]) { flex-direction: column; align-items: flex-start; padding: 1.25rem; gap: 1rem; }
   }
 </style>

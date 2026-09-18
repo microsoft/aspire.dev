@@ -2,6 +2,9 @@ import {
   browsePageItems, facetNames, filterResources, matchesResource, readBrowseState, resourceFacets, resourceMatchRanges,
   RESOURCE_PAGE_SIZE, writeBrowseState, type ResourceSearchEntry,
 } from '../../utils/dev-center/resource-search';
+import { createFilterHistory } from './filter-history';
+import { emptyResultsMessage } from './empty-results';
+import { setSearchActiveFilters } from '../search/search-empty-state';
 
 const checkboxFacetNames = ['type', 'topic', 'language'] as const;
 
@@ -22,10 +25,8 @@ class ResourceBrowser extends HTMLElement {
     const entries = cards.map((card) => JSON.parse(card.dataset.resourceEntry!) as ResourceSearchEntry);
     const byId = new Map(cards.map((card, index) => [entries[index].id, card]));
     const materializeImage = (card: HTMLLIElement) => {
-      for (const source of card.querySelectorAll<HTMLElement>('noscript[data-resource-image]')) {
-        const template = document.createElement('template');
-        template.innerHTML = source.textContent ?? '';
-        source.replaceWith(template.content);
+      for (const source of card.querySelectorAll<HTMLTemplateElement>('template[data-resource-image]')) {
+        source.replaceWith(source.content);
       }
     };
     const available = resourceFacets(entries);
@@ -33,6 +34,7 @@ class ResourceBrowser extends HTMLElement {
     const radios = [...filters.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
     const clearSearch = this.querySelector<HTMLButtonElement>('#browse-search-clear')!;
     const clearFilters = this.querySelector<HTMLButtonElement>('[data-reset-filters]')!;
+    const resetAll = this.querySelector<HTMLButtonElement>('[data-reset-all]')!;
     const pagination = this.querySelector<HTMLElement>('.browse-pagination')!;
     const pageNumbers = this.querySelector<HTMLElement>('[data-page-numbers]')!;
     const first = this.querySelector<HTMLButtonElement>('[data-page-first]')!;
@@ -40,6 +42,7 @@ class ResourceBrowser extends HTMLElement {
     const previous = this.querySelector<HTMLButtonElement>('[data-page-previous]')!;
     const next = this.querySelector<HTMLButtonElement>('[data-page-next]')!;
     const empty = this.querySelector<HTMLElement>('.browse-empty')!;
+    let recoveryAction: ReturnType<typeof emptyResultsMessage>['action'] = 'Clear search';
     let state = readBrowseState(new URLSearchParams(location.search), available);
     let pages = 1;
     const highlighted = new Set<HTMLElement>();
@@ -93,7 +96,28 @@ class ResourceBrowser extends HTMLElement {
       this.querySelector('#browse-search-status')!.textContent = summary;
       this.querySelector('#browse-search-count')!.textContent = summary;
       clearSearch.style.display = input.value ? 'flex' : 'none';
-      clearFilters.hidden = !state.q && !facetNames.some((name) => state[name].length);
+      const hasFilters = facetNames.some((name) => state[name].length);
+      const hasQuery = Boolean(state.q.trim());
+      clearFilters.hidden = !hasFilters || hasQuery || matches.length === 0;
+      resetAll.hidden = !hasFilters || !hasQuery || matches.length === 0;
+      if (!matches.length && entries.length) {
+        const defaultState = readBrowseState(new URLSearchParams(), available);
+        const activeFilters = facetNames.flatMap((name) => state[name].map((value) => {
+          const option = [...checkboxes, ...radios].find((control) => control.name === name && control.value === value)!;
+          const label = option.closest<HTMLElement>('[data-option-label]')!.dataset.optionLabel;
+          const group = option.closest('[data-filter-group]')!.querySelector('legend')!.textContent;
+          return `${group}: ${label}`;
+        }));
+        const message = emptyResultsMessage('resources', state.q, activeFilters, {
+          withoutQuery: entries.filter((entry) => matchesResource(entry, { ...state, q: '' })).length,
+          withoutFilters: entries.filter((entry) => matchesResource(entry, { ...defaultState, q: state.q })).length,
+        });
+        recoveryAction = message.action;
+        empty.querySelector('.search-empty-title')!.textContent = message.title;
+        empty.querySelector('.search-empty-hint')!.textContent = message.hint;
+        setSearchActiveFilters(empty, activeFilters);
+        empty.querySelector('button')!.textContent = message.action;
+      }
       for (const name of checkboxFacetNames) {
         const indicator = this.querySelector<HTMLElement>(`[data-filter-active="${name}"]`);
         if (indicator) indicator.hidden = state[name].length === 0;
@@ -156,9 +180,7 @@ class ResourceBrowser extends HTMLElement {
     };
     const save = (replace = false) => {
       const url = writeBrowseState(new URL(location.href), state);
-      if (url.href === location.href) return;
-      if (replace) history.replaceState(null, '', url);
-      else history.pushState(null, '', url);
+      historySync.write(url, replace);
     };
     const restore = () => {
       // History can replace the pager or hide the currently focused control.
@@ -180,10 +202,25 @@ class ResourceBrowser extends HTMLElement {
           ?? (focused.isConnected && focused.getClientRects().length ? focused : input);
         target.focus({ preventScroll: true });
       }
+      this.setAttribute('data-ready', '');
+      this.removeAttribute('data-loading');
+      this.removeAttribute('aria-busy');
     };
-    const reset = () => {
-      state = readBrowseState(new URLSearchParams(), available);
+    const reset = (filtersOnly = false) => {
+      state = {
+        ...readBrowseState(new URLSearchParams(), available),
+        q: filtersOnly ? state.q : '',
+        sort: state.sort,
+        titleSort: state.titleSort,
+      };
+      input.value = state.q;
+      render();
+      save();
+      input.focus();
+    };
+    const clearQuery = () => {
       input.value = '';
+      setQuery();
       render();
       save();
       input.focus();
@@ -279,13 +316,7 @@ class ResourceBrowser extends HTMLElement {
       render();
       save(true);
     }, { signal });
-    clearSearch.addEventListener('click', () => {
-      input.value = '';
-      setQuery();
-      render();
-      save();
-      input.focus();
-    }, { signal });
+    clearSearch.addEventListener('click', clearQuery, { signal });
     filters.addEventListener('change', (event) => {
       const control = event.target;
       if (!(control instanceof HTMLInputElement) || !['checkbox', 'radio'].includes(control.type)) return;
@@ -306,8 +337,12 @@ class ResourceBrowser extends HTMLElement {
         control.closest('[data-filter-group]')!.querySelector('summary')!.focus();
       }, { signal });
     }
-    clearFilters.addEventListener('click', reset, { signal });
-    this.querySelector('[data-reset-search]')!.addEventListener('click', reset, { signal });
+    clearFilters.addEventListener('click', () => reset(true), { signal });
+    resetAll.addEventListener('click', () => reset(), { signal });
+    this.querySelector('[data-reset-search]')!.addEventListener('click', () => {
+      if (recoveryAction === 'Clear search') clearQuery();
+      else reset(recoveryAction === 'Clear filters');
+    }, { signal });
     previous.addEventListener('click', () => changePage(state.page - 1, previous), { signal });
     next.addEventListener('click', () => changePage(state.page + 1, next), { signal });
     first.addEventListener('click', () => changePage(1, first), { signal });
@@ -318,18 +353,8 @@ class ResourceBrowser extends HTMLElement {
         if (button) changePage(Number(button.dataset.page), button);
       }
     }, { signal });
-    window.addEventListener('popstate', restore, { signal });
-    document.addEventListener('astro:before-swap', (event) => {
-      // Query-only history is restored locally; swapping the page would discard focus.
-      if (event.navigationType === 'traverse' && event.from.pathname === event.to.pathname) {
-        event.swap = () => {};
-      }
-    }, { signal });
-    document.addEventListener('astro:page-load', restore, { signal });
-    restore();
-    this.setAttribute('data-ready', '');
-    this.removeAttribute('data-loading');
-    this.removeAttribute('aria-busy');
+    const historySync = createFilterHistory(this, ['q', ...facetNames, 'sort', 'title', 'page'], restore, signal);
+    historySync.initialize();
   }
 
   disconnectedCallback() {

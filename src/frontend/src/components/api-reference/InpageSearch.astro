@@ -10,6 +10,7 @@
  * Each page still provides its own `<script>` with a controller class
  * that drives the search logic and result rendering.
  */
+import SearchField from '@components/search/SearchField.astro';
 interface Props {
   /** Unique prefix for element IDs (e.g. "api" or "pkg") */
   id: string;
@@ -23,7 +24,7 @@ interface Props {
   kindColors?: Record<string, string>;
   /** Text shown beneath the search bar before any query */
   defaultStatsText: string;
-  /** Size variant: "lg" (index page) or "sm" (package page) */
+  /** Use "lg" for full-size search surfaces; "sm" is reserved for compact contexts. */
   size?: 'lg' | 'sm';
 }
 
@@ -41,41 +42,17 @@ const showKindFilters = kinds.length > 1;
 
 <div class="inpage-search" data-size={size} data-has-kind-filters={showKindFilters ? 'true' : 'false'}>
   <!-- Search bar -->
-  <div class="inpage-search-bar">
-    <label class:list={[label ? 'inpage-search-label' : 'sr-only']} for={searchInputId}>{label ?? placeholder}</label>
-    <div class="inpage-search-input-wrap">
-      <svg class="inpage-search-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
-      <input
-        type="search"
-        id={searchInputId}
-        class="inpage-search-input"
-        placeholder={placeholder}
-        autocomplete="off"
-        aria-describedby={searchStatusId}
-      />
-      <button
-        type="button"
-        class="inpage-search-clear"
-        id={searchClearId}
-        aria-label="Clear search"
-        style="display: none;"
-      >
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </div>
-  </div>
+  <SearchField id={searchInputId} label={label ?? placeholder} visibleLabel={!!label}
+    placeholder={placeholder} clearId={searchClearId} describedBy={searchStatusId}
+    size={size} inputClass="inpage-search-input" clearClass="inpage-search-clear"
+    containerClass="inpage-search-bar" labelClass={label ? 'inpage-search-label' : 'sr-only'}
+    wrapClass="inpage-search-input-wrap" iconClass="inpage-search-icon" />
 
   <!-- Kind filter chips -->
   <div class="inpage-kind-filters" id={kindFiltersId}>
     {showKindFilters && kinds.map(kind => (
       <button
-        class="api-filter-chip"
+        class="api-filter-chip search-filter-chip"
         data-kind={kind}
         type="button"
         aria-pressed="false"
@@ -92,8 +69,11 @@ const showKindFilters = kinds.length > 1;
 
   <!-- Stats line -->
   <div class="inpage-search-stats">
-    <span id={searchCountId}>{defaultStatsText}</span>
-    <button class="inpage-clear-filters" id={clearFiltersId} type="button" style="display: none;">Clear filters</button>
+    <span id={searchCountId} class="search-results-summary">{defaultStatsText}</span>
+    <div class="inpage-search-actions">
+      <button class="inpage-clear-filters search-action" id={clearFiltersId} type="button" style="display: none;">Clear filters</button>
+      <button class="search-action" id={`${id}-reset-all`} type="button" style="display: none;">Reset all</button>
+    </div>
   </div>
 
   <!-- Search results (populated by the page's controller script) -->
@@ -114,107 +94,7 @@ const showKindFilters = kinds.length > 1;
     border: 0;
   }
 
-  /* ── Search bar ─────────────────────────────────────────────── */
-  .inpage-search-bar {
-    margin-bottom: 0.25rem;
-  }
-
-  .inpage-search-label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; }
-
-  .inpage-search-input-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-
-  .inpage-search-icon {
-    position: absolute;
-    left: 0.85rem;
-    color: var(--sl-color-gray-1);
-    pointer-events: none;
-  }
-
-  /* Size tokens — set by data-size on the container */
-  .inpage-search[data-size='lg'] .inpage-search-icon {
-    width: 18px;
-    height: 18px;
-  }
-  .inpage-search[data-size='sm'] .inpage-search-icon {
-    width: 16px;
-    height: 16px;
-  }
-
-  .inpage-search-input {
-    width: 100%;
-    background-color: var(--sl-color-black);
-    color: var(--sl-color-text);
-    border: 1px solid var(--sl-color-gray-5);
-    box-sizing: border-box;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-
-  .inpage-search[data-size='lg'] .inpage-search-input {
-    padding: 0.75rem 2.5rem 0.75rem 2.75rem;
-    font-size: 1rem;
-    height: 3rem;
-    border-radius: 0.75rem;
-  }
-  .inpage-search[data-size='sm'] .inpage-search-input {
-    padding: 0.6rem 2.25rem 0.6rem 2.5rem;
-    font-size: 0.9rem;
-    height: 2.5rem;
-    border-radius: 0.5rem;
-  }
-
-  .inpage-search-input::placeholder {
-    color: var(--sl-color-gray-1);
-  }
-
-  .inpage-search-input::-webkit-search-cancel-button {
-    -webkit-appearance: none;
-    appearance: none;
-  }
-
-  /* ── Clear button (embedded in input) ────────────────────────── */
-  .inpage-search-clear {
-    position: absolute;
-    right: 0.6rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
-    background: var(--sl-color-gray-5);
-    color: var(--sl-color-gray-2);
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-
-  .inpage-search-clear svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  .inpage-search-clear:hover {
-    background: var(--sl-color-gray-4);
-    color: var(--sl-color-white);
-  }
-
-  .inpage-search-input:focus {
-    outline: none;
-    border-color: var(--sl-color-text-accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sl-color-text-accent) 20%, transparent);
-  }
-
-  @media (forced-colors: active) {
-    .inpage-search-input:focus-visible {
-      outline: 2px solid Highlight;
-      outline-offset: 2px;
-    }
-  }
+  .inpage-search-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 
   /* ── Kind filter chips ──────────────────────────────────────── */
   .inpage-kind-filters {
@@ -230,6 +110,7 @@ const showKindFilters = kinds.length > 1;
   }
 
   .api-filter-chip {
+    min-height: 2.25rem;
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
@@ -250,6 +131,11 @@ const showKindFilters = kinds.length > 1;
     border-color: var(--sl-color-gray-3);
     color: var(--sl-color-white);
     background: var(--sl-color-gray-6);
+  }
+
+  .api-filter-chip:focus-visible {
+    outline: 2px solid var(--search-control-focus);
+    outline-offset: 2px;
   }
 
   .api-filter-chip.active {
@@ -314,41 +200,15 @@ const showKindFilters = kinds.length > 1;
   /* ── Stats line ─────────────────────────────────────────────── */
   .inpage-search-stats {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
     padding: 0.4rem 0 0.15rem;
-    font-size: var(--api-text-sm, 0.875rem);
-    color: var(--sl-color-gray-3);
-  }
-
-  .inpage-clear-filters {
-    background: none;
-    border: none;
-    color: var(--sl-color-text-accent);
-    font-size: 0.82rem;
-    cursor: pointer;
-    padding: 0;
-    text-decoration: underline;
-    white-space: nowrap;
-  }
-
-  .inpage-clear-filters:hover {
-    color: var(--sl-color-white);
   }
 
   /* ── Responsive ─────────────────────────────────────────────── */
   @media (max-width: 480px) {
-    .inpage-search[data-size='lg'] .inpage-search-input {
-      height: 2.5rem;
-      font-size: 0.9rem;
-      border-radius: 0.5rem;
-    }
-    .inpage-search[data-size='lg'] .inpage-search-icon {
-      width: 16px;
-      height: 16px;
-      left: 0.75rem;
-    }
     .inpage-search[data-size='sm'] .inpage-search-input {
       font-size: 0.85rem;
       height: 2.25rem;
@@ -506,20 +366,6 @@ const showKindFilters = kinds.length > 1;
   }
 
   /* ── Empty state ──────────────────────────────────────────────── */
-  .inpage-search .api-search-empty {
-    padding: 2.5rem 1.5rem;
-    text-align: center;
-    background: var(--api-surface, var(--sl-color-gray-6));
-    border-radius: var(--api-radius-lg, 0.75rem);
-    color: var(--sl-color-gray-2);
-  }
-
-  .inpage-search .api-search-empty-hint {
-    margin-top: 0.5rem;
-    font-size: var(--api-text-sm, 0.875rem);
-    color: var(--sl-color-gray-3);
-  }
-
   /* ── Load more button ─────────────────────────────────────────── */
   .inpage-search .api-load-more {
     display: block;

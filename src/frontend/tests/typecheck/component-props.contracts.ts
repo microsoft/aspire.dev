@@ -17,6 +17,8 @@ import IconLinkCard from '@components/IconLinkCard.astro';
 import ImageShowcase from '@components/ImageShowcase.astro';
 import Include from '@components/Include.astro';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import SearchField from '@components/search/SearchField.astro';
+import SearchEmptyState from '@components/search/SearchEmptyState.astro';
 import InstallCliModal from '@components/InstallCliModal.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import InstallPackage from '@components/InstallPackage.astro';
@@ -51,6 +53,19 @@ import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 
 type PropsOf<T extends (...args: never[]) => unknown> = ComponentProps<T>;
+
+const validSearchFieldProps = {
+  id: 'api-query', label: 'Search API entries', placeholder: 'Try Redis',
+  clearId: 'api-clear', describedBy: 'api-status', size: 'sm', visibleLabel: true,
+  containerClass: 'inpage-search-bar', labelClass: 'inpage-search-label',
+  wrapClass: 'inpage-search-input-wrap', iconClass: 'inpage-search-icon',
+} satisfies PropsOf<typeof SearchField>;
+const validSearchEmptyProps = {
+  title: 'No matching API entries', hint: 'Try another keyword.',
+  actionLabel: 'Clear search', actionId: 'api-recover', hidden: true,
+} satisfies PropsOf<typeof SearchEmptyState>;
+void validSearchFieldProps;
+void validSearchEmptyProps;
 
 const validInpageSearchProps = {
   id: 'glossary',
