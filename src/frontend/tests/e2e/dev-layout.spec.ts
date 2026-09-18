@@ -475,12 +475,56 @@ test('desktop header actions use consistent spacing', async ({ page }) => {
     expect(hubIcon.width).toBeCloseTo(20, 0);
     expect(hubIcon.height).toBeCloseTo(20, 0);
     const docs = (await banner.getByRole('link', { name: 'Docs', exact: true }).boundingBox())!;
+    const videos = (await banner.locator('.live-btn:visible').boundingBox())!;
     const start = (await banner.getByRole('link', { name: 'Try Aspire', exact: true }).boundingBox())!;
+    expect(videos.x - install.x - install.width).toBeCloseTo(8, 0);
+    expect(dev.x - videos.x - videos.width).toBeCloseTo(8, 0);
     expect(docs.x - dev.x - dev.width).toBeCloseTo(8, 0);
     expect(start.x - docs.x - docs.width).toBeCloseTo(8, 0);
   }
   await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).hover();
   await expect(page.getByRole('tooltip')).toContainText('Dev Hub');
+});
+
+test('header icon order and Videos selected effect survive client navigation', async ({ page }) => {
+  for (const theme of ['light', 'dark']) {
+    await page.goto('/hub/');
+    await page.evaluate((value) => {
+      localStorage.setItem('starlight-theme', value);
+      document.documentElement.dataset.theme = value;
+    }, theme);
+    const hub = page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true });
+    const videos = page.locator('header .live-btn:visible');
+    const selectedStyle = await hub.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { color: style.color, background: style.backgroundColor, radius: style.borderRadius };
+    });
+    await expect(videos).not.toHaveAttribute('aria-current');
+    for (const group of ['.right-group', '.right-group-mobile']) {
+      await expect(page.locator(`header ${group} > .header-icon-btn`).nth(0)).toHaveClass(/install-cli-btn/);
+      await expect(page.locator(`header ${group} > .header-icon-btn`).nth(1)).toHaveClass(/live-btn/);
+      await expect(page.locator(`header ${group} > .header-icon-btn`).nth(2)).toHaveClass(/dev-center-btn/);
+      await expect(page.locator(`header ${group} > .header-icon-btn`).nth(3)).toHaveClass(/cookie-consent-btn/);
+    }
+    const hubBox = (await hub.boundingBox())!;
+    const videoBox = (await videos.boundingBox())!;
+    expect(hubBox.x - videoBox.x - videoBox.width).toBeCloseTo(8, 0);
+    await videos.click();
+    await expect(page).toHaveURL(/\/community\/videos\/$/);
+    await expect(videos).toHaveAttribute('aria-current', 'page');
+    await expect(hub).not.toHaveAttribute('aria-current');
+    await expect(videos).toHaveCSS('color', selectedStyle.color);
+    await expect(videos).toHaveCSS('background-color', selectedStyle.background);
+    await expect(videos).toHaveCSS('border-radius', selectedStyle.radius);
+    await page.keyboard.press('Tab');
+    await videos.focus();
+    await expect(videos).toHaveCSS('outline-style', 'solid');
+    await expect(videos).toHaveCSS('color', 'rgb(31, 30, 51)');
+    await hub.click();
+    await expect(page).toHaveURL(/\/hub\/$/);
+    await expect(hub).toHaveAttribute('aria-current', 'page');
+    await expect(videos).not.toHaveAttribute('aria-current');
+  }
 });
 
 test('Dev Hub has a distinct active header button on hub and browse routes in both themes', async ({ page }) => {

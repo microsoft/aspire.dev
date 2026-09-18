@@ -381,11 +381,11 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
       )
       .toBe(2);
 
-    for (const control of [topics.locator('a').first(), filter]) {
-      const box = await control.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-    }
+    const topicBox = await topics.locator('a').first().boundingBox();
+    expect(topicBox).not.toBeNull();
+    expect(topicBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+    const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+    await expect(filter).toHaveCSS('height', coarse ? '48px' : '40px');
 
     for (const control of [groupSummary, nestedLink]) {
       const box = await control.boundingBox();
