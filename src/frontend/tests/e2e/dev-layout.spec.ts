@@ -491,6 +491,24 @@ test('Dev Hub has a distinct active header button on hub and browse routes in bo
       await page.mouse.move(0, 0);
       await hub.evaluate((element) => element.blur());
       await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
+      const foreground = await hub.evaluate((element) => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--sl-color-text)';
+        element.append(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+      });
+      await expect(page.locator('header .site-title span')).toHaveCSS('color', foreground);
+      for (const control of await page.locator('header :is(.header-icon-btn, .docs-btn, .docs-btn-mobile, site-search > button[data-open-modal]):visible').all()) {
+        await expect(control).toHaveCSS('color', foreground);
+        await control.hover();
+        await expect(control).toHaveCSS('color', foreground);
+        await control.focus();
+        await expect(control).toHaveCSS('color', foreground);
+        await control.evaluate((element) => element.blur());
+      }
+      await page.mouse.move(0, 0);
       await expect(hub).toBeVisible();
       if (route === '/') {
         await expect(hub).not.toHaveAttribute('aria-current');
@@ -508,7 +526,7 @@ test('Dev Hub has a distinct active header button on hub and browse routes in bo
         expect(colors.foreground).not.toBe(colors.background);
         if (theme === 'light') {
           expect(colors.background).toBe('rgb(213, 210, 246)');
-          expect(colors.foreground).toBe('rgb(81, 43, 212)');
+          expect(colors.foreground).toBe(foreground);
         }
         await hub.focus();
         await expect(hub).not.toHaveCSS('outline-style', 'none');
@@ -520,7 +538,7 @@ test('Dev Hub has a distinct active header button on hub and browse routes in bo
         for (const control of await page.locator('header :is(.dev-center-btn, .dev-center-btn-mobile, .install-cli-btn):visible').all()) {
           await control.hover();
           await expect(control).toHaveCSS('background-color', 'rgb(213, 210, 246)');
-          await expect(control).toHaveCSS('color', 'rgb(81, 43, 212)');
+          await expect(control).toHaveCSS('color', foreground);
           await control.focus();
           await expect(control).toHaveCSS('outline-style', 'solid');
           await control.evaluate((element) => element.blur());
