@@ -214,6 +214,7 @@ describe('incremental compatibility and package keys', () => {
   });
 
   it.each([
+    '.npmrc',
     'pnpm-lock.yaml',
     'patches/search.patch',
     'src/middleware.ts',

@@ -47,7 +47,7 @@ export function incrementalCompatibility(root, mode, publicEnv) {
   );
   const inputs = [
     ...readdirSync(root)
-      .filter((name) => /\.(?:[cm]?js|ts|json|ya?ml)$/.test(name))
+      .filter((name) => name === '.npmrc' || /\.(?:[cm]?js|ts|json|ya?ml)$/.test(name))
       .map((name) => join(root, name)),
     ...files(join(root, 'config')),
     ...files(join(root, 'patches')),
