@@ -69,16 +69,17 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
   await expect(filterPanel.getByRole('search', { name: 'Search the glossary' })).toBeVisible();
   await expect(filterPanel.getByRole('navigation', { name: 'Glossary letters' })).toBeVisible();
   await expect(page.getByRole('searchbox', { name: 'Find a term' })).toHaveAttribute('placeholder', 'Search glossary');
-  await expect(page.locator('.dev-description')).toHaveText('Search for a term, or filter by topic and first letter.');
+  await expect(page.locator('.dev-description')).toHaveCount(0);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', 'Search for a term, or filter by topic and first letter.');
   const label = page.locator('label[for="glossary-search-input"]');
   await expect(label).toHaveCSS('clip-path', 'inset(50%)');
   for (const width of [320, 390, 768, 1024, 1199, 1200, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     const titleBox = (await heading.boundingBox())!;
     const breadcrumbBox = (await page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).boundingBox())!;
-    const introductionBox = (await page.locator('.dev-description').boundingBox())!;
+    const filterPanelBox = (await filterPanel.boundingBox())!;
     expect(breadcrumbBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
-    expect(introductionBox.y).toBeGreaterThanOrEqual(breadcrumbBox.y + breadcrumbBox.height);
+    expect(filterPanelBox.y).toBeGreaterThanOrEqual(breadcrumbBox.y + breadcrumbBox.height);
     for (const theme of ['light', 'dark']) {
       await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
       await page.mouse.move(0, 0);

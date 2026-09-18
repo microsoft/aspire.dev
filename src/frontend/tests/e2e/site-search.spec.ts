@@ -5,6 +5,9 @@ import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const pagefindRequire = createRequire(require.resolve('@astrojs/starlight'));
+// Native prefix expansion can match an indexed "Z" for an unquoted nonsense
+// term. Exact-phrase syntax makes these tests exercise a genuinely empty search.
+const missingSearchQuery = '"zzzznonexistentcatalogquery"';
 
 // Exercise native transitions on desktop and the supported swap fallback on
 // touch projects, matching the other client-navigation regression suites.
@@ -176,9 +179,10 @@ test.describe('site search dialog', () => {
       });
       expect(clearIcon).toMatchObject({ width: '16px', height: '16px' });
       expect(decodeURIComponent(clearIcon.mask)).toContain('m18 6-12 12M6 6l12 12');
-      await input.fill('zzzznonexistentcatalogquery');
+      await input.fill(missingSearchQuery);
       const message = page.locator('#starlight__search .pagefind-ui__message');
       await expect(message).toContainText(/no results|0 results/i);
+      await expect(page.locator('#starlight__search .pagefind-ui__result-link')).toHaveCount(0);
       await expect(message).toHaveCSS('font-size', '14px');
       await expect(message).toHaveCSS('font-weight', '400');
       await expect(message).toHaveCSS('font-style', 'normal');
@@ -196,8 +200,9 @@ test.describe('site search dialog', () => {
     test.skip(!ready, 'Pagefind requires the existing CI production artifact; no local build.');
     const dialog = page.locator('site-search dialog[open]');
     const input = dialog.locator('.pagefind-ui__search-input');
-    await input.fill('zzzznonexistentcatalogquery');
+    await input.fill(missingSearchQuery);
     await expect(dialog.locator('.pagefind-ui__message')).toContainText(/no results|0 results/i);
+    await expect(dialog.locator('.pagefind-ui__result-link')).toHaveCount(0);
     await expect(dialog.locator('.pagefind-ui__message')).toHaveAttribute('aria-live', 'polite');
     const clear = dialog.locator('.pagefind-ui__search-clear');
     await expect(clear).toHaveCount(1);

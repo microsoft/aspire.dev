@@ -687,7 +687,7 @@ test('Developer Hub typography and glossary controls reflow in both themes', asy
       });
       expect(layout.overflow).toBe(false);
       expect(layout.headingSize).toBeGreaterThanOrEqual(32);
-      expect(layout.hasTagline).toBe(true);
+      expect(layout.hasTagline).toBe(false);
       expect(layout.pillHeights.every((height) => height >= (width <= 600 ? 44 : 36))).toBe(true);
       expect(layout.searchClass).toContain('inpage-search-input');
       await expect(page.locator('glossary-browser select')).toHaveCount(0);
@@ -968,21 +968,26 @@ test('Hub search surfaces stay consistent inside tinted control panels', async (
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   const hubSearchBackground = await page.locator('.dev-search').evaluate((element) => getComputedStyle(element).backgroundColor);
 
+  await page.goto('/integrations/gallery/');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  const inputBackground = await page.locator('main .search-field-input').evaluate((element) => getComputedStyle(element).backgroundColor);
+
   await page.goto('/hub/browse/');
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await expect(page.locator('.browse-search')).toBeVisible();
   const browseBackgrounds = await page.locator('.inpage-search-input, .browse-filter-group summary')
     .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
-  expect(browseBackgrounds.every((background) => background === hubSearchBackground)).toBe(true);
-  expect(await page.locator('.browse-controls').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(hubSearchBackground);
+  expect(browseBackgrounds.every((background) => background === inputBackground)).toBe(true);
+  expect(await page.locator('.browse-controls').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(inputBackground);
 
   await page.goto('/hub/glossary/');
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await expect(page.locator('.glossary-controls')).toBeVisible();
-  const glossaryBackgrounds = await page.locator('.glossary-controls .inpage-search-input, .glossary-controls .api-filter-chip:not(.active)')
+  await expect(page.locator('.glossary-controls .inpage-search-input')).toHaveCSS('background-color', inputBackground);
+  const glossaryBackgrounds = await page.locator('.glossary-controls .api-filter-chip:not(.active)')
     .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
   expect(glossaryBackgrounds.every((background) => background === hubSearchBackground)).toBe(true);
-  expect(await page.locator('.glossary-filter-panel').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(hubSearchBackground);
+  expect(await page.locator('.glossary-filter-panel').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(inputBackground);
 });
 
 test('AWS discovery opens a first-party overview with provider guidance', async ({ page }) => {
