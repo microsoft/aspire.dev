@@ -48,7 +48,12 @@ jobs:
           cache-dependency-path: src/frontend/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile --prefer-offline
-      - run: pnpm git-env && pnpm check-data && pnpm compute-skill-digests
+      - name: Prepare build inputs and shared reproducible clock
+        run: |
+          pnpm git-env
+          pnpm check-data
+          pnpm compute-skill-digests
+          echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct HEAD)" >> "$GITHUB_ENV"
       - name: Compute shared local/CI compatibility partition
         id: cache
         run: node scripts/incremental-cache-key.mjs

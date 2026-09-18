@@ -30,10 +30,12 @@ async function runPilot(scenario) {
   await mkdir(reportDirectory, { recursive: true });
   const inputSnapshot = join(reportDirectory, 'input-snapshot.json');
   await captureQualificationInputs(inputSnapshot);
-  const sourceDateEpoch = execFileSync('git', ['show', '-s', '--format=%ct', 'HEAD'], {
-    cwd: root,
-    encoding: 'utf8',
-  }).trim();
+  const sourceDateEpoch =
+    process.env.SOURCE_DATE_EPOCH ??
+    execFileSync('git', ['show', '-s', '--format=%ct', 'HEAD'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).trim();
   const measurements = [];
 
   async function build(label, incremental, env = {}, requireReuse = false) {
