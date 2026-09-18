@@ -187,9 +187,20 @@ test.describe('site search dialog', () => {
       await expect(message).toHaveCSS('font-weight', '400');
       await expect(message).toHaveCSS('font-style', 'normal');
       await expect(message).toHaveCSS('line-height', '21px');
+      const apiLinks = page.locator('site-search dialog[open]');
+      for (const language of ['csharp', 'typescript']) {
+        await expect(apiLinks.locator(`a[data-api-lang="${language}"]`)).toHaveAttribute(
+          'href', `/reference/api/${language}/?q=${encodeURIComponent(missingSearchQuery)}`,
+        );
+      }
       await clear.click();
       await expect(input).toHaveValue('');
       await expect(input).toBeFocused();
+      for (const language of ['csharp', 'typescript']) {
+        await expect(apiLinks.locator(`a[data-api-lang="${language}"]`)).toHaveAttribute(
+          'href', `/reference/api/${language}/`,
+        );
+      }
     });
   }
 

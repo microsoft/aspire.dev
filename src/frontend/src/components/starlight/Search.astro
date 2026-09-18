@@ -360,16 +360,17 @@ const typescriptHref = `${base}/reference/api/typescript/`;
 
       const sameLength = buttons.length === this.buttons.length;
       const sameNodes = sameLength && buttons.every((b, i) => b === this.buttons[i]);
-      if (sameNodes && this.buttons.length > 0) return;
-
-      for (const stale of this.buttons) {
-        stale.removeEventListener('mousedown', this.clickHandler);
+      if (!sameNodes) {
+        for (const stale of this.buttons) {
+          stale.removeEventListener('mousedown', this.clickHandler);
+        }
+        this.buttons = buttons;
+        for (const btn of this.buttons) {
+          // Recompute href on mousedown so middle-click / right-click → "Open in new tab" use the latest query.
+          btn.addEventListener('mousedown', this.clickHandler);
+        }
       }
-      this.buttons = buttons;
-      for (const btn of this.buttons) {
-        // Recompute href on mousedown so middle-click / right-click → "Open in new tab" use the latest query.
-        btn.addEventListener('mousedown', this.clickHandler);
-      }
+      // Pagefind's native clear updates the input without emitting an input event.
       this.update();
     }
 
