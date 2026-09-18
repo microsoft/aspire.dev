@@ -364,14 +364,14 @@ await env.withDashboard(false);
   for current availability and supported features before you adopt it.
 </Aside>
 
-[Azure Container Apps Express](https://learn.microsoft.com/azure/container-apps/express-overview) is a preview environment type for HTTP applications. Opt an existing environment into Express — it isn't a separate environment type, package, or CLI command, and environments without `AsExpress` are unaffected:
+[Azure Container Apps Express](https://learn.microsoft.com/azure/container-apps/express-overview) is a preview environment type for HTTP applications. To use Express, call `AsExpress` on the environment resource in your AppHost, as shown below:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIREACAEXPRESS001
 var builder = DistributedApplication.CreateBuilder(args);
 
+#pragma warning disable ASPIREACAEXPRESS001
 builder.AddAzureContainerAppEnvironment("aspire-env")
     .AsExpress();
 
@@ -413,12 +413,11 @@ Express adjusts the defaults Aspire applies to the environment:
 - **Scale to zero.** Minimum replicas default to `0` when no replica count is specified, so apps must tolerate cold starts. Explicit replica counts and scale customizations still take precedence.
 - **Fewer implicit resources.** Aspire omits the implicit Consumption workload profile, the managed Aspire Dashboard, and automatic .NET data-protection configuration.
 
-Two constraints apply when you use Express:
+The following limitations apply when you use Express:
 
+- **No managed Aspire Dashboard.** The managed Aspire Dashboard isn't available in Azure Container Apps Express environments. This limitation doesn't affect the local Aspire Dashboard.
 - **Referenced endpoints must be public.** Express apps have no private `.internal` hostname, so a referenced endpoint must be explicitly exposed with `WithExternalHttpEndpoints`. Referencing an internal-only endpoint fails during deployment rather than emitting an address that can't resolve. Exposing an endpoint doesn't add authentication — enforce authorization in the app.
 - **HTTPS ingress is required.** Combining `AsExpress` with `WithHttpsUpgrade(false)` is rejected, in either call order.
-
-Aspire passes explicit infrastructure customization through for Azure to validate rather than checking it against a feature matrix Aspire maintains, so consult the [Express supported-features matrix](https://learn.microsoft.com/azure/container-apps/express-overview#supported-features) for current service limitations.
 
 You can combine `AsExpress` with `AsExisting` or `PublishAsExisting` to declare that an existing environment already uses Express. Aspire doesn't verify or convert the deployed environment's mode.
 
