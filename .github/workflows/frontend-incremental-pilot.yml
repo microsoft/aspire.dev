@@ -1,0 +1,120 @@
+name: Frontend incremental pilot
+
+on:
+  pull_request:
+    types: [labeled, synchronize]
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Qualification scenario (runs multiple full builds, never deploys)
+        type: choice
+        default: warm
+        options:
+          - warm
+          - identity
+          - api-data
+          - global-input
+          - partial-cache
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    name: Qualify (${{ matrix.scenario }})
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ci:incremental-pilot') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: ${{ fromJSON(github.event_name == 'pull_request' && '["warm","identity","api-data","global-input","partial-cache"]' || format('["{0}"]', inputs.scenario)) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: src/frontend
+    env:
+      ASTRO_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - run: pnpm git-env && pnpm check-data && pnpm compute-skill-digests
+      - name: Compute shared local/CI compatibility partition
+        id: cache
+        run: node scripts/incremental-cache-key.mjs
+
+      - name: Restore isolated pilot cache
+        id: restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.cache.outputs.path }}
+          key: astro-api-pilot-${{ runner.os }}-${{ runner.arch }}-${{ steps.cache.outputs.key }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            astro-api-pilot-${{ runner.os }}-${{ runner.arch }}-${{ steps.cache.outputs.key }}-
+
+      - name: Report restore result
+        env:
+          MATCHED_KEY: ${{ steps.restore.outputs.cache-matched-key }}
+        run: |
+          if [ -n "$MATCHED_KEY" ]; then
+            echo "Restored pilot cache: $MATCHED_KEY"
+          else
+            echo "::notice::No compatible pilot cache; the first incremental build will be cold."
+          fi
+
+      # Keep builds before astro sync/lint, matching the normal Lunaria workflow.
+      - name: Compare complete clean and incremental artifacts
+        env:
+          PILOT_SCENARIO: ${{ matrix.scenario }}
+        run: node scripts/test-incremental-builds.mjs "$PILOT_SCENARIO"
+
+      - name: Record cache size
+        env:
+          CACHE_PATH: ${{ steps.cache.outputs.path }}
+        run: du -sb "$CACHE_PATH" | tee .cache/incremental-pilot/cache-size.txt
+
+      - run: pnpm lint
+      - run: pnpm test:unit
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Run all built-site browser projects
+        run: pnpm exec playwright test
+
+      # This namespace is never read by deployment or ordinary PR builds. Only
+      # a successful default-branch run may populate it; PR code never writes it.
+      - name: Save qualified pilot cache
+        if: ${{ success() && github.repository == 'microsoft/aspire.dev' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.scenario == 'warm' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.cache.outputs.path }}
+          key: astro-api-pilot-${{ runner.os }}-${{ runner.arch }}-${{ steps.cache.outputs.key }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload qualification evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: incremental-pilot-${{ matrix.scenario }}
+          path: |
+            src/frontend/.cache/incremental-pilot
+            src/frontend/blob-report
+            src/frontend/test-results
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Upload complete diagnostic site (not deployable)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: incremental-pilot-dist-${{ matrix.scenario }}
+          path: src/frontend/dist
+          if-no-files-found: warn
+          retention-days: 7

@@ -125,6 +125,108 @@ Before you begin, ensure you have the following installed:
 
 </Steps>
 
+### Dependency release policy
+
+Use the pnpm version pinned in `package.json`. Both install roots enforce a
+seven-day minimum release age, including transitive dependencies, and reject
+packages with missing publication timestamps. This complements Dependabot's
+cooldown; don't bypass it with release-age exclusions or unqualified updates.
+
+The September 18, 2026 upgrade snapshot uses releases published by September 11,
+2026, at 14:59:53 UTC. Its frontend cohort is Astro 7.3.2, Starlight 0.42.0,
+MDX 8.0.1, Vite 8.3.0, and pnpm 12.4.1, with Node 24 LTS. Keep the nested MDX 7
+processor used by `starlight-llms-txt` separate from the MDX 8 processor.
+
+| Dependency | Compatibility decision |
+| ---------- | ---------------------- |
+| TypeScript | Retain 6.0.3; the native TypeScript 7 compiler requires a separate lint/Twoslash migration. |
+| Mermaid | Retain 11.16.1 until Mermaid 12 rendering, interactions, and browser support are qualified. |
+| Azure Front Door integration | Retain the existing preview package; don't replace deployment infrastructure as part of the upgrade. |
+| UnoCSS | Pin both `unocss` and `@unocss/astro` to 66.9.2, the newest eligible cohort before the inspector introduces h3 2 release candidates. Don't override the newer inspector to incompatible h3 1.x. |
+
+The generated `agentics-maintenance.yml` workflow is held because its authoring
+source is absent. Publication age for the pnpm devcontainer feature and inactive
+gh-aw OCI catalog entries is not verified, so those existing references are
+retained rather than selecting an unverified replacement. These deliberate
+holds preserve compatibility; built-site qualification is still required.
+
+### Incremental build qualification pilot
+
+Normal production builds and `pnpm dev` are unchanged. An **experimental,
+opt-in pilot** can reuse generated C# and TypeScript API pages and their Markdown
+endpoints. It doesn't cache Starlight documentation pages and isn't enabled for
+deployments. No end-to-end speedup or full-site equivalence has been established
+yet; use the qualification workflow before proposing promotion.
+
+From `src/frontend`, use the pinned pnpm version and run:
+
+```sh title="Terminal — Opt into API incremental builds"
+pnpm build:incremental
+pnpm build:incremental --force
+pnpm build:incremental --skip-search
+```
+
+These commands perform full site builds, not lightweight development-server
+updates. `--force` ignores reusable output and refreshes the cache.
+`--skip-search` uses a separate cache partition and omits Pagefind, like the
+existing skip-search build. The regular `pnpm build:production` command remains
+the rollback path. Coding agents must obtain explicit permission before running
+any local production build.
+
+Reusable data lives under
+`src/frontend/node_modules/.astro-incremental/<mode>/<compatibility>/`.
+Each build assembles a complete new `dist`; the cache isn't a deployable site.
+Package/module keys cover all siblings used by sidebars and type links. The
+compatibility partition covers the runtime, lockfile, patches, configuration,
+middleware, shared source, assets, public environment settings, and build mode.
+Route keys also capture generated icon metadata after Starlight refreshes it.
+For safety, documentation edits also invalidate API reuse because MDX can change
+global CSS and imported assets. The initial performance opportunity is therefore
+unchanged-input and API-data-only builds, not ordinary documentation edits.
+
+Build identity is finalized after rendering, including restored HTML. The
+existing merge-base commit selection, source links, footer SHA, and
+cross-deployment full-navigation guard remain the intended contract. The pilot
+rejects missing identity and unreplaced identity markers instead of producing a
+success-shaped artifact.
+
+The **Frontend incremental pilot** GitHub Actions workflow never deploys. Run it
+manually after the clean dependency-upgrade CI passes. Before the workflow is
+available on the default branch, maintainers can opt a pull request into the
+complete five-scenario matrix with the `ci:incremental-pilot` label. This runs
+multiple full builds, so don't enable it on routine documentation changes.
+
+The workflow compares every output file by SHA-256, without normalizing away
+HTML, identity, scripts, images, search data, or endpoints. It first checks
+clean-versus-clean determinism, then first-use and warm incremental equivalence,
+and requires both HTML and Markdown cache hits. Additional scenarios cover a
+different real commit SHA as an identity fixture, API add/delete/rename/sibling
+edits, a global CSS edit, and a missing cache file. The API scenario creates and
+restores a fixture commit only inside CI, recording each build's source commit
+to distinguish real cross-commit reuse from an unchanged-checkout warm build.
+It retains the existing unit and desktop/tablet/mobile Chromium suites against
+the built site. The identity fixture isn't a substitute for measuring real
+cross-commit builds.
+
+Evidence artifacts include complete-output differences, build logs, phase
+timings, peak resident memory, restored-route counts, and cache size. Use Actions
+step durations to include cache transfer, checks, and upload costs in any
+performance comparison; rendering time alone doesn't establish a net speedup.
+The diagnostic site artifact can contain deliberate fixture changes and must
+not be deployed. Only a successful default-branch `warm` run can save a reusable
+CI cache, in a namespace that ordinary production and pull-request builds never
+consume.
+
+:::caution[Qualification is still required]
+Astro 7.3.2 supports concurrent incremental builds, so the pilot retains the
+existing concurrency of four. It precedes fixes for CSS-preprocessor dependency
+invalidation and original-image retention. Source changes conservatively
+invalidate the pilot cache, but complete-output comparison and built-site checks
+must still prove asset retention. Any unexplained difference, missing asset,
+navigation regression, or lack of useful reuse blocks promotion. Don't bypass
+the seven-day dependency release buffer to make a qualification run pass.
+:::
+
 ### Known formatting limitations
 
 We expose `lint` and `format` scripts in the `package.json` to help maintain code quality and consistency. This isn't something that you're need to run manually. However, regardless of whether or not you run these scrips, be aware of the following known limitation when working with MDX files.
