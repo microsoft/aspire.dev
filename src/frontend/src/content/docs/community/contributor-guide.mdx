@@ -212,6 +212,20 @@ It retains the existing unit and desktop/tablet/mobile Chromium suites against
 the built site. The identity fixture isn't a substitute for measuring real
 cross-commit builds.
 
+The qualification captures successful public GitHub contributor and icon
+responses once per job, then replays those exact responses for every compared
+build. Capture requires the workflow's read-only GitHub token; credentials
+aren't stored in the snapshot. A missing recorded request fails the experiment
+instead of accepting empty contributor lists after a rate-limit failure.
+Normal builds don't use this replay.
+
+RSS fallback dates normally use the current time. For reproducible builds,
+`SOURCE_DATE_EPOCH` can supply a Unix timestamp in whole seconds; explicitly
+dated feed entries are unchanged. The qualification sets it to the checkout
+commit's timestamp for every paired build, including mutation fixtures, and
+records it with the measurements. Incremental cache partitions include this
+optional input. No output timestamps or search-index files are normalized away.
+
 Evidence artifacts include complete-output differences, build logs, phase
 timings, peak resident memory, restored-route counts, and cache size. Use Actions
 step durations to include cache transfer, checks, and upload costs in any
@@ -220,6 +234,12 @@ The diagnostic site artifact can contain deliberate fixture changes and must
 not be deployed. Only a successful default-branch `warm` run can save a reusable
 CI cache, in a namespace that ordinary production and pull-request builds never
 consume.
+
+The icon plugin patch defers reading its safelist until CSS generation, after
+Starlight has refreshed it. This preserves offline fallback and prevents a cold
+checkout from omitting icons that appear only on the next build. Looping media
+markup also omits unused random attributes; playback remains scoped to each
+component wrapper.
 
 :::caution[Qualification is still required]
 Astro 7.3.2 supports concurrent incremental builds, so the pilot retains the

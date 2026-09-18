@@ -231,6 +231,14 @@ describe('incremental compatibility and package keys', () => {
     await put(root, path, 'after');
     expect(incrementalCompatibility(root, 'production', {})).not.toBe(before);
   });
+
+  it('partitions explicitly supplied reproducible-build timestamps', async () => {
+    const root = await fixture();
+    vi.stubEnv('SOURCE_DATE_EPOCH', '1');
+    const before = incrementalCompatibility(root, 'production', {});
+    vi.stubEnv('SOURCE_DATE_EPOCH', '2');
+    expect(incrementalCompatibility(root, 'production', {})).not.toBe(before);
+  });
 });
 
 describe('whole-output equivalence', () => {

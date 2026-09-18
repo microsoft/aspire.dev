@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { loadIncrementalBuildSettings } from '../config/incremental-build.mjs';
 import { buildManifest, compareManifests } from './compare-builds.mjs';
+import { captureQualificationInputs } from './qualification-inputs.mjs';
 
 const rootUrl = new URL('../', import.meta.url);
 const root = fileURLToPath(rootUrl);
@@ -27,6 +28,12 @@ async function runPilot(scenario) {
   if (process.env.ASTRO_OUT_DIR)
     throw new Error('The pilot requires the normal dist output directory.');
   await mkdir(reportDirectory, { recursive: true });
+  const inputSnapshot = join(reportDirectory, 'input-snapshot.json');
+  await captureQualificationInputs(inputSnapshot);
+  const sourceDateEpoch = execFileSync('git', ['show', '-s', '--format=%ct', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
   const measurements = [];
 
   async function build(label, incremental, env = {}, requireReuse = false) {
@@ -38,6 +45,8 @@ async function runPilot(scenario) {
         const child = spawn(
           process.execPath,
           [
+            '--import',
+            new URL('./qualification-inputs.mjs', import.meta.url).href,
             join(root, 'node_modules', 'astro', 'bin', 'astro.mjs'),
             'build',
             '--mode',
@@ -49,6 +58,8 @@ async function runPilot(scenario) {
             env: {
               ...process.env,
               ...env,
+              ASPIRE_QUALIFICATION_INPUTS: inputSnapshot,
+              SOURCE_DATE_EPOCH: sourceDateEpoch,
               ASPIRE_INCREMENTAL_BUILD: incremental ? '1' : '0',
               ASTRO_TELEMETRY_DISABLED: '1',
               BUILD_TIMING: '1',
@@ -82,6 +93,7 @@ async function runPilot(scenario) {
     const htmlRestored = paths.length - markdownRestored;
     measurements.push({
       label,
+      sourceDateEpoch,
       sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {
         cwd: root,
         encoding: 'utf8',
@@ -99,7 +111,9 @@ async function runPilot(scenario) {
         `${label}: expected both HTML and Markdown reuse; got ${htmlRestored}/${markdownRestored}.`
       );
     }
-    return buildManifest(join(root, 'dist'));
+    const manifest = await buildManifest(join(root, 'dist'));
+    await writeFile(join(reportDirectory, `${label}-manifest.json`), JSON.stringify(manifest));
+    return manifest;
   }
 
   async function equivalent(label, expected, actual) {
