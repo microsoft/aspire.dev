@@ -232,12 +232,12 @@ describe('incremental compatibility and package keys', () => {
     expect(incrementalCompatibility(root, 'production', {})).not.toBe(before);
   });
 
-  it('partitions explicitly supplied reproducible-build timestamps', async () => {
+  it('does not evict APIs for the uncached RSS fallback clock', async () => {
     const root = await fixture();
     vi.stubEnv('SOURCE_DATE_EPOCH', '1');
     const before = incrementalCompatibility(root, 'production', {});
     vi.stubEnv('SOURCE_DATE_EPOCH', '2');
-    expect(incrementalCompatibility(root, 'production', {})).not.toBe(before);
+    expect(incrementalCompatibility(root, 'production', {})).toBe(before);
   });
 });
 

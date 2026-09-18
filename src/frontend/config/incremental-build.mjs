@@ -38,7 +38,6 @@ export function incrementalCompatibility(root, mode, publicEnv) {
       platform: process.platform,
       arch: process.arch,
       outDir: process.env.ASTRO_OUT_DIR || 'dist',
-      sourceDateEpoch: process.env.SOURCE_DATE_EPOCH,
       publicEnv: Object.fromEntries(
         Object.entries(publicEnv)
           .filter(([key]) => key !== 'PUBLIC_GIT_COMMIT_ID')
