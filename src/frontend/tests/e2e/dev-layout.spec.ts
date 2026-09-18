@@ -501,11 +501,12 @@ test('Dev Hub has a distinct active header button on hub and browse routes in bo
       });
       await expect(page.locator('header .site-title span')).toHaveCSS('color', foreground);
       for (const control of await page.locator('header :is(.header-icon-btn, .docs-btn, .docs-btn-mobile, site-search > button[data-open-modal]):visible').all()) {
-        await expect(control).toHaveCSS('color', foreground);
+        const expectedColor = await control.getAttribute('aria-current') === 'page' ? 'rgb(31, 30, 51)' : foreground;
+        await expect(control).toHaveCSS('color', expectedColor);
         await control.hover();
-        await expect(control).toHaveCSS('color', foreground);
+        await expect(control).toHaveCSS('color', expectedColor);
         await control.focus();
-        await expect(control).toHaveCSS('color', foreground);
+        await expect(control).toHaveCSS('color', expectedColor);
         await control.evaluate((element) => element.blur());
       }
       await page.mouse.move(0, 0);
@@ -524,6 +525,7 @@ test('Dev Hub has a distinct active header button on hub and browse routes in bo
           return { foreground: style.color, background: style.backgroundColor };
         });
         expect(colors.foreground).not.toBe(colors.background);
+        expect(colors.foreground).toBe('rgb(31, 30, 51)');
         if (theme === 'light') {
           expect(colors.background).toBe('rgb(213, 210, 246)');
           expect(colors.foreground).toBe(foreground);
