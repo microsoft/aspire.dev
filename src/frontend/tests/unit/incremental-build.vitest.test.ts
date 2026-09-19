@@ -13,7 +13,7 @@ import {
   stampBuildIdentity,
 } from '../../config/incremental-build.mjs';
 import { buildManifest, compareManifests } from '../../scripts/compare-builds.mjs';
-import { restoredPaths } from '../../scripts/test-incremental-builds.mjs';
+import { changedIdentity, restoredPaths } from '../../scripts/test-incremental-builds.mjs';
 import { apiCacheKey } from '../../src/utils/api-build-cache';
 
 const commit = '0123456789abcdef0123456789abcdef01234567';
@@ -304,6 +304,17 @@ describe('incremental compatibility and package keys', () => {
 });
 
 describe('whole-output equivalence', () => {
+  it('selects a different real identity for both PR merges and main-branch builds', () => {
+    const next = 'abcdef0123456789abcdef0123456789abcdef01';
+    expect(changedIdentity(commit, [next, commit])).toBe(next);
+    expect(changedIdentity(commit, [commit, next])).toBe(next);
+    expect(() => changedIdentity(commit, [commit, commit.toUpperCase()])).toThrow(
+      'different real commit'
+    );
+    expect(() => changedIdentity('', [next])).toThrow('full git commit IDs');
+    expect(() => changedIdentity(commit, ['not-a-commit'])).toThrow('full git commit IDs');
+  });
+
   it('counts Astro 7.3 restored routes, not image-cache or timing messages', () => {
     expect(
       restoredPaths(

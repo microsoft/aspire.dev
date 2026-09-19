@@ -202,6 +202,9 @@ manually after the clean dependency-upgrade CI passes. Before the workflow is
 available on the default branch, maintainers can opt a pull request into the
 complete five-scenario matrix with the `ci:incremental-pilot` label. This runs
 multiple full builds, so don't enable it on routine documentation changes.
+For a focused identity-fixture rerun after the other scenarios are qualified,
+replace that label with `ci:incremental-pilot:identity`. If both labels are
+present, the complete matrix takes precedence.
 
 The workflow compares every output file by SHA-256, without normalizing away
 HTML, identity, scripts, images, search data, or endpoints. It first checks
@@ -213,7 +216,9 @@ restores a fixture commit only inside CI, recording each build's source commit
 to distinguish real cross-commit reuse from an unchanged-checkout warm build.
 It retains the existing unit and desktop/tablet/mobile Chromium suites against
 the built site. The identity fixture isn't a substitute for measuring real
-cross-commit builds.
+cross-commit builds. It chooses a commit different from the resolved build
+identity, rather than assuming `HEAD^` differs: in a pull-request merge checkout,
+that parent can be the same merge-base SHA used by the normal build.
 
 The qualification captures successful public GitHub contributor and icon
 responses once per job, then replays those exact responses for every compared

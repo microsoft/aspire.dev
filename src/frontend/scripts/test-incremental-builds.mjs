@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { finished } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
+import { loadEnv } from 'vite';
 import { loadIncrementalBuildSettings } from '../config/incremental-build.mjs';
 import { buildManifest, compareManifests } from './compare-builds.mjs';
 import { captureQualificationInputs } from './qualification-inputs.mjs';
@@ -21,6 +22,19 @@ export function restoredPaths(log) {
   );
 }
 
+/**
+ * @param {string} current
+ * @param {string[]} candidates
+ */
+export function changedIdentity(current, candidates) {
+  if (![current, ...candidates].every((value) => /^[a-f\d]{40}$/i.test(value))) {
+    throw new Error('Identity qualification requires full git commit IDs.');
+  }
+  const identity = candidates.find((value) => value.toLowerCase() !== current.toLowerCase());
+  if (!identity) throw new Error('Identity qualification requires a different real commit.');
+  return identity;
+}
+
 async function runPilot(scenario) {
   if (process.env.CI !== 'true')
     throw new Error('This multi-build qualification harness is CI-only.');
@@ -30,6 +44,8 @@ async function runPilot(scenario) {
   await mkdir(reportDirectory, { recursive: true });
   const inputSnapshot = join(reportDirectory, 'input-snapshot.json');
   await captureQualificationInputs(inputSnapshot);
+  const buildEnv = loadEnv('production', root, ['PUBLIC_', 'GIT_COMMIT_ID']);
+  const baselineIdentity = buildEnv.PUBLIC_GIT_COMMIT_ID || buildEnv.GIT_COMMIT_ID || '';
   const sourceDateEpoch =
     process.env.SOURCE_DATE_EPOCH ??
     execFileSync('git', ['show', '-s', '--format=%ct', 'HEAD'], {
@@ -95,6 +111,7 @@ async function runPilot(scenario) {
     const htmlRestored = paths.length - markdownRestored;
     measurements.push({
       label,
+      buildIdentity: env.PUBLIC_GIT_COMMIT_ID || baselineIdentity,
       sourceDateEpoch,
       sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {
         cwd: root,
@@ -180,11 +197,16 @@ async function runPilot(scenario) {
   try {
     const env = {};
     if (scenario === 'identity') {
-      const identity = execFileSync('git', ['rev-parse', 'HEAD^'], {
+      const candidates = execFileSync('git', ['rev-list', '--max-count=2', 'HEAD'], {
         cwd: root,
         encoding: 'utf8',
-      }).trim();
-      env.PUBLIC_GIT_COMMIT_ID = identity;
+      })
+        .trim()
+        .split(/\s+/);
+      env.PUBLIC_GIT_COMMIT_ID = changedIdentity(baselineIdentity, candidates);
+      console.log(
+        `[incremental-pilot] identity: ${baselineIdentity} -> ${env.PUBLIC_GIT_COMMIT_ID}`
+      );
     } else if (scenario === 'api-data') {
       const directory = join(root, 'src', 'data', 'pkgs');
       let selected;
@@ -240,6 +262,12 @@ async function runPilot(scenario) {
     }
     if (scenario !== 'warm') {
       const expected = await build(`${scenario}-clean`, false, env);
+      if (
+        scenario === 'identity' &&
+        !compareManifests(clean, expected).changed.some((path) => path.endsWith('.html'))
+      ) {
+        throw new Error('The changed build identity must change rendered HTML.');
+      }
       if (scenario === 'api-data') {
         await verifyContentProbe(expected);
         const differences = compareManifests(clean, expected);
