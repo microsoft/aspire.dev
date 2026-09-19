@@ -159,8 +159,9 @@ holds preserve compatibility; built-site qualification is still required.
 Normal production builds and `pnpm dev` are unchanged. An **experimental,
 opt-in pilot** can reuse generated C# and TypeScript API pages and their Markdown
 endpoints. It doesn't cache Starlight documentation pages and isn't enabled for
-deployments. No end-to-end speedup or full-site equivalence has been established
-yet; use the qualification workflow before proposing promotion.
+deployments. The measured pilot passes whole-site output comparisons in the
+qualified scenarios, but is slower than matched clean builds. Keep it for
+qualification, not routine CI acceleration.
 
 From `src/frontend`, use the pinned pnpm version and run:
 
@@ -260,6 +261,56 @@ that map in descending page-count
 order with a language-code tie-breaker, preserving every metadata value and the
 site's largest-language search fallback. This applies to ordinary and incremental
 builds, not the comparator; every generated file still requires exact byte parity.
+
+#### Measured pilot results
+
+The [September 19, 2026 qualification run](https://github.com/microsoft/aspire.dev/actions/runs/35414420034)
+passed complete-output comparisons for cold and warm caches, a real API-data
+fixture commit, a global CSS change, and partial-cache recovery. Each comparison
+covered **33,897 files**, including search data and assets, with no missing,
+additional, or changed files relative to the matching clean build. API mutations
+removed and added the expected routes rather than leaving stale output.
+
+The original identity fixture could select the existing merge-base SHA, so its
+green result doesn't establish changed-identity safety. The
+[corrected focused identity run](https://github.com/microsoft/aspire.dev/actions/runs/35418391337)
+uses a genuinely different commit and requires the resulting HTML to change;
+use that run, not the original fixture, for changed-identity evidence.
+
+Each job also passed 618 unit tests and all three built-site Chromium projects:
+579 browser tests passed, with 75 applicability skips. This covers the existing
+router, search, filter, modal, component, responsive, and accessibility contracts;
+it isn't a guarantee against every possible regression or a Firefox/Safari
+qualification.
+
+| Matched experiment | Clean build | Incremental build | Reused HTML / Markdown |
+| ------------------ | ----------- | ----------------- | ---------------------- |
+| Unchanged inputs, warm cache | 14m 46s | 16m 51s | 7,362 / 7,321 |
+| Real API-data fixture commit | 14m 44s | 17m 12s | 7,350 / 7,309 |
+| Global CSS change | 12m 02s | 16m 57s | 0 / 0 |
+| One missing cached Markdown file | 12m 13s | 14m 06s | 7,362 / 7,320 |
+
+These are whole build-process wall times, not rendering-only timings or complete
+workflow durations. The unchanged-input row uses the clean-repeat build on the
+same runner; mutation rows use clean builds with the same mutation. Across the
+five jobs, warm unchanged-input builds were **10.5% to 16.2% slower** than their
+clean-repeat controls. The first cold incremental build in the warm job took
+21m 08s. Node peak resident memory rose from about 5.3 GiB for its clean-repeat
+build to 6.8 GiB for its warm incremental build.
+
+In that job, the generation phase decreased from 13m 05s to 10m 51s, but
+post-generation processing increased from 1m 18s to 5m 37s. Whole-site identity
+finalization and subsequent processing outweighed the API rendering savings.
+The reusable cache occupied **2.28 GB before compression**. No compatible CI
+cache existed, and these pull-request jobs correctly skipped trusted-cache
+publication, so cache download/upload cost remains unmeasured. Transfer cost
+cannot rescue the already slower in-job result.
+
+**Decision: retain normal full builds for CI and deployment.** Local incremental
+commands remain experimental, not a demonstrated local speedup; their Windows
+configuration and helper behavior were checked without running a local production
+build. Further performance work must reduce finalization overhead, repeat the
+correctness experiments, and measure actual cache transfer before promotion.
 
 :::caution[Qualification is still required]
 Astro 7.3.2 supports concurrent incremental builds, so the pilot retains the
