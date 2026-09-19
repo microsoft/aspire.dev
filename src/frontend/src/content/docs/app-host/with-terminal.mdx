@@ -74,10 +74,14 @@ The terminal session is described by a set of options with sensible defaults:
 | ------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Columns`           | `120`   | The initial number of columns for the terminal grid.                                                                                                            |
 | `Rows`              | `30`    | The initial number of rows for the terminal grid.                                                                                                               |
-| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists. Set to `true` to diagnose terminal-host startup or connectivity issues. |
+| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists **and** export their diagnostic logs, metrics, and traces. Set to `true` to diagnose terminal-host startup or connectivity issues. |
 
 <Aside type="tip">
 `Columns` and `Rows` must each be `1` or greater. Configuring either with zero or a negative value in the `WithTerminal(...)` callback throws an `ArgumentOutOfRangeException` immediately instead of failing later during terminal-host startup.
+</Aside>
+
+<Aside type="note" title="Terminal host telemetry is opt-in">
+By default, the hidden terminal host helper resources don't export logs, metrics, or traces, even when an OTLP endpoint is configured for the app—so they never show up in the dashboard's telemetry resource list (including the **Traces** filter). Setting `ShowTerminalHost = true` both reveals the helper resources and turns on their diagnostic telemetry when an OTLP endpoint is available. This is independent of the parent resource's own telemetry, which is never affected by `WithTerminal`.
 </Aside>
 
 <Aside type="note">
