@@ -5,6 +5,20 @@
 import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
 
+/*
+ * The canonical export types are re-exported here so page consumers have a single import path as
+ * they move onto the CLI-produced documents. This is a type-only re-export: it erases at compile
+ * time, so the schema module's Node dependencies never reach a page bundle.
+ */
+export type {
+  TypeScriptApiExport,
+  TypeScriptApiModule as TypeScriptApiExportModule,
+  TypeScriptApiItem as TypeScriptApiExportItem,
+  TypeScriptApiMember as TypeScriptApiExportMember,
+  TypeScriptApiDeclaration,
+  TypeScriptApiPackageIdentity,
+} from '../schemas/typescript-api-export';
+
 export interface TsFunctionParameter {
   name: string;
   type?: string;
