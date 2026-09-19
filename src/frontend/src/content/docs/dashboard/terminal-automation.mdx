@@ -1,0 +1,287 @@
+---
+title: Automate resource terminals with tape files
+description: Run repeatable shell and REPL checks with aspire terminal tape play, wait for application output, and record terminal screens as text.
+sidebar:
+  badge: Preview
+---
+
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Use [`aspire terminal tape play`](/reference/cli/commands/aspire-terminal-tape-play/) to send scripted input to an existing resource terminal, wait for expected output, and save text recordings. A tape is a plain-text `.tape` file containing commands such as `Type`, `Enter`, and `Wait+Screen`.
+
+:::caution[Experimental in Aspire 13.6]
+Tape playback is an experimental addition planned for Aspire 13.6. The implementation is currently in the open [microsoft/aspire#19887](https://github.com/microsoft/aspire/pull/19887) pull request. Use the CLI and matching AppHost packages from a build containing that change; an older installed CLI won't recognize `terminal tape`. Follow the [PR artifact installation instructions](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/docs/dogfooding-pull-requests.md) to try it without building Aspire from source.
+:::
+
+Playback joins a running [`WithTerminal()`](/app-host/with-terminal/) resource as a secondary peer. It doesn't create a shell, take primary ownership, resize the terminal, or stop the resource when the tape completes or fails. It cannot target a dashboard-only AppHost interaction terminal. See [Dashboard terminals](/dashboard/terminals/) for the different terminal surfaces.
+
+:::caution[Input is shared]
+Other dashboard and CLI peers can remain connected and send input during playback. Coordinate with them before running a tape. Run only trusted tapes: typing into a shell can execute commands with the resource's permissions.
+:::
+
+## Run a shell smoke test
+
+This first example runs in your own AppHost. It doesn't require the Aspire source repository, its playground, or a container runtime. Use Linux or macOS with Bash available at `/bin/bash`; Windows users can run the cross-platform [REPL example](#prepare-the-repl-playground) instead.
+
+### Set up the shell resource
+
+Use an existing AppHost or [create one with `aspire init`](/reference/cli/commands/aspire-init/) using the matching PR build described above. Replace its application code with the following complete example. For a file-based C# AppHost, retain the generated `#:sdk` and `#:package` directives above the code.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const shell = await builder.addExecutable('shell', '/bin/bash', '.', [
+  '--noprofile',
+  '--norc',
+  '-i',
+]);
+await shell.withEnvironment('PS1', 'tape> ');
+await shell.withTerminal();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIRETERMINAL001
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddExecutable("shell", "/bin/bash", ".", "--noprofile", "--norc", "-i")
+    .WithEnvironment("PS1", "tape> ")
+    .WithTerminal();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+This creates an interactive Bash resource with a predictable `tape>` prompt and no user startup scripts. [`WithTerminal()`](/app-host/with-terminal/) exposes its existing terminal for playback; you don't need a terminal library or an adapter.
+
+From the directory containing your app's `aspire.config.json`, enable the terminal commands and start the AppHost:
+
+```bash title="Enable terminal commands and start your app"
+aspire config set features.terminalCommandsEnabled true
+aspire run
+```
+
+Leave that terminal running. In a second terminal in the same directory, confirm that `shell` is alive:
+
+```bash title="Check the shell resource"
+aspire terminal ps
+```
+
+Start at an idle prompt with no partially typed input. To inspect it, run `aspire terminal attach shell`, then detach with `Ctrl+B D` before playback. If you have multiple running AppHosts, add `--apphost` with your AppHost's file path to select the correct one.
+
+### Play the smoke-test tape
+
+Save this complete tape as `shell-smoke.tape` in the same directory:
+
+```text title="shell-smoke.tape"
+Set TypingSpeed 0
+Set WaitTimeout 10s
+
+Wait+Line /[$#>]$/
+Type "printf 'ASPIRE_TAPE_%s\n' ready"
+Enter
+Wait+Screen /ASPIRE_TAPE_ready/
+Wait+Line /[$#>]$/
+```
+
+Run it against the existing `shell` resource:
+
+```bash title="Play the shell smoke test"
+aspire terminal tape play shell --tape-file shell-smoke.tape
+```
+
+The final screen printed to stdout contains `ASPIRE_TAPE_ready`. The expected marker deliberately doesn't appear contiguously in the typed command, so the shell's input echo cannot satisfy the wait before `printf` produces its output.
+
+Use a fresh marker or clear old output when adapting a tape for repeated checks. A wait can match text already present on the screen; it doesn't assert that the text was produced by the preceding command. Exit code zero means the tape completed, not that every program invoked inside the shell succeeded.
+
+## Prepare the REPL playground
+
+The next example uses the public [Terminals playground](https://github.com/microsoft/aspire/tree/3e16358e0ae00e1a3846994304436be554837282/playground/Terminals), rather than the minimal shell AppHost above. It supplies `repl`: the included `Terminals.Repl` console project, registered with `WithTerminal()` and two replicas. Its commands include `help`, `whoami`, and `size`.
+
+For this source walkthrough, install Git and the [Aspire source-build prerequisites](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/docs/machine-requirements.md), including a running container runtime for the playground's other resources. The restore script installs the repository's required .NET SDK. Follow the [source build guide](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/docs/contributing.md) if your machine needs additional setup.
+
+In a new terminal, clone the source, select the documented revision, build it, and start the playground:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash title="Build and run the Terminals playground"
+git clone https://github.com/microsoft/aspire.git aspire-terminal-sample
+cd aspire-terminal-sample
+git fetch origin pull/19887/head
+git checkout 3e16358e0ae00e1a3846994304436be554837282
+./restore.sh
+./build.sh
+cd playground/Terminals
+../../run-aspire.sh run
+```
+
+</div>
+<div slot="windows">
+
+```powershell title="Build and run the Terminals playground"
+git clone https://github.com/microsoft/aspire.git aspire-terminal-sample
+Set-Location aspire-terminal-sample
+git fetch origin pull/19887/head
+git checkout 3e16358e0ae00e1a3846994304436be554837282
+.\restore.cmd
+.\build.cmd
+Set-Location playground\Terminals
+..\..\run-aspire.cmd run
+```
+
+</div>
+</OsAwareTabs>
+
+Leave that terminal running. In a second terminal, enter the same checkout's `playground/Terminals` directory. Define a session-local `aspire` function so the remaining commands use the source CLI, not an older installed version:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash title="Select the source CLI and enable terminal commands"
+aspire() { ../../run-aspire.sh "$@"; }
+aspire config set features.terminalCommandsEnabled true
+aspire terminal ps
+```
+
+</div>
+<div slot="windows">
+
+```powershell title="Select the source CLI and enable terminal commands"
+function aspire { & ..\..\run-aspire.cmd @args }
+aspire config set features.terminalCommandsEnabled true
+aspire terminal ps
+```
+
+</div>
+</OsAwareTabs>
+
+The playground's `aspire.config.json` selects `Terminals.AppHost/Terminals.AppHost.csproj`. If you have multiple running AppHosts, add `--apphost Terminals.AppHost/Terminals.AppHost.csproj` to the terminal commands.
+
+Check that replica `0` of `repl` is alive and at an idle prompt. You can inspect it with `aspire terminal attach repl --replica 0`; detach with `Ctrl+B D` before playback.
+
+## Exercise a multi-step REPL
+
+Save this complete tape as `repl-check.tape` in `playground/Terminals`. It uses the actual commands and output of the playground's [REPL implementation](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/playground/Terminals/Terminals.Repl/Program.cs).
+
+```text title="repl-check.tape"
+Set TypingSpeed 50ms
+Set WaitTimeout 10s
+
+Wait+Line /repl#[0-9]+>$/
+Type "help"
+Enter
+Wait+Screen /Available commands:/
+
+Wait+Line /repl#[0-9]+>$/
+Type "whoami"
+Enter
+Wait+Screen /repl pid [0-9]+/
+
+Wait+Line /repl#[0-9]+>$/
+Type "size"
+Enter
+Wait+Screen /[0-9]+ cols x [0-9]+ rows/
+Wait+Line /repl#[0-9]+>$/
+```
+
+Select replica `0` explicitly because the playground has two independent REPL terminals:
+
+```bash title="Check REPL replica zero"
+aspire terminal tape play repl --replica 0 --tape-file repl-check.tape --timeout 30
+```
+
+The tape waits for each response rather than for echoed `help`, `whoami`, or `size` input. The process ID and current dimensions vary, so the assertions use numeric patterns rather than fixed values. The tape leaves the REPL running at its prompt.
+
+The playground also includes longer [`repl-basics.tape`](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/playground/Terminals/repl-basics.tape) and [`shell-basics.tape`](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/playground/Terminals/shell-basics.tape) examples.
+
+## Record screens as text
+
+To record the REPL check, create `record-repl.tape` in the same directory:
+
+```text title="record-repl.tape"
+Output repl-recording.txt
+Source repl-check.tape
+```
+
+Run the tape:
+
+```bash title="Record the REPL check"
+aspire terminal tape play repl --replica 0 --tape-file record-repl.tape
+```
+
+Open `repl-recording.txt` beside the root tape. `Output` records plain-text screen snapshots after visible executed commands, separated by horizontal lines. It is a sequence of screens, not just the final screen, a stream of raw console output, or a video. Identical snapshots can appear when consecutive commands don't change the screen.
+
+Only `.txt` and `.ascii` text destinations are supported. Output directories must already exist, and existing files aren't overwritten. Move the previous recording or choose a new destination before running the tape again. There is no CLI overwrite option.
+
+Paths in both `Source` and `Output` resolve on the **CLI machine**, relative to the **root tape's directory**, not the resource's working directory. This also applies to `Source` directives inside nested tapes. Included files must use the exact `.tape` extension; their own `Output` directives are ignored. Put the recording destination in the root tape.
+
+To save only the final screen instead, use shell redirection:
+
+```bash title="Save the final screen and diagnostics separately"
+aspire terminal tape play repl --replica 0 --tape-file repl-check.tape > final-screen.txt 2> tape-diagnostics.txt
+```
+
+Shell redirection has its own overwrite behavior, separate from `Output` protection. Discovery messages, warnings, and failures go to stderr; the final plain-text screen goes to stdout.
+
+## Tape file syntax
+
+Aspire uses a subset of [VHS tape syntax](https://github.com/charmbracelet/vhs/blob/c073383b5de0b1f57bf514113029c306bc986539/README.md#vhs-command-reference), based on **VHS v0.11.0**. See the [Hex1b tape syntax and compatibility reference](https://github.com/mitchdenny/hex1b/blob/main/docs/tape.md) for parser details. That reference also describes standalone terminal and library features that **aren't exposed by Aspire**.
+
+Use these commands when targeting an existing Aspire resource terminal:
+
+| Command                  | Example                                       | Purpose                                                              |
+| ------------------------ | --------------------------------------------- | -------------------------------------------------------------------- |
+| `Type`                   | `Type "help"`                                 | Send text without implicitly pressing Enter.                         |
+| Keys and chords          | `Enter`, `Tab`, `Ctrl+C`                      | Send supported terminal keys; the application decides their effect.  |
+| `Sleep`                  | `Sleep 100ms`                                 | Pause for a fixed duration. Prefer output waits for synchronization. |
+| `Wait`, `Wait+Line`      | `Wait+Line /repl#[0-9]+>$/`                   | Match a regular expression on the current terminal line.             |
+| `Wait+Screen`            | `Wait+Screen@5s /Ready/`                      | Match the visible screen, with an optional per-wait timeout.         |
+| Timing and wait settings | `Set TypingSpeed 50ms`, `Set WaitTimeout 10s` | Configure typing speed and the default wait timeout.                 |
+| `Set WaitPattern`        | `Set WaitPattern />$/`                        | Set the pattern used by waits without an explicit pattern.           |
+| `Source`                 | `Source repl-check.tape`                      | Include another tape.                                                |
+| `Output`                 | `Output recording.txt`                        | Record per-command text screens.                                     |
+| `Hide`, `Show`           | `Hide` followed later by `Show`               | Exclude or resume recording while commands continue executing.       |
+
+Put wait settings at the beginning of the tape, alongside `Output`, before input commands. `TypingSpeed` can change later, but late `WaitPattern` and `WaitTimeout` changes are ignored with diagnostics. Use comments beginning with `#` and quote text operands. Durations can use units such as `ms` and `s`.
+
+Regular expressions follow a supported subset of Go regex syntax. A pattern that parses in VHS isn't necessarily executable here: unsupported flags, escapes, and character classes are rejected during preflight.
+
+The following effects are **rejected before any tape input is sent**:
+
+- Video, GIF, PNG, and screenshot output.
+- Clipboard actions and VHS viewport scrolling.
+- Fonts, presentation settings, and pixel-based `Set Width` or `Set Height`.
+- Shell selection, environment declarations (`Env`), and executable requirements (`Require`) that would configure a newly launched shell.
+
+Aspire doesn't launch or resize a process for playback. Configure the resource's command, environment, and initial terminal dimensions in the AppHost instead.
+
+## Diagnose a failed tape
+
+- **Command not found:** Use the source CLI or a build containing tape playback, and enable `features.terminalCommandsEnabled`.
+- **Resource or replica unavailable:** Run `aspire terminal ps`; verify the resource has `WithTerminal()`, the selected replica is alive, and you're targeting the correct AppHost. Playback doesn't start an exited replica.
+- **Preflight diagnostic:** Correct the reported file, line, and column. Unsupported effects, missing includes, missing output directories, or existing output files prevent input from being sent.
+- **Wait failure:** Check the failure screen on stdout and the source-located diagnostic on stderr. Match meaningful application output, not input echo or stale screen text.
+- **Timeout:** `--timeout` defaults to 120 seconds and bounds terminal connection and playback, not initial AppHost discovery. Overall timeout returns **17**; user cancellation returns **130**. A failed tape command, including its own wait timeout, returns **16**. Cleanup and recording finalization can continue after cancellation.
+- **Disconnect:** Playback fails rather than retrying input that could have side effects.
+
+The CLI doesn't stop the resource on completion, failure, or cancellation, although input in the tape can cause the application to exit. Stop the AppHost separately when you're finished.
+
+## See also
+
+- [Dashboard terminals](/dashboard/terminals/)
+- [Configure resources with WithTerminal](/app-host/with-terminal/)
+- [aspire terminal tape play command](/reference/cli/commands/aspire-terminal-tape-play/)
+- [aspire terminal ps command](/reference/cli/commands/aspire-terminal-ps/)

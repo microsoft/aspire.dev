@@ -1,0 +1,226 @@
+---
+title: Create and automate terminals from AppHost
+description: Use TerminalService to launch shells, open container exec sessions, and automate terminal input with explicit ownership and lifetime in your AppHost.
+---
+
+Use `Aspire.Hosting.Terminals.TerminalService` to launch an interactive process from your AppHost, display it in the dashboard, and automate its input. For example, a resource command can open a persistent local shell or run `docker exec` against a container.
+
+These are **AppHost-owned terminals**: the AppHost launches and owns the terminal workload. They differ from [resource terminals](/dashboard/terminals/), where Aspire runs the resource and a terminal exposes that resource's existing process.
+
+:::caution[Experimental API]
+The terminal authoring APIs are experimental and emit diagnostic `ASPIRETERMINAL001`. The examples explicitly acknowledge it with `#pragma warning disable ASPIRETERMINAL001`. They describe the API in [microsoft/aspire#19887](https://github.com/microsoft/aspire/pull/19887), which is not yet merged.
+:::
+
+:::note[AppHost language support]
+Creating and automating AppHost-owned terminals with `TerminalService`, and displaying them with `PromptTerminalAsync`, aren't currently exported to TypeScript AppHosts. The C# examples below apply to those operations, not to terminal support in general.
+:::
+
+## Resolve the service and configure a terminal
+
+Resolve `TerminalService` from dependency injection, either through the built AppHost's `app.Services.GetRequiredService<TerminalService>()` or a callback's service provider, such as `commandContext.Services`. You don't construct or register the service yourself.
+
+`CreateTerminal(new TerminalLaunchOptions { ... })` returns an `AspireTerminal` handle. Launch options are properties of `TerminalLaunchOptions` itself; you don't need a terminal-library builder or a separate process-options object.
+
+| Option | Purpose |
+| --- | --- |
+| `Title` | Required, nonblank terminal title. |
+| `Executable` | Required executable name or path. A name is resolved against `PATH`. |
+| `Arguments` | An `IList<string>`, initially empty. Pass arguments individually rather than building a shell command line. |
+| `WorkingDirectory` | Defaults to the AppHost's working directory when omitted. |
+| `EnvironmentVariables` | Adds or overrides entries in the inherited AppHost environment; it doesn't replace the entire environment. |
+| `Columns`, `Rows` | Initial grid size, defaulting to 80 × 24. Both must be positive. A dashboard viewer can resize the grid. |
+| `Placement` | Fixed at creation. Defaults to `TerminalPlacement.Dock`. |
+
+Choose the placement independently of the workload:
+
+- **`Dock`**: A tab in the dashboard's terminal dock.
+- **`Dialog`**: A caller-owned terminal that an interaction dialog can borrow. It isn't listed in the dock.
+- **`None`**: A terminal used only by automation, with no dashboard presentation.
+
+`TerminalPlacement.ResourceView` is reserved for resource-owned terminals. Passing it to `CreateTerminal` throws.
+
+## Open a persistent local shell
+
+This complete AppHost uses an Alpine container as the resource on which to display a custom command. Start the AppHost with Docker available, then select **Open local shell** on the `tools` resource in the dashboard. The shell runs on the **AppHost machine**, not inside the container.
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Terminals;
+using Microsoft.Extensions.DependencyInjection;
+
+#pragma warning disable ASPIRETERMINAL001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("tools", "alpine", "3.22")
+    .WithArgs("sleep", "infinity")
+    .WithCommand("local-shell", "Open local shell", commandContext =>
+    {
+        var terminals = commandContext.Services
+            .GetRequiredService<TerminalService>();
+
+        // Keep the caller-owned terminal alive after this command returns.
+        var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
+        {
+            Title = "Local shell",
+            Executable = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
+            Arguments = OperatingSystem.IsWindows() ? [] : ["-i"],
+            WorkingDirectory = builder.AppHostDirectory,
+            Placement = TerminalPlacement.Dock
+        });
+
+        terminal.Start();
+        terminal.Show();
+
+        return Task.FromResult(CommandResults.Success());
+    });
+
+builder.Build().Run();
+```
+
+`Start()` is idempotent and nonblocking: it schedules the workload, but doesn't wait for output. Call it explicitly when you want the workload running before a viewer attaches. `Show()` reveals the dock and selects the terminal's tab in **every connected dashboard**, not just the browser that invoked the command. It doesn't make a dialog terminal visible.
+
+Don't put this dock terminal in an `await using` declaration inside the command. That would dispose it as soon as the command returned. It remains available until you dispose it, the user closes its dock tab, or the AppHost shuts down.
+
+## Open a container exec session
+
+This variant launches the Docker CLI on the AppHost machine and opens a shell inside the container. It requires a running Docker container and the `docker` command on the AppHost's `PATH`. Use `-it` so Docker allocates an interactive TTY inside the container.
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Terminals;
+using Microsoft.Extensions.DependencyInjection;
+
+#pragma warning disable ASPIRETERMINAL001
+
+var builder = DistributedApplication.CreateBuilder(args);
+var containerName = $"aspire-terminal-tools-{Guid.NewGuid():N}";
+
+builder.AddContainer("tools", "alpine", "3.22")
+    .WithContainerName(containerName)
+    .WithArgs("sleep", "infinity")
+    .WithCommand("container-shell", "Open container shell", commandContext =>
+    {
+        var terminals = commandContext.Services
+            .GetRequiredService<TerminalService>();
+
+        var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
+        {
+            Title = "Container shell",
+            Executable = "docker",
+            Arguments = ["exec", "-it", containerName, "/bin/sh"],
+            Placement = TerminalPlacement.Dock
+        });
+
+        terminal.Start();
+        terminal.Show();
+
+        return Task.FromResult(CommandResults.Success());
+    });
+
+builder.Build().Run();
+```
+
+Wait until `tools` is running before invoking the command. `WithContainerName` supplies the actual Docker name: the Aspire resource name alone isn't a reliable `docker exec` target because generated container names can have suffixes. The unique name in this example also avoids collisions with other AppHosts.
+
+The AppHost owns this terminal's local `docker exec` workload, not the container's main process. This isn't the same as enabling a terminal on the container resource.
+
+## Automate without a viewer
+
+The `AspireTerminal` handle exposes text and key input, bounded waits, and a snapshot of the current screen:
+
+- `SendTextAsync(text, cancellationToken)` sends text as though typed.
+- `SendKeyAsync(AspireTerminalKey.Enter, cancellationToken)` sends a non-printable key. Other keys include `Tab`, the arrows, `Escape`, and `CtrlC`.
+- `WaitForTextAsync(text, timeout, cancellationToken)` waits for text on the current screen. The default timeout is 30 seconds; a timeout throws `TimeoutException`.
+- `GetScreenText()` returns the current screen with newline-separated lines, not a process-exit result or a complete log archive.
+
+The following helper runs on Linux or macOS with `/bin/sh`. Add the local function to your AppHost file after the top-level app setup, with the `using` directive and diagnostic suppression at the top. Call it from an asynchronous AppHost callback with the resolved service and the callback's cancellation token.
+
+```csharp title="AppHost.cs — headless helper"
+using Aspire.Hosting.Terminals;
+
+#pragma warning disable ASPIRETERMINAL001
+
+static async Task<string> RunHeadlessAsync(
+    TerminalService terminals, CancellationToken cancellationToken)
+{
+    await using var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
+    {
+        Title = "Headless check",
+        Executable = "/bin/sh",
+        Arguments =
+        [
+            "-c",
+            """
+            printf 'Ready for input\n'
+            read -r answer
+            printf 'Received:%s\n' "$answer"
+            read -r finish
+            """
+        ],
+        Placement = TerminalPlacement.None
+    });
+
+    terminal.Start();
+    await terminal.WaitForTextAsync(
+        "Ready for input", TimeSpan.FromSeconds(10), cancellationToken);
+    await terminal.SendTextAsync("hello", cancellationToken);
+    await terminal.SendKeyAsync(AspireTerminalKey.Enter, cancellationToken);
+    await terminal.WaitForTextAsync(
+        "Received:hello", TimeSpan.FromSeconds(10), cancellationToken);
+
+    return terminal.GetScreenText();
+}
+```
+
+The script stays alive at its final `read` until the helper disposes the terminal. This matters: after an **AppHost-owned workload stops**, input and screen-automation operations throw `InvalidOperationException`. The terminal remains registered and visible until disposal, but reopening it shows its ended state rather than replaying output.
+
+Use distinctive, complete replies when automating. Waiting for text that also appears in the terminal's echoed input can report success before the command actually runs. Polling loops should have deadlines and observe cancellation; don't wait indefinitely for a prompt that might never appear.
+
+## Acquire a resource terminal handle
+
+`TryGetTerminal(string terminalId, out AspireTerminal? terminal)` resolves both AppHost-owned and resource-owned terminals. Resource terminal IDs use `resource:<resource-name>:<replica-index>`, with a zero-based replica index.
+
+For a running shell resource named `shell` configured with `WithTerminal()`, this local function acquires its first replica's handle and sends an Enter key. Add it to your AppHost file after the top-level app setup, with the `using` directive and diagnostic suppression at the top:
+
+```csharp title="AppHost.cs — resource terminal helper"
+using Aspire.Hosting.Terminals;
+
+#pragma warning disable ASPIRETERMINAL001
+
+static async Task SendEnterAsync(
+    TerminalService terminals, CancellationToken cancellationToken)
+{
+    if (!terminals.TryGetTerminal("resource:shell:0", out var terminal))
+    {
+        throw new InvalidOperationException("The shell terminal isn't registered.");
+    }
+
+    await using (terminal)
+    {
+        await terminal.SendKeyAsync(AspireTerminalKey.Enter, cancellationToken);
+    }
+}
+```
+
+A successful lookup establishes registration, not that the workload is ready to accept input. Automation shares the resource's live terminal with its viewers, so coordinate input rather than typing over someone else's work.
+
+`Start()` is a no-op on resource-owned terminals: the resource starts its workload. Disposing this handle releases the automation connection, **not the resource or its terminal producer**. A later lookup can acquire a fresh handle.
+
+## Separate terminal and dialog lifetimes
+
+For short-lived modal workflows, create a `Dialog` terminal with `await using`, start it, and pass it to [`IInteractionService.PromptTerminalAsync`](/extensibility/interaction-service/#terminal-interactions). The interaction **borrows** the handle and never disposes it. You can reuse the same live terminal across multiple prompts before the owner disposes it.
+
+Keep these lifetimes separate:
+
+| Lifetime | What ends it |
+| --- | --- |
+| AppHost-owned workload | Its process exits, or terminal disposal stops it. |
+| AppHost-owned terminal | Explicit disposal, dock-tab close for a dock terminal, or AppHost shutdown. |
+| Terminal interaction | Successful work completion, explicit interaction completion, or cancellation—not process exit. |
+| Resource-owned producer | Resource lifecycle, not disposal of an acquired automation handle. |
+
+## See also
+
+- [Dashboard terminals](/dashboard/terminals/)
+- [Interaction service](/extensibility/interaction-service/#terminal-interactions)
+- [Custom resource commands](/fundamentals/custom-resource-commands/)
+- [Terminal API source](https://github.com/microsoft/aspire/tree/3e16358e0ae00e1a3846994304436be554837282/src/Aspire.Hosting/Terminals)

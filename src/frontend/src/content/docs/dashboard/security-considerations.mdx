@@ -83,6 +83,18 @@ aspire dashboard run --allow-anonymous --AllowedHosts='localhost;dashboard.examp
 Anyone who can reach an anonymously accessible dashboard can view potentially sensitive resource and telemetry data without authentication. Untrusted apps can also send telemetry to an unsecured OTLP endpoint. Only allow anonymous access in trusted local development environments, and don't expose an anonymously accessible dashboard or its endpoints to an untrusted network.
 :::
 
+## Interactive terminals
+
+[Dashboard terminals](/dashboard/terminals/) can send input to running processes, not just display output. Treat terminal access as access to the capabilities of the underlying program. An AppHost-owned shell runs on the AppHost machine with that process's permissions and inherited environment. A container shell has the container's configured permissions and access to its mounted files and credentials.
+
+- Restrict dashboard access to trusted users. Don't expose an interactive shell through an anonymously accessible dashboard on an untrusted network.
+- Treat terminal output, scrollback, clipboard contents, screenshots, and [tape recordings](/dashboard/terminal-automation/) as potentially sensitive. Avoid typing secrets into commands that echo or persist them, and review recordings before sharing.
+- Review tape files and any included `Source` files before playback. They send real input to an existing process and can perform any action that process permits.
+- Coordinate input between browser viewers, CLI attachments, and automation. A secondary viewer doesn't provide exclusive access or a separate shell. A read-only presentation isn't a replacement for authorization to the underlying terminal.
+- Hiding the dock, closing a viewer, or canceling a terminal interaction doesn't itself stop the process. Dispose AppHost-owned terminals when finished, or use the resource's lifecycle controls for resource-owned processes.
+
+Detached windows use the dashboard's terminal connection; opening a separate window doesn't create an isolated security context for the workload. Only allow terminal pop-ups for a trusted dashboard origin.
+
 ## Secure telemetry endpoint
 
 The Aspire dashboard provides a variety of ways to view logs, traces, and metrics for your app. This information enables you to track the behavior and performance of your app and to diagnose any issues that arise. It's important that you can trust this information, and a warning is displayed in the dashboard UI if telemetry isn't secured.
