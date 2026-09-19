@@ -22,6 +22,7 @@ import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import buildTiming from './config/build-timing.mjs';
 import { loadIncrementalBuildSettings } from './config/incremental-build.mjs';
+import { pagefindManifestIntegration } from './config/pagefind-manifest.mjs';
 import UnoCSS from 'unocss/astro';
 import Icons from 'starlight-plugin-icons';
 
@@ -220,6 +221,7 @@ export default defineConfig({
     }),
     ...(isBuildTimingEnabled ? [buildTiming()] : []),
     aspireVersionPlaceholdersIntegration(),
+    ...(!isSkipSearchBuild ? [pagefindManifestIntegration()] : []),
     ...(incremental ? [incremental.integration] : []),
   ],
   build: {

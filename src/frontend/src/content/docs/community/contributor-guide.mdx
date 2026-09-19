@@ -242,6 +242,17 @@ checkout from omitting icons that appear only on the next build. Looping media
 markup also omits unused random attributes; playback remains scoped to each
 component wrapper.
 
+Two additional clean-build differences were traced to output generation rather
+than incremental reuse. Shiki's wall-clock tokenization deadline could silently
+truncate syntax colors on a busy runner; code and hover highlighting now finish
+without that deadline. The Twoslash patch configures its separate hover renderer,
+which doesn't inherit the site's Shiki options. Pagefind's entry manifest
+serialized its language map in random hash-map order. A build hook now writes
+that map in descending page-count
+order with a language-code tie-breaker, preserving every metadata value and the
+site's largest-language search fallback. This applies to ordinary and incremental
+builds, not the comparator; every generated file still requires exact byte parity.
+
 :::caution[Qualification is still required]
 Astro 7.3.2 supports concurrent incremental builds, so the pilot retains the
 existing concurrency of four. It precedes fixes for CSS-preprocessor dependency
