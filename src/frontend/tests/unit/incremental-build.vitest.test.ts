@@ -56,6 +56,24 @@ describe('incremental build identity', () => {
     expect(stampBuildIdentity(template, next)).not.toContain(commit);
   });
 
+  it('preserves quoting, entities and Unicode around streamed metadata and nested footer content', () => {
+    const source = `<!doctype html><p>\u{1f680} unchanged &amp; escaped &lt;a&gt;</p>
+<META content='${commitPlaceholder}' name='git-commit-id'>
+<a href="/unrelated">unchanged</a>
+<a class='other commit-link' href='/commit/${commitPlaceholder}'><span>SHA ASPRSHA</span></a>`;
+    expect(stampBuildIdentity(source, commit)).toBe(
+      source.replaceAll(commitPlaceholder, commit).replaceAll('ASPRSHA', commit.slice(0, 7))
+    );
+  });
+
+  it.each([
+    `<!-- <meta name="git-commit-id" content="${commitPlaceholder}"> -->`,
+    `<textarea><a class="commit-link">${commitPlaceholder}</a></textarea>`,
+    `<style>a::after { content: '<a class="commit-link">${commitPlaceholder}</a>'; }</style>`,
+  ])('does not mistake raw text or comments for identity elements', (source) => {
+    expect(() => stampBuildIdentity(source, commit)).toThrow('Unstamped');
+  });
+
   it('substitutes private fallback before Astro can inline the changing SHA', () => {
     const source =
       'const commit = import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMMIT_ID || "";';
@@ -121,17 +139,19 @@ describe('incremental build identity', () => {
     );
   });
 
-  it('finalizes a complete assembled output, including restored HTML', async () => {
+  it('finalizes assembled HTML before build-done consumers index it, leaving raw cache reusable', async () => {
     const root = await fixture();
     await put(root, 'dist/reference/api/csharp/test/index.html', template);
     await put(root, 'dist/docs/index.html', template);
     await put(root, 'dist/test.md', 'Markdown is unchanged.');
+    await put(root, 'raw-cache/index.html', template);
     const settings = incrementalBuildSettings({
       root: pathToFileURL(root + '/'),
       mode: 'production',
       env: { PUBLIC_GIT_COMMIT_ID: commit },
     });
-    await settings.integration.hooks['astro:build:done']({
+    expect(settings.integration.hooks).not.toHaveProperty('astro:build:done');
+    await settings.integration.hooks['astro:build:generated']({
       dir: pathToFileURL(join(root, 'dist') + '/'),
     });
     expect(await readFile(join(root, 'dist/docs/index.html'), 'utf8')).toContain(commit);
@@ -139,6 +159,7 @@ describe('incremental build identity', () => {
       await readFile(join(root, 'dist/reference/api/csharp/test/index.html'), 'utf8')
     ).not.toContain('ASPRSHA');
     expect(await readFile(join(root, 'dist/test.md'), 'utf8')).toBe('Markdown is unchanged.');
+    expect(await readFile(join(root, 'raw-cache/index.html'), 'utf8')).toBe(template);
   });
 });
 

@@ -3,9 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { selectAll } from 'hast-util-select';
-import rehypeParse from 'rehype-parse';
-import { unified } from 'unified';
+import { SAXParser } from 'parse5-sax-parser';
 
 export const commitPlaceholder = 'ASPRSHA_BUILD_IDENTITY_NOT_FOR_DEPLOYMENT';
 const shortCommitPlaceholder = commitPlaceholder.slice(0, 7);
@@ -87,18 +85,38 @@ export function stampBuildIdentity(html, commit) {
   if (!/^[a-f\d]{40}$/i.test(commit)) {
     throw new Error('Incremental builds require a full git commit identity.');
   }
-  const tree = unified().use(rehypeParse).parse(html);
-  const nodes = selectAll(
-    'meta[name="git-commit-id"], meta[name="git-source-url"], a.commit-link',
-    tree
-  );
-  for (const node of nodes.toReversed()) {
-    const { start, end } = node.position;
+  /** @type {Array<{ start: number, end: number }>} */
+  const ranges = [];
+  /** @type {Array<number | undefined>} */
+  const anchors = [];
+  const parser = new SAXParser({ sourceCodeLocationInfo: true });
+  parser.on('startTag', ({ tagName, attrs, sourceCodeLocation }) => {
+    if (
+      tagName === 'meta' &&
+      attrs.some(
+        ({ name, value }) => name === 'name' && ['git-commit-id', 'git-source-url'].includes(value)
+      )
+    ) {
+      ranges.push({ start: sourceCodeLocation.startOffset, end: sourceCodeLocation.endOffset });
+    } else if (tagName === 'a') {
+      const selected = attrs.some(
+        ({ name, value }) => name === 'class' && value.split(/\s+/).includes('commit-link')
+      );
+      anchors.push(selected ? sourceCodeLocation.startOffset : undefined);
+    }
+  });
+  parser.on('endTag', ({ tagName, sourceCodeLocation }) => {
+    if (tagName !== 'a') return;
+    const start = anchors.pop();
+    if (start !== undefined) ranges.push({ start, end: sourceCodeLocation.endOffset });
+  });
+  parser.end(html);
+  for (const { start, end } of ranges.toReversed()) {
     const markup = html
-      .slice(start.offset, end.offset)
+      .slice(start, end)
       .replaceAll(commitPlaceholder, commit)
       .replaceAll(shortCommitPlaceholder, commit.slice(0, 7));
-    html = html.slice(0, start.offset) + markup + html.slice(end.offset);
+    html = html.slice(0, start) + markup + html.slice(end);
   }
   if (html.includes(shortCommitPlaceholder)) {
     throw new Error('Unstamped build identity outside the supported metadata/footer locations.');
@@ -176,7 +194,8 @@ export function incrementalBuildSettings({ root, mode, env }) {
             },
           });
         },
-        'astro:build:done': async ({ dir }) => {
+        // Astro has stored reusable raw output by this point; Pagefind has not indexed it yet.
+        'astro:build:generated': async ({ dir }) => {
           let stamped = 0;
           for (const path of files(fileURLToPath(dir))) {
             if (!path.endsWith('.html')) continue;
