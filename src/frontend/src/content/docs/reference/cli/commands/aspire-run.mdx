@@ -54,7 +54,7 @@ On Windows, TypeScript/JavaScript AppHosts started with `tsx` or `npm` run in an
 
 ## Configuring the startup timeout
 
-`aspire run` waits for the AppHost to reach a stable running state before it considers startup complete. If the AppHost build or startup takes longer than the default 120-second window—for example on a slow machine or in a CI environment—set the `ASPIRE_CLI_START_TIMEOUT` environment variable to a higher number of seconds:
+`aspire run` waits for the AppHost to reach a stable running state before it considers startup complete. If the AppHost startup takes longer than the default 120-second window—for example on a slow machine or in a CI environment—set the `ASPIRE_CLI_START_TIMEOUT` environment variable to a higher number of seconds:
 
 ```bash title="Aspire CLI"
 export ASPIRE_CLI_START_TIMEOUT=300
@@ -62,6 +62,8 @@ aspire run
 ```
 
 If `ASPIRE_CLI_START_TIMEOUT` is set to a value that isn't a positive whole number of seconds, `aspire run` displays an error and exits without starting the AppHost. This behavior also applies to `aspire run --detach` and to `aspire start`.
+
+`ASPIRE_CLI_START_TIMEOUT` only bounds the time the AppHost takes to reach a stable running state after it starts executing. Restoring and building the AppHost project—including a required safety build performed for an explicit `--no-build`—doesn't count against this budget, so a long restore or build on a cold or large solution won't cause a misleading startup timeout. Once the build completes, the AppHost receives the full configured startup budget.
 
 `ASPIRE_CLI_START_TIMEOUT` controls how long `aspire run` and `aspire start` wait for the AppHost to start. It's separate from `aspire wait --timeout`, which controls how long `aspire wait` waits for an individual *resource* inside an already-running AppHost to reach a target status.
 
