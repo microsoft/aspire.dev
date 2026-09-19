@@ -9,6 +9,7 @@ import rehypeParse from 'rehype-parse';
 import { unified } from 'unified';
 import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
 import * as searchStats from '@utils/ts-api-search-stats';
+import { ApiSearchPresentation, withApiSearchFallback } from '../../src/pages/reference/api/_search-presentation';
 
 const surfaces = [
   ['csharp', 'landing'],
@@ -75,8 +76,9 @@ describe('API search navigation lifecycle', () => {
 
     afterEach(() => vi.unstubAllGlobals());
 
-    async function createSync() {
+    async function createSync(initialValue = '') {
       const input = new SearchInput();
+      input.value = initialValue;
       const clear = Object.assign(new EventTarget(), { style: { display: 'none' } });
       const replaceState = vi.fn();
       const state = { index: 3, scrollX: 0, scrollY: 120 };
@@ -104,6 +106,15 @@ describe('API search navigation lifecycle', () => {
       expect(replaceState).toHaveBeenCalledWith(
         state, '', '/reference/api/csharp/?keep=1&q=RedisResource&kinds=class#members',
       );
+    });
+
+    it('initializes clear visibility for text entered before controller mounting', async () => {
+      const { input, clear, onClear } = await createSync('Redis');
+      expect(clear.style.display).toBe('');
+      clear.dispatchEvent(new Event('click'));
+      expect(input.value).toBe('');
+      expect(clear.style.display).toBe('none');
+      expect(onClear).toHaveBeenCalledOnce();
     });
 
     it('removes clear/input handlers and refuses stale URL writes after abort', async () => {
@@ -143,8 +154,11 @@ describe('API search navigation lifecycle', () => {
       innerHTML = '';
       dataset: Record<string, string> = {};
       children = new Map<string, SearchElement>();
+      rendered: SearchElement[] = [];
       querySelector(selector: string) { return this.children.get(selector) ?? null; }
       querySelectorAll() { return []; }
+      append(...children: SearchElement[]) { this.rendered.push(...children); }
+      replaceChildren(...children: SearchElement[]) { this.rendered = children; }
       focus() {}
     }
 
@@ -170,8 +184,10 @@ describe('API search navigation lifecycle', () => {
       const index = new SearchElement();
       index.textContent = '[]';
       root.children.set('[data-api-search-index]', index);
+      root.children.set('[id$="-clear-filters"]', root.children.get(`#${prefix}-clear-filters`)!);
       const selector = `[data-api-search-language="${language}"][data-api-search-kind="${kind}"]`;
       const document = {
+        createElement: () => new SearchElement(),
         querySelector: (query: string) => query === selector ? root : null,
         getElementById: () => new SearchElement(),
         addEventListener: events.addEventListener.bind(events),
@@ -210,11 +226,17 @@ describe('API search navigation lifecycle', () => {
           },
         },
         '@utils/ts-api-search-stats': searchStats,
+        '../_search-presentation': { ApiSearchPresentation, withApiSearchFallback },
+        '../../_search-presentation': { ApiSearchPresentation, withApiSearchFallback },
+        '../../../_search-presentation': { ApiSearchPresentation, withApiSearchFallback },
       };
       runInNewContext(outputText, {
         exports: {}, require: (id: string) => modules[id], document, window, clearTimeout,
       });
       events.dispatchEvent(new Event('astro:page-load'));
+      const results = root.querySelector(`#${prefix}-search-results`)!;
+      expect(results.rendered[0].rendered[0].textContent).toBe('No API entries available');
+      expect(results.rendered[0].rendered).toHaveLength(2);
       const input = root.querySelector(`#${prefix}-search-input`)!;
       input.value = 'pending';
       input.dispatchEvent(new Event('input'));

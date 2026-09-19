@@ -239,7 +239,7 @@ const pkgName = pkg.package.name;
       placeholder={`Search types, functions, members in ${pkg.package.name}...`}
       kinds={allKinds}
       defaultStatsText={`${totalTypeCount.toLocaleString()} types and ${memberCount.toLocaleString()} members`}
-      size="sm"
+      size="lg"
     />
   </div>
 
@@ -317,6 +317,7 @@ const pkgName = pkg.package.name;
 <script>
   import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
   import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+  import { ApiSearchPresentation, withApiSearchFallback } from '../../_search-presentation';
 
   interface PkgIndexEntry {
     n: string;
@@ -365,6 +366,7 @@ const pkgName = pkg.package.name;
     private lastTokens: string[] = [];
     private visibleCount = 0;
     private sync: InpageSearchSync;
+    private presentation: ApiSearchPresentation;
 
     constructor(root: HTMLElement, private signal: AbortSignal) {
       this.input = root.querySelector<HTMLInputElement>('#pkg-search-input')!;
@@ -381,6 +383,7 @@ const pkgName = pkg.package.name;
       this.memberCount = Number(root.dataset.memberCount ?? 0);
 
       this.sync = new InpageSearchSync('pkg', () => this.clear(), root, signal);
+      this.presentation = new ApiSearchPresentation(root, this.input, () => this.clear(), signal);
       signal.addEventListener('abort', () => {
         if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
       }, { once: true });
@@ -422,6 +425,7 @@ const pkgName = pkg.package.name;
         this.clearFiltersBtn.style.display = 'none';
         this.syncUrl();
         this.applySearch();
+        this.input.focus();
       }, { signal: this.signal });
     }
 
@@ -429,11 +433,12 @@ const pkgName = pkg.package.name;
       this.input.value = '';
       this.sync.updateClearButton();
       this.syncUrl();
-      this.showNamespaces();
+      this.applySearch();
+      this.input.focus();
     }
 
     private showNamespaces(): void {
-      if (this.activeKinds.size > 0) {
+      if (this.activeKinds.size > 0 || this.index.length === 0) {
         this.search('');
         return;
       }
@@ -441,6 +446,7 @@ const pkgName = pkg.package.name;
       this.resultsEl.innerHTML = '';
       this.nsList.style.display = '';
       this.countEl.textContent = `${fmtNum(this.typeCount)} types and ${fmtNum(this.memberCount)} members`;
+      this.status.textContent = this.countEl.textContent;
     }
 
     private handleInput(): void {
@@ -480,12 +486,12 @@ const pkgName = pkg.package.name;
         this.clearFiltersBtn.style.display = '';
       }
 
-      if (q || kinds.size > 0) {
-        this.applySearch();
-      }
+      this.applySearch();
     }
 
     private applySearch(): void {
+      if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      this.presentation.update(this.activeKinds.size > 0);
       const q = this.input.value.trim();
       if (!q && this.activeKinds.size === 0) {
         this.showNamespaces();
@@ -494,15 +500,15 @@ const pkgName = pkg.package.name;
       this.search(q);
     }
 
-    private search(query: string): void {
+    private findMatches(query: string, kinds = this.activeKinds) {
       const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-      const hasKindFilter = this.activeKinds.size > 0;
+      const hasKindFilter = kinds.size > 0;
 
       type Scored = { entry: PkgIndexEntry; score: number };
       const scored: Scored[] = [];
 
       for (const entry of this.index) {
-        if (hasKindFilter && !this.activeKinds.has(entry.k)) continue;
+        if (hasKindFilter && !kinds.has(entry.k)) continue;
 
         if (tokens.length === 0) {
           scored.push({ entry, score: 50 });
@@ -543,6 +549,13 @@ const pkgName = pkg.package.name;
         if (score > 0) scored.push({ entry, score });
       }
 
+      return scored;
+    }
+
+    private search(query: string): void {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = this.activeKinds.size > 0;
+      const scored = this.findMatches(query);
       scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
 
       this.lastScored = scored;
@@ -555,14 +568,10 @@ const pkgName = pkg.package.name;
       this.resultsEl.style.display = '';
 
       if (total === 0) {
-        const hint = query
-          ? `No results for "<strong>${this.esc(query)}</strong>"`
-          : 'No results match the selected filters';
-        this.resultsEl.innerHTML = `
-          <div class="api-search-empty">
-            <p>${hint}</p>
-            <p class="api-search-empty-hint">Try a different name, module, or keyword.</p>
-          </div>`;
+        this.presentation.renderEmpty(this.resultsEl, hasKindFilter, this.index.length === 0, {
+          withoutQuery: this.findMatches('').length,
+          withoutFilters: this.findMatches(query, new Set()).length,
+        }, this.activeKinds);
         this.countEl.textContent = '0 results';
         this.status.textContent = 'No results';
         return;
@@ -655,7 +664,7 @@ const pkgName = pkg.package.name;
     }
   }
 
-  registerApiSearch('typescript', 'module', (root, signal) => new PkgSearchController(root, signal));
+  registerApiSearch('typescript', 'module', withApiSearchFallback((root, signal) => new PkgSearchController(root, signal)));
 </script>
 
 <style>

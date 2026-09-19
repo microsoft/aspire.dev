@@ -68,7 +68,7 @@ const sorted = [...versions].sort((a, b) => {
     </svg>
   </button>
 
-  <div class="version-filter-dropdown" id={`${filterId}-dropdown`} role="listbox" aria-label="Version selection">
+  <div class="version-filter-dropdown" id={`${filterId}-dropdown`} role="group" aria-label="Version selection">
     {/* Select all toggle */}
     <label class="version-filter-item version-filter-all">
       <input
@@ -146,7 +146,17 @@ const sorted = [...versions].sort((a, b) => {
       }, { signal });
 
       this.container.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') this.close();
+        if (e.key === 'Escape' && this.btn.getAttribute('aria-expanded') === 'true') {
+          e.stopPropagation();
+          this.close();
+          this.btn.focus();
+        }
+      }, { signal });
+
+      this.container.addEventListener('version-filter-reset', () => {
+        for (const cb of this.checkboxes) cb.checked = true;
+        this.close();
+        this.onChange();
       }, { signal });
 
       if (this.allCheckbox) {
@@ -195,6 +205,7 @@ const sorted = [...versions].sort((a, b) => {
     private updateUI() {
       const checkedCount = this.checkboxes.filter(cb => cb.checked).length;
       const total = this.checkboxes.length;
+      this.btn.setAttribute('aria-label', `${this.container.querySelector('.version-filter-label')?.textContent ?? 'Versions'}: ${checkedCount} of ${total} selected`);
       if (this.countEl) {
         this.countEl.textContent = `${checkedCount}/${total}`;
       }
@@ -222,12 +233,15 @@ const sorted = [...versions].sort((a, b) => {
       const urlVersions = url.searchParams.get('versions');
 
       let selected: string[] | null = null;
-      if (urlVersions) {
+      if (urlVersions !== null) {
         selected = urlVersions.split(',').filter(v => this.versions.includes(v));
       } else {
         try {
           const stored = localStorage.getItem(this.storageKey);
-          if (stored) selected = JSON.parse(stored);
+          if (stored) {
+            const parsed: unknown = JSON.parse(stored);
+            if (Array.isArray(parsed)) selected = parsed.filter((v): v is string => typeof v === 'string' && this.versions.includes(v));
+          }
         } catch {}
       }
 
@@ -282,12 +296,13 @@ const sorted = [...versions].sort((a, b) => {
   /* ── Button ──────────────────────────────────────────────────── */
 
   .version-filter-btn {
+    min-height: var(--search-control-height, 3rem);
     display: inline-flex;
     align-items: center;
     gap: 0.625rem;
     padding: 0.5rem 1rem;
     border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.625rem;
+    border-radius: var(--search-control-radius, 0.625rem);
     background: var(--sl-color-bg-nav);
     color: var(--sl-color-text);
     font-size: var(--sl-text-sm);
@@ -302,6 +317,11 @@ const sorted = [...versions].sort((a, b) => {
   .version-filter-btn:hover {
     border-color: var(--sl-color-gray-3);
     background: var(--sl-color-gray-6);
+  }
+
+  .version-filter-btn:focus-visible {
+    outline: 2px solid var(--search-control-focus, var(--sl-color-text-accent));
+    outline-offset: 2px;
   }
 
   .version-filter-btn.filtered {
@@ -371,6 +391,7 @@ const sorted = [...versions].sort((a, b) => {
   /* ── Checkbox items ──────────────────────────────────────────── */
 
   .version-filter-item {
+    min-height: 2.25rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;

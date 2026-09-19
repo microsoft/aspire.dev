@@ -1,7 +1,10 @@
 ---
-import { CardGrid, Card } from '@astrojs/starlight/components';
+import { CardGrid } from '@astrojs/starlight/components';
 import IntegrationCard from '@components/IntegrationCard.astro';
 import IntegrationTotals from '@components/IntegrationTotals.astro';
+import '../styles/search-controls.css';
+import SearchField from '@components/search/SearchField.astro';
+import CatalogSearchActiveFilters from '@components/CatalogSearchActiveFilters.astro';
 
 interface Props {
   integrations: Integrations;
@@ -9,6 +12,21 @@ interface Props {
 }
 
 const { integrations, availableDocs } = Astro.props;
+const messages = {
+  clearSearch: Astro.locals.t('catalogSearch.clearSearch'),
+  clearFilters: Astro.locals.t('catalogSearch.clearFilters'),
+  resetAll: Astro.locals.t('catalogSearch.resetAll'),
+  count: Astro.locals.t('catalogSearch.integrationsCount'),
+  empty: Astro.locals.t('catalogSearch.integrationsEmpty'),
+  queryEmpty: Astro.locals.t('catalogSearch.integrationsQueryEmpty'),
+  filteredQueryEmpty: Astro.locals.t('catalogSearch.integrationsFilteredQueryEmpty'),
+  queryGuidance: Astro.locals.t('catalogSearch.queryGuidance'),
+  preserveFiltersGuidance: Astro.locals.t('catalogSearch.preserveFiltersGuidance'),
+  preserveQueryGuidance: Astro.locals.t('catalogSearch.preserveQueryGuidance'),
+  filtersGuidance: Astro.locals.t('catalogSearch.filtersGuidance'),
+  resetGuidance: Astro.locals.t('catalogSearch.resetGuidance'),
+  excludedFilter: Astro.locals.t('catalogSearch.excludedFilter'),
+};
 
 interface Integration {
   title: string;
@@ -49,35 +67,19 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
 
 <div class="sl-mb-4 search-wrapper not-content">
   <div class="search-container">
-    <svg
-      class="search-icon"
-      aria-hidden="true"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <circle cx="11" cy="11" r="8"></circle>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-    </svg>
-    <input
-      autocomplete="off"
-      spellcheck="false"
-      type="text"
-      class="search-box filter"
+    <SearchField
+      id="integrations-search-input"
+      label={Astro.locals.t('integrations.search')}
       placeholder={Astro.locals.t('integrations.search')}
+      inputClass="search-box filter"
+      clearClass="clear-button"
+      clearLabel={messages.clearSearch}
     />
-    <button class="clear-button" aria-label="Clear search" type="button">
-      {Astro.locals.t('integrations.clear')}
-    </button>
   </div>
   <div class="type-toggle-group">
     <button
       class="type-toggle active"
+      aria-pressed="true"
       data-type="official"
       title={Astro.locals.t('integrations.officialTooltip')}
       data-tooltip-placement="top"
@@ -88,6 +90,7 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
     </button>
     <button
       class="type-toggle active"
+      aria-pressed="true"
       data-type="community"
       title={Astro.locals.t('integrations.communityTooltip')}
       data-tooltip-placement="top"
@@ -102,6 +105,7 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
       <div class="type-toggle-group">
         <button
           class="type-toggle active"
+          aria-pressed="true"
           data-type="hosting"
           title={Astro.locals.t('integrations.hostingTooltip')}
           data-tooltip-placement="top"
@@ -125,6 +129,7 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
         </button>
         <button
           class="type-toggle active"
+          aria-pressed="true"
           data-type="client"
           title={Astro.locals.t('integrations.clientTooltip')}
           data-tooltip-placement="top"
@@ -154,6 +159,12 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   }
 </div>
 
+<div class="search-results-bar not-content">
+  <span class="search-results-summary" data-integration-count role="status" aria-live="polite" aria-atomic="true"></span>
+  <button type="button" class="search-action" data-integration-clear-filters hidden>{messages.clearFilters}</button>
+  <button type="button" class="search-action" data-integration-reset hidden>{messages.resetAll}</button>
+</div>
+
 {
   sortedIntegrations.length > 0 && (
     <section>
@@ -179,20 +190,37 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
         </CardGrid>
       </div>
 
-      <div class="no-results">
-        <Card title="No integrations found" icon="magnifier">
-          {Astro.locals.t('integrations.noResults')}
-        </Card>
+      <div class="no-results search-empty">
+        <p class="search-empty-title">{Astro.locals.t('catalogSearch.integrationsEmpty')}</p>
+        <p class="search-empty-hint">{Astro.locals.t('integrations.noResults')}</p>
+        <CatalogSearchActiveFilters label={Astro.locals.t('catalogSearch.activeFilters')} />
+        <button type="button" class="search-action" data-integration-recover>{messages.clearSearch}</button>
       </div>
     </section>
   )
 }
+{sortedIntegrations.length === 0 && <p>{Astro.locals.t('catalogSearch.integrationsUnavailable')}</p>}
 
 <style>
   .no-results {
-    margin-top: 0;
+    margin-block: 1rem;
     display: none; /* Hidden by default */
   }
+
+  .search-results-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-block: 0.75rem;
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 2px;
+  }
+
+  button[hidden] { display: none; }
 
   .integration-stats {
     margin-bottom: 1rem;
@@ -308,61 +336,8 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
     align-items: center;
   }
 
-  input.filter {
-    padding-inline-start: 2.5rem;
-    padding-inline-end: 4.5rem;
-    background-color: var(--sl-color-black);
-    color: var(--sl-color-text);
-    font-size: var(--sl-text);
-    width: 100%;
-    height: 2.5rem;
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.5rem;
-    font-size: calc(21px * var(--pagefind-ui-scale));
-    position: relative;
-    display: flex;
-    box-sizing: border-box;
-  }
-
-  .search-icon {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--sl-color-gray-4);
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .clear-button {
-    position: absolute;
-    right: 0.375rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background-color: var(--sl-color-gray-6);
-    border: 1px solid var(--sl-color-gray-5);
-    color: var(--sl-color-gray-3);
-    cursor: pointer;
-    padding: 0.125rem 0.5rem;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    line-height: 1.5;
-    transition:
-      color 0.2s ease,
-      background-color 0.2s ease;
-    z-index: 1;
-  }
-
-  .clear-button:hover {
-    color: var(--sl-color-text);
-    background-color: var(--sl-color-gray-5);
-  }
-
-  .clear-button.visible {
-    display: flex;
+  @media (pointer: coarse) {
+    .type-toggle-group { min-height: 2.75rem; }
   }
 
   .type-toggle-group {
@@ -442,7 +417,7 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   }
 </style>
 
-<script is:inline data-astro-rerun define:vars={{ showClientIntegrations }}>
+<script is:inline data-astro-rerun define:vars={{ showClientIntegrations, messages }}>
 (function initializeIntegrations() {
   const searchBox = document.querySelector('.search-box');
   if (!document.querySelector('.integration-stats') || !searchBox) return;
@@ -464,6 +439,11 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   const cards = document.querySelectorAll('.card-grid .card');
   const noResults = document.querySelector('.no-results');
   const statsSection = document.querySelector('.integration-stats');
+  const count = document.querySelector('[data-integration-count]');
+  const clearFiltersButton = document.querySelector('[data-integration-clear-filters]');
+  const resetButton = document.querySelector('[data-integration-reset]');
+  const recoveryButton = document.querySelector('[data-integration-recover]');
+  let recoveryAction = 'clearSearch';
 
   let activeTags = new Set();
   let showOfficial = true;
@@ -505,6 +485,7 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   }
 
   function updateClearButton() {
+    clearButton.style.display = searchBox.value.length > 0 ? '' : 'none';
     if (searchBox.value.length > 0) {
       clearButton.classList.add('visible');
     } else {
@@ -513,7 +494,9 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   }
 
   function updateURL() {
-    const params = new URLSearchParams();
+    if (signal.aborted || !searchBox.isConnected) return;
+    const params = new URLSearchParams(window.location.search);
+    ['tags', 'search', 'official', 'community', 'hosting', 'client'].forEach((key) => params.delete(key));
     if (activeTags.size > 0) params.set('tags', [...activeTags].join(','));
     if (searchBox.value.trim()) params.set('search', searchBox.value.trim());
     if (!showOfficial) params.set('official', 'false');
@@ -522,15 +505,36 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
       if (!showHosting) params.set('hosting', 'false');
       if (!showClient) params.set('client', 'false');
     }
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    history.pushState(history.state, '', newUrl);
+    const query = params.toString();
+    const newUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    history.replaceState(history.state, '', newUrl);
   }
 
   function clearSearch() {
+    clearTimeout(filterTimer);
     searchBox.value = '';
     updateClearButton();
     filterCards();
     searchBox.focus();
+  }
+
+  function hasFacets() {
+    return activeTags.size > 0 || !showOfficial || !showCommunity ||
+      (showClientIntegrations && (!showHosting || !showClient));
+  }
+
+  function clearFilters() {
+    clearTimeout(filterTimer);
+    activeTags.clear();
+    showOfficial = showCommunity = showHosting = showClient = true;
+    filterCards();
+    searchBox.focus();
+  }
+
+  function resetAll() {
+    searchBox.value = '';
+    updateClearButton();
+    clearFilters();
   }
 
   function updateTotals(visibleCards) {
@@ -578,6 +582,7 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   }
 
   function filterCards(updateUrl = true) {
+    if (signal.aborted || !searchBox.isConnected) return;
     const searchTerm = searchBox.value.toLowerCase().trim();
     let visibleCount = 0;
     const visibleCards = [];
@@ -585,7 +590,7 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
     // Split search term by spaces to support multiple keywords
     const searchTerms = searchTerm ? searchTerm.split(/\s+/).filter((term) => term.length > 0) : [];
 
-    cards.forEach((card) => {
+    function matchesCard(card) {
       const cardTags = card.dataset.tags ? card.dataset.tags.split(',') : [];
       const cardTitle = card.dataset.title ? card.dataset.title.toLowerCase() : '';
       const cardDescription = card.dataset.description
@@ -620,7 +625,12 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
         (!isHosting && (cardTitle.startsWith('aspire.') || /\.aspire\./i.test(cardTitle)));
       const matchesType = (showHosting || !isHosting) && (showClient || !isClient);
 
-      const visible = matchesTags && matchesSearch && matchesSource && matchesType;
+      return { matchesSearch, matchesFilters: matchesTags && matchesSource && matchesType };
+    }
+
+    cards.forEach((card) => {
+      const { matchesSearch, matchesFilters } = matchesCard(card);
+      const visible = matchesSearch && matchesFilters;
       card.style.display = visible ? '' : 'none';
 
       if (visible) {
@@ -631,6 +641,47 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
 
     // Show/hide the no results message based on visible count
     noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+    const facets = hasFacets();
+    clearFiltersButton.hidden = visibleCount === 0 || !facets || Boolean(searchTerm);
+    resetButton.hidden = visibleCount === 0 || !facets || !searchTerm;
+    if (visibleCount === 0) {
+      let withoutQuery = 0;
+      let withoutFilters = 0;
+      if (searchTerm && facets) {
+        cards.forEach((card) => {
+          const { matchesSearch, matchesFilters } = matchesCard(card);
+          if (matchesSearch) withoutFilters++;
+          if (matchesFilters) withoutQuery++;
+        });
+      }
+      recoveryAction = searchTerm && facets
+        ? (withoutFilters > 0 ? 'clearFilters' : withoutQuery > 0 ? 'clearSearch' : 'resetAll')
+        : facets ? 'clearFilters' : 'clearSearch';
+      recoveryButton.textContent = messages[recoveryAction];
+      const title = searchTerm
+        ? (withoutFilters > 0 ? messages.filteredQueryEmpty : messages.queryEmpty)
+        : messages.empty;
+      noResults.querySelector('.search-empty-title').textContent = title.replace('{{query}}', () => searchBox.value.trim());
+      const guidance = recoveryAction === 'clearFilters'
+        ? (searchTerm ? messages.preserveQueryGuidance : messages.filtersGuidance)
+        : recoveryAction === 'clearSearch'
+          ? (facets ? messages.preserveFiltersGuidance : messages.queryGuidance)
+          : messages.resetGuidance;
+      const excluded = [[officialToggle, showOfficial], [communityToggle, showCommunity],
+        [hostingToggle, showHosting], [clientToggle, showClient]]
+        .filter(([button, selected]) => button && !selected)
+        .map(([button]) => button.textContent.trim());
+      noResults.querySelector('.search-empty-hint').textContent = guidance;
+      noResults.querySelector('catalog-search-active-filters').dataset.labels = JSON.stringify(
+        excluded.map((label) => messages.excludedFilter.replace('{{filter}}', () => label)),
+      );
+    }
+    count.textContent = messages.count.replace('{{count}}', String(visibleCount)).replace('{{total}}', String(cards.length));
+    [[officialToggle, showOfficial], [communityToggle, showCommunity],
+      [hostingToggle, showHosting], [clientToggle, showClient]].forEach(([button, selected]) => {
+        button?.classList.toggle('active', selected);
+        button?.setAttribute('aria-pressed', String(selected));
+      });
 
     // Show/hide the stats based on visible count
     statsSection.style.display = visibleCount === 0 ? 'none' : 'block';
@@ -660,6 +711,16 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   }, { signal });
 
   clearButton.addEventListener('click', clearSearch, { signal });
+  clearFiltersButton.addEventListener('click', clearFilters, { signal });
+  resetButton.addEventListener('click', resetAll, { signal });
+  recoveryButton.addEventListener('click', () => {
+    // Flush a pending query edit before choosing the action shown for this state.
+    clearTimeout(filterTimer);
+    filterCards(false);
+    if (recoveryAction === 'resetAll') resetAll();
+    else if (recoveryAction === 'clearFilters') clearFilters();
+    else clearSearch();
+  }, { signal });
 
   officialToggle.addEventListener('click', () => {
     showOfficial = !showOfficial;
@@ -719,6 +780,5 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
 
   filterCards(false); // Initial render must not create another history entry.
   updateClearButton();
-  searchBox.focus();
 })();
 </script>
