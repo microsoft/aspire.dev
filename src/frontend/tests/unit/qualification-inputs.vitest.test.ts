@@ -93,7 +93,11 @@ it('captures only successful public bodies and never persists request credential
     .fn<typeof globalThis.fetch>()
     .mockImplementation((input) =>
       Promise.resolve(
-        new Response(typeof input === 'string' && input.includes('api.github.com') ? '[]' : '{}')
+        new Response(
+          typeof input === 'string' && new URL(input).origin === 'https://api.github.com'
+            ? '[]'
+            : '{}'
+        )
       )
     );
   vi.stubGlobal('fetch', fetch);
@@ -104,7 +108,7 @@ it('captures only successful public bodies and never persists request credential
     expect(text).not.toContain('fixture-credential-not-for-storage');
     expect(
       fetch.mock.calls.filter(
-        ([input]) => typeof input === 'string' && input.includes('api.github.com')
+        ([input]) => typeof input === 'string' && new URL(input).origin === 'https://api.github.com'
       )
     ).toHaveLength(5);
     fetch.mockResolvedValue(new Response('Unavailable', { status: 503 }));
