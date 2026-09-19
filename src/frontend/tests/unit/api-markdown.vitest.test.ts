@@ -23,6 +23,13 @@ import { tsSlugify } from '@utils/ts-modules';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
 
+// getStaticPaths doesn't render styles. UnoCSS's page-ssr injection otherwise
+// sends its root-relative virtual CSS URL to Node's Windows module loader.
+vi.mock('uno-astro', () => ({}));
+vi.mock('@astrojs/starlight/components/StarlightPage.astro', () => ({
+  default: () => '',
+}));
+
 vi.mock('astro:content', async (importOriginal) => {
   const actual = await importOriginal<typeof import('astro:content')>();
   const csharpPackageModules = import.meta.glob<{ default: any }>('../../src/data/pkgs/Aspire.Hosting.*.json');
@@ -67,6 +74,7 @@ vi.mock('astro:content', async (importOriginal) => {
 });
 
 type StaticRoute = {
+  cacheKey?: string;
   params: Record<string, string | undefined>;
   props: any;
 };
@@ -88,6 +96,45 @@ const typeScriptIndexRoute = getRouteModule('../../src/pages/reference/api/types
 const typeScriptModuleRoute = getRouteModule('../../src/pages/reference/api/typescript/[module].md.ts');
 const typeScriptItemRoute = getRouteModule('../../src/pages/reference/api/typescript/[module]/[item].md.ts');
 const typeScriptMemberRoute = getRouteModule('../../src/pages/reference/api/typescript/[module]/[item]/[member].md.ts');
+
+const htmlRouteModules = import.meta.glob<MarkdownRouteModule>(
+  '../../src/pages/reference/api/**/*.astro'
+);
+
+describe('API incremental route opt-in', () => {
+  const routes = [
+    ...Object.entries(routeModules)
+      .filter(([path]) => path.includes('['))
+      .map(([path, route]) => [path, () => Promise.resolve(route)] as const),
+    ...Object.entries(htmlRouteModules).filter(([path]) => path.includes('[')),
+  ];
+
+  it('covers all six HTML and six Markdown route families', () => {
+    expect(routes).toHaveLength(12);
+  });
+
+  it.each(routes)('keys every path only in pilot mode: %s', async (_path, load) => {
+    const route = await load();
+    expect(route.getStaticPaths).toBeTypeOf('function');
+    try {
+      vi.stubEnv('ASPIRE_INCREMENTAL_BUILD', '0');
+      const ordinary = await route.getStaticPaths!();
+      expect(ordinary.length).toBeGreaterThan(0);
+      expect(ordinary.every((path) => path.cacheKey === undefined)).toBe(true);
+      vi.stubEnv('ASPIRE_INCREMENTAL_BUILD', '1');
+      vi.stubEnv('PROD', true);
+      vi.stubEnv('ASPIRE_INCREMENTAL_ICON_DIGEST', '0'.repeat(64));
+      const incremental = await route.getStaticPaths!();
+      expect(incremental.map((path) => path.params)).toEqual(ordinary.map((path) => path.params));
+      expect(incremental.every((path) => /^[a-f\d]{64}$/.test(path.cacheKey ?? ''))).toBe(true);
+      // The content fixture has one package. Its sibling-dependent routes
+      // must share that package's complete-data key.
+      expect(new Set(incremental.map((path) => path.cacheKey)).size).toBe(1);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
 
 describe('API markdown routes', () => {
   it('returns markdown for the C# API index route', async () => {

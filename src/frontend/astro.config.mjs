@@ -1,5 +1,6 @@
 ﻿// @ts-check
 import { defineConfig } from 'astro/config';
+import { fileURLToPath } from 'node:url';
 import { unified } from '@astrojs/markdown-remark';
 import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
@@ -21,6 +22,8 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import buildTiming from './config/build-timing.mjs';
+import { loadIncrementalBuildSettings } from './config/incremental-build.mjs';
+import { pagefindManifestIntegration } from './config/pagefind-manifest.mjs';
 import UnoCSS from 'unocss/astro';
 import Icons from 'starlight-plugin-icons';
 
@@ -28,6 +31,12 @@ const modeArgIndex = process.argv.indexOf('--mode');
 const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
 const outDir = process.env.ASTRO_OUT_DIR;
 const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
+const isIncrementalBuild =
+  process.env.ASPIRE_INCREMENTAL_BUILD === '1' && process.argv.includes('build');
+const mode = modeArgIndex >= 0 ? process.argv[modeArgIndex + 1] : 'production';
+const incremental = isIncrementalBuild
+  ? await loadIncrementalBuildSettings(new URL('.', import.meta.url), mode)
+  : undefined;
 const siteDescription =
   'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.';
 
@@ -55,6 +64,10 @@ const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 // https://astro.build/config
 export default defineConfig({
   ...(outDir ? { outDir } : {}),
+  ...(incremental ? {
+    cacheDir: fileURLToPath(incremental.cacheDir),
+    experimental: { incrementalBuild: true },
+  } : {}),
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',
@@ -209,13 +222,19 @@ export default defineConfig({
     }),
     ...(isBuildTimingEnabled ? [buildTiming()] : []),
     aspireVersionPlaceholdersIntegration(),
+    ...(!isSkipSearchBuild ? [pagefindManifestIntegration()] : []),
+    ...(incremental ? [incremental.integration] : []),
   ],
   build: {
     concurrency: buildConcurrency,
   },
-  ...(staticHostUrl
-    ? {
-        vite: {
+  vite: {
+    ...(incremental ? {
+      define: incremental.define,
+      plugins: [incremental.privateIdentityPlugin],
+    } : {}),
+    ...(staticHostUrl
+      ? {
           server: {
             proxy: {
               // A regular-expression context bypasses Astro's trailing-slash
@@ -227,7 +246,7 @@ export default defineConfig({
               },
             },
           },
-        },
-      }
-    : {}),
+        }
+      : {}),
+  },
 });

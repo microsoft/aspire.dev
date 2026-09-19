@@ -125,6 +125,205 @@ Before you begin, ensure you have the following installed:
 
 </Steps>
 
+### Dependency release policy
+
+Use the pnpm version pinned in `package.json`. Both install roots enforce a
+seven-day minimum release age, including transitive dependencies, and reject
+packages with missing publication timestamps. This complements Dependabot's
+cooldown; don't bypass it with release-age exclusions or unqualified updates.
+Both install roots select the public npm registry, matching CI. Regenerate locks
+against that registry so machine-specific mirror URLs or downgraded integrity
+metadata aren't committed. Keep strict lock verification enabled.
+
+The September 18, 2026 upgrade snapshot uses releases published by September 11,
+2026, at 14:59:53 UTC. Its frontend cohort is Astro 7.3.2, Starlight 0.42.0,
+MDX 8.0.1, Vite 8.3.0, and pnpm 11.26.0, with Node 24 LTS. Keep the nested MDX 7
+processor used by `starlight-llms-txt` separate from the MDX 8 processor.
+
+| Dependency | Compatibility decision |
+| ---------- | ---------------------- |
+| TypeScript | Retain 6.0.3; the native TypeScript 7 compiler requires a separate lint/Twoslash migration. |
+| Mermaid | Retain 11.16.1 until Mermaid 12 rendering, interactions, and browser support are qualified. |
+| Azure Front Door integration | Retain the existing preview package; don't replace deployment infrastructure as part of the upgrade. |
+| UnoCSS | Pin both `unocss` and `@unocss/astro` to 66.9.2, the newest eligible cohort before the inspector introduces h3 2 release candidates. Don't override the newer inspector to incompatible h3 1.x. |
+| pnpm setup | Retain the enterprise-approved `pnpm/action-setup` 6.0.10 SHA with pnpm 11.26.0. pnpm 12 requires Action 6.1.0, which is not currently allowlisted. |
+
+The generated `agentics-maintenance.yml` workflow is held because its authoring
+source is absent. Publication age for the pnpm devcontainer feature and inactive
+gh-aw OCI catalog entries is not verified, so those existing references are
+retained rather than selecting an unverified replacement. These deliberate
+holds preserve compatibility; built-site qualification is still required.
+
+### Incremental build qualification pilot
+
+Normal production builds and `pnpm dev` are unchanged. An **experimental,
+opt-in pilot** can reuse generated C# and TypeScript API pages and their Markdown
+endpoints. It doesn't cache Starlight documentation pages and isn't enabled for
+deployments. The measured pilot passes whole-site output comparisons in the
+qualified scenarios, but is slower than matched clean builds. Keep it for
+qualification, not routine CI acceleration.
+
+From `src/frontend`, use the pinned pnpm version and run:
+
+```sh title="Terminal — Opt into API incremental builds"
+pnpm build:incremental
+pnpm build:incremental --force
+pnpm build:incremental --skip-search
+```
+
+These commands perform full site builds, not lightweight development-server
+updates. `--force` ignores reusable output and refreshes the cache.
+`--skip-search` uses a separate cache partition and omits Pagefind, like the
+existing skip-search build. The regular `pnpm build:production` command remains
+the rollback path. Coding agents must obtain explicit permission before running
+any local production build.
+
+Reusable data lives under
+`src/frontend/node_modules/.astro-incremental/<mode>/<compatibility>/`.
+Each build assembles a complete new `dist`; the cache isn't a deployable site.
+Package/module keys cover all siblings used by sidebars and type links. The
+compatibility partition covers the runtime, lockfile, patches, configuration,
+middleware, shared source, assets, public environment settings, and build mode.
+Route keys also capture generated icon metadata after Starlight refreshes it.
+For safety, documentation edits also invalidate API reuse because MDX can change
+global CSS and imported assets. The initial performance opportunity is therefore
+unchanged-input and API-data-only builds, not ordinary documentation edits.
+
+Build identity is finalized after rendering and raw-cache storage, including
+restored HTML, but before Pagefind indexes the site. A streaming HTML parser
+updates only designated metadata and footer ranges without reserializing pages
+or constructing a full document tree for each page. The
+existing merge-base commit selection, source links, footer SHA, and
+cross-deployment full-navigation guard remain the intended contract. The pilot
+rejects missing identity and unreplaced identity markers instead of producing a
+success-shaped artifact.
+
+The **Frontend incremental pilot** GitHub Actions workflow never deploys. Run it
+manually after the clean dependency-upgrade CI passes. Before the workflow is
+available on the default branch, maintainers can opt a pull request into the
+complete five-scenario matrix with the `ci:incremental-pilot` label. This runs
+multiple full builds, so don't enable it on routine documentation changes.
+For a focused identity-fixture rerun after the other scenarios are qualified,
+replace that label with `ci:incremental-pilot:identity`. If both labels are
+present, the complete matrix takes precedence.
+
+The workflow compares every output file by SHA-256, without normalizing away
+HTML, identity, scripts, images, search data, or endpoints. It first checks
+clean-versus-clean determinism, then first-use and warm incremental equivalence,
+and requires both HTML and Markdown cache hits. Additional scenarios cover a
+different real commit SHA as an identity fixture, API add/delete/rename/sibling
+edits, a global CSS edit, and a missing cache file. The API scenario creates and
+restores a fixture commit only inside CI, recording each build's source commit
+to distinguish real cross-commit reuse from an unchanged-checkout warm build.
+It retains the existing unit and desktop/tablet/mobile Chromium suites against
+the built site. The identity fixture isn't a substitute for measuring real
+cross-commit builds. It chooses a commit different from the resolved build
+identity, rather than assuming `HEAD^` differs: in a pull-request merge checkout,
+that parent can be the same merge-base SHA used by the normal build.
+
+The qualification captures successful public GitHub contributor and icon
+responses once per job, then replays those exact responses for every compared
+build. Capture requires the workflow's read-only GitHub token; credentials
+aren't stored in the snapshot. A missing recorded request fails the experiment
+instead of accepting empty contributor lists after a rate-limit failure.
+Normal builds don't use this replay.
+
+RSS fallback dates normally use the current time. For reproducible builds,
+`SOURCE_DATE_EPOCH` can supply a Unix timestamp in whole seconds; explicitly
+dated feed entries are unchanged. The qualification sets it to the checkout
+commit's timestamp for every paired build, including mutation fixtures, and
+records it with the measurements. This RSS-only clock doesn't evict API pages:
+RSS is rebuilt on every run. No output timestamps or search-index files are
+normalized away.
+
+Evidence artifacts include complete-output differences, build logs, phase
+timings, peak resident memory, restored-route counts, and cache size. Use Actions
+step durations to include cache transfer, checks, and upload costs in any
+performance comparison; rendering time alone doesn't establish a net speedup.
+The diagnostic site artifact can contain deliberate fixture changes and must
+not be deployed. Only a successful default-branch `warm` run can save a reusable
+CI cache, in a namespace that ordinary production and pull-request builds never
+consume.
+
+The icon plugin patch defers reading its safelist until CSS generation, after
+Starlight has refreshed it. This preserves offline fallback and prevents a cold
+checkout from omitting icons that appear only on the next build. Looping media
+markup also omits unused random attributes; playback remains scoped to each
+component wrapper.
+
+Two additional clean-build differences were traced to output generation rather
+than incremental reuse. Shiki's wall-clock tokenization deadline could silently
+truncate syntax colors on a busy runner; code and hover highlighting now finish
+without that deadline. The Twoslash patch configures its separate hover renderer,
+which doesn't inherit the site's Shiki options. Pagefind's entry manifest
+serialized its language map in random hash-map order. A build hook now writes
+that map in descending page-count
+order with a language-code tie-breaker, preserving every metadata value and the
+site's largest-language search fallback. This applies to ordinary and incremental
+builds, not the comparator; every generated file still requires exact byte parity.
+
+#### Measured pilot results
+
+The [September 19, 2026 qualification run](https://github.com/microsoft/aspire.dev/actions/runs/35414420034)
+passed complete-output comparisons for cold and warm caches, a real API-data
+fixture commit, a global CSS change, and partial-cache recovery. Each comparison
+covered **33,897 files**, including search data and assets, with no missing,
+additional, or changed files relative to the matching clean build. API mutations
+removed and added the expected routes rather than leaving stale output.
+
+The original identity fixture could select the existing merge-base SHA, so its
+green result doesn't establish changed-identity safety. The
+[corrected focused identity run](https://github.com/microsoft/aspire.dev/actions/runs/35418391337)
+passed with a genuinely different commit: 15,221 HTML files changed, and the
+incremental result matched all 33,902 files in the corresponding clean output
+while reusing 7,362 HTML and 7,321 Markdown routes. That run also passed 619 unit
+tests and 579 browser tests, with the same 75 applicability skips.
+
+Each job also passed 618 unit tests and all three built-site Chromium projects:
+579 browser tests passed, with 75 applicability skips. This covers the existing
+router, search, filter, modal, component, responsive, and accessibility contracts;
+it isn't a guarantee against every possible regression or a Firefox/Safari
+qualification.
+
+| Matched experiment | Clean build | Incremental build | Reused HTML / Markdown |
+| ------------------ | ----------- | ----------------- | ---------------------- |
+| Unchanged inputs, warm cache | 14m 46s | 16m 51s | 7,362 / 7,321 |
+| Real API-data fixture commit | 14m 44s | 17m 12s | 7,350 / 7,309 |
+| Global CSS change | 12m 02s | 16m 57s | 0 / 0 |
+| One missing cached Markdown file | 12m 13s | 14m 06s | 7,362 / 7,320 |
+
+These are whole build-process wall times, not rendering-only timings or complete
+workflow durations. The unchanged-input row uses the clean-repeat build on the
+same runner; mutation rows use clean builds with the same mutation. Across the
+five jobs, warm unchanged-input builds were **10.5% to 16.2% slower** than their
+clean-repeat controls. The first cold incremental build in the warm job took
+21m 08s. Node peak resident memory rose from about 5.3 GiB for its clean-repeat
+build to 6.8 GiB for its warm incremental build.
+
+In that job, the generation phase decreased from 13m 05s to 10m 51s, but
+post-generation processing increased from 1m 18s to 5m 37s. Whole-site identity
+finalization and subsequent processing outweighed the API rendering savings.
+The reusable cache occupied **2.28 GB before compression**. No compatible CI
+cache existed, and these pull-request jobs correctly skipped trusted-cache
+publication, so cache download/upload cost remains unmeasured. Transfer cost
+cannot rescue the already slower in-job result.
+
+**Decision: retain normal full builds for CI and deployment.** Local incremental
+commands remain experimental, not a demonstrated local speedup; their Windows
+configuration and helper behavior were checked without running a local production
+build. Further performance work must reduce finalization overhead, repeat the
+correctness experiments, and measure actual cache transfer before promotion.
+
+:::caution[Qualification is still required]
+Astro 7.3.2 supports concurrent incremental builds, so the pilot retains the
+existing concurrency of four. It precedes fixes for CSS-preprocessor dependency
+invalidation and original-image retention. Source changes conservatively
+invalidate the pilot cache, but complete-output comparison and built-site checks
+must still prove asset retention. Any unexplained difference, missing asset,
+navigation regression, or lack of useful reuse blocks promotion. Don't bypass
+the seven-day dependency release buffer to make a qualification run pass.
+:::
+
 ### Known formatting limitations
 
 We expose `lint` and `format` scripts in the `package.json` to help maintain code quality and consistency. This isn't something that you're need to run manually. However, regardless of whether or not you run these scrips, be aware of the following known limitation when working with MDX files.
