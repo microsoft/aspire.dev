@@ -1,7 +1,8 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   commitPlaceholder,
@@ -142,6 +143,46 @@ describe('incremental build identity', () => {
 });
 
 describe('incremental compatibility and package keys', () => {
+  it.each(['production', 'skip-search'])(
+    'validates the actual opt-in Astro config in %s mode without building',
+    (mode) => {
+      const output = execFileSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '--eval',
+          `
+        import { resolveConfig } from './node_modules/astro/dist/core/config/config.js';
+        process.argv.push('build', '--mode', ${JSON.stringify(mode)});
+        const { astroConfig } = await resolveConfig({ mode: ${JSON.stringify(mode)} }, 'build');
+        console.log(JSON.stringify({
+          cacheDir: astroConfig.cacheDir.href,
+          incremental: astroConfig.experimental.incrementalBuild,
+          concurrency: astroConfig.build.concurrency,
+        }));
+      `,
+        ],
+        {
+          cwd: fileURLToPath(new URL('../../', import.meta.url)),
+          env: {
+            ...process.env,
+            ASPIRE_INCREMENTAL_BUILD: '1',
+            ASPIRE_BUILD_CONCURRENCY: '4',
+            ASTRO_TELEMETRY_DISABLED: '1',
+            PUBLIC_GIT_COMMIT_ID: commit,
+          },
+          encoding: 'utf8',
+          timeout: 30_000,
+        }
+      );
+      expect(JSON.parse(output.trim())).toEqual({
+        cacheDir: expect.stringContaining(`/node_modules/.astro-incremental/${mode}/api-v1-`),
+        incremental: true,
+        concurrency: 4,
+      });
+    }
+  );
+
   it('does not opt any route in during normal builds', () => {
     vi.stubEnv('ASPIRE_INCREMENTAL_BUILD', '0');
     expect(apiCacheKey({ types: [] })).toBeUndefined();

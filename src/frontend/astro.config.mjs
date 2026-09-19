@@ -1,5 +1,6 @@
 ﻿// @ts-check
 import { defineConfig } from 'astro/config';
+import { fileURLToPath } from 'node:url';
 import { unified } from '@astrojs/markdown-remark';
 import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
@@ -64,7 +65,7 @@ const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 export default defineConfig({
   ...(outDir ? { outDir } : {}),
   ...(incremental ? {
-    cacheDir: incremental.cacheDir,
+    cacheDir: fileURLToPath(incremental.cacheDir),
     experimental: { incrementalBuild: true },
   } : {}),
   prefetch: true,
