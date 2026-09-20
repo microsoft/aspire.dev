@@ -23,6 +23,31 @@ export function restoredPaths(log) {
 }
 
 /**
+ * @param {string} log
+ * @returns {{htmlFiles: number, parsedPages: number, reusedPages: number, wallMs: number}}
+ */
+export function identityFinalization(log) {
+  const records = [
+    ...stripVTControlCharacters(log).matchAll(
+      /^\[incremental-build\] finalized identity (\{[^\r\n]+\})$/gm
+    ),
+  ];
+  if (records.length !== 1) throw new Error('Expected one identity-finalization measurement.');
+  const result = JSON.parse(records[0][1]);
+  if (
+    !['htmlFiles', 'parsedPages', 'reusedPages'].every(
+      (key) => Number.isSafeInteger(result[key]) && result[key] >= 0
+    ) ||
+    result.parsedPages + result.reusedPages !== result.htmlFiles ||
+    !Number.isFinite(result.wallMs) ||
+    result.wallMs < 0
+  ) {
+    throw new Error('Invalid identity-finalization measurement.');
+  }
+  return result;
+}
+
+/**
  * @param {string} current
  * @param {string[]} candidates
  */
@@ -103,7 +128,9 @@ async function runPilot(scenario) {
       log.end();
       await finished(log);
     }
-    const paths = restoredPaths(await readFile(logPath, 'utf8'));
+    const output = await readFile(logPath, 'utf8');
+    const paths = restoredPaths(output);
+    const identity = incremental ? identityFinalization(output) : undefined;
     if (paths.some((path) => !/^\/reference\/api\/(?:csharp|typescript)\//.test(path))) {
       throw new Error(`Unexpected route reused outside the API-only pilot: ${paths.join(', ')}`);
     }
@@ -120,6 +147,7 @@ async function runPilot(scenario) {
       wallMs: performance.now() - started,
       htmlRestored,
       markdownRestored,
+      identityFinalization: identity,
     });
     await writeFile(
       join(reportDirectory, 'measurements.json'),
@@ -129,6 +157,9 @@ async function runPilot(scenario) {
       throw new Error(
         `${label}: expected both HTML and Markdown reuse; got ${htmlRestored}/${markdownRestored}.`
       );
+    }
+    if (requireReuse && !identity?.reusedPages) {
+      throw new Error(`${label}: expected exact-content identity range reuse.`);
     }
     const manifest = await buildManifest(join(root, 'dist'));
     await writeFile(join(reportDirectory, `${label}-manifest.json`), JSON.stringify(manifest));

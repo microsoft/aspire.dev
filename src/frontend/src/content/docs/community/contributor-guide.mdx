@@ -192,7 +192,14 @@ unchanged-input and API-data-only builds, not ordinary documentation edits.
 Build identity is finalized after rendering and raw-cache storage, including
 restored HTML, but before Pagefind indexes the site. A streaming HTML parser
 updates only designated metadata and footer ranges without reserializing pages
-or constructing a full document tree for each page. The
+or constructing a full document tree for each page. Validated ranges are now
+saved in `identity-ranges.json` inside the same compatibility partition, keyed
+by SHA-256 of the exact raw HTML. Byte-identical pages reuse positions, not
+previous identity values; changed HTML is parsed again. Missing metadata is
+regenerated, malformed metadata produces a warning and is rebuilt, and
+`--force` ignores it. Filesystem errors and unsupported identity markers still
+fail the build. This avoids repeating HTML tokenization on warm builds without
+caching documentation rendering or weakening output comparison. The
 existing merge-base commit selection, source links, footer SHA, and
 cross-deployment full-navigation guard remain the intended contract. The pilot
 rejects missing identity and unreplaced identity markers instead of producing a
@@ -245,6 +252,14 @@ not be deployed. Only a successful default-branch `warm` run can save a reusable
 CI cache, in a namespace that ordinary production and pull-request builds never
 consume.
 
+The pull-request `warm` job also measures upload and restore in a separate,
+run-specific `astro-api-transport-probe-` namespace. It snapshots every cache
+file, removes the local copy, restores the exact diagnostic key, and verifies
+all bytes. A missing or changed cache fails the probe. These diagnostic entries
+are never read by deployments or other pilot runs and do not populate the
+trusted pilot namespace. Include both measured transfer steps when assessing a
+net CI benefit.
+
 The icon plugin patch defers reading its safelist until CSS generation, after
 Starlight has refreshed it. This preserves offline fallback and prevents a cold
 checkout from omitting icons that appear only on the next build. Looping media
@@ -262,7 +277,7 @@ order with a language-code tie-breaker, preserving every metadata value and the
 site's largest-language search fallback. This applies to ordinary and incremental
 builds, not the comparator; every generated file still requires exact byte parity.
 
-#### Measured pilot results
+#### Initial pilot results
 
 The [September 19, 2026 qualification run](https://github.com/microsoft/aspire.dev/actions/runs/35414420034)
 passed complete-output comparisons for cold and warm caches, a real API-data
@@ -270,6 +285,8 @@ fixture commit, a global CSS change, and partial-cache recovery. Each comparison
 covered **33,897 files**, including search data and assets, with no missing,
 additional, or changed files relative to the matching clean build. API mutations
 removed and added the expected routes rather than leaving stale output.
+These measurements precede the exact-content identity-range cache; its whole
+build and transfer performance must be qualified separately.
 
 The original identity fixture could select the existing merge-base SHA, so its
 green result doesn't establish changed-identity safety. The

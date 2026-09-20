@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { SAXParser } from 'parse5-sax-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   commitPlaceholder,
@@ -13,7 +14,11 @@ import {
   stampBuildIdentity,
 } from '../../config/incremental-build.mjs';
 import { buildManifest, compareManifests } from '../../scripts/compare-builds.mjs';
-import { changedIdentity, restoredPaths } from '../../scripts/test-incremental-builds.mjs';
+import {
+  changedIdentity,
+  identityFinalization,
+  restoredPaths,
+} from '../../scripts/test-incremental-builds.mjs';
 import { apiCacheKey } from '../../src/utils/api-build-cache';
 
 const commit = '0123456789abcdef0123456789abcdef01234567';
@@ -54,6 +59,36 @@ describe('incremental build identity', () => {
     expect(stampBuildIdentity(template, next)).toContain(`/commit/${next}`);
     expect(stampBuildIdentity(template, next)).toContain('SHA abcdef0');
     expect(stampBuildIdentity(template, next)).not.toContain(commit);
+  });
+
+  it('reuses parsed ranges only for exact source content, independently of the target identity', () => {
+    const cache = new Map<string, { start: number; end: number }[]>();
+    const parse = vi.spyOn(SAXParser.prototype, 'end');
+    const next = 'abcdef0123456789abcdef0123456789abcdef01';
+    try {
+      const first = stampBuildIdentity(template, commit, cache);
+      expect(parse).toHaveBeenCalledTimes(1);
+      expect(cache.size).toBe(1);
+      expect(stampBuildIdentity(template, next, cache)).toBe(
+        template.replaceAll(commitPlaceholder, next).replaceAll('ASPRSHA', next.slice(0, 7))
+      );
+      expect(parse).toHaveBeenCalledTimes(1);
+      expect(stampBuildIdentity(first, commit, cache)).toBe(first);
+      expect(parse).toHaveBeenCalledTimes(1);
+
+      const changed = '<p>\u{1f680} offset change</p>' + template;
+      expect(stampBuildIdentity(changed, commit, cache)).toBe(
+        changed.replaceAll(commitPlaceholder, commit).replaceAll('ASPRSHA', commit.slice(0, 7))
+      );
+      expect(parse).toHaveBeenCalledTimes(2);
+      expect(cache.size).toBe(2);
+      expect(() => stampBuildIdentity(template + '<p>ASPRSHA</p>', commit, cache)).toThrow(
+        'Unstamped'
+      );
+      expect(cache.size).toBe(2);
+    } finally {
+      parse.mockRestore();
+    }
   });
 
   it('preserves quoting, entities and Unicode around streamed metadata and nested footer content', () => {
@@ -160,6 +195,112 @@ describe('incremental build identity', () => {
     ).not.toContain('ASPRSHA');
     expect(await readFile(join(root, 'dist/test.md'), 'utf8')).toBe('Markdown is unchanged.');
     expect(await readFile(join(root, 'raw-cache/index.html'), 'utf8')).toBe(template);
+
+    const rangePath = new URL('identity-ranges.json', settings.cacheDir);
+    const stored = await readFile(rangePath, 'utf8');
+    expect(Object.keys(JSON.parse(stored))).toHaveLength(1);
+    expect(stored).not.toContain(commit);
+    const next = 'abcdef0123456789abcdef0123456789abcdef01';
+    const restored = incrementalBuildSettings({
+      root: pathToFileURL(root + '/'),
+      mode: 'production',
+      env: { PUBLIC_GIT_COMMIT_ID: next },
+    });
+    expect(restored.cacheDir.href).toBe(settings.cacheDir.href);
+    await put(root, 'dist/reference/api/csharp/test/index.html', template);
+    await put(root, 'dist/docs/index.html', template);
+    const parse = vi.spyOn(SAXParser.prototype, 'end');
+    try {
+      await restored.integration.hooks['astro:build:generated']({
+        dir: pathToFileURL(join(root, 'dist') + '/'),
+      });
+      expect(parse).not.toHaveBeenCalled();
+    } finally {
+      parse.mockRestore();
+    }
+    expect(await readFile(join(root, 'dist/docs/index.html'), 'utf8')).toContain(next);
+    expect(await readFile(rangePath, 'utf8')).toBe(stored);
+    expect(await readFile(join(root, 'raw-cache/index.html'), 'utf8')).toBe(template);
+  });
+
+  it.each(['{', '[]', '{"not-a-digest":[]}', `{"${'a'.repeat(64)}":[{"start":-1,"end":2}]}`])(
+    'reports invalid cached range metadata and safely reparses: %s',
+    async (invalid) => {
+      const root = await fixture();
+      await put(root, 'dist/index.html', template);
+      const settings = incrementalBuildSettings({
+        root: pathToFileURL(root + '/'),
+        mode: 'production',
+        env: { PUBLIC_GIT_COMMIT_ID: commit },
+      });
+      await mkdir(settings.cacheDir, { recursive: true });
+      const rangePath = new URL('identity-ranges.json', settings.cacheDir);
+      await writeFile(rangePath, invalid);
+      const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        await settings.integration.hooks['astro:build:generated']({
+          dir: pathToFileURL(join(root, 'dist') + '/'),
+        });
+        expect(warning).toHaveBeenCalledWith(expect.stringContaining('reparsing HTML'));
+      } finally {
+        warning.mockRestore();
+      }
+      expect(await readFile(join(root, 'dist/index.html'), 'utf8')).toBe(
+        stampBuildIdentity(template, commit)
+      );
+      expect(Object.keys(JSON.parse(await readFile(rangePath, 'utf8')))).toHaveLength(1);
+    }
+  );
+
+  it('does not hide range-cache filesystem failures', async () => {
+    const root = await fixture();
+    await put(root, 'dist/index.html', template);
+    const settings = incrementalBuildSettings({
+      root: pathToFileURL(root + '/'),
+      mode: 'production',
+      env: { PUBLIC_GIT_COMMIT_ID: commit },
+    });
+    await mkdir(new URL('identity-ranges.json/', settings.cacheDir), { recursive: true });
+    await expect(
+      settings.integration.hooks['astro:build:generated']({
+        dir: pathToFileURL(join(root, 'dist') + '/'),
+      })
+    ).rejects.toThrow();
+    expect(await readFile(join(root, 'dist/index.html'), 'utf8')).toBe(template);
+  });
+
+  it('rejects out-of-bounds cached ranges and lets force rebuild their metadata', async () => {
+    const root = await fixture();
+    await put(root, 'dist/index.html', template);
+    const options = {
+      root: pathToFileURL(root + '/'),
+      mode: 'production',
+      env: { PUBLIC_GIT_COMMIT_ID: commit },
+    };
+    const settings = incrementalBuildSettings(options);
+    const hook = { dir: pathToFileURL(join(root, 'dist') + '/') };
+    await settings.integration.hooks['astro:build:generated'](hook);
+    const rangePath = new URL('identity-ranges.json', settings.cacheDir);
+    const valid = await readFile(rangePath, 'utf8');
+    const invalid = Object.fromEntries(
+      Object.keys(JSON.parse(valid)).map((digest) => [
+        digest,
+        [{ start: 0, end: template.length + 1 }],
+      ])
+    );
+    await writeFile(rangePath, JSON.stringify(invalid));
+    await put(root, 'dist/index.html', template);
+    await expect(settings.integration.hooks['astro:build:generated'](hook)).rejects.toThrow(
+      'Identity range cache exceeds its source HTML'
+    );
+    expect(await readFile(join(root, 'dist/index.html'), 'utf8')).toBe(template);
+    const forced = incrementalBuildSettings({ ...options, force: true });
+    expect(forced.compatibility).toBe(settings.compatibility);
+    await forced.integration.hooks['astro:build:generated'](hook);
+    expect(await readFile(rangePath, 'utf8')).toBe(valid);
+    expect(await readFile(join(root, 'dist/index.html'), 'utf8')).toBe(
+      stampBuildIdentity(template, commit)
+    );
   });
 });
 
@@ -304,6 +445,19 @@ describe('incremental compatibility and package keys', () => {
 });
 
 describe('whole-output equivalence', () => {
+  it('records measured identity work without accepting missing, duplicate or inconsistent totals', () => {
+    const measurement = { htmlFiles: 10, parsedPages: 2, reusedPages: 8, wallMs: 20.5 };
+    const log = `[incremental-build] finalized identity ${JSON.stringify(measurement)}`;
+    expect(identityFinalization(`other output\n\u001b[32m${log}\u001b[0m\n`)).toEqual(measurement);
+    expect(() => identityFinalization('')).toThrow('Expected one');
+    expect(() => identityFinalization(`${log}\n${log}`)).toThrow('Expected one');
+    expect(() =>
+      identityFinalization(
+        `[incremental-build] finalized identity ${JSON.stringify({ ...measurement, htmlFiles: 9 })}`
+      )
+    ).toThrow('Invalid');
+  });
+
   it('selects a different real identity for both PR merges and main-branch builds', () => {
     const next = 'abcdef0123456789abcdef0123456789abcdef01';
     expect(changedIdentity(commit, [next, commit])).toBe(next);

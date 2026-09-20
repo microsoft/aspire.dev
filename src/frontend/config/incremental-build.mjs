@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SAXParser } from 'parse5-sax-parser';
@@ -8,6 +8,57 @@ import { SAXParser } from 'parse5-sax-parser';
 export const commitPlaceholder = 'ASPRSHA_BUILD_IDENTITY_NOT_FOR_DEPLOYMENT';
 const shortCommitPlaceholder = commitPlaceholder.slice(0, 7);
 const cacheEpoch = 'api-v1';
+
+/** @typedef {{ start: number, end: number }} IdentityRange */
+/** @typedef {Map<string, IdentityRange[]>} IdentityRangeCache */
+
+/**
+ * @param {unknown} value
+ * @returns {value is IdentityRange[]}
+ */
+function isIdentityRanges(value) {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (range) =>
+        range &&
+        typeof range === 'object' &&
+        Number.isSafeInteger(range.start) &&
+        Number.isSafeInteger(range.end) &&
+        range.start >= 0 &&
+        range.end > range.start
+    )
+  );
+}
+
+/**
+ * @param {URL} path
+ * @returns {Promise<IdentityRangeCache>}
+ */
+async function readIdentityRangeCache(path) {
+  /** @type {unknown} */
+  let data;
+  try {
+    data = JSON.parse(await readFile(path, 'utf8'));
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return new Map();
+    if (!(error instanceof SyntaxError)) throw error;
+    console.warn('[incremental-build] Invalid identity range cache JSON; reparsing HTML.');
+    return new Map();
+  }
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    Array.isArray(data) ||
+    !Object.entries(data).every(
+      ([digest, ranges]) => /^[a-f\d]{64}$/.test(digest) && isIdentityRanges(ranges)
+    )
+  ) {
+    console.warn('[incremental-build] Invalid identity range cache entries; reparsing HTML.');
+    return new Map();
+  }
+  return new Map(Object.entries(data));
+}
 
 /** @param {string} directory */
 function* files(directory) {
@@ -80,37 +131,47 @@ export function generatedIconDigest(root) {
 /**
  * @param {string} html
  * @param {string} commit
+ * @param {IdentityRangeCache} [rangeCache]
  */
-export function stampBuildIdentity(html, commit) {
+export function stampBuildIdentity(html, commit, rangeCache) {
   if (!/^[a-f\d]{40}$/i.test(commit)) {
     throw new Error('Incremental builds require a full git commit identity.');
   }
-  /** @type {Array<{ start: number, end: number }>} */
-  const ranges = [];
-  /** @type {Array<number | undefined>} */
-  const anchors = [];
-  const parser = new SAXParser({ sourceCodeLocationInfo: true });
-  parser.on('startTag', ({ tagName, attrs, sourceCodeLocation }) => {
-    if (
-      tagName === 'meta' &&
-      attrs.some(
-        ({ name, value }) => name === 'name' && ['git-commit-id', 'git-source-url'].includes(value)
-      )
-    ) {
-      ranges.push({ start: sourceCodeLocation.startOffset, end: sourceCodeLocation.endOffset });
-    } else if (tagName === 'a') {
-      const selected = attrs.some(
-        ({ name, value }) => name === 'class' && value.split(/\s+/).includes('commit-link')
-      );
-      anchors.push(selected ? sourceCodeLocation.startOffset : undefined);
-    }
-  });
-  parser.on('endTag', ({ tagName, sourceCodeLocation }) => {
-    if (tagName !== 'a') return;
-    const start = anchors.pop();
-    if (start !== undefined) ranges.push({ start, end: sourceCodeLocation.endOffset });
-  });
-  parser.end(html);
+  if (!html.includes(shortCommitPlaceholder)) return html;
+  const digest = rangeCache ? createHash('sha256').update(html).digest('hex') : undefined;
+  const cachedRanges = digest ? rangeCache.get(digest) : undefined;
+  if (cachedRanges?.some(({ end }) => end > html.length)) {
+    throw new Error('Identity range cache exceeds its source HTML; rebuild with --force.');
+  }
+  /** @type {IdentityRange[]} */
+  const ranges = cachedRanges ?? [];
+  if (!cachedRanges) {
+    /** @type {Array<number | undefined>} */
+    const anchors = [];
+    const parser = new SAXParser({ sourceCodeLocationInfo: true });
+    parser.on('startTag', ({ tagName, attrs, sourceCodeLocation }) => {
+      if (
+        tagName === 'meta' &&
+        attrs.some(
+          ({ name, value }) =>
+            name === 'name' && ['git-commit-id', 'git-source-url'].includes(value)
+        )
+      ) {
+        ranges.push({ start: sourceCodeLocation.startOffset, end: sourceCodeLocation.endOffset });
+      } else if (tagName === 'a') {
+        const selected = attrs.some(
+          ({ name, value }) => name === 'class' && value.split(/\s+/).includes('commit-link')
+        );
+        anchors.push(selected ? sourceCodeLocation.startOffset : undefined);
+      }
+    });
+    parser.on('endTag', ({ tagName, sourceCodeLocation }) => {
+      if (tagName !== 'a') return;
+      const start = anchors.pop();
+      if (start !== undefined) ranges.push({ start, end: sourceCodeLocation.endOffset });
+    });
+    parser.end(html);
+  }
   for (const { start, end } of ranges.toReversed()) {
     const markup = html
       .slice(start, end)
@@ -121,6 +182,7 @@ export function stampBuildIdentity(html, commit) {
   if (html.includes(shortCommitPlaceholder)) {
     throw new Error('Unstamped build identity outside the supported metadata/footer locations.');
   }
+  if (digest && !cachedRanges) rangeCache.set(digest, ranges);
   return html;
 }
 
@@ -140,8 +202,8 @@ export function replacePrivateBuildIdentity(source, id, hasCommit) {
   };
 }
 
-/** @param {{root: URL, mode: string, env: Record<string, string>}} options */
-export function incrementalBuildSettings({ root, mode, env }) {
+/** @param {{root: URL, mode: string, env: Record<string, string>, force?: boolean}} options */
+export function incrementalBuildSettings({ root, mode, env, force = false }) {
   if (!['production', 'skip-search'].includes(mode)) {
     throw new Error(`Unsupported incremental build mode: ${mode}`);
   }
@@ -156,6 +218,7 @@ export function incrementalBuildSettings({ root, mode, env }) {
     Object.entries(env).filter(([key]) => key.startsWith('PUBLIC_') || key === 'REPO_URL')
   );
   const compatibility = incrementalCompatibility(directory, mode, publicEnv);
+  const cacheDir = new URL(`node_modules/.astro-incremental/${mode}/${compatibility}/`, root);
   /** @type {import('vite').Plugin} */
   const privateIdentityPlugin = {
     name: 'aspire-incremental-private-identity',
@@ -171,7 +234,7 @@ export function incrementalBuildSettings({ root, mode, env }) {
   return {
     compatibility,
     privateIdentityPlugin,
-    cacheDir: new URL(`node_modules/.astro-incremental/${mode}/${compatibility}/`, root),
+    cacheDir,
     define: {
       'import.meta.env.PUBLIC_GIT_COMMIT_ID': JSON.stringify(
         env.PUBLIC_GIT_COMMIT_ID ? commitPlaceholder : ''
@@ -196,19 +259,38 @@ export function incrementalBuildSettings({ root, mode, env }) {
         },
         // Astro has stored reusable raw output by this point; Pagefind has not indexed it yet.
         'astro:build:generated': async ({ dir }) => {
+          const started = performance.now();
+          const rangePath = new URL('identity-ranges.json', cacheDir);
+          const rangeCache = force ? new Map() : await readIdentityRangeCache(rangePath);
           let stamped = 0;
+          let parsed = 0;
+          let reused = 0;
           for (const path of files(fileURLToPath(dir))) {
             if (!path.endsWith('.html')) continue;
             const html = await readFile(path, 'utf8');
             if (!html.includes(commitPlaceholder) && !html.includes(shortCommitPlaceholder))
               continue;
-            const updated = stampBuildIdentity(html, commit);
+            const entries = rangeCache.size;
+            const updated = stampBuildIdentity(html, commit, rangeCache);
+            if (rangeCache.size === entries) reused++;
+            else parsed++;
             if (html !== updated) {
               await writeFile(path, updated);
               stamped++;
             }
           }
-          console.log(`[incremental-build] finalized identity on ${stamped} HTML files`);
+          await mkdir(cacheDir, { recursive: true });
+          const temporary = new URL(`identity-ranges.${process.pid}.tmp`, cacheDir);
+          await writeFile(temporary, JSON.stringify(Object.fromEntries(rangeCache)));
+          await rename(temporary, rangePath);
+          console.log(
+            `[incremental-build] finalized identity ${JSON.stringify({
+              htmlFiles: stamped,
+              parsedPages: parsed,
+              reusedPages: reused,
+              wallMs: performance.now() - started,
+            })}`
+          );
         },
       },
     },
@@ -225,5 +307,6 @@ export async function loadIncrementalBuildSettings(root, mode) {
     root,
     mode,
     env: loadEnv(mode, fileURLToPath(root), ['PUBLIC_', 'GIT_COMMIT_ID', 'REPO_URL']),
+    force: process.argv.includes('--force'),
   });
 }
