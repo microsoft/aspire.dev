@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import type { AstroPrerenderer, RouteData } from 'astro';
 import { SAXParser } from 'parse5-sax-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -11,6 +12,7 @@ import {
   incrementalBuildSettings,
   incrementalCompatibility,
   replacePrivateBuildIdentity,
+  scopeIncrementalMetadata,
   stampBuildIdentity,
   stampBuildIdentityBytes,
 } from '../../config/incremental-build.mjs';
@@ -41,6 +43,169 @@ async function put(root: string, name: string, content: string) {
   await mkdir(join(path, '..'), { recursive: true });
   await writeFile(path, content);
 }
+
+describe('incremental prerender metadata scope', () => {
+  function rendererFixture() {
+    const api: RouteData = {
+      route: '/api/[slug]',
+      component: 'src/pages/api/[slug].astro',
+      params: ['slug'],
+      distURL: [],
+      pattern: /^\/api\/[^/]+\/?$/,
+      segments: [],
+      type: 'page',
+      prerender: true,
+      fallbackRoutes: [],
+      isIndex: false,
+      origin: 'project',
+    };
+    const docs: RouteData = { ...api, component: 'starlight/route.astro' };
+    const markdown: RouteData = {
+      ...api,
+      component: 'src/pages/api/[slug].md.ts',
+      type: 'endpoint',
+    };
+    const paths = [
+      { pathname: '/api/test', route: api, cacheKey: 'html-key' },
+      { pathname: '/api/test.md', route: markdown, cacheKey: '' },
+      { pathname: '/docs/test', route: docs },
+      { pathname: '/api/uncached-sibling', route: api },
+    ];
+    const result = {
+      response: new Response('unchanged body', {
+        status: 201,
+        headers: { 'x-custom': 'preserved' },
+      }),
+      metadata: { contentEntryKeys: ['src/content/test.mdx'], staticImages: [] },
+    };
+    const images: Awaited<ReturnType<NonNullable<AstroPrerenderer['collectStaticImages']>>> =
+      new Map();
+    const delegate = {
+      name: 'test',
+      setup: vi.fn<NonNullable<AstroPrerenderer['setup']>>().mockResolvedValue(undefined),
+      getStaticPaths: vi.fn<AstroPrerenderer['getStaticPaths']>().mockResolvedValue(paths),
+      render: vi.fn<AstroPrerenderer['render']>().mockResolvedValue(result),
+      collectStaticImages: vi
+        .fn<NonNullable<AstroPrerenderer['collectStaticImages']>>()
+        .mockResolvedValue(images),
+      teardown: vi.fn<NonNullable<AstroPrerenderer['teardown']>>().mockResolvedValue(undefined),
+    } satisfies AstroPrerenderer;
+    return { api, docs, markdown, paths, result, images, delegate };
+  }
+
+  it('retains metadata for keyed HTML and Markdown without changing responses or static paths', async () => {
+    const { api, markdown, paths, result, delegate } = rendererFixture();
+    const scoped = scopeIncrementalMetadata(delegate);
+    expect(await scoped.getStaticPaths()).toBe(paths);
+    for (const routeData of [api, markdown]) {
+      const request = new Request('https://example.com/base/api/encoded%20path/');
+      const options = { routeData, collectMetadata: true };
+      expect(await scoped.render(request, options)).toBe(result);
+      expect(delegate.render).toHaveBeenLastCalledWith(request, options);
+      expect(delegate.render.mock.contexts.at(-1)).toBe(delegate);
+    }
+  });
+
+  it('bypasses uncached components while conservatively tracking mixed components', async () => {
+    const { api, docs, delegate } = rendererFixture();
+    const scoped = scopeIncrementalMetadata(delegate);
+    await scoped.getStaticPaths();
+    for (const routeData of [docs, api]) {
+      const request = new Request('https://example.com/uncached/');
+      const options = { routeData, collectMetadata: true };
+      await scoped.render(request, options);
+      expect(delegate.render).toHaveBeenLastCalledWith(request, {
+        routeData,
+        collectMetadata: routeData === api,
+      });
+      expect(options.collectMetadata).toBe(true);
+    }
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await scoped.teardown?.();
+      expect(log).toHaveBeenCalledWith(
+        '[incremental-build] prerender metadata {"trackedPages":1,"bypassedPages":1}'
+      );
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it.each([false, undefined])(
+    'does not enable unrequested metadata collection (%s)',
+    async (collectMetadata) => {
+      const { api, delegate } = rendererFixture();
+      const scoped = scopeIncrementalMetadata(delegate);
+      await scoped.getStaticPaths();
+      const request = new Request('https://example.com/api/test/');
+      await scoped.render(request, { routeData: api, collectMetadata });
+      expect(delegate.render).toHaveBeenCalledWith(request, { routeData: api, collectMetadata });
+    }
+  );
+
+  it('forwards setup, image collection and teardown with the original receiver', async () => {
+    const { images, delegate } = rendererFixture();
+    const scoped = scopeIncrementalMetadata(delegate);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await scoped.setup?.();
+      expect(await scoped.collectStaticImages?.()).toBe(images);
+      await scoped.teardown?.();
+      for (const hook of [delegate.setup, delegate.collectStaticImages, delegate.teardown]) {
+        expect(hook).toHaveBeenCalledOnce();
+        expect(hook.mock.contexts[0]).toBe(delegate);
+      }
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it('refreshes the scope when static paths are enumerated again', async () => {
+    const { api, paths, delegate } = rendererFixture();
+    const scoped = scopeIncrementalMetadata(delegate);
+    await scoped.getStaticPaths();
+    delegate.getStaticPaths.mockResolvedValue(
+      paths.map(({ pathname, route }) => ({ pathname, route }))
+    );
+    await scoped.getStaticPaths();
+    const request = new Request('https://example.com/api/test/');
+    await scoped.render(request, { routeData: api, collectMetadata: true });
+    expect(delegate.render).toHaveBeenLastCalledWith(request, {
+      routeData: api,
+      collectMetadata: false,
+    });
+  });
+
+  it('propagates delegate failures instead of falling back to an untracked render', async () => {
+    const { api, delegate } = rendererFixture();
+    const scoped = scopeIncrementalMetadata(delegate);
+    const error = new Error('prerender failure');
+    delegate.getStaticPaths.mockRejectedValueOnce(error);
+    await expect(scoped.getStaticPaths()).rejects.toBe(error);
+    await scoped.getStaticPaths();
+    delegate.render.mockRejectedValueOnce(error);
+    await expect(
+      scoped.render(new Request('https://example.com/api/test/'), {
+        routeData: api,
+        collectMetadata: true,
+      })
+    ).rejects.toBe(error);
+    delegate.teardown.mockRejectedValueOnce(error);
+    await expect(scoped.teardown?.()).rejects.toBe(error);
+  });
+
+  it('registers the wrapper through the public build hook', async () => {
+    const root = await fixture();
+    const settings = incrementalBuildSettings({
+      root: pathToFileURL(root + '/'),
+      mode: 'production',
+      env: { PUBLIC_GIT_COMMIT_ID: commit },
+    });
+    const setPrerenderer = vi.fn();
+    settings.integration.hooks['astro:build:start']({ setPrerenderer });
+    expect(setPrerenderer).toHaveBeenCalledWith(scopeIncrementalMetadata);
+  });
+});
 
 describe('incremental build identity', () => {
   const template = `<meta content="${commitPlaceholder}" name="git-commit-id">

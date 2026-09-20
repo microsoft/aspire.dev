@@ -204,8 +204,15 @@ caching documentation rendering or weakening output comparison. Equal-width
 identity tokens allow UTF-8 buffers to be updated without repeatedly copying or
 decoding complete pages. Four bounded file workers overlap I/O; finalization
 awaits every worker and propagates failures before indexing or cache publication.
-The
-existing merge-base commit selection, source links, footer SHA, and
+The pilot also wraps Astro's default prerenderer through the public
+`setPrerenderer` build hook. It collects incremental dependency metadata only
+for components whose static paths include a `cacheKey`, avoiding metadata
+collection and response buffering for uncached documentation components.
+Keyed API components retain Astro's content and image tracking; static paths,
+responses, lifecycle hooks, and image collection are delegated unchanged.
+Components mixing keyed and unkeyed paths remain conservatively tracked.
+This doesn't add caching to Starlight documentation routes or patch Astro.
+The existing merge-base commit selection, source links, footer SHA, and
 cross-deployment full-navigation guard remain the intended contract. The pilot
 rejects missing identity and unreplaced identity markers instead of producing a
 success-shaped artifact.

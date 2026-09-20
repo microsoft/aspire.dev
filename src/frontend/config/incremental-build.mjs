@@ -12,6 +12,47 @@ const commitPlaceholderBytes = Buffer.from(commitPlaceholder);
 const shortCommitPlaceholderBytes = Buffer.from(shortCommitPlaceholder);
 const cacheEpoch = 'api-v1';
 
+/**
+ * @param {import('astro').AstroPrerenderer} prerenderer
+ * @returns {import('astro').AstroPrerenderer}
+ */
+export function scopeIncrementalMetadata(prerenderer) {
+  /** @type {Set<string>} */
+  const cacheableComponents = new Set();
+  let trackedPages = 0;
+  let bypassedPages = 0;
+  return {
+    ...prerenderer,
+    name: `${prerenderer.name}:cacheable-metadata`,
+    setup: prerenderer.setup?.bind(prerenderer),
+    collectStaticImages: prerenderer.collectStaticImages?.bind(prerenderer),
+    async getStaticPaths() {
+      const paths = await prerenderer.getStaticPaths();
+      cacheableComponents.clear();
+      for (const { route, cacheKey } of paths) {
+        if (cacheKey !== undefined) cacheableComponents.add(route.component);
+      }
+      return paths;
+    },
+    render(request, options) {
+      // Astro otherwise collects metadata even for components that never cache.
+      const collectMetadata =
+        options.collectMetadata && cacheableComponents.has(options.routeData.component);
+      if (options.collectMetadata) {
+        if (collectMetadata) trackedPages++;
+        else bypassedPages++;
+      }
+      return prerenderer.render(request, { ...options, collectMetadata });
+    },
+    async teardown() {
+      await prerenderer.teardown?.();
+      console.log(
+        `[incremental-build] prerender metadata ${JSON.stringify({ trackedPages, bypassedPages })}`
+      );
+    },
+  };
+}
+
 /** @typedef {{ start: number, end: number }} IdentityRange */
 /** @typedef {Map<string, IdentityRange[]>} IdentityRangeCache */
 
@@ -288,6 +329,9 @@ export function incrementalBuildSettings({ root, mode, env, force = false }) {
     integration: {
       name: 'aspire-incremental-build-identity',
       hooks: {
+        'astro:build:start': ({ setPrerenderer }) => {
+          setPrerenderer(scopeIncrementalMetadata);
+        },
         'astro:config:setup': ({ updateConfig }) => {
           // Icons refresh during Starlight setup, after the outer config was
           // evaluated. Capture that generated input only after its hook ran.
