@@ -196,10 +196,15 @@ or constructing a full document tree for each page. Validated ranges are now
 saved in `identity-ranges.json` inside the same compatibility partition, keyed
 by SHA-256 of the exact raw HTML. Byte-identical pages reuse positions, not
 previous identity values; changed HTML is parsed again. Missing metadata is
-regenerated, malformed metadata produces a warning and is rebuilt, and
-`--force` ignores it. Filesystem errors and unsupported identity markers still
-fail the build. This avoids repeating HTML tokenization on warm builds without
-caching documentation rendering or weakening output comparison. The
+regenerated, malformed JSON or schema data produces a warning and is rebuilt,
+and `--force` ignores it. Invalid offsets or token contents, filesystem errors,
+and unsupported identity markers still fail the build. This avoids repeating
+HTML tokenization on warm builds without
+caching documentation rendering or weakening output comparison. Equal-width
+identity tokens allow UTF-8 buffers to be updated without repeatedly copying or
+decoding complete pages. Four bounded file workers overlap I/O; finalization
+awaits every worker and propagates failures before indexing or cache publication.
+The
 existing merge-base commit selection, source links, footer SHA, and
 cross-deployment full-navigation guard remain the intended contract. The pilot
 rejects missing identity and unreplaced identity markers instead of producing a
@@ -252,8 +257,9 @@ not be deployed. Only a successful default-branch `warm` run can save a reusable
 CI cache, in a namespace that ordinary production and pull-request builds never
 consume.
 
-The pull-request `warm` job also measures upload and restore in a separate,
-run-specific `astro-api-transport-probe-` namespace. It snapshots every cache
+The pull-request `warm` and `api-data` jobs also measure upload and restore in
+separate, run-and-scenario-specific `astro-api-transport-probe-` namespaces.
+Each job snapshots every cache
 file, removes the local copy, restores the exact diagnostic key, and verifies
 all bytes. A missing or changed cache fails the probe. These diagnostic entries
 are never read by deployments or other pilot runs and do not populate the

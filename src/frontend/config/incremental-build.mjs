@@ -5,8 +5,11 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SAXParser } from 'parse5-sax-parser';
 
-export const commitPlaceholder = 'ASPRSHA_BUILD_IDENTITY_NOT_FOR_DEPLOYMENT';
+// Match the 40-byte commit width so replacements never shift cached offsets.
+export const commitPlaceholder = 'ASPRSHA_INCREMENTAL_BUILD_IDENTITY_TOKEN';
 const shortCommitPlaceholder = commitPlaceholder.slice(0, 7);
+const commitPlaceholderBytes = Buffer.from(commitPlaceholder);
+const shortCommitPlaceholderBytes = Buffer.from(shortCommitPlaceholder);
 const cacheEpoch = 'api-v1';
 
 /** @typedef {{ start: number, end: number }} IdentityRange */
@@ -26,7 +29,9 @@ function isIdentityRanges(value) {
         Number.isSafeInteger(range.start) &&
         Number.isSafeInteger(range.end) &&
         range.start >= 0 &&
-        range.end > range.start
+        [commitPlaceholderBytes.length, shortCommitPlaceholderBytes.length].includes(
+          range.end - range.start
+        )
     )
   );
 }
@@ -134,18 +139,29 @@ export function generatedIconDigest(root) {
  * @param {IdentityRangeCache} [rangeCache]
  */
 export function stampBuildIdentity(html, commit, rangeCache) {
+  const bytes = Buffer.from(html, 'utf8');
+  return stampBuildIdentityBytes(bytes, commit, rangeCache) ? bytes.toString('utf8') : html;
+}
+
+/**
+ * @param {Buffer} html
+ * @param {string} commit
+ * @param {IdentityRangeCache} [rangeCache]
+ */
+export function stampBuildIdentityBytes(html, commit, rangeCache) {
   if (!/^[a-f\d]{40}$/i.test(commit)) {
     throw new Error('Incremental builds require a full git commit identity.');
   }
-  if (!html.includes(shortCommitPlaceholder)) return html;
+  if (!html.includes(shortCommitPlaceholderBytes)) return false;
   const digest = rangeCache ? createHash('sha256').update(html).digest('hex') : undefined;
   const cachedRanges = digest ? rangeCache.get(digest) : undefined;
   if (cachedRanges?.some(({ end }) => end > html.length)) {
     throw new Error('Identity range cache exceeds its source HTML; rebuild with --force.');
   }
   /** @type {IdentityRange[]} */
-  const ranges = cachedRanges ?? [];
+  let ranges = cachedRanges ?? [];
   if (!cachedRanges) {
+    const source = html.toString('utf8');
     /** @type {Array<number | undefined>} */
     const anchors = [];
     const parser = new SAXParser({ sourceCodeLocationInfo: true });
@@ -170,20 +186,48 @@ export function stampBuildIdentity(html, commit, rangeCache) {
       const start = anchors.pop();
       if (start !== undefined) ranges.push({ start, end: sourceCodeLocation.endOffset });
     });
-    parser.end(html);
+    parser.end(source);
+    ranges = ranges.map(({ start, end }) => {
+      const byteStart = Buffer.byteLength(source.slice(0, start));
+      return { start: byteStart, end: byteStart + Buffer.byteLength(source.slice(start, end)) };
+    });
+    /** @type {IdentityRange[]} */
+    const tokens = [];
+    let start = html.indexOf(shortCommitPlaceholderBytes);
+    while (start !== -1) {
+      const full = html
+        .subarray(start, start + commitPlaceholderBytes.length)
+        .equals(commitPlaceholderBytes);
+      const end =
+        start + (full ? commitPlaceholderBytes.length : shortCommitPlaceholderBytes.length);
+      if (!ranges.some((range) => range.start <= start && end <= range.end)) {
+        throw new Error(
+          'Unstamped build identity outside the supported metadata/footer locations.'
+        );
+      }
+      tokens.push({ start, end });
+      start = html.indexOf(shortCommitPlaceholderBytes, end);
+    }
+    ranges = tokens;
   }
-  for (const { start, end } of ranges.toReversed()) {
-    const markup = html
-      .slice(start, end)
-      .replaceAll(commitPlaceholder, commit)
-      .replaceAll(shortCommitPlaceholder, commit.slice(0, 7));
-    html = html.slice(0, start) + markup + html.slice(end);
+  const commitBytes = Buffer.from(commit);
+  for (const { start, end } of ranges) {
+    const token = html.subarray(start, end);
+    const full = end - start === commitPlaceholderBytes.length;
+    if (
+      !token.equals(full ? commitPlaceholderBytes : shortCommitPlaceholderBytes) ||
+      (!full &&
+        html.subarray(start, start + commitPlaceholderBytes.length).equals(commitPlaceholderBytes))
+    ) {
+      throw new Error('Invalid identity range cache token; rebuild with --force.');
+    }
+    commitBytes.copy(html, start, 0, end - start);
   }
-  if (html.includes(shortCommitPlaceholder)) {
+  if (html.includes(shortCommitPlaceholderBytes)) {
     throw new Error('Unstamped build identity outside the supported metadata/footer locations.');
   }
   if (digest && !cachedRanges) rangeCache.set(digest, ranges);
-  return html;
+  return true;
 }
 
 /**
@@ -265,19 +309,23 @@ export function incrementalBuildSettings({ root, mode, env, force = false }) {
           let stamped = 0;
           let parsed = 0;
           let reused = 0;
-          for (const path of files(fileURLToPath(dir))) {
-            if (!path.endsWith('.html')) continue;
-            const html = await readFile(path, 'utf8');
-            if (!html.includes(commitPlaceholder) && !html.includes(shortCommitPlaceholder))
-              continue;
-            const entries = rangeCache.size;
-            const updated = stampBuildIdentity(html, commit, rangeCache);
-            if (rangeCache.size === entries) reused++;
-            else parsed++;
-            if (html !== updated) {
-              await writeFile(path, updated);
-              stamped++;
+          const pending = files(fileURLToPath(dir));
+          async function stampFiles() {
+            for (const path of pending) {
+              if (!path.endsWith('.html')) continue;
+              const html = await readFile(path);
+              const entries = rangeCache.size;
+              if (stampBuildIdentityBytes(html, commit, rangeCache)) {
+                if (rangeCache.size === entries) reused++;
+                else parsed++;
+                await writeFile(path, html);
+                stamped++;
+              }
             }
+          }
+          const results = await Promise.allSettled(Array.from({ length: 4 }, () => stampFiles()));
+          for (const result of results) {
+            if (result.status === 'rejected') throw result.reason;
           }
           await mkdir(cacheDir, { recursive: true });
           const temporary = new URL(`identity-ranges.${process.pid}.tmp`, cacheDir);

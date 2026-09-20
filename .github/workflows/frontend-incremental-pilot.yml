@@ -107,14 +107,14 @@ jobs:
       # Diagnostic PR cache only: this unique namespace is never restored by
       # production, default-branch qualification, or another pilot run.
       - name: Measure isolated cache upload
-        if: ${{ success() && github.event_name == 'pull_request' && matrix.scenario == 'warm' }}
+        if: ${{ success() && github.event_name == 'pull_request' && (matrix.scenario == 'warm' || matrix.scenario == 'api-data') }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.cache.outputs.path }}
-          key: astro-api-transport-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          key: astro-api-transport-probe-${{ matrix.scenario }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Snapshot and remove local probe cache
-        if: ${{ success() && github.event_name == 'pull_request' && matrix.scenario == 'warm' }}
+        if: ${{ success() && github.event_name == 'pull_request' && (matrix.scenario == 'warm' || matrix.scenario == 'api-data') }}
         env:
           CACHE_PATH: ${{ steps.cache.outputs.path }}
         run: |
@@ -132,15 +132,15 @@ jobs:
           NODE
 
       - name: Measure isolated cache restore
-        if: ${{ success() && github.event_name == 'pull_request' && matrix.scenario == 'warm' }}
+        if: ${{ success() && github.event_name == 'pull_request' && (matrix.scenario == 'warm' || matrix.scenario == 'api-data') }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.cache.outputs.path }}
-          key: astro-api-transport-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          key: astro-api-transport-probe-${{ matrix.scenario }}-${{ github.run_id }}-${{ github.run_attempt }}
           fail-on-cache-miss: true
 
       - name: Verify transported cache bytes
-        if: ${{ success() && github.event_name == 'pull_request' && matrix.scenario == 'warm' }}
+        if: ${{ success() && github.event_name == 'pull_request' && (matrix.scenario == 'warm' || matrix.scenario == 'api-data') }}
         env:
           CACHE_PATH: ${{ steps.cache.outputs.path }}
         run: node scripts/compare-builds.mjs compare "$CACHE_PATH" .cache/incremental-pilot/transport-cache-manifest.json

@@ -12,6 +12,7 @@ import {
   incrementalCompatibility,
   replacePrivateBuildIdentity,
   stampBuildIdentity,
+  stampBuildIdentityBytes,
 } from '../../config/incremental-build.mjs';
 import { buildManifest, compareManifests } from '../../scripts/compare-builds.mjs';
 import {
@@ -47,12 +48,48 @@ describe('incremental build identity', () => {
 <a target="_blank" class="commit-link" href="https://example.com/commit/${commitPlaceholder}" title="Built on commit SHA: ASPRSHA">SHA ASPRSHA</a>`;
 
   it('stamps only designated metadata and footer without reserializing HTML', () => {
+    expect(Buffer.byteLength(commitPlaceholder)).toBe(40);
     const expected = template
       .replaceAll(commitPlaceholder, commit)
       .replaceAll('ASPRSHA', '0123456');
     expect(stampBuildIdentity(template, commit)).toBe(expected);
     expect(stampBuildIdentity(expected, commit)).toBe(expected);
   });
+
+  it('preserves UTF-8 byte positions and length when stamping buffers directly', () => {
+    const source = '<p>\u{1f680} \u00e9 \u6f22\u5b57</p>\r\n' + template;
+    const cache = new Map<string, { start: number; end: number }[]>();
+    for (const identity of [commit, 'abcdef0123456789abcdef0123456789abcdef01']) {
+      const bytes = Buffer.from(source, 'utf8');
+      const length = bytes.length;
+      expect(stampBuildIdentityBytes(bytes, identity, cache)).toBe(true);
+      expect(bytes.length).toBe(length);
+      expect(bytes.toString('utf8')).toBe(
+        source.replaceAll(commitPlaceholder, identity).replaceAll('ASPRSHA', identity.slice(0, 7))
+      );
+      expect(stampBuildIdentityBytes(bytes, identity, cache)).toBe(false);
+      expect(cache.size).toBe(1);
+    }
+  });
+
+  it.each(['truncated', 'shifted'])(
+    'rejects a %s cached token instead of emitting a partial SHA',
+    (corruption) => {
+      const cache = new Map<string, { start: number; end: number }[]>();
+      stampBuildIdentity(template, commit, cache);
+      const token = [...cache.values()][0][0];
+      expect(token.end - token.start).toBe(40);
+      if (corruption === 'truncated') {
+        token.end = token.start + 7;
+      } else {
+        token.start++;
+        token.end++;
+      }
+      expect(() => stampBuildIdentity(template, commit, cache)).toThrow(
+        'Invalid identity range cache token'
+      );
+    }
+  );
 
   it('uses the new identity when the same raw cached page is restored', () => {
     const next = 'abcdef0123456789abcdef0123456789abcdef01';
@@ -269,6 +306,51 @@ describe('incremental build identity', () => {
     expect(await readFile(join(root, 'dist/index.html'), 'utf8')).toBe(template);
   });
 
+  it('finalizes every distinct page across bounded concurrent file workers', async () => {
+    const root = await fixture();
+    const count = 21;
+    for (let index = 0; index < count; index++) {
+      await put(root, `dist/${index}/index.html`, `<p>${index}</p>` + template);
+    }
+    const settings = incrementalBuildSettings({
+      root: pathToFileURL(root + '/'),
+      mode: 'production',
+      env: { PUBLIC_GIT_COMMIT_ID: commit },
+    });
+    await settings.integration.hooks['astro:build:generated']({
+      dir: pathToFileURL(join(root, 'dist') + '/'),
+    });
+    for (let index = 0; index < count; index++) {
+      expect(await readFile(join(root, 'dist', String(index), 'index.html'), 'utf8')).toBe(
+        stampBuildIdentity(`<p>${index}</p>` + template, commit)
+      );
+    }
+    const cache = JSON.parse(
+      await readFile(new URL('identity-ranges.json', settings.cacheDir), 'utf8')
+    );
+    expect(Object.keys(cache)).toHaveLength(count);
+  });
+
+  it('drains concurrent file work without publishing range metadata after a failure', async () => {
+    const root = await fixture();
+    for (let index = 0; index < 8; index++) {
+      await put(root, `dist/${index}/index.html`, template + (index === 0 ? '<p>ASPRSHA</p>' : ''));
+    }
+    const settings = incrementalBuildSettings({
+      root: pathToFileURL(root + '/'),
+      mode: 'production',
+      env: { PUBLIC_GIT_COMMIT_ID: commit },
+    });
+    await expect(
+      settings.integration.hooks['astro:build:generated']({
+        dir: pathToFileURL(join(root, 'dist') + '/'),
+      })
+    ).rejects.toThrow('Unstamped');
+    await expect(
+      readFile(new URL('identity-ranges.json', settings.cacheDir), 'utf8')
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
   it('rejects out-of-bounds cached ranges and lets force rebuild their metadata', async () => {
     const root = await fixture();
     await put(root, 'dist/index.html', template);
@@ -285,7 +367,7 @@ describe('incremental build identity', () => {
     const invalid = Object.fromEntries(
       Object.keys(JSON.parse(valid)).map((digest) => [
         digest,
-        [{ start: 0, end: template.length + 1 }],
+        [{ start: template.length, end: template.length + 40 }],
       ])
     );
     await writeFile(rangePath, JSON.stringify(invalid));
