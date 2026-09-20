@@ -290,59 +290,61 @@ order with a language-code tie-breaker, preserving every metadata value and the
 site's largest-language search fallback. This applies to ordinary and incremental
 builds, not the comparator; every generated file still requires exact byte parity.
 
-#### Initial pilot results
+#### Measured API pilot results
 
-The [September 19, 2026 qualification run](https://github.com/microsoft/aspire.dev/actions/runs/35414420034)
-passed complete-output comparisons for cold and warm caches, a real API-data
-fixture commit, a global CSS change, and partial-cache recovery. Each comparison
-covered **33,897 files**, including search data and assets, with no missing,
-additional, or changed files relative to the matching clean build. API mutations
-removed and added the expected routes rather than leaving stale output.
-These measurements precede the exact-content identity-range cache; its whole
-build and transfer performance must be qualified separately.
+The [September 20, 2026 qualification run](https://github.com/microsoft/aspire.dev/actions/runs/35502757529)
+on `937c1a80` passed all five scenarios: cold/warm reuse, a genuinely different
+build identity, a real API-data fixture commit, global CSS invalidation, and
+partial-cache recovery. Every incremental output matched its corresponding
+clean output byte for byte, across **33,894-33,902 files**, including search
+data, scripts, images, and endpoints. Added, removed, renamed, and sibling API
+entries produced the expected routes instead of leaving stale output.
 
-The original identity fixture could select the existing merge-base SHA, so its
-green result doesn't establish changed-identity safety. The
-[corrected focused identity run](https://github.com/microsoft/aspire.dev/actions/runs/35418391337)
-passed with a genuinely different commit: 15,221 HTML files changed, and the
-incremental result matched all 33,902 files in the corresponding clean output
-while reusing 7,362 HTML and 7,321 Markdown routes. That run also passed 619 unit
-tests and 579 browser tests, with the same 75 applicability skips.
+The API-data fixture advances the source commit from `a576c2ac` to `8fc163eb`.
+Its incremental build restores **7,350 HTML and 7,309 Markdown** outputs while
+rerendering the 24 changed keyed outputs. The unchanged warm build restores
+**7,362 HTML and 7,321 Markdown** outputs. Both transport probes restored and
+verified all **15,420 cache files**, about **2.28 GB raw / 58 MB compressed**.
 
-Each job also passed 618 unit tests and all three built-site Chromium projects:
-579 browser tests passed, with 75 applicability skips. This covers the existing
-router, search, filter, modal, component, responsive, and accessibility contracts;
-it isn't a guarantee against every possible regression or a Firefox/Safari
-qualification.
+| Matched experiment | Clean build | Incremental build | Cache upload + restore | Build + transfer | Net saving |
+| ------------------ | ----------- | ----------------- | ---------------------- | ---------------- | ---------- |
+| Unchanged inputs, warm cache | 719.806s | 677.262s | 28s + 5s | 710.262s | **9.545s / 1.33%** |
+| Real API-data fixture commit | 912.845s | 811.708s | 14s + 7s | 832.708s | **80.137s / 8.78%** |
 
-| Matched experiment | Clean build | Incremental build | Reused HTML / Markdown |
-| ------------------ | ----------- | ----------------- | ---------------------- |
-| Unchanged inputs, warm cache | 14m 46s | 16m 51s | 7,362 / 7,321 |
-| Real API-data fixture commit | 14m 44s | 17m 12s | 7,350 / 7,309 |
-| Global CSS change | 12m 02s | 16m 57s | 0 / 0 |
-| One missing cached Markdown file | 12m 13s | 14m 06s | 7,362 / 7,320 |
+Each row compares builds on the same runner with matching source and recorded
+network inputs. The warm row uses its clean-repeat control. Transfer is measured
+on each row's own runner, not extrapolated from another job. These totals exclude
+qualification-only snapshot/checksum work and aren't complete workflow durations.
+Across all five runners, warm build-process savings range from **5.91% to 15.43%
+before transfer**; only the two rows above have directly measured net totals.
+The small no-op margin and runner/transfer variability aren't a universal
+speedup guarantee.
 
-These are whole build-process wall times, not rendering-only timings or complete
-workflow durations. The unchanged-input row uses the clean-repeat build on the
-same runner; mutation rows use clean builds with the same mutation. Across the
-five jobs, warm unchanged-input builds were **10.5% to 16.2% slower** than their
-clean-repeat controls. The first cold incremental build in the warm job took
-21m 08s. Node peak resident memory rose from about 5.3 GiB for its clean-repeat
-build to 6.8 GiB for its warm incremental build.
+The original [September 19 pilot](https://github.com/microsoft/aspire.dev/actions/runs/35414420034)
+was slower despite API cache hits: whole-site identity processing erased its
+rendering savings. Exact-content token-position reuse, byte-native stamping,
+bounded file I/O, and metadata scoping now reduce that overhead. In the current
+warm job, identity finalization falls from **184.905s cold to 26.562s warm**,
+with no reparsing. Metadata collection is bypassed for **8,617 uncached renders**;
+keyed API renders retain their dependency tracking.
 
-In that job, the generation phase decreased from 13m 05s to 10m 51s, but
-post-generation processing increased from 1m 18s to 5m 37s. Whole-site identity
-finalization and subsequent processing outweighed the API rendering savings.
-The reusable cache occupied **2.28 GB before compression**. No compatible CI
-cache existed, and these pull-request jobs correctly skipped trusted-cache
-publication, so cache download/upload cost remains unmeasured. Transfer cost
-cannot rescue the already slower in-job result.
+All five jobs also passed 640 unit tests and the existing desktop, tablet, and
+mobile Chromium suites. Warm/API jobs each report **579 browser passes and 75
+applicability skips**. The existing router, search, filter, modal, component,
+responsive, and accessibility contracts are covered; this isn't a guarantee
+against every possible regression or a Firefox/Safari qualification.
 
-**Decision: retain normal full builds for CI and deployment.** Local incremental
-commands remain experimental, not a demonstrated local speedup; their Windows
-configuration and helper behavior were checked without running a local production
-build. Further performance work must reduce finalization overhead, repeat the
-correctness experiments, and measure actual cache transfer before promotion.
+**Keep the pilot opt-in pending a separate rollout decision.** The pilot now
+demonstrates a net benefit for a compatible API-only edit, but it doesn't speed
+up every change. First-use and global-invalidated caches still cost more:
+the global CSS fixture takes **747.891s clean versus 953.556s incremental**
+(27.50% slower before transfer). Documentation, shared-source, runtime, and
+dependency changes deliberately invalidate reuse. Normal CI and deployment
+remain full builds.
+
+Local incremental commands remain available for opt-in use, but local speed
+hasn't been measured. Windows configuration and helper behavior were checked
+without running a local production build.
 
 :::caution[Qualification is still required]
 Astro 7.3.2 supports concurrent incremental builds, so the pilot retains the
