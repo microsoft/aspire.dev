@@ -55,10 +55,11 @@ function analyticsFixture(origin = 'https://aspire.dev') {
   const initialize = vi.fn<(config: unknown, extensions: unknown[]) => void>();
   const capturePageAction = vi.fn<(target: TrackedElement, overrides: Record<string, string>) => void>();
   const addEventListener = vi.fn<(type: string, listener: (event: TrackEvent) => void) => void>();
+  const getConsent = vi.fn(() => ({ Analytics: true }));
   const console = { debug: vi.fn(), warn: vi.fn() };
   const context = {
     location: { origin },
-    window: {},
+    window: { __aspireWcpSiteConsent: { getConsent } },
     document: { addEventListener },
     console,
     oneDS: {
@@ -70,8 +71,27 @@ function analyticsFixture(origin = 'https://aspire.dev') {
   };
   const bootstrap = () => { runInNewContext(read('public/scripts/analytics/1ds.js'), context); };
   const tracking = () => { runInNewContext(read('public/scripts/analytics/track.js'), context); };
-  return { initialize, capturePageAction, addEventListener, console, bootstrap, tracking };
+  return { initialize, capturePageAction, addEventListener, getConsent, console, bootstrap, tracking };
 }
+
+test('analytics rechecks consent before a delayed bootstrap initializes the SDK', () => {
+  const fixture = analyticsFixture();
+  fixture.getConsent.mockReturnValue({ Analytics: false });
+  fixture.bootstrap();
+  fixture.tracking();
+  expect(fixture.initialize).not.toHaveBeenCalled();
+  expect(fixture.addEventListener).not.toHaveBeenCalled();
+});
+
+test('analytics fails closed and reports a failed consent lookup', () => {
+  const fixture = analyticsFixture();
+  fixture.getConsent.mockImplementation(() => { throw new Error('consent unavailable'); });
+  fixture.bootstrap();
+  expect(fixture.initialize).not.toHaveBeenCalled();
+  expect(fixture.console.warn).toHaveBeenCalledWith(
+    '[1ds] Failed to initialize Application Insights:', expect.any(Error),
+  );
+});
 
 test('analytics excludes unload without disabling other lifecycle or click capture', () => {
   const fixture = analyticsFixture();

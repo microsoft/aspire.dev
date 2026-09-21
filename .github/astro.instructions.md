@@ -349,6 +349,12 @@ For scanners, use `//*[@id="c-uhff-footer_managecookies"]` after deploying this 
 
 Complete the initial banner choice before testing the footer's reopening action, especially on narrow screens where the banner can cover most of the viewport. Use the banner's own management action to inspect preferences before making an initial choice.
 
+Analytics follows WCP's resolved `Analytics` value, including regional defaults. The analytics bootstrap rechecks this value before initializing, since the SDK may finish loading after the settings change.
+
+When `Analytics` is false, the bridge removes only `MicrosoftApplicationsTelemetryDeviceId` at the root path, including host-only and current-domain variants. It disables SDK cookie writes and pauses the collection channel before reloading, rather than unloading and flushing queued events. Keep cleanup scoped to this identifier; preserve `MSCC`, `ai_session`, `MSFPC`, unrelated preferences, and cookies on other domains.
+
+Keep both the deterministic consent UI tests and the real-SDK cookie cases in `tests/e2e/cookie-consent.spec.ts`. The latter route our local build through a synthetic production origin so the production-only guard is exercised, and intercept collection requests rather than sending test telemetry. A CDN failure must fail visibly, not silently skip cookie assertions. Run `pnpm test:unit:contracts` and `pnpm exec playwright test tests/e2e/cookie-consent.spec.ts tests/e2e/analytics-scripts.spec.ts` from `src/frontend`.
+
 ## Screenshots and Visual Verification with playwright-cli
 
 When making visual changes or preparing PR screenshots, use the `playwright-cli` skill to automate browser interaction. This site _may_ show a WCP cookie banner on first visit, but it is **geo-gated** and usually absent in local/US runs — when it does appear (a fixed strip at the top of the viewport) **dismiss it before taking screenshots**.
