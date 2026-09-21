@@ -31,6 +31,7 @@ import Integrations from '@components/Integrations.astro';
 import IntegrationTotals from '@components/IntegrationTotals.astro';
 import LearnMore from '@components/LearnMore.astro';
 import LicenseBadge from '@components/LicenseBadge.astro';
+import LoopingImage from '@components/LoopingImage.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
 import MediaCard from '@components/MediaCard.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
@@ -83,6 +84,23 @@ type BasicRenderCase = {
   includes: string[];
   requestUrl?: string;
 };
+
+it.each([
+  {
+    name: 'LoopingImage',
+    Component: LoopingImage,
+    props: { src: heroImage, alt: 'Looping image' },
+  },
+  {
+    name: 'LoopingVideo',
+    Component: LoopingVideo,
+    props: { sources: [{ src: '/demo.webm', type: 'video/webm' }] },
+  },
+])('$name renders deterministic media markup', async ({ Component, props }) => {
+  const first = await renderComponent(Component, { props });
+  const second = await renderComponent(Component, { props });
+  expect(second).toBe(first);
+});
 
 it.each([
   ['en', 'Scroll to top'], ['fr', 'Retour en haut'], ['pt-BR', 'Voltar ao topo'],

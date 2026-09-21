@@ -1976,6 +1976,13 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   // Guard against registering duplicate listeners on client-side navigation
   if (!(window as any).__sidebarInit) {
     (window as any).__sidebarInit = true;
+    // API sidebars switch to desktop later than Starlight's 50rem breakpoint.
+    window.matchMedia('(min-width: 72rem)').addEventListener('change', () => {
+      const sidebar = document.querySelector<HTMLElement>(
+        '#starlight__sidebar:popover-open:has(.topics-sidebar[data-api-ref])'
+      );
+      sidebar?.hidePopover();
+    });
     document.addEventListener('keydown', handleApiSearchShortcut);
     document.addEventListener('DOMContentLoaded', initSidebarFilter);
     document.addEventListener('astro:after-swap', initSidebarFilter);

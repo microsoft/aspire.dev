@@ -42,6 +42,17 @@ export default {
   // preview themes here: https://textmate-grammars-themes.netlify.app/
   themes: ['laserwave', 'slack-ochin'],
   styleOverrides: { borderRadius: '0.5rem', codeFontSize: '1rem' },
+  shiki: {
+    transformers: [
+      {
+        name: 'complete-syntax-highlighting',
+        preprocess(_code, options) {
+          // A wall-clock cutoff otherwise silently changes colors on busy runners.
+          options.tokenizeTimeLimit = 0;
+        },
+      },
+    ],
+  },
   plugins: [
     pluginCollapsibleSections(),
     pluginLineNumbers(),

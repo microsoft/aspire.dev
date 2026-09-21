@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { apiCacheKey } from '@utils/api-build-cache';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
 import { renderCSharpPackageMarkdown } from '@utils/csharp-api-markdown';
@@ -12,6 +13,7 @@ type RouteProps = {
 };
 
 type StaticPath = {
+  cacheKey?: string;
   params: { package: string };
   props: RouteProps;
 };
@@ -20,6 +22,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   const packages = await getPackages();
 
   return packages.map((entry) => ({
+    cacheKey: apiCacheKey(entry.data),
     params: { package: packageSlug(entry.data.package.name) },
     props: {
       pkg: entry.data,

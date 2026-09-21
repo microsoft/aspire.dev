@@ -251,6 +251,38 @@ test('homepage carousel reinitializes after client navigation', async ({ page })
   await expect(returnedCarousel).toHaveClass(/is-ready/);
 });
 
+test('API sidebar popover follows the wider desktop breakpoint', async ({ page }) => {
+  test.skip(page.viewportSize()?.width !== 1440, 'Covered once with explicit viewport widths.');
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto('/reference/api/csharp/aspire.hosting.redis/');
+  await dismissCookieConsentIfVisible(page);
+
+  const menu = page.locator('nav.sidebar').getByRole('button', { name: 'Menu', exact: true });
+  const sidebar = page.locator('#starlight__sidebar');
+  const content = page.locator('.main-frame');
+  await expect(menu).toBeVisible();
+  await expect(sidebar).toBeHidden();
+  await menu.click();
+  await expect(sidebar).toBeVisible();
+  await expect(content).toHaveAttribute('inert', '');
+  await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
+  await page.keyboard.press('Escape');
+  await expect(sidebar).toBeHidden();
+  await expect(content).not.toHaveAttribute('inert');
+  await expect(menu).toBeFocused();
+
+  await menu.click();
+  await expect(content).toHaveAttribute('inert', '');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(menu).toBeHidden();
+  await expect(sidebar).toBeVisible();
+  await expect(content).not.toHaveAttribute('inert');
+  await expect(page.locator('#starlight__sidebar:popover-open')).toHaveCount(0);
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await expect(menu).toBeVisible();
+  await expect(sidebar).toBeHidden();
+});
+
 test('mobile docs chrome prioritizes reading and keeps navigation geometry consistent', async ({
   page,
 }) => {
@@ -273,12 +305,13 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
     const searchButton = banner.getByRole('button', { name: 'Search' });
     const liveLink = banner.locator('.right-group-mobile .live-btn');
     const tryLink = banner.locator('.try-aspire-btn-mobile');
-    const menuButton = page.locator('starlight-menu-button').getByRole('button', { name: 'Menu' });
+    const menuButton = page.locator('nav.sidebar').getByRole('button', { name: 'Menu', exact: true });
 
     await expect(searchButton).toBeVisible();
     await expect(liveLink).toBeVisible();
     await expect(tryLink).toBeVisible();
     await expect(menuButton).toBeVisible();
+    await expect(menuButton).toHaveAttribute('popovertarget', 'starlight__sidebar');
     await expect(banner.locator('.right-group-mobile .docs-btn-mobile')).toBeHidden();
     await expect(banner.locator('.right-group-mobile .install-cli-btn')).toBeHidden();
     await expect(banner.locator('.right-group-mobile .cookie-consent-btn')).toBeHidden();
@@ -429,9 +462,7 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
   await page.reload();
   await dismissCookieConsentIfVisible(page);
 
-  const compactMenuButton = page
-    .locator('starlight-menu-button')
-    .getByRole('button', { name: 'Menu' });
+  const compactMenuButton = page.locator('nav.sidebar').getByRole('button', { name: 'Menu', exact: true });
   await compactMenuButton.click();
 
   const compactTopicMetrics = await page

@@ -23,12 +23,19 @@ function isDateInput(value: unknown): value is Date | string | number | null | u
   );
 }
 
-// Helper: coerce many date formats into a JS Date; fall back to `new Date()` when invalid
+// Preserve build-time fallback dates unless a reproducible-build clock is supplied.
 function toDate(value: Date | string | number | null | undefined): Date {
-  if (!value) return new Date();
-  if (value instanceof Date) return value;
-  const d = new Date(value);
-  return isNaN(d.getTime()) ? new Date() : d;
+  if (value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (!isNaN(date.getTime())) return date;
+  }
+  const epoch = process.env.SOURCE_DATE_EPOCH;
+  if (epoch === undefined) return new Date();
+  const fallback = new Date(Number(epoch) * 1000);
+  if (!/^\d+$/.test(epoch) || isNaN(fallback.getTime())) {
+    throw new Error('SOURCE_DATE_EPOCH must be a valid Unix timestamp in whole seconds.');
+  }
+  return fallback;
 }
 
 export async function GET(context: APIContext) {
