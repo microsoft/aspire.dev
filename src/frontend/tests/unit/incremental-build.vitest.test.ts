@@ -18,8 +18,10 @@ import {
 } from '../../config/incremental-build.mjs';
 import { buildManifest, compareManifests } from '../../scripts/compare-builds.mjs';
 import {
+  buildArguments,
   changedIdentity,
   identityFinalization,
+  pagefindMeasurement,
   restoredPaths,
 } from '../../scripts/test-incremental-builds.mjs';
 import { apiCacheKey } from '../../src/utils/api-build-cache';
@@ -568,6 +570,7 @@ describe('incremental compatibility and package keys', () => {
           cacheDir: astroConfig.cacheDir.href,
           incremental: astroConfig.experimental.incrementalBuild,
           concurrency: astroConfig.build.concurrency,
+          searchCache: astroConfig.integrations.some(i => i.name === 'aspire-pagefind-cache'),
         }));
       `,
         ],
@@ -588,6 +591,7 @@ describe('incremental compatibility and package keys', () => {
         cacheDir: expect.stringContaining(`/node_modules/.astro-incremental/${mode}/api-v1-`),
         incremental: true,
         concurrency: 4,
+        searchCache: mode === 'production',
       });
     }
   );
@@ -671,6 +675,9 @@ describe('incremental compatibility and package keys', () => {
     'src/styles/site.css',
     'src/styles/_partial.scss',
     'src/assets/original.svg',
+    'src/assets/fonts/Outfit-Regular.ttf',
+    'src/assets/sample-thumbnail.png',
+    'public/og-image.png',
     'public/logo.png',
     'src/scripts/deployment-guard.ts',
     'config/remark-plugin.mjs',
@@ -692,6 +699,20 @@ describe('incremental compatibility and package keys', () => {
 });
 
 describe('whole-output equivalence', () => {
+  it('keeps ordinary full-build controls distinct from the forced-clean oracle', () => {
+    expect(buildArguments('clean')).toEqual(['build', '--mode', 'production', '--force']);
+    expect(buildArguments('full')).toEqual(['build', '--mode', 'production']);
+    expect(buildArguments('incremental')).toEqual(['build', '--mode', 'production']);
+  });
+
+  it('requires consistent search reuse measurements', () => {
+    const record = { reused: true, reason: 'hit', htmlFiles: 10, keyedHtmlFiles: 5, wallMs: 2 };
+    const log = `[incremental-build] pagefind ${JSON.stringify(record)}`;
+    expect(pagefindMeasurement(log)).toEqual(record);
+    expect(() => pagefindMeasurement('')).toThrow('Expected one');
+    expect(() => pagefindMeasurement(log + '\n' + log)).toThrow('Expected one');
+    expect(() => pagefindMeasurement(log.replace('"hit"', '"inputs"'))).toThrow('Invalid');
+  });
   it('records measured identity work without accepting missing, duplicate or inconsistent totals', () => {
     const measurement = { htmlFiles: 10, parsedPages: 2, reusedPages: 8, wallMs: 20.5 };
     const log = `[incremental-build] finalized identity ${JSON.stringify(measurement)}`;

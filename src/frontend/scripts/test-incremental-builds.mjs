@@ -13,7 +13,41 @@ import { captureQualificationInputs } from './qualification-inputs.mjs';
 const rootUrl = new URL('../', import.meta.url);
 const root = fileURLToPath(rootUrl);
 const reportDirectory = join(root, '.cache', 'incremental-pilot');
-const scenarios = ['warm', 'identity', 'api-data', 'global-input', 'partial-cache'];
+const scenarios = ['warm', 'identity', 'api-data', 'global-input', 'og-input', 'partial-cache'];
+
+/** @param {'clean' | 'full' | 'incremental'} kind */
+export function buildArguments(kind) {
+  if (!['clean', 'full', 'incremental'].includes(kind)) {
+    throw new Error(`Unknown build kind: ${kind}`);
+  }
+  return ['build', '--mode', 'production', ...(kind === 'clean' ? ['--force'] : [])];
+}
+
+/**
+ * @param {string} log
+ * @returns {{reused: boolean, reason: string, htmlFiles: number, keyedHtmlFiles: number, wallMs: number}}
+ */
+export function pagefindMeasurement(log) {
+  const records = [
+    ...stripVTControlCharacters(log).matchAll(/^\[incremental-build\] pagefind (\{[^\r\n]+\})$/gm),
+  ];
+  if (records.length !== 1) throw new Error('Expected one Pagefind cache measurement.');
+  const result = JSON.parse(records[0][1]);
+  if (
+    typeof result.reused !== 'boolean' ||
+    !['hit', 'inputs', 'force', 'missing', 'damaged'].includes(result.reason) ||
+    result.reused !== (result.reason === 'hit') ||
+    !Number.isSafeInteger(result.htmlFiles) ||
+    !Number.isSafeInteger(result.keyedHtmlFiles) ||
+    result.htmlFiles < result.keyedHtmlFiles ||
+    result.keyedHtmlFiles <= 0 ||
+    !Number.isFinite(result.wallMs) ||
+    result.wallMs < 0
+  ) {
+    throw new Error('Invalid Pagefind cache measurement.');
+  }
+  return result;
+}
 
 /** @param {string} log */
 export function restoredPaths(log) {
@@ -79,7 +113,8 @@ async function runPilot(scenario) {
     }).trim();
   const measurements = [];
 
-  async function build(label, incremental, env = {}, requireReuse = false) {
+  async function build(label, kind, env = {}, requireReuse = false) {
+    const incremental = kind === 'incremental';
     const logPath = join(reportDirectory, `${label}.log`);
     const log = createWriteStream(logPath);
     const started = performance.now();
@@ -91,10 +126,7 @@ async function runPilot(scenario) {
             '--import',
             new URL('./qualification-inputs.mjs', import.meta.url).href,
             join(root, 'node_modules', 'astro', 'bin', 'astro.mjs'),
-            'build',
-            '--mode',
-            'production',
-            ...(!incremental ? ['--force'] : []),
+            ...buildArguments(kind),
           ],
           {
             cwd: root,
@@ -128,26 +160,38 @@ async function runPilot(scenario) {
       log.end();
       await finished(log);
     }
+    const wallMs = performance.now() - started;
     const output = await readFile(logPath, 'utf8');
     const paths = restoredPaths(output);
     const identity = incremental ? identityFinalization(output) : undefined;
-    if (paths.some((path) => !/^\/reference\/api\/(?:csharp|typescript)\//.test(path))) {
-      throw new Error(`Unexpected route reused outside the API-only pilot: ${paths.join(', ')}`);
+    const search = incremental ? pagefindMeasurement(output) : undefined;
+    if (
+      paths.some(
+        (path) =>
+          !/^\/reference\/api\/(?:csharp|typescript)\//.test(path) &&
+          !/^\/og\/.+\.png$/.test(path)
+      )
+    ) {
+      throw new Error(`Unexpected route reused outside the API/OG pilot: ${paths.join(', ')}`);
     }
     const markdownRestored = paths.filter((path) => path.endsWith('.md')).length;
-    const htmlRestored = paths.length - markdownRestored;
+    const ogRestored = paths.filter((path) => path.startsWith('/og/')).length;
+    const htmlRestored = paths.length - markdownRestored - ogRestored;
     measurements.push({
       label,
+      kind,
       buildIdentity: env.PUBLIC_GIT_COMMIT_ID || baselineIdentity,
       sourceDateEpoch,
       sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {
         cwd: root,
         encoding: 'utf8',
       }).trim(),
-      wallMs: performance.now() - started,
+      wallMs,
       htmlRestored,
       markdownRestored,
+      ogRestored,
       identityFinalization: identity,
+      pagefind: search,
     });
     await writeFile(
       join(reportDirectory, 'measurements.json'),
@@ -160,6 +204,15 @@ async function runPilot(scenario) {
     }
     if (requireReuse && !identity?.reusedPages) {
       throw new Error(`${label}: expected exact-content identity range reuse.`);
+    }
+    if (requireReuse && !ogRestored) {
+      throw new Error(`${label}: expected unchanged OG image reuse.`);
+    }
+    if (
+      (label.startsWith('incremental-warm') || label === 'api-data-incremental') &&
+      !search?.reused
+    ) {
+      throw new Error(`${label}: expected unchanged Pagefind bundle reuse.`);
     }
     const manifest = await buildManifest(join(root, 'dist'));
     await writeFile(join(reportDirectory, `${label}-manifest.json`), JSON.stringify(manifest));
@@ -179,10 +232,21 @@ async function runPilot(scenario) {
     }
   }
 
-  const clean = await build('clean', false);
-  await equivalent('clean-repeat', clean, await build('clean-repeat', false));
-  await equivalent('incremental-first', clean, await build('incremental-first', true));
-  await equivalent('incremental-warm', clean, await build('incremental-warm', true, {}, true));
+  const clean = await build('clean', 'clean');
+  await equivalent('clean-repeat', clean, await build('clean-repeat', 'clean'));
+  if (['warm', 'api-data'].includes(scenario)) {
+    await equivalent('full-warm', clean, await build('full-warm', 'full'));
+  }
+  await equivalent('incremental-first', clean, await build('incremental-first', 'incremental'));
+  await equivalent('incremental-warm', clean, await build('incremental-warm', 'incremental', {}, true));
+  if (scenario === 'warm') {
+    await equivalent(
+      'incremental-warm-repeat',
+      clean,
+      await build('incremental-warm-repeat', 'incremental', {}, true)
+    );
+    await equivalent('full-warm-repeat', clean, await build('full-warm-repeat', 'full'));
+  }
 
   let restoreSource;
   let mutationPrefix;
@@ -278,21 +342,33 @@ async function runPilot(scenario) {
       const original = await readFile(path, 'utf8');
       restoreSource = () => writeFile(path, original);
       await writeFile(path, original + '\n:root { --incremental-pilot-probe: 1; }\n');
+    } else if (scenario === 'og-input') {
+      const path = join(root, 'public', 'og-image.png');
+      const original = await readFile(path);
+      restoreSource = () => writeFile(path, original);
+      const { default: sharp } = await import('sharp');
+      await writeFile(path, await sharp(original).negate({ alpha: false }).png().toBuffer());
     } else if (scenario === 'partial-cache') {
       const { cacheDir } = await loadIncrementalBuildSettings(rootUrl, 'production');
       const manifest = JSON.parse(
         await readFile(new URL('incremental-build.json', cacheDir), 'utf8')
       );
-      const route = Object.values(manifest.routes)[0];
-      const entry = Object.values(route.paths)[0];
-      if (!entry.outputFile.startsWith('reference/api/') || entry.outputFile.includes('..')) {
-        throw new Error('Refusing to remove an unexpected cached output path.');
+      const entries = Object.values(manifest.routes).flatMap((route) => Object.values(route.paths));
+      for (const prefix of ['reference/api/', 'og/']) {
+        const entry = entries.find((entry) => entry.outputFile.startsWith(prefix));
+        if (!entry || entry.outputFile.includes('..')) {
+          throw new Error('Refusing to remove an unexpected cached output path.');
+        }
+        await rm(new URL(entry.outputFile, new URL('dist/', cacheDir)));
+        console.log(`[incremental-pilot] Removed one cached output: ${entry.outputFile}`);
       }
-      await rm(new URL(entry.outputFile, new URL('dist/', cacheDir)));
-      console.log(`[incremental-pilot] Removed one cached output: ${entry.outputFile}`);
+      await writeFile(new URL('pagefind-bundle/pagefind-entry.json', cacheDir), 'damaged probe');
     }
     if (scenario !== 'warm') {
-      const expected = await build(`${scenario}-clean`, false, env);
+      const expected = await build(`${scenario}-clean`, 'clean', env);
+      if (scenario === 'api-data') {
+        await equivalent(`${scenario}-full`, expected, await build(`${scenario}-full`, 'full', env));
+      }
       if (
         scenario === 'identity' &&
         !compareManifests(clean, expected).changed.some((path) => path.endsWith('.html'))
@@ -309,11 +385,27 @@ async function runPilot(scenario) {
           throw new Error('The API mutation must remove old routes and introduce new routes.');
         }
       }
-      const actual = await build(`${scenario}-incremental`, true, env, scenario !== 'global-input');
+      if (
+        scenario === 'og-input' &&
+        !compareManifests(clean, expected).changed.some((path) => path.startsWith('og/'))
+      ) {
+        throw new Error('The background fixture must change generated OG images.');
+      }
+      const globalInvalidation = ['global-input', 'og-input'].includes(scenario);
+      const actual = await build(`${scenario}-incremental`, 'incremental', env, !globalInvalidation);
       if (scenario === 'api-data') await verifyContentProbe(actual);
       await equivalent(scenario, expected, actual);
-      if (scenario === 'global-input' && measurements.at(-1).htmlRestored !== 0) {
-        throw new Error('A global CSS change must invalidate the compatibility partition.');
+      if (
+        globalInvalidation &&
+        (measurements.at(-1).htmlRestored !== 0 || measurements.at(-1).ogRestored !== 0)
+      ) {
+        throw new Error('A global input change must invalidate the compatibility partition.');
+      }
+      if (
+        ['identity', 'partial-cache'].includes(scenario) &&
+        measurements.at(-1).pagefind.reused
+      ) {
+        throw new Error('Changed identity or damaged search cache must rebuild the index.');
       }
     }
   } finally {
