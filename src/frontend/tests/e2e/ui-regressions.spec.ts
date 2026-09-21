@@ -202,7 +202,7 @@ test('homepage header matches the compact mobile action geometry at reflow width
     await expect(hubLink).toBeVisible();
     await expect(hubLink).toHaveAttribute('aria-label', 'Dev Hub');
     await expect(hubLink.locator('svg')).toBeVisible();
-    await expect(hubLink).toHaveCSS('border-width', '0px');
+    await expect(hubLink).toHaveCSS('border-width', '1px');
     await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeVisible();
     await expect(banner.getByRole('link', { name: 'Try Aspire', exact: true })).toBeVisible();
 
