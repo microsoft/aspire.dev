@@ -17,7 +17,8 @@ describe('intent-preserving empty recovery', () => {
   it('explains that an unmatched query can be cleared without discarding the selected topic', () => {
     expect(emptyResultsMessage('resources', ' asd ', ['Topic: Foundations'], { withoutQuery: 12, withoutFilters: 0 })).toEqual({
       action: 'Clear search',
-      title: 'No resources match "asd"',
+      title: 'No matching resources',
+      query: 'Search: "asd"',
       hint: 'Try another term, or clear your search while keeping your filters.',
     });
   });
@@ -25,8 +26,13 @@ describe('intent-preserving empty recovery', () => {
   it('identifies filter restrictions only when the query has matches elsewhere', () => {
     const message = emptyResultsMessage('terms', 'redis', ['Topic: Foundations', 'Letter: A'], { withoutQuery: 2, withoutFilters: 1 });
     expect(message.action).toBe('Clear filters');
-    expect(message.title).toBe('No terms match "redis" with these filters');
+    expect(message.title).toBe('No matching terms');
+    expect(message.query).toBe('Search: "redis"');
     expect(message.hint).toContain('Keep your search');
     expect(message.hint).not.toContain('Active filters:');
+  });
+
+  it('omits query copy when only filters are active', () => {
+    expect(emptyResultsMessage('terms', '   ', ['Letter: A'], { withoutQuery: 0, withoutFilters: 5 }).query).toBe('');
   });
 });

@@ -1,6 +1,23 @@
 import { expect, test } from '@playwright/test';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
+test('Dev Hub TypeScript quickstart overrides a saved C# preference', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('aspire-lang', 'csharp');
+    localStorage.setItem('starlight-synced-tabs__aspire-lang', 'C#');
+  });
+  await page.goto('/hub/');
+  await dismissCookieConsentIfVisible(page);
+
+  const link = page.locator('.language-links').getByRole('link', { name: /JavaScript \/ TypeScript/ });
+  await expect(link).toHaveAttribute('href', '/get-started/first-app/?aspire-lang=typescript');
+  await link.click();
+
+  await expect(page).toHaveURL(/\/get-started\/first-app\/\?aspire-lang=typescript$/);
+  await expect(page.locator('#pivot-selector-aspire-lang [data-pivot-option="typescript"]')).toHaveClass(/active/);
+  await expect(page.getByText('This quickstart uses the JavaScript starter template', { exact: false })).toBeVisible();
+});
+
 test('prerequisites apphost tabs default to TypeScript and persist selection', async ({
   page,
 }) => {

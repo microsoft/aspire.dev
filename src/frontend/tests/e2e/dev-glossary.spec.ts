@@ -191,7 +191,8 @@ test('searches aliases, definitions, and context with combined letter/topic filt
   await expect(cards).toHaveCount(5);
   await expect(page).toHaveURL(/topic=reference&letter=W/);
   await search.fill('no-such-term');
-  await expect(page.getByRole('heading', { name: 'No terms match "no-such-term"' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No matching terms' })).toBeVisible();
+  await expect(page.locator('[data-glossary-empty] .search-empty-query')).toHaveText('Search: "no-such-term"');
   await expect(cards).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Clear filters', exact: true })).toBeHidden();
   await page.locator('[data-glossary-empty]').getByRole('button', { name: 'Clear search', exact: true }).click();
@@ -214,14 +215,14 @@ test('empty results stay compact and offer one intent-preserving action in both 
       const filterPanel = (await page.locator('.glossary-filter-panel').boundingBox())!;
       expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeGreaterThanOrEqual(0);
       expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeLessThanOrEqual(16);
-      expect(bounds.height).toBeLessThan(width >= 768 ? 176 : 240);
-      const parts = await empty.locator('.search-empty-title, .search-empty-hint, .search-active-filters, .search-action').evaluateAll(
+      expect(bounds.height).toBeLessThan(width >= 800 ? 256 : 320);
+      const parts = await empty.locator('.search-empty-title, .search-empty-query, .search-empty-hint, .search-active-filters, .search-action').evaluateAll(
         (elements) => elements.map((element) => {
           const bounds = element.getBoundingClientRect();
           return { x: bounds.x, y: bounds.y, bottom: bounds.bottom };
         }),
       );
-      expect(parts).toHaveLength(4);
+      expect(parts).toHaveLength(5);
       for (let index = 1; index < parts.length; index++) {
         expect(parts[index].x).toBeCloseTo(parts[0].x, 0);
         expect(parts[index].y).toBeGreaterThanOrEqual(parts[index - 1].bottom);

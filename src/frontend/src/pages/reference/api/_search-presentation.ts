@@ -72,11 +72,8 @@ export class ApiSearchPresentation {
         ? `Clear your search text${hasFilters ? ' and keep the selected filters' : ''}.`
         : 'Neither change alone returns results. Clear your search text and restore the default filters.';
     container.replaceChildren(createSearchEmptyState({
-      title: emptyDataset
-        ? 'No API entries available'
-        : hasQuery
-          ? `No API entries match "${query}"${hasFilters ? ' with these filters' : ''}`
-          : 'No API entries match these filters',
+      title: emptyDataset ? 'No API entries available' : 'No matching API entries',
+      query: !emptyDataset && hasQuery ? `Search: "${query}"` : undefined,
       hint: emptyDataset
         ? 'This API reference has no searchable entries.'
         : guidance,

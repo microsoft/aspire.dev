@@ -486,6 +486,33 @@ test('desktop header actions use consistent spacing', async ({ page }) => {
   await expect(page.getByRole('tooltip')).toContainText('Dev Hub');
 });
 
+test('mobile header controls share an inactive border in both themes', async ({ page }) => {
+  await page.goto('/reference/samples/');
+  const banner = page.getByRole('banner');
+  const hub = banner.getByRole('link', { name: 'Dev Hub', exact: true });
+  for (const width of [320, 640, 799]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const theme of ['light', 'dark']) {
+      await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
+      await expect(hub).not.toHaveAttribute('aria-current');
+      await expect(hub).toHaveCSS('border-width', '1px');
+      await expect(hub).toHaveCSS('border-style', 'solid');
+      await expect(hub).toHaveCSS('border-radius', '6px');
+      const borderColor = await hub.evaluate((element) => getComputedStyle(element).borderColor);
+      for (const control of [
+        banner.locator('button[data-open-modal]:visible'),
+        banner.locator('.live-btn:visible'),
+        page.locator('starlight-menu-button button'),
+      ]) {
+        await expect(control).toHaveCSS('border-width', '1px');
+        await expect(control).toHaveCSS('border-style', 'solid');
+        await expect(control).toHaveCSS('border-color', borderColor);
+        await expect(control).toHaveCSS('border-radius', '6px');
+      }
+    }
+  }
+});
+
 test('header icon order and Videos selected effect survive client navigation', async ({ page }) => {
   for (const theme of ['light', 'dark']) {
     await page.goto('/hub/');
@@ -557,7 +584,9 @@ test('Dev Hub has a distinct active header button on hub and browse routes in bo
       await expect(hub).toBeVisible();
       if (route === '/') {
         await expect(hub).not.toHaveAttribute('aria-current');
-        await expect(hub).toHaveCSS('border-width', '0px');
+        const borderWidth = await page.locator('header .live-btn:visible')
+          .evaluate((element) => getComputedStyle(element).borderWidth);
+        await expect(hub).toHaveCSS('border-width', borderWidth);
         await expect(hub).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       } else {
         await expect(hub).toHaveAttribute('aria-current', 'page');

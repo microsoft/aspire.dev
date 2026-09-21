@@ -61,7 +61,7 @@ const validSearchFieldProps = {
   wrapClass: 'inpage-search-input-wrap', iconClass: 'inpage-search-icon',
 } satisfies PropsOf<typeof SearchField>;
 const validSearchEmptyProps = {
-  title: 'No matching API entries', hint: 'Try another keyword.',
+  title: 'No matching API entries', query: 'Search: "Redis"', hint: 'Try another keyword.',
   actionLabel: 'Clear search', actionId: 'api-recover', hidden: true,
 } satisfies PropsOf<typeof SearchEmptyState>;
 void validSearchFieldProps;

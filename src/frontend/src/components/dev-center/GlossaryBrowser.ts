@@ -78,6 +78,9 @@ class GlossaryBrowser extends HTMLElement {
         });
         recoveryAction = message.action;
         this.querySelector('[data-glossary-empty] .search-empty-title')!.textContent = message.title;
+        const queryText = this.querySelector<HTMLElement>('[data-glossary-empty] .search-empty-query')!;
+        queryText.textContent = message.query;
+        queryText.hidden = !message.query;
         this.querySelector('[data-glossary-empty] .search-empty-hint')!.textContent = message.hint;
         setSearchActiveFilters(this.querySelector<HTMLElement>('[data-glossary-empty]')!, activeFilters);
         this.querySelector('[data-clear-glossary]')!.textContent = message.action;
@@ -92,7 +95,7 @@ class GlossaryBrowser extends HTMLElement {
       }
       if (letter) url.searchParams.set('letter', letter);
       url.hash = '';
-      historySync.write(url, replace);
+      void historySync.write(url, replace);
       const returnTo = `${url.pathname}${url.search}`;
       this.querySelectorAll<HTMLAnchorElement>('[data-term-link]').forEach((link) => {
         const target = new URL(link.href);
