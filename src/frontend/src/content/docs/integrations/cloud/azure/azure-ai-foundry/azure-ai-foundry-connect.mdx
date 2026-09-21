@@ -117,7 +117,7 @@ Install the [📦 Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) N
 
 <InstallDotNetPackage packageName="Aspire.OpenAI" />
 
-The Aspire OpenAI integration uses the Foundry Local API key that Aspire injects. This example uses the `chat` deployment, so its endpoint and key are `CHAT_URI` and `CHAT_KEY`; replace `chat` with your deployment resource name. Configure it with the Foundry Local endpoint, then register an `IChatClient`:
+The Aspire OpenAI integration uses the Foundry Local API key that Aspire injects. This example uses the `chat` deployment, so its endpoint and key are `CHAT_URI` and `CHAT_KEY`; replace `chat` with your deployment resource name. `AddOpenAIClient("chat")` reads the deployment's connection string to determine the model, while the settings callback supplies the API key and rewrites the endpoint to its OpenAI-compatible `openai/v1/` route. It then registers an `IChatClient`:
 
 ```csharp title="Program.cs"
 using Microsoft.Extensions.AI;
@@ -137,9 +137,15 @@ builder.AddOpenAIClient(
     .AddChatClient();
 ```
 
+### Install the OpenAI SDK
+
+<InstallDotNetPackage packageName="OpenAI" />
+
+<InstallDotNetPackage packageName="Azure.Identity" />
+
 ### Connect with the OpenAI SDK
 
-For cloud-provisioned Foundry resources, install the [📦 OpenAI](https://www.nuget.org/packages/OpenAI) and [📦 Azure.Identity](https://www.nuget.org/packages/Azure.Identity/) packages. In _Program.cs_, read the Aspire-injected connection properties and construct a `ChatClient` authenticated with `DefaultAzureCredential`, pointing it at the Foundry endpoint's `openai/v1` route:
+For cloud-provisioned Foundry resources, read the Aspire-injected connection properties in _Program.cs_ and construct a `ChatClient` authenticated with `DefaultAzureCredential`, pointing it at the Foundry endpoint's `openai/v1` route:
 
 ```csharp title="Program.cs"
 using Azure.Identity;
