@@ -120,8 +120,10 @@ using Microsoft.Extensions.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var endpoint = Environment.GetEnvironmentVariable("CHAT_URI");
-var apiKey = Environment.GetEnvironmentVariable("CHAT_KEY");
+var endpoint = Environment.GetEnvironmentVariable("CHAT_URI")
+    ?? throw new InvalidOperationException("CHAT_URI is required.");
+var apiKey = Environment.GetEnvironmentVariable("CHAT_KEY")
+    ?? throw new InvalidOperationException("CHAT_KEY is required.");
 
 builder.AddOpenAIClient(
         "chat",
@@ -226,12 +228,8 @@ public class ExampleService(IChatClient chatClient)
 
 ### Legacy: Azure AI Inference SDK
 
-<Aside type="note">
-  Microsoft has retired the Azure AI Inference SDK (`Azure.AI.Inference` / `ChatCompletionsClient`) in favor of the OpenAI SDK for calling Azure AI Foundry Models. For details, see Microsoft's [Azure AI Inference SDK to OpenAI SDK migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration).
-</Aside>
-
 <Aside type="caution">
-  Microsoft has retired the Azure AI Inference SDK in favor of the OpenAI SDK shown above. The Aspire Azure AI Inference client integration below still works and provides dependency injection, health checks, and telemetry, but new code should use Aspire.OpenAI for Foundry Local or the OpenAI SDK for cloud-provisioned Foundry resources. Use this section only if you have an existing app you haven't migrated yet.
+  Microsoft has retired the Azure AI Inference SDK (`Azure.AI.Inference` / `ChatCompletionsClient`) in favor of the OpenAI SDK for calling Azure AI Foundry Models. For details, see Microsoft's [Azure AI Inference SDK to OpenAI SDK migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration). The Aspire Azure AI Inference client integration below still works and provides dependency injection, health checks, and telemetry, but new code should use Aspire.OpenAI for Foundry Local or the OpenAI SDK for cloud-provisioned Foundry resources. Use this section only if you have an existing app you haven't migrated yet.
 </Aside>
 
 Install the [📦 Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspire.Azure.AI.Inference) NuGet package in the client-consuming project:
