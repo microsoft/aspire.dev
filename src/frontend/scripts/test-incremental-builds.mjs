@@ -56,6 +56,25 @@ export function restoredPaths(log) {
   );
 }
 
+/** @param {string} log */
+export function restoredRouteCounts(log) {
+  const paths = restoredPaths(log);
+  const api = paths.filter((path) => /^\/reference\/api\/(?:csharp|typescript)\//.test(path));
+  const og = paths.filter((path) => /^\/og\/.+\.png\/?$/.test(path));
+  if (api.length + og.length !== paths.length) {
+    const unexpected = paths.filter((path) => !api.includes(path) && !og.includes(path));
+    throw new Error(
+      `Unexpected route reused outside the API/OG pilot: ${unexpected.slice(0, 10).join(', ')}`
+    );
+  }
+  const markdownRestored = api.filter((path) => /\.md\/?$/.test(path)).length;
+  return {
+    htmlRestored: api.length - markdownRestored,
+    markdownRestored,
+    ogRestored: og.length,
+  };
+}
+
 /**
  * @param {string} log
  * @returns {{htmlFiles: number, parsedPages: number, reusedPages: number, wallMs: number}}
@@ -162,21 +181,9 @@ async function runPilot(scenario) {
     }
     const wallMs = performance.now() - started;
     const output = await readFile(logPath, 'utf8');
-    const paths = restoredPaths(output);
+    const { htmlRestored, markdownRestored, ogRestored } = restoredRouteCounts(output);
     const identity = incremental ? identityFinalization(output) : undefined;
     const search = incremental ? pagefindMeasurement(output) : undefined;
-    if (
-      paths.some(
-        (path) =>
-          !/^\/reference\/api\/(?:csharp|typescript)\//.test(path) &&
-          !/^\/og\/.+\.png$/.test(path)
-      )
-    ) {
-      throw new Error(`Unexpected route reused outside the API/OG pilot: ${paths.join(', ')}`);
-    }
-    const markdownRestored = paths.filter((path) => path.endsWith('.md')).length;
-    const ogRestored = paths.filter((path) => path.startsWith('/og/')).length;
-    const htmlRestored = paths.length - markdownRestored - ogRestored;
     measurements.push({
       label,
       kind,

@@ -23,6 +23,7 @@ import {
   identityFinalization,
   pagefindMeasurement,
   restoredPaths,
+  restoredRouteCounts,
 } from '../../scripts/test-incremental-builds.mjs';
 import { apiCacheKey } from '../../src/utils/api-build-cache';
 
@@ -748,6 +749,20 @@ describe('whole-output equivalence', () => {
         ].join('\n')
       )
     ).toEqual(['/reference/api/csharp/test/index.html', '/reference/api/csharp/test.md']);
+  });
+
+  it('accepts Astro endpoint trailing slashes while keeping reuse restricted to API and OG routes', () => {
+    expect(
+      restoredRouteCounts([
+        '/reference/api/csharp/test/index.html (restored)',
+        '/reference/api/typescript/test.md (restored)',
+        '/og/app-host/configuration.png/ (restored)',
+        '/og/reference/samples/example.png (cached)',
+      ].join('\n'))
+    ).toEqual({ htmlRestored: 1, markdownRestored: 1, ogRestored: 2 });
+    for (const path of ['/docs/index.html', '/og/index.html', '/og/image.png/other']) {
+      expect(() => restoredRouteCounts(`${path} (restored)`)).toThrow('outside the API/OG pilot');
+    }
   });
 
   it('detects missing, added and changed files without filtering output types', async () => {

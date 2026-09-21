@@ -80,6 +80,7 @@ jobs:
 
       # Keep builds before astro sync/lint, matching the normal Lunaria workflow.
       - name: Compare complete clean and incremental artifacts
+        id: build_qualification
         env:
           PILOT_SCENARIO: ${{ matrix.scenario }}
           GH_TOKEN: ${{ github.token }}
@@ -147,7 +148,7 @@ jobs:
         run: node scripts/compare-builds.mjs compare "$CACHE_PATH" .cache/incremental-pilot/transport-cache-manifest.json
 
       - name: Upload qualification evidence
-        if: ${{ always() }}
+        if: ${{ !cancelled() && steps.build_qualification.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: incremental-pilot-${{ matrix.scenario }}
@@ -159,7 +160,7 @@ jobs:
           retention-days: 7
 
       - name: Upload complete diagnostic site (not deployable)
-        if: ${{ always() }}
+        if: ${{ !cancelled() && steps.build_qualification.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: incremental-pilot-dist-${{ matrix.scenario }}

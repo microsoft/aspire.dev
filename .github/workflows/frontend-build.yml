@@ -85,18 +85,19 @@ jobs:
       # Lunaria would see those as uncommitted changes and fail with a
       # doubled rootDir path (src/frontend/src/frontend/…).
       - name: Build frontend
+        id: frontend_build
         env:
           MODE: production
           ASTRO_TELEMETRY_DISABLED: 1
         run: pnpm build:production
 
-      # Upload before the dist sanity-check so the artifact is always
-      # available for debugging, even when the check step fails.
+      # Upload only a successful build, before later checks so their failures
+      # don't hide an otherwise valid build artifact.
       # Note: `uses` actions ignore the job-level working-directory,
       # so the path is repo-root-relative (src/frontend/dist).
       - name: Upload build artifact
         id: upload_build_artifact
-        if: ${{ always() }}
+        if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-dist
