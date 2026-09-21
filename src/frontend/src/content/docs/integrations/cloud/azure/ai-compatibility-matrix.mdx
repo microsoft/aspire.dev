@@ -24,7 +24,7 @@ The following table shows the compatibility between Aspire AI hosting and client
 
 | **Hosting Integration** | **Aspire.OpenAI** | **Aspire.Azure.AI.OpenAI** | **Aspire.Azure.AI.Inference** |
 |--|--|--|--|
-| `Aspire.Hosting.Foundry` | ⚠️ Foundry Local only (preferred) | ⚠️ Partial | ✅ Yes (legacy) |
+| `Aspire.Hosting.Foundry` | ⚠️ Foundry Local only (preferred) | ⚠️ Partial | ⚠️ Legacy |
 | `Aspire.Hosting.Azure.CognitiveServices` | ❌ No | ✅ Yes (preferred) | ❌ No |
 | `Aspire.Hosting.OpenAI` | ✅ Yes (preferred) | ✅ Yes | ❌ No |
 | `Aspire.Hosting.GitHub.Models` | ⚠️ Partial | ❌ No | ✅ Yes (preferred) |
@@ -76,7 +76,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const foundry = await builder.addFoundry('foundry').runAsFoundryLocal();
+const foundry = await builder.addFoundry("foundry").runAsFoundryLocal();
 
 const chat = await foundry.addDeployment('chat', {
   name: 'Phi-4',
@@ -92,7 +92,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 #### Client integration
 
-For Foundry Local, the [Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) package provides the recommended client integration. In your service project:
+For Foundry Local, the [Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) package provides the recommended client integration. The `chat` deployment reference supplies the `CHAT_URI` and `CHAT_KEY` environment variables used in your service project:
 
 ```csharp title="Program.cs"
 var endpoint = Environment.GetEnvironmentVariable("CHAT_URI");
@@ -102,7 +102,7 @@ builder.AddOpenAIClient(
         "chat",
         settings =>
         {
-            settings.Endpoint = new Uri($"{endpoint}openai/v1/");
+            settings.Endpoint = new Uri(new Uri(endpoint!), "openai/v1/");
             settings.Key = apiKey;
         })
     .AddChatClient();
