@@ -233,6 +233,11 @@ async function runPilot(scenario) {
       JSON.stringify(differences, null, 2)
     );
     if (Object.values(differences).some((paths) => paths.length)) {
+      for (const [kind, paths] of Object.entries(differences)) {
+        console.error(
+          `[incremental-pilot] ${label} ${kind}: ${paths.length}; first paths: ${paths.slice(0, 10).join(', ')}`
+        );
+      }
       throw new Error(
         `${label}: output differs; see ${label}-diff.json. No normalization is allowed.`
       );
