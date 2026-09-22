@@ -134,6 +134,27 @@ value and warns that AppHost paths must be configured locally. The legacy
 `appHostPath` key is also blocked by `aspire config set`; use `appHost.path`
 instead.
 
+### Configure browser certificate trust on Linux
+
+On Linux, the NSS databases used to trust the Aspire HTTPS development
+certificate can be configured through `certificates.nssDbPaths`, including
+user-level configuration:
+
+```bash title="Set the NSS database paths globally"
+aspire config set --global certificates.nssDbPaths "firefox=/path/to/firefox/profile:chromium=/path/to/chromium/nssdb"
+```
+
+Prefix a path with `firefox=` or `chromium=` to apply the trust settings
+expected by that browser family, and separate multiple paths with the
+platform path separator.
+
+`certificates.nssDbPaths` takes precedence over the upstream
+`DOTNET_DEV_CERTS_NSSDB_PATHS` environment variable. When the Aspire setting
+has no value, the CLI falls back to `DOTNET_DEV_CERTS_NSSDB_PATHS` and then to
+normal NSS database discovery — the upstream environment variable's behavior
+is unchanged. Run [`aspire certs trust`](../commands/aspire-certs-trust/) to
+apply the configured trust settings.
+
 :::tip
 Some feature flags shown by `aspire config list --all` may correspond to
 preview, migration, or hidden functionality. Treat the output of your
