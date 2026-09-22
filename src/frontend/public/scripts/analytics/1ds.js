@@ -14,6 +14,12 @@
   }
 
   try {
+    // Consent can change while the asynchronously loaded SDK is in flight.
+    const siteConsent = window.__aspireWcpSiteConsent;
+    if (!siteConsent || siteConsent.getConsent().Analytics !== true) {
+      return;
+    }
+
     const analytics = new oneDS.ApplicationInsights();
     analytics.initialize(
       {

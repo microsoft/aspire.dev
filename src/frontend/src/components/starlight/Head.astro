@@ -319,14 +319,36 @@ function computeSourceUrl() {
       }
     }
 
-    function applyConsentToScripts(siteConsent) {
+    function revokeAnalyticsConsent() {
+      if (window.analytics && window.analytics.__initialized) {
+        try {
+          window.analytics.getCookieMgr().setEnabled(false);
+          // Pause instead of unloading: unload can flush queued telemetry.
+          window.analytics.getPostChannel().pause();
+        } catch (e) {
+          console.warn('[consent] Failed to stop analytics:', e);
+        }
+      }
+
+      // Expire only the device identifier. Preserve MSCC, ai_session, MSFPC,
+      // and unrelated site preferences.
+      var expired = 'MicrosoftApplicationsTelemetryDeviceId=; Max-Age=0; Path=/; SameSite=Lax';
+      document.cookie = expired;
+      document.cookie = expired + '; Domain=' + window.location.hostname;
+    }
+
+    function applyConsentToScripts(siteConsent, allowActivation) {
       try {
         var consent =
           typeof siteConsent.getConsent === 'function' ? siteConsent.getConsent() : null;
-        if (consent && consent.Analytics) {
-          activateAnalyticsScripts();
+        if (consent && consent.Analytics === true) {
+          if (allowActivation !== false) activateAnalyticsScripts();
+        } else {
+          revokeAnalyticsConsent();
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[consent] Failed to apply analytics consent:', e);
+      }
     }
 
     function openManageConsent(event) {
@@ -347,6 +369,9 @@ function computeSourceUrl() {
     }
 
     function onConsentChanged() {
+      withSiteConsent(function (siteConsent) {
+        applyConsentToScripts(siteConsent, false);
+      });
       // WCP fires this when the visitor changes their choices. Reload so the new
       // consent is applied consistently across any consent-gated behavior.
       window.setTimeout(function () {

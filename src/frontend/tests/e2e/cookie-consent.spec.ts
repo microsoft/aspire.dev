@@ -8,6 +8,7 @@ const INERT_ANALYTICS_SELECTOR = 'script[type="text/plain"][data-category="analy
 const EXECUTABLE_ANALYTICS_SELECTOR = 'script[data-category="analytics"]:not([type="text/plain"])';
 const MANAGE_TRIGGER_SELECTOR = '[data-cookie-manage-consent]';
 const SCANNER_XPATH = 'xpath=//*[@id="c-uhff-footer_managecookies"]';
+const DEVICE_COOKIE = 'MicrosoftApplicationsTelemetryDeviceId';
 
 // astro dev fires a one-time full-page reload once Vite finishes pre-bundling
 // dependencies on a cold server, which can destroy the page's execution context
@@ -21,9 +22,12 @@ type WcpStubOptions = {
   consentRequired: boolean;
   /** Whether the stubbed consent record grants the Analytics category. */
   analyticsGranted: boolean;
+  socialMediaGranted?: boolean;
+  advertisingGranted?: boolean;
   /** Delay region resolution to exercise cached state and scanner readiness. */
   initDelayMs?: number;
   cachedConsentRequired?: boolean;
+  realAnalytics?: boolean;
 };
 
 type WcpStubState = {
@@ -36,6 +40,11 @@ type WcpStubState = {
 
 declare global {
   interface Window {
+    analytics?: {
+      __initialized?: boolean;
+      getCookieMgr(): { isEnabled(): boolean };
+      getPostChannel(): { pause(): void };
+    };
     __wcpStub?: WcpStubState;
     __aspireWcpSiteConsent?: unknown;
     __aspireWcpBannerObserver?: ResizeObserver;
@@ -53,14 +62,27 @@ declare global {
 async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void> {
   // Stop the real (async) library from loading and clobbering our stub.
   await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
-  // Once analytics scripts are promoted the browser fetches their sources.
-  // Neutralize those requests so the tests never hit the real network or run
-  // production analytics side effects; we only assert on the DOM promotion.
-  await page.route(/js\.monitor\.azure\.com/, (route) =>
-    route.fulfill({ contentType: 'application/javascript', body: '' })
-  );
-  await page.route(/\/scripts\/analytics\//, (route) =>
-    route.fulfill({ contentType: 'application/javascript', body: '' })
+  // Most cases only need DOM promotion. Real-SDK cases load the CDN but still
+  // intercept collection below so test telemetry never reaches production.
+  if (!options.realAnalytics) {
+    await page.route(/js\.monitor\.azure\.com/, (route) =>
+      route.fulfill({ contentType: 'application/javascript', body: '' })
+    );
+    await page.route(/\/scripts\/analytics\//, (route) =>
+      route.fulfill({ contentType: 'application/javascript', body: '' })
+    );
+  }
+  await page.route(/https:\/\/[^/]*events\.data\.microsoft\.com\//, (route) =>
+    route.fulfill({
+      headers: {
+        'access-control-allow-origin': 'https://aspire.dev',
+        'access-control-allow-credentials': 'true',
+        'access-control-allow-methods': 'POST, OPTIONS',
+        'access-control-allow-headers':
+          route.request().headers()['access-control-request-headers'] ?? '*',
+      },
+      json: { webResult: { msfpc: 'consent-test' } },
+    })
   );
   await page.route(/\/api\/live\/?$/, (route) =>
     route.fulfill({
@@ -84,6 +106,45 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
   );
 
   await page.addInitScript((opts: WcpStubOptions) => {
+    if (opts.realAnalytics) {
+      // Measure at send time: Playwright's click also dispatches pointer events
+      // before Save actually changes consent, when collection is still allowed.
+      const recordSend = (url: string) => {
+        if (
+          /events\.data\.microsoft\.com/.test(url) &&
+          sessionStorage.getItem('wcp-test-choice') === 'Reject all'
+        ) {
+          sessionStorage.setItem('wcp-test-sent-after-withdrawal', 'true');
+        }
+      };
+      const urls = new WeakMap<XMLHttpRequest, string>();
+      const open = XMLHttpRequest.prototype.open;
+      const send = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.open = function (
+        method: string,
+        url: string | URL,
+        async: boolean = true,
+        user: string | null = null,
+        password: string | null = null
+      ) {
+        urls.set(this, String(url));
+        return open.call(this, method, url, async, user, password);
+      };
+      XMLHttpRequest.prototype.send = function (body) {
+        recordSend(urls.get(this) ?? '');
+        return send.call(this, body);
+      };
+      const fetch = window.fetch.bind(window);
+      window.fetch = (input, init) => {
+        recordSend(input instanceof Request ? input.url : String(input));
+        return fetch(input, init);
+      };
+      const sendBeacon = navigator.sendBeacon.bind(navigator);
+      navigator.sendBeacon = (url, data) => {
+        recordSend(String(url));
+        return sendBeacon(url, data);
+      };
+    }
     if (opts.cachedConsentRequired !== undefined) {
       localStorage.setItem('aspireConsentRequired', String(opts.cachedConsentRequired));
     }
@@ -105,11 +166,14 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
     const siteConsent = {
       isConsentRequired: opts.consentRequired,
       getConsent() {
+        const choice = sessionStorage.getItem('wcp-test-choice');
+        const analyticsGranted =
+          choice === 'Accept all' ? true : choice === 'Reject all' ? false : opts.analyticsGranted;
         return {
           Required: true,
-          Analytics: opts.analyticsGranted,
-          SocialMedia: opts.analyticsGranted,
-          Advertising: opts.analyticsGranted,
+          Analytics: analyticsGranted,
+          SocialMedia: choice ? analyticsGranted : (opts.socialMediaGranted ?? analyticsGranted),
+          Advertising: choice ? analyticsGranted : (opts.advertisingGranted ?? analyticsGranted),
         };
       },
       manageConsent() {
@@ -191,6 +255,11 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
         preferences.setAttribute('aria-label', 'Cookie preferences');
         preferences.style.cssText = 'background: white; color: black; padding: 16px';
         preferences.hidden = true;
+        const analyticsChoice = document.createElement('input');
+        analyticsChoice.type = 'checkbox';
+        analyticsChoice.setAttribute('aria-label', 'Allow analytics');
+        analyticsChoice.checked = siteConsent.getConsent().Analytics;
+        preferences.append(analyticsChoice);
         const close = document.createElement('button');
         close.type = 'button';
         close.textContent = 'Close cookie preferences';
@@ -202,8 +271,18 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
         save.type = 'button';
         save.textContent = 'Save changes';
         save.addEventListener('click', () => {
-          sessionStorage.setItem('wcp-test-choice', 'Save changes');
+          sessionStorage.setItem(
+            'wcp-test-choice',
+            analyticsChoice.checked ? 'Accept all' : 'Reject all'
+          );
+          sessionStorage.setItem('wcp-test-saved-action', 'Save changes');
           onConsentChanged?.();
+          if (opts.realAnalytics && !analyticsChoice.checked) {
+            sessionStorage.setItem(
+              'wcp-test-cookie-manager-enabled',
+              String(window.analytics?.getCookieMgr().isEnabled())
+            );
+          }
         });
         preferences.append(save);
         host.append(banner, preferences);
@@ -436,7 +515,14 @@ test.describe('WCP cookie consent bridge', () => {
       }
       await page.getByRole('button', { name: choice, exact: true }).click();
       await expect
-        .poll(() => safeEvaluate(page, () => sessionStorage.getItem('wcp-test-choice')))
+        .poll(() =>
+          safeEvaluate(
+            page,
+            () =>
+              sessionStorage.getItem('wcp-test-saved-action') ??
+              sessionStorage.getItem('wcp-test-choice')
+          )
+        )
         .toBe(choice);
       await page.waitForLoadState('load');
       await waitForConsentBootstrap(page);
@@ -563,6 +649,146 @@ test.describe('WCP cookie consent bridge', () => {
       )
       .toBe(false);
   });
+
+  for (const category of ['Required only', 'SocialMedia only', 'Advertising only']) {
+    test(`removes a denied device cookie without deleting other cookies (${category})`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      if (!baseURL) throw new Error('The consent test requires a baseURL');
+      await context.addCookies(
+        [DEVICE_COOKIE, 'MSCC', 'ai_session', 'MSFPC', 'unrelated'].map((name) => ({
+          name,
+          value: 'consent-test',
+          url: baseURL,
+        }))
+      );
+      await installWcpStub(page, {
+        consentRequired: true,
+        analyticsGranted: false,
+        socialMediaGranted: category === 'SocialMedia only',
+        advertisingGranted: category === 'Advertising only',
+      });
+      await page.goto('/');
+      await waitForConsentBootstrap(page);
+      const names = (await context.cookies()).map(({ name }) => name);
+      expect(names).not.toContain(DEVICE_COOKIE);
+      expect(names).toEqual(expect.arrayContaining(['MSCC', 'ai_session', 'MSFPC', 'unrelated']));
+    });
+  }
+
+  for (const { consentRequired, analyticsGranted } of [
+    { consentRequired: true, analyticsGranted: false },
+    { consentRequired: true, analyticsGranted: true },
+    { consentRequired: false, analyticsGranted: true },
+  ]) {
+    test(`real SDK preserves regional grants and clears the device cookie on withdrawal (required=${consentRequired}, analytics=${analyticsGranted})`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      if (!baseURL) throw new Error('The consent test requires a baseURL');
+      // Serve our build at its production origin so the SDK bootstrap cannot
+      // silently exit on localhost. This never navigates to the live site.
+      await page.route('https://aspire.dev/**', async (route) => {
+        const url = new URL(route.request().url());
+        const response = await route.fetch({
+          url: new URL(url.pathname + url.search, baseURL).href,
+        });
+        await route.fulfill({ response });
+      });
+      await installWcpStub(page, {
+        consentRequired,
+        analyticsGranted,
+        socialMediaGranted: false,
+        advertisingGranted: false,
+        realAnalytics: true,
+      });
+      let collectionRequests = 0;
+      page.on('request', (request) => {
+        if (/events\.data\.microsoft\.com/.test(request.url()) && request.method() === 'POST') {
+          collectionRequests++;
+        }
+      });
+      await page.goto('https://aspire.dev/');
+      await waitForConsentBootstrap(page);
+      if (consentRequired && !analyticsGranted) {
+        expect((await context.cookies()).map(({ name }) => name)).not.toContain(DEVICE_COOKIE);
+        expect(collectionRequests).toBe(0);
+        await Promise.all([
+          page.waitForEvent('domcontentloaded'),
+          page.getByRole('button', { name: 'Accept all', exact: true }).click(),
+        ]);
+        await waitForConsentBootstrap(page);
+      }
+      await expect
+        .poll(async () => (await context.cookies()).map(({ name }) => name), {
+          message: 'The real CDN SDK must initialize and create its device cookie',
+          timeout: POLL_TIMEOUT,
+        })
+        .toContain(DEVICE_COOKIE);
+      await expect.poll(() => collectionRequests, { timeout: POLL_TIMEOUT }).toBeGreaterThan(0);
+      await expect
+        .poll(async () => (await context.cookies()).map(({ name }) => name), {
+          timeout: POLL_TIMEOUT,
+        })
+        .toContain('MSFPC');
+      await page.reload();
+      await waitForConsentBootstrap(page);
+      await expect
+        .poll(() => safeEvaluate(page, () => window.analytics?.__initialized), {
+          timeout: POLL_TIMEOUT,
+        })
+        .toBe(true);
+      await expect
+        .poll(async () => (await context.cookies()).map(({ name }) => name))
+        .toContain(DEVICE_COOKIE);
+
+      if (!consentRequired) return;
+      await context.addCookies([
+        { name: DEVICE_COOKIE, value: 'old-domain-device', domain: '.aspire.dev', path: '/' },
+      ]);
+      await page.locator(SCANNER_XPATH).click();
+      await page.getByRole('checkbox', { name: 'Allow analytics' }).uncheck();
+      await page.evaluate(() => {
+        const channel = window.analytics?.getPostChannel();
+        if (!channel) throw new Error('The real SDK must be active before withdrawal');
+        const pause = channel.pause.bind(channel);
+        channel.pause = () => {
+          pause();
+          sessionStorage.setItem('wcp-test-channel-paused', 'true');
+        };
+      });
+      await Promise.all([
+        page.waitForEvent('domcontentloaded'),
+        page.getByRole('button', { name: 'Save changes', exact: true }).click(),
+      ]);
+      await waitForConsentBootstrap(page);
+      expect(
+        await page.evaluate(() => sessionStorage.getItem('wcp-test-cookie-manager-enabled'))
+      ).toBe('false');
+      expect(await page.evaluate(() => sessionStorage.getItem('wcp-test-channel-paused'))).toBe(
+        'true'
+      );
+      await expect
+        .poll(async () => (await context.cookies()).map(({ name }) => name))
+        .not.toContain(DEVICE_COOKIE);
+      await expect(page.locator(EXECUTABLE_ANALYTICS_SELECTOR)).toHaveCount(0);
+      await navigateWithConsent(page, 'videos');
+      expect((await context.cookies()).map(({ name }) => name)).not.toContain(DEVICE_COOKIE);
+      expect(
+        await page.evaluate(() => sessionStorage.getItem('wcp-test-sent-after-withdrawal'))
+      ).toBeNull();
+      expect(
+        await page.evaluate(
+          () =>
+            localStorage.getItem('MicrosoftApplicationsTelemetryDeviceId') ??
+            sessionStorage.getItem('MicrosoftApplicationsTelemetryDeviceId')
+        )
+      ).toBeNull();
+    });
+  }
 
   test('routes every manage-cookies control to the WCP consent dialog', async ({ page }) => {
     await installWcpStub(page, { consentRequired: true, analyticsGranted: false });
