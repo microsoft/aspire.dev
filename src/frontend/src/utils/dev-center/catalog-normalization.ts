@@ -5,6 +5,7 @@ import { topicIds, type TopicId } from '@utils/dev-center/topics';
 import type { DevResource, ResourceType } from '@utils/dev-center/resource-types';
 import type { CommunityVideo } from '@data/community-videos';
 import { createDocLanguageResolver } from './resource-languages';
+import { languageTags, sampleLanguages } from '@utils/sample-tags';
 
 export interface CatalogDoc {
   id: string;
@@ -62,7 +63,6 @@ const pathTopics: Record<string, TopicId> = {
   diagnostics: 'reference', reference: 'reference', 'whats-new': 'reference',
   community: 'community', blog: 'community',
 };
-const languageTags = new Set(['csharp', 'typescript', 'javascript', 'python', 'go', 'java', 'rust']);
 const providerTags = new Set(['azure', 'aws', 'kubernetes', 'gcp']);
 const sampleTopicTags: Partial<Record<TopicId, string[]>> = {
   integrations: ['databases', 'redis', 'rabbitmq', 'orleans', 'ef-core'],
@@ -238,11 +238,7 @@ export function buildResourceCatalog(sources: CatalogSources): DevResource[] {
     const topics: TopicId[] = ['foundations', ...topicIds.filter((topic) =>
       sampleTopicTags[topic]?.some((tag) => sample.tags.includes(tag)))];
     const entry = resource(`sample:${sample.name}`, sample.title, sample.description, sampleDetailHref('', sample.name), 'sample', topics, sample.tags);
-    entry.languages = unique([
-      ...sample.tags.filter((tag) => languageTags.has(tag)),
-      ...(sample.appHost === 'typescript' ? ['typescript'] : []),
-      ...(['csproj', 'file-based'].includes(sample.appHost ?? '') ? ['csharp'] : []),
-    ]);
+    entry.languages = sampleLanguages(sample);
     entry.providers = sample.tags.filter((tag) => providerTags.has(tag));
     entry.image = image(sample.thumbnail);
     add(entry);

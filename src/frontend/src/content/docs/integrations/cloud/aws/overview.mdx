@@ -3,6 +3,7 @@ title: AWS integrations overview
 description: Learn how Aspire connects to AWS with shared SDK configuration, CloudFormation and CDK resources, DynamoDB Local, and Lambda development tools.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 import ThemeImage from '@components/ThemeImage.astro';
 import LearnMore from '@components/LearnMore.astro';
 import awsLight from '@assets/icons/aws-light-icon.png';
@@ -21,6 +22,48 @@ import awsDark from '@assets/icons/aws-icon.png';
 AWS maintains the [Aspire.Hosting.AWS](https://www.nuget.org/packages/Aspire.Hosting.AWS) integration. Use it to connect your application to Amazon Web Services, provision infrastructure, and develop against local service emulators alongside your app.
 
 Your [AppHost](/get-started/app-host/) describes the resources and their relationships. The AWS integration supplies the provider-specific configuration and tooling; your application uses the appropriate AWS SDK to work with those services.
+
+## Connect your app to DynamoDB Local
+
+From your AppHost directory, run `aspire add Aspire.Hosting.AWS`. With a [container runtime](/get-started/prerequisites/) running, connect an existing `Api` project to DynamoDB Local:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const dynamodb = await builder.addAWSDynamoDBLocal('dynamodb');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withDynamoDBLocalReference(dynamodb);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var dynamodb = builder.AddAWSDynamoDBLocal("dynamodb");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(dynamodb);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The reference supplies `AWS_ENDPOINT_URL_DYNAMODB` to your API, so a compatible AWS SDK client can discover the local endpoint without a hardcoded URL. For this resource, TypeScript uses `withDynamoDBLocalReference` where C# uses `WithReference`. This starts a local container, not a DynamoDB table in your AWS account.
+
+- Follow [DynamoDB Local setup and options](https://github.com/aws/integrations-on-dotnet-aspire-for-aws/blob/main/src/Aspire.Hosting.AWS/README.md#integrating-amazon-dynamodb-local) for SDK configuration and persistent data.
+- Follow the [CloudFormation walkthrough](https://github.com/aws/integrations-on-dotnet-aspire-for-aws/blob/main/src/Aspire.Hosting.AWS/README.md#provisioning-application-resources-with-aws-cloudformation) to provision cloud resources and pass their outputs to your app.
 
 ## Choose a starting point
 

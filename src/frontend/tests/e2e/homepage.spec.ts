@@ -32,7 +32,7 @@ test('links directly to local observability and agent debugging guides', async (
 test('section 08 pairs getting started with Dev Hub discovery and stacks on mobile', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const section = page.getByRole('region', { name: 'Start building with less friction.' });
-  const link = section.getByRole('link', { name: 'Explore Dev Hub', exact: true });
+  const link = section.getByRole('link', { name: 'Explore Aspire resources', exact: true });
   await expect(link).toHaveAttribute('href', '/hub/');
   await expect(page.locator('.home-dev-hub')).toHaveCount(0);
   await expect(page.locator('.home-testimonials + .home-closing')).toHaveCount(1);
@@ -41,7 +41,7 @@ test('section 08 pairs getting started with Dev Hub discovery and stacks on mobi
   await expect(section.getByRole('link', { name: 'View on GitHub', exact: true })).toHaveAttribute('href', 'https://github.com/microsoft/aspire');
   await expect(section.getByRole('heading', { level: 3, name: 'Find your next step.' })).toBeVisible();
   expect(await link.locator('.dev-hub-mark').innerHTML()).toBe(
-    await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).locator('svg').innerHTML(),
+    await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML(),
   );
   for (const width of [320, 390, 768, 1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -99,7 +99,7 @@ test('section 08 pairs getting started with Dev Hub discovery and stacks on mobi
   await expect(link).toHaveCSS('outline-style', 'solid');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/hub\/$/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dev Hub');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Aspire resources');
 });
 
 for (const [route, { lang }] of Object.entries(locales).filter(([route]) => route !== 'root')) {

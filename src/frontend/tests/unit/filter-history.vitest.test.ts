@@ -31,6 +31,7 @@ describe('filter history lifecycle', () => {
     vi.stubGlobal('scrollX', 0);
     vi.stubGlobal('scrollY', 300);
     vi.stubGlobal('window', { scrollTo });
+    vi.stubGlobal('HTMLElement', class {});
     vi.stubGlobal('document', Object.assign(events, {
       documentElement: { hasAttribute: () => transitioning },
     }));
@@ -133,6 +134,23 @@ describe('filter history lifecycle', () => {
     events.dispatchEvent(new Event('astro:page-load'));
     expect(restore).toHaveBeenCalledOnce();
     expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('restores control focus blurred by fragment navigation without stealing a new focus', () => {
+    const focused = Object.assign(new HTMLElement(), { isConnected: true, focus: vi.fn() });
+    const body = {};
+    Object.assign(document, { activeElement: focused, body });
+    createFilterHistory(root, parameters, restore, controller.signal);
+    swap('/hub/browse/?type=sample#results', root);
+    Object.assign(document, { activeElement: body });
+    events.dispatchEvent(new Event('astro:after-swap'));
+    expect(focused.focus).toHaveBeenCalledWith({ preventScroll: true });
+
+    Object.assign(document, { activeElement: focused });
+    swap('/hub/browse/?type=sample#results', root);
+    Object.assign(document, { activeElement: new HTMLElement() });
+    events.dispatchEvent(new Event('astro:after-swap'));
+    expect(focused.focus).toHaveBeenCalledTimes(1);
   });
 
   it('does not override unrelated links, routes or query parameters', () => {

@@ -468,7 +468,7 @@ for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/hub/browse/');
     await expect(page.locator('.dev-breadcrumbs .breadcrumb')).toHaveCount(1);
-    const hubMark = await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).locator('svg').innerHTML();
+    const hubMark = await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML();
     await expect(page.locator('.dev-breadcrumbs a[href="/hub/"] svg')).toHaveCount(2);
     for (const mark of await page.locator('.dev-breadcrumbs a[href="/hub/"] svg').all()) {
       await expect(mark).toHaveAttribute('aria-hidden', 'true');
@@ -477,7 +477,7 @@ for (const width of [390, 768, 1440]) {
     await expect(page.locator('.browse-trail')).toHaveCount(0);
     if (width === 390) {
       await page.locator('.bc-collapse > summary').click();
-      await expect(page.locator('.bc-dropdown').getByRole('link', { name: 'Dev Hub' })).toBeVisible();
+      await expect(page.locator('.bc-dropdown').getByRole('link', { name: 'Aspire resources' })).toBeVisible();
     }
     for (const type of ['guide', 'integration', 'video', 'sample', 'glossary', 'blog']) {
       await page.goto(`/hub/browse/?type=${type}`);
@@ -821,7 +821,7 @@ test('history returns focus from hidden pagination and closed filter options wit
   await expect(group.locator('summary')).toBeFocused();
 
   await page.goForward();
-  const hub = page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true });
+  const hub = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
   await hub.focus();
   await page.goBack();
   await expect(hub).toBeFocused();
