@@ -853,41 +853,56 @@ test('page-action menus stay within narrow viewports on glossary term pages', as
   }
 });
 
-test('Developer Hub opens site search without filtering the page and retains keyboard shortcuts', async ({ page }) => {
-  await page.goto('/hub/');
-  const trigger = page.getByRole('button', { name: 'Search Aspire documentation' });
-  const dialog = page.locator('site-search dialog');
-  await expect(page.locator('site-search')).toHaveCount(1);
-  await expect(page.getByRole('banner').locator('button[data-open-modal]')).toBeHidden();
-  await expect(trigger).toBeEnabled();
-  await trigger.click();
-  await expect(dialog).toBeVisible();
-  const input = dialog.locator('input.pagefind-ui__search-input');
-  const devWarning = dialog.getByText(/Search is only available in production builds/i);
-  await expect(input.or(devWarning)).toBeVisible();
-  if (await input.isVisible()) {
-    await expect(input).toBeFocused();
-    await input.fill('redis');
-    await expect(dialog.locator('.pagefind-ui__result-link').first()).toBeVisible();
-  }
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
-  await expect(trigger).toBeFocused();
-  for (const key of ['Enter', 'Space', 'Control+k', 'Meta+k']) {
-    await trigger.press(key);
+for (const language of ['', 'python']) {
+  test(`Developer Hub opens site search without changing ${language || 'all'} samples and retains keyboard shortcuts`, async ({ page }) => {
+    const path = language ? `/hub/?sample-language=${language}` : '/hub/';
+    await page.goto(path);
+    const samples = page.locator('featured-samples');
+    const visibleTitles = samples.locator('[data-sample-languages]:visible h3');
+    const expectedTitles = language ? ['FastAPI + JavaScript'] : [
+      'Aspire Shop', 'Angular, React, and Vue', 'FastAPI + JavaScript',
+      'Go REST API', 'Persistent Volume', 'Node.js Weather Explorer',
+    ];
+    await expect(samples).toHaveAttribute('data-ready', '');
+    await expect(visibleTitles).toHaveText(expectedTitles);
+    const trigger = page.getByRole('button', { name: 'Search Aspire documentation' });
+    const dialog = page.locator('site-search dialog');
+    await expect(page.locator('site-search')).toHaveCount(1);
+    await expect(page.getByRole('banner').locator('button[data-open-modal]')).toBeHidden();
+    await expect(trigger).toBeEnabled();
+    await trigger.click();
     await expect(dialog).toBeVisible();
+    const input = dialog.locator('input.pagefind-ui__search-input');
+    const devWarning = dialog.getByText(/Search is only available in production builds/i);
+    await expect(input.or(devWarning)).toBeVisible();
+    if (await input.isVisible()) {
+      await expect(input).toBeFocused();
+      await input.fill('redis');
+      await expect(dialog.locator('.pagefind-ui__result-link').first()).toBeVisible();
+    }
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(trigger).toBeFocused();
-  }
-  await expect(page.getByRole('region', { name: 'New to Aspire?' })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Browse by topic' })).toBeVisible();
-  await expect(page.locator('.dev-home [hidden], .dev-home input, .dev-empty')).toHaveCount(0);
-  await expect(page).toHaveURL(/\/hub\/$/);
-  await page.goto('/hub/glossary/');
-  await expect(page.getByRole('banner').locator('button[data-open-modal]')).toBeVisible();
-  await expect(page.getByRole('searchbox', { name: 'Find a term' })).toBeVisible();
-});
+    for (const key of ['Enter', 'Space', 'Control+k', 'Meta+k']) {
+      await trigger.press(key);
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+    }
+    await expect(page.getByRole('region', { name: 'New to Aspire?' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Browse by topic' })).toBeVisible();
+    await expect(page.locator('.dev-home input[type="search"], .dev-empty')).toHaveCount(0);
+    await expect(visibleTitles).toHaveText(expectedTitles);
+    await expect(samples.getByRole('checkbox', { checked: true })).toHaveCount(language ? 1 : 0);
+    if (language) await expect(samples.getByRole('checkbox', { name: 'Python', exact: true })).toBeChecked();
+    await expect(samples.locator('[data-sample-empty]')).toBeHidden();
+    await expect(page).toHaveURL(path);
+    await page.goto('/hub/glossary/');
+    await expect(page.getByRole('banner').locator('button[data-open-modal]')).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Find a term' })).toBeVisible();
+  });
+}
 
 test('discovery cards have working destinations, images, icons, colors, and matching Markdown', async ({ page }) => {
   test.setTimeout(120_000);
