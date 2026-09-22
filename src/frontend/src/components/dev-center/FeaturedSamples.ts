@@ -7,7 +7,7 @@ class FeaturedSamples extends HTMLElement {
     this.controller?.abort();
     this.controller = new AbortController();
     const { signal } = this.controller;
-    const select = this.querySelector<HTMLSelectElement>('select')!;
+    const checkboxes = [...this.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
     const cards = [...this.querySelectorAll<HTMLElement>('[data-sample-languages]')];
     const clearButtons = [...this.querySelectorAll<HTMLButtonElement>('[data-clear-sample-language]')];
     const allSamples = this.querySelector<HTMLAnchorElement>('[data-all-samples]')!;
@@ -15,42 +15,48 @@ class FeaturedSamples extends HTMLElement {
     const empty = this.querySelector<HTMLElement>('[data-sample-empty]')!;
     const parameter = 'sample-language';
     const update = () => {
+      const selected = checkboxes.filter((checkbox) => checkbox.checked);
+      const languages = selected.map((checkbox) => checkbox.value);
       let visible = 0;
       for (const card of cards) {
-        card.hidden = Boolean(select.value) && !card.dataset.sampleLanguages!.split(' ').includes(select.value);
+        card.hidden = languages.length > 0 && !languages.some((language) => card.dataset.sampleLanguages!.split(' ').includes(language));
         if (!card.hidden) visible++;
       }
-      const language = select.selectedOptions[0].text;
-      count.textContent = select.value
-        ? `${visible} of ${cards.length} featured samples: ${language}`
-        : `${cards.length} featured samples`;
+      const labels = selected.map((checkbox) => checkbox.labels![0].textContent.trim()).join(', ');
+      count.textContent = languages.length
+        ? `${visible} of ${cards.length} featured samples: ${labels}`
+        : `${cards.length} featured samples: All languages`;
       empty.hidden = visible > 0;
-      empty.querySelector('h3')!.textContent = `No featured samples for ${language}`;
-      clearButtons[0].hidden = !select.value || visible === 0;
+      empty.querySelector('h3')!.textContent = languages.length ? `No featured samples for ${labels}` : 'No featured samples';
+      clearButtons[0].hidden = languages.length === 0 || visible === 0;
       const browse = new URL(allSamples.href);
-      if (select.value) browse.searchParams.set('language', select.value);
-      else browse.searchParams.delete('language');
+      browse.searchParams.delete('language');
+      for (const language of languages) browse.searchParams.append('language', language);
       allSamples.href = `${browse.pathname}${browse.search}`;
     };
     const save = () => {
       const url = new URL(window.location.href);
       url.searchParams.delete(parameter);
-      if (select.value) url.searchParams.set(parameter, select.value);
+      for (const checkbox of checkboxes) {
+        if (checkbox.checked) url.searchParams.append(parameter, checkbox.value);
+      }
       void historySync.write(url, false);
     };
     const restore = () => {
-      const language = new URLSearchParams(window.location.search).get(parameter) ?? '';
-      select.value = [...select.options].some((option) => option.value === language) ? language : '';
+      const languages = new Set(new URLSearchParams(window.location.search).getAll(parameter));
+      for (const checkbox of checkboxes) checkbox.checked = languages.has(checkbox.value);
       update();
     };
     const historySync = createFilterHistory(this, [parameter], restore, signal);
-    select.addEventListener('change', () => { update(); save(); }, { signal });
+    for (const checkbox of checkboxes) {
+      checkbox.addEventListener('change', () => { update(); save(); }, { signal });
+    }
     for (const button of clearButtons) {
       button.addEventListener('click', () => {
-        select.value = '';
+        for (const checkbox of checkboxes) checkbox.checked = false;
         update();
         save();
-        select.focus();
+        checkboxes[0].focus();
       }, { signal });
     }
     this.querySelector<HTMLElement>('.sample-filter')!.hidden = false;
