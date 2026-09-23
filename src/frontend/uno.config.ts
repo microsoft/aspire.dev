@@ -6,6 +6,11 @@ export default defineConfig({
   presets: [
     presetStarlightIcons(),
     presetIcons({
+      // This preset also resolves FileTree icons, so preserve Starlight's inline layout.
+      extraProperties: {
+        display: 'inline-block',
+        'vertical-align': 'middle',
+      },
       collections: {
         devicon: deviconIcons,
       },
