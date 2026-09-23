@@ -41,17 +41,17 @@ describe('resource search highlights', () => {
 describe('resource discovery', () => {
   it('combines selected languages with OR while respecting other facets and preserving URLs', () => {
     const multilingual = [
-      resource('csharp', { languages: ['csharp'], providers: ['azure'] }),
-      resource('typescript', { languages: ['typescript'], providers: ['aws'] }),
-      resource('both', { languages: ['csharp', 'typescript'], providers: ['azure'] }),
-      resource('python', { languages: ['python'], providers: ['azure'] }),
+      resource('csharp', { languages: ['csharp'], type: 'sample' }),
+      resource('typescript', { languages: ['typescript'] }),
+      resource('both', { languages: ['csharp', 'typescript'], type: 'sample' }),
+      resource('python', { languages: ['python'], type: 'sample' }),
     ].map(resourceSearchEntry);
     const available = resourceFacets(multilingual);
     const selected = readBrowseState(new URLSearchParams('language=csharp&language=typescript&language=csharp&language=unknown'), available);
     expect(selected.language).toEqual(['csharp', 'typescript']);
     expect(filterResources(multilingual, selected).map(({ id }) => id)).toEqual(['both', 'csharp', 'typescript']);
-    expect(filterResources(multilingual, { ...selected, provider: ['azure'] }).map(({ id }) => id)).toEqual(['both', 'csharp']);
-    expect(multilingual.filter((entry) => matchesResource(entry, { ...selected, provider: ['azure'] }, 'language'))).toHaveLength(3);
+    expect(filterResources(multilingual, { ...selected, type: ['sample'] }).map(({ id }) => id)).toEqual(['both', 'csharp']);
+    expect(multilingual.filter((entry) => matchesResource(entry, { ...selected, type: ['sample'] }, 'language'))).toHaveLength(3);
     expect(readBrowseState(writeBrowseState(new URL('https://aspire.dev/hub/browse/'), selected).searchParams, available)).toEqual(selected);
     expect(readBrowseState(new URLSearchParams('language=csharp'), available).language).toEqual(['csharp']);
   });
@@ -68,7 +68,7 @@ describe('resource discovery', () => {
       .map((entry) => entry.id)).toEqual(['guide', 'redis']);
     expect(filterResources(entries, state({ type: ['guide'], topic: ['foundations', 'deployment'] }))
       .map((entry) => entry.id)).toEqual(['cafe']);
-    expect(filterResources(entries, state({ language: ['C#'], provider: ['Azure'] }))).toEqual([]);
+    expect(filterResources(entries, state({ language: ['C#'], topic: ['deployment'] }))).toEqual([]);
   });
 
   it('counts a facet against other filters without removing selected zero-result choices', () => {
@@ -212,5 +212,22 @@ describe('resource discovery', () => {
     expect(filterResources(media, selected)).toHaveLength(3);
     expect(filterResources(media, { ...selected, q: 'twitch' }).map(({ id }) => id)).toEqual(['twitch']);
     expect(writeBrowseState(new URL('https://aspire.dev/hub/browse/?platform=twitch'), selected).search).toBe('');
+  });
+
+  it('removes legacy provider filters without losing provider search metadata or other URL state', () => {
+    const resources = [
+      resource('azure', { title: 'Storage sample', type: 'sample', providers: ['azure'] }),
+      resource('aws', { title: 'Database sample', type: 'sample', providers: ['aws'] }),
+      resource('guide'),
+    ].map(resourceSearchEntry);
+    const available = resourceFacets(resources);
+    const url = new URL('https://aspire.dev/hub/browse/?campaign=docs&provider=azure&provider=aws&type=sample&sort=oldest');
+    const selected = readBrowseState(url.searchParams, available);
+    expect(available).not.toHaveProperty('provider');
+    expect(selected).not.toHaveProperty('provider');
+    expect(filterResources(resources, selected).map(({ id }) => id)).toEqual(['aws', 'azure']);
+    expect(filterResources(resources, { ...selected, q: 'aws' }).map(({ id }) => id)).toEqual(['aws']);
+    expect(filterResources(resources, { ...selected, q: 'azure' }).map(({ id }) => id)).toEqual(['azure']);
+    expect(writeBrowseState(url, selected).search).toBe('?campaign=docs&type=sample&sort=oldest');
   });
 });

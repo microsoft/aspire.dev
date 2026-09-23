@@ -5,7 +5,7 @@ import { tagLabel } from '@utils/sample-tags';
 export const GET: APIRoute = () => new Response([
   `# ${devTitle}`,
   devDescription,
-  '[Browse all resources](https://aspire.dev/hub/browse/): Search and filter by resource type, topic, language, or provider.',
+  '[Browse all resources](https://aspire.dev/hub/browse/): Search and filter by resource type, topic, and language.',
   '## New to Aspire?',
   ...resources.map((resource) => `- [${resource.title}](https://aspire.dev${resource.href}) (${resource.format}): ${resource.description}`),
   '## Browse by topic',

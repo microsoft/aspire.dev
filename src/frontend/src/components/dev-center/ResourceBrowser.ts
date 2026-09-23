@@ -6,8 +6,6 @@ import { createFilterHistory } from './filter-history';
 import { emptyResultsMessage } from './empty-results';
 import { setSearchActiveFilters } from '../search/search-empty-state';
 
-const checkboxFacetNames = ['type', 'topic', 'language'] as const;
-
 class ResourceBrowser extends HTMLElement {
   private controller?: AbortController;
 
@@ -103,7 +101,7 @@ class ResourceBrowser extends HTMLElement {
       if (!matches.length && entries.length) {
         const defaultState = readBrowseState(new URLSearchParams(), available);
         const activeFilters = facetNames.flatMap((name) => state[name].map((value) => {
-          const option = [...checkboxes, ...radios].find((control) => control.name === name && control.value === value)!;
+          const option = checkboxes.find((control) => control.name === name && control.value === value)!;
           const label = option.closest<HTMLElement>('[data-option-label]')!.dataset.optionLabel;
           const group = option.closest('[data-filter-group]')!.querySelector('legend')!.textContent;
           return `${group}: ${label}`;
@@ -121,7 +119,7 @@ class ResourceBrowser extends HTMLElement {
         setSearchActiveFilters(empty, activeFilters);
         empty.querySelector('button')!.textContent = message.action;
       }
-      for (const name of checkboxFacetNames) {
+      for (const name of facetNames) {
         const indicator = this.querySelector<HTMLElement>(`[data-filter-active="${name}"]`);
         if (indicator) indicator.hidden = state[name].length === 0;
         const group = filterGroups.find((group) => group.dataset.filterGroup === name);
@@ -154,7 +152,7 @@ class ResourceBrowser extends HTMLElement {
         if (item === state.page) button.setAttribute('aria-current', 'page');
         return button;
       }));
-      for (const name of checkboxFacetNames) {
+      for (const name of facetNames) {
         const candidates = entries.filter((entry) => matchesResource(entry, state, name));
         for (const checkbox of checkboxes.filter((checkbox) => checkbox.name === name)) {
           const count = candidates.filter((entry) =>
@@ -165,16 +163,9 @@ class ResourceBrowser extends HTMLElement {
         }
       }
       for (const radio of radios) {
-        radio.checked = radio.value === (radio.name === 'sort-date' ? state.sort : radio.name === 'sort-title' ? state.titleSort : state.provider[0] ?? '');
+        radio.checked = radio.value === (radio.name === 'sort-date' ? state.sort : state.titleSort);
         if (radio.checked) {
-          const group = radio.closest<HTMLDetailsElement>('[data-filter-group]')!;
-          if (radio.dataset.sortLabel) {
-            radio.closest('.browse-sort-row')!.querySelector('[data-sort-selection]')!.textContent = radio.dataset.sortLabel;
-          } else {
-            const label = radio.value ? radio.closest<HTMLElement>('[data-option-label]')!.dataset.optionLabel! : 'Provider';
-            group.querySelector('[data-dropdown-label]')!.textContent = label;
-            group.querySelector('summary')!.setAttribute('aria-label', radio.value ? `Provider: ${label}` : 'Provider');
-          }
+          radio.closest('.browse-sort-row')!.querySelector('[data-sort-selection]')!.textContent = radio.dataset.sortLabel!;
         }
       }
       const dateLabel = this.querySelector('[data-sort-selection="date"]')!.textContent;
@@ -322,23 +313,15 @@ class ResourceBrowser extends HTMLElement {
     filters.addEventListener('change', (event) => {
       const control = event.target;
       if (!(control instanceof HTMLInputElement) || !['checkbox', 'radio'].includes(control.type)) return;
-      for (const name of checkboxFacetNames) {
+      for (const name of facetNames) {
         state[name] = checkboxes.filter((box) => box.name === name && box.checked).map((box) => box.value);
       }
-      if (control.name === 'provider') state.provider = control.value ? [control.value] : [];
       if (control.name === 'sort-date') state.sort = control.value === 'oldest' ? 'oldest' : 'newest';
       if (control.name === 'sort-title') state.titleSort = control.value === 'desc' ? 'desc' : 'asc';
       state.page = 1;
       render();
       void save();
     }, { signal });
-    for (const control of radios) {
-      control.addEventListener('click', (event) => {
-        if (event.detail === 0 || control.name.startsWith('sort-')) return;
-        closeFilters();
-        control.closest('[data-filter-group]')!.querySelector('summary')!.focus();
-      }, { signal });
-    }
     clearFilters.addEventListener('click', () => reset(true), { signal });
     resetAll.addEventListener('click', () => reset(), { signal });
     this.querySelector('[data-reset-search]')!.addEventListener('click', () => {
@@ -355,7 +338,7 @@ class ResourceBrowser extends HTMLElement {
         if (button) void changePage(Number(button.dataset.page), button);
       }
     }, { signal });
-    const historySync = createFilterHistory(this, ['q', ...facetNames, 'sort', 'title', 'page'], restore, signal);
+    const historySync = createFilterHistory(this, ['q', ...facetNames, 'provider', 'sort', 'title', 'page'], restore, signal);
     historySync.initialize();
   }
 

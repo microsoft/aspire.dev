@@ -103,10 +103,10 @@ test('browse clears an unmatched query while keeping Foundations and sort prefer
 });
 
 test('browse resets both only when neither individual relaxation restores results', async ({ page }) => {
-  await page.goto('/hub/browse/?q=zzzz-no-match&type=diagnostic&provider=aws&sort=oldest');
+  await page.goto('/hub/browse/?q=zzzz-no-match&type=diagnostic&topic=community&sort=oldest');
   const empty = page.locator('.browse-empty');
   await expect(empty.getByRole('button')).toHaveText('Reset all');
-  await expect(empty.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(['Type: Diagnostic', 'Provider: AWS']);
+  await expect(empty.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(['Type: Diagnostic', 'Topic: Community']);
   await expect(empty.locator('.search-empty-hint')).toContainText('clears both');
   await empty.getByRole('button').click();
   await expect(page).toHaveURL(/\?sort=oldest$/);
