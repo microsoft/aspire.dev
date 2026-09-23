@@ -30,7 +30,7 @@ This release introduces:
 - **Dashboard persistence and run history** — revisit completed application runs and compare telemetry across restarts.
 - **Three new first-party integrations** — orchestrate Java and Rust apps or deploy container-backed compute to Azure Container Apps Sandboxes.
 - **More flexible AppHosts** — pass portable volume paths, load TypeScript AppHost settings from `appsettings.json`, and use resolved environment values in custom debug launch producers.
-- **Sharper CLI workflows** — select launch profiles, export canonical TypeScript API data, preserve acquisition channels, and observe resources more reliably.
+- **Sharper CLI workflows** — select launch profiles, export canonical TypeScript API data, run bundled NuGet operations in-process with credential provider support, preserve acquisition channels, and observe resources more reliably.
 - **A more capable Visual Studio Code extension** — drive AppHosts from coding agents, run deployment actions from the Aspire pane, and work cleanly across multiple roots and git worktrees.
 - **More predictable deployment** — isolate deployment state and preserve Kubernetes hostnames and embedded parameter values.
 - **Integration improvements** — debug Blazor WebAssembly apps, discover Dev Tunnel URLs, customize Radius recipes, and protect destructive Azure location changes.
@@ -243,6 +243,17 @@ The new `aspire sdk export` command emits a deterministic TypeScript API referen
 ```bash title="Aspire CLI — Export TypeScript API data"
 aspire sdk export
 ```
+
+### In-process NuGet operations, with credential provider support
+
+Bundled Aspire CLI installs no longer start a separate `aspire-managed` process to search for, restore, or inspect NuGet packages. The Native AOT `aspire` executable now calls the NuGet client libraries in-process, which removes a process hop while keeping the same package source mapping, signature verification, dependency resolution, and manifest generation behavior.
+
+This also fixes an authentication gap: the previous `aspire-managed` helper never initialized NuGet's credential service, so bundled search and restore could only use credentials already stored in `nuget.config`. Feeds that require a credential provider plugin—such as Azure Artifacts—returned `401` errors. The in-process client now initializes the credential service, so installed credential provider plugins are used for bundled NuGet operations.
+
+<Aside type="note">
+  Non-bundled package search (used when the .NET SDK is available) is
+  unaffected—it continues to call `dotnet package search`.
+</Aside>
 
 ### More predictable updates and resource observation
 
