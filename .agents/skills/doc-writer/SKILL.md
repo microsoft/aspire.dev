@@ -1102,7 +1102,6 @@ the active Aspire release:
 | ----------- | ------- |
 | `%ASPIRE_VERSION%` | Full current stable version, including patch |
 | `%ASPIRE_VERSION_MAJOR_MINOR%` | Current major/minor display or installer version |
-| `%ASPIRE_VERSION_PREVIEW%` | Full current preview version, including prerelease labels and build segments |
 
 Use these placeholders in package references, `Aspire.AppHost.Sdk`
 declarations, file-based app directives, CLI/AppHost output, and generic

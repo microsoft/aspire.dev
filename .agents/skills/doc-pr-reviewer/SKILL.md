@@ -90,7 +90,6 @@ The docs site provides placeholders for current-version values:
 |-------------|---------|
 | `%ASPIRE_VERSION%` | Full current Aspire version, including patch (for example, `13.5.0`) |
 | `%ASPIRE_VERSION_MAJOR_MINOR%` | Current Aspire major/minor display version (for example, `13.5`) |
-| `%ASPIRE_VERSION_PREVIEW%` | Full current Aspire preview version, including prerelease labels and build segments |
 
 Flag hard-coded Aspire versions as a review finding when they appear in current
 copy/paste guidance that should track the active release, including:

@@ -328,7 +328,6 @@ For each documentation page:
    placeholders rather than a hard-coded Aspire version:
    - `%ASPIRE_VERSION%` for the full current stable version
    - `%ASPIRE_VERSION_MAJOR_MINOR%` for the current major/minor version
-   - `%ASPIRE_VERSION_PREVIEW%` for the full current preview version
 
 Flag hard-coded Aspire versions in current installation instructions, package
 references, AppHost SDK declarations, CLI output, and copy/paste examples.
