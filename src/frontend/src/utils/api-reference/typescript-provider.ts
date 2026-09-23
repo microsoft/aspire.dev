@@ -278,8 +278,10 @@ export class TypeScriptLanguageProvider implements TargetLanguageProvider<
       matches.push(...result.matches);
     }
 
-    const canonicalName = context.mappings[0]?.methodName.toLowerCase() ?? '';
-    const canonicalMatches = matches.filter((match) => match.name.toLowerCase() === canonicalName);
+    const canonicalName = context.canonicalName;
+    const canonicalMatches = canonicalName
+      ? matches.filter((match) => match.name.toLowerCase() === canonicalName)
+      : [];
     const preferred = preferredTsCandidates(
       canonicalMatches.length > 0 ? canonicalMatches : matches
     );

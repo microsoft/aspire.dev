@@ -624,6 +624,264 @@ describe('API reference index', () => {
       candidates: ['Aspire.Hosting.WidgetBuilderExtensions.AddWidget'],
     });
   });
+
+  it('reports ambiguity when a member exports multiple TypeScript method names', () => {
+    // A member with two [AspireExport] attributes declaring different MethodNames
+    // must not silently pick one for a method-group reference: the canonical
+    // name from the primary member (`addWidget`) is absent from both exports,
+    // so both TS candidates remain and the resolver flags ambiguity.
+    const index = buildApiReferenceIndex(
+      [
+        packageDocument('Aspire.Hosting.Widget', [
+          {
+            name: 'WidgetBuilderExtensions',
+            fullName: 'Aspire.Hosting.WidgetBuilderExtensions',
+            members: [
+              {
+                name: 'AddWidget',
+                kind: 'method',
+                isStatic: true,
+                isExtension: true,
+                attributes: [
+                  {
+                    name: EXPORT_ATTRIBUTE,
+                    constructorArguments: ['primary'],
+                    arguments: { MethodName: 'addWidget0' },
+                  },
+                  {
+                    name: EXPORT_ATTRIBUTE,
+                    constructorArguments: ['secondary'],
+                    arguments: { MethodName: 'addWidget1' },
+                  },
+                ],
+              },
+            ],
+          },
+        ]),
+      ],
+      [
+        tsDocument('Aspire.Hosting.Widget', [
+          {
+            name: 'addWidget0',
+            kind: 'Method',
+            capabilityId: 'Aspire.Hosting.Widget/primary',
+            qualifiedName: 'addWidget0',
+          },
+          {
+            name: 'addWidget1',
+            kind: 'Method',
+            capabilityId: 'Aspire.Hosting.Widget/secondary',
+            qualifiedName: 'addWidget1',
+          },
+        ])
+      ]
+    );
+
+    expect(
+      index.resolve('Aspire.Hosting.WidgetBuilderExtensions.AddWidget').diagnostics
+    ).toMatchObject([{ code: 'ambiguous-typescript', severity: 'error' }]);
+  });
+
+  it('populates the language-neutral targets record for every registered provider', () => {
+    const index = buildApiReferenceIndex([widgetPackage], [widgetModule]);
+    const resolution = index.resolve('Aspire.Hosting.WidgetBuilderExtensions.AddWidget');
+
+    expect(resolution.primaryLanguage).toBe('csharp');
+    expect(resolution.targets).toBeDefined();
+    // The registry MUST populate targets — the astro renderer iterates that
+    // map and only falls back to the legacy csharp/typescript aliases when
+    // targets is missing, which would silently hide regressions.
+    expect(resolution.targets?.csharp).toBe(resolution.csharp);
+    expect(resolution.targets?.typescript).toBe(resolution.typescript);
+    expect(Object.keys(resolution.targets ?? {}).sort()).toEqual(['csharp', 'typescript']);
+  });
+
+  it('routes target-owned diagnostics through the registered target providers', () => {
+    // The missing-typescript diagnostic is emitted by the TypeScript target
+    // provider, not the primary C# provider. Verifying it flows through the
+    // registry ensures newly registered target providers can attach their
+    // own diagnostics in the same way.
+    const index = buildApiReferenceIndex(
+      [
+        packageDocument('Aspire.Hosting', [
+          {
+            name: 'ResourceBuilderExtensions',
+            fullName: 'Aspire.Hosting.ResourceBuilderExtensions',
+            members: [{ name: 'WithAnnotation', kind: 'method' }],
+          },
+        ]),
+      ],
+      [tsDocument('Aspire.Hosting', [])]
+    );
+    const resolution = index.resolve(
+      'Aspire.Hosting.ResourceBuilderExtensions.WithAnnotation'
+    );
+
+    expect(resolution.status).toBe('resolved');
+    expect(resolution.targets?.typescript).toEqual({ label: 'WithAnnotation' });
+    expect(resolution.diagnostics).toMatchObject([
+      { code: 'missing-typescript', severity: 'warning' },
+    ]);
+  });
+});
+
+describe('API reference provider registry', () => {
+  it('drives an additional target-language provider without core changes', async () => {
+    // Simulates a future AppHost language: register a third provider with a
+    // non-legacy id and verify the registry: (a) builds its index, (b)
+    // supplies it with the ExportMapping cross-language contract, (c)
+    // surfaces its target under resolution.targets keyed by its id, and
+    // (d) forwards its diagnostics unchanged.
+    const { ApiReferenceProviderRegistry } = await import(
+      '@utils/api-reference/registry'
+    );
+    const { CSharpLanguageProvider } = await import(
+      '@utils/api-reference/csharp-provider'
+    );
+
+    interface PythonModuleDocument {
+      moduleName: string;
+      exports: { capabilityId?: string; methodName: string; snakeCase: string }[];
+    }
+
+    interface PythonIndex {
+      byCapabilityId: Map<string, PythonModuleDocument['exports'][number] & { module: string }>;
+      byMethodName: Map<string, PythonModuleDocument['exports'][number] & { module: string }>;
+    }
+
+    const pythonModule: PythonModuleDocument = {
+      moduleName: 'aspire.hosting.widget',
+      exports: [
+        {
+          capabilityId: 'Aspire.Hosting.Widget/addWidget',
+          methodName: 'addWidget',
+          snakeCase: 'add_widget',
+        },
+      ],
+    };
+
+    let buildIndexCalls = 0;
+    let resolveTargetCalls = 0;
+    const pythonProvider = {
+      id: 'python',
+      role: 'target' as const,
+      buildIndex(documents: readonly PythonModuleDocument[]): PythonIndex {
+        buildIndexCalls++;
+        const byCapabilityId = new Map<
+          string,
+          PythonModuleDocument['exports'][number] & { module: string }
+        >();
+        const byMethodName = new Map<
+          string,
+          PythonModuleDocument['exports'][number] & { module: string }
+        >();
+        for (const document of documents) {
+          for (const entry of document.exports) {
+            const enriched = { ...entry, module: document.moduleName };
+            if (entry.capabilityId) byCapabilityId.set(entry.capabilityId, enriched);
+            byMethodName.set(entry.methodName.toLowerCase(), enriched);
+          }
+        }
+        return { byCapabilityId, byMethodName };
+      },
+      resolveTarget(context, primaryTarget, index: PythonIndex) {
+        resolveTargetCalls++;
+        for (const mapping of context.mappings) {
+          const match =
+            (mapping.capabilityId && index.byCapabilityId.get(mapping.capabilityId)) ||
+            index.byMethodName.get(mapping.methodName.toLowerCase());
+          if (match) {
+            return {
+              target: {
+                label: match.snakeCase,
+                path: `/reference/api/python/${match.module}/${match.snakeCase}/`,
+              },
+              diagnostics: [],
+            };
+          }
+        }
+        return {
+          target: { label: primaryTarget.label },
+          diagnostics: [
+            {
+              code: 'missing-typescript',
+              severity: 'warning',
+              message: `ApiReference: "${context.fqn}" has no Python export.`,
+              candidates: [],
+            } as const,
+          ],
+        };
+      },
+    };
+
+    const registry = new ApiReferenceProviderRegistry(new CSharpLanguageProvider(), [
+      pythonProvider,
+    ]);
+    const index = registry.build({
+      csharp: [widgetPackage],
+      python: [pythonModule],
+    });
+    const resolution = index.resolve('Aspire.Hosting.WidgetBuilderExtensions.AddWidget');
+
+    expect(buildIndexCalls).toBe(1);
+    expect(resolveTargetCalls).toBeGreaterThan(0);
+    expect(resolution.status).toBe('resolved');
+    expect(resolution.primaryLanguage).toBe('csharp');
+    expect(resolution.targets).toBeDefined();
+    expect(Object.keys(resolution.targets ?? {}).sort()).toEqual(['csharp', 'python']);
+    expect(resolution.targets?.python).toEqual({
+      label: 'add_widget',
+      path: '/reference/api/python/aspire.hosting.widget/add_widget/',
+    });
+    expect(resolution.diagnostics).toEqual([]);
+  });
+
+  it('emits a target-owned missing diagnostic when the registered provider cannot resolve', async () => {
+    const { ApiReferenceProviderRegistry } = await import(
+      '@utils/api-reference/registry'
+    );
+    const { CSharpLanguageProvider } = await import(
+      '@utils/api-reference/csharp-provider'
+    );
+
+    const pythonProvider = {
+      id: 'python',
+      role: 'target' as const,
+      buildIndex() {
+        return {};
+      },
+      resolveTarget(context: { fqn: string }, primaryTarget: { label: string }) {
+        return {
+          target: { label: primaryTarget.label },
+          diagnostics: [
+            {
+              code: 'missing-typescript',
+              severity: 'warning',
+              message: `ApiReference: "${context.fqn}" has no Python export.`,
+              candidates: [],
+            } as const,
+          ],
+        };
+      },
+    };
+
+    const registry = new ApiReferenceProviderRegistry(new CSharpLanguageProvider(), [
+      pythonProvider,
+    ]);
+    const index = registry.build({
+      csharp: [widgetPackage],
+      python: [],
+    });
+    const resolution = index.resolve('Aspire.Hosting.WidgetBuilderExtensions.AddWidget');
+
+    expect(resolution.targets?.python).toEqual({ label: 'AddWidget' });
+    expect(resolution.diagnostics).toMatchObject([
+      {
+        severity: 'warning',
+        message: expect.stringContaining('Python export'),
+      },
+    ]);
+  });
 });
 
 describe('API reference overloads', () => {

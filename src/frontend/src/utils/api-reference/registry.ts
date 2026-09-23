@@ -76,6 +76,7 @@ export class ApiReferenceProviderRegistry<TPrimaryDocument, TPrimaryIndex, TCand
       const context: PrimaryResolutionContext = {
         fqn: this.primary.fqnOf(candidate),
         packageName: this.primary.packageOf(candidate),
+        canonicalName: this.primary.canonicalMemberName(candidate),
         mappings: this.primary.exportMappings(candidate),
         describe: () => this.primary.describeCandidate(candidate),
       };

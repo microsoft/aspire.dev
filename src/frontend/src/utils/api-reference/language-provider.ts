@@ -28,6 +28,14 @@ export interface PrimaryLanguageProvider<TDocument, TIndex, TCandidate> extends 
   exportMappings(candidate: TCandidate): ExportMapping[];
   packageOf(candidate: TCandidate): string;
   fqnOf(candidate: TCandidate): string;
+  /**
+   * Canonical, language-neutral member name for cross-language matching
+   * (for example, `addwidget` for a C# `AddWidget` member). Used by target
+   * providers to prefer the natural mapping over `[AspireExport(MethodName)]`
+   * overrides so a method-group reference does not silently pick an
+   * arbitrary export when a member declares several.
+   */
+  canonicalMemberName(candidate: TCandidate): string;
 }
 
 export interface TargetLanguageProvider<TDocument, TIndex> extends ApiLanguageProvider<
@@ -55,6 +63,13 @@ export interface ExportMapping {
 export interface PrimaryResolutionContext {
   fqn: string;
   packageName: string;
+  /**
+   * Canonical, language-neutral member name from the primary provider
+   * (see {@link PrimaryLanguageProvider.canonicalMemberName}). Target
+   * providers should prefer routes matching this name over routes picked
+   * up via `[AspireExport(MethodName)]` overrides in {@link mappings}.
+   */
+  canonicalName: string;
   mappings: readonly ExportMapping[];
   describe(): string;
 }

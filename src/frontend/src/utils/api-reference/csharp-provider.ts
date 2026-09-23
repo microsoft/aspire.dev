@@ -426,6 +426,10 @@ export class CSharpLanguageProvider implements PrimaryLanguageProvider<
     return getExportMappings(candidate);
   }
 
+  canonicalMemberName(candidate: CSharpCandidate): string {
+    return lowerCamelCase(candidate.members[0].name).toLowerCase();
+  }
+
   packageOf(candidate: CSharpCandidate): string {
     return candidate.packageName;
   }
