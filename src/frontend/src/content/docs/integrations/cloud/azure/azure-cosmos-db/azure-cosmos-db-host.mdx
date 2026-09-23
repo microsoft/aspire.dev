@@ -200,9 +200,9 @@ The Cosmos DB emulator container's port is mapped to the host port as shown in t
 | ------------: | ------------------------------- |
 |       `https` | `8081:7777`                     |
 
-### Configure emulator partition count
+### Configure classic emulator partition count
 
-To configure the partition count for the Cosmos DB emulator container, call `WithPartitionCount` (or `withPartitionCount`) inside the emulator callback:
+To configure the partition count for the classic Cosmos DB emulator container, call `WithPartitionCount` (or `withPartitionCount`) inside the classic emulator callback. The default Linux-based (vNext) emulator doesn't support partition counts and throws a <code>NotSupportedException</code> if you call this API with `RunAsEmulator` (or `runAsEmulator`).
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -210,7 +210,7 @@ To configure the partition count for the Cosmos DB emulator container, call `Wit
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmos = builder.AddAzureCosmosDB("cosmos-db")
-    .RunAsEmulator(emulator =>
+    .RunAsClassicEmulator(emulator =>
     {
         emulator.WithPartitionCount(100); // Defaults to 25
     });
@@ -225,7 +225,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const cosmos = await builder.addAzureCosmosDB("cosmos-db");
-await cosmos.runAsEmulator({
+await cosmos.runAsClassicEmulator({
     configureContainer: async emulator => {
         await emulator.withPartitionCount(100); // Defaults to 25
     }
@@ -236,7 +236,7 @@ await cosmos.runAsEmulator({
 </TabItem>
 </Tabs>
 
-This is a shorthand for setting the `AZURE_COSMOS_EMULATOR_PARTITION_COUNT` environment variable.
+For the classic emulator, this is a shorthand for setting the `AZURE_COSMOS_EMULATOR_PARTITION_COUNT` environment variable.
 
 ### Configure emulator data volume
 
