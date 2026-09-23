@@ -2,12 +2,10 @@
 
 (function () {
   if (!window.analytics || !window.analytics.__initialized) {
-    console.debug('[track] Analytics not initialized, skipping event tracking setup.');
     return;
   }
 
   if (window.analytics.__trackingBound) {
-    console.debug('[track] Event tracking already bound, skipping.');
     return;
   }
 
@@ -42,11 +40,9 @@
 
     try {
       window.analytics.capturePageAction(target, overrides);
-      console.debug('[track] Event tracked:', eventName, overrides);
     } catch (err) {
-      console.debug('[track] Failed to track event:', err);
+      console.warn('[track] Failed to track event:', err);
     }
   });
 
-  console.debug('[track] Event tracking bound.');
 })();

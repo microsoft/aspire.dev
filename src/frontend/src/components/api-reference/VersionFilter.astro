@@ -119,6 +119,7 @@ const sorted = [...versions].sort((a, b) => {
     private countEl: HTMLElement | null;
     private versions: string[];
     private storageKey: string;
+    private abortController = new AbortController();
 
     constructor(container: HTMLElement) {
       this.container = container;
@@ -137,27 +138,32 @@ const sorted = [...versions].sort((a, b) => {
     }
 
     private bindEvents() {
-      this.btn.addEventListener('click', () => this.toggle());
+      const { signal } = this.abortController;
+      this.btn.addEventListener('click', () => this.toggle(), { signal });
 
       document.addEventListener('click', (e) => {
         if (!this.container.contains(e.target as Node)) this.close();
-      });
+      }, { signal });
 
       this.container.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') this.close();
-      });
+      }, { signal });
 
       if (this.allCheckbox) {
         this.allCheckbox.addEventListener('change', () => {
           const checked = this.allCheckbox!.checked;
           for (const cb of this.checkboxes) cb.checked = checked;
           this.onChange();
-        });
+        }, { signal });
       }
 
       for (const cb of this.checkboxes) {
-        cb.addEventListener('change', () => this.onChange());
+        cb.addEventListener('change', () => this.onChange(), { signal });
       }
+    }
+
+    dispose() {
+      this.abortController.abort();
     }
 
     private toggle() {
@@ -208,7 +214,7 @@ const sorted = [...versions].sort((a, b) => {
       } else {
         url.searchParams.set('versions', selected.join(','));
       }
-      window.history.replaceState({}, '', url.toString());
+      window.history.replaceState(window.history.state, '', url.toString());
     }
 
     private restoreState() {
@@ -250,9 +256,20 @@ const sorted = [...versions].sort((a, b) => {
     }
   }
 
-  document.querySelectorAll('.version-filter').forEach((el) => {
-    new VersionFilterController(el as HTMLElement);
+  const controllers = new Map<HTMLElement, VersionFilterController>();
+
+  function initializeVersionFilters() {
+    document.querySelectorAll<HTMLElement>('.version-filter').forEach((el) => {
+      if (!controllers.has(el)) controllers.set(el, new VersionFilterController(el));
+    });
+  }
+
+  document.addEventListener('astro:before-swap', () => {
+    controllers.forEach((controller) => controller.dispose());
+    controllers.clear();
   });
+  document.addEventListener('astro:page-load', initializeVersionFilters);
+  initializeVersionFilters();
 </script>
 
 <style>

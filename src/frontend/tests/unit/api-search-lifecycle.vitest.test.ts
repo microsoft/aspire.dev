@@ -4,6 +4,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
+import { selectAll } from 'hast-util-select';
+import rehypeParse from 'rehype-parse';
+import { unified } from 'unified';
 import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
 import * as searchStats from '@utils/ts-api-search-stats';
 
@@ -17,6 +20,32 @@ const surfaces = [
 ] as const;
 
 type MountSearch = (root: HTMLElement, signal: AbortSignal) => void;
+
+function readControllerScript(source: string): string {
+  const tree = unified().use(rehypeParse, { fragment: true }).parse(source);
+  const scripts = selectAll('script', tree).filter((node) =>
+    !('src' in node.properties) && !('is:inline' in node.properties)
+    && (!node.properties.type || node.properties.type === 'module'));
+  expect(scripts).toHaveLength(1);
+  return scripts[0].children.map((node) => node.type === 'text' ? node.value : '').join('');
+}
+
+describe('Astro controller script extraction', () => {
+  it.each(['script', 'ScRiPt'])('parses %s boundaries and quoted attributes, not script-like tags', (tag) => {
+    expect(readControllerScript(`
+      <script-extra>not a controller</script-extra>
+      <script src="./external.js"></script>
+      <script is:inline>not a bundled controller</script>
+      <script type="application/json">{"value": 1}</script>
+      <${tag} data-label="a > b">const value = "<script-extra>&amp;";</${tag} >
+    `)).toBe('const value = "<script-extra>&amp;";');
+  });
+
+  it('rejects missing or ambiguous controllers', () => {
+    expect(() => readControllerScript('<script-extra>no</script-extra>')).toThrow();
+    expect(() => readControllerScript('<script>one</script><script>two</script>')).toThrow();
+  });
+});
 
 describe('API search navigation lifecycle', () => {
   let events: EventTarget;
@@ -50,11 +79,12 @@ describe('API search navigation lifecycle', () => {
       const input = new SearchInput();
       const clear = Object.assign(new EventTarget(), { style: { display: 'none' } });
       const replaceState = vi.fn();
+      const state = { index: 3, scrollX: 0, scrollY: 120 };
       vi.stubGlobal('HTMLInputElement', SearchInput);
       vi.stubGlobal('window', {
         location: new URL('https://aspire.dev/reference/api/csharp/?keep=1&q=old&kinds=method#members'),
       });
-      vi.stubGlobal('history', { replaceState });
+      vi.stubGlobal('history', { replaceState, state });
       const root = {
         querySelector: (query: string) => query.endsWith('-input') ? input : clear,
       } as unknown as HTMLElement;
@@ -62,17 +92,17 @@ describe('API search navigation lifecycle', () => {
       const onClear = vi.fn();
       const { InpageSearchSync } = await import('@components/api-reference/inpage-search-sync');
       const sync = new InpageSearchSync('api', onClear, root, abort.signal);
-      return { sync, abort, input, clear, onClear, replaceState };
+      return { sync, abort, input, clear, onClear, replaceState, state };
     }
 
-    it('preserves unrelated query parameters and fragments and validates restored kinds', async () => {
-      const { sync, replaceState } = await createSync();
+    it('preserves router state, unrelated query parameters and fragments and validates restored kinds', async () => {
+      const { sync, replaceState, state } = await createSync();
       expect(sync.readQuery()).toBe('old');
       expect(sync.readKinds(new Set(['method', 'class']))).toEqual(new Set(['method']));
       expect(sync.readKinds(new Set(['class']))).toEqual(new Set());
       sync.writeUrl('RedisResource', new Set(['class']));
       expect(replaceState).toHaveBeenCalledWith(
-        null, '', '/reference/api/csharp/?keep=1&q=RedisResource&kinds=class#members',
+        state, '', '/reference/api/csharp/?keep=1&q=RedisResource&kinds=class#members',
       );
     });
 
@@ -161,9 +191,14 @@ describe('API search navigation lifecycle', () => {
       if (kind === 'type' || kind === 'item') segments.push(language === 'csharp' ? '[type]' : '[item]');
       const filename = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..',
         'src', 'pages', 'reference', 'api', ...segments, 'index.astro');
-      const script = readFileSync(filename, 'utf8').match(/<script>([\s\S]*?)<\/script>/)?.[1];
+      const source = readFileSync(filename, 'utf8');
+      // The component body is Astro, not HTML (it contains self-closing scripts).
+      // Parse the trailing client-script section with the HTML parser.
+      const pageEnd = source.indexOf('</StarlightPage>');
+      expect(pageEnd).toBeGreaterThan(-1);
+      const script = readControllerScript(source.slice(pageEnd + '</StarlightPage>'.length));
       expect(script).toBeTruthy();
-      const { outputText } = transpileModule(script!, {
+      const { outputText } = transpileModule(script, {
         compilerOptions: { module: ModuleKind.CommonJS, target: ScriptTarget.ES2022 },
       });
       const modules: Record<string, unknown> = {

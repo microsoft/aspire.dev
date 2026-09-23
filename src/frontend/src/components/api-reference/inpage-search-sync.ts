@@ -66,7 +66,7 @@ export class InpageSearchSync {
       ? `${url.pathname}?${url.searchParams}${url.hash}`
       : `${url.pathname}${url.hash}`;
     if (target !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
-      history.replaceState(null, '', target);
+      history.replaceState(history.state, '', target);
     }
   }
 

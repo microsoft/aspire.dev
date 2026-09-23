@@ -33,6 +33,15 @@ function docsPageExists(
   );
 }
 
+describe('integration catalog integrity', () => {
+  test('contains each NuGet package ID only once, ignoring case', () => {
+    const packageIds = aspireIntegrations.map(({ title }) => title.toLowerCase());
+    const duplicateIds = packageIds.filter((id, index) => packageIds.indexOf(id) !== index);
+
+    expect(duplicateIds).toEqual([]);
+  });
+});
+
 describe('update-integrations icon handling', () => {
   test('uses the package version for official Aspire packages from nuget.org', () => {
     expect(

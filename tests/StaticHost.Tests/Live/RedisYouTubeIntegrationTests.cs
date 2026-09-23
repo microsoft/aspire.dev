@@ -222,23 +222,24 @@ public sealed class RedisYouTubeIntegrationTests(RedisIntegrationFixture fixture
     }
 
     [Fact]
-    public async Task WebSubFailedSend_AllowsAnotherWorkerToRetryWithoutClearingItsReservation()
+    public async Task WebSubFailedSend_SharesBackoffWithoutClearingAnotherWorkersReservation()
     {
         var now = DateTimeOffset.UtcNow;
         var first = SubscriptionState(Redis.First);
         var second = SubscriptionState(Redis.Second);
         var failed = Assert.IsType<YouTubeWebSubSubscriptionRequest>(
             await first.TryBeginSubscriptionAsync("channel-123", now));
-        await first.MarkRequestFailedAsync(failed);
+        var failure = Assert.IsType<YouTubeWebSubRetryState>(await first.MarkRequestFailedAsync(failed));
+        Assert.Null(await second.TryBeginSubscriptionAsync("channel-123", failure.RetryAt.AddTicks(-1)));
         var retry = Assert.IsType<YouTubeWebSubSubscriptionRequest>(
-            await second.TryBeginSubscriptionAsync("channel-123", now.AddSeconds(1)));
-        await second.MarkRequestSentAsync(retry, now.AddSeconds(2));
+            await second.TryBeginSubscriptionAsync("channel-123", failure.RetryAt));
+        await second.MarkRequestSentAsync(retry, failure.RetryAt.AddSeconds(1));
 
         await first.MarkRequestFailedAsync(failed);
         await first.MarkRequestSentAsync(failed, now.AddMinutes(1));
-        Assert.Null(await first.TryBeginSubscriptionAsync("channel-123", now.AddMinutes(9)));
+        Assert.Null(await first.TryBeginSubscriptionAsync("channel-123", failure.RetryAt.AddMinutes(9)));
         Assert.True(await first.TryConfirmSubscriptionAsync(
-            "subscribe", retry.Topic, retry.VerifyToken, 3_600, now.AddMinutes(9)));
+            "subscribe", retry.Topic, retry.VerifyToken, 3_600, failure.RetryAt.AddMinutes(9)));
     }
 
     private static RedisYouTubeWebSubSubscriptionState SubscriptionState(IConnectionMultiplexer connection) =>

@@ -37,6 +37,8 @@ internal sealed class InMemoryLiveStatusStore(TimeProvider timeProvider) : ILive
 
 internal sealed class SingleInstanceLiveStatusCoordination : ILiveStatusCoordination
 {
+    public int YouTubeConfirmationRequests { get; private set; }
+
     private const string CompletedMessage = "completed";
 
     private readonly ConcurrentDictionary<string, string> _twitchMessageIds =
@@ -70,6 +72,7 @@ internal sealed class SingleInstanceLiveStatusCoordination : ILiveStatusCoordina
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        YouTubeConfirmationRequests++;
         return ValueTask.FromResult(true);
     }
 
@@ -112,10 +115,22 @@ internal sealed class SingleInstanceLiveStatusCoordination : ILiveStatusCoordina
     }
 }
 
-internal sealed class YouTubeWebSubSubscriptionState : IYouTubeWebSubSubscriptionState
+internal sealed class YouTubeWebSubSubscriptionState(TimeProvider? timeProvider = null) : IYouTubeWebSubSubscriptionState
 {
+    public Exception? MarkRequestSentException { get; set; }
     private readonly Lock _gate = new();
     private YouTubeWebSubSubscriptionData _state = YouTubeWebSubSubscriptionData.Empty;
+
+    public YouTubeWebSubSubscriptionData Current
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _state;
+            }
+        }
+    }
 
     public ValueTask<YouTubeWebSubSubscriptionRequest?> TryBeginSubscriptionAsync(
         string channelId,
@@ -135,7 +150,7 @@ internal sealed class YouTubeWebSubSubscriptionState : IYouTubeWebSubSubscriptio
         }
     }
 
-    public ValueTask MarkRequestFailedAsync(
+    public ValueTask<YouTubeWebSubRetryState?> MarkRequestFailedAsync(
         YouTubeWebSubSubscriptionRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -143,10 +158,11 @@ internal sealed class YouTubeWebSubSubscriptionState : IYouTubeWebSubSubscriptio
 
         lock (_gate)
         {
-            _state = YouTubeWebSubSubscriptionTransitions.MarkRequestFailed(_state, request);
+            var previous = _state;
+            _state = YouTubeWebSubSubscriptionTransitions.MarkRequestFailed(
+                _state, request, (timeProvider ?? TimeProvider.System).GetUtcNow());
+            return ValueTask.FromResult(_state == previous ? null : _state.Retry);
         }
-
-        return ValueTask.CompletedTask;
     }
 
     public ValueTask MarkRequestSentAsync(
@@ -155,6 +171,10 @@ internal sealed class YouTubeWebSubSubscriptionState : IYouTubeWebSubSubscriptio
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (MarkRequestSentException is { } exception)
+        {
+            return ValueTask.FromException(exception);
+        }
 
         lock (_gate)
         {

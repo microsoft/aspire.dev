@@ -15,6 +15,7 @@ import CustomSelect from '@components/CustomSelect.astro';
 import Expand from '@components/Expand.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
+import FooterLegal from '@components/FooterLegal.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
 import FooterSocials from '@components/FooterSocials.astro';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
@@ -41,6 +42,7 @@ import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 import SampleCard from '@components/SampleCard.astro';
 import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
+import ScrollToTop from '@components/ScrollToTop.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
@@ -81,6 +83,20 @@ type BasicRenderCase = {
   includes: string[];
   requestUrl?: string;
 };
+
+it.each([
+  ['en', 'Scroll to top'], ['fr', 'Retour en haut'], ['pt-BR', 'Voltar ao topo'],
+  ['zh-CN', '回到顶部'], ['es-ES', 'Ir arriba'], ['unknown', 'Scroll to top'],
+])('ScrollToTop renders the existing label for %s', async (lang, label) => {
+  const route = {
+    lang, editUrl: '',
+    entry: { id: 'docs/test', slug: 'docs/test', filePath: '', data: {} },
+  };
+  const html = await renderComponent(ScrollToTop, { locals: { starlightRoute: route } });
+  expect(html).toContain(`aria-label="${label}"`);
+  expect(html).toContain('id="scroll-to-top-button"');
+  expect(html).toContain('type="button"');
+});
 
 const statementPlayerTranslations = {
   da: daTranslations.landing.statementPlayer,
@@ -1550,9 +1566,27 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('aria-labelledby="footer-community-heading"');
     expect(html).toContain('aria-label="X (opens in new tab)"');
     expect(html).toContain('aria-label="GitHub (opens in new tab)"');
-    expect(html).toContain('role="group" aria-label="Site tools"');
-    expect(html).toContain('data-cookie-manage-consent');
+    expect(html).not.toContain('footer-mobile-tool');
+    expect(html).not.toContain('data-cookie-manage-consent');
     expect(html).not.toContain('data-open-install-modal');
+  });
+
+  it('renders a unique scanner-addressable Manage Cookies action under Legal', async () => {
+    const html = normalizeHtml(
+      await renderComponent(FooterLegal, {
+        locals: { t: createTestTranslator(enTranslations) },
+      })
+    );
+
+    expect(html).toContain('aria-labelledby="footer-legal-heading"');
+    expect(html.match(/id="c-uhff-footer_managecookies"/g)).toHaveLength(1);
+    expect(html).toMatch(/<li class="cookie-consent-btn(?: [^"]*)?"[^>]*>\s*<button/);
+    expect(html).toMatch(
+      /<button[^>]*id="c-uhff-footer_managecookies"[^>]*type="button"[^>]*>\s*Manage Cookies\s*<\/button>/
+    );
+    expect(html).toContain('data-cookie-manage-consent');
+    expect(html).toContain('data-tour-step="cookie-preferences"');
+    expect(html).toContain('aria-haspopup="dialog"');
   });
 
   it('renders OsAwareTabs activation logic without anchor-only tab assumptions', async () => {

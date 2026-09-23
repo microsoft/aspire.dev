@@ -25,14 +25,19 @@ internal sealed class RedisYouTubeWebSubSubscriptionState(
             },
             cancellationToken);
 
-    public async ValueTask MarkRequestFailedAsync(
+    public async ValueTask<YouTubeWebSubRetryState?> MarkRequestFailedAsync(
         YouTubeWebSubSubscriptionRequest request,
         CancellationToken cancellationToken = default)
     {
-        _ = await UpdateAsync(
-            current => new StateTransition<bool>(
-                YouTubeWebSubSubscriptionTransitions.MarkRequestFailed(current, request),
-                true),
+        var failedAt = timeProvider.GetUtcNow();
+        return await UpdateAsync(
+            current =>
+            {
+                var next = YouTubeWebSubSubscriptionTransitions.MarkRequestFailed(current, request, failedAt);
+                return new StateTransition<YouTubeWebSubRetryState?>(
+                    next,
+                    next == current ? null : next.Retry);
+            },
             cancellationToken).ConfigureAwait(false);
     }
 

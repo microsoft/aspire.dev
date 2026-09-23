@@ -2,6 +2,38 @@ namespace StaticHost.Tests.Live;
 
 internal static class LiveTestHelpers
 {
+    // Non-secret fixture for testing log injection, distinct from verification credentials.
+    public const string LogInjectionPayload = "payload-sentinel\r\nforged-line\u0085\u2028\u2029";
+
+    public static void AssertSafeLogs<T>(YouTubeRecordingLogger<T> logger, params string[] omittedValues)
+    {
+        Assert.NotEmpty(logger.Entries);
+        foreach (var entry in logger.Entries)
+        {
+            Assert.Null(entry.Exception);
+            AssertSafeText(entry.Message);
+            foreach (var field in entry.Fields)
+            {
+                AssertSafeText(field.Key);
+                AssertSafeText(field.Value?.ToString() ?? "");
+            }
+        }
+
+        void AssertSafeText(string text)
+        {
+            Assert.DoesNotContain("payload-sentinel", text);
+            Assert.DoesNotContain("forged-line", text);
+            foreach (var separator in new[] { '\r', '\n', '\u0085', '\u2028', '\u2029' })
+            {
+                Assert.DoesNotContain(separator, text);
+            }
+            foreach (var value in omittedValues)
+            {
+                Assert.DoesNotContain(value, text);
+            }
+        }
+    }
+
     public static LiveStatusBroadcaster CreateBroadcaster(
         int coalesceMs = 0,
         TimeProvider? timeProvider = null)
