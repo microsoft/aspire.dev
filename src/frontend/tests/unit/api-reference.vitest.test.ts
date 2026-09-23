@@ -24,6 +24,7 @@ import {
   validateApiReferenceFiles,
   validateApiReferenceSource,
 } from '@utils/api-reference-validator';
+import type { TargetLanguageProvider } from '@utils/api-reference/language-provider';
 import { normalizeHtml, renderComponent } from './astro-test-utils';
 import { resolveMemberAnchors } from '@utils/api-member-anchors';
 
@@ -762,7 +763,7 @@ describe('API reference provider registry', () => {
 
     let buildIndexCalls = 0;
     let resolveTargetCalls = 0;
-    const pythonProvider = {
+    const pythonProvider: TargetLanguageProvider<PythonModuleDocument, PythonIndex> = {
       id: 'python',
       role: 'target' as const,
       buildIndex(documents: readonly PythonModuleDocument[]): PythonIndex {
