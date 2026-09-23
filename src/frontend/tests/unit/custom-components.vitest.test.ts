@@ -84,6 +84,7 @@ type BasicRenderCase = {
   props?: Record<string, unknown>;
   slots?: Record<string, string>;
   includes: string[];
+  excludes?: string[];
   requestUrl?: string;
 };
 
@@ -970,6 +971,9 @@ describe('custom Astro component render coverage', () => {
 
       for (const fragment of testCase.includes) {
         expect(html).toContain(fragment);
+      }
+      for (const fragment of testCase.excludes ?? []) {
+        expect(html).not.toContain(fragment);
       }
     });
   }
