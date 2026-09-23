@@ -116,6 +116,37 @@ builder.Build().Run();
   correct network context for the consuming resource.
 </Aside>
 
+### Container network endpoints for executables
+
+Starting with Aspire 13.6, executable resources can also resolve `KnownNetworkIdentifiers.DefaultAspireContainerNetwork` endpoints—including a reference to their own endpoint or to another executable's endpoint. Aspire creates the same container tunnel used for host-to-container communication for the referenced endpoints, and the consuming executable waits until that tunnel is ready before its configuration is resolved:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("container", "image");
+
+var executable = builder.AddExecutable("executable", "command", "")
+    .WithHttpEndpoint(targetPort: 1234, port: 5678, name: "http");
+
+var containerEndpoint = executable.GetEndpoint(
+    "http",
+    KnownNetworkIdentifiers.DefaultAspireContainerNetwork);
+
+executable.WithEnvironment("CONTAINER_URL", containerEndpoint);
+```
+
+<Aside type="note">
+  Resolving a `DefaultAspireContainerNetwork` endpoint doesn't add a startup
+  or readiness dependency on the referenced resource—only the endpoint
+  allocation is awaited. The default container network is only created when
+  the app model contains a container resource; if it doesn't, resolving one
+  of these endpoints fails with an actionable, resource-scoped error instead
+  of silently creating a network. Executables configured with
+  [`WithExplicitStart`](/app-host/resource-lifetimes/#defer-resource-start-with-explicit-start)
+  continue to defer endpoint allocation and configuration evaluation until
+  they're manually started.
+</Aside>
+
 ## Disable the container tunnel
 
 Starting with Aspire 13.3, the container tunnel is **enabled by default**. If the tunnel causes issues in your environment, you can disable it by setting the `ASPIRE_ENABLE_CONTAINER_TUNNEL` environment variable to `false`. You can set this in your AppHost _launchSettings.json_:
