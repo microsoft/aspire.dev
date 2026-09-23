@@ -103,13 +103,13 @@ aspire certs trust
 
   Firefox profiles are discovered under the legacy `~/.mozilla/firefox` directory when it exists; if that directory does not exist, the CLI falls back to `$XDG_CONFIG_HOME/mozilla/firefox` (or `~/.config/mozilla/firefox` when `XDG_CONFIG_HOME` isn't set). Firefox Snap profiles are discovered separately under `~/snap/firefox/common/.mozilla/firefox`. Chromium-family databases are discovered under `~/.pki/nssdb` and the Chromium Snap package's `~/snap/chromium/current/.pki/nssdb`.
 
-  To trust or clean specific NSS databases instead of relying on auto-discovery, set `ASPIRE_CLI_DEV_CERTS_NSSDB_PATHS` to a `:`-separated list of NSS database directories. Prefix an entry with `firefox=` or `chromium=` to force how it's treated; unprefixed entries are classified automatically based on whether the path looks like a Firefox profile.
+  To trust or clean specific NSS databases instead of relying on auto-discovery, configure `certificates.nssDbPaths` as a `:`-separated list of NSS database directories. Prefix custom Firefox database paths with `firefox=`. Unprefixed paths use Chromium-family trust settings, so they might not work for Firefox-based browsers. You can also prefix Chromium-family paths with `chromium=`.
 
   ```bash title="Override the NSS databases used for certificate trust"
-  ASPIRE_CLI_DEV_CERTS_NSSDB_PATHS="firefox=/path/to/firefox-profile:chromium=/path/to/chromium-nssdb" aspire certs trust
+  aspire config set --global certificates.nssDbPaths "firefox=/path/to/firefox-profile:chromium=/path/to/chromium-nssdb"
   ```
 
-  When `ASPIRE_CLI_DEV_CERTS_NSSDB_PATHS` is unset or empty, the CLI falls back to the `DOTNET_DEV_CERTS_NSSDB_PATHS` environment variable used by the .NET SDK's `dotnet dev-certs`, so existing overrides continue to work.
+  This setting takes precedence over the `DOTNET_DEV_CERTS_NSSDB_PATHS` environment variable used by the .NET SDK's `dotnet dev-certs`. When `certificates.nssDbPaths` is unset or empty, the CLI uses the environment variable instead.
 </Aside>
 
 ### Developer certificate for DCP communication
