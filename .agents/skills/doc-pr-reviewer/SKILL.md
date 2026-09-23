@@ -90,6 +90,7 @@ The docs site provides placeholders for current-version values:
 |-------------|---------|
 | `%ASPIRE_VERSION%` | Full current Aspire version, including patch (for example, `13.5.0`) |
 | `%ASPIRE_VERSION_MAJOR_MINOR%` | Current Aspire major/minor display version (for example, `13.5`) |
+| `%ASPIRE_VERSION_PREVIEW%` | Full current Aspire preview version, including prerelease labels and build segments |
 
 Flag hard-coded Aspire versions as a review finding when they appear in current
 copy/paste guidance that should track the active release, including:
@@ -100,13 +101,16 @@ copy/paste guidance that should track the active release, including:
   version.
 - Getting started, installation, or "use this today" examples that should move
   with the release branch.
+- Generic `--version`, `-Version`, or package-installation examples where the
+  exact version is not material to the scenario.
 
 Do **not** require placeholders for intentionally fixed versions, including:
 
 - What's-new or release-note pages that describe a specific historical release.
 - Upgrade examples that deliberately compare old and new versions.
-- CLI examples where the point is pinning a specific version with `--version`,
-  `-Version`, or `Aspire.ProjectTemplates::...`.
+- Compatibility, reproduction, or migration examples where pinning the exact
+  version with `--version`, `-Version`, or `Aspire.ProjectTemplates::...` is
+  material to the scenario.
 - Versioned schema URLs, package compatibility notes, minimum-version
   requirements, third-party dependency versions, container image tags, or issue
   reproduction snippets.
