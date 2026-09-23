@@ -163,7 +163,7 @@ For more information, see [Configure ASP.NET Core to work with proxy servers and
 
 The OTLP endpoint authentication is configured with `Dashboard:Otlp:AuthMode`. The OTLP endpoint can be secured with an API key or client certificate authentication.
 
-API key authentication works by requiring each OTLP request to have a valid `x-otlp-api-key` header value. It must match either the primary or secondary key.
+API key authentication works by requiring each OTLP request to have a valid `x-otlp-api-key` header value. It must match either the primary or secondary key. An empty `x-otlp-api-key` header is always rejected, and configuring an empty primary or secondary API key value is invalid when API key auth mode is used.
 
 Client certificate authentication validates the TLS connection's client certificate. When a request with a client certificate is received, two sets of validation are performed:
 
@@ -173,8 +173,8 @@ Client certificate authentication validates the TLS connection's client certific
 | Option | Description |
 |--------|-------------|
 | `Dashboard:Otlp:AuthMode`<br/>Default: `Unsecured` | Can be set to `ApiKey`, `ClientCertificate` or `Unsecured`. `Unsecured` should only be used during local development. It's not recommended when hosting the dashboard publicly or in other settings. |
-| `Dashboard:Otlp:PrimaryApiKey`<br/>Default: `null` | Specifies the primary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. This value is required if auth mode is API key. |
-| `Dashboard:Otlp:SecondaryApiKey`<br/>Default: `null` | Specifies the secondary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. This value is optional. If a second API key is specified, then the incoming `x-otlp-api-key` header value can match either the primary or secondary key. |
+| `Dashboard:Otlp:PrimaryApiKey`<br/>Default: `null` | Specifies the primary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. This value is required if auth mode is API key, and it must not be an empty string. |
+| `Dashboard:Otlp:SecondaryApiKey`<br/>Default: `null` | Specifies the secondary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. This value is optional. If configured, it must not be an empty string. If a second API key is specified, then the incoming `x-otlp-api-key` header value can match either the primary or secondary key. |
 | `Dashboard:Otlp:SuppressUnsecuredMessage`<br/>Default: `false` | Suppresses the unsecured message displayed in the dashboard when `Dashboard:Otlp:AuthMode` is `Unsecured`. This message should only be suppressed if an external frontdoor proxy is securing access to the endpoint. |
 | `Dashboard:Otlp:AllowedCertificates`<br/>Default: `null` | Specifies a list of allowed client certificates. See [allowed certificates](#allowed-certificates) for more information. |
 | Properties of [`CertificateAuthenticationOptions`](https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.authentication.certificate.certificateauthenticationoptions)<br/>Default: `null` | Values inside configuration section `Dashboard:Otlp:CertificateAuthOptions:*` are bound to `CertificateAuthenticationOptions`, such as `AllowedCertificateTypes`. |
