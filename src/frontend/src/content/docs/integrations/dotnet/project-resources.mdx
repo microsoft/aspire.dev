@@ -434,6 +434,46 @@ This keeps the `admin` endpoint out of the environment variables while still def
   For more background on bindings, proxies, and endpoint annotations, see [Inner-loop networking](/fundamentals/networking-overview/).
 </LearnMore>
 
+## Coordinated builds and restore
+
+Before resources start, Aspire groups projects that share a compatible SDK and environment context into
+generated MSBuild traversal projects under the AppHost's intermediate output. Build groups run serially,
+while projects within each traversal group build in parallel and share one NuGet graph restore. Restoring
+the group together avoids repeating restore work for overlapping dependency graphs, without introducing
+solution-specific MSBuild properties.
+
+Because the group restore doesn't invoke each root project's `Restore` target separately, custom targets
+attached directly to that target — such as `BeforeTargets="Restore"` or `AfterTargets="Restore"` — don't run
+for each project.
+
+If a project relies on those hooks, opt back in to restoring projects individually by setting
+`Aspire:Dotnet:RestoreProjectsIndividually` to `true` in the **AppHost's configuration**:
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "Dotnet": {
+      "RestoreProjectsIndividually": true
+    }
+  }
+}
+```
+
+The environment-variable equivalent is `Aspire__Dotnet__RestoreProjectsIndividually=true`. The setting
+defaults to `false`, is read once when the build plan is created, and applies to every generated traversal
+in that AppHost — it isn't a per-resource runtime environment variable. With individual restore, each root
+project's restore runs serially while builds remain parallel.
+
+:::note
+A traversal also falls back to restoring projects individually when its top-level MSBuild context enables
+`RestoreUseStaticGraphEvaluation`, because NuGet's static restore engine requires a restore-capable entry
+project rather than the generated SDK-less traversal. The selected reason is logged on the build resource;
+restore failures aren't retried using another strategy.
+:::
+
+File-based apps, project-specific build environments, individual Rebuild commands, and publishing keep
+their existing build and restore paths.
+
 ## How project references work
 
 The C# and TypeScript AppHosts differ in how they reference .NET projects:
