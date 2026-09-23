@@ -156,6 +156,10 @@ When you publish your app, Aspire generates Bicep alongside the manifest. A Fron
   **Upgrading from Aspire 13.3.0-preview:** The resource names generated for Front Door profiles, endpoints, origin groups, origins, and routes changed in Aspire 13.4. This can result in duplicate Azure resources (profiles, endpoints, origin groups, routes, and origins) during an upgrade. To avoid duplicates, either remove the existing Azure resources before redeploying, or set resource names explicitly using `ConfigureInfrastructure`.
 </Aside>
 
+<Aside type="caution">
+  **Upgrading from Aspire 13.5 or earlier:** Origin names changed in Aspire 13.6 to include the origin's backend hostname in addition to the resource group ID, so switching an origin's backend produces a new origin name instead of reusing the previous origin's identity. This changes the generated origin name even when the backend hostname hasn't changed, and can result in old and new origins coexisting in the same origin group after an upgrade (incremental ARM deployments don't remove resources omitted from the new template). The recommended approach is to adopt the new naming policy and manually delete the old origins after deploying and confirming that the new origins are healthy and serve the intended backends. If this isn't feasible, preserve the previous default origin names with `ConfigureInfrastructure` before the first deployment after upgrading. For more information, see [Breaking changes in Aspire 13.6](/whats-new/aspire-13-6/#front-door-origin-names-now-include-the-backend-hostname).
+</Aside>
+
 ```bicep title="Generated Bicep — frontdoor.bicep"
 @description('The location for the resource(s) to be deployed.')
 param location string = resourceGroup().location
@@ -196,7 +200,7 @@ resource my_apiOriginGroup 'Microsoft.Cdn/profiles/originGroups@2025-06-01' = {
 }
 
 resource my_apiOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2025-06-01' = {
-  name: take('myapiOrigin-${uniqueString(resourceGroup().id)}', 90)
+  name: take('myapiOrigin-${uniqueString(resourceGroup().id, my_api_host)}', 90)
   properties: {
     hostName: my_api_host
     originHostHeader: my_api_host

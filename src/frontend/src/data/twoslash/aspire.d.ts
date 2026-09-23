@@ -590,6 +590,16 @@ export declare const ClusterLifetime: {
 };
 
 /**
+ * Enum Aspire.Hosting.CrdWaitBehavior
+ */
+
+export type CrdWaitBehavior = "Fail" | "BestEffort";
+export declare const CrdWaitBehavior: {
+  readonly Fail: "Fail";
+  readonly BestEffort: "BestEffort";
+};
+
+/**
  * Enum Aspire.Hosting.McpTransportType
  */
 
@@ -617,6 +627,19 @@ export type KeyType = "Ed25519" | "Rsa";
 export declare const KeyType: {
   readonly Ed25519: "Ed25519";
   readonly Rsa: "Rsa";
+};
+
+/**
+ * Enum Aspire.Hosting.StableDiffusionCppImageVariant
+ */
+
+export type StableDiffusionCppImageVariant = "Cuda" | "CudaSpark" | "Vulkan" | "Sycl" | "Musa";
+export declare const StableDiffusionCppImageVariant: {
+  readonly Cuda: "Cuda";
+  readonly CudaSpark: "CudaSpark";
+  readonly Vulkan: "Vulkan";
+  readonly Sycl: "Sycl";
+  readonly Musa: "Musa";
 };
 
 // ---- DTOs ----
@@ -11812,6 +11835,259 @@ export interface FlagdResource extends ContainerResource, IComputeResource, IExp
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.FlociAwsContainerResource
+ */
+
+export interface FlociAwsContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the emulator endpoint URL, following the primary endpoint's `Scheme`.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for the primary endpoint.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for the primary endpoint.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint reference for the Floci container.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the scheme endpoint reference for the primary endpoint. `http` unless a TLS certificate has been configured, in which case the endpoint is switched to `https` before the application starts. Floci serves both on the same port, so the port never changes.
+   */
+
+  scheme: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Mounts a custom Quarkus `application.yml` configuration file into the Floci container. The file is mounted read-only at `/deployments/config/application.yml`, which Quarkus reads on startup and merges with built-in defaults.
+   */
+
+  withConfigFile(hostPath: string): this;
+  /**
+   * Configures a bind mount for persistent Floci state.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Configures a bind mount for persistent Floci state.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Configures a named data volume for persistent Floci state.
+   */
+
+  withDataVolume(name: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Configures a named data volume for persistent Floci state.
+   */
+
+  withDataVolume(name: string, isReadOnly?: boolean): this;
+  /**
+   * Mounts the Docker socket into the Floci container so that Lambda and other container-backed AWS services can launch sibling containers. Also sets `FLOCI_DOCKER_DOCKER_HOST` to `unix:///var/run/docker.sock` (the container-side path where the socket is always mounted) so Floci can connect to it.
+   */
+
+  withDockerSocket(options?: { socketPath?: string }): this;
+  /**
+   * Mounts the Docker socket into the Floci container so that Lambda and other container-backed AWS services can launch sibling containers. Also sets `FLOCI_DOCKER_DOCKER_HOST` to `unix:///var/run/docker.sock` (the container-side path where the socket is always mounted) so Floci can connect to it.
+   */
+
+  withDockerSocket(socketPath?: string): this;
+  /**
+   * Adds a Floci UI web console container for the Floci resource
+   */
+
+  withFlociUI(options?: { configureContainer?: (obj: FlociUIContainerResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds a Floci UI web console container for the Floci resource
+   */
+
+  withFlociUI(configureContainer?: (obj: FlociUIContainerResource) => Promise<void>, containerName?: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlociAzureContainerResource
+ */
+
+export interface FlociAzureContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the emulator endpoint URL, following the primary endpoint's `Scheme`.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for the primary endpoint.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for the primary endpoint.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint reference for the Floci container.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the scheme endpoint reference for the primary endpoint. `http` unless a TLS certificate has been configured, in which case the endpoint is switched to `https` before the application starts. Floci serves both on the same port, so the port never changes.
+   */
+
+  scheme: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Configures a bind mount for persistent Floci Azure state.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Configures a bind mount for persistent Floci Azure state.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Configures a named data volume for persistent Floci Azure state.
+   */
+
+  withDataVolume(name: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Configures a named data volume for persistent Floci Azure state.
+   */
+
+  withDataVolume(name: string, isReadOnly?: boolean): this;
+  /**
+   * Mounts the Docker socket into the Floci Azure container so that Azure Functions and other container-backed services can launch sibling containers. Also sets `FLOCI_AZ_DOCKER_DOCKER_HOST` to `unix:///var/run/docker.sock` (the container-side path where the socket is always mounted) so Floci can connect to it.
+   */
+
+  withDockerSocket(options?: { socketPath?: string }): this;
+  /**
+   * Mounts the Docker socket into the Floci Azure container so that Azure Functions and other container-backed services can launch sibling containers. Also sets `FLOCI_AZ_DOCKER_DOCKER_HOST` to `unix:///var/run/docker.sock` (the container-side path where the socket is always mounted) so Floci can connect to it.
+   */
+
+  withDockerSocket(socketPath?: string): this;
+  /**
+   * Adds a Floci UI web console container for the Floci Azure resource
+   */
+
+  withFlociUI(options?: { configureContainer?: (obj: FlociUIContainerResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds a Floci UI web console container for the Floci Azure resource
+   */
+
+  withFlociUI(configureContainer?: (obj: FlociUIContainerResource) => Promise<void>, containerName?: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlociGcpContainerResource
+ */
+
+export interface FlociGcpContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the emulator endpoint URL, following the primary endpoint's `Scheme`.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for the primary endpoint.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for the primary endpoint.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint reference for the Floci container.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the scheme endpoint reference for the primary endpoint. `http` unless a TLS certificate has been configured, in which case the endpoint is switched to `https` before the application starts. Floci serves both on the same port, so the port never changes.
+   */
+
+  scheme: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Configures a bind mount for persistent Floci GCP state.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Configures a bind mount for persistent Floci GCP state.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Configures a named data volume for persistent Floci GCP state.
+   */
+
+  withDataVolume(name: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Configures a named data volume for persistent Floci GCP state.
+   */
+
+  withDataVolume(name: string, isReadOnly?: boolean): this;
+  /**
+   * Mounts the Docker socket into the Floci GCP container so that Cloud Run, Cloud SQL, and other container-backed services can launch sibling containers. Also sets `FLOCI_GCP_DOCKER_DOCKER_HOST` to `unix:///var/run/docker.sock` (the container-side path where the socket is always mounted) so Floci can connect to it.
+   */
+
+  withDockerSocket(options?: { socketPath?: string }): this;
+  /**
+   * Mounts the Docker socket into the Floci GCP container so that Cloud Run, Cloud SQL, and other container-backed services can launch sibling containers. Also sets `FLOCI_GCP_DOCKER_DOCKER_HOST` to `unix:///var/run/docker.sock` (the container-side path where the socket is always mounted) so Floci can connect to it.
+   */
+
+  withDockerSocket(socketPath?: string): this;
+  /**
+   * Adds a Floci UI web console container for the Floci GCP resource
+   */
+
+  withFlociUI(options?: { configureContainer?: (obj: FlociUIContainerResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds a Floci UI web console container for the Floci GCP resource
+   */
+
+  withFlociUI(configureContainer?: (obj: FlociUIContainerResource) => Promise<void>, containerName?: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlociUIContainerResource
+ */
+
+export interface FlociUIContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Gets the http endpoint for the Floci UI resource.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Attaches an additional Floci AWS resource to a Floci UI console
+   */
+
+  withAwsReference(cloud: FlociAwsContainerResource): this;
+  /**
+   * Attaches an additional Floci Azure resource to a Floci UI console
+   */
+
+  withAzureReference(cloud: FlociAzureContainerResource): this;
+  /**
+   * Attaches an additional Floci GCP resource to a Floci UI console
+   */
+
+  withGcpReference(cloud: FlociGcpContainerResource): this;
+  /**
+   * Configures the host port that the Floci UI resource is exposed on instead of using a randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.FlywayResource
  */
 
@@ -12224,6 +12500,16 @@ export interface KindClusterResource extends IKindResource, IResource, IResource
    */
 
   addHelmChart(name: string, chartRef: string): KindHelmChartResource;
+  /**
+   * Adds a Kubernetes manifest to be applied to the Kind cluster via `kubectl apply`.
+   */
+
+  addManifest(name: string, manifestPath: string): K8sManifestResource;
+  /**
+   * Adds Kubernetes manifest content to be applied to the Kind cluster via `kubectl apply -f -`.
+   */
+
+  addManifestFromContent(name: string, content: string): K8sManifestResource;
 }
 
 /**
@@ -12256,6 +12542,21 @@ export interface KindHelmChartResource extends KindDeployedResource, IResource, 
 
   withChartVersion(version: string): this;
   /**
+   * Retries Helm installs that race newly-created CRDs which have not reached the `Established` condition yet.
+   */
+
+  withCrdWaitRetry(options?: { maxAttempts?: number; backoff?: timespan; crdWaitTimeout?: timespan }): this;
+  /**
+   * Retries Helm installs that race newly-created CRDs which have not reached the `Established` condition yet.
+   */
+
+  withCrdWaitRetry(maxAttempts?: number, backoff?: timespan, crdWaitTimeout?: timespan): this;
+  /**
+   * Sets a Helm value while preserving it as a string (maps to `helm install --set-string key=value`).
+   */
+
+  withHelmStringValue(key: string, value: string): this;
+  /**
    * Sets a Helm value (maps to `helm install --set key=value`).
    */
 
@@ -12265,6 +12566,13 @@ export interface KindHelmChartResource extends KindDeployedResource, IResource, 
    */
 
   withHelmValuesFile(path: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.CrdWaitBehavior
+ */
+
+export interface CrdWaitBehavior extends IComparable, IConvertible, IFormattable, ISpanFormattable {
 }
 
 /**
@@ -12809,6 +13117,58 @@ export interface MinioContainerResource extends ContainerResource, IComputeResou
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.MosquittoServerResource
+ */
+
+export interface MosquittoServerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the Mosquitto broker in the form of `mqtt://host:port`, suitable for use by MQTT clients.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host of the primary MQTT endpoint.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port of the primary MQTT endpoint.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary MQTT endpoint for the Mosquitto broker.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the Mosquitto broker.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a bind mount for the data folder to a Mosquitto container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the data folder to a Mosquitto container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the data folder to a Mosquitto container resource.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the data folder to a Mosquitto container resource.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.NgrokResource
  */
 
@@ -13251,6 +13611,93 @@ export interface PerlAppResource extends ExecutableResource, IComputeResource, I
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.PostaResource
+ */
+
+export interface PostaResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the parameter that contains the initial admin password.
+   */
+
+  adminPasswordParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Connection string for the Posta HTTP API in the form of Endpoint=http://host:port.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for the HTTP endpoint.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the parameter that contains the JWT signing secret.
+   */
+
+  jwtSecretParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the port endpoint reference for the HTTP endpoint.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary HTTP endpoint for the Posta server.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the inbound SMTP endpoint for the Posta server.
+   */
+
+  smtpEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the authenticated SMTP relay endpoint for the Posta server.
+   */
+
+  smtpRelayEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the Posta HTTP API.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a bind mount for Posta's filesystem-backed attachment data.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for Posta's filesystem-backed attachment data.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for Posta's filesystem-backed attachment data.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for Posta's filesystem-backed attachment data.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the PostgreSQL database used by Posta.
+   */
+
+  withPostgresReference(database: PostgresDatabaseResource): this;
+  /**
+   * Configures the Redis server used by Posta.
+   */
+
+  withRedisReference(redis: RedisResource, options?: { redisPassword?: string | ParameterResource }): this;
+  /**
+   * Configures the Redis server used by Posta.
+   */
+
+  withRedisReference(redis: RedisResource, redisPassword?: string | ParameterResource): this;
+}
+
+/**
  * Handle CommunityToolkit.Aspire.Hosting.PowerShell.PowerShellRunspacePoolResource
  */
 
@@ -13390,6 +13837,107 @@ export interface RavenDBServerResource extends ContainerResource, IComputeResour
    */
 
   withLogVolume(name?: string, isReadOnly?: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RedPandaConsoleContainerResource
+ */
+
+export interface RedPandaConsoleContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+  /**
+   * Configures the host port that the Redpanda Console resource is exposed on instead of using a randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RedPandaKafkaUiContainerResource
+ */
+
+export interface RedPandaKafkaUiContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.RedPandaServerResource
+ */
+
+export interface RedPandaServerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the Admin API HTTP endpoint for the Redpanda broker.
+   */
+
+  adminEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection string expression for the Redpanda broker in the form of `host:port`, suitable for use as the Kafka bootstrap servers value.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host of the primary Kafka endpoint.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the internal Kafka API endpoint used for container-to-container communication.
+   */
+
+  internalEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the port of the primary Kafka endpoint.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary (Kafka API) endpoint for the Redpanda broker. This endpoint is reachable from the host.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the Schema Registry HTTP endpoint for the Redpanda broker.
+   */
+
+  schemaRegistryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Adds a Redpanda Console container to the application, configured to connect to the Redpanda broker.
+   */
+
+  withConsole(options?: { configureContainer?: (obj: RedPandaConsoleContainerResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds a Redpanda Console container to the application, configured to connect to the Redpanda broker.
+   */
+
+  withConsole(configureContainer?: (obj: RedPandaConsoleContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds a bind mount for the data folder to a Redpanda container resource.
+   */
+
+  withDataBindMount(source: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a bind mount for the data folder to a Redpanda container resource.
+   */
+
+  withDataBindMount(source: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a named volume for the data folder to a Redpanda container resource.
+   */
+
+  withDataVolume(options?: { name?: string; isReadOnly?: boolean }): this;
+  /**
+   * Adds a named volume for the data folder to a Redpanda container resource.
+   */
+
+  withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Adds a Kafka UI container to the application, configured to connect to the Redpanda broker. This is the same Kafka management UI (the `kafbat/kafka-ui` image) used by the official Aspire Kafka integration, so it works against any Kafka API compatible broker.
+   */
+
+  withKafkaUI(options?: { configureContainer?: (obj: RedPandaKafkaUiContainerResource) => Promise<void>; containerName?: string }): this;
+  /**
+   * Adds a Kafka UI container to the application, configured to connect to the Redpanda broker. This is the same Kafka management UI (the `kafbat/kafka-ui` image) used by the official Aspire Kafka integration, so it works against any Kafka API compatible broker.
+   */
+
+  withKafkaUI(configureContainer?: (obj: RedPandaKafkaUiContainerResource) => Promise<void>, containerName?: string): this;
 }
 
 /**
@@ -13726,6 +14274,110 @@ export interface SqliteWebResource extends ContainerResource, IComputeResource, 
  */
 
 export interface SquadResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IValueProvider, IValueWithReferences {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.StableDiffusionCppModelResource
+ */
+
+export interface StableDiffusionCppModelResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the ConnectionStringExpression property
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the model file path inside the Hugging Face repository.
+   */
+
+  fileName: PropertyAccessor<string>;
+  /**
+   * Gets the parent stable-diffusion.cpp server.
+   */
+
+  parent: PropertyAccessor<StableDiffusionCppResource>;
+  /**
+   * Gets the Hugging Face repository identifier.
+   */
+
+  repository: PropertyAccessor<string>;
+  /**
+   * Gets the Hugging Face revision.
+   */
+
+  revision: PropertyAccessor<string>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.StableDiffusionCppResource
+ */
+
+export interface StableDiffusionCppResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Adds a Hugging Face model that is downloaded before the container starts.
+   */
+
+  addHuggingFaceModel(repository: string, fileName: string, options?: { revision?: string }): StableDiffusionCppModelResource;
+  /**
+   * Adds a Hugging Face model that is downloaded before the container starts.
+   */
+
+  addHuggingFaceModel(repository: string, fileName: string, revision?: string): StableDiffusionCppModelResource;
+  /**
+   * Adds a named Hugging Face model that is downloaded before the container starts.
+   */
+
+  addNamedHuggingFaceModel(name: string, repository: string, fileName: string, options?: { revision?: string }): StableDiffusionCppModelResource;
+  /**
+   * Adds a named Hugging Face model that is downloaded before the container starts.
+   */
+
+  addNamedHuggingFaceModel(name: string, repository: string, fileName: string, revision?: string): StableDiffusionCppModelResource;
+  /**
+   * Gets the ConnectionStringExpression property
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the selected official container image variant.
+   */
+
+  imageVariant: PropertyAccessor<StableDiffusionCppImageVariant>;
+  /**
+   * Gets the configured Hugging Face model.
+   */
+
+  model: PropertyAccessor<StableDiffusionCppModelResource>;
+  /**
+   * Gets the primary HTTP endpoint.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the configured Hugging Face model.
+   */
+
+  setModel(value: StableDiffusionCppModelResource): StableDiffusionCppResource;
+  /**
+   * Gets the HTTP server URI.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds the container runtime arguments required by the selected GPU backend.
+   */
+
+  withGPUSupport(): this;
+  /**
+   * Supplies a Hugging Face access token for gated or private repositories.
+   */
+
+  withHuggingFaceToken(token: string | ParameterResource): this;
+  /**
+   * Processes VAE images in tiles to reduce peak memory usage during image decoding.
+   */
+
+  withVaeTiling(): this;
 }
 
 /**
@@ -14621,6 +15273,36 @@ export interface IDistributedApplicationBuilder {
    */
 
   addFlagd(name: string, port?: number, ofrepPort?: number): FlagdResource;
+  /**
+   * Adds a Floci AWS emulator container resource
+   */
+
+  addFlociAws(name: string, options?: { port?: number; defaultRegion?: string; defaultAccountId?: string }): FlociAwsContainerResource;
+  /**
+   * Adds a Floci AWS emulator container resource
+   */
+
+  addFlociAws(name: string, port?: number, defaultRegion?: string, defaultAccountId?: string): FlociAwsContainerResource;
+  /**
+   * Adds a Floci Azure emulator container resource
+   */
+
+  addFlociAzure(name: string, options?: { port?: number }): FlociAzureContainerResource;
+  /**
+   * Adds a Floci Azure emulator container resource
+   */
+
+  addFlociAzure(name: string, port?: number): FlociAzureContainerResource;
+  /**
+   * Adds a Floci GCP emulator container resource
+   */
+
+  addFlociGcp(name: string, options?: { port?: number; defaultProjectId?: string }): FlociGcpContainerResource;
+  /**
+   * Adds a Floci GCP emulator container resource
+   */
+
+  addFlociGcp(name: string, port?: number, defaultProjectId?: string): FlociGcpContainerResource;
 
   addFlyway(name: string, migrationScriptsPath: string): FlywayResource;
   /**
@@ -14774,6 +15456,16 @@ export interface IDistributedApplicationBuilder {
 
   addMinioContainer(name: string, rootUser?: string | ParameterResource, rootPassword?: string | ParameterResource, port?: number): MinioContainerResource;
   /**
+   * Adds a Mosquitto container resource to the application. Mosquitto is an open source MQTT message broker, so the resource can be referenced by any MQTT client integration.
+   */
+
+  addMosquitto(name: string, options?: { port?: number }): MosquittoServerResource;
+  /**
+   * Adds a Mosquitto container resource to the application. Mosquitto is an open source MQTT message broker, so the resource can be referenced by any MQTT client integration.
+   */
+
+  addMosquitto(name: string, port?: number): MosquittoServerResource;
+  /**
    * Configures a container resource for grok which is pre-configured to connect to the resource that this method is used on.
    */
 
@@ -14838,6 +15530,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addPerlScript(resourceName: string, appDirectory: string, scriptName: string): PerlAppResource;
+  /**
+   * Adds a Posta container resource with PostgreSQL and Redis references
+   */
+
+  addPostaWithReferences(name: string, database: PostgresDatabaseResource, redis: RedisResource, options?: { jwtSecret?: string | ParameterResource; adminPassword?: string | ParameterResource; adminEmail?: string; port?: number }): PostaResource;
+  /**
+   * Adds a Posta container resource with PostgreSQL and Redis references
+   */
+
+  addPostaWithReferences(name: string, database: PostgresDatabaseResource, redis: RedisResource, jwtSecret?: string | ParameterResource, adminPassword?: string | ParameterResource, adminEmail?: string, port?: number): PostaResource;
 
   addPowerShell(name: string, options?: { languageMode?: string; minRunspaces?: number; maxRunspaces?: number }): PowerShellRunspacePoolResource;
 
@@ -14852,6 +15554,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addRavenDB(name: string): RavenDBServerResource;
+  /**
+   * Adds a Redpanda container resource to the application. Redpanda is a Kafka API compatible streaming platform, so the resource can be referenced by any Kafka client integration.
+   */
+
+  addRedPanda(name: string, options?: { port?: number }): RedPandaServerResource;
+  /**
+   * Adds a Redpanda container resource to the application. Redpanda is a Kafka API compatible streaming platform, so the resource can be referenced by any Kafka client integration.
+   */
+
+  addRedPanda(name: string, port?: number): RedPandaServerResource;
   /**
    * Adds a Rust application to the application model, using the bacon cli.
    */
@@ -14933,6 +15645,16 @@ export interface IDistributedApplicationBuilder {
 
   addSquad(name: string, teamRoot?: string): SquadResource;
   /**
+   * Adds a stable-diffusion.cpp container resource using an official image.
+   */
+
+  addStableDiffusionCpp(name: string, options?: { imageVariant?: StableDiffusionCppImageVariant; port?: number; modelsDirectory?: string }): StableDiffusionCppResource;
+  /**
+   * Adds a stable-diffusion.cpp container resource using an official image.
+   */
+
+  addStableDiffusionCpp(name: string, imageVariant?: StableDiffusionCppImageVariant, port?: number, modelsDirectory?: string): StableDiffusionCppResource;
+  /**
    * Adds the Stripe CLI to the application model for local webhook forwarding.
    */
 
@@ -14941,12 +15663,12 @@ export interface IDistributedApplicationBuilder {
    * Adds a SurrealDB resource to the application model. A container is used for local development. The default image is and the tag is .
    */
 
-  addSurrealServer(name: string, options?: { userName?: string | ParameterResource; password?: string | ParameterResource; port?: number; path?: string; strictMode?: boolean }): SurrealDbServerResource;
+  addSurrealServer(name: string, options?: { userName?: string | ParameterResource; password?: string | ParameterResource; port?: number; path?: string }): SurrealDbServerResource;
   /**
    * Adds a SurrealDB resource to the application model. A container is used for local development. The default image is and the tag is .
    */
 
-  addSurrealServer(name: string, userName?: string | ParameterResource, password?: string | ParameterResource, port?: number, path?: string, strictMode?: boolean): SurrealDbServerResource;
+  addSurrealServer(name: string, userName?: string | ParameterResource, password?: string | ParameterResource, port?: number, path?: string): SurrealDbServerResource;
   /**
    * Adds a Umami resource to the application model. A container is used for local development. The default image is and the tag is .
    */
@@ -17570,6 +18292,21 @@ export interface ContainerResource {
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
   /**
+   * Adds a reference to a Floci AWS emulator resource
+   */
+
+  withFlociAwsReference(floci: FlociAwsContainerResource): this;
+  /**
+   * Adds a reference to a Floci Azure emulator resource
+   */
+
+  withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a reference to a Floci GCP emulator resource
+   */
+
+  withFlociGcpReference(floci: FlociGcpContainerResource): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -18338,6 +19075,21 @@ export interface CSharpAppResource {
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
   /**
+   * Adds a reference to a Floci AWS emulator resource
+   */
+
+  withFlociAwsReference(floci: FlociAwsContainerResource): this;
+  /**
+   * Adds a reference to a Floci Azure emulator resource
+   */
+
+  withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a reference to a Floci GCP emulator resource
+   */
+
+  withFlociGcpReference(floci: FlociGcpContainerResource): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -19065,6 +19817,21 @@ export interface DotnetToolResource {
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
   /**
+   * Adds a reference to a Floci AWS emulator resource
+   */
+
+  withFlociAwsReference(floci: FlociAwsContainerResource): this;
+  /**
+   * Adds a reference to a Floci Azure emulator resource
+   */
+
+  withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a reference to a Floci GCP emulator resource
+   */
+
+  withFlociGcpReference(floci: FlociGcpContainerResource): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -19789,6 +20556,21 @@ export interface ExecutableResource {
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
   /**
+   * Adds a reference to a Floci AWS emulator resource
+   */
+
+  withFlociAwsReference(floci: FlociAwsContainerResource): this;
+  /**
+   * Adds a reference to a Floci Azure emulator resource
+   */
+
+  withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a reference to a Floci GCP emulator resource
+   */
+
+  withFlociGcpReference(floci: FlociGcpContainerResource): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -20142,6 +20924,82 @@ export interface FileSearchToolResource {
   withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
+// augments handle type FlociAwsContainerResource with extension methods
+export interface FlociAwsContainerResource {
+  /**
+   * Adds a reference to a Floci AWS emulator resource
+   */
+
+  withFlociAwsReference(floci: FlociAwsContainerResource): this;
+  /**
+   * Adds a reference to a Floci Azure emulator resource
+   */
+
+  withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a reference to a Floci GCP emulator resource
+   */
+
+  withFlociGcpReference(floci: FlociGcpContainerResource): this;
+}
+
+// augments handle type FlociAzureContainerResource with extension methods
+export interface FlociAzureContainerResource {
+  /**
+   * Adds a reference to a Floci AWS emulator resource
+   */
+
+  withFlociAwsReference(floci: FlociAwsContainerResource): this;
+  /**
+   * Adds a reference to a Floci Azure emulator resource
+   */
+
+  withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a reference to a Floci GCP emulator resource
+   */
+
+  withFlociGcpReference(floci: FlociGcpContainerResource): this;
+}
+
+// augments handle type FlociGcpContainerResource with extension methods
+export interface FlociGcpContainerResource {
+  /**
+   * Adds a reference to a Floci AWS emulator resource
+   */
+
+  withFlociAwsReference(floci: FlociAwsContainerResource): this;
+  /**
+   * Adds a reference to a Floci Azure emulator resource
+   */
+
+  withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a reference to a Floci GCP emulator resource
+   */
+
+  withFlociGcpReference(floci: FlociGcpContainerResource): this;
+}
+
+// augments handle type FlociUIContainerResource with extension methods
+export interface FlociUIContainerResource {
+  /**
+   * Adds a reference to a Floci AWS emulator resource
+   */
+
+  withFlociAwsReference(floci: FlociAwsContainerResource): this;
+  /**
+   * Adds a reference to a Floci Azure emulator resource
+   */
+
+  withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a reference to a Floci GCP emulator resource
+   */
+
+  withFlociGcpReference(floci: FlociGcpContainerResource): this;
+}
+
 // augments handle type FoundryDeploymentResource with extension methods
 export interface FoundryDeploymentResource {
   /**
@@ -20345,7 +21203,7 @@ export interface IHostEnvironment {
 
 export interface IKindResource {
   /**
-   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted when the AppHost shuts down. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
+   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted on graceful shutdown or other process-exit signals on a best-effort basis. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
    */
 
   withClusterLifetime(lifetime: ClusterLifetime): this;
@@ -20354,6 +21212,21 @@ export interface IKindResource {
    */
 
   withKubernetesVersion(version: string): this;
+  /**
+   * Sets the Kind node image for every node in the cluster.
+   */
+
+  withNodeImage(image: string): this;
+  /**
+   * Adds an extra host mount to every Kind node container.
+   */
+
+  withNodeMount(hostPath: string, containerPath: string, options?: { readOnly?: boolean }): this;
+  /**
+   * Adds an extra host mount to every Kind node container.
+   */
+
+  withNodeMount(hostPath: string, containerPath: string, readOnly?: boolean): this;
   /**
    * Sets the number of worker nodes for the Kind cluster.
    */
@@ -20499,6 +21372,21 @@ export interface IResourceWithEnvironment {
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
   /**
+   * Adds a reference to a Floci AWS emulator resource
+   */
+
+  withFlociAwsReference(floci: FlociAwsContainerResource): this;
+  /**
+   * Adds a reference to a Floci Azure emulator resource
+   */
+
+  withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a reference to a Floci GCP emulator resource
+   */
+
+  withFlociGcpReference(floci: FlociGcpContainerResource): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -20635,6 +21523,170 @@ export interface JavaScriptAppResource {
   withMappedEndpointPort(endpointName?: string): this;
 }
 
+// augments handle type K8sManifestResource with extension methods
+export interface K8sManifestResource {
+  /**
+   * Gets or sets the maximum time to wait for `kubectl apply` to complete.
+   */
+
+  applyTimeout: PropertyAccessor<timespan>;
+  /**
+   * Gets or sets the maximum time to wait for the Kubernetes API to become reachable before running `kubectl apply`.
+   */
+
+  clusterReadyTimeout: PropertyAccessor<timespan>;
+  /**
+   * Gets or sets how CRD wait failures are handled.
+   */
+
+  crdWaitBehavior: PropertyAccessor<CrdWaitBehavior>;
+  /**
+   * Gets or sets the maximum time to wait for applied CRDs to reach the `Established` condition.
+   */
+
+  crdWaitTimeout: PropertyAccessor<timespan>;
+  /**
+   * Gets the field manager name used with server-side apply (maps to `kubectl apply --field-manager`). When `null`, kubectl uses its default (`kubectl`).
+   */
+
+  fieldManager: PropertyAccessor<string>;
+  /**
+   * Gets or sets whether to force conflicts on server-side apply (maps to `kubectl apply --server-side --force-conflicts`). Only meaningful when `ServerSide` is `true`.
+   */
+
+  forceConflicts: PropertyAccessor<boolean>;
+  /**
+   * Gets or sets inline manifest content applied with `kubectl apply -f -`.
+   */
+
+  inlineContent: PropertyAccessor<string>;
+  /**
+   * Gets or sets whether this resource represents a Kustomize overlay directory.
+   */
+
+  isKustomize: PropertyAccessor<boolean>;
+  /**
+   * Gets the manifest path passed to `kubectl apply`. Accepts an absolute file path, an absolute directory path, or `<inline>` for standard input.
+   */
+
+  manifestPath: PropertyAccessor<string>;
+  /**
+   * Gets or sets the Kubernetes namespace for the deployment. When `null`, the Helm default namespace is used.
+   */
+
+  namespace: PropertyAccessor<string>;
+  /**
+   * Gets or sets whether to recursively apply manifests in subdirectories (maps to `kubectl apply --recursive`). Only meaningful when `ManifestPath` is a directory.
+   */
+
+  recursive: PropertyAccessor<boolean>;
+  /**
+   * Gets or sets whether to apply the manifest server-side (maps to `kubectl apply --server-side`). Server-side apply is required for large CRDs that exceed the client-side annotation size limit.
+   */
+
+  serverSide: PropertyAccessor<boolean>;
+  /**
+   * Gets or sets the maximum time to wait for `kubectl apply` to complete.
+   */
+
+  setApplyTimeout(value: timespan): K8sManifestResource;
+  /**
+   * Gets or sets the maximum time to wait for the Kubernetes API to become reachable before running `kubectl apply`.
+   */
+
+  setClusterReadyTimeout(value: timespan): K8sManifestResource;
+  /**
+   * Gets or sets how CRD wait failures are handled.
+   */
+
+  setCrdWaitBehavior(value: CrdWaitBehavior): K8sManifestResource;
+  /**
+   * Gets or sets the maximum time to wait for applied CRDs to reach the `Established` condition.
+   */
+
+  setCrdWaitTimeout(value: timespan): K8sManifestResource;
+  /**
+   * Gets the field manager name used with server-side apply (maps to `kubectl apply --field-manager`). When `null`, kubectl uses its default (`kubectl`).
+   */
+
+  setFieldManager(value: string): K8sManifestResource;
+  /**
+   * Gets or sets whether to force conflicts on server-side apply (maps to `kubectl apply --server-side --force-conflicts`). Only meaningful when `ServerSide` is `true`.
+   */
+
+  setForceConflicts(value: boolean): K8sManifestResource;
+  /**
+   * Gets or sets inline manifest content applied with `kubectl apply -f -`.
+   */
+
+  setInlineContent(value: string): K8sManifestResource;
+  /**
+   * Gets or sets whether this resource represents a Kustomize overlay directory.
+   */
+
+  setIsKustomize(value: boolean): K8sManifestResource;
+  /**
+   * Gets or sets the Kubernetes namespace for the deployment. When `null`, the Helm default namespace is used.
+   */
+
+  setNamespace(value: string): K8sManifestResource;
+  /**
+   * Gets or sets whether to recursively apply manifests in subdirectories (maps to `kubectl apply --recursive`). Only meaningful when `ManifestPath` is a directory.
+   */
+
+  setRecursive(value: boolean): K8sManifestResource;
+  /**
+   * Gets or sets whether to apply the manifest server-side (maps to `kubectl apply --server-side`). Server-side apply is required for large CRDs that exceed the client-side annotation size limit.
+   */
+
+  setServerSide(value: boolean): K8sManifestResource;
+  /**
+   * Sets the maximum time to wait for `kubectl apply` to complete.
+   */
+
+  withApplyTimeout(timeout: timespan): this;
+  /**
+   * Sets the maximum time to wait for the Kubernetes API to become reachable before running `kubectl apply`.
+   */
+
+  withClusterReadyTimeout(timeout: timespan): this;
+  /**
+   * Sets whether CRD wait failures fail the manifest resource or are logged as best-effort warnings.
+   */
+
+  withCrdWaitBehavior(behavior: CrdWaitBehavior): this;
+  /**
+   * Sets the maximum time to wait for applied CRDs to reach the `Established` condition.
+   */
+
+  withCrdWaitTimeout(timeout: timespan): this;
+  /**
+   * Sets the field manager name passed to `kubectl apply --field-manager`.
+   */
+
+  withFieldManager(fieldManager: string): this;
+  /**
+   * Sets the Kubernetes namespace for the deployment.
+   */
+
+  withNamespace(namespace: string): this;
+  /**
+   * Recursively applies manifests from subdirectories (maps to `kubectl apply --recursive`). Only meaningful when the manifest path is a directory.
+   */
+
+  withRecursive(): this;
+  /**
+   * Applies the manifest server-side (maps to `kubectl apply --server-side`). Required for large CRDs that exceed the client-side annotation size limit.
+   */
+
+  withServerSideApply(options?: { forceConflicts?: boolean }): this;
+  /**
+   * Applies the manifest server-side (maps to `kubectl apply --server-side`). Required for large CRDs that exceed the client-side annotation size limit.
+   */
+
+  withServerSideApply(forceConflicts?: boolean): this;
+}
+
 // augments handle type KeycloakResource with extension methods
 export interface KeycloakResource {
 
@@ -20646,7 +21698,7 @@ export interface KeycloakResource {
 // augments handle type KindClusterResource with extension methods
 export interface KindClusterResource {
   /**
-   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted when the AppHost shuts down. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
+   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted on graceful shutdown or other process-exit signals on a best-effort basis. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
    */
 
   withClusterLifetime(lifetime: ClusterLifetime): this;
@@ -20655,6 +21707,21 @@ export interface KindClusterResource {
    */
 
   withKubernetesVersion(version: string): this;
+  /**
+   * Sets the Kind node image for every node in the cluster.
+   */
+
+  withNodeImage(image: string): this;
+  /**
+   * Adds an extra host mount to every Kind node container.
+   */
+
+  withNodeMount(hostPath: string, containerPath: string, options?: { readOnly?: boolean }): this;
+  /**
+   * Adds an extra host mount to every Kind node container.
+   */
+
+  withNodeMount(hostPath: string, containerPath: string, readOnly?: boolean): this;
   /**
    * Sets the number of worker nodes for the Kind cluster.
    */
@@ -20665,7 +21732,7 @@ export interface KindClusterResource {
 // augments handle type KindEnvironmentResource with extension methods
 export interface KindEnvironmentResource {
   /**
-   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted when the AppHost shuts down. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
+   * Sets the cluster lifetime. When `Session` (the default), the cluster is deleted on graceful shutdown or other process-exit signals on a best-effort basis. When `Persistent`, the cluster survives AppHost restarts and is reused on next startup.
    */
 
   withClusterLifetime(lifetime: ClusterLifetime): this;
@@ -20674,6 +21741,21 @@ export interface KindEnvironmentResource {
    */
 
   withKubernetesVersion(version: string): this;
+  /**
+   * Sets the Kind node image for every node in the cluster.
+   */
+
+  withNodeImage(image: string): this;
+  /**
+   * Adds an extra host mount to every Kind node container.
+   */
+
+  withNodeMount(hostPath: string, containerPath: string, options?: { readOnly?: boolean }): this;
+  /**
+   * Adds an extra host mount to every Kind node container.
+   */
+
+  withNodeMount(hostPath: string, containerPath: string, readOnly?: boolean): this;
   /**
    * Sets the number of worker nodes for the Kind cluster.
    */
@@ -20894,6 +21976,16 @@ export interface MongoDBServerResource {
    */
 
   withDbGate(containerName?: string): this;
+  /**
+   * Adds an administration and development platform for MongoDB to the application model using dbx.
+   */
+
+  withDbx(options?: { containerName?: string; imageTag?: string }): this;
+  /**
+   * Adds an administration and development platform for MongoDB to the application model using dbx.
+   */
+
+  withDbx(containerName?: string, imageTag?: string): this;
 }
 
 // augments handle type MySqlServerResource with extension methods
@@ -20918,6 +22010,16 @@ export interface MySqlServerResource {
    */
 
   withDbGate(configureContainer?: (obj: DbGateContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds an administration and development platform for MySql to the application model using dbx.
+   */
+
+  withDbx(options?: { containerName?: string; imageTag?: string }): this;
+  /**
+   * Adds an administration and development platform for MySql to the application model using dbx.
+   */
+
+  withDbx(containerName?: string, imageTag?: string): this;
 }
 
 // augments handle type NextJsAppResource with extension methods
@@ -21551,6 +22653,16 @@ export interface PostgresServerResource {
   withDbGate(options?: { containerName?: string }): this;
 
   withDbGate(containerName?: string): this;
+  /**
+   * Adds an administration and development platform for PostgreSQL to the application model using dbx.
+   */
+
+  withDbx(options?: { containerName?: string; imageTag?: string }): this;
+  /**
+   * Adds an administration and development platform for PostgreSQL to the application model using dbx.
+   */
+
+  withDbx(containerName?: string, imageTag?: string): this;
 }
 
 // augments handle type ProjectResource with extension methods
@@ -22250,6 +23362,21 @@ export interface ProjectResource {
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
   /**
+   * Adds a reference to a Floci AWS emulator resource
+   */
+
+  withFlociAwsReference(floci: FlociAwsContainerResource): this;
+  /**
+   * Adds a reference to a Floci Azure emulator resource
+   */
+
+  withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a reference to a Floci GCP emulator resource
+   */
+
+  withFlociGcpReference(floci: FlociGcpContainerResource): this;
+  /**
    * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
    */
 
@@ -22318,6 +23445,16 @@ export interface RedisResource {
    */
 
   withDbGate(configureContainer?: (obj: DbGateContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds an administration and development platform for Redis to the application model using dbx.
+   */
+
+  withDbx(options?: { containerName?: string; imageTag?: string }): this;
+  /**
+   * Adds an administration and development platform for Redis to the application model using dbx.
+   */
+
+  withDbx(containerName?: string, imageTag?: string): this;
 }
 
 // augments handle type SharePointToolResource with extension methods
@@ -22351,6 +23488,16 @@ export interface SqlServerServerResource {
    */
 
   withDbGate(containerName?: string, imageTag?: string): this;
+  /**
+   * Adds an administration and development platform for SqlServer to the application model using dbx.
+   */
+
+  withDbx(options?: { containerName?: string; imageTag?: string }): this;
+  /**
+   * Adds an administration and development platform for SqlServer to the application model using dbx.
+   */
+
+  withDbx(containerName?: string, imageTag?: string): this;
 }
 
 // augments handle type StripeResource with extension methods

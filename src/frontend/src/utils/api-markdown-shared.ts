@@ -101,7 +101,11 @@ export function indentMarkdown(markdown: string, prefix: string): string {
 }
 
 export function escapeTableCell(value: string): string {
-  return value.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+  // API renderers supply formatted Markdown: leave unrelated escapes and code paths alone.
+  // This encodes table delimiters, not arbitrary code spans containing literal \|.
+  return value
+    .replace(/\\*\|/g, (delimiter) => delimiter.replace(/[\\|]/g, '\\$&'))
+    .replace(/\r\n|\r|\n/g, '<br>');
 }
 
 export function link(label: string, href: string): string {

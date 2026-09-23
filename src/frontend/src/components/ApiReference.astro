@@ -1,0 +1,141 @@
+---
+import { resolveApiReference } from '@utils/api-reference';
+
+interface Props {
+  /**
+   * Canonical fully qualified C# API member name, including the declaring type.
+   * Example: `Aspire.Hosting.PostgresBuilderExtensions.AddPostgres`.
+   */
+  name: string;
+  /**
+   * Package identity used only when multiple packages declare the same FQN.
+   * Example: `Aspire.Hosting.JavaScript`.
+   */
+  package?: string;
+  /**
+   * Complete declared C# parameter types, in order, including an extension
+   * method's receiver. Omit for a method-group link; [] selects zero parameters.
+   */
+  parameterTypes?: string[];
+}
+
+function formatTitle(title: string | undefined): string | undefined {
+  if (!title || title.length <= 160) return title;
+
+  const prefix = title.slice(0, 157);
+  const text = /\s/.test(title[157]) ? prefix : prefix.replace(/\s+\S*$/, '');
+  return `${text.trimEnd()}...`;
+}
+
+const { name, package: packageName, parameterTypes } = Astro.props;
+const resolution = await resolveApiReference(name, packageName, Astro.locals, parameterTypes);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const diagnosticText = resolution.diagnostics.map((diagnostic) => diagnostic.message).join(' ');
+const languages: Array<{ id: string; icon: string; displayName: string }> = [
+  { id: 'csharp', icon: 'i-material-icon-theme:csharp', displayName: 'C#' },
+  { id: 'typescript', icon: 'i-material-icon-theme:typescript', displayName: 'TypeScript' },
+];
+---
+
+<span class="api-reference not-content" data-status={resolution.status}>
+  {
+    languages.map(({ id, icon, displayName }) => {
+      const target =
+        resolution.targets?.[id] ?? (id === 'csharp' ? resolution.csharp : resolution.typescript);
+      const href = target.path ? `${base}${target.path}` : undefined;
+      const diagnostic = href
+        ? undefined
+        : resolution.status === 'resolved' && resolution.diagnostics.length === 0
+          ? undefined
+          : diagnosticText;
+
+      return href ? (
+        <a
+          class="ar-lang"
+          data-lang={id}
+          href={href}
+          aria-label={`${target.label} — ${displayName} API reference`}
+          title={formatTitle(
+            target.description ?? `${target.label} — ${displayName} API reference`
+          )}
+          data-tooltip-placement="top"
+          data-tippy-allowhtml="false"
+        >
+          <code>
+            <span class={`ar-icon ${icon}`} aria-hidden="true" />
+            <span>{target.label}</span>
+          </code>
+        </a>
+      ) : (
+        <span
+          class="ar-lang"
+          data-lang={id}
+          title={formatTitle(diagnostic)}
+          data-tooltip-placement="top"
+          data-tippy-allowhtml="false"
+        >
+          <code>{target.label}</code>
+        </span>
+      );
+    })
+  }
+</span>
+
+<style>
+  .api-reference {
+    display: inline;
+  }
+
+  .ar-lang {
+    display: none;
+  }
+
+  :global(html[data-apphost-lang='csharp']) .ar-lang[data-lang='csharp'],
+  :global(html[data-apphost-lang='typescript']) .ar-lang[data-lang='typescript'] {
+    display: inline;
+  }
+
+  :global(html:not([data-apphost-lang])) .ar-lang[data-lang='csharp'] {
+    display: inline;
+  }
+
+  a.ar-lang {
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+  }
+
+  .ar-icon {
+    display: block;
+    flex: 0 0 1em;
+    width: 1em;
+    height: 1em;
+  }
+
+  .ar-lang code {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    max-width: 100%;
+    box-sizing: border-box;
+    vertical-align: middle;
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: var(--sl-text-body);
+    font-weight: 400;
+    line-height: 1.5;
+    white-space: normal;
+    color: inherit;
+    background-color: var(--aspire-inline-code-bg);
+    border: 0;
+    padding: 0.08em 0.3em;
+    border-radius: 0.25rem;
+    overflow-wrap: anywhere;
+  }
+
+  .ar-lang code > span {
+    min-width: 0;
+  }
+
+  a.ar-lang:is(:hover, :focus-visible) code {
+    background-color: color-mix(in srgb, var(--aspire-inline-code-bg), currentColor 15%);
+  }
+</style>

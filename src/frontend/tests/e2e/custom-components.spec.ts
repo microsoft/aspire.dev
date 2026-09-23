@@ -1,6 +1,112 @@
 import { expect, test } from '@playwright/test';
 
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { deferAppHostExamples } from '../../config/apphost-examples.mjs';
+
+test.describe('deferred AppHost examples', () => {
+  test.beforeEach(async ({ page, request, baseURL }) => {
+    // Exercise the production transformation locally without a full site build.
+    const response = await request.get('/');
+    const html = await response.text();
+    if (!html.includes('data-apphost-examples=')) {
+      const deferred = deferAppHostExamples(html);
+      await page.route(new URL('/', baseURL).href, (route) =>
+        route.fulfill({ response, body: deferred.html })
+      );
+      await page.route(`**/_astro/${deferred.filename}`, (route) =>
+        route.fulfill({ contentType: 'text/html', body: deferred.examples })
+      );
+    }
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+  });
+
+  test('loads examples once on interaction and keeps the initial default useful', async ({
+    page,
+  }) => {
+    const exampleRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\/_astro\/apphost-examples\./.test(request.url())) {
+        exampleRequests.push(request.url());
+      }
+    });
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+    const builder = page.locator('[data-apphost-builder]').first();
+    const stage = builder.locator('[data-code-stage]');
+    await expect(stage).toHaveAttribute('data-code-variant', 'frontend');
+    await expect(stage).toContainText('.addViteApp("frontend"');
+    await expect(builder.locator('.code-variant')).toHaveCount(1);
+    expect(exampleRequests).toHaveLength(0);
+
+    await builder.locator('[data-toggle="database"]').click();
+    await expect(stage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+    await builder.locator('[data-lang="csharp"]').click();
+    await expect(stage).toHaveAttribute('data-code-lang', 'csharp');
+    await expect(stage).toContainText('AddPostgres("db")');
+    expect(exampleRequests).toHaveLength(1);
+  });
+
+  for (const failure of ['unavailable', 'invalid content']) {
+    test(`keeps the last preview and allows retry after ${failure}`, async ({ page }) => {
+      let requests = 0;
+      await page.route('**/_astro/apphost-examples.*.html', async (route) => {
+        requests++;
+        if (requests === 1) {
+          await route.fulfill({
+            status: failure === 'unavailable' ? 503 : 200,
+            contentType: 'text/html',
+            body: '<html>Examples unavailable</html>',
+          });
+        } else {
+          await route.fallback();
+        }
+      });
+      await page.goto('/');
+      await dismissCookieConsentIfVisible(page);
+      const builder = page.locator('[data-apphost-builder]').first();
+      const stage = builder.locator('[data-code-stage]');
+      const status = builder.locator('[data-code-status]');
+      await builder.locator('[data-lang="csharp"]').click();
+      await expect(status).toBeVisible();
+      await expect(status).toContainText('Select an option to try again.');
+      await expect(stage).toHaveAttribute('data-code-lang', 'typescript');
+      await expect(stage).toContainText('.addViteApp("frontend"');
+      await expect(builder.locator('[data-apphost-code-display]')).toHaveAttribute(
+        'aria-busy',
+        'false'
+      );
+
+      await builder.locator('[data-lang="csharp"]').click();
+      await expect(stage).toHaveAttribute('data-code-lang', 'csharp');
+      await expect(status).not.toContainText('Could not load');
+      expect(requests).toBe(2);
+    });
+  }
+
+  test('uses the latest selection when controls change during loading', async ({ page }) => {
+    const gate = Promise.withResolvers<void>();
+    await page.route('**/_astro/apphost-examples.*.html', async (route) => {
+      await gate.promise;
+      await route.fallback();
+    });
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+    const builder = page.locator('[data-apphost-builder]').first();
+    await builder.locator('[data-toggle="database"]').click();
+    await expect(builder.locator('[data-apphost-code-display]')).toHaveAttribute(
+      'aria-busy',
+      'true'
+    );
+    await builder.locator('[data-toggle="api"]').click();
+    await builder.locator('[data-lang="csharp"]').click();
+    gate.resolve();
+
+    const stage = builder.locator('[data-code-stage]');
+    await expect(stage).toHaveAttribute('data-code-lang', 'csharp');
+    await expect(stage).toHaveAttribute('data-code-variant', 'databaseApiFrontend');
+    await expect(stage).toContainText('AddPostgres("db")');
+  });
+});
 
 test('app host builder swaps visible code when toggles and language change', async ({ page }) => {
   await page.goto('/');
@@ -362,4 +468,75 @@ test('samples grid hydrates filters from the URL and syncs them back on change',
   await expect(redisChip).not.toHaveClass(/\bactive\b/);
   await expect(clearAll).toBeHidden();
   await expect.poll(() => page.url()).not.toMatch(/[?&](q|tags)=/);
+});
+
+test('ApiReference renders as valid phrasing content and is never reparented out of its containing paragraph or list item', async ({
+  page,
+}) => {
+  // Regression test: ApiReference used to render Starlight's `<Code>`
+  // component, which emits block-level Expressive Code markup
+  // (`<div><figure><pre>...`). This page embeds ApiReference both inside a
+  // literal `<p>` (the Python/Node.js pivot panels) and inside a Markdown
+  // list item ("Best practices"), which is exactly the phrasing-content
+  // position that triggered the bug: the browser's HTML parser can't nest
+  // block content inside a `<p>`, so it implicitly closes the paragraph and
+  // promotes the block markup out as a sibling — leaving the `.api-reference`
+  // element empty in place and a detached code block (with its own copy
+  // button) floating elsewhere on the page.
+  await page.goto('/get-started/app-host/');
+  await dismissCookieConsentIfVisible(page);
+
+  const references = page.locator('.api-reference');
+  const count = await references.count();
+  expect(count).toBeGreaterThan(0);
+
+  for (const reference of await references.all()) {
+    // The symptom of the reparenting bug: an ApiReference instance left
+    // empty at its authored position because its only content got hoisted
+    // out by the parser.
+    await expect(reference).not.toBeEmpty();
+
+    // Still a real descendant of the paragraph/list item it was authored
+    // inside, not promoted elsewhere in the tree by implied tag closing.
+    const containingParent = await reference.evaluate(
+      (element) => element.closest('p, li')?.tagName.toLowerCase() ?? null
+    );
+    expect(containingParent).toMatch(/^(p|li)$/);
+
+    // A correctly rendered ApiReference is just `<a><code>`, so a copy
+    // affordance anywhere inside one means a code frame crept back in.
+    await expect(reference.locator('.copy, .copy button, button.copy')).toHaveCount(0);
+  }
+
+  // No ApiReference instance should ever emit block-level code markup —
+  // that's the root cause a browser has to reparent out of a `<p>`/`<li>`
+  // in the first place.
+  await expect(
+    page.locator('.api-reference pre, .api-reference figure, .api-reference .expressive-code')
+  ).toHaveCount(0);
+
+  // A hoisted frame lands as a *sibling* of the paragraph, out of reach of the
+  // `.api-reference`-scoped selectors above, so also check the whole page for a
+  // copy button belonging to one of these references. Expressive Code
+  // SSR-attaches the copied text to the button as `data-code` (see
+  // integrations-gallery.spec.ts), and matching it exactly keeps the page's real
+  // code samples - whose `data-code` is a full statement that may well mention
+  // the same API - from tripping this. Labels are read with `evaluateAll` rather
+  // than `allInnerTexts` so the chips hidden by the language pivot still count.
+  const referenceLabels = await page
+    .locator('.api-reference .ar-lang code')
+    .evaluateAll((elements) =>
+      elements.flatMap((element) => {
+        const label = element.textContent?.trim() ?? '';
+        return label ? [label, label.replace(/\(\)$/, '')] : [];
+      })
+    );
+  expect(referenceLabels.length).toBeGreaterThan(0);
+
+  for (const label of new Set(referenceLabels)) {
+    const selector = JSON.stringify(label);
+    await expect(
+      page.locator(`.copy button[data-code=${selector}], button.copy[data-code=${selector}]`)
+    ).toHaveCount(0);
+  }
 });

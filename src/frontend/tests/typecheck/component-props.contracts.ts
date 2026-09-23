@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'astro/types';
 
 import heroImage from '@assets/aspire-hero.png';
+import ApiReference from '@components/ApiReference.astro';
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
@@ -16,6 +17,9 @@ import IconAside from '@components/IconAside.astro';
 import IconLinkCard from '@components/IconLinkCard.astro';
 import ImageShowcase from '@components/ImageShowcase.astro';
 import Include from '@components/Include.astro';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import SearchField from '@components/search/SearchField.astro';
+import SearchEmptyState from '@components/search/SearchEmptyState.astro';
 import InstallCliModal from '@components/InstallCliModal.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import InstallPackage from '@components/InstallPackage.astro';
@@ -50,6 +54,28 @@ import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 
 type PropsOf<T extends (...args: never[]) => unknown> = ComponentProps<T>;
+
+const validSearchFieldProps = {
+  id: 'api-query', label: 'Search API entries', placeholder: 'Try Redis',
+  clearId: 'api-clear', describedBy: 'api-status', size: 'sm', visibleLabel: true,
+  containerClass: 'inpage-search-bar', labelClass: 'inpage-search-label',
+  wrapClass: 'inpage-search-input-wrap', iconClass: 'inpage-search-icon',
+} satisfies PropsOf<typeof SearchField>;
+const validSearchEmptyProps = {
+  title: 'No matching API entries', query: 'Search: "Redis"', hint: 'Try another keyword.',
+  actionLabel: 'Clear search', actionId: 'api-recover', hidden: true,
+} satisfies PropsOf<typeof SearchEmptyState>;
+void validSearchFieldProps;
+void validSearchEmptyProps;
+
+const validInpageSearchProps = {
+  id: 'glossary',
+  label: 'Find a term',
+  placeholder: 'Try AppHost',
+  kinds: ['Foundations', 'Reference'],
+  kindColors: { Foundations: 'var(--sl-color-purple)' },
+  defaultStatsText: '32 terms',
+} satisfies PropsOf<typeof InpageSearch>;
 
 const capabilityItems = [
   {
@@ -171,6 +197,28 @@ const integrationsFixture = [
 
 const availableDocs = [{ match: 'Higher Priority Package', href: '/integrations/higher/docs/' }];
 
+const validApiReferenceProps = {
+  name: 'Aspire.Hosting.JavaScriptHostingExtensions.WithNpm',
+  package: 'Aspire.Hosting.JavaScript',
+} satisfies PropsOf<typeof ApiReference>;
+const validUnqualifiedApiReferenceProps = {
+  name: 'Aspire.Hosting.PostgresBuilderExtensions.AddPostgres',
+} satisfies PropsOf<typeof ApiReference>;
+const validOverloadApiReferenceProps = {
+  name: 'Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment',
+  parameterTypes: ['Aspire.Hosting.ApplicationModel.IResourceBuilder<T>', 'string', 'string?'],
+} satisfies PropsOf<typeof ApiReference>;
+// @ts-expect-error ApiReference parameterTypes must be an array of strings.
+const invalidOverloadApiReferenceProps: PropsOf<typeof ApiReference> = {
+  name: 'Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment',
+  parameterTypes: [42],
+};
+// @ts-expect-error ApiReference package must be a string.
+const invalidApiReferenceProps: PropsOf<typeof ApiReference> = {
+  name: 'Aspire.Hosting.JavaScriptHostingExtensions.WithNpm',
+  package: 42,
+};
+
 const validAsciinemaPlayerProps = {
   src: '/casts/aspire-help.cast',
   rows: 18,
@@ -186,6 +234,7 @@ const invalidAsciinemaPlayerProps: PropsOf<typeof AsciinemaPlayer> = {
 
 const validBreadcrumbProps = {
   crumbs: [
+    { label: 'Dev Hub', href: '/hub/', icon: 'dev-hub' },
     { label: 'Docs', href: '/docs/', icon: 'docs' },
     { label: 'Reference', href: '/reference/overview/' },
     { label: 'Aspire.Hosting' },
@@ -660,6 +709,7 @@ const invalidTopicHeroProps: PropsOf<typeof TopicHero> = {
 
 const validTwitchEmbedProps = {
   channel: 'aspiredotdev',
+  autoplay: true,
   title: 'Twitch stream',
 } satisfies PropsOf<typeof TwitchEmbed>;
 // @ts-expect-error TwitchEmbed should reject unknown props.
@@ -713,6 +763,10 @@ const validYouTubeEmbedProps = {
   autoplay: true,
   title: 'Video player',
 } satisfies PropsOf<typeof YouTubeEmbed>;
+const validYouTubePlaylistProps = {
+  playlistId: 'UUW_UJkc7RhM_NPcDXnOCfrQ',
+  autoplay: false,
+} satisfies PropsOf<typeof YouTubeEmbed>;
 // @ts-expect-error YouTubeEmbed should reject unknown props.
 const invalidYouTubeEmbedProps: PropsOf<typeof YouTubeEmbed> = {
   videoId: 'dQw4w9WgXcQ',
@@ -732,6 +786,11 @@ const invalidYouTubeGridProps: PropsOf<typeof YouTubeGrid> = {
 };
 
 void [
+  validApiReferenceProps,
+  validUnqualifiedApiReferenceProps,
+  validOverloadApiReferenceProps,
+  invalidOverloadApiReferenceProps,
+  invalidApiReferenceProps,
   validAsciinemaPlayerProps,
   invalidAsciinemaPlayerProps,
   validBreadcrumbProps,
@@ -745,6 +804,7 @@ void [
   validContainerImagesProps,
   invalidContainerImagesProps,
   validExpandProps,
+  validInpageSearchProps,
   invalidExpandProps,
   validFeatureShowcaseProps,
   invalidFeatureShowcaseProps,
@@ -823,6 +883,7 @@ void [
   validYouTubeCardProps,
   invalidYouTubeCardProps,
   validYouTubeEmbedProps,
+  validYouTubePlaylistProps,
   invalidYouTubeEmbedProps,
   validYouTubeGridProps,
   invalidYouTubeGridProps,

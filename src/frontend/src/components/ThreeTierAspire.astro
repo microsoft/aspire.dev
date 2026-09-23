@@ -218,6 +218,11 @@ builder.Build().Run();
     cursor: pointer;
   }
 
+  .code-slider:focus-visible {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 0.2rem;
+  }
+
   :root[data-theme='dark'] .code-slider {
     background: linear-gradient(to right, #1976d2 0%, #1976d2 50%, #8a3fb5 50%, #8a3fb5 100%);
   }
@@ -304,13 +309,14 @@ builder.Build().Run();
 </style>
 
 <script type="module" is:inline>
-  document.addEventListener('DOMContentLoaded', () => {
+  const initializeThreeTierAspire = () => {
     const slider = document.getElementById('codeSlider');
     const splitView = document.querySelector('.split-view');
     const dockerLabel = document.querySelector('.label-docker');
     const csharpLabel = document.querySelector('.label-csharp');
 
-    if (slider && splitView) {
+    if (slider && splitView && slider.dataset.threeTierInitialized !== 'true') {
+      slider.dataset.threeTierInitialized = 'true';
       const updateSplitView = (value) => {
         // Update slider value if provided as parameter
         if (value !== undefined) {
@@ -368,5 +374,8 @@ builder.Build().Run();
         document.body.style.overflow = ''; // Re-enable page scrolling
       });
     }
-  });
+  };
+
+  document.addEventListener('astro:page-load', initializeThreeTierAspire);
+  if (document.readyState !== 'loading') initializeThreeTierAspire();
 </script>
