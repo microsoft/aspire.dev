@@ -98,6 +98,20 @@ aspire certs trust
   You may need to reload your profile or start a new terminal session for the change to take effect.
 </Aside>
 
+<Aside type="note" title="Firefox certificate trust on Linux">
+  On Linux, `aspire certs trust` and `aspire certs clean` also import and remove the development certificate from any Firefox and Chromium-family (Chrome, Chromium, Edge) NSS certificate databases discovered on the machine, so browser-based access to HTTPS endpoints secured by the development certificate works without a manual import.
+
+  Firefox profiles are discovered under the legacy `~/.mozilla/firefox` directory (used by traditional installs and the Firefox Snap package) or, when no legacy profile exists, under `$XDG_CONFIG_HOME/mozilla/firefox` (or `~/.config/mozilla/firefox` when `XDG_CONFIG_HOME` isn't set), matching modern Firefox's profile layout. Chromium-family databases are discovered under `~/.pki/nssdb` and the Chromium Snap package's `~/snap/chromium/current/.pki/nssdb`.
+
+  To trust or clean specific NSS databases instead of relying on auto-discovery, set `ASPIRE_CLI_DEV_CERTS_NSSDB_PATHS` to a `:`-separated list of NSS database directories. Prefix an entry with `firefox=` or `chromium=` to force how it's treated; unprefixed entries are classified automatically based on whether the path looks like a Firefox profile.
+
+  ```bash title="Override the NSS databases used for certificate trust"
+  ASPIRE_CLI_DEV_CERTS_NSSDB_PATHS="firefox=/path/to/firefox-profile:chromium=/path/to/chromium-nssdb" aspire certs trust
+  ```
+
+  When `ASPIRE_CLI_DEV_CERTS_NSSDB_PATHS` is unset or empty, the CLI falls back to the `DOTNET_DEV_CERTS_NSSDB_PATHS` environment variable used by the .NET SDK's `dotnet dev-certs`, so existing overrides continue to work.
+</Aside>
+
 ### Developer certificate for DCP communication
 
 By default, Aspire uses the ASP.NET Core developer certificate to secure communication with its internal Developer Control Plane (DCP) server. This replaces the ephemeral localhost certificate that DCP would otherwise generate itself, and avoids certificate trust errors caused by that certificate not being in the system trust store.
