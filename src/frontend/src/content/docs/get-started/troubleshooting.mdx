@@ -22,6 +22,40 @@ Having issues getting started with Aspire? This page covers solutions to the mos
   container runtime, these resources can't start.
 </Aside>
 
+## Executable fails to start with a working directory error
+
+**Symptoms**: An executable resource reaches the `FailedToStart` state, and its logs show a `[sys] Failed to start a process` line with a `WorkingDirectory` field and an operating-system error such as `no such file or directory` (Linux/macOS) or a similar `chdir`-style failure (Windows).
+
+**Cause**: The resolved working directory for the executable doesn't exist. Without the `WorkingDirectory` field, this failure can look identical to an invalid executable path, since both surface as a generic process-start error.
+
+**Solution**: Check the `WorkingDirectory` value reported in the log line and confirm that directory exists before the AppHost starts the executable:
+
+```csharp title="AppHost.cs"
+builder.AddExecutable("worker", "dotnet", "./worker-output")
+    .WithArgs("--info")
+    .WithWorkingDirectory("./data");  // Make sure this directory exists
+```
+
+<Aside type="note">
+  The `WorkingDirectory` field is only included for executables that use the
+  default process execution mode. It's omitted when an IDE launches the
+  executable, since the IDE controls the effective working directory in that
+  case.
+</Aside>
+
+## Container runtime unhealthy with no clear reason
+
+**Symptoms**: `aspire run` reports that the container runtime could not be found or isn't running, but the message doesn't explain why.
+
+**Solution**: The warning and any thrown exception now include the specific reason from the underlying dependency check when one is available, for example an unsupported Docker CLI version:
+
+```text
+Container runtime 'docker' could not be found. See https://aka.ms/aspire/containers for more details on supported container runtimes.
+The error from the container runtime check was: exec: "docker": executable file not found in $PATH
+```
+
+Use that reported reason to fix the underlying issue — for example, installing the container runtime, starting it, or upgrading it to a supported version.
+
 ## Port already in use
 
 **Symptoms**: Error message like "Address already in use" or "Port 5000 is already bound."
