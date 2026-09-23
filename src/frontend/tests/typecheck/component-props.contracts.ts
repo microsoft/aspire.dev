@@ -30,6 +30,7 @@ import LicenseBadge from '@components/LicenseBadge.astro';
 import LoopingImage from '@components/LoopingImage.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
 import MediaCard from '@components/MediaCard.astro';
+import NotFoundPage from '@components/NotFoundPage.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
@@ -420,6 +421,12 @@ const invalidIncludeProps: PropsOf<typeof Include> = {
 };
 
 const validInstallCliModalProps = {} satisfies PropsOf<typeof InstallCliModal>;
+
+const validNotFoundPageProps = {} satisfies PropsOf<typeof NotFoundPage>;
+// @ts-expect-error NotFoundPage should reject unknown props.
+const invalidNotFoundPageProps: PropsOf<typeof NotFoundPage> = {
+  unexpected: true,
+};
 // @ts-expect-error InstallCliModal should reject unknown props.
 const invalidInstallCliModalProps: PropsOf<typeof InstallCliModal> = {
   unexpected: true,
@@ -826,6 +833,8 @@ void [
   invalidIncludeProps,
   validInstallCliModalProps,
   invalidInstallCliModalProps,
+  validNotFoundPageProps,
+  invalidNotFoundPageProps,
   validInstallDotNetPackageProps,
   invalidInstallDotNetPackageProps,
   validInstallPackageProps,

@@ -30,76 +30,54 @@ function formatTitle(title: string | undefined): string | undefined {
 const { name, package: packageName, parameterTypes } = Astro.props;
 const resolution = await resolveApiReference(name, packageName, Astro.locals, parameterTypes);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const csharpHref = resolution.csharp.path ? `${base}${resolution.csharp.path}` : undefined;
-const typescriptHref = resolution.typescript.path
-  ? `${base}${resolution.typescript.path}`
-  : undefined;
 const diagnosticText = resolution.diagnostics.map((diagnostic) => diagnostic.message).join(' ');
-const csharpDiagnostic = resolution.status === 'resolved' ? undefined : diagnosticText;
-const typescriptDiagnostic = resolution.diagnostics.length > 0 ? diagnosticText : undefined;
+const languages: Array<{ id: string; icon: string; displayName: string }> = [
+  { id: 'csharp', icon: 'i-material-icon-theme:csharp', displayName: 'C#' },
+  { id: 'typescript', icon: 'i-material-icon-theme:typescript', displayName: 'TypeScript' },
+];
 ---
 
 <span class="api-reference not-content" data-status={resolution.status}>
   {
-    csharpHref ? (
-      <a
-        class="ar-lang"
-        data-lang="csharp"
-        href={csharpHref}
-        aria-label={`${resolution.csharp.label} — C# API reference`}
-        title={formatTitle(
-          resolution.csharp.description ?? `${resolution.csharp.label} — C# API reference`
-        )}
-        data-tooltip-placement="top"
-        data-tippy-allowhtml="false"
-      >
-        <code>
-          <span class="ar-icon i-material-icon-theme:csharp" aria-hidden="true" />
-          <span>{resolution.csharp.label}</span>
-        </code>
-      </a>
-    ) : (
-      <span
-        class="ar-lang"
-        data-lang="csharp"
-        title={formatTitle(csharpDiagnostic)}
-        data-tooltip-placement="top"
-        data-tippy-allowhtml="false"
-      >
-        <code>{resolution.csharp.label}</code>
-      </span>
-    )
-  }
-  {
-    typescriptHref ? (
-      <a
-        class="ar-lang"
-        data-lang="typescript"
-        href={typescriptHref}
-        aria-label={`${resolution.typescript.label} — TypeScript API reference`}
-        title={formatTitle(
-          resolution.typescript.description ??
-            `${resolution.typescript.label} — TypeScript API reference`
-        )}
-        data-tooltip-placement="top"
-        data-tippy-allowhtml="false"
-      >
-        <code>
-          <span class="ar-icon i-material-icon-theme:typescript" aria-hidden="true" />
-          <span>{resolution.typescript.label}</span>
-        </code>
-      </a>
-    ) : (
-      <span
-        class="ar-lang"
-        data-lang="typescript"
-        title={formatTitle(typescriptDiagnostic)}
-        data-tooltip-placement="top"
-        data-tippy-allowhtml="false"
-      >
-        <code>{resolution.typescript.label}</code>
-      </span>
-    )
+    languages.map(({ id, icon, displayName }) => {
+      const target =
+        resolution.targets?.[id] ?? (id === 'csharp' ? resolution.csharp : resolution.typescript);
+      const href = target.path ? `${base}${target.path}` : undefined;
+      const diagnostic = href
+        ? undefined
+        : resolution.status === 'resolved' && resolution.diagnostics.length === 0
+          ? undefined
+          : diagnosticText;
+
+      return href ? (
+        <a
+          class="ar-lang"
+          data-lang={id}
+          href={href}
+          aria-label={`${target.label} — ${displayName} API reference`}
+          title={formatTitle(
+            target.description ?? `${target.label} — ${displayName} API reference`
+          )}
+          data-tooltip-placement="top"
+          data-tippy-allowhtml="false"
+        >
+          <code>
+            <span class={`ar-icon ${icon}`} aria-hidden="true" />
+            <span>{target.label}</span>
+          </code>
+        </a>
+      ) : (
+        <span
+          class="ar-lang"
+          data-lang={id}
+          title={formatTitle(diagnostic)}
+          data-tooltip-placement="top"
+          data-tippy-allowhtml="false"
+        >
+          <code>{target.label}</code>
+        </span>
+      );
+    })
   }
 </span>
 
@@ -112,11 +90,12 @@ const typescriptDiagnostic = resolution.diagnostics.length > 0 ? diagnosticText 
     display: none;
   }
 
+  :global(html[data-apphost-lang='csharp']) .ar-lang[data-lang='csharp'],
   :global(html[data-apphost-lang='typescript']) .ar-lang[data-lang='typescript'] {
     display: inline;
   }
 
-  :global(html:not([data-apphost-lang='typescript'])) .ar-lang[data-lang='csharp'] {
+  :global(html:not([data-apphost-lang])) .ar-lang[data-lang='csharp'] {
     display: inline;
   }
 

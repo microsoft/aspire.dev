@@ -1,18 +1,20 @@
 ---
 description: 'Astro Starlight development standards for aspire.dev documentation site'
-applyTo: '**/*.astro, **/*.ts, **/*.js, **/*.md, **/*.mdx'
+applyTo: '**/*.astro, **/*.ts, **/*.js, **/*.mjs, **/*.md, **/*.mdx'
 ---
 
 # aspire.dev Development Instructions
 
-This is the aspire.dev documentation site, built with [Astro Starlight](https://starlight.astro.build/). All source lives under `src/frontend/`.
+This is the aspire.dev documentation site, built with [Astro Starlight](https://starlight.astro.build/). Frontend source lives under `src/frontend/`.
+
+Astro guidance is adapted from [Awesome GitHub Copilot's Astro development instructions](https://awesome-copilot.github.com/instruction/astro/) for this repository. Use `src/frontend/package.json`, `astro.config.mjs`, and `tsconfig.json` as the source of truth for installed versions and configuration; do not introduce optional upstream features without a task that requires them.
 
 ## Project Stack
 
-- **Astro 5.x** with **Starlight** documentation theme
+- **Astro 7.x** with **Starlight** documentation theme and the **Content Layer API**
 - **TypeScript** (strict mode, `astro/tsconfigs/strict`)
-- **Static site generation** (SSG) — zero client-side JS by default
-- **pnpm** as the package manager (`pnpm install`, `pnpm dev`, `pnpm build`)
+- **Static site generation** (SSG) with selective client-side interactivity
+- **pnpm** as the package manager (`pnpm install`, `pnpm dev`)
 - **15 locales** with Lunaria translation tracking
 
 ## Running Locally
@@ -23,7 +25,25 @@ pnpm install
 pnpm dev        # starts dev server at http://localhost:4321
 ```
 
-Search is disabled in dev mode — use `pnpm build && pnpm preview` to test search. Running `pnpm dev` is sufficient to verify documentation rendering changes; a full `pnpm build` is not required.
+Search is disabled in dev mode. Running `pnpm dev` is sufficient to verify documentation rendering changes. Prefer CI for production builds and search validation; never run `pnpm build` locally without explicit user permission. Use `pnpm preview` when a production build is already available.
+
+## Astro Architecture and Type Safety
+
+- Render content at build time in `.astro` frontmatter by default. Keep the static-site architecture; Astro Actions, sessions, server islands (`server:defer`), and on-demand API routes require server runtime support and are not drop-in additions to this site.
+- Prefer existing `.astro` components and browser scripts or Web Components for interactivity. Add a UI framework only when the task needs it; hydrate framework islands selectively with `client:load`, `client:idle`, or `client:visible`.
+- Preserve `astro/tsconfigs/strict` and the generated `.astro/types.d.ts` include. Run `pnpm exec astro sync` from `src/frontend` after changing collections or Astro configuration; do not edit generated types.
+- Define component props with a TypeScript `Props` interface, use explicit defaults where appropriate, and keep components focused and composable.
+- Write fully closed HTML with valid nesting. Astro 7 rejects unclosed tags rather than repairing them.
+- Account for Astro 7's default JSX-style whitespace handling (`compressHTML: 'jsx'`): use explicit `{' '}` between inline elements when a visible space is required.
+
+## Client-Side Navigation
+
+The existing `src/components/starlight/Head.astro` override renders `<ClientRouter />` from `astro:transitions`. Reuse it rather than adding another router.
+
+- Initialize page-specific browser behavior on `astro:page-load` so it also works after client-side navigation.
+- Make initialization idempotent and clean up listeners, observers, and timers when their page elements are replaced; avoid duplicate handlers after repeated navigation.
+- Use `transition:persist` only for elements whose state should intentionally survive navigation.
+- Keep content and links usable without JavaScript, and verify interactive changes on both an initial load and a client-side navigation.
 
 ## Two-slash TypeScript Examples
 
@@ -61,6 +81,7 @@ Always use these path aliases (defined in `tsconfig.json`) instead of relative p
 | `@assets/*` | `./src/assets/*` |
 | `@components/*` | `./src/components/*` |
 | `@data/*` | `./src/data/*` |
+| `@scripts/*` | `./src/scripts/*` |
 | `@utils/*` | `./src/utils/*` |
 
 Example usage in MDX frontmatter imports:
@@ -126,6 +147,16 @@ Defined in `src/content.config.ts`:
 - **docs** — uses Starlight's docs loader with extended schema fields: `renderBlocking`, `giscus`, `category`, `pageActions`, and top-level banner auto-expiry fields (`bannerExpiresOn`, `bannerAutoDismissAfterDays`)
 - **i18n** — Starlight i18n loader for 15 locales
 - **packages** — auto-generated API reference JSON from `src/data/pkgs/`
+- **tsModules** — auto-generated TypeScript API reference JSON from `src/data/ts-modules/`
+
+Preserve Starlight's `docsLoader()`, `i18nLoader()`, `docsSchema()`, and `i18nSchema()` when extending content. Use `glob()` or `file()` from `astro/loaders` for additional file-backed collections, and query entries with type-safe `getCollection()` and `getEntry()` from `astro:content`. Import `z` from `astro/zod`, not `astro:content`; use Zod 4 helpers such as `z.email()` and `z.url()` for new email and URL schemas.
+
+## Images, Metadata, and Data Fetching
+
+- Reuse existing image components where appropriate, or import `Image` / `Picture` from `astro:assets` for optimized local assets. Provide meaningful alt text, preserve dimensions to avoid layout shifts, and lazy-load below-the-fold images rather than the main above-the-fold image.
+- Preserve Starlight's default head output and the existing `Head.astro` override. Reuse `src/utils/page-metadata.ts` and `src/utils/structured-data.ts` for social cards and JSON-LD instead of emitting duplicate metadata.
+- Fetch static data at build time or through the existing data-update scripts. Use standard `fetch`, check response status, and validate external data before consuming it; do not assume Astro provides automatic response typing or caching.
+- Keep secrets out of client scripts and `PUBLIC_` environment variables. Only expose values intended to be public.
 
 ## Writing Documentation (MDX)
 
@@ -397,7 +428,7 @@ If a banner is present, dismiss it before any screenshot or visual verification.
 | Script | Purpose |
 |---|---|
 | `pnpm dev` | Start dev server with hot reload |
-| `pnpm build` | Production build |
+| `pnpm build` | Production build (CI preferred; explicit user permission required locally) |
 | `pnpm preview` | Preview production build |
 | `pnpm lint` | ESLint (zero warnings allowed) |
 | `pnpm format` | Prettier formatting |

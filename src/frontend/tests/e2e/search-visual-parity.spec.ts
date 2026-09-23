@@ -1,7 +1,9 @@
 import { expect, test, type Locator } from '@playwright/test';
 
 async function expectBotLayout(empty: Locator) {
-  const layout = await empty.locator('.search-empty-content').evaluate(async (element) => {
+  const content = empty.locator('.search-empty-content');
+  await expect(content).toBeVisible();
+  const layout = await content.evaluate(async (element) => {
     const style = getComputedStyle(element);
     const url = style.backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
     if (!url) throw new Error('Missing empty-state bot background');
@@ -22,6 +24,7 @@ async function expectBotLayout(empty: Locator) {
       .filter(child => child.getBoundingClientRect().width > 0);
     return {
       url,
+      viewportWidth: window.innerWidth,
       artWidth,
       artHeight,
       verticalPadding: (panel.height - artHeight) / 2,
@@ -39,24 +42,26 @@ async function expectBotLayout(empty: Locator) {
       position: style.backgroundPosition,
     };
   });
-  expect(layout.url).toContain('aspire-bot-search');
-  expect(layout.artWidth).toBeGreaterThanOrEqual(77);
-  expect(layout.artWidth).toBeLessThanOrEqual(121);
-  expect(layout.artHeight).toBeGreaterThanOrEqual(112);
-  expect(layout.artHeight).toBeLessThanOrEqual(176);
+  const expectedArtWidth = layout.viewportWidth >= 1024 ? 400 : 216;
+  expect(layout.url).toContain('not-found');
+  expect(layout.artWidth).toBeCloseTo(expectedArtWidth, 0);
+  expect(layout.artHeight).toBeCloseTo(expectedArtWidth * 2 / 3, 0);
   expect(layout.verticalPadding).toBeGreaterThanOrEqual(16);
-  expect(layout.panelWidth).toBeLessThanOrEqual(624);
+  expect(layout.panelWidth).toBeLessThanOrEqual(layout.viewportWidth);
   expect(layout.startOffset).toBeLessThanOrEqual(1);
   expect(layout.inlinePadding).toBeLessThanOrEqual(25);
-  expect(layout.groupWidth).toBeLessThanOrEqual(576);
+  expect(layout.groupWidth).toBeLessThanOrEqual(layout.panelWidth);
+  expect(layout.groupWidth).toBeGreaterThanOrEqual(layout.panelWidth - 50);
   expect(layout.centerOffset).toBeLessThanOrEqual(1);
-  expect(layout.contentGap).toBeGreaterThanOrEqual(23);
+  if (layout.viewportWidth >= 1024) expect(layout.contentGap).toBeGreaterThanOrEqual(23);
   expect(layout.headingGap).toBeCloseTo(12, 0);
   expect(layout.actionGap).toBeCloseTo(24, 0);
   expect(layout.overflows).toBe(false);
   expect(layout.outsideViewport).toBe(false);
   expect(layout.repeat).toBe('no-repeat');
-  expect(layout.position).toBe('100% 50%');
+  expect(layout.position).toBe(
+    layout.viewportWidth >= 1024 ? '100% 50%' : '50% calc(100% - 8px)',
+  );
 }
 
 test.beforeEach(async ({ page }) => {
@@ -72,12 +77,14 @@ for (const route of [
   '/hub/browse/',
   '/aspireconf/',
 ]) {
-  test(`${route} uses shared focus, empty-state typography and compact artwork`, async ({ page }) => {
+  test(`${route} uses shared focus, empty-state typography and prominent artwork`, async ({ page }) => {
     await page.goto(route === '/hub/browse/' ? `${route}?topic=foundations` : route);
-    const input = page.locator('main .search-field-input');
+    const input = page.locator('main .search-field-input:visible').first();
     await expect(input).toBeEnabled();
     await input.fill('zzzz-no-match');
-    const empty = page.locator('.search-empty:visible');
+    const visibleTitle = page.locator('.search-empty-title:visible').first();
+    await expect(visibleTitle).toBeVisible();
+    const empty = visibleTitle.locator('..').locator('..');
     await expect(empty).toBeVisible();
 
     for (const theme of ['light', 'dark']) {

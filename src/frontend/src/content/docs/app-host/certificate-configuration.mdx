@@ -98,6 +98,26 @@ aspire certs trust
   You may need to reload your profile or start a new terminal session for the change to take effect.
 </Aside>
 
+<Aside type="note" title="Firefox certificate trust on Linux">
+  On Linux, `aspire certs trust` and `aspire certs clean` also import and remove the development certificate from any Firefox and Chromium-family (Chrome, Chromium, Edge) NSS certificate databases discovered on the machine, so browser-based access to HTTPS endpoints secured by the development certificate works without a manual import.
+
+  Browser certificate trust depends on the `certutil` tool to update browser-specific NSS certificate databases. If certificate trust isn't working in your browser after running `aspire certs trust`, run [`aspire doctor`](/reference/cli/commands/aspire-doctor/) to check for missing prerequisites, including `certutil`.
+
+  Firefox profiles are discovered under the legacy `~/.mozilla/firefox` directory when it exists; if that directory does not exist, the CLI falls back to `$XDG_CONFIG_HOME/mozilla/firefox` (or `~/.config/mozilla/firefox` when `XDG_CONFIG_HOME` isn't set). Firefox Snap profiles are discovered separately under `~/snap/firefox/common/.mozilla/firefox`. Chromium-family databases are discovered under `~/.pki/nssdb` and the Chromium Snap package's `~/snap/chromium/current/.pki/nssdb`.
+
+  To trust or clean specific NSS databases instead of relying on auto-discovery, configure `certificates.nssDbPaths` as a `:`-separated list of NSS database directories. Firefox and Chromium-family browsers require different trust settings; prefix a custom NSS database path with `firefox=` to apply the correct trust settings for Firefox-based browsers or prefix it with `chromium=` to apply Chromium-family trust settings. If no prefix is specified, Chromium-family trust settings are the default.
+
+  ```bash title="Override the NSS databases used for certificate trust"
+  aspire config set --global certificates.nssDbPaths "firefox=/path/to/firefox-profile:chromium=/path/to/chromium-nssdb"
+  ```
+
+  This setting takes precedence over the `DOTNET_DEV_CERTS_NSSDB_PATHS` environment variable used by the .NET SDK's `dotnet dev-certs`. To stop using the custom paths and restore the environment variable or automatic discovery fallback, set the global value to an empty string:
+
+  ```bash title="Restore NSS database auto-discovery"
+  aspire config set --global certificates.nssDbPaths ""
+  ```
+</Aside>
+
 ### Developer certificate for DCP communication
 
 By default, Aspire uses the ASP.NET Core developer certificate to secure communication with its internal Developer Control Plane (DCP) server. This replaces the ephemeral localhost certificate that DCP would otherwise generate itself, and avoids certificate trust errors caused by that certificate not being in the system trust store.
