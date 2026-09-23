@@ -35,6 +35,7 @@ import LearnMore from '@components/LearnMore.astro';
 import LicenseBadge from '@components/LicenseBadge.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
 import MediaCard from '@components/MediaCard.astro';
+import NotFoundPage from '@components/NotFoundPage.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
@@ -83,6 +84,7 @@ type BasicRenderCase = {
   props?: Record<string, unknown>;
   slots?: Record<string, string>;
   includes: string[];
+  excludes?: string[];
   requestUrl?: string;
 };
 
@@ -970,6 +972,9 @@ describe('custom Astro component render coverage', () => {
       for (const fragment of testCase.includes) {
         expect(html).toContain(fragment);
       }
+      for (const fragment of testCase.excludes ?? []) {
+        expect(html).not.toContain(fragment);
+      }
     });
   }
 
@@ -1499,6 +1504,17 @@ describe('custom Astro component render coverage', () => {
     expect(lowerIndex).toBeGreaterThanOrEqual(0);
     expect(higherIndex).toBeLessThan(lowerIndex);
     expect(html).toContain('/integrations/higher/docs/');
+  });
+
+  it('renders the custom not-found recovery surface', async () => {
+    const html = normalizeHtml(await renderComponent(NotFoundPage));
+
+    expect(html).toContain('404 / Not found');
+    expect(html).toContain('>Wrong <span');
+    expect(html).toContain('>route?</span>');
+    expect(html).toContain('not-found');
+    expect(html).toContain('Go home');
+    expect(html).toContain('Go back');
   });
 
   it('renders current sample metadata from repository data without throwing', async () => {

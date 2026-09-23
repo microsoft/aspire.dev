@@ -358,6 +358,106 @@ The TypeScript AppHost exposes `withInitFiles(source)` instead of `withInitBindM
 
 MongoDB executes any JavaScript or shell scripts found in the init folder when the container first starts. This is useful for pre-populating collections or creating indexes.
 
+## Enable transactions and change streams with a single-member replica set
+
+MongoDB transactions and change streams require replica-set mode, even for a single server. Call `WithReplicaSet` (C#) or `withReplicaSet` (TypeScript) directly on the `MongoDBServerResource` to configure **and initialize** a single-member replica set, without creating a separate logical replica-set resource or configuring split-horizon TLS. Continue using `AddDatabase`, `WithReference`, and `WaitFor` as usual — initialization runs during the resource lifecycle, and readiness waits for both initialization and primary election, so consumers can use transactions and change streams as soon as `WaitFor` completes.
+
+<Aside type="caution">
+`WithReplicaSet` and the other replica-set APIs are experimental and marked `ASPIREMONGODB001`. C# AppHosts must explicitly suppress this diagnostic where these APIs are used, and the APIs may change in a future release.
+</Aside>
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREMONGODB001 // Replica set APIs are experimental.
+var mongo = builder.AddMongoDB("mongo").WithReplicaSet();
+#pragma warning restore ASPIREMONGODB001
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mongodb)
+    .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withReplicaSet();
+
+const mongodb = await mongo.addDatabase("mongodb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mongodb)
+    .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+Omit `WithReplicaSet` / `withReplicaSet` when a standalone server is sufficient — plain MongoDB and its automatic TLS behavior are unchanged.
+
+The replica set's name is optional and defaults to the server's Aspire resource name. Pass an explicit name to override it:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREMONGODB001
+var mongo = builder.AddMongoDB("mongo").WithReplicaSet("app-rs");
+#pragma warning restore ASPIREMONGODB001
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+const mongo = await builder.addMongoDB("mongo").withReplicaSet({ name: "app-rs" });
+```
+</TabItem>
+</Tabs>
+
+Repeated calls with the same configuration are a no-op, but a conflicting name throws. Consumers use the server's normal endpoint with `directConnection=true` and the driver's default primary read preference — no topology discovery, split-horizon addresses, or fixed host ports are required.
+
+MongoDB requires a keyfile when authentication and replication are both enabled, even with a single member. `WithReplicaSet` generates a secret keyfile automatically when none is configured. To supply your own keyfile content, configure `WithKeyFile` with a secret parameter **before** calling `WithReplicaSet`:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var keyfile = builder.AddParameter("mongo-keyfile", secret: true);
+
+#pragma warning disable ASPIREMONGODB001
+var mongo = builder.AddMongoDB("mongo")
+    .WithKeyFile(keyfile.Resource)
+    .WithReplicaSet();
+#pragma warning restore ASPIREMONGODB001
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+const keyfile = await builder.addParameter("mongo-keyfile", { secret: true });
+
+const mongo = await builder.addMongoDB("mongo")
+    .withKeyFile(keyfile)
+    .withReplicaSet();
+```
+</TabItem>
+</Tabs>
+
+The parameter supplies the keyfile's **contents**, not a host file path. The contents must satisfy [MongoDB's keyfile requirements](https://www.mongodb.com/docs/manual/tutorial/deploy-replica-set-with-keyfile-access-control/#create-a-keyfile). Supplying a different keyfile after `WithReplicaSet` conflicts with the generated keyfile and throws.
+
+When using `WithDataVolume` or `WithDataBindMount` to persist data, keep the configured credentials and replica set identity unchanged when reusing existing data — MongoDB only applies initial credentials to an empty data directory. With the default set name, renaming the Aspire resource also changes the set identity. Existing compatible single-member data is reused without forced reconfiguration, but mismatched set names, member addresses, or multi-member data are rejected.
+
+<Aside type="note">
+For local multi-member replication experiments, `AddMongoDBReplicaSet(...).WithMember(...)` remains available as a separate experimental API. Both replica-set paths are supported only for local runs and reject publish mode. The advanced API is intended for exploring replication or elections across multiple containers, not for simply enabling transactions or change streams. Don't call `WithReplicaSet` on servers that will be added as members to an `AddMongoDBReplicaSet` resource.
+</Aside>
+
 ## Add MongoDB Express resource
 
 [MongoDB Express](https://github.com/mongo-express/mongo-express) is a web-based MongoDB admin user interface. To add a MongoDB Express resource that corresponds to the `docker.io/library/mongo-express` container image, call the `WithMongoExpress` method on the MongoDB server resource:

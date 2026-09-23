@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'astro/types';
 
 import heroImage from '@assets/aspire-hero.png';
+import ApiReference from '@components/ApiReference.astro';
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
@@ -29,6 +30,7 @@ import LicenseBadge from '@components/LicenseBadge.astro';
 import LoopingImage from '@components/LoopingImage.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
 import MediaCard from '@components/MediaCard.astro';
+import NotFoundPage from '@components/NotFoundPage.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
@@ -61,7 +63,7 @@ const validSearchFieldProps = {
   wrapClass: 'inpage-search-input-wrap', iconClass: 'inpage-search-icon',
 } satisfies PropsOf<typeof SearchField>;
 const validSearchEmptyProps = {
-  title: 'No matching API entries', hint: 'Try another keyword.',
+  title: 'No matching API entries', query: 'Search: "Redis"', hint: 'Try another keyword.',
   actionLabel: 'Clear search', actionId: 'api-recover', hidden: true,
 } satisfies PropsOf<typeof SearchEmptyState>;
 void validSearchFieldProps;
@@ -195,6 +197,28 @@ const integrationsFixture = [
 ];
 
 const availableDocs = [{ match: 'Higher Priority Package', href: '/integrations/higher/docs/' }];
+
+const validApiReferenceProps = {
+  name: 'Aspire.Hosting.JavaScriptHostingExtensions.WithNpm',
+  package: 'Aspire.Hosting.JavaScript',
+} satisfies PropsOf<typeof ApiReference>;
+const validUnqualifiedApiReferenceProps = {
+  name: 'Aspire.Hosting.PostgresBuilderExtensions.AddPostgres',
+} satisfies PropsOf<typeof ApiReference>;
+const validOverloadApiReferenceProps = {
+  name: 'Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment',
+  parameterTypes: ['Aspire.Hosting.ApplicationModel.IResourceBuilder<T>', 'string', 'string?'],
+} satisfies PropsOf<typeof ApiReference>;
+// @ts-expect-error ApiReference parameterTypes must be an array of strings.
+const invalidOverloadApiReferenceProps: PropsOf<typeof ApiReference> = {
+  name: 'Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment',
+  parameterTypes: [42],
+};
+// @ts-expect-error ApiReference package must be a string.
+const invalidApiReferenceProps: PropsOf<typeof ApiReference> = {
+  name: 'Aspire.Hosting.JavaScriptHostingExtensions.WithNpm',
+  package: 42,
+};
 
 const validAsciinemaPlayerProps = {
   src: '/casts/aspire-help.cast',
@@ -397,6 +421,12 @@ const invalidIncludeProps: PropsOf<typeof Include> = {
 };
 
 const validInstallCliModalProps = {} satisfies PropsOf<typeof InstallCliModal>;
+
+const validNotFoundPageProps = {} satisfies PropsOf<typeof NotFoundPage>;
+// @ts-expect-error NotFoundPage should reject unknown props.
+const invalidNotFoundPageProps: PropsOf<typeof NotFoundPage> = {
+  unexpected: true,
+};
 // @ts-expect-error InstallCliModal should reject unknown props.
 const invalidInstallCliModalProps: PropsOf<typeof InstallCliModal> = {
   unexpected: true,
@@ -763,6 +793,11 @@ const invalidYouTubeGridProps: PropsOf<typeof YouTubeGrid> = {
 };
 
 void [
+  validApiReferenceProps,
+  validUnqualifiedApiReferenceProps,
+  validOverloadApiReferenceProps,
+  invalidOverloadApiReferenceProps,
+  invalidApiReferenceProps,
   validAsciinemaPlayerProps,
   invalidAsciinemaPlayerProps,
   validBreadcrumbProps,
@@ -798,6 +833,8 @@ void [
   invalidIncludeProps,
   validInstallCliModalProps,
   invalidInstallCliModalProps,
+  validNotFoundPageProps,
+  invalidNotFoundPageProps,
   validInstallDotNetPackageProps,
   invalidInstallDotNetPackageProps,
   validInstallPackageProps,

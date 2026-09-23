@@ -36,7 +36,7 @@ This release introduces:
 - **Integration improvements** — debug Blazor WebAssembly apps, discover Dev Tunnel URLs, customize Radius recipes, and protect destructive Azure location changes.
 - **Updated emulator images** — move Azure App Configuration to `1.2.0` and make the Linux-based vNext Cosmos DB emulator the default.
 - **Community contributions** — contributions span major features, integration improvements, reliability fixes, and project tooling.
-- **Two breaking changes** — `RunAsEmulator` now selects the Linux-based vNext Cosmos DB emulator, and Azure Front Door origin names now include the backend hostname.
+- **Three breaking changes** — `RunAsEmulator` now selects the Linux-based vNext Cosmos DB emulator, Azure Front Door origin names now include the backend hostname, and the experimental terminal APIs moved from `Aspire.Hosting.Terminals` to `Aspire.Hosting.ApplicationModel`.
 - …and much more.
 
 ## 🆙 Upgrade to Aspire 13.6
@@ -251,11 +251,19 @@ aspire sdk export
 - **Stricter `wait` failures.** `aspire wait` exits with code `18` as soon as a resource reaches `FailedToStart`, including when the requested target status is `down`.
 - **Safer resource descriptions.** `aspire describe` redacts a resource's own secret environment-variable values as well as secrets passed to dependents. Secrets embedded inside larger connection strings aren't automatically detected.
 - **Clearer terminal output.** `aspire ps` colorizes statuses, and progress rendering is suppressed when console logging is enabled.
+- **Opt-in volume cleanup.** `aspire stop --force` continues to preserve persistent volumes by default. Add `--volumes` to also remove volumes that Aspire created and owns:
+
+  ```bash title="Aspire CLI — Remove persistent volumes on stop"
+  aspire stop --force --volumes
+  ```
+
+  `--volumes` requires `--force`. Only Aspire-owned named volumes are removed; anonymous volumes, bind mounts, and volumes that existed before the AppHost started are left intact.
 
 <LearnMore>
   See the [`aspire run`](/reference/cli/commands/aspire-run/), [`aspire
-  describe`](/reference/cli/commands/aspire-describe/), and [`aspire
-  wait`](/reference/cli/commands/aspire-wait/) command references.
+  describe`](/reference/cli/commands/aspire-describe/), [`aspire
+  wait`](/reference/cli/commands/aspire-wait/), and [`aspire
+  stop`](/reference/cli/commands/aspire-stop/) command references.
 </LearnMore>
 
 ## 🧰 Visual Studio Code extension
@@ -315,7 +323,7 @@ Existing integrations add new workflows and safer defaults:
 
 - **Blazor WebAssembly debugging.** Standalone and hosted WebAssembly apps can expose dashboard commands for starting and stopping an Edge or Chrome debugging session. The related Dotnet project gateway APIs are also available to polyglot AppHosts, but remain experimental and run-only.
 - **Dev Tunnel URL discovery.** Tunnel, inspect, and local endpoint URLs appear as highlighted resource properties, and a **Show tunnel URLs** command surfaces them through the dashboard Interaction Service.
-- **Radius recipe configuration.** Experimental APIs configure recipe parameters and required secrets globally or per resource from the AppHost.
+- **Radius recipe configuration.** Experimental APIs configure recipe parameters and required secrets globally or per resource from the AppHost. The integration now recommends [Radius v0.60.2](https://github.com/radius-project/radius/releases/tag/v0.60.2); v0.60.0 remains the minimum supported control-plane version.
 - **Safer Azure location changes.** Changing a location-immutable Azure resource requires an explicit confirmation before Aspire deletes and recreates it. The CLI projects that confirmation as `--confirm-delete`.
 - **Azure identity reliability.** Role-assignment Bicep detects service principal and federated workload identity credentials more accurately, and the experimental Sandboxes integration now binds its deployment principal to the scoped data-owner role correctly.
 - **Cosmos DB client health.** `AddAzureCosmosClient` and `AddKeyedAzureCosmosClient` register default-on health checks that probe account reachability. Set `DisableHealthChecks` to opt out.
@@ -349,16 +357,7 @@ Aspire's App Configuration emulator now checks the `/health` endpoint on the `1.
 
 <span id="community-contributions"></span>
 
-Aspire is built in the open, and this release wouldn't be what it is without you. A huge thank you to all community contributors who helped make Aspire 13.6 possible. Highlights include:
-
-- [@marshalhayes](https://github.com/marshalhayes) brought the [first-party Java hosting integration](https://github.com/microsoft/aspire/pull/18033) from the Community Toolkit into Aspire and expanded it with framework, AppHost, publishing, and debugger support.
-- [@afscrome](https://github.com/afscrome) added [first-party Rust hosting and debugging](https://github.com/microsoft/aspire/pull/18906), enabled [Cosmos DB emulator OpenTelemetry](https://github.com/microsoft/aspire/pull/15671), and made pasted `aspire doctor` output render readably in the repository's issue template.
-- [@prom3theu5](https://github.com/prom3theu5) added [`--launch-profile` support](https://github.com/microsoft/aspire/pull/19494) across the CLI and Visual Studio Code.
-- [@Shaurya2k06](https://github.com/Shaurya2k06) made [AppHost lifecycle operations git-worktree aware](https://github.com/microsoft/aspire/pull/19384) and preserved delegated launch arguments.
-- [@SankeerthNara](https://github.com/SankeerthNara) surfaced [deploy, publish, and pipeline actions](https://github.com/microsoft/aspire/pull/19466), added project-creation workflows and AppHost selection prompts, and hardened extension release automation.
-- [@thomhurst](https://github.com/thomhurst) added [Cosmos DB client health checks](https://github.com/microsoft/aspire/pull/18554).
-- [@vivekjm](https://github.com/vivekjm) disabled browser autocomplete for dashboard filter controls.
-- [@flojon](https://github.com/flojon) fixed TypeScript code generation so zero-capability resource builders keep their required Promise wrappers.
+Aspire is built in the open, and this release wouldn't be what it is without you. A huge thank you to everyone who helped make Aspire 13.6 possible.
 
 <ReleaseCommunity version="13.6" />
 
@@ -454,4 +453,34 @@ The callback runs after the integration's defaults and applies to every configur
   Review the [Front Door origin naming
   change](https://github.com/microsoft/aspire/pull/20035) and the [Azure Front
   Door integration](/integrations/cloud/azure/azure-front-door/) documentation.
+</LearnMore>
+
+### Terminal APIs moved to `Aspire.Hosting.ApplicationModel`
+
+The experimental terminal types previously in `Aspire.Hosting.Terminals` now live in `Aspire.Hosting.ApplicationModel`, alongside `ResourceNotificationService` and the rest of the app model. `TerminalService`, `AspireTerminal`, `AspireTerminalKey`, `TerminalLaunchOptions`, `TerminalOwner`, and `TerminalPlacement` move without a compatibility shim, so any code referencing the old namespace fails to build until updated:
+
+```csharp
+// Before
+using Aspire.Hosting.Terminals;
+
+// After
+using Aspire.Hosting.ApplicationModel;
+```
+
+AppHosts that rely on the SDK's implicit usings already import `Aspire.Hosting.ApplicationModel` and require no source change beyond removing an explicit `using Aspire.Hosting.Terminals;` if present. `TerminalInteractionOptions` and the `WithTerminal` builder extensions remain in `Aspire.Hosting` and are unaffected. If your code resolves `TerminalService` from the DI container or calls `IInteractionService.PromptTerminalAsync`, update the type references there too:
+
+```csharp
+using Aspire.Hosting.ApplicationModel;
+using Microsoft.Extensions.DependencyInjection;
+
+#pragma warning disable ASPIRETERMINAL001
+
+var terminalService = app.Services.GetRequiredService<TerminalService>();
+```
+
+The category produced by `ILogger<TerminalService>` also changes to `Aspire.Hosting.ApplicationModel.TerminalService`. Update namespace-specific logging filters if you configured any against the old category. Terminal ownership, lifetimes, wire protocols, and dashboard/CLI behavior are unchanged, and the experimental diagnostic remains `ASPIRETERMINAL001`.
+
+<LearnMore>
+  See [Test TUI and shell apps using WithTerminal](/app-host/with-terminal/) and
+  the [`ASPIRETERMINAL001` diagnostic](/diagnostics/aspireterminal001/).
 </LearnMore>

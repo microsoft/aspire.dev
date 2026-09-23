@@ -17,9 +17,7 @@ const messages = {
   clearFilters: Astro.locals.t('catalogSearch.clearFilters'),
   resetAll: Astro.locals.t('catalogSearch.resetAll'),
   count: Astro.locals.t('catalogSearch.integrationsCount'),
-  empty: Astro.locals.t('catalogSearch.integrationsEmpty'),
-  queryEmpty: Astro.locals.t('catalogSearch.integrationsQueryEmpty'),
-  filteredQueryEmpty: Astro.locals.t('catalogSearch.integrationsFilteredQueryEmpty'),
+  query: Astro.locals.t('catalogSearch.query'),
   queryGuidance: Astro.locals.t('catalogSearch.queryGuidance'),
   preserveFiltersGuidance: Astro.locals.t('catalogSearch.preserveFiltersGuidance'),
   preserveQueryGuidance: Astro.locals.t('catalogSearch.preserveQueryGuidance'),
@@ -191,10 +189,13 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
       </div>
 
       <div class="no-results search-empty">
-        <p class="search-empty-title">{Astro.locals.t('catalogSearch.integrationsEmpty')}</p>
-        <p class="search-empty-hint">{Astro.locals.t('integrations.noResults')}</p>
-        <CatalogSearchActiveFilters label={Astro.locals.t('catalogSearch.activeFilters')} />
-        <button type="button" class="search-action" data-integration-recover>{messages.clearSearch}</button>
+        <div class="search-empty-content">
+          <p class="search-empty-title">{Astro.locals.t('catalogSearch.integrationsEmpty')}</p>
+          <p class="search-empty-query" hidden></p>
+          <p class="search-empty-hint">{Astro.locals.t('integrations.noResults')}</p>
+          <CatalogSearchActiveFilters label={Astro.locals.t('catalogSearch.activeFilters')} />
+          <button type="button" class="search-action" data-integration-recover>{messages.clearSearch}</button>
+        </div>
       </div>
     </section>
   )
@@ -658,10 +659,9 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
         ? (withoutFilters > 0 ? 'clearFilters' : withoutQuery > 0 ? 'clearSearch' : 'resetAll')
         : facets ? 'clearFilters' : 'clearSearch';
       recoveryButton.textContent = messages[recoveryAction];
-      const title = searchTerm
-        ? (withoutFilters > 0 ? messages.filteredQueryEmpty : messages.queryEmpty)
-        : messages.empty;
-      noResults.querySelector('.search-empty-title').textContent = title.replace('{{query}}', () => searchBox.value.trim());
+      const queryText = noResults.querySelector('.search-empty-query');
+      queryText.textContent = messages.query.replace('{{query}}', () => searchBox.value.trim());
+      queryText.hidden = !searchTerm;
       const guidance = recoveryAction === 'clearFilters'
         ? (searchTerm ? messages.preserveQueryGuidance : messages.filtersGuidance)
         : recoveryAction === 'clearSearch'

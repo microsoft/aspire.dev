@@ -260,6 +260,7 @@ test('search highlights card matches through typing, pagination, reload and hist
   };
   await assertHighlights('aspire');
   await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page).toHaveURL(/page=2$/);
   await assertHighlights('aspire');
   await page.reload();
   await assertHighlights('aspire');
@@ -281,12 +282,13 @@ test('search highlights card matches through typing, pagination, reload and hist
   }
   await page.locator('#browse-search-clear').click();
   await expect(marks).toHaveCount(0);
+  await expect(page).toHaveURL(/\/hub\/browse\/$/);
   await page.goBack();
   await expect(input).toHaveValue('REDIS cach');
   await assertHighlights('redis');
   await input.fill('<img src=x onerror=alert(1)>');
   await expect(page.locator('.browse-empty')).toBeVisible();
-  await expect(page.locator('.browse-empty .search-empty-title')).toContainText('<img src=x onerror=alert(1)>');
+  await expect(page.locator('.browse-empty .search-empty-query')).toContainText('<img src=x onerror=alert(1)>');
   await expect(page.locator('.browse-empty img')).toHaveCount(0);
   await expect(marks).toHaveCount(0);
   await expect(page.locator('[data-search-highlight] img')).toHaveCount(0);
@@ -368,7 +370,8 @@ test('reference identities and release imagery stay distinct in both themes', as
 
 test('empty results preserve useful filters and unknown URL state is normalized', async ({ page }) => {
   await page.goto('/hub/browse/?q=not-a-real-resource-555&type=glossary');
-  await expect(page.getByRole('heading', { name: 'No resources match "not-a-real-resource-555"' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No matching resources' })).toBeVisible();
+  await expect(page.locator('.browse-empty .search-empty-query')).toHaveText('Search: "not-a-real-resource-555"');
   await expect(results(page)).toHaveCount(0);
   await page.locator('.browse-empty').getByRole('button', { name: 'Clear search', exact: true }).click();
   await expect(page).toHaveURL(/\/hub\/browse\/\?type=glossary$/);
@@ -833,8 +836,11 @@ test('numbered pagination preserves combined sorting, keyboard focus, history, a
   await expect(nav.locator('.browse-page-gap')).toHaveCount(2);
   expect(await nav.locator('[data-page]').count()).toBeLessThanOrEqual(7);
   const currentUrl = page.url();
+  await active.scrollIntoViewIfNeeded();
+  const currentScroll = await page.evaluate(() => scrollY);
   await active.click();
   expect(page.url()).toBe(currentUrl);
+  expect(await page.evaluate(() => scrollY)).toBeCloseTo(currentScroll, 0);
   await nav.getByRole('button', { name: 'Page 7', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/sort=oldest&title=desc&page=7$/);
@@ -884,32 +890,53 @@ test('numbered pagination preserves combined sorting, keyboard focus, history, a
   await expect(nav).toBeHidden();
 });
 
-test('pagination keeps the controls at the same viewport position across different page heights', async ({ page }) => {
-  await page.goto('/hub/browse/?page=2');
-  const nav = page.getByRole('navigation', { name: 'Resource pages' });
-  const pages = Math.ceil(await page.locator('.browse-result').count() / 24);
-  await nav.scrollIntoViewIfNeeded();
-  for (const name of ['Next', 'Previous', 'Page 3', 'First page', 'Last page']) {
-    const control = nav.getByRole('button', { name, exact: true });
-    await expect(control).toBeInViewport();
-    const before = (await nav.boundingBox())!;
-    await control.click();
-    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    const after = (await nav.boundingBox())!;
-    expect(after.x).toBe(before.x);
-    expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(1);
-    await expect(['Next', 'Previous'].includes(name) ? control : nav.locator('[aria-current="page"]')).toBeFocused();
-  }
-  const previous = nav.getByRole('button', { name: 'Previous', exact: true });
-  await expect(previous).toBeInViewport();
-  await previous.focus();
-  const before = (await nav.boundingBox())!;
-  await previous.press('Enter');
-  await expect(previous).toBeFocused();
-  await expect(page).toHaveURL(new RegExp(`page=${pages - 1}$`));
-  await expect.poll(async () => Math.abs((await nav.boundingBox())!.y - before.y)).toBeLessThanOrEqual(1);
-  await expect(previous).toBeInViewport();
-});
+for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+  test(`pagination scrolls to the breadcrumb with ${reducedMotion} motion without losing keyboard focus`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion });
+    await page.goto('/hub/browse/?page=2');
+    await page.evaluate(() => {
+      const scrollIntoView = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = function (options) {
+        if (this.matches('.breadcrumb') && typeof options === 'object' && options.behavior) {
+          this.setAttribute('data-pagination-scroll', options.behavior);
+        }
+        scrollIntoView.call(this, options);
+      };
+    });
+    const nav = page.getByRole('navigation', { name: 'Resource pages' });
+    const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb', exact: true });
+    const pages = Math.ceil(await page.locator('.browse-result').count() / 24);
+    const expectBreadcrumbAtTop = async () => {
+      await expect(breadcrumb).toHaveAttribute('data-pagination-scroll', reducedMotion === 'reduce' ? 'instant' : 'smooth');
+      await expect(breadcrumb).toBeInViewport();
+      await expect.poll(() => breadcrumb.evaluate((element) => {
+        const offset = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
+        return Math.abs(element.getBoundingClientRect().top - offset);
+      })).toBeLessThanOrEqual(1);
+      const header = (await page.locator('header.header').boundingBox())!;
+      expect((await breadcrumb.boundingBox())!.y).toBeGreaterThanOrEqual(header.y + header.height);
+    };
+    for (const [name, targetPage] of [
+      ['Next', 3], ['Previous', 2], ['Page 3', 3], ['First page', 1], ['Last page', pages],
+    ] as const) {
+      await nav.scrollIntoViewIfNeeded();
+      const control = nav.getByRole('button', { name, exact: true });
+      await expect(control).toBeInViewport();
+      await control.click();
+      await expect(page).toHaveURL(targetPage === 1 ? /\/hub\/browse\/$/ : new RegExp(`page=${targetPage}$`));
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await expectBreadcrumbAtTop();
+      await expect(['Next', 'Previous'].includes(name) ? control : nav.locator('[aria-current="page"]')).toBeFocused();
+    }
+    const previous = nav.getByRole('button', { name: 'Previous', exact: true });
+    await previous.focus();
+    await expect(previous).toBeInViewport();
+    await previous.press('Enter');
+    await expect(previous).toBeFocused();
+    await expect(page).toHaveURL(new RegExp(`page=${pages - 1}$`));
+    await expectBreadcrumbAtTop();
+  });
+}
 
 test('language icons show article coverage opposite the type badge in both themes', async ({ page }) => {
   await page.goto('/hub/browse/?q=connect%20openai');

@@ -202,7 +202,7 @@ test('homepage header matches the compact mobile action geometry at reflow width
     await expect(hubLink).toBeVisible();
     await expect(hubLink).toHaveAttribute('aria-label', 'Dev Hub');
     await expect(hubLink.locator('svg')).toBeVisible();
-    await expect(hubLink).toHaveCSS('border-width', '0px');
+    await expect(hubLink).toHaveCSS('border-width', '1px');
     await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeVisible();
     await expect(banner.getByRole('link', { name: 'Try Aspire', exact: true })).toBeVisible();
 
@@ -861,6 +861,48 @@ test('terminal tabs stay synced between pages', async ({ page }) => {
     .poll(() => page.evaluate(() => localStorage.getItem('starlight-synced-tabs__terminal')))
     .toBe('Bash');
 });
+
+for (const theme of ['dark', 'light'] as const) {
+  test(`sidebar disclosure focus rings follow the ${theme} theme`, async ({ page }) => {
+    await page.goto('/get-started/first-app/');
+    await dismissCookieConsentIfVisible(page);
+    await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
+    if (isNarrowViewport(page)) {
+      await page.locator('starlight-menu-button button').click();
+    }
+
+    const sidebar = page.locator('#starlight__sidebar');
+    const summaries = [
+      sidebar.locator('.top-level > li > details > summary').first(),
+      sidebar.locator('details details > summary:visible').first(),
+    ];
+    const outlineColor = theme === 'dark' ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)';
+    for (const summary of summaries) {
+      await summary.focus();
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Shift+Tab');
+      await expect(summary).toBeFocused();
+      expect(await summary.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
+      await expect(summary).toHaveCSS('outline-color', outlineColor);
+      expect(
+        await summary.evaluate((element) => parseFloat(getComputedStyle(element).outlineWidth))
+      ).toBeGreaterThan(0);
+      await expect(summary).not.toHaveCSS('outline-style', 'none');
+
+      const group = summary.locator('..');
+      const wasOpen = await group.evaluate((element) => element.hasAttribute('open'));
+      await summary.press('Enter');
+      await expect(group).toHaveJSProperty('open', !wasOpen);
+      await expect(summary).toHaveCSS('outline-color', outlineColor);
+      await summary.press('Space');
+      await expect(group).toHaveJSProperty('open', wasOpen);
+    }
+
+    const link = sidebar.locator('.top-level a:visible').first();
+    await link.focus();
+    await expect(link).toHaveCSS('outline-color', outlineColor);
+  });
+}
 
 test('API sidebar collapse state persists across reloads', async ({ page }) => {
   test.slow();

@@ -147,6 +147,7 @@ describe('API search navigation lifecycle', () => {
 
   describe('API page controller cleanup', () => {
     class SearchElement extends EventTarget {
+      className = '';
       value = '';
       isConnected = true;
       style = { display: '' };
@@ -235,8 +236,10 @@ describe('API search navigation lifecycle', () => {
       });
       events.dispatchEvent(new Event('astro:page-load'));
       const results = root.querySelector(`#${prefix}-search-results`)!;
-      expect(results.rendered[0].rendered[0].textContent).toBe('No API entries available');
-      expect(results.rendered[0].rendered).toHaveLength(2);
+      const content = results.rendered[0].rendered[0];
+      expect(content.className).toBe('search-empty-content');
+      expect(content.rendered[0].textContent).toBe('No API entries available');
+      expect(content.rendered).toHaveLength(2);
       const input = root.querySelector(`#${prefix}-search-input`)!;
       input.value = 'pending';
       input.dispatchEvent(new Event('input'));

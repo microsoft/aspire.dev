@@ -23,7 +23,7 @@ export const resources = [
 
 export const languages = [
   { title: 'C# / .NET', description: 'Build your first app', href: '/get-started/first-app/?aspire-lang=csharp', icon: 'devicon:csharp', color: 'var(--sl-color-purple)' },
-  { title: 'JavaScript / TypeScript', description: 'Connect your frontend and API', href: '/integrations/frameworks/javascript/', icon: 'devicon:typescript', color: 'var(--sl-color-blue)' },
+  { title: 'JavaScript / TypeScript', description: 'Build your first app', href: '/get-started/first-app/?aspire-lang=typescript', icon: 'devicon:typescript', color: 'var(--sl-color-blue)' },
   { title: 'Python', description: 'Run Python apps with Aspire', href: '/integrations/frameworks/python/', icon: 'devicon:python', color: 'var(--sl-color-orange)' },
   { title: 'Go', description: 'Add a Go service', href: '/integrations/frameworks/go/go-get-started/', icon: 'devicon:go-wordmark', color: 'var(--color-cyan)' },
   { title: 'Java', description: 'Orchestrate your Java app', href: '/integrations/frameworks/java/java-get-started/', icon: 'devicon:java', color: 'var(--sl-color-orange)' },

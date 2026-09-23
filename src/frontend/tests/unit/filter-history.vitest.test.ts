@@ -59,16 +59,16 @@ describe('filter history lifecycle', () => {
     const sync = createFilterHistory(root, parameters, restore, controller.signal);
     sync.initialize();
     const url = new URL('https://aspire.dev/hub/browse/?q=redis');
-    sync.write(url, true);
+    expect(sync.write(url, true)).toBeUndefined();
     expect(history.replaceState).toHaveBeenLastCalledWith({
       index: 4, scrollX: 0, scrollY: 300, custom: 'preserved', aspireFilterPath: '/hub/browse/',
     }, '', url);
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('lets Astro allocate indexes for new filter entries', () => {
+  it('lets Astro allocate indexes for new filter entries', async () => {
     const sync = createFilterHistory(root, parameters, restore, controller.signal);
-    sync.write(new URL('https://aspire.dev/hub/browse/?type=sample'), false);
+    await sync.write(new URL('https://aspire.dev/hub/browse/?type=sample'), false);
     expect(navigate).toHaveBeenCalledWith('https://aspire.dev/hub/browse/?type=sample', {
       info: root, state: { aspireFilterPath: '/hub/browse/' }, history: 'push',
     });
@@ -80,16 +80,18 @@ describe('filter history lifecycle', () => {
     navigate.mockImplementationOnce(() => new Promise<void>((resolve) => { finishFirst = resolve; }));
     navigate.mockImplementationOnce(() => new Promise<void>((resolve) => { finishLatest = resolve; }));
     const sync = createFilterHistory(root, parameters, restore, controller.signal);
-    sync.write(new URL('https://aspire.dev/hub/browse/?type=sample'), false);
-    sync.write(new URL('https://aspire.dev/hub/browse/?type=sample&q=redis'), true);
+    const firstNavigation = sync.write(new URL('https://aspire.dev/hub/browse/?type=sample'), false);
+    const latestNavigation = sync.write(new URL('https://aspire.dev/hub/browse/?type=sample&q=redis'), true);
+    expect(firstNavigation).toBeInstanceOf(Promise);
+    expect(latestNavigation).toBeInstanceOf(Promise);
     expect(navigate).toHaveBeenLastCalledWith('https://aspire.dev/hub/browse/?type=sample&q=redis', {
       info: root, state: { aspireFilterPath: '/hub/browse/' }, history: 'replace',
     });
     finishFirst();
-    await Promise.resolve();
+    await firstNavigation;
     finishLatest();
-    await Promise.resolve();
-    sync.write(new URL('https://aspire.dev/hub/browse/?type=sample&q=redis2'), true);
+    await latestNavigation;
+    expect(sync.write(new URL('https://aspire.dev/hub/browse/?type=sample&q=redis2'), true)).toBeUndefined();
     expect(navigate).toHaveBeenCalledTimes(2);
     expect(history.replaceState).toHaveBeenLastCalledWith(history.state, '', new URL('https://aspire.dev/hub/browse/?type=sample&q=redis2'));
   });
@@ -147,7 +149,7 @@ describe('filter history lifecycle', () => {
   it('disposes all callbacks and ignores stale writes when disconnected', () => {
     const sync = createFilterHistory(root, parameters, restore, controller.signal);
     controller.abort();
-    sync.write(new URL('https://aspire.dev/hub/browse/?q=stale'), false);
+    expect(sync.write(new URL('https://aspire.dev/hub/browse/?q=stale'), false)).toBeUndefined();
     events.dispatchEvent(new Event('astro:after-swap'));
     events.dispatchEvent(new Event('astro:page-load'));
     expect(navigate).not.toHaveBeenCalled();

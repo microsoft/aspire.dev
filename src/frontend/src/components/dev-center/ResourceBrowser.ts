@@ -114,6 +114,9 @@ class ResourceBrowser extends HTMLElement {
         });
         recoveryAction = message.action;
         empty.querySelector('.search-empty-title')!.textContent = message.title;
+        const queryText = empty.querySelector<HTMLElement>('.search-empty-query')!;
+        queryText.textContent = message.query;
+        queryText.hidden = !message.query;
         empty.querySelector('.search-empty-hint')!.textContent = message.hint;
         setSearchActiveFilters(empty, activeFilters);
         empty.querySelector('button')!.textContent = message.action;
@@ -180,7 +183,7 @@ class ResourceBrowser extends HTMLElement {
     };
     const save = (replace = false) => {
       const url = writeBrowseState(new URL(location.href), state);
-      historySync.write(url, replace);
+      return historySync.write(url, replace);
     };
     const restore = () => {
       // History can replace the pager or hide the currently focused control.
@@ -193,7 +196,7 @@ class ResourceBrowser extends HTMLElement {
       input.value = state.q;
       render();
       // Remove invalid filters and clamp out-of-range pages without adding a history entry.
-      save(true);
+      void save(true);
       if (hadFocus) {
         const target = focusedFilter?.querySelector<HTMLElement>('summary')
           ?? (focusedPagination && !pagination.hidden
@@ -215,31 +218,30 @@ class ResourceBrowser extends HTMLElement {
       };
       input.value = state.q;
       render();
-      save();
+      void save();
       input.focus();
     };
     const clearQuery = () => {
       input.value = '';
       setQuery();
       render();
-      save();
+      void save();
       input.focus();
     };
-    const changePage = (page: number, control: HTMLButtonElement) => {
+    const changePage = async (page: number, control: HTMLButtonElement) => {
       if (page === state.page) return;
-      const { scrollX } = window;
-      const paginationTop = pagination.getBoundingClientRect().top;
       state.page = page;
       render();
-      save();
+      const navigation = save();
       const focusTarget = control.isConnected && !control.disabled
         ? control
         : pageNumbers.querySelector<HTMLButtonElement>('[aria-current="page"]')!;
       focusTarget.focus({ preventScroll: true });
-      window.scrollTo({
-        left: scrollX,
-        top: window.scrollY + pagination.getBoundingClientRect().top - paginationTop,
-        behavior: 'instant',
+      await navigation;
+      if (signal.aborted || state.page !== page) return;
+      this.closest('main')!.querySelector('.breadcrumb')!.scrollIntoView({
+        block: 'start',
+        behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
       });
     };
 
@@ -309,12 +311,12 @@ class ResourceBrowser extends HTMLElement {
       event.preventDefault();
       setQuery();
       render();
-      save();
+      void save();
     }, { signal });
     input.addEventListener('input', () => {
       setQuery();
       render();
-      save(true);
+      void save(true);
     }, { signal });
     clearSearch.addEventListener('click', clearQuery, { signal });
     filters.addEventListener('change', (event) => {
@@ -328,7 +330,7 @@ class ResourceBrowser extends HTMLElement {
       if (control.name === 'sort-title') state.titleSort = control.value === 'desc' ? 'desc' : 'asc';
       state.page = 1;
       render();
-      save();
+      void save();
     }, { signal });
     for (const control of radios) {
       control.addEventListener('click', (event) => {
@@ -343,14 +345,14 @@ class ResourceBrowser extends HTMLElement {
       if (recoveryAction === 'Clear search') clearQuery();
       else reset(recoveryAction === 'Clear filters');
     }, { signal });
-    previous.addEventListener('click', () => changePage(state.page - 1, previous), { signal });
-    next.addEventListener('click', () => changePage(state.page + 1, next), { signal });
-    first.addEventListener('click', () => changePage(1, first), { signal });
-    last.addEventListener('click', () => changePage(pages, last), { signal });
+    previous.addEventListener('click', () => void changePage(state.page - 1, previous), { signal });
+    next.addEventListener('click', () => void changePage(state.page + 1, next), { signal });
+    first.addEventListener('click', () => void changePage(1, first), { signal });
+    last.addEventListener('click', () => void changePage(pages, last), { signal });
     pageNumbers.addEventListener('click', (event) => {
       if (event.target instanceof Element) {
         const button = event.target.closest<HTMLButtonElement>('button[data-page]');
-        if (button) changePage(Number(button.dataset.page), button);
+        if (button) void changePage(Number(button.dataset.page), button);
       }
     }, { signal });
     const historySync = createFilterHistory(this, ['q', ...facetNames, 'sort', 'title', 'page'], restore, signal);

@@ -54,6 +54,7 @@ const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
 // https://astro.build/config
 export default defineConfig({
+  cacheDir: './node_modules/.astro',
   ...(outDir ? { outDir } : {}),
   vite: {
     define: {

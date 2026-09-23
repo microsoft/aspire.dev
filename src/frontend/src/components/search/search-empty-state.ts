@@ -1,6 +1,7 @@
 /** DOM equivalent of SearchEmptyState for controllers that render result batches. */
 export function createSearchEmptyState(options: {
   title: string;
+  query?: string;
   hint: string;
   activeFilters?: string[];
   activeFiltersLabel?: string;
@@ -8,21 +9,31 @@ export function createSearchEmptyState(options: {
 }): HTMLElement {
   const region = document.createElement('div');
   region.className = 'search-empty';
+  const content = document.createElement('div');
+  content.className = 'search-empty-content';
+  region.append(content);
   const title = document.createElement('p');
   title.className = 'search-empty-title';
   title.textContent = options.title;
+  content.append(title);
+  if (options.query) {
+    const query = document.createElement('p');
+    query.className = 'search-empty-query';
+    query.textContent = options.query;
+    content.append(query);
+  }
   const hint = document.createElement('p');
   hint.className = 'search-empty-hint';
   hint.textContent = options.hint;
-  region.append(title, hint);
-  setSearchActiveFilters(region, options.activeFilters ?? [], options.activeFiltersLabel);
+  content.append(hint);
+  setSearchActiveFilters(content, options.activeFilters ?? [], options.activeFiltersLabel);
   if (options.action) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'search-action';
     button.textContent = options.action.label;
     button.addEventListener('click', options.action.run, { once: true });
-    region.append(button);
+    content.append(button);
   }
   return region;
 }
@@ -34,7 +45,8 @@ export function setSearchActiveFilters(region: HTMLElement, labels: string[], la
     list = document.createElement('ul');
     list.className = 'search-active-filters';
     list.setAttribute('role', 'list');
-    region.insertBefore(list, region.querySelector('.search-action'));
+    const content = region.querySelector<HTMLElement>('.search-empty-content') ?? region;
+    content.insertBefore(list, content.querySelector('.search-action'));
   }
   list.setAttribute('aria-label', label);
   list.hidden = labels.length === 0;

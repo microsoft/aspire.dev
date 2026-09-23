@@ -80,7 +80,7 @@ export function createFilterHistory(
       } else {
         pending = true;
         const currentRevision = ++revision;
-        void navigate(url.href, {
+        return navigate(url.href, {
           info: root,
           state: { [historyKey]: path },
           history: replace ? 'replace' : 'push',

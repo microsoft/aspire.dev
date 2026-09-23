@@ -72,10 +72,13 @@ let globalIndex = 0;
   <div class="active-filters">
     <span class="filter-summary search-results-summary" role="status" aria-live="polite" aria-atomic="true"></span>
   </div>
-  <div class="no-results-msg search-empty" data-query-title={Astro.locals.t('catalogSearch.sessionsQueryEmpty')} hidden>
-    <p class="search-empty-title">{Astro.locals.t(sessions.length ? 'catalogSearch.sessionsEmpty' : 'catalogSearch.sessionsUnavailable')}</p>
-    {sessions.length > 0 && <p class="search-empty-hint">{Astro.locals.t('catalogSearch.queryGuidance')}</p>}
-    {sessions.length > 0 && <button type="button" class="search-action" data-session-recover>{Astro.locals.t('catalogSearch.clearSearch')}</button>}
+  <div class="no-results-msg search-empty" data-query-label={Astro.locals.t('catalogSearch.query')} hidden>
+    <div class="search-empty-content">
+      <p class="search-empty-title">{Astro.locals.t(sessions.length ? 'catalogSearch.sessionsEmpty' : 'catalogSearch.sessionsUnavailable')}</p>
+      <p class="search-empty-query" hidden></p>
+      {sessions.length > 0 && <p class="search-empty-hint">{Astro.locals.t('catalogSearch.queryGuidance')}</p>}
+      {sessions.length > 0 && <button type="button" class="search-action" data-session-recover>{Astro.locals.t('catalogSearch.clearSearch')}</button>}
+    </div>
   </div>
 </div>
 
@@ -675,10 +678,11 @@ let globalIndex = 0;
 
       updateGroupVisibility();
       updateFilterStatus(visibleCount, totalCount);
-      if (visibleCount === 0 && searchQuery && emptyState) {
-        const title = emptyState.querySelector('.search-empty-title');
-        if (title) title.textContent = (emptyState.dataset.queryTitle ?? '')
+      if (visibleCount === 0 && totalCount > 0 && emptyState) {
+        const queryText = emptyState.querySelector<HTMLElement>('.search-empty-query')!;
+        queryText.textContent = emptyState.dataset.queryLabel!
           .replace('{{query}}', () => searchInput?.value.trim() ?? '');
+        queryText.hidden = !searchQuery;
       }
     }
 

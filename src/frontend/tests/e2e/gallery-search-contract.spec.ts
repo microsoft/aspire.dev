@@ -28,7 +28,8 @@ test('integration query, facets and recovery have independent scopes', async ({ 
   await expect(page.locator('.search-results-bar .search-action:visible')).toHaveCount(0);
   await expect(page.locator('.no-results .search-action:visible')).toHaveCount(1);
   await expect(recovery).toHaveText('Clear search');
-  await expect(page.locator('.no-results .search-empty-title')).toHaveText('No integrations match “asfd”');
+  await expect(page.locator('.no-results .search-empty-title')).toHaveText('No matching integrations');
+  await expect(page.locator('.no-results .search-empty-query')).toHaveText('Search: “asfd”');
   await expect(page.locator('.no-results .search-empty-hint')).toContainText('matching your selected filters');
   const activeFilters = page.locator('.no-results .search-active-filters');
   await expect(activeFilters).toHaveAccessibleName('Active filters');
@@ -143,8 +144,8 @@ test('sample facet-only zero matches recover without changing the query', async 
   const input = page.locator('#samples-search-input');
   await input.fill(pair[0]);
   await expect(recovery).toHaveText('Clear filters');
-  await expect(page.locator('[data-empty-state] .search-empty-title'))
-    .toHaveText(`No samples match “${pair[0]}” with your selected filters`);
+  await expect(page.locator('[data-empty-state] .search-empty-query'))
+    .toHaveText(`Search: “${pair[0]}”`);
   const selectedLabels = await page.locator('[data-tag][aria-pressed="true"]').evaluateAll(
     (chips) => chips.map((chip) => chip.getAttribute('data-tag-label')!),
   );
@@ -181,8 +182,8 @@ test('integration recovery distinguishes a blocked query from an impossible comb
   await input.fill(query!);
   await expect(recovery).toHaveText('Clear filters');
   await expect(page.locator('.search-results-bar .search-action:visible')).toHaveCount(0);
-  await expect(page.locator('.no-results .search-empty-title'))
-    .toHaveText(`No integrations match “${query}” with your selected filters`);
+  await expect(page.locator('.no-results .search-empty-query'))
+    .toHaveText(`Search: “${query}”`);
   await recovery.click();
   await expect(input).toHaveValue(query!);
   await expect(input).toBeFocused();
@@ -210,8 +211,9 @@ for (const [path, inputSelector, emptySelector] of [
     await page.locator(inputSelector).fill(query);
     const empty = page.locator(emptySelector);
     await expect(empty).toBeVisible();
-    await expect(empty.locator('.search-empty-title')).toContainText(query);
-    await expect(empty.locator('.search-empty-title svg')).toHaveCount(0);
+    await expect(empty.locator('.search-empty-query')).toContainText(query);
+    await expect(empty.locator('.search-empty-title')).not.toContainText(query);
+    await expect(empty.locator('.search-empty-query svg')).toHaveCount(0);
     await expect(empty.getByRole('button', { name: 'Clear search', exact: true })).toBeVisible();
   });
 }
@@ -225,7 +227,8 @@ test('sample query, tags and recovery have independent scopes', async ({ page })
   await expect(recovery).toHaveText('Clear search');
   await chip.click();
   await expect(recovery).toHaveText('Clear search');
-  await expect(page.locator('[data-empty-state] .search-empty-title')).toHaveText('No samples match “zzzznonexistent”');
+  await expect(page.locator('[data-empty-state] .search-empty-title')).toHaveText('No matching samples');
+  await expect(page.locator('[data-empty-state] .search-empty-query')).toHaveText('Search: “zzzznonexistent”');
   await expect(page.locator('[data-empty-state] .search-empty-hint')).toContainText('matching your selected filters');
   await page.locator('[data-clear-btn]').click();
   await expect(input).toBeFocused();
@@ -258,7 +261,8 @@ test('session recovery preserves clock and timezone preferences on repeated visi
     const timezone = await page.locator('.tz-toggle').getAttribute('data-active');
     await input.fill('zzzznonexistent');
     await expect(page.locator('.no-results-msg')).toBeVisible();
-    await expect(page.locator('.no-results-msg .search-empty-title')).toHaveText('No sessions match “zzzznonexistent”');
+    await expect(page.locator('.no-results-msg .search-empty-title')).toHaveText('No matching sessions');
+    await expect(page.locator('.no-results-msg .search-empty-query')).toHaveText('Search: “zzzznonexistent”');
     await expect(page.locator('.filter-summary')).toHaveText(/^0 of \d+ sessions$/);
     await page.locator('[data-session-recover]').click();
     await expect(input).toHaveValue('');
@@ -439,7 +443,7 @@ for (const [name, path, inputSelector, emptySelector] of [
   ['browse', '/hub/browse/', '#browse-search-input', '.browse-empty'],
   ['integrations', '/integrations/gallery/', 'input.filter', '.no-results'],
 ]) {
-  test(`${name} empty state uses a dashed border and aligned text recovery`, async ({ page }, testInfo) => {
+  test(`${name} empty state uses a dashed border and aligned outlined recovery`, async ({ page }, testInfo) => {
     await start(page, path);
     const input = page.locator(inputSelector);
     const empty = page.locator(emptySelector);
@@ -450,9 +454,10 @@ for (const [name, path, inputSelector, emptySelector] of [
       await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
       await expect(empty).toHaveCSS('border-top-style', 'dashed');
       await expect(empty).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-      await expect(action).toHaveCSS('padding', '0px');
+      await expect(action).toHaveCSS('padding', '6px 14px');
+      await expect(action).toHaveCSS('border-top-style', 'solid');
       await action.hover();
-      await expect(action).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      await expect(action).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       const titleBounds = (await empty.locator('.search-empty-title').boundingBox())!;
       const actionBounds = (await action.boundingBox())!;
       expect(actionBounds.x).toBeCloseTo(titleBounds.x, 0);

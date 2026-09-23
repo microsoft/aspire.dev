@@ -74,7 +74,7 @@ for (const scenario of [
     await page.goto(scenario.route);
     const empty = page.locator(scenario.empty);
     await expect(empty).toBeVisible();
-    await expect(empty.locator('.search-empty-title')).toContainText(`"${scenario.query}" with these filters`);
+    await expect(empty.locator('.search-empty-query')).toHaveText(`Search: "${scenario.query}"`);
     await empty.getByRole('button', { name: 'Clear filters', exact: true }).click();
     await expect(empty).toBeHidden();
     await expect(page.locator(scenario.input)).toHaveValue(scenario.query);
@@ -92,7 +92,8 @@ for (const scenario of [
 test('browse clears an unmatched query while keeping Foundations and sort preferences', async ({ page }) => {
   await page.goto('/hub/browse/?q=zzzz-no-match&topic=foundations&sort=oldest&title=desc');
   const empty = page.locator('.browse-empty');
-  await expect(empty.locator('.search-empty-title')).toHaveText('No resources match "zzzz-no-match"');
+  await expect(empty.locator('.search-empty-title')).toHaveText('No matching resources');
+  await expect(empty.locator('.search-empty-query')).toHaveText('Search: "zzzz-no-match"');
   await expect(empty.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(['Topic: Foundations']);
   await expect(empty.locator('.search-empty-hint')).not.toContainText('Topic: Foundations');
   await empty.getByRole('button', { name: 'Clear search', exact: true }).click();
@@ -142,7 +143,7 @@ test('long query text wraps safely within the compact empty state', async ({ pag
   const query = '<img src=x onerror=alert(1)>' + 'z'.repeat(160);
   await page.locator('#browse-search-input').fill(query);
   const empty = page.locator('.browse-empty');
-  await expect(empty.locator('.search-empty-title')).toContainText(query);
+  await expect(empty.locator('.search-empty-query')).toContainText(query);
   await expect(empty.locator('img')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

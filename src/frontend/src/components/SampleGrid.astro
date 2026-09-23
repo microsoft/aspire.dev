@@ -22,9 +22,7 @@ const messages = {
   clearFilters: Astro.locals.t('catalogSearch.clearFilters'),
   resetAll: Astro.locals.t('catalogSearch.resetAll'),
   count: Astro.locals.t('catalogSearch.samplesCount'),
-  empty: Astro.locals.t('catalogSearch.samplesEmpty'),
-  queryEmpty: Astro.locals.t('catalogSearch.samplesQueryEmpty'),
-  filteredQueryEmpty: Astro.locals.t('catalogSearch.samplesFilteredQueryEmpty'),
+  query: Astro.locals.t('catalogSearch.query'),
   queryGuidance: Astro.locals.t('catalogSearch.queryGuidance'),
   preserveFiltersGuidance: Astro.locals.t('catalogSearch.preserveFiltersGuidance'),
   preserveQueryGuidance: Astro.locals.t('catalogSearch.preserveQueryGuidance'),
@@ -184,10 +182,13 @@ const tagCounts = new Map(
 
   <!-- Empty state -->
   <div class="empty-state search-empty" data-empty-state style="display: none;">
-    <p class="search-empty-title">{Astro.locals.t(samples.length ? 'catalogSearch.samplesEmpty' : 'catalogSearch.samplesUnavailable')}</p>
-    {samples.length > 0 && <p class="empty-state-detail search-empty-hint">{Astro.locals.t('catalogSearch.guidance')}</p>}
-    <CatalogSearchActiveFilters label={Astro.locals.t('catalogSearch.activeFilters')} />
-    <button class="reset-btn search-action" data-reset-btn type="button" hidden={samples.length === 0}>{messages.resetAll}</button>
+    <div class="search-empty-content">
+      <p class="search-empty-title">{Astro.locals.t(samples.length ? 'catalogSearch.samplesEmpty' : 'catalogSearch.samplesUnavailable')}</p>
+      <p class="search-empty-query" hidden></p>
+      {samples.length > 0 && <p class="empty-state-detail search-empty-hint">{Astro.locals.t('catalogSearch.guidance')}</p>}
+      <CatalogSearchActiveFilters label={Astro.locals.t('catalogSearch.activeFilters')} />
+      <button class="reset-btn search-action" data-reset-btn type="button" hidden={samples.length === 0}>{messages.resetAll}</button>
+    </div>
   </div>
 </div>
 
@@ -355,10 +356,9 @@ const tagCounts = new Map(
           ? (withoutFilters > 0 ? 'clearFilters' : withoutQuery > 0 ? 'clearSearch' : 'resetAll')
           : activeTags.size > 0 ? 'clearFilters' : 'clearSearch';
         resetBtn.textContent = messages[recoveryAction];
-        const title = query
-          ? (withoutFilters > 0 ? messages.filteredQueryEmpty : messages.queryEmpty)
-          : messages.empty;
-        emptyState.querySelector('.search-empty-title').textContent = title.replace('{{query}}', () => searchQuery.trim());
+        const queryText = emptyState.querySelector('.search-empty-query');
+        queryText.textContent = messages.query.replace('{{query}}', () => searchQuery.trim());
+        queryText.hidden = !query;
         const guidance = recoveryAction === 'clearFilters'
           ? (query ? messages.preserveQueryGuidance : messages.filtersGuidance)
           : recoveryAction === 'clearSearch'

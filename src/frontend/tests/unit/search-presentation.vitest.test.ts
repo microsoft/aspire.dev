@@ -26,13 +26,15 @@ describe('neutral search presentation', () => {
     }).join('\n');
     const contract = `${declarations}
       const field: SearchFieldProps = { id: 'api', label: 'Search API', size: 'sm', clearId: 'clear' };
-      const empty: SearchEmptyStateProps = { title: 'No matching entries', hidden: true, actionLabel: 'Clear search' };
+      const empty: SearchEmptyStateProps = { title: 'No matching entries', query: 'Search: "Redis"', hidden: true, actionLabel: 'Clear search' };
       // @ts-expect-error Accessible labels are required.
       const missingLabel: SearchFieldProps = { id: 'api' };
       // @ts-expect-error Size is an intentional two-value union.
       const invalidSize: SearchFieldProps = { id: 'api', label: 'Search API', size: 'wide' };
       // @ts-expect-error Visibility is boolean.
       const invalidHidden: SearchEmptyStateProps = { title: 'Empty', hidden: 'yes' };
+      // @ts-expect-error Query copy must be text.
+      const invalidQuery: SearchEmptyStateProps = { title: 'Empty', query: 123 };
     `;
     const file = resolve('tests/typecheck/search-presentation.virtual.ts').replaceAll('\\', '/');
     const options: ts.CompilerOptions = { noEmit: true, strict: true, types: [], target: ts.ScriptTarget.ES2022 };
@@ -82,12 +84,16 @@ describe('neutral search presentation', () => {
 
   it('renders compact empty state copy safely with just one recovery action', async () => {
     const html = await renderComponent(SearchEmptyState, {
-      props: { title: 'No matching entries', hint: '<script>not markup</script>', actionLabel: 'Reset all', actionId: 'recover' },
+      props: { title: 'No matching entries', query: '<img src=x onerror=alert(1)>', hint: '<script>not markup</script>', actionLabel: 'Reset all', actionId: 'recover' },
     });
     const tree = parse(html);
     expect(selectAll('button', tree)).toHaveLength(1);
     expect(select('script', tree)).toBeUndefined();
-    expect(select('.search-empty-title', tree)).toBeDefined();
+    expect(select('img', tree)).toBeUndefined();
+    expect(select('.search-empty-content .search-empty-title', tree)).toBeDefined();
+    expect(select('.search-empty-content .search-empty-query', tree)?.children).toEqual([
+      expect.objectContaining({ type: 'text', value: '<img src=x onerror=alert(1)>' }),
+    ]);
   });
 
   it('uses checkbox-group semantics rather than an incomplete listbox', async () => {
@@ -162,8 +168,12 @@ describe('neutral search presentation', () => {
     presentation.renderEmpty(results as unknown as HTMLElement, true, false, { withoutQuery, withoutFilters }, new Set(['method']), new Set(['13.6.0']));
     expect(filters.style.display).toBe('none');
     expect(reset.style.display).toBe('none');
-    const [title, guidance, activeFilters, button] = results.children[0].children;
-    expect(title.textContent).toBe(`No API entries match "${input.value}" with these filters`);
+    const content = results.children[0].children[0];
+    expect(content.className).toBe('search-empty-content');
+    const [title, query, guidance, activeFilters, button] = content.children;
+    expect(title.textContent).toBe('No matching API entries');
+    expect(query.className).toBe('search-empty-query');
+    expect(query.textContent).toBe(`Search: "${input.value}"`);
     expect(activeFilters.className).toBe('search-active-filters');
     expect(activeFilters.attributes).toEqual({ role: 'list', 'aria-label': 'Active filters' });
     expect(activeFilters.children.map(item => item.textContent)).toEqual(['Kind: method', 'Version: 13.6.0']);
@@ -186,6 +196,6 @@ describe('neutral search presentation', () => {
       },
     });
     createSearchEmptyState({ title: 'No API entries available', hint: 'There are no searchable entries.' });
-    expect(elements.map(element => element.tag)).toEqual(['div', 'p', 'p']);
+    expect(elements.map(element => element.tag)).toEqual(['div', 'div', 'p', 'p']);
   });
 });

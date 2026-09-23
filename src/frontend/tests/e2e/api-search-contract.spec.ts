@@ -84,7 +84,8 @@ for (const { path, prefix } of surfaces) {
 
     await expect(input).toHaveAccessibleName(/search/i);
     await input.fill(query);
-    await expect(empty).toContainText(`No API entries match "${query}"`);
+    await expect(empty.locator('.search-empty-title')).toHaveText('No matching API entries');
+    await expect(empty.locator('.search-empty-query')).toHaveText(`Search: "${query}"`);
     await expect(empty.getByRole('button')).toHaveCount(1);
     await expect(toolbar.locator('button:visible')).toHaveCount(0);
     await empty.getByRole('button', { name: 'Clear search', exact: true }).click();
@@ -172,7 +173,7 @@ for (const { path, prefix } of surfaces) {
     await chip.click();
     await input.fill('RecoveryNeedle');
     const empty = results.locator('.search-empty');
-    await expect(empty).toContainText('No API entries match "RecoveryNeedle" with these filters');
+    await expect(empty.locator('.search-empty-query')).toHaveText('Search: "RecoveryNeedle"');
     await expect(empty.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toContainText([`Kind: ${otherKind}`]);
     await expect(empty.locator('.search-empty-hint')).not.toContainText('Kind:');
     await expect(empty).toContainText('keep your search text');
@@ -256,7 +257,7 @@ test('API clear remains available when text is entered before controller mountin
   }
   await page.waitForLoadState('load');
   const empty = page.locator('#ts-api-search-results .search-empty');
-  await expect(empty).toContainText('No API entries match "Redis" with these filters');
+  await expect(empty.locator('.search-empty-query')).toHaveText('Search: "Redis"');
   await expect(empty.getByRole('button', { name: 'Clear filters', exact: true })).toBeVisible();
   await expect(page.locator('#ts-api-search-clear')).toBeVisible();
   await page.locator('#ts-api-search-clear').click();
