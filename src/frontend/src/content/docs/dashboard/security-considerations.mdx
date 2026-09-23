@@ -83,6 +83,26 @@ aspire dashboard run --allow-anonymous --AllowedHosts='localhost;dashboard.examp
 Anyone who can reach an anonymously accessible dashboard can view potentially sensitive resource and telemetry data without authentication. Untrusted apps can also send telemetry to an unsecured OTLP endpoint. Only allow anonymous access in trusted local development environments, and don't expose an anonymously accessible dashboard or its endpoints to an untrusted network.
 :::
 
+## Cookie scoping by application name
+
+Browser cookies are shared across ports on the same hostname. Without a distinguishing name, dashboards running on different ports of the same host, such as `localhost`, would use the same authentication and antiforgery cookie names and could interfere with each other, for example by signing one dashboard out when you sign in to another.
+
+To avoid this, the dashboard's browser-token and OpenID Connect authentication cookies, and its antiforgery cookie, include a suffix derived from `Dashboard:ApplicationName`. The suffix combines a lowercase, cookie-safe prefix of up to 32 characters with a hash of the full application name, so names that differ only in case, spacing, or punctuation still get distinct cookies. For example, an application name of `My application` produces cookie names such as `.Aspire.Dashboard.Auth.my-application-<hash>` and `.Aspire.Dashboard.Antiforgery.my-application-<hash>`. Dashboards configured with the same application name share the same cookie names, so sign-in state is shared between them.
+
+Configure a distinct `Dashboard:ApplicationName` for each dashboard whose cookies should be kept separate:
+
+```json
+{
+  "Dashboard": {
+    "ApplicationName": "My application"
+  }
+}
+```
+
+Application-name cookie scoping avoids accidental collisions between dashboards; it isn't a security boundary, and the hash used to build the suffix is a non-cryptographic naming hash, not an authentication or integrity mechanism.
+
+Changing `Dashboard:ApplicationName` changes the cookie names, so existing browser sessions aren't migrated: you'll need to sign in again after the name changes. Other browser preferences that don't need to be application-specific, such as time format, can still be shared across dashboards that use the same browser origin. Collapsed-resource state in local storage follows the application name reported by the connected resource service, which can differ from the configured `Dashboard:ApplicationName` used for cookies and disk persistence; see [Storage layout](/dashboard/data-persistence/#storage-layout) for how persisted data is scoped by application name.
+
 ## Secure telemetry endpoint
 
 The Aspire dashboard provides a variety of ways to view logs, traces, and metrics for your app. This information enables you to track the behavior and performance of your app and to diagnose any issues that arise. It's important that you can trust this information, and a warning is displayed in the dashboard UI if telemetry isn't secured.
