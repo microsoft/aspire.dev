@@ -36,7 +36,7 @@ This release introduces:
 - **Integration improvements** — debug Blazor WebAssembly apps, discover Dev Tunnel URLs, customize Radius recipes, and protect destructive Azure location changes.
 - **Updated emulator images** — move Azure App Configuration to `1.2.0` and make the Linux-based vNext Cosmos DB emulator the default.
 - **Community contributions** — contributions span major features, integration improvements, reliability fixes, and project tooling.
-- **Two breaking changes** — `RunAsEmulator` now selects the Linux-based vNext Cosmos DB emulator, and Azure Front Door origin names now include the backend hostname.
+- **Three breaking changes** — `RunAsEmulator` now selects the Linux-based vNext Cosmos DB emulator, Azure Front Door origin names now include the backend hostname, and the experimental terminal APIs moved from `Aspire.Hosting.Terminals` to `Aspire.Hosting.ApplicationModel`.
 - …and much more.
 
 ## 🆙 Upgrade to Aspire 13.6
@@ -445,4 +445,34 @@ The callback runs after the integration's defaults and applies to every configur
   Review the [Front Door origin naming
   change](https://github.com/microsoft/aspire/pull/20035) and the [Azure Front
   Door integration](/integrations/cloud/azure/azure-front-door/) documentation.
+</LearnMore>
+
+### Terminal APIs moved to `Aspire.Hosting.ApplicationModel`
+
+The experimental terminal types previously in `Aspire.Hosting.Terminals` now live in `Aspire.Hosting.ApplicationModel`, alongside `ResourceNotificationService` and the rest of the app model. `TerminalService`, `AspireTerminal`, `AspireTerminalKey`, `TerminalLaunchOptions`, `TerminalOwner`, and `TerminalPlacement` move without a compatibility shim, so any code referencing the old namespace fails to build until updated:
+
+```csharp
+// Before
+using Aspire.Hosting.Terminals;
+
+// After
+using Aspire.Hosting.ApplicationModel;
+```
+
+AppHosts that rely on the SDK's implicit usings already import `Aspire.Hosting.ApplicationModel` and require no source change beyond removing an explicit `using Aspire.Hosting.Terminals;` if present. `TerminalInteractionOptions` and the `WithTerminal` builder extensions remain in `Aspire.Hosting` and are unaffected. If your code resolves `TerminalService` from the DI container or calls `IInteractionService.PromptTerminalAsync`, update the type references there too:
+
+```csharp
+using Aspire.Hosting.ApplicationModel;
+using Microsoft.Extensions.DependencyInjection;
+
+#pragma warning disable ASPIRETERMINAL001
+
+var terminalService = app.Services.GetRequiredService<TerminalService>();
+```
+
+The category produced by `ILogger<TerminalService>` also changes to `Aspire.Hosting.ApplicationModel.TerminalService`. Update namespace-specific logging filters if you configured any against the old category. Terminal ownership, lifetimes, wire protocols, and dashboard/CLI behavior are unchanged, and the experimental diagnostic remains `ASPIRETERMINAL001`.
+
+<LearnMore>
+  See [Test TUI and shell apps using WithTerminal](/app-host/with-terminal/) and
+  the [`ASPIRETERMINAL001` diagnostic](/diagnostics/aspireterminal001/).
 </LearnMore>
