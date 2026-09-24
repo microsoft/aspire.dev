@@ -93,9 +93,20 @@ Open a trusted workspace with the Aspire extension installed and an AppHost visi
 
 Both tools request confirmation for the resolved target. Review its path and, for start, the requested mode before approving. These are extension-provided tools; configuring a runtime MCP server isn't required to use them.
 
+The start tool accepts these inputs:
+
+| Input           | Required | Description                                                                                                                                 |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `appHostPath`   | Yes      | The workspace-relative path of a discovered AppHost.                                                                                        |
+| `mode`          | Yes      | Use `run` to start without a debugger or `debug` to attach supported debuggers.                                                             |
+| `isolated`      | No       | Use `true` for randomized ports and isolated user secrets or `false` to disable isolation. Linked Git worktrees use isolation when omitted. |
+| `launchProfile` | No       | The exact profile name from the AppHost's `launchSettings.json` file.                                                                       |
+
 The tools accept only buildable AppHosts returned by the extension's discovery service, not arbitrary filesystem paths supplied by an agent. If a selector is unknown or ambiguous, the result includes `knownAppHosts` so the agent can choose a discovered target. Multi-root workspaces use folder-qualified selectors.
 
-Before starting, the extension checks its own sessions and running AppHosts to avoid duplicate launches. Stop coordinates the editor's matching Aspire debug session when one exists; otherwise, it uses `aspire stop --apphost` for the resolved AppHost. It doesn't mean "stop every Aspire process."
+Before starting, the extension checks its own sessions and running AppHosts to avoid duplicate launches. A successful new launch reports the effective isolation setting. Results for an AppHost that was already starting or running omit that setting because the tool didn't create a new process.
+
+Stop coordinates the editor's matching Aspire debug session when one exists; otherwise, it uses `aspire stop --apphost` for the resolved AppHost. It doesn't mean "stop every Aspire process."
 
 :::note[Tool availability]
 The workspace must be trusted, and the VS Code host must support the language model tool API. If the tools aren't available, update VS Code and the Aspire extension, confirm that discovery finds your AppHost, and check that your agent chat has access to these tools.
