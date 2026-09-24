@@ -10,7 +10,8 @@
     reliable scripting that runs identically in CI and locally.
 
     Phases:
-      1. `pnpm update:all` — integration metadata, GitHub stats, sample metadata.
+      1. `pnpm update:all` — integration metadata, GitHub stats, samples, official blog archive.
+         Reconciles documentation mappings, then runs structured-data tests.
       2. Version-change detection — compares the committed
          aspire-integrations.json against the freshly written one by package
          title -> version. Metadata-only changes (icons, descriptions, download
@@ -27,7 +28,7 @@
 
     Exit codes:
       0  success (whether or not there were changes)
-      1  a required phase failed (update:all, TS API regen, out-of-scope diff).
+      1  a required phase failed (data update/validation, TS API regen, out-of-scope diff).
          The caller must NOT open a PR on a non-zero exit.
 
     Packages without a public API surface are reported as explicit skips. Any
@@ -71,8 +72,10 @@ $PkgGenScript = Join-Path $RepoRoot 'src' 'tools' 'PackageJsonGenerator' 'genera
 # this set appearing in `git status` is treated as a scope violation.
 $AllowedPaths = @(
     'src/frontend/src/data/aspire-integrations.json',
+    'src/frontend/src/data/integration-docs.json',
     'src/frontend/src/data/github-stats.json',
     'src/frontend/src/data/samples.json',
+    'src/frontend/src/data/aspire-blog-posts.json',
     'src/frontend/src/assets/samples/',
     'src/frontend/src/data/pkgs/',
     'src/frontend/src/data/ts-modules/',
@@ -259,6 +262,12 @@ try {
     $updateLog = & pnpm run update:all 2>&1 | Tee-Object -Variable teed | Out-String
     if ($LASTEXITCODE -ne 0) {
         Write-Error "pnpm update:all failed (exit $LASTEXITCODE). Aborting; no PR will be opened."
+        exit 1
+    }
+
+    & pnpm run test:unit:structured-data
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Structured-data validation failed (exit $LASTEXITCODE). Aborting; no PR will be opened."
         exit 1
     }
 }
@@ -559,8 +568,10 @@ $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("### What's updated")
 [void]$sb.AppendLine("- ``src/frontend/src/data/aspire-integrations.json`` — latest package information")
+[void]$sb.AppendLine("- ``src/frontend/src/data/integration-docs.json`` — documentation mappings, when packages are removed")
 [void]$sb.AppendLine("- ``src/frontend/src/data/github-stats.json`` — repository statistics")
 [void]$sb.AppendLine("- ``src/frontend/src/data/samples.json`` — sample metadata, when changed")
+[void]$sb.AppendLine("- ``src/frontend/src/data/aspire-blog-posts.json`` — complete official Aspire blog metadata, when changed")
 [void]$sb.AppendLine("- ``src/frontend/src/assets/samples/`` — sample thumbnails, when changed")
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("### API reference regeneration")

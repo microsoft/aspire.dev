@@ -35,8 +35,11 @@ duplicating.
    dedicated **"New integrations"** and **"Default container image updates"** sections.
    If the file already exists, reconcile structure without clobbering existing content.
 3. **Version constants.** Update `src/frontend/config/aspire-versions.mjs`:
-   `currentAspireMajorMinorVersion = 'N.N'` and `currentAspireVersion = 'N.N.0'` (only
-   when N.N is the new current release). This drives the `%ASPIRE_VERSION%` remark
+   `currentAspireMajorMinorVersion = 'N.N'`, `currentAspireVersion` to the latest
+   stable `N.N.PATCH`, and `currentAspirePreviewVersion` to the matching full
+   `N.N.PATCH-preview.*` package version. Set both package versions to the initial
+   release patch when N.N becomes current, then keep them aligned with the site
+   AppHost during servicing updates. These drive the Aspire version remark
    placeholders site-wide.
 4. **Site-wide announcement banner.** The banner is **per-page frontmatter**, not a
    global config. Update the `banner.content` string **and its link** to point at

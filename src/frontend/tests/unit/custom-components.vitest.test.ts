@@ -8,6 +8,7 @@ import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
+import CatalogSearchActiveFilters from '@components/CatalogSearchActiveFilters.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
 import ContainerImages from '@components/ContainerImages.astro';
 import ContainerRuntimeChoices from '@components/ContainerRuntimeChoices.astro';
@@ -15,12 +16,14 @@ import CustomSelect from '@components/CustomSelect.astro';
 import Expand from '@components/Expand.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
+import FooterLegal from '@components/FooterLegal.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
 import FooterSocials from '@components/FooterSocials.astro';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
 import HeroSection from '@components/HeroSection.astro';
 import IconAside from '@components/IconAside.astro';
 import IconLinkCard from '@components/IconLinkCard.astro';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import ImageShowcase from '@components/ImageShowcase.astro';
 import InstallAspireCLI from '@components/InstallAspireCLI.astro';
 import InstallCliModal from '@components/InstallCliModal.astro';
@@ -32,6 +35,7 @@ import LearnMore from '@components/LearnMore.astro';
 import LicenseBadge from '@components/LicenseBadge.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
 import MediaCard from '@components/MediaCard.astro';
+import NotFoundPage from '@components/NotFoundPage.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
@@ -41,6 +45,7 @@ import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 import SampleCard from '@components/SampleCard.astro';
 import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
+import ScrollToTop from '@components/ScrollToTop.astro';
 import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
@@ -79,8 +84,23 @@ type BasicRenderCase = {
   props?: Record<string, unknown>;
   slots?: Record<string, string>;
   includes: string[];
+  excludes?: string[];
   requestUrl?: string;
 };
+
+it.each([
+  ['en', 'Scroll to top'], ['fr', 'Retour en haut'], ['pt-BR', 'Voltar ao topo'],
+  ['zh-CN', '回到顶部'], ['es-ES', 'Ir arriba'], ['unknown', 'Scroll to top'],
+])('ScrollToTop renders the existing label for %s', async (lang, label) => {
+  const route = {
+    lang, editUrl: '',
+    entry: { id: 'docs/test', slug: 'docs/test', filePath: '', data: {} },
+  };
+  const html = await renderComponent(ScrollToTop, { locals: { starlightRoute: route } });
+  expect(html).toContain(`aria-label="${label}"`);
+  expect(html).toContain('id="scroll-to-top-button"');
+  expect(html).toContain('type="button"');
+});
 
 const statementPlayerTranslations = {
   da: daTranslations.landing.statementPlayer,
@@ -247,6 +267,28 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['<details', 'Expandable summary', 'Expanded body'],
   },
   {
+    name: 'CatalogSearchActiveFilters preserves the localized label for its bundled renderer',
+    Component: CatalogSearchActiveFilters,
+    props: { label: 'Filtres actifs' },
+    includes: ['<catalog-search-active-filters', 'data-label="Filtres actifs"', 'data-labels="[]"', 'hidden'],
+  },
+  {
+    name: 'InpageSearch keeps its API defaults',
+    Component: InpageSearch,
+    props: { id: 'api', placeholder: 'Search API', kinds: ['class', 'interface'], defaultStatsText: '20 types' },
+    includes: ['id="api-search-input"', '<label class="search-sr-only', 'Search API', 'data-kind="class"', '20 types'],
+  },
+  {
+    name: 'InpageSearch supports labeled discovery search and colored topic toggles',
+    Component: InpageSearch,
+    props: {
+      id: 'glossary', label: 'Find a term', placeholder: 'Try AppHost',
+      kinds: ['Foundations', 'Reference'], kindColors: { Foundations: 'var(--sl-color-purple)' },
+      defaultStatsText: '32 terms',
+    },
+    includes: ['<label class="search-field-label', 'Find a term', 'data-kind="Foundations"', '--filter-color: var(--sl-color-purple)', 'aria-pressed="false"'],
+  },
+  {
     name: 'CTABanner renders calls to action',
     Component: CTABanner,
     props: {
@@ -318,6 +360,21 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['Model distributed apps', 'Learn more', '/get-started/app-host/', '--cap-cols: 2'],
   },
   {
+    name: 'ReleaseCommunity renders the Aspire 13.6 core team roster and release contributors',
+    Component: ReleaseCommunity,
+    props: { version: '13.6' },
+    includes: [
+      'The Aspire core team is',
+      '.png?size=96',
+      'Special thanks to everyone whose pull requests shipped in Aspire 13.6',
+      'https://github.com/marshalhayes',
+      'https://github.com/afscrome',
+      'https://github.com/zhiyuanliang-ms',
+      '/community/contributors/',
+      '/community/contributor-guide/',
+    ],
+  },
+  {
     name: 'ReleaseCommunity renders the core team roster and release contributors',
     Component: ReleaseCommunity,
     props: { version: '13.4' },
@@ -341,6 +398,17 @@ const basicRenderCases: BasicRenderCase[] = [
       ],
     },
     includes: ['aria-label="Breadcrumb"', '/docs/', 'Reference', 'Aspire.Hosting'],
+  },
+  {
+    name: 'Breadcrumb renders the shared Dev Hub logo',
+    Component: Breadcrumb,
+    props: {
+      crumbs: [
+        { label: 'Dev Hub', href: '/hub/', icon: 'dev-hub' },
+        { label: 'Glossary' },
+      ],
+    },
+    includes: ['Dev Hub', '/hub/', 'M3.875 22.125', 'bc-inline', 'bc-dropdown'],
   },
   {
     name: 'FeatureShowcase renders feature cards',
@@ -377,10 +445,29 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['youtube-nocookie.com/embed/dQw4w9WgXcQ', 'autoplay=1', 'mute=1', 'Video player'],
   },
   {
-    name: 'TwitchEmbed uses the request host for the parent parameter',
+    name: 'YouTubeEmbed renders a non-autoplaying playlist',
+    Component: YouTubeEmbed,
+    props: { playlistId: 'UUW_UJkc7RhM_NPcDXnOCfrQ', title: 'Aspire uploads' },
+    includes: ['youtube-nocookie.com/embed/videoseries', 'list=UUW_UJkc7RhM_NPcDXnOCfrQ', 'autoplay=0', 'Aspire uploads'],
+  },
+  {
+    name: 'TwitchEmbed defers its URL until the browser hostname is known',
     Component: TwitchEmbed,
-    props: { channel: 'aspiredotdev', title: 'Twitch stream' },
-    includes: ['player.twitch.tv/?channel=aspiredotdev', 'parent=aspire.dev', 'Twitch stream'],
+    props: { channel: 'aspiredotdev', autoplay: true, title: 'Twitch stream' },
+    includes: [
+      'player.twitch.tv/?channel=aspiredotdev',
+      'data-twitch-src=',
+      'autoplay=true',
+      'muted=true',
+      'picture-in-picture',
+      'Twitch stream',
+    ],
+  },
+  {
+    name: 'TwitchEmbed preserves an explicitly supplied parent',
+    Component: TwitchEmbed,
+    props: { channel: 'aspiredotdev', parent: 'embedded.example.com' },
+    includes: ['src="https://player.twitch.tv/', 'parent=embedded.example.com'],
   },
   {
     name: 'IconLinkCard renders title, description and href',
@@ -565,7 +652,7 @@ const basicRenderCases: BasicRenderCase[] = [
     name: 'SimpleAppHostCode renders both AppHost tabs',
     Component: SimpleAppHostCode,
     props: { lang: 'nodejs', mark: '3-5', collapse: '7-8' },
-    includes: ['C# AppHost', 'TypeScript AppHost', 'builder.Build().Run'],
+    includes: ['C#', 'TypeScript', 'builder.Build().Run'],
   },
   {
     name: 'CustomSelect renders a themed combobox and listbox',
@@ -626,6 +713,7 @@ const basicRenderCases: BasicRenderCase[] = [
       'data-editor-caret',
       'data-editor-motion-toggle',
       'data-disable-copy',
+      'data-pagefind-ignore',
       'data-toggle="database"',
     ],
   },
@@ -858,6 +946,19 @@ const integrationsFixture = [
 ];
 
 describe('custom Astro component render coverage', () => {
+  it('does not request Twitch with a build-time hostname before client initialization', async () => {
+    const html = await renderComponent(TwitchEmbed, {
+      props: { channel: 'aspiredotdev' },
+      requestUrl: 'https://aspire.dev/community/videos/',
+    });
+    const iframe = html.match(/<iframe\b[^>]*>/)?.[0];
+    expect(iframe).toBeDefined();
+    expect(iframe).toContain('data-twitch-src="https://player.twitch.tv/');
+    expect(iframe).not.toMatch(/\ssrc=/);
+    expect(iframe).not.toContain('parent=');
+    expect(html).toContain('<noscript>');
+  });
+
   for (const testCase of basicRenderCases) {
     it(testCase.name, async () => {
       const html = normalizeHtml(
@@ -871,6 +972,9 @@ describe('custom Astro component render coverage', () => {
       for (const fragment of testCase.includes) {
         expect(html).toContain(fragment);
       }
+      for (const fragment of testCase.excludes ?? []) {
+        expect(html).not.toContain(fragment);
+      }
     });
   }
 
@@ -879,6 +983,54 @@ describe('custom Astro component render coverage', () => {
 
     expect(html).toMatch(/data-light="[^"]*map-lightdots\.svg/);
     expect(html).toMatch(/data-dark="[^"]*map-darkdots\.svg/);
+  });
+
+  it('renders TypeScript first for Aspire language pivots only', async () => {
+    const appHostHtml = normalizeHtml(
+      await renderComponent(PivotSelector, {
+        props: {
+          key: 'aspire-lang',
+          options: [
+            { id: 'csharp', title: 'C#' },
+            { id: 'typescript', title: 'TypeScript' },
+          ],
+        },
+      })
+    );
+    const genericHtml = normalizeHtml(
+      await renderComponent(PivotSelector, {
+        props: {
+          key: 'language',
+          options: [
+            { id: 'csharp', title: 'C#' },
+            { id: 'typescript', title: 'TypeScript' },
+          ],
+        },
+      })
+    );
+
+    const typeScriptOption = 'data-pivot-option="typescript"';
+    const csharpOption = 'data-pivot-option="csharp"';
+
+    expect(appHostHtml).toContain(typeScriptOption);
+    expect(appHostHtml).toContain(csharpOption);
+    expect(genericHtml).toContain(csharpOption);
+    expect(genericHtml).toContain(typeScriptOption);
+    expect(appHostHtml.indexOf(typeScriptOption)).toBeLessThan(appHostHtml.indexOf(csharpOption));
+    expect(genericHtml.indexOf(csharpOption)).toBeLessThan(genericHtml.indexOf(typeScriptOption));
+  });
+
+  it('renders the canonical TypeScript tab and apphost.mts before C#', async () => {
+    const html = normalizeHtml(
+      await renderComponent(SimpleAppHostCode, {
+        props: { lang: 'nodejs' },
+      })
+    );
+
+    expect(html).toContain('TypeScript');
+    expect(html).toContain('C#');
+    expect(html.indexOf('TypeScript')).toBeLessThan(html.indexOf('C#'));
+    expect(html).toContain('apphost.mts');
   });
 
   it('AppHostBuilder omits invalid npm package installation APIs from every code variant', async () => {
@@ -1036,7 +1188,12 @@ describe('custom Astro component render coverage', () => {
 
   it('renders SampleGrid controls and sample cards', async () => {
     const html = normalizeHtml(
-      await renderComponent(SampleGrid, { props: { samples: sampleGridSamples } })
+      await renderComponent(SampleGrid, {
+        props: { samples: sampleGridSamples },
+        locals: { t: Object.assign((key: string) =>
+          enTranslations.catalogSearch[key.replace('catalogSearch.', '') as keyof typeof enTranslations.catalogSearch] ?? key,
+          { dir: () => 'ltr' as const }) },
+      })
     );
 
     expect(html).toContain('data-samples-browser');
@@ -1051,17 +1208,14 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('theme-image');
     expect(html).toContain('data-light=');
     expect(html).toContain('data-dark=');
-    expect(html).toContain('Try removing a filter or adjusting your search.');
+    expect(html).toContain(enTranslations.catalogSearch.guidance);
 
-    // The redesigned filter UI replaces the boxy "Filtered by" bar with a
-    // single subtle "Clear all" text link in the results header, and an
-    // embedded `X` icon button inside the search input — the same compact
-    // pattern used by the in-page API search component.
     expect(html).not.toContain('data-active-filter-bar');
-    expect(html).not.toContain('Clear filters');
+    expect(html).toContain('Clear filters');
     expect(html).toContain('data-clear-all');
-    expect(html).toContain('Clear all');
+    expect(html).toContain('Reset all');
     expect(html).toContain('aria-label="Clear search"');
+    expect(html).toContain('aria-live="polite"');
 
     // The browse view persists the active search and tag filters in the
     // URL so a link like `/reference/samples/?q=redis&tags=cache` lands on a
@@ -1300,10 +1454,27 @@ describe('custom Astro component render coverage', () => {
   it('renders SessionGrid grouped by timeslot with search controls', async () => {
     const html = normalizeHtml(await renderComponent(SessionGrid, { props: { sessions } }));
 
-    expect(html).toContain('Search sessions');
+    expect(html).toContain('catalogSearch.sessionsLabel');
+    expect(html).toContain('catalogSearch.sessionsEmpty');
+    expect(html).toContain('data-session-recover');
+    expect(html).toContain('aria-live="polite"');
     expect(html).toContain('Shipping distributed apps');
     expect(html).toContain('Observability by default');
     expect(html).toContain('09:00 AM');
+  });
+
+  it('distinguishes empty gallery datasets from zero search matches', async () => {
+    const integrations = await renderComponent(Integrations, {
+      props: { integrations: [], availableDocs: [] },
+    });
+    expect(integrations).toContain('catalogSearch.integrationsUnavailable');
+    expect(integrations).not.toMatch(/<button[^>]*data-integration-recover/);
+    const samples = await renderComponent(SampleGrid, { props: { samples: [] } });
+    expect(samples).toContain('catalogSearch.samplesUnavailable');
+    expect(samples).not.toMatch(/<p[^>]*>catalogSearch.samplesEmpty<\/p>/);
+    const emptySessions = await renderComponent(SessionGrid, { props: { sessions: [] } });
+    expect(emptySessions).toContain('catalogSearch.sessionsUnavailable');
+    expect(emptySessions).not.toContain('catalogSearch.sessionsEmpty');
   });
 
   it('calculates IntegrationTotals targets from package data', async () => {
@@ -1333,6 +1504,17 @@ describe('custom Astro component render coverage', () => {
     expect(lowerIndex).toBeGreaterThanOrEqual(0);
     expect(higherIndex).toBeLessThan(lowerIndex);
     expect(html).toContain('/integrations/higher/docs/');
+  });
+
+  it('renders the custom not-found recovery surface', async () => {
+    const html = normalizeHtml(await renderComponent(NotFoundPage));
+
+    expect(html).toContain('404 / Not found');
+    expect(html).toContain('>Wrong <span');
+    expect(html).toContain('>route?</span>');
+    expect(html).toContain('not-found');
+    expect(html).toContain('Go home');
+    expect(html).toContain('Go back');
   });
 
   it('renders current sample metadata from repository data without throwing', async () => {
@@ -1469,9 +1651,27 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('aria-labelledby="footer-community-heading"');
     expect(html).toContain('aria-label="X (opens in new tab)"');
     expect(html).toContain('aria-label="GitHub (opens in new tab)"');
-    expect(html).toContain('role="group" aria-label="Site tools"');
-    expect(html).toContain('data-cookie-manage-consent');
+    expect(html).not.toContain('footer-mobile-tool');
+    expect(html).not.toContain('data-cookie-manage-consent');
     expect(html).not.toContain('data-open-install-modal');
+  });
+
+  it('renders a unique scanner-addressable Manage Cookies action under Legal', async () => {
+    const html = normalizeHtml(
+      await renderComponent(FooterLegal, {
+        locals: { t: createTestTranslator(enTranslations) },
+      })
+    );
+
+    expect(html).toContain('aria-labelledby="footer-legal-heading"');
+    expect(html.match(/id="c-uhff-footer_managecookies"/g)).toHaveLength(1);
+    expect(html).toMatch(/<li class="cookie-consent-btn(?: [^"]*)?"[^>]*>\s*<button/);
+    expect(html).toMatch(
+      /<button[^>]*id="c-uhff-footer_managecookies"[^>]*type="button"[^>]*>\s*Manage Cookies\s*<\/button>/
+    );
+    expect(html).toContain('data-cookie-manage-consent');
+    expect(html).toContain('data-tour-step="cookie-preferences"');
+    expect(html).toContain('aria-haspopup="dialog"');
   });
 
   it('renders OsAwareTabs activation logic without anchor-only tab assumptions', async () => {

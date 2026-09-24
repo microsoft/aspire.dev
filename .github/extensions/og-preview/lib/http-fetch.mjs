@@ -13,74 +13,81 @@ const USER_AGENT =
 
 const LOCAL_HOST_RE = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1|.*\.localhost)(:|\/|$)/i;
 
-// SSRF guard. The tool intentionally supports localhost, but every other
-// private / link-local / unique-local / carrier-grade-NAT range is denied by
-// default so the agent-callable actions and the loopback proxy can't be turned
-// into a request-forgery primitive against the developer's machine/network
-// (e.g. the 169.254.169.254 cloud metadata endpoint). Set
-// OG_ALLOW_PRIVATE_NETWORK=1 to opt in to private destinations beyond localhost.
+// Local destinations require explicit origin authorization. The environment
+// opt-in permits selecting private origins; it never authorizes discovered URLs.
 const ALLOW_PRIVATE_NETWORK = /^(1|true|yes|on)$/i.test(
     String(process.env.OG_ALLOW_PRIVATE_NETWORK || ""),
 );
 
-function ipv4Allowed(ip, allowPrivate) {
+function addressKind(ip) {
+    if (net.isIP(ip) === 6) {
+        const canonical = new URL(`http://[${ip}]/`).hostname.slice(1, -1);
+        const mapped = canonical.match(/^::ffff:([a-f0-9]+):([a-f0-9]+)$/);
+        if (mapped) {
+            const high = parseInt(mapped[1], 16);
+            const low = parseInt(mapped[2], 16);
+            return addressKind(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`);
+        }
+        if (canonical === "::1") return "loopback";
+        // Global unicast only; exclude transition and documentation ranges.
+        const [first, second = "0"] = canonical.split(":");
+        if (/^[23]/.test(canonical) &&
+            !(first === "2001" && (parseInt(second || "0", 16) < 512 || second === "db8")) &&
+            first !== "2002" && first !== "3fff") return "public";
+        return "private";
+    }
+    if (net.isIP(ip) !== 4) throw new Error("Invalid resolved address.");
     const o = ip.split(".").map((n) => Number(n));
-    if (o.length !== 4 || o.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
-        return false;
+    const [a, b, c] = o;
+    if (a === 127) return "loopback";
+    if (a === 0 || a === 10 || a >= 224 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && (b === 168 || (b === 0 && (c === 0 || c === 2)))) ||
+        (a === 169 && b === 254) ||
+        (a === 100 && b >= 64 && b <= 127) ||
+        (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
+        (a === 203 && b === 0 && c === 113)) return "private";
+    return "public";
+}
+
+function parseTarget(rawUrl) {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new Error("Only HTTP and HTTPS URLs are supported.");
     }
-    const [a, b] = o;
-    if (a === 127) return true; // loopback (localhost) — always allowed
-    if (allowPrivate) return true;
-    if (a === 0) return false; // "this" network
-    if (a === 10) return false; // private
-    if (a === 172 && b >= 16 && b <= 31) return false; // private
-    if (a === 192 && b === 168) return false; // private
-    if (a === 169 && b === 254) return false; // link-local + cloud metadata
-    if (a === 100 && b >= 64 && b <= 127) return false; // carrier-grade NAT
-    return true;
+    if (parsed.username || parsed.password) throw new Error("URL credentials are not supported.");
+    return parsed;
 }
 
-function ipv6Allowed(ip, allowPrivate) {
-    const s = ip.toLowerCase();
-    const mapped = s.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return ipv4Allowed(mapped[1], allowPrivate);
-    if (s === "::1") return true; // loopback
-    if (allowPrivate) return true;
-    if (s === "::") return false; // unspecified
-    if (/^fe[89ab]/.test(s)) return false; // fe80::/10 link-local
-    if (/^f[cd]/.test(s)) return false; // fc00::/7 unique-local
-    return true;
-}
-
-function addressAllowed(ip, allowPrivate) {
-    const v = net.isIP(ip);
-    if (v === 4) return ipv4Allowed(ip, allowPrivate);
-    if (v === 6) return ipv6Allowed(ip, allowPrivate);
-    return false;
-}
-
-// Resolve a hostname to its addresses and confirm none land in a denied range.
-// Literal IPs are checked directly; explicit localhost names are always allowed.
-async function assertHostAllowed(hostname, allowPrivate) {
+async function resolveAddresses(hostname) {
     const host = hostname.startsWith("[") ? hostname.slice(1, -1) : hostname;
-    if (LOCAL_HOST_RE.test(host)) return; // localhost / *.localhost / 127.* / ::1
     if (net.isIP(host)) {
-        if (!addressAllowed(host, allowPrivate)) {
-            throw new Error(`Blocked non-public address: ${host}`);
-        }
-        return;
+        return [{ address: host, family: net.isIP(host) }];
     }
-    let addrs;
-    try {
-        addrs = await dns.lookup(host, { all: true });
-    } catch {
-        throw new Error(`Could not resolve host: ${host}`);
-    }
-    for (const a of addrs) {
-        if (!addressAllowed(a.address, allowPrivate)) {
-            throw new Error(`Blocked non-public address for ${host}: ${a.address}`);
+    const addresses = await dns.lookup(host, { all: true });
+    if (!addresses.length) throw new Error("Host resolved to no addresses.");
+    for (const record of addresses) {
+        if (!net.isIP(record.address) || net.isIP(record.address) !== record.family) {
+            throw new Error("Invalid DNS result.");
         }
     }
+    return addresses;
+}
+
+/** Only trusted user/agent selection may call this, never discovered content. */
+export async function authorizePreview(rawUrl, allowPrivateNetwork = ALLOW_PRIVATE_NETWORK) {
+    const parsed = parseTarget(normalizeUrl(rawUrl));
+    const addresses = await resolveAddresses(parsed.hostname);
+    const kinds = new Set(addresses.map((a) => addressKind(a.address)));
+    if (kinds.size !== 1) throw new Error("Host resolves to mixed network scopes.");
+    const kind = kinds.values().next().value;
+    if (kind === "private" && !allowPrivateNetwork) {
+        throw new Error("Private-network previews require OG_ALLOW_PRIVATE_NETWORK.");
+    }
+    return {
+        authorizedOrigin: kind === "public" ? null : parsed.origin,
+        allowPrivateNetwork,
+    };
 }
 
 /**
@@ -90,9 +97,12 @@ async function assertHostAllowed(hostname, allowPrivate) {
 export function normalizeUrl(input) {
     const trimmed = String(input ?? "").trim();
     if (!trimmed) throw new Error("No URL provided.");
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (/^https?:\/\//i.test(trimmed)) return parseTarget(trimmed).href;
+    if (/^[a-z][a-z\d+.-]*:/i.test(trimmed) && !/^[^:/]+:\d+(?:[/?#]|$)/.test(trimmed)) {
+        throw new Error("Only HTTP and HTTPS URLs are supported.");
+    }
     const scheme = LOCAL_HOST_RE.test(trimmed) ? "http://" : "https://";
-    return scheme + trimmed;
+    return parseTarget(scheme + trimmed).href;
 }
 
 const MAX_BYTES = 6 * 1024 * 1024; // 6 MB safety cap
@@ -108,23 +118,32 @@ export function fetchUrl(rawUrl, options = {}) {
         accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         maxBytes = MAX_BYTES,
         allowPrivateNetwork = ALLOW_PRIVATE_NETWORK,
+        authorizedOrigin = null,
     } = options;
 
     return new Promise((resolve, reject) => {
         let redirects = 0;
+        let localOrigin = authorizedOrigin;
 
         const visit = async (urlStr) => {
             let parsed;
             try {
-                parsed = new URL(urlStr);
+                parsed = parseTarget(urlStr);
             } catch {
-                return reject(new Error(`Invalid URL: ${urlStr}`));
+                return reject(new Error("Invalid or unsupported URL."));
             }
-            if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-                return reject(new Error(`Unsupported protocol: ${parsed.protocol}`));
-            }
+            let addresses;
             try {
-                await assertHostAllowed(parsed.hostname, allowPrivateNetwork);
+                if (parsed.origin !== localOrigin) localOrigin = null;
+                addresses = await resolveAddresses(parsed.hostname);
+                for (const { address } of addresses) {
+                    const kind = addressKind(address);
+                    if (kind !== "public" &&
+                        (parsed.origin !== localOrigin ||
+                         (kind === "private" && !allowPrivateNetwork))) {
+                        throw new Error("Destination is outside the authorized preview origin.");
+                    }
+                }
             } catch (err) {
                 return reject(err);
             }
@@ -134,6 +153,17 @@ export function fetchUrl(rawUrl, options = {}) {
                 parsed,
                 {
                     method: "GET",
+                    // Do not resolve again or reuse a connection validated for a
+                    // different request. Keep the URL hostname for Host and TLS.
+                    agent: false,
+                    lookup: (_hostname, opts, callback) => {
+                        const candidates = opts.family
+                            ? addresses.filter((a) => a.family === opts.family)
+                            : addresses;
+                        if (!candidates.length) return callback(new Error("No validated address."));
+                        if (opts.all) return callback(null, candidates);
+                        callback(null, candidates[0].address, candidates[0].family);
+                    },
                     headers: {
                         "User-Agent": USER_AGENT,
                         Accept: accept,

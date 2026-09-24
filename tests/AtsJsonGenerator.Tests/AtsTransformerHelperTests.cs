@@ -5,6 +5,58 @@ namespace AtsJsonGenerator.Tests;
 public sealed class AtsTransformerHelperTests
 {
     [Fact]
+    public void Transform_RejectsDumpContainingErrorDiagnostics()
+    {
+        var dump = new AtsDumpRoot
+        {
+            Diagnostics = [new() { Severity = "Error", Message = "Duplicate capability 'addTo'." }],
+        };
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            AtsTransformer.Transform(dump, "Example.Package"));
+        Assert.Contains("Duplicate capability", error.Message);
+    }
+
+    [Fact]
+    public void FormatTypeRef_PreservesUnionMembersAndArrayPrecedence()
+    {
+        var union = new AtsDumpTypeRef
+        {
+            TypeId = "Runtime/Example.BicepValueProxy|enum:Example.StorageSkuName",
+            Category = "Union",
+            UnionTypes =
+            [
+                new() { TypeId = "Runtime/Example.BicepValueProxy", Category = "Handle" },
+                new() { TypeId = "enum:Example.StorageSkuName", Category = "Enum" },
+            ],
+        };
+
+        Assert.Equal("BicepValueProxy | StorageSkuName", AtsTransformer.FormatTypeRef(union));
+        Assert.Equal("(BicepValueProxy | StorageSkuName)[]", AtsTransformer.FormatTypeRef(
+            new AtsDumpTypeRef { TypeId = "union[]", Category = "Array", ElementType = union }));
+    }
+
+    [Fact]
+    public void FormatTypeRef_RejectsUnionWithoutMemberMetadata()
+    {
+        Assert.Throws<InvalidOperationException>(() => AtsTransformer.FormatTypeRef(
+            new AtsDumpTypeRef { TypeId = "string|number", Category = "Union" }));
+    }
+
+    [Fact]
+    public void FormatTypeRef_UsesCanonicalEnumNames()
+    {
+        var type = new AtsDumpTypeRef
+        {
+            TypeId = "enum:Azure.Provisioning.Network.ProtocolType",
+            Category = "Enum",
+        };
+        var names = new Dictionary<string, string> { [type.TypeId] = "NetworkProtocolType" };
+
+        Assert.Equal("NetworkProtocolType", AtsTransformer.FormatTypeRef(type, names));
+    }
+
+    [Fact]
     public void StripAssemblyPrefix_RemovesAssemblyMetadataFromGenericArguments()
     {
         var typeId = "Test.Assembly/System.Collections.Generic.IReadOnlyList`1[[Contoso.Widget, Contoso.Assembly, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]";

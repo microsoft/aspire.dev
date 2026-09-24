@@ -107,7 +107,14 @@ test('homepage header matches the compact mobile action geometry at reflow width
   // compact header hides it rather than relying on WCP to do so.
   await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
 
-  const expectedCompactHeaderOrder = ['Aspire', 'Search', 'Docs', 'Try'];
+  const expectedCompactHeaderOrder = [
+    'Aspire',
+    'Search',
+    'Watch Aspire live streams',
+    'Dev',
+    'Docs',
+    'Try',
+  ];
 
   for (const width of [640, 440, 320]) {
     await page.setViewportSize({ width, height: 900 });
@@ -152,6 +159,10 @@ test('homepage header matches the compact mobile action geometry at reflow width
                 return 'Start site tour';
               }
 
+              if (tourTarget === 'live-status') {
+                return 'Watch Aspire live streams';
+              }
+
               if (tourTarget === 'cookie-preferences') {
                 return 'Open cookie preferences dialog';
               }
@@ -161,6 +172,9 @@ test('homepage header matches the compact mobile action geometry at reflow width
               }
 
               if (element instanceof HTMLAnchorElement) {
+                if (element.pathname === '/hub/') {
+                  return 'Dev';
+                }
                 if (element.pathname.endsWith('/docs/')) {
                   return 'Docs';
                 }
@@ -184,6 +198,11 @@ test('homepage header matches the compact mobile action geometry at reflow width
 
     await expect(banner.getByRole('link', { name: 'Aspire', exact: true })).toBeVisible();
     await expect(banner.getByRole('button', { name: 'Search' })).toBeVisible();
+    const hubLink = banner.getByRole('link', { name: 'Dev Hub', exact: true });
+    await expect(hubLink).toBeVisible();
+    await expect(hubLink).toHaveAttribute('aria-label', 'Dev Hub');
+    await expect(hubLink.locator('svg')).toBeVisible();
+    await expect(hubLink).toHaveCSS('border-width', '1px');
     await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeVisible();
     await expect(banner.getByRole('link', { name: 'Try Aspire', exact: true })).toBeVisible();
 
@@ -193,6 +212,8 @@ test('homepage header matches the compact mobile action geometry at reflow width
 
     const controls = [
       banner.getByRole('button', { name: 'Search' }),
+      banner.locator('.right-group-mobile .live-btn'),
+      hubLink,
       banner.getByRole('link', { name: 'Docs', exact: true }),
       banner.getByRole('link', { name: 'Try Aspire', exact: true }),
     ];
@@ -217,6 +238,29 @@ test('homepage header matches the compact mobile action geometry at reflow width
   }
 });
 
+test('homepage carousel reinitializes after client navigation', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'This client-navigation regression is covered once from the desktop project.'
+  );
+
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const carousel = page.locator('[data-dashboard-carousel]');
+  await expect(carousel).toHaveAttribute('data-initialized', 'true');
+  await expect(carousel).toHaveClass(/is-ready/);
+
+  await page.locator('a.docs-btn:visible').click();
+  await expect(page).toHaveURL(/\/docs\/$/);
+  await page.getByRole('banner').getByRole('link', { name: 'Aspire', exact: true }).click();
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/);
+
+  const returnedCarousel = page.locator('[data-dashboard-carousel]');
+  await expect(returnedCarousel).toHaveAttribute('data-initialized', 'true');
+  await expect(returnedCarousel).toHaveClass(/is-ready/);
+});
+
 test('mobile docs chrome prioritizes reading and keeps navigation geometry consistent', async ({
   page,
 }) => {
@@ -237,10 +281,15 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const banner = page.getByRole('banner');
     const searchButton = banner.getByRole('button', { name: 'Search' });
+    const liveLink = banner.locator('.right-group-mobile .live-btn');
+    const hubLink = banner.getByRole('link', { name: 'Dev Hub', exact: true });
     const tryLink = banner.locator('.try-aspire-btn-mobile');
     const menuButton = page.locator('starlight-menu-button').getByRole('button', { name: 'Menu' });
 
     await expect(searchButton).toBeVisible();
+    await expect(liveLink).toBeVisible();
+    await expect(hubLink).toBeVisible();
+    await expect(hubLink).toHaveAttribute('href', '/hub/');
     await expect(tryLink).toBeVisible();
     await expect(menuButton).toBeVisible();
     await expect(banner.locator('.right-group-mobile .docs-btn-mobile')).toBeHidden();
@@ -250,9 +299,9 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const headerBox = await banner.boundingBox();
     const controlBoxes = await Promise.all(
-      [searchButton, tryLink, menuButton].map((control) => control.boundingBox())
+      [searchButton, liveLink, hubLink, tryLink, menuButton].map((control) => control.boundingBox())
     );
-    const menuButtonBox = controlBoxes[2];
+    const menuButtonBox = await menuButton.boundingBox();
     expect(headerBox).not.toBeNull();
     expect(controlBoxes.every((box) => box !== null)).toBe(true);
     expect(
@@ -332,11 +381,11 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
       )
       .toBe(2);
 
-    for (const control of [topics.locator('a').first(), filter]) {
-      const box = await control.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-    }
+    const topicBox = await topics.locator('a').first().boundingBox();
+    expect(topicBox).not.toBeNull();
+    expect(topicBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+    const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+    await expect(filter).toHaveCSS('height', coarse ? '48px' : '40px');
 
     for (const control of [groupSummary, nestedLink]) {
       const box = await control.boundingBox();
@@ -813,6 +862,48 @@ test('terminal tabs stay synced between pages', async ({ page }) => {
     .toBe('Bash');
 });
 
+for (const theme of ['dark', 'light'] as const) {
+  test(`sidebar disclosure focus rings follow the ${theme} theme`, async ({ page }) => {
+    await page.goto('/get-started/first-app/');
+    await dismissCookieConsentIfVisible(page);
+    await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
+    if (isNarrowViewport(page)) {
+      await page.locator('starlight-menu-button button').click();
+    }
+
+    const sidebar = page.locator('#starlight__sidebar');
+    const summaries = [
+      sidebar.locator('.top-level > li > details > summary').first(),
+      sidebar.locator('details details > summary:visible').first(),
+    ];
+    const outlineColor = theme === 'dark' ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)';
+    for (const summary of summaries) {
+      await summary.focus();
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Shift+Tab');
+      await expect(summary).toBeFocused();
+      expect(await summary.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
+      await expect(summary).toHaveCSS('outline-color', outlineColor);
+      expect(
+        await summary.evaluate((element) => parseFloat(getComputedStyle(element).outlineWidth))
+      ).toBeGreaterThan(0);
+      await expect(summary).not.toHaveCSS('outline-style', 'none');
+
+      const group = summary.locator('..');
+      const wasOpen = await group.evaluate((element) => element.hasAttribute('open'));
+      await summary.press('Enter');
+      await expect(group).toHaveJSProperty('open', !wasOpen);
+      await expect(summary).toHaveCSS('outline-color', outlineColor);
+      await summary.press('Space');
+      await expect(group).toHaveJSProperty('open', wasOpen);
+    }
+
+    const link = sidebar.locator('.top-level a:visible').first();
+    await link.focus();
+    await expect(link).toHaveCSS('outline-color', outlineColor);
+  });
+}
+
 test('API sidebar collapse state persists across reloads', async ({ page }) => {
   test.slow();
 
@@ -1257,6 +1348,74 @@ test('sidebar collapse toggle stays visible without overlapping the H1 on no-TOC
     above || leftOf,
     `Toggle (${JSON.stringify(collapseBox)}) overlaps H1 (${JSON.stringify(h1Box)}); expected toggle to be above or left of H1.`
   ).toBe(true);
+});
+
+test('mobile TOC replaces the right TOC across zoom levels and display sizes', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'The responsive TOC zoom matrix is covered once from the desktop project.'
+  );
+
+  await page.goto('/app-host/certificate-configuration/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForTopicSidebarReady(page);
+
+  const cdp = await page.context().newCDPSession(page);
+  const mobileToc = page.locator('#starlight__on-this-page--mobile');
+  const rightToc = page.locator('.right-sidebar-panel');
+  const cases = [
+    { resolution: '1366x768', width: 1366, height: 768, zoom: 1, mobile: true },
+    { resolution: '1440x900', width: 1440, height: 900, zoom: 1.25, mobile: true },
+    { resolution: '1920x1080', width: 1920, height: 1080, zoom: 1.25, mobile: true },
+    { resolution: '2560x1440', width: 2560, height: 1440, zoom: 1.75, mobile: true },
+    { resolution: '3840x2160', width: 3840, height: 2160, zoom: 3, mobile: true },
+    { resolution: '1920x1080', width: 1920, height: 1080, zoom: 1, mobile: false },
+    { resolution: '2560x1440', width: 2560, height: 1440, zoom: 1.5, mobile: false },
+    { resolution: '3840x2160', width: 3840, height: 2160, zoom: 2, mobile: false },
+  ];
+
+  try {
+    for (const testCase of cases) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {
+        width: Math.floor(testCase.width / testCase.zoom),
+        height: Math.floor(testCase.height / testCase.zoom),
+        deviceScaleFactor: testCase.zoom,
+        mobile: false,
+        screenWidth: testCase.width,
+        screenHeight: testCase.height,
+      });
+
+      const label = `${testCase.resolution} at ${testCase.zoom * 100}% zoom`;
+
+      if (testCase.mobile) {
+        await expect(mobileToc, `${label} should show the mobile TOC`).toBeVisible();
+        await expect(rightToc, `${label} should hide the right TOC`).toBeHidden();
+      } else {
+        await expect(mobileToc, `${label} should hide the mobile TOC`).toBeHidden();
+        await expect(rightToc, `${label} should show the right TOC`).toBeVisible();
+      }
+
+      const layout = await page.locator('.main-pane').evaluate((mainPane) => {
+        const bounds = mainPane.getBoundingClientRect();
+        return {
+          documentOverflows:
+            document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          rightEdge: bounds.right,
+          viewportWidth: window.innerWidth,
+        };
+      });
+
+      expect(layout.documentOverflows, `${label} should not overflow horizontally`).toBe(false);
+      if (testCase.mobile) {
+        expect(
+          Math.abs(layout.rightEdge - layout.viewportWidth),
+          `${label} should release the hidden right TOC column`
+        ).toBeLessThanOrEqual(1);
+      }
+    }
+  } finally {
+    await cdp.send('Emulation.clearDeviceMetricsOverride');
+  }
 });
 
 test('Aspire 13.5 preserves published section anchors', async ({ page }) => {

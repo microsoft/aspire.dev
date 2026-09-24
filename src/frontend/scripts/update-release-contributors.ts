@@ -37,6 +37,7 @@ interface Release {
 // Ordered newest-first. `previousTag` bridges the 9.x → 13.x version jump and
 // anchors the initial 9.0 doc to the last 8.x GA so it credits the whole cycle.
 const RELEASES: readonly Release[] = [
+  { version: '13.6', tag: 'v13.6.0', previousTag: 'v13.5.0' },
   { version: '13.5', tag: 'v13.5.0', previousTag: 'v13.4.0' },
   { version: '13.4', tag: 'v13.4.0', previousTag: 'v13.3.0' },
   { version: '13.3', tag: 'v13.3.0', previousTag: 'v13.2.0' },

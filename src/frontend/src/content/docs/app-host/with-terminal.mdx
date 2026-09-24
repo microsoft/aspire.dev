@@ -74,10 +74,14 @@ The terminal session is described by a set of options with sensible defaults:
 | ------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Columns`           | `120`   | The initial number of columns for the terminal grid.                                                                                                            |
 | `Rows`              | `30`    | The initial number of rows for the terminal grid.                                                                                                               |
-| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists. Set to `true` to diagnose terminal-host startup or connectivity issues. |
+| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists **and** export their diagnostic logs, metrics, and traces. Set to `true` to diagnose terminal-host startup or connectivity issues. |
 
 <Aside type="tip">
 `Columns` and `Rows` must each be `1` or greater. Configuring either with zero or a negative value in the `WithTerminal(...)` callback throws an `ArgumentOutOfRangeException` immediately instead of failing later during terminal-host startup.
+</Aside>
+
+<Aside type="note" title="Terminal host telemetry is opt-in">
+By default, the hidden terminal host helper resources don't export logs, metrics, or traces, even when an OTLP endpoint is configured for the app—so they never show up in the dashboard's telemetry resource list (including the **Traces** filter). Setting `ShowTerminalHost = true` both reveals the helper resources and turns on their diagnostic telemetry when an OTLP endpoint is available. This is independent of the parent resource's own telemetry, which is never affected by `WithTerminal`.
 </Aside>
 
 <Aside type="note">
@@ -181,6 +185,12 @@ Open the toolbar's options (⋯) menu and choose **Terminal** or **Console logs*
 <Aside type="note">
 The view you pick only affects what's currently displayed—it doesn't change what's captured. Console logs keep streaming, and the terminal session keeps running, regardless of which view is active.
 </Aside>
+
+<Aside type="tip" title="Firefox renderer">
+Desktop and Android Firefox always render dashboard terminals using WebGL2, even when WebGPU is available, to avoid a [known Firefox WebGPU performance issue](https://bugzilla.mozilla.org/show_bug.cgi?id=1870699). This applies to every terminal mount—including automatic retries and explicit reconnects—and requires no configuration. Firefox on iOS (`FxiOS/`) uses WebKit rather than Gecko, so it isn't affected and keeps automatic renderer selection like other browsers.
+</Aside>
+
+Because a terminal-backed executable bridges its standard output and error through the pseudo-terminal (PTY) instead of separate log streams, the **Console logs** view and [`aspire logs`](/reference/cli/commands/aspire-logs/) only show that resource's startup and system logs. For example the view shows lifecycle and DCP diagnostics but not the interleaved `stdout` and `stderr` text you see in the **Terminal** view. Use the **Terminal** view or `aspire terminal attach <resource>` to see the process's own output.
 
 ## Access terminals from VS Code
 

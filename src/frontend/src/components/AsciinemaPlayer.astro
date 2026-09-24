@@ -95,11 +95,16 @@ const {
 <script>
   import 'asciinema-player/dist/bundle/asciinema-player.css';
 
+  let themeObserver: MutationObserver | undefined;
+
   async function initAsciinemaPlayer() {
     try {
-      const { create } = await import('asciinema-player');
-
       const containers = document.querySelectorAll('.asciinema-player-container');
+      themeObserver?.disconnect();
+      themeObserver = undefined;
+      if (containers.length === 0) return;
+
+      const { create } = await import('asciinema-player');
 
       function createPlayers() {
         containers.forEach((container) => {
@@ -244,7 +249,7 @@ const {
 
       createPlayers();
 
-      const observer = new MutationObserver((mutations) => {
+      themeObserver = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
           if (
             mutation.type === 'attributes' &&
@@ -256,7 +261,7 @@ const {
         });
       });
 
-      observer.observe(document.documentElement, {
+      themeObserver.observe(document.documentElement, {
         attributes: true,
         attributeFilter: ['data-theme'],
       });
@@ -265,9 +270,5 @@ const {
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAsciinemaPlayer);
-  } else {
-    initAsciinemaPlayer();
-  }
+  document.addEventListener('astro:page-load', initAsciinemaPlayer);
 </script>

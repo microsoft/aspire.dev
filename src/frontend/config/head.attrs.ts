@@ -9,14 +9,6 @@ export const headAttrs: HeadAttr[] = [
   {
     tag: 'meta',
     attrs: {
-      name: 'description',
-      content:
-        'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
-    },
-  },
-  {
-    tag: 'meta',
-    attrs: {
       name: 'keywords',
       content: `
 					Aspire, .NET Aspire, dotnet aspire,

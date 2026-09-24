@@ -1,0 +1,535 @@
+{
+  "package": {
+    "name": "Aspire.Hosting.Rust",
+    "version": "13.6.0-preview.1.26473.12",
+    "language": "typescript",
+    "sourceRepository": "https://github.com/microsoft/aspire",
+    "sourceCommit": "a11eca9611073f7cf66fa87faac63c2119e87713"
+  },
+  "functions": [
+    {
+      "name": "addRustApp",
+      "capabilityId": "Aspire.Hosting.Rust/addRustApp",
+      "qualifiedName": "addRustApp",
+      "description": "Adds a Rust application to the application model.",
+      "remarks": "The resource runs `cargo run` in `appDirectory`. Cargo discovers the manifest\nfrom that directory by default; use `WithCargoManifestPath` to select another manifest. Cargo\nrequires the two kinds of argument to be separated by `--`, so they are configured separately:\n`WithCargoArgs` adds arguments for cargo itself (before the separator) and `WithArgs` adds\narguments for the application (after it).\nDebugging is wired up automatically. In VS Code the resource is built with `cargo build` and\nthe resulting binary is launched under a native debugger, so the cargo arguments are applied to\nthe build rather than to `cargo run`.\nAspire configures the OTLP endpoint and development certificate environment variables. The Rust\napplication must still enable the transport and TLS features required by its OpenTelemetry SDK and\nload native trust roots when using the development certificate. Rust does not read a port from the\nenvironment on its own, so bind to the port named by `WithHttpEndpoint(env: ...)` rather than a\nhard-coded one.\nWhen publishing, a multi-stage Dockerfile is generated that builds the crate inside the container;\nthe crate is never compiled on the host. If the app directory already contains a `Dockerfile`,\nthat file is used instead. Call `WithDockerfileBaseImage` once with both arguments to override\nthe build and runtime base images together; each call replaces the previous image configuration.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addRustApp(name: string, appDirectory: string): RustAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The working directory for cargo and the Docker build context used when publishing."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "withCargoArgs",
+      "capabilityId": "Aspire.Hosting.Rust/withCargoArgs",
+      "qualifiedName": "withCargoArgs",
+      "description": "Adds command-line arguments to the cargo command used by a Rust application.",
+      "remarks": "Arguments are forwarded to cargo verbatim and are not interpreted. Publishing and debugging work out\nwhich file cargo produces from the `WithCargo*` options alone, so a target selection that has a\ndedicated method — `WithCargoBinTarget`, `WithCargoExample`, `WithCargoPackage`,\n`WithCargoProfile`, `WithCargoReleaseBuild` and `WithCargoTarget` — has to go through\nit rather than being passed here.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withCargoArgs(args: string[]): RustAppResource",
+      "parameters": [
+        {
+          "name": "args",
+          "type": "string[]",
+          "description": "The cargo arguments to append before `--`."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Rust.RustAppResource"
+      ]
+    },
+    {
+      "name": "withCargoBinTarget",
+      "capabilityId": "Aspire.Hosting.Rust/withCargoBinTarget",
+      "qualifiedName": "withCargoBinTarget",
+      "description": "Configures the binary target to run for Rust applications that declare more than one.",
+      "remarks": "Passed to cargo as `--bin`. Debugging and publishing also use it to work out which file cargo\nproduces, so a package with several binaries must select one here (or set `default-run` in\nCargo.toml).",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withCargoBinTarget(binName: string): RustAppResource",
+      "parameters": [
+        {
+          "name": "binName",
+          "type": "string",
+          "description": "The binary target name, as declared by `[[bin]] name` in Cargo.toml."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Rust.RustAppResource"
+      ]
+    },
+    {
+      "name": "withCargoExample",
+      "capabilityId": "Aspire.Hosting.Rust/withCargoExample",
+      "qualifiedName": "withCargoExample",
+      "description": "Configures an example target to run instead of a binary.",
+      "remarks": "Passed to cargo as `--example`. Cargo writes examples to `target/<profile>/examples/`,\nand debugging and publishing both follow that layout.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withCargoExample(exampleName: string): RustAppResource",
+      "parameters": [
+        {
+          "name": "exampleName",
+          "type": "string",
+          "description": "The example name, as declared by a file or directory under `examples/`."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Rust.RustAppResource"
+      ]
+    },
+    {
+      "name": "withCargoFeatures",
+      "capabilityId": "Aspire.Hosting.Rust/withCargoFeatures",
+      "qualifiedName": "withCargoFeatures",
+      "description": "Adds cargo features for the Rust application.",
+      "remarks": "Repeated calls accumulate features in call order.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withCargoFeatures(features: string[]): RustAppResource",
+      "parameters": [
+        {
+          "name": "features",
+          "type": "string[]",
+          "description": "The features to enable."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Rust.RustAppResource"
+      ]
+    },
+    {
+      "name": "withCargoLocked",
+      "capabilityId": "Aspire.Hosting.Rust/withCargoLocked",
+      "qualifiedName": "withCargoLocked",
+      "description": "Configures the Rust application to build and run with the exact dependency versions recorded in `Cargo.lock`.",
+      "remarks": "Passed to cargo as `--locked`, which fails the build rather than updating `Cargo.lock`.\nPublishing already adds this whenever the crate has a lock file, so a published image cannot silently\npick up dependency versions that were never committed; pass `false` to opt out.\nSee https://doc.rust-lang.org/cargo/commands/cargo-build.html#manifest-options",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withCargoLocked(locked?: boolean): RustAppResource",
+      "parameters": [
+        {
+          "name": "locked",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "True",
+          "description": "`true` to add `--locked`; otherwise `false`."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Rust.RustAppResource"
+      ]
+    },
+    {
+      "name": "withCargoManifestPath",
+      "capabilityId": "Aspire.Hosting.Rust/withCargoManifestPath",
+      "qualifiedName": "withCargoManifestPath",
+      "description": "Configures the `Cargo.toml` cargo builds from.",
+      "remarks": "Passed to cargo as `--manifest-path`. Cargo otherwise discovers the manifest by searching upwards\nfrom the app directory, which is what most apps want, so this is only needed to point at a manifest\nsomewhere else — for example the crate of one workspace member when the app directory is the\nworkspace root.\nPublishing copies the app directory into the container image and rewrites the manifest path to match,\nso the manifest has to live inside the app directory and the path has to be relative to it. An absolute\npath is accepted when running and rejected when publishing.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withCargoManifestPath(manifestPath: string): RustAppResource",
+      "parameters": [
+        {
+          "name": "manifestPath",
+          "type": "string",
+          "description": "The path to the manifest, absolute or relative to the app directory."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Rust.RustAppResource"
+      ]
+    },
+    {
+      "name": "withCargoPackage",
+      "capabilityId": "Aspire.Hosting.Rust/withCargoPackage",
+      "qualifiedName": "withCargoPackage",
+      "description": "Configures the workspace package to build and run.",
+      "remarks": "Passed to cargo as `--package`. Required when the crate directory is a workspace whose default\nmembers include more than one package with a binary target, because the binary to run would otherwise\nbe ambiguous. Library-only members are ignored, so an app crate beside library crates needs nothing.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withCargoPackage(packageName: string): RustAppResource",
+      "parameters": [
+        {
+          "name": "packageName",
+          "type": "string",
+          "description": "The cargo package name."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Rust.RustAppResource"
+      ]
+    },
+    {
+      "name": "withCargoProfile",
+      "capabilityId": "Aspire.Hosting.Rust/withCargoProfile",
+      "qualifiedName": "withCargoProfile",
+      "description": "Configures the named cargo profile to build with.",
+      "remarks": "Passed to cargo as `--profile`, which takes precedence over `WithCargoReleaseBuild` because\ncargo rejects `--profile` and `--release` together.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withCargoProfile(profileName: string): RustAppResource",
+      "parameters": [
+        {
+          "name": "profileName",
+          "type": "string",
+          "description": "The profile name, for example `dev`, `release`, or a custom profile."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Rust.RustAppResource"
+      ]
+    },
+    {
+      "name": "withCargoReleaseBuild",
+      "capabilityId": "Aspire.Hosting.Rust/withCargoReleaseBuild",
+      "qualifiedName": "withCargoReleaseBuild",
+      "description": "Configures the Rust application to run using release optimization.",
+      "remarks": "Publishing builds an optimized image by default, so pass `false` to opt a published\nimage out of `--release`.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withCargoReleaseBuild(releaseBuild?: boolean): RustAppResource",
+      "parameters": [
+        {
+          "name": "releaseBuild",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "True",
+          "description": "`true` to add `--release`; otherwise `false`."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Rust.RustAppResource"
+      ]
+    },
+    {
+      "name": "withCargoTarget",
+      "capabilityId": "Aspire.Hosting.Rust/withCargoTarget",
+      "qualifiedName": "withCargoTarget",
+      "description": "Configures the target triple cargo builds for.",
+      "remarks": "Passed to cargo as `--target`. Cargo writes a cross-compiled binary to\n`target/<triple>/<profile>/`, and the generated Dockerfile follows that layout and adds\nthe target's standard library to the build image with `rustup target add`.\nAspire-generated Dockerfiles map native Linux x86_64, aarch64, 32-bit ARM, and 32-bit x86 targets to\nDocker Linux platforms. Docker's `linux/arm` platform represents the ARMv7 variant. The default\nbuild and runtime images support x86_64 and aarch64 musl targets. A 32-bit musl target needs a custom\nbuild image but can use the default runtime image. Other ABIs require custom build and runtime images\nconfigured together in one `WithDockerfileBaseImage` call because later calls replace the previous\nimage configuration.\nCustom images opt out of default-image compatibility checks, but the target must still map to a\nsupported native Docker Linux platform. A custom build image must already contain any linker or\nnative dependencies the target needs; `WithDockerfileBaseImage` changes images but does not\ninstall cross-compilation tooling. Other targets require an authored Dockerfile for publishing.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withCargoTarget(target: string): RustAppResource",
+      "parameters": [
+        {
+          "name": "target",
+          "type": "string",
+          "description": "The target triple, for example `x86_64-unknown-linux-musl`."
+        }
+      ],
+      "returnType": "RustAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Rust.RustAppResource"
+      ]
+    }
+  ],
+  "handleTypes": [
+    {
+      "name": "RustAppResource",
+      "fullName": "Aspire.Hosting.Rust.RustAppResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "Represents a Rust application resource in the distributed application model.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IContainerFilesDestinationResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithServiceDiscovery"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": [
+        {
+          "name": "withCargoArgs",
+          "capabilityId": "Aspire.Hosting.Rust/withCargoArgs",
+          "qualifiedName": "withCargoArgs",
+          "description": "Adds command-line arguments to the cargo command used by a Rust application.",
+          "remarks": "Arguments are forwarded to cargo verbatim and are not interpreted. Publishing and debugging work out\nwhich file cargo produces from the `WithCargo*` options alone, so a target selection that has a\ndedicated method — `WithCargoBinTarget`, `WithCargoExample`, `WithCargoPackage`,\n`WithCargoProfile`, `WithCargoReleaseBuild` and `WithCargoTarget` — has to go through\nit rather than being passed here.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withCargoArgs(args: string[]): RustAppResource",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "string[]",
+              "description": "The cargo arguments to append before `--`."
+            }
+          ],
+          "returnType": "RustAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Rust.RustAppResource"
+          ]
+        },
+        {
+          "name": "withCargoBinTarget",
+          "capabilityId": "Aspire.Hosting.Rust/withCargoBinTarget",
+          "qualifiedName": "withCargoBinTarget",
+          "description": "Configures the binary target to run for Rust applications that declare more than one.",
+          "remarks": "Passed to cargo as `--bin`. Debugging and publishing also use it to work out which file cargo\nproduces, so a package with several binaries must select one here (or set `default-run` in\nCargo.toml).",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withCargoBinTarget(binName: string): RustAppResource",
+          "parameters": [
+            {
+              "name": "binName",
+              "type": "string",
+              "description": "The binary target name, as declared by `[[bin]] name` in Cargo.toml."
+            }
+          ],
+          "returnType": "RustAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Rust.RustAppResource"
+          ]
+        },
+        {
+          "name": "withCargoExample",
+          "capabilityId": "Aspire.Hosting.Rust/withCargoExample",
+          "qualifiedName": "withCargoExample",
+          "description": "Configures an example target to run instead of a binary.",
+          "remarks": "Passed to cargo as `--example`. Cargo writes examples to `target/<profile>/examples/`,\nand debugging and publishing both follow that layout.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withCargoExample(exampleName: string): RustAppResource",
+          "parameters": [
+            {
+              "name": "exampleName",
+              "type": "string",
+              "description": "The example name, as declared by a file or directory under `examples/`."
+            }
+          ],
+          "returnType": "RustAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Rust.RustAppResource"
+          ]
+        },
+        {
+          "name": "withCargoFeatures",
+          "capabilityId": "Aspire.Hosting.Rust/withCargoFeatures",
+          "qualifiedName": "withCargoFeatures",
+          "description": "Adds cargo features for the Rust application.",
+          "remarks": "Repeated calls accumulate features in call order.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withCargoFeatures(features: string[]): RustAppResource",
+          "parameters": [
+            {
+              "name": "features",
+              "type": "string[]",
+              "description": "The features to enable."
+            }
+          ],
+          "returnType": "RustAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Rust.RustAppResource"
+          ]
+        },
+        {
+          "name": "withCargoLocked",
+          "capabilityId": "Aspire.Hosting.Rust/withCargoLocked",
+          "qualifiedName": "withCargoLocked",
+          "description": "Configures the Rust application to build and run with the exact dependency versions recorded in `Cargo.lock`.",
+          "remarks": "Passed to cargo as `--locked`, which fails the build rather than updating `Cargo.lock`.\nPublishing already adds this whenever the crate has a lock file, so a published image cannot silently\npick up dependency versions that were never committed; pass `false` to opt out.\nSee https://doc.rust-lang.org/cargo/commands/cargo-build.html#manifest-options",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withCargoLocked(locked?: boolean): RustAppResource",
+          "parameters": [
+            {
+              "name": "locked",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "True",
+              "description": "`true` to add `--locked`; otherwise `false`."
+            }
+          ],
+          "returnType": "RustAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Rust.RustAppResource"
+          ]
+        },
+        {
+          "name": "withCargoManifestPath",
+          "capabilityId": "Aspire.Hosting.Rust/withCargoManifestPath",
+          "qualifiedName": "withCargoManifestPath",
+          "description": "Configures the `Cargo.toml` cargo builds from.",
+          "remarks": "Passed to cargo as `--manifest-path`. Cargo otherwise discovers the manifest by searching upwards\nfrom the app directory, which is what most apps want, so this is only needed to point at a manifest\nsomewhere else — for example the crate of one workspace member when the app directory is the\nworkspace root.\nPublishing copies the app directory into the container image and rewrites the manifest path to match,\nso the manifest has to live inside the app directory and the path has to be relative to it. An absolute\npath is accepted when running and rejected when publishing.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withCargoManifestPath(manifestPath: string): RustAppResource",
+          "parameters": [
+            {
+              "name": "manifestPath",
+              "type": "string",
+              "description": "The path to the manifest, absolute or relative to the app directory."
+            }
+          ],
+          "returnType": "RustAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Rust.RustAppResource"
+          ]
+        },
+        {
+          "name": "withCargoPackage",
+          "capabilityId": "Aspire.Hosting.Rust/withCargoPackage",
+          "qualifiedName": "withCargoPackage",
+          "description": "Configures the workspace package to build and run.",
+          "remarks": "Passed to cargo as `--package`. Required when the crate directory is a workspace whose default\nmembers include more than one package with a binary target, because the binary to run would otherwise\nbe ambiguous. Library-only members are ignored, so an app crate beside library crates needs nothing.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withCargoPackage(packageName: string): RustAppResource",
+          "parameters": [
+            {
+              "name": "packageName",
+              "type": "string",
+              "description": "The cargo package name."
+            }
+          ],
+          "returnType": "RustAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Rust.RustAppResource"
+          ]
+        },
+        {
+          "name": "withCargoProfile",
+          "capabilityId": "Aspire.Hosting.Rust/withCargoProfile",
+          "qualifiedName": "withCargoProfile",
+          "description": "Configures the named cargo profile to build with.",
+          "remarks": "Passed to cargo as `--profile`, which takes precedence over `WithCargoReleaseBuild` because\ncargo rejects `--profile` and `--release` together.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withCargoProfile(profileName: string): RustAppResource",
+          "parameters": [
+            {
+              "name": "profileName",
+              "type": "string",
+              "description": "The profile name, for example `dev`, `release`, or a custom profile."
+            }
+          ],
+          "returnType": "RustAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Rust.RustAppResource"
+          ]
+        },
+        {
+          "name": "withCargoReleaseBuild",
+          "capabilityId": "Aspire.Hosting.Rust/withCargoReleaseBuild",
+          "qualifiedName": "withCargoReleaseBuild",
+          "description": "Configures the Rust application to run using release optimization.",
+          "remarks": "Publishing builds an optimized image by default, so pass `false` to opt a published\nimage out of `--release`.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withCargoReleaseBuild(releaseBuild?: boolean): RustAppResource",
+          "parameters": [
+            {
+              "name": "releaseBuild",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "True",
+              "description": "`true` to add `--release`; otherwise `false`."
+            }
+          ],
+          "returnType": "RustAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Rust.RustAppResource"
+          ]
+        },
+        {
+          "name": "withCargoTarget",
+          "capabilityId": "Aspire.Hosting.Rust/withCargoTarget",
+          "qualifiedName": "withCargoTarget",
+          "description": "Configures the target triple cargo builds for.",
+          "remarks": "Passed to cargo as `--target`. Cargo writes a cross-compiled binary to\n`target/<triple>/<profile>/`, and the generated Dockerfile follows that layout and adds\nthe target's standard library to the build image with `rustup target add`.\nAspire-generated Dockerfiles map native Linux x86_64, aarch64, 32-bit ARM, and 32-bit x86 targets to\nDocker Linux platforms. Docker's `linux/arm` platform represents the ARMv7 variant. The default\nbuild and runtime images support x86_64 and aarch64 musl targets. A 32-bit musl target needs a custom\nbuild image but can use the default runtime image. Other ABIs require custom build and runtime images\nconfigured together in one `WithDockerfileBaseImage` call because later calls replace the previous\nimage configuration.\nCustom images opt out of default-image compatibility checks, but the target must still map to a\nsupported native Docker Linux platform. A custom build image must already contain any linker or\nnative dependencies the target needs; `WithDockerfileBaseImage` changes images but does not\ninstall cross-compilation tooling. Other targets require an authored Dockerfile for publishing.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withCargoTarget(target: string): RustAppResource",
+          "parameters": [
+            {
+              "name": "target",
+              "type": "string",
+              "description": "The target triple, for example `x86_64-unknown-linux-musl`."
+            }
+          ],
+          "returnType": "RustAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Rust/Aspire.Hosting.Rust.RustAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Rust.RustAppResource"
+          ]
+        }
+      ]
+    }
+  ],
+  "dtoTypes": [],
+  "enumTypes": []
+}

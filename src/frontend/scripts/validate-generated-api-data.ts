@@ -2,6 +2,7 @@ import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readEnumDeclarations } from './supplement-ats-enums';
 
 interface CatalogEntry {
   title: string;
@@ -13,6 +14,7 @@ interface PackageMetadata {
   version: string;
   sourceRepository?: string;
   sourceCommit?: string;
+  hasGeneratedExports?: boolean;
 }
 
 interface ApiAttribute {
@@ -75,6 +77,7 @@ interface TsModuleJson {
   functions?: unknown[];
   dtoTypes?: DtoType[];
   handleTypes?: HandleType[];
+  enumTypes?: { name: string; members: string[] }[];
 }
 
 export interface GeneratedFile<T> {
@@ -120,9 +123,7 @@ function shortTypeName(typeId: string): string {
   normalized = normalized.replace(
     /[A-Za-z_][A-Za-z0-9_]*(?:[./][A-Za-z_][A-Za-z0-9_]*)+/g,
     (value) => {
-      const withoutAssembly = value.includes('/')
-        ? value.slice(value.lastIndexOf('/') + 1)
-        : value;
+      const withoutAssembly = value.includes('/') ? value.slice(value.lastIndexOf('/') + 1) : value;
       const parts = withoutAssembly.split('.');
       return parts[parts.length - 1];
     }
@@ -144,9 +145,7 @@ function normalizeTypeScriptType(typeName: string): string {
   return typeName
     .trim()
     .replace(/[A-Za-z_][A-Za-z0-9_]*(?:[./][A-Za-z_][A-Za-z0-9_]*)+/g, (value) => {
-      const withoutAssembly = value.includes('/')
-        ? value.slice(value.lastIndexOf('/') + 1)
-        : value;
+      const withoutAssembly = value.includes('/') ? value.slice(value.lastIndexOf('/') + 1) : value;
       const parts = withoutAssembly.split('.');
       return parts[parts.length - 1];
     })
@@ -189,7 +188,8 @@ function addUnique<T>(
 function isPackageOutputExpected(name: string): boolean {
   return (
     !name.startsWith('Aspire.Hosting.CodeGeneration.') &&
-    name !== 'Aspire.Hosting.Integration.Analyzers'
+    name !== 'Aspire.Hosting.Integration.Analyzers' &&
+    name !== 'Aspire.Hosting.Azure.Provisioning.Generators'
   );
 }
 
@@ -218,8 +218,8 @@ function attributesForOwner(
 function memberOwnerKey(typeOwner: string, member: ApiMember): string {
   const genericArity = member.genericParameters?.length ?? 0;
   const parameterTypes = (member.parameters ?? [])
-    .map((parameter) =>
-      `${parameter.modifier ? `${parameter.modifier} ` : ''}${parameter.type ?? '?'}`
+    .map(
+      (parameter) => `${parameter.modifier ? `${parameter.modifier} ` : ''}${parameter.type ?? '?'}`
     )
     .join(',');
   return `${typeOwner}/member:${member.kind ?? 'member'}:${member.name}${genericArity > 0 ? `\`${genericArity}` : ''}(${parameterTypes})`;
@@ -246,6 +246,7 @@ function collectAttributePayloads(pkg: PackageJson): Map<string, AttributePayloa
 }
 
 function hasExportedApi(pkg: PackageJson): boolean {
+  if (pkg.package.hasGeneratedExports) return true;
   const visit = (attributes: ApiAttribute[] | undefined): boolean =>
     (attributes ?? []).some((attribute) => /(?:^|\.)AspireExportAttribute$/.test(attribute.name));
 
@@ -311,9 +312,7 @@ function parseInterfaces(declarations: string): Map<string, ParsedInterface> {
     }
     const properties = new Map(previous?.properties ?? []);
     const body = declarations.slice(bodyStart, bodyEnd);
-    for (const property of body.matchAll(
-      /^\s{2}([A-Za-z_][A-Za-z0-9_]*)(\?)?:\s*(.+);$/gm
-    )) {
+    for (const property of body.matchAll(/^\s{2}([A-Za-z_][A-Za-z0-9_]*)(\?)?:\s*(.+);$/gm)) {
       properties.set(property[1], {
         optional: property[2] === '?',
         type: property[3].trim(),
@@ -370,7 +369,12 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
   }
 
   const packageByIdentity = addUnique(input.packages, (pkg) => pkg.package, 'pkgs', errors);
-  const moduleByIdentity = addUnique(input.modules, (module) => module.package, 'ts-modules', errors);
+  const moduleByIdentity = addUnique(
+    input.modules,
+    (module) => module.package,
+    'ts-modules',
+    errors
+  );
 
   for (const entry of input.catalog) {
     if (!isPackageOutputExpected(entry.title)) continue;
@@ -420,7 +424,9 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     const metadata = file.data.package;
     const catalogEntry = catalogByName.get(metadata.name);
     if (!catalogEntry) {
-      errors.push(`TypeScript API output ${identity(metadata)} is not present in the integration catalog.`);
+      errors.push(
+        `TypeScript API output ${identity(metadata)} is not present in the integration catalog.`
+      );
     } else if (catalogEntry.version !== metadata.version) {
       errors.push(
         `Stale TypeScript API output ${identity(metadata)}; catalog version is ${catalogEntry.version}.`
@@ -449,11 +455,24 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
 
   for (const file of input.packages) {
     if (hasExportedApi(file.data) && !moduleByIdentity.has(identity(file.data.package))) {
-      errors.push(`Missing TypeScript API output for exported package ${identity(file.data.package)}.`);
+      errors.push(
+        `Missing TypeScript API output for exported package ${identity(file.data.package)}.`
+      );
     }
   }
 
   const parsedInterfaces = parseInterfaces(input.declarations);
+  const declaredEnums = new Map(
+    readEnumDeclarations(input.declarations).map((value) => [value.name, value.members])
+  );
+  for (const module of input.modules) {
+    for (const enumType of module.data.enumTypes ?? []) {
+      const members = declaredEnums.get(enumType.name);
+      if (!members || enumType.members.some((member) => !members.includes(member))) {
+        errors.push(`Twoslash enum ${enumType.name} is missing declared SDK members.`);
+      }
+    }
+  }
   const selectedDtos = new Map<string, DtoType>();
   const selectedHandles = new Map<string, { handle: HandleType; module: TsModuleJson }>();
   for (const file of [...input.modules].sort((left, right) =>
@@ -517,9 +536,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
         errors.push(
           `TypeScript handle ${handle.name} is missing base hierarchy metadata for C# base type ${packageType.baseType}.`
         );
-      } else if (
-        normalizeClrType(generatedDirectBase) !== normalizeClrType(packageType.baseType)
-      ) {
+      } else if (normalizeClrType(generatedDirectBase) !== normalizeClrType(packageType.baseType)) {
         errors.push(
           `TypeScript handle ${handle.name} base type ${generatedDirectBase} does not match C# metadata ${packageType.baseType}.`
         );
@@ -528,11 +545,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     const expectedParents = new Set(
       (handle.implementedInterfaces ?? [])
         .map(shortTypeName)
-        .filter(
-          (name) =>
-            /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) &&
-            name !== handle.name
-        )
+        .filter((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && name !== handle.name)
     );
     for (const ancestor of resolveBaseHierarchy(module, handle, packageByIdentity)) {
       const name = shortTypeName(ancestor);
@@ -592,11 +605,7 @@ function runGit(arguments_: string[]): GitCommandResult {
   };
 }
 
-function assertGitSucceeded(
-  command: string,
-  relativePath: string,
-  result: GitCommandResult
-): void {
+function assertGitSucceeded(command: string, relativePath: string, result: GitCommandResult): void {
   if (result.status === 0) return;
 
   const detail = result.error?.message ?? result.stderr.trim() ?? '';

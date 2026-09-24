@@ -49,18 +49,24 @@ export default {
     pluginDisableCopy(),
     ...(TWOSLASH_ENABLED
       ? [
-          ecTwoSlash({
-            // Only run on TS blocks that opt in via the `twoslash` meta flag.
-            instanceConfigs: {
-              // Docs samples use both `ts` and `typescript` fence languages; accept both.
-              twoslash: {
-                explicitTrigger: true,
-                languages: TWOSLASH_LANGUAGES,
+          {
+            ...ecTwoSlash({
+              // Only run on TS blocks that opt in via the `twoslash` meta flag.
+              instanceConfigs: {
+                // Docs samples use both `ts` and `typescript` fence languages; accept both.
+                twoslash: {
+                  explicitTrigger: true,
+                  languages: TWOSLASH_LANGUAGES,
+                },
               },
-            },
-            includeJsDoc: true,
-            twoslashOptions: getTwoslashOptions(),
-          }),
+              includeJsDoc: true,
+              twoslashOptions: getTwoslashOptions(),
+            }),
+            // The plugin's observer and navigation handlers rebind our hovers
+            // using unstable index pairing. Use the site-owned lifecycle in
+            // src/scripts/twoslash-hover.ts, not its popup/Floating UI modules.
+            jsModules: [],
+          },
         ]
       : []),
   ],
