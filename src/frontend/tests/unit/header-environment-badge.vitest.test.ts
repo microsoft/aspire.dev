@@ -38,14 +38,17 @@ describe('Header environment badge', () => {
     vi.stubEnv('PUBLIC_ENVIRONMENT_BADGE', value);
 
     const html = await renderHeader();
+    const tree = unified().use(rehypeParse).parse(html);
+    const badge = select('.environment-badge', tree);
     if (expected) {
-      expect(html).toContain(`>${expected}</span>`);
-      expect(html).toContain('class="environment-badge ');
-      expect(html.indexOf('class="environment-badge ')).toBeGreaterThan(
-        html.indexOf('class="site-title ')
+      expect(badge?.properties.className).toEqual(
+        expect.arrayContaining(['sl-badge', 'small', 'environment-badge'])
       );
+      expect(badge?.properties.title).toBe(expected);
+      expect(badge?.children).toMatchObject([{ type: 'text', value: expected }]);
+      expect(select('.site-title + .environment-badge', tree)).toBe(badge);
     } else {
-      expect(html).not.toContain('class="environment-badge ');
+      expect(badge).toBeUndefined();
     }
   });
 
