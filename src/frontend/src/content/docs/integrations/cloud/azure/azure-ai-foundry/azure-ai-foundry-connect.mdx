@@ -21,7 +21,7 @@ import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
 
 This page describes how consuming apps connect to an Azure AI Foundry resource that's already modeled in your AppHost. For the AppHost API surface — adding a Foundry account, model deployments, Foundry projects, hosted agents, and more — see [Azure AI Foundry hosting integration](../azure-ai-foundry-host/).
 
-When you reference an Azure AI Foundry deployment resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app reads those environment variables and constructs a client with the OpenAI SDK — Microsoft's currently recommended way to call Azure AI Foundry Models — the pattern works the same from any language. In C#, you can also use the legacy Aspire Azure AI Inference client integration for automatic dependency injection, health checks, and telemetry via Microsoft.Extensions.AI.
+When you reference an Azure AI Foundry deployment resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. In C# apps running Foundry Local, use the Aspire OpenAI client integration for dependency injection and telemetry. Apps that use cloud-provisioned Foundry resources authenticate with a managed identity; use the OpenAI SDK directly in that case. The Python, Go, and TypeScript examples also use their OpenAI SDKs directly.
 
 ## Connection properties
 
@@ -105,25 +105,47 @@ Pick the language your consuming app is written in. Each example assumes your Ap
 <Tabs syncKey="azure-ai-foundry-consuming-lang">
 <TabItem label="C#">
 
-For C# apps, the recommended approach is the OpenAI SDK, which Microsoft now recommends for connecting to Azure AI Foundry Models. Read the Aspire-injected connection properties from the environment and construct an OpenAI `ChatClient` pointed at your Foundry endpoint's OpenAI-compatible route.
+For C# apps running Foundry Local, the recommended approach is the Aspire OpenAI client integration. It registers an `OpenAIClient` through dependency injection and can also register an [`IChatClient`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.ai.ichatclient) via `Microsoft.Extensions.AI`. Cloud-provisioned Foundry resources use managed identity, which the Aspire OpenAI integration does not support; use the OpenAI SDK directly for those resources.
 
-<Aside type="note">
-  Microsoft has retired the Azure AI Inference SDK (`Azure.AI.Inference` / `ChatCompletionsClient`) in favor of the OpenAI SDK for calling Azure AI Foundry Models. For details, see Microsoft's [Azure AI Inference SDK to OpenAI SDK migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration). If your app still uses the Aspire Azure AI Inference client integration, see [Legacy: Azure AI Inference SDK](#legacy-azure-ai-inference-sdk) below.
-</Aside>
+### Connect with Aspire.OpenAI (Foundry Local)
+
+Install the [📦 Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.OpenAI" />
+
+The Aspire OpenAI integration uses the Foundry Local API key that Aspire injects. This example uses the `chat` deployment, so its endpoint and key are `CHAT_URI` and `CHAT_KEY`; replace `chat` with your deployment resource name.
+
+`AddOpenAIClient("chat")` reads the deployment's connection string to determine the model. The settings callback reads the injected environment variables to supply the API key and rewrite the endpoint to its OpenAI-compatible `openai/v1/` route. `AddChatClient()` then registers an `IChatClient`:
+
+```csharp title="Program.cs"
+using Microsoft.Extensions.AI;
+
+var builder = WebApplication.CreateBuilder(args);
+
+var endpoint = Environment.GetEnvironmentVariable("CHAT_URI")
+    ?? throw new InvalidOperationException("CHAT_URI is required.");
+var apiKey = Environment.GetEnvironmentVariable("CHAT_KEY")
+    ?? throw new InvalidOperationException("CHAT_KEY is required.");
+
+builder.AddOpenAIClient(
+        "chat",
+        settings =>
+        {
+            settings.Endpoint = new Uri(new Uri(endpoint), "openai/v1/");
+            settings.Key = apiKey;
+        })
+    .AddChatClient();
+```
 
 ### Install the OpenAI SDK
 
 <InstallDotNetPackage packageName="OpenAI" />
 
-The default `AddFoundry(...)` resource has local auth disabled, so consuming apps authenticate with Managed Identity. Also install the [📦 Azure.Identity](https://www.nuget.org/packages/Azure.Identity/) package:
-
-```bash title="Terminal"
-dotnet add package Azure.Identity
-```
+<InstallDotNetPackage packageName="Azure.Identity" />
 
 ### Connect with the OpenAI SDK
 
-In _Program.cs_, read the Aspire-injected connection properties and construct a `ChatClient` authenticated with `DefaultAzureCredential`, pointing it at the Foundry endpoint's `openai/v1` route:
+For cloud-provisioned Foundry resources, read the Aspire-injected connection properties in _Program.cs_ and construct a `ChatClient` authenticated with `DefaultAzureCredential`, pointing it at the Foundry endpoint's `openai/v1` route:
 
 ```csharp title="Program.cs"
 using Azure.Identity;
@@ -209,7 +231,7 @@ public class ExampleService(IChatClient chatClient)
 ### Legacy: Azure AI Inference SDK
 
 <Aside type="caution">
-  Microsoft has retired the Azure AI Inference SDK in favor of the OpenAI SDK shown above. The Aspire Azure AI Inference client integration below still works and provides dependency injection, health checks, and telemetry, but new code should prefer the OpenAI SDK. Use this section only if you have an existing app you haven't migrated yet.
+  Microsoft has retired the Azure AI Inference SDK (`Azure.AI.Inference` / `ChatCompletionsClient`) in favor of the OpenAI SDK for calling Azure AI Foundry Models. For details, see Microsoft's [Azure AI Inference SDK to OpenAI SDK migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration). The Aspire Azure AI Inference client integration below still works and provides dependency injection, health checks, and telemetry, but new code should use Aspire.OpenAI for Foundry Local or the OpenAI SDK for cloud-provisioned Foundry resources. Use this section only if you have an existing app you haven't migrated yet.
 </Aside>
 
 Install the [📦 Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspire.Azure.AI.Inference) NuGet package in the client-consuming project:
