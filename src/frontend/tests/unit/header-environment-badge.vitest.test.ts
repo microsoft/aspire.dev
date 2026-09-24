@@ -39,14 +39,13 @@ describe('Header environment badge', () => {
 
     const html = await renderHeader();
     const tree = unified().use(rehypeParse).parse(html);
-    const badge = select('.environment-badge', tree);
+    const badge = select('.title-wrapper .sl-badge', tree);
     if (expected) {
-      expect(badge?.properties.className).toEqual(
-        expect.arrayContaining(['sl-badge', 'small', 'environment-badge'])
-      );
+      expect(badge?.properties.className).toEqual(expect.arrayContaining(['sl-badge', 'small']));
+      expect(badge?.properties.className).not.toContain('environment-badge');
       expect(badge?.properties.title).toBe(expected);
       expect(badge?.children).toMatchObject([{ type: 'text', value: expected }]);
-      expect(select('.site-title + .environment-badge', tree)).toBe(badge);
+      expect(select('.site-title + .sl-badge', tree)).toBe(badge);
     } else {
       expect(badge).toBeUndefined();
     }
@@ -57,7 +56,7 @@ describe('Header environment badge', () => {
 
     const html = await renderHeader();
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
-    const badge = select('.environment-badge', unified().use(rehypeParse).parse(html));
+    const badge = select('.title-wrapper .sl-badge', unified().use(rehypeParse).parse(html));
     expect(badge?.children).toMatchObject([
       { type: 'text', value: '<img src=x onerror=alert(1)>' },
     ]);
