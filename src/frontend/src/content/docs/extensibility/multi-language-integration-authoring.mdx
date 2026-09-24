@@ -42,6 +42,42 @@ The integration analyzer provides build-time validation that catches common expo
 
 The analyzer reports diagnostics that help you get your exports right before users encounter runtime errors. Common scenarios include detecting incompatible parameter types, missing export annotations on public methods, duplicate export or capability IDs, and synchronous callbacks that could deadlock in multi-language app hosts.
 
+## Source-generated export providers
+
+In Aspire 13.6 and later, a source generator can provide ATS exports for an integration. Apply `Aspire.Hosting.AspireExportProviderAttribute` to the generator's opt-in attribute class, and declare that opt-in attribute for assembly use with `AttributeUsage(AttributeTargets.Assembly)`. Apply the opt-in attribute to the integration assembly that needs generated exports.
+
+This provider-neutral contract lets the integration analyzer recognize export coverage supplied during compilation. It doesn't generate exports itself: your generator must still emit the ATS-compatible APIs and their export annotations.
+
+:::caution[Experimental contract]
+Using `AspireExportProviderAttribute` reports `ASPIREEXPORT018`. The contract is experimental and can change or be removed. If you adopt it, acknowledge the diagnostic narrowly in the provider implementation rather than disabling integration analysis.
+:::
+
+### Generate Azure Provisioning proxies
+
+For Azure SDK models, use the existing provisioning generator instead of exporting an entire SDK through general-purpose ATS attributes. Create an opt-in integration package that references the relevant hosting integration and Azure Provisioning SDK, plus `Aspire.Hosting.Azure.Provisioning` for the shared runtime. Reference `Aspire.Hosting.Azure.Provisioning.Generators` as a private analyzer dependency. The generator runs during compilation; it isn't a runtime dependency for your AppHost.
+
+The generator supplies `GenerateAspireProvisioningProxyAttribute` in the `Aspire.Hosting.Azure.Provisioning` namespace. Apply it at assembly level with the selected SDK root type, such as `KeyVaultService`. Set `IncludeContainingAssemblyTypes = true` to include compatible public classes and readonly structs from that root's assembly. This keeps the projection bounded to the selected SDK rather than every referenced assembly.
+
+The selected infrastructure root receives a no-argument lookup in the infrastructure callback. Other provisionable resources receive identifier-based lookups and creation methods. The generated surface supports TypeScript, Python, Go, and Java SDK generation; verify the generated SDK for each language your integration supports rather than assuming every SDK member can be projected.
+
+Reuse `BicepValueProxy` for shared Bicep literals, expressions, and resource references, and `ProvisionableResourceProxy` for provisionable-resource handles. Generated setters for `BicepValue<T>` accept compatible language primitives or shared Bicep values. Assign through these APIs to preserve deployment-time expressions and secure-value metadata instead of flattening values into strings or JSON. The shared runtime also provides Bicep parameters, variables, and outputs.
+
+For the package setup and root-selection example, see the [provisioning integration authoring README](https://github.com/microsoft/aspire/blob/8c7e5fff471e5b619ae1175e7bfd58f823eaab51/src/Aspire.Hosting.Azure.Provisioning/README.md#creating-a-provisioning-proxy-integration). For AppHost usage, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/#enable-typed-provisioning-proxies).
+
+### Understand provisioning diagnostics
+
+The provisioning runtime and generated proxies are experimental under `ASPIREAZUREPROVISIONING001`. The generator also reports the following warnings when it can't project the requested SDK surface:
+
+| Diagnostic | Meaning |
+| ---------- | ------- |
+| `ASPIREAZUREPROVISIONING002` | A public property has an unsupported shape or type and can't be exported. |
+| `ASPIREAZUREPROVISIONING003` | A public method has an unsupported signature and can't be exported. |
+| `ASPIREAZUREPROVISIONING004` | Methods project to the same exported signature; the duplicate isn't exported. |
+| `ASPIREAZUREPROVISIONING005` | A selected root isn't a supported non-generic, non-static class or struct. |
+| `ASPIREAZUREPROVISIONING006` | A selected root is a mutable struct, which can't be safely projected. |
+
+Inspect these diagnostics and the generated API before publishing your package. Suppressing a warning doesn't make the omitted member available. Choose supported roots and provide a bounded ATS-friendly adapter when the SDK member your users need can't be projected.
+
 ## Export extension methods
 
 Annotate your extension methods with `[AspireExport]` and use XML doc comments to document them for the generated TypeScript SDK:
@@ -1164,6 +1200,12 @@ When the CLI detects a `.csproj` path, it builds the project locally and generat
 :::tip[Troubleshoot generated AppHosts]
 If generated TypeScript behavior differs from the C# API, check the generated `.d.ts` signature first. For new TypeScript AppHosts, inspect `.aspire/modules/*`; for legacy AppHosts, inspect `.modules/*`. If TypeScript doesn't see a method, verify that the integration package was restored, the export is analyzer-clean, and the generated module contains the method. Then use `aspire doctor` for version and environment mismatches, and run `aspire certs trust` when HTTPS certificate trust errors block local AppHost execution.
 :::
+
+### Inspect experimental capability metadata
+
+Use `aspire sdk dump --format json` to inspect discovered capabilities. Each entry in `capabilities` includes `isExperimental`, which is `true` when `System.Diagnostics.CodeAnalysis.ExperimentalAttribute` applies to the member, a property accessor, an enclosing type, the module, or the assembly. Otherwise it is `false`.
+
+Tools that read output from older Aspire versions should treat an omitted `isExperimental` field as `false`. Check this metadata when publishing an experimental integration so consumers can distinguish experimental APIs from stable ones.
 
 ## Supported types
 
