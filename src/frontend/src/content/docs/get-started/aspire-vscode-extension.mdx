@@ -4,10 +4,12 @@ description: Use the Aspire Visual Studio Code extension to create, configure, r
 ---
 
 import { Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
 import ThemeImage from '@components/ThemeImage.astro';
 import LearnMore from '@components/LearnMore.astro';
 import createProject from '@assets/get-started/code-extension-create-aspire-project.png';
 import createProjectLight from '@assets/get-started/code-extension-create-aspire-project-light.png';
+import paneActions from '@assets/get-started/code-extension-pane-actions.png';
 import sidebarTree from '@assets/get-started/code-extension-sidebar.png';
 import sidebarTreeLight from '@assets/get-started/code-extension-sidebar-light.png';
 import debugSessions from '@assets/get-started/code-extension-debug.png';
@@ -40,6 +42,10 @@ A recent version of [Visual Studio Code](https://code.visualstudio.com/) and the
 1. Press <Kbd windows='F5' /> to start debugging your Aspire app. The extension discovers the AppHost, starts the app, attaches supported debuggers, and opens the dashboard.
 
 </Steps>
+
+When you're ready to ship your app, [publish or deploy from the Aspire
+view](#publish-or-deploy-from-the-aspire-view), or [run and debug a pipeline
+step](#run-or-debug-a-pipeline-step).
 
 *Open a repo, let the extension find the AppHost, press <Kbd windows='F5' />, then use the Aspire view and dashboard while the app runs.*
 
@@ -147,6 +153,83 @@ When a workspace contains exactly one AppHost, the Aspire view automatically exp
 :::
 
 ## Run, debug, and deploy
+
+### Publish or deploy from the Aspire view
+
+Select **Aspire** in VS Code's Activity Bar to open **Aspire: AppHosts**. Expand an
+idle AppHost, or right-click it, to choose an action. In a workspace with multiple
+AppHosts, choose the action on the AppHost you want to target.
+
+| Action                  | Behavior                                                                                  |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| **Deploy AppHost**       | Executes the deployment workflow configured in your AppHost.                               |
+| **Publish AppHost**      | Generates deployment artifacts for the configured target without applying the deployment.  |
+| **Run pipeline step**    | Runs a selected pipeline step and its dependencies without attaching the debugger.         |
+| **Debug pipeline step**  | Runs a selected pipeline step and its dependencies with the debugger attached.              |
+
+<Image
+  src={paneActions}
+  alt="An idle AppHost in the Aspire view with Deploy AppHost, Publish AppHost, Run pipeline step, and Debug pipeline step action rows."
+/>
+
+<p><em>An idle AppHost exposes publishing, deployment, and pipeline actions directly in the Aspire view.</em></p>
+
+Configure your deployment target and pipeline in the AppHost before publishing or
+deploying. The pane runs that configuration; it does not choose a target or add
+deployment configuration for you.
+
+Actions appear according to the capabilities of the Aspire CLI selected for that
+AppHost. Running AppHosts expose supported actions in their context menu rather
+than as idle action rows. While a publish, deploy, or pipeline operation is in
+progress, the selected AppHost shows its busy state and hides conflicting actions
+until the operation finishes.
+
+Follow prompts in VS Code and review command output in the **Debug Console**. If
+an operation fails, review the reported error, correct the configuration, and
+retry.
+
+<LearnMore>
+  See [How Aspire deployment works](/deployment/deploy-with-aspire/) for the
+  difference between publishing artifacts and executing a deployment.
+</LearnMore>
+
+### Run or debug a pipeline step
+
+To debug pipeline code in a C# AppHost, open the AppHost or custom step source and
+set a breakpoint before starting the step.
+
+<Steps>
+
+1. Under an idle AppHost, or in its context menu, select **Run pipeline step** or
+   **Debug pipeline step**.
+
+1. Wait for **Loading pipeline steps...** to finish. When step discovery is
+   supported, the picker lists step names, descriptions, and resource names when
+   provided. Type to filter by any of these fields.
+
+1. Select a discovered step, or choose **Enter the pipeline step to execute** and
+   enter the exact step name manually.
+
+1. Review execution output in the **Debug Console**. When debugging reaches your
+   breakpoint, use VS Code's debugging controls to inspect the code and continue.
+
+</Steps>
+
+Cancel the **Loading pipeline steps...** progress notification, or dismiss the
+picker or manual-entry prompt with <Kbd windows='Esc' />, to abandon selection
+without executing a step. A discovery failure is reported as an error. Depending
+on CLI and AppHost capabilities, an interactive CLI prompt or a manual step-name
+prompt can appear instead of the discovered-step picker.
+
+If a step name is invalid or execution fails, review the error and command output,
+correct the step name or AppHost configuration, and try again.
+
+<LearnMore>
+  See [Pipelines](/deployment/pipelines/) for step dependencies and custom pipeline
+  behavior.
+</LearnMore>
+
+### Configure launch.json
 
 :::note[Debugging]
 The Aspire Dashboard is no longer opened by default when the AppHost starts, as most operations can be performed using the Aspire view inside VS Code. To launch the dashboard, use the **Open Dashboard** CodeLens, the **Aspire: Open Dashboard** command, or open it from the Aspire view.
