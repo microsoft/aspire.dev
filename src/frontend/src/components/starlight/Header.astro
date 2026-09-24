@@ -10,6 +10,9 @@ import SiteNavHelpSvg from '@assets/icons/site-nav-help.svg';
 import { addLocaleToPath } from '@utils/locale-routes';
 
 const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
+const environmentBadge = (
+  import.meta.env.PUBLIC_ENVIRONMENT_BADGE ?? (import.meta.env.DEV ? 'localhost' : '')
+).trim();
 const t = Astro.locals.t;
 const locale = Astro.locals.starlightRoute?.locale;
 const docsUrl = addLocaleToPath('/docs/', locale);
@@ -20,8 +23,15 @@ const tryLabel = t('header.try' as any);
 ---
 
 <div class="header">
-  <div class="title-wrapper sl-flex">
+  <div class:list={['title-wrapper sl-flex', { 'has-environment-badge': environmentBadge }]}>
     <SiteTitle />
+    {
+      environmentBadge && (
+        <span class="environment-badge" title={environmentBadge}>
+          {environmentBadge}
+        </span>
+      )
+    }
   </div>
   <div class="sl-flex print:hidden" data-tour-target="search" data-tour-step="search">
     <Search />
@@ -155,6 +165,28 @@ const tryLabel = t('header.try' as any);
       padding: 0.25rem;
       margin: -0.25rem;
       min-width: 0;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .environment-badge {
+      min-width: 0;
+      max-width: 12rem;
+      padding: 0.125rem 0.375rem;
+      border: 1px solid var(--sl-color-accent);
+      border-radius: 0.25rem;
+      background: var(--sl-color-accent-low);
+      color: var(--sl-color-accent-high);
+      font-size: var(--sl-text-xs);
+      font-weight: 500;
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .has-environment-badge :global(.site-title) {
+      flex-shrink: 0;
     }
 
     .right-group,
@@ -422,6 +454,23 @@ const tryLabel = t('header.try' as any);
 
       .title-wrapper {
         flex: 1 1 auto;
+      }
+
+      .has-environment-badge {
+        gap: 0.25rem;
+      }
+
+      .has-environment-badge :global(.site-title) {
+        font-size: 1rem;
+      }
+
+      .has-environment-badge :global(.site-title img) {
+        height: 1.5rem;
+      }
+
+      .environment-badge {
+        padding-inline: 0.25rem;
+        font-size: 0.625rem;
       }
 
       .header > [data-tour-target='search'] {
