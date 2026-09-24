@@ -41,7 +41,9 @@ describe('Header environment badge', () => {
     const tree = unified().use(rehypeParse).parse(html);
     const badge = select('.title-wrapper .sl-badge', tree);
     if (expected) {
-      expect(badge?.properties.className).toEqual(expect.arrayContaining(['sl-badge', 'small']));
+      expect(badge?.properties.className).toEqual(
+        expect.arrayContaining(['sl-badge', 'tip', 'small'])
+      );
       expect(badge?.properties.className).not.toContain('environment-badge');
       expect(badge?.properties.title).toBe(expected);
       expect(badge?.children).toMatchObject([{ type: 'text', value: expected }]);
