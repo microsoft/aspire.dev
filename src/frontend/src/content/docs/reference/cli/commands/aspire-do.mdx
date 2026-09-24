@@ -92,12 +92,12 @@ The following options are available:
 
 Before executing a pipeline step, you can discover what steps are available in your application's pipeline and understand their dependencies. Aspire provides two complementary tools for this:
 
-- `aspire do [step] --list-steps` — a quick, compact listing of every pipeline step with its direct dependencies and tags. Available on `aspire deploy`, `aspire publish`, `aspire destroy`, and `aspire do`. Useful for a fast "what would happen?" view before running a command. Unlike normal `aspire do` execution, the `step` argument is optional with `--list-steps`; omit it to list every step in the pipeline.
+- `aspire do <step> --list-steps` — a quick, compact listing of every pipeline step with its direct dependencies and tags. Available on `aspire deploy`, `aspire publish`, `aspire destroy`, and `aspire do`. Useful for a fast "what would happen?" view before running a command. The `step` argument is required when using `--list-steps` with `aspire do`.
 - `aspire do diagnostics` — a verbose, in-depth report. The `diagnostics` step is itself part of the pipeline, so `aspire do diagnostics` runs it like any other step.
 
 ### Quick listing with `--list-steps`
 
-Running `aspire do [step] --list-steps` produces a numbered list of every step in the pipeline, what each one depends on, and any tags it carries. Pass a `step` to scope the listing to that step and its dependencies, or omit it to list every step in the pipeline:
+Running `aspire do <step> --list-steps` produces a numbered list of every step in the pipeline, what each one depends on, and any tags it carries. The `step` argument is required — `aspire do` is always step-targeted, so `--list-steps` without a step has no meaningful scope. Omitting the step produces a friendly error that suggests concrete examples:
 
 ```bash title="Aspire CLI"
 aspire do deploy --list-steps
@@ -125,14 +125,6 @@ Example output:
 Each entry shows the step's position in execution order, the steps it depends on, and any tags it declares. Steps with no dependencies and no tags are shown as `└─ No dependencies`.
 
 Use this when you just need to confirm a step exists or check its direct dependencies.
-
-Add `--format json` to get the same listing as machine-readable JSON instead of the tree view, for example to pipe into `jq`:
-
-```bash title="Aspire CLI"
-aspire do deploy --list-steps --format json
-```
-
-`--format` is only valid together with `--list-steps`; using it without `--list-steps` is an error.
 
 ### In-depth report with `aspire do diagnostics`
 
@@ -172,15 +164,7 @@ The following examples demonstrate common pipeline operations:
   aspire do deploy --list-steps
   ```
 
-  This displays a compact view of every step with its dependencies and tags. Use it for a fast "what would happen?" check before running a pipeline command. Omit the `step` argument (`aspire do --list-steps`) to list every step in the pipeline instead of scoping to one step.
-
-- List pipeline steps as JSON for scripting:
-
-  ```bash title="Aspire CLI"
-  aspire do deploy --list-steps --format json
-  ```
-
-  Emits the same step listing as machine-readable JSON instead of the tree view. `--format` is only valid together with `--list-steps`.
+  This displays a compact view of every step with its dependencies and tags. Use it for a fast "what would happen?" check before running a pipeline command. A `step` argument is required; `aspire do --list-steps` without a step produces a friendly error.
 
 - Run the `diagnostics` step for an in-depth report:
 
