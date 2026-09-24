@@ -416,6 +416,48 @@ await builder.build().run();
 
 For a list of available tags, see [SQL Server container image tags](https://mcr.microsoft.com/en-us/artifact/mar/mssql/server/tags).
 
+## Add SQL Server resource with a REPL command
+
+The `WithRepl` method adds an opt-in **REPL** command to the SQL Server resource in the Aspire dashboard. Selecting the command while the container is running opens `sqlcmd` in the dashboard's terminal dock, connected inside the container as `sa` to the `master` database—no local SQL client installation is required:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddSqlServer("sqlserver")
+    .WithRepl();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const sql = await builder.addSqlServer("sqlserver");
+await sql.withRepl();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+Enter SQL statements followed by `GO` on its own line to execute a batch:
+
+```sql
+SELECT DB_NAME();
+GO
+```
+
+Use `USE [db];` followed by `GO` to switch databases, and `QUIT` to exit `sqlcmd` cleanly before closing the terminal tab; closing the tab alone can leave `sqlcmd` running inside the container, and stopping the container ends any remaining REPL processes. The REPL command is disabled by default and is only registered in run mode—it isn't available in published applications. It uses the configured password without putting it in command-line arguments, and trusts the local server's self-signed certificate, matching the integration's local connection string. It supports both `/opt/mssql-tools18/bin/sqlcmd` in newer SQL Server images and `/opt/mssql-tools/bin/sqlcmd` in older images; custom images must include one of these clients.
+
+:::caution
+Only enable `WithRepl()` for resources whose authenticated client access is appropriate for everyone who can access the dashboard. The shell runs as `sa` and can execute server-side operating system commands when enabled. Sharing the dashboard through a tunnel, Codespaces, or VS Code remote development also exposes this capability to anyone who can execute resource commands.
+:::
+
 ## Pass custom environment variables
 
 By default, Aspire injects the SQL Server connection information using variable names derived from the resource name (for example, `DATABASE_URI`, `DATABASE_HOST`, `DATABASE_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
