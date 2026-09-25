@@ -320,6 +320,7 @@ import LiveSvg from '@assets/icons/live.svg';
 
     const doc = pipWindow.document;
     const iframe = doc.createElement('iframe');
+    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
     iframe.src = embed.url;
     iframe.allow = embed.allow;
     iframe.setAttribute('aria-label', embed.label);
@@ -370,6 +371,10 @@ import LiveSvg from '@assets/icons/live.svg';
       width: 480,
       height: 270,
     });
+    // Give the initial about:blank document the opener's URL so embeds send a Referer.
+    // Do this before registering listeners: document.open() clears them.
+    pipWindow.document.open();
+    pipWindow.document.close();
     state.pipWindow = pipWindow;
     state.activeEmbedKey = '';
     pipWindow.addEventListener(
