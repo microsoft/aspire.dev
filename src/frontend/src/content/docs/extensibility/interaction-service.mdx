@@ -91,8 +91,10 @@ The following sections describe how to use these APIs effectively in both contex
   During `aspire publish` and `aspire deploy` operations, only
   `PromptInputAsync` and `PromptInputsAsync` are available. Other interaction
   methods (`PromptMessageBoxAsync`, `PromptNotificationAsync`,
-  `PromptConfirmationAsync`, `PromptProgressAsync`, and `PromptTerminalAsync`) will throw an exception
+  `PromptConfirmationAsync` and `PromptProgressAsync`) will throw an exception
   if called in CLI contexts.
+  `PromptTerminalAsync` is intended for dashboard workflows and isn't rendered
+  as a CLI prompt; publish or deploy mode alone doesn't guarantee an exception.
 </Aside>
 
 ## Where to use the interaction service
@@ -1088,11 +1090,11 @@ Because no `PrimaryButtonText` is set, the dialog has no cancel button and the u
 `PromptTerminalAsync(message, terminal, options, cancellationToken)` displays an existing terminal in a dashboard dialog. Use it for interactive tools, authentication flows, or automation that a user should be able to watch and cancel. To create a terminal, resolve [`TerminalService`](/app-host/terminal-service/) from the AppHost's dependency injection container.
 
 :::caution[Experimental API]
-`PromptTerminalAsync`, `TerminalInteractionOptions`, `TerminalContext`, and the terminal authoring APIs emit diagnostic `ASPIRETERMINAL001`. The examples acknowledge it explicitly. This API is part of [microsoft/aspire#19887](https://github.com/microsoft/aspire/pull/19887), which is not yet merged.
+`PromptTerminalAsync`, `TerminalInteractionOptions`, `TerminalContext`, and the terminal authoring APIs emit diagnostic `ASPIRETERMINAL001`. The examples acknowledge it explicitly.
 :::
 
 :::note[Supported contexts]
-Terminal interactions are dashboard-only, not CLI publish/deploy prompts. Check `IInteractionService.IsAvailable` before prompting. Creating AppHost terminals and calling `PromptTerminalAsync` aren't currently exported to TypeScript AppHosts; this limitation doesn't apply to the other interaction operations demonstrated above.
+Terminal interactions are intended for dashboard workflows and aren't rendered as CLI publish/deploy prompts. Check `IInteractionService.IsAvailable` before prompting, but don't treat it as a check for terminal-dialog support in publish/deploy workflows. An available service can run a terminal interaction's `Work` callback without a CLI dialog; without work or external completion, the prompt can wait until cancellation. Creating AppHost terminals and calling `PromptTerminalAsync` aren't currently exported to TypeScript AppHosts; this limitation doesn't apply to the other interaction operations demonstrated above.
 :::
 
 Create the terminal with `TerminalPlacement.Dialog`. The supplied handle must be the **exact instance registered with the same AppHost's `TerminalService`**. A disposed handle, a handle from another AppHost, or a terminal with `Dock`, `None`, or `ResourceView` placement is rejected before the dialog is published.
@@ -1130,7 +1132,6 @@ Run this only when you intend to sign in. Device codes are sensitive: don't log,
 :::
 
 ```csharp title="AppHost.cs"
-using Aspire.Hosting.Terminals;
 using Microsoft.Extensions.DependencyInjection;
 
 #pragma warning disable ASPIRETERMINAL001
@@ -1207,12 +1208,12 @@ The five-minute bound prevents an unattended prompt from waiting forever. Adapt 
 
 ### Automate a number-guessing game
 
-This example adapts the upstream [terminal interaction commands](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/playground/Terminals/Terminals.AppHost/TerminalInteractionCommands.cs). It prompts for an upper limit, launches an ordinary console game, and solves it by binary search while the dashboard displays every guess.
+This example adapts the upstream [terminal interaction commands](https://github.com/microsoft/aspire/blob/1a8582231734df69b8af9487153bc67fa963b7e8/playground/Terminals/Terminals.AppHost/TerminalInteractionCommands.cs). It prompts for an upper limit, launches an ordinary console game, and solves it by binary search while the dashboard displays every guess.
 
 To reproduce it:
 
-1. Use a C# AppHost with the terminal APIs from the PR, Docker, and .NET 10 or later for file-based apps.
-2. Copy the upstream [`numberguess.cs`](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/playground/Terminals/Terminals.AppHost/Scripts/numberguess.cs) into `Scripts/numberguess.cs` under your AppHost directory. Keep its prompt and reply formats unchanged. It intentionally waits for another input after the winning guess so the terminal stays alive for the final screen read.
+1. Use a C# AppHost with the Aspire 13.6 preview terminal APIs, Docker, and .NET 10 or later for file-based apps.
+2. Copy the upstream [`numberguess.cs`](https://github.com/microsoft/aspire/blob/1a8582231734df69b8af9487153bc67fa963b7e8/playground/Terminals/Terminals.AppHost/Scripts/numberguess.cs) into `Scripts/numberguess.cs` under your AppHost directory. Keep its prompt and reply formats unchanged. It intentionally waits for another input after the winning guess so the terminal stays alive for the final screen read.
 3. Use this complete AppHost and run it. Select **Play number guess** on the `tools` resource in the dashboard.
 
 For a project-based AppHost, add this item group to your AppHost's `.csproj` file so the game isn't compiled as part of the AppHost itself. The example launches the script from its source directory:
@@ -1225,7 +1226,6 @@ For a project-based AppHost, add this item group to your AppHost's `.csproj` fil
 
 ```csharp title="AppHost.cs"
 using System.Globalization;
-using Aspire.Hosting.Terminals;
 using Microsoft.Extensions.DependencyInjection;
 
 #pragma warning disable ASPIRETERMINAL001
@@ -1377,8 +1377,6 @@ The first wait allows two minutes for a cold file-based-app compilation. Each la
 You can borrow a terminal more than once without restarting its workload. This Linux/macOS helper runs two sequential prompts against the same shell. The environment variable set during the first interaction remains available in the second:
 
 ```csharp title="AppHost.cs — two-step workflow helper"
-using Aspire.Hosting.Terminals;
-
 #pragma warning disable ASPIRETERMINAL001
 
 static async Task RunTwoStepsAsync(
@@ -1433,7 +1431,7 @@ static async Task RunTwoStepsAsync(
 }
 ```
 
-Add this local function to your AppHost file after the top-level app setup, with the `using` directive and diagnostic suppression at the top. Call it from an async callback with both services and the callback's cancellation token. Each completed `Work` closes only that prompt. The shell stops only when the helper leaves its `await using` scope. A previously ended process can't be revived by prompting with its handle.
+Add this local function to your AppHost file after the top-level app setup, with the diagnostic suppression at the top. Call it from an async callback with both services and the callback's cancellation token. Each completed `Work` closes only that prompt. The shell stops only when the helper leaves its `await using` scope. A previously ended process can't be revived by prompting with its handle.
 
 ### Migrate older terminal inputs
 
@@ -1460,15 +1458,16 @@ When you run `aspire publish` or `aspire deploy`, interactions are prompted thro
 
 - **Text prompts**: Only input prompts (`PromptInputAsync` and `PromptInputsAsync`) are available and appear as text-based prompts in the terminal.
 - **Sequential input**: Multiple inputs are requested one at a time rather than in a single dialog.
-- **Limited functionality**: Message boxes, notifications, confirmation dialogs, progress dialogs, and terminal dialogs aren't available and throw exceptions if called.
+- **Limited functionality**: Message boxes, notifications, confirmation dialogs, and progress dialogs aren't available and throw exceptions if called. Terminal dialogs aren't rendered by the CLI; use them only in dashboard workflows.
 
 <Aside type="caution">
   The interaction service adapts automatically to dashboard and CLI contexts. In
   CLI mode, only input-related methods—`PromptInputAsync` and
   `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`,
-  `PromptNotificationAsync`, `PromptConfirmationAsync`, `PromptProgressAsync`, or `PromptTerminalAsync`
+  `PromptNotificationAsync`, `PromptConfirmationAsync`, or `PromptProgressAsync`
   in CLI operations like `aspire publish` or `aspire deploy` results in an
-  exception.
+  exception. `PromptTerminalAsync` isn't rendered by the CLI, but those operation
+  modes alone don't guarantee that it throws.
 </Aside>
 
 ## See also

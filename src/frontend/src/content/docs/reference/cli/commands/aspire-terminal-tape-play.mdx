@@ -23,7 +23,7 @@ aspire terminal tape play <resource> --tape-file <path> [options]
 The command parses a `.tape` file, discovers a running AppHost, selects a live terminal replica, validates the tape, and plays it against that terminal. The resource must be registered with [`WithTerminal()`](/app-host/with-terminal/), and the AppHost must advertise the `terminals.v1` capability.
 
 :::caution[Experimental in Aspire 13.6]
-Tape playback is planned for Aspire 13.6 and is currently in the open [microsoft/aspire#19887](https://github.com/microsoft/aspire/pull/19887) pull request. Use a CLI build containing that change and enable the terminal commands:
+Tape playback is part of the Aspire 13.6 preview. Use matching CLI and AppHost builds that include tape playback, and enable the terminal commands:
 
 ```bash title="Enable terminal commands"
 aspire config set features.terminalCommandsEnabled true
@@ -33,7 +33,7 @@ aspire config set features.terminalCommandsEnabled true
 
 Playback connects as a secondary peer. It doesn't request primary ownership, resize the terminal, start a new shell, or stop the resource on completion or failure. Input remains shared with other connected peers; coordinate playback with dashboard and CLI users.
 
-An empty or comment-only tape reads the current screen. An exited replica cannot be used for playback. Dashboard-only AppHost interaction terminals aren't resource targets for this command.
+An empty or comment-only tape reads the current screen. If the selected replica has no live terminal producer yet, playback waits for one within `--timeout`, including during startup or recycling. The command doesn't start or restart the resource. Dashboard-only AppHost interaction terminals aren't resource targets for this command.
 
 See [Tape file syntax](/dashboard/terminal-automation/#tape-file-syntax) for supported commands and compatibility limits. Unsupported media, clipboard, scrolling, sizing, and shell-launch settings fail preflight before any tape input is sent.
 
@@ -59,7 +59,7 @@ See [Tape file syntax](/dashboard/terminal-automation/#tape-file-syntax) for sup
 
 - **`--timeout <seconds>`**
 
-  Overall terminal connection and playback timeout. Defaults to `120` seconds; accepts integers from `1` through `4294967`. The deadline starts after resource selection, so it doesn't bound initial AppHost discovery. Recording finalization and cleanup may continue after cancellation. Individual tape waits can have shorter timeouts.
+  Overall timeout for waiting for a live terminal producer, connecting, and playing the tape. Defaults to `120` seconds; accepts integers from `1` through `4294967`. The deadline starts after resource selection, so it doesn't bound initial AppHost discovery. Recording finalization and cleanup may continue after cancellation. Individual tape waits can have shorter timeouts.
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 - <Include relativePath="reference/cli/includes/option-log-level.md" />

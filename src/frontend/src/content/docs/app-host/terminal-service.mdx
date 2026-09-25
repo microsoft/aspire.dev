@@ -3,12 +3,12 @@ title: Create and automate terminals from AppHost
 description: Use TerminalService to launch shells, open container exec sessions, and automate terminal input with explicit ownership and lifetime in your AppHost.
 ---
 
-Use `Aspire.Hosting.Terminals.TerminalService` to launch an interactive process from your AppHost, display it in the dashboard, and automate its input. For example, a resource command can open a persistent local shell or run `docker exec` against a container.
+Use `Aspire.Hosting.ApplicationModel.TerminalService` to launch an interactive process from your AppHost, display it in the dashboard, and automate its input. For example, a [resource command](/fundamentals/custom-resource-commands/) can open a persistent local shell or run `docker exec` against a container.
 
 These are **AppHost-owned terminals**: the AppHost launches and owns the terminal workload. They differ from [resource terminals](/dashboard/terminals/), where Aspire runs the resource and a terminal exposes that resource's existing process.
 
 :::caution[Experimental API]
-The terminal authoring APIs are experimental and emit diagnostic `ASPIRETERMINAL001`. The examples explicitly acknowledge it with `#pragma warning disable ASPIRETERMINAL001`. They describe the API in [microsoft/aspire#19887](https://github.com/microsoft/aspire/pull/19887), which is not yet merged.
+The terminal authoring APIs are experimental and [emit diagnostic `ASPIRETERMINAL001`](/diagnostics/aspireterminal001/). The examples explicitly acknowledge it with `#pragma warning disable ASPIRETERMINAL001`.
 :::
 
 :::note[AppHost language support]
@@ -18,6 +18,8 @@ Creating and automating AppHost-owned terminals with `TerminalService`, and disp
 ## Resolve the service and configure a terminal
 
 Resolve `TerminalService` from dependency injection, either through the built AppHost's `app.Services.GetRequiredService<TerminalService>()` or a callback's service provider, such as `commandContext.Services`. You don't construct or register the service yourself.
+
+The terminal types are in `Aspire.Hosting.ApplicationModel`, which AppHost projects import automatically when implicit usings are enabled.
 
 `CreateTerminal(new TerminalLaunchOptions { ... })` returns an `AspireTerminal` handle. Launch options are properties of `TerminalLaunchOptions` itself; you don't need a terminal-library builder or a separate process-options object.
 
@@ -44,7 +46,6 @@ Choose the placement independently of the workload:
 This complete AppHost uses an Alpine container as the resource on which to display a custom command. Start the AppHost with Docker available, then select **Open local shell** on the `tools` resource in the dashboard. The shell runs on the **AppHost machine**, not inside the container.
 
 ```csharp title="AppHost.cs"
-using Aspire.Hosting.Terminals;
 using Microsoft.Extensions.DependencyInjection;
 
 #pragma warning disable ASPIRETERMINAL001
@@ -86,7 +87,6 @@ Don't put this dock terminal in an `await using` declaration inside the command.
 This variant launches the Docker CLI on the AppHost machine and opens a shell inside the container. It requires a running Docker container and the `docker` command on the AppHost's `PATH`. Use `-it` so Docker allocates an interactive TTY inside the container.
 
 ```csharp title="AppHost.cs"
-using Aspire.Hosting.Terminals;
 using Microsoft.Extensions.DependencyInjection;
 
 #pragma warning disable ASPIRETERMINAL001
@@ -128,15 +128,13 @@ The AppHost owns this terminal's local `docker exec` workload, not the container
 The `AspireTerminal` handle exposes text and key input, bounded waits, and a snapshot of the current screen:
 
 - `SendTextAsync(text, cancellationToken)` sends text as though typed.
-- `SendKeyAsync(AspireTerminalKey.Enter, cancellationToken)` sends a non-printable key. Other keys include `Tab`, the arrows, `Escape`, and `CtrlC`.
+- `SendKeyAsync(AspireTerminalKey.Enter, cancellationToken)` sends a keypress. Other keys include `Tab`, the arrows, and `Escape`. Compose modifiers with a key, for example `AspireTerminalKey.Ctrl(AspireTerminalKey.C)` for Ctrl+C.
 - `WaitForTextAsync(text, timeout, cancellationToken)` waits for text on the current screen. The default timeout is 30 seconds; a timeout throws `TimeoutException`.
 - `GetScreenText()` returns the current screen with newline-separated lines, not a process-exit result or a complete log archive.
 
-The following helper runs on Linux or macOS with `/bin/sh`. Add the local function to your AppHost file after the top-level app setup, with the `using` directive and diagnostic suppression at the top. Call it from an asynchronous AppHost callback with the resolved service and the callback's cancellation token.
+The following helper runs on Linux or macOS with `/bin/sh`. Add the local function to your AppHost file after the top-level app setup, with the diagnostic suppression at the top. Call it from an asynchronous AppHost callback with the resolved service and the callback's cancellation token.
 
 ```csharp title="AppHost.cs — headless helper"
-using Aspire.Hosting.Terminals;
-
 #pragma warning disable ASPIRETERMINAL001
 
 static async Task<string> RunHeadlessAsync(
@@ -179,11 +177,9 @@ Use distinctive, complete replies when automating. Waiting for text that also ap
 
 `TryGetTerminal(string terminalId, out AspireTerminal? terminal)` resolves both AppHost-owned and resource-owned terminals. Resource terminal IDs use `resource:<resource-name>:<replica-index>`, with a zero-based replica index.
 
-For a running shell resource named `shell` configured with `WithTerminal()`, this local function acquires its first replica's handle and sends an Enter key. Add it to your AppHost file after the top-level app setup, with the `using` directive and diagnostic suppression at the top:
+For a running shell resource named `shell` configured with `WithTerminal()`, this local function acquires its first replica's handle and sends an Enter key. Add it to your AppHost file after the top-level app setup, with the diagnostic suppression at the top:
 
 ```csharp title="AppHost.cs — resource terminal helper"
-using Aspire.Hosting.Terminals;
-
 #pragma warning disable ASPIRETERMINAL001
 
 static async Task SendEnterAsync(
@@ -223,4 +219,4 @@ Keep these lifetimes separate:
 - [Dashboard terminals](/dashboard/terminals/)
 - [Interaction service](/extensibility/interaction-service/#terminal-interactions)
 - [Custom resource commands](/fundamentals/custom-resource-commands/)
-- [Terminal API source](https://github.com/microsoft/aspire/tree/3e16358e0ae00e1a3846994304436be554837282/src/Aspire.Hosting/Terminals)
+- [Terminal API source](https://github.com/microsoft/aspire/blob/1a8582231734df69b8af9487153bc67fa963b7e8/src/Aspire.Hosting/ApplicationModel/TerminalService.cs)

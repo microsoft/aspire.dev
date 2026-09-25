@@ -5,8 +5,13 @@ description: Choose a dashboard terminal experience for resource apps, AppHost s
 
 import { CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
+import { Image } from 'astro:assets';
+import resourceTerminal from '@assets/dashboard/terminals/resource-terminal.png';
+import terminalDock from '@assets/dashboard/terminals/terminal-dock.png';
+import terminalInteraction from '@assets/dashboard/terminals/terminal-interaction.png';
+import detachedTerminal from '@assets/dashboard/terminals/detached-terminal.png';
 
-The Aspire dashboard can display interactive applications as well as logs. A terminal lets you type into a running process, respond to its prompts, and use a terminal user interface (TUI) without leaving the dashboard.
+The Aspire dashboard can display interactive terminal applications as well as logs. A terminal lets you type into a running process, respond to its prompts, and use a terminal user interface (TUI) without leaving the dashboard.
 
 :::caution[Aspire 13.6 preview]
 The AppHost terminal dock, terminal interactions, detached windows, and tape playback described here are part of the Aspire 13.6 preview work. Use matching AppHost, dashboard, and CLI builds. Terminal APIs are experimental and use the [`ASPIRETERMINAL001`](/diagnostics/aspireterminal001/) diagnostic.
@@ -14,7 +19,7 @@ The AppHost terminal dock, terminal interactions, detached windows, and tape pla
 
 ## Choose a terminal experience
 
-The dashboard displays terminals that your AppHost makes available. Opening the dock does **not** create a shell, and resource terminals do not automatically appear as dock tabs.
+The dashboard displays terminals that your AppHost makes available. Resource terminals have their own dedicated view, separate from the AppHost terminal dock.
 
 | Experience                      | Use it for                                                                                        | Where to find it                                                                                         |
 | ------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -56,6 +61,11 @@ The dashboard displays terminals that your AppHost makes available. Opening the 
 
 </Steps>
 
+<Image
+  src={resourceTerminal}
+  alt="Resource terminal in the dashboard Console logs page, showing an interactive REPL and its available commands."
+/>
+
 Selecting a running terminal-enabled resource initially shows **Terminal**. A resource that is waiting, starting, or has exited initially shows **Console logs**, so startup and exit messages are available. After that initial selection, state changes don't switch the view for you.
 
 Use that toolbar menu to switch between **Terminal** and **Console logs**. Switching views doesn't stop the resource or its console-log capture.
@@ -68,11 +78,27 @@ An empty dock means your AppHost hasn't created a dock terminal. Follow [Open a 
 
 Select a tab to switch terminals. Terminals remain available as you navigate dashboard pages. Multiple connected dashboards see the same AppHost-owned terminals, but each viewer chooses which tab to display and whether its dock is visible.
 
+<Image
+  src={terminalDock}
+  alt="Terminal dock with the shellbox tab selected, showing a container shell and controls to detach, hide, or close the terminal."
+/>
+
 To change the dock height, drag its top edge. With the resize handle focused, use <Kbd windows="ArrowUp" /> or <Kbd windows="ArrowDown" />; hold <Kbd windows="Shift" /> for larger steps. <Kbd windows="Home" /> and <Kbd windows="End" /> select its minimum and maximum height.
 
 :::caution[Hide is not close]
 **Hide terminal panel** collapses the dock without stopping its terminals. The close button on an individual terminal tab disposes that AppHost-owned terminal and stops its process for every viewer.
 :::
+
+## Use a terminal interaction dialog
+
+AppHost code can open a terminal in a dialog for a focused task, such as authentication or an interactive command. The following example shows an AppHost-owned shell in a dialog.
+
+<Image
+  src={terminalInteraction}
+  alt="AppHost shell interaction dialog with an interactive terminal, font controls, and a Cancel button."
+/>
+
+The interaction borrows the terminal; its caller controls when to stop and dispose it. See [Terminal interactions](/extensibility/interaction-service/#terminal-interactions) for examples using `PromptTerminalAsync`.
 
 ## Open a separate window
 
@@ -82,6 +108,11 @@ The dashboard opens or reuses a window for that terminal instead of starting ano
 
 - A **resource terminal** keeps its inline viewer available while the separate window is open.
 - A **dock terminal** shows a placeholder in the dock while detached. Select **Focus window** to reach the existing window, or **Return to panel** to bring its viewer back into the dock.
+
+<Image
+  src={detachedTerminal}
+  alt="Detached resource terminal window showing the same REPL, with font and grid-dimension controls but no dashboard navigation."
+/>
 
 Closing the detached browser window releases that viewer; it doesn't stop the terminal process. If its originating dock is still open, the terminal returns there. Closing the originating dashboard browser tab also doesn't stop an AppHost-owned process or its independent window.
 

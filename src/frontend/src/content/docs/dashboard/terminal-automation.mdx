@@ -11,7 +11,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 Use [`aspire terminal tape play`](/reference/cli/commands/aspire-terminal-tape-play/) to send scripted input to an existing resource terminal, wait for expected output, and save text recordings. A tape is a plain-text `.tape` file containing commands such as `Type`, `Enter`, and `Wait+Screen`.
 
 :::caution[Experimental in Aspire 13.6]
-Tape playback is an experimental addition planned for Aspire 13.6. The implementation is currently in the open [microsoft/aspire#19887](https://github.com/microsoft/aspire/pull/19887) pull request. Use the CLI and matching AppHost packages from a build containing that change; an older installed CLI won't recognize `terminal tape`. Follow the [PR artifact installation instructions](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/docs/dogfooding-pull-requests.md) to try it without building Aspire from source.
+Tape playback is part of the Aspire 13.6 preview. Use matching CLI and AppHost builds that include tape playback; an older installed CLI won't recognize `terminal tape`. See [Install the Aspire CLI](/get-started/install-cli/) for development builds, or use the pinned source walkthrough below.
 :::
 
 Playback joins a running [`WithTerminal()`](/app-host/with-terminal/) resource as a secondary peer. It doesn't create a shell, take primary ownership, resize the terminal, or stop the resource when the tape completes or fails. It cannot target a dashboard-only AppHost interaction terminal. See [Dashboard terminals](/dashboard/terminals/) for the different terminal surfaces.
@@ -26,7 +26,7 @@ This first example runs in your own AppHost. It doesn't require the Aspire sourc
 
 ### Set up the shell resource
 
-Use an existing AppHost or [create one with `aspire init`](/reference/cli/commands/aspire-init/) using the matching PR build described above. Replace its application code with the following complete example. For a file-based C# AppHost, retain the generated `#:sdk` and `#:package` directives above the code.
+Use an existing AppHost or [create one with `aspire init`](/reference/cli/commands/aspire-init/) using matching preview builds as described above. Replace its application code with the following complete example. For a file-based C# AppHost, retain the generated `#:sdk` and `#:package` directives above the code.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -108,9 +108,9 @@ Use a fresh marker or clear old output when adapting a tape for repeated checks.
 
 ## Prepare the REPL playground
 
-The next example uses the public [Terminals playground](https://github.com/microsoft/aspire/tree/3e16358e0ae00e1a3846994304436be554837282/playground/Terminals), rather than the minimal shell AppHost above. It supplies `repl`: the included `Terminals.Repl` console project, registered with `WithTerminal()` and two replicas. Its commands include `help`, `whoami`, and `size`.
+The next example uses the public [Terminals playground](https://github.com/microsoft/aspire/tree/1a8582231734df69b8af9487153bc67fa963b7e8/playground/Terminals), rather than the minimal shell AppHost above. It supplies `repl`: the included `Terminals.Repl` console project, registered with `WithTerminal()` and two replicas. Its commands include `help`, `whoami`, and `size`.
 
-For this source walkthrough, install Git and the [Aspire source-build prerequisites](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/docs/machine-requirements.md), including a running container runtime for the playground's other resources. The restore script installs the repository's required .NET SDK. Follow the [source build guide](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/docs/contributing.md) if your machine needs additional setup.
+For this source walkthrough, install Git and the [Aspire source-build prerequisites](https://github.com/microsoft/aspire/blob/1a8582231734df69b8af9487153bc67fa963b7e8/docs/machine-requirements.md), including a running container runtime for the playground's other resources. The restore script installs the repository's required .NET SDK. Follow the [source build guide](https://github.com/microsoft/aspire/blob/1a8582231734df69b8af9487153bc67fa963b7e8/docs/contributing.md) if your machine needs additional setup.
 
 In a new terminal, clone the source, select the documented revision, build it, and start the playground:
 
@@ -120,8 +120,7 @@ In a new terminal, clone the source, select the documented revision, build it, a
 ```bash title="Build and run the Terminals playground"
 git clone https://github.com/microsoft/aspire.git aspire-terminal-sample
 cd aspire-terminal-sample
-git fetch origin pull/19887/head
-git checkout 3e16358e0ae00e1a3846994304436be554837282
+git checkout 1a8582231734df69b8af9487153bc67fa963b7e8
 ./restore.sh
 ./build.sh
 cd playground/Terminals
@@ -134,8 +133,7 @@ cd playground/Terminals
 ```powershell title="Build and run the Terminals playground"
 git clone https://github.com/microsoft/aspire.git aspire-terminal-sample
 Set-Location aspire-terminal-sample
-git fetch origin pull/19887/head
-git checkout 3e16358e0ae00e1a3846994304436be554837282
+git checkout 1a8582231734df69b8af9487153bc67fa963b7e8
 .\restore.cmd
 .\build.cmd
 Set-Location playground\Terminals
@@ -174,7 +172,7 @@ Check that replica `0` of `repl` is alive and at an idle prompt. You can inspect
 
 ## Exercise a multi-step REPL
 
-Save this complete tape as `repl-check.tape` in `playground/Terminals`. It uses the actual commands and output of the playground's [REPL implementation](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/playground/Terminals/Terminals.Repl/Program.cs).
+Save this complete tape as `repl-check.tape` in `playground/Terminals`. It uses the actual commands and output of the playground's [REPL implementation](https://github.com/microsoft/aspire/blob/1a8582231734df69b8af9487153bc67fa963b7e8/playground/Terminals/Terminals.Repl/Program.cs).
 
 ```text title="repl-check.tape"
 Set TypingSpeed 50ms
@@ -205,7 +203,7 @@ aspire terminal tape play repl --replica 0 --tape-file repl-check.tape --timeout
 
 The tape waits for each response rather than for echoed `help`, `whoami`, or `size` input. The process ID and current dimensions vary, so the assertions use numeric patterns rather than fixed values. The tape leaves the REPL running at its prompt.
 
-The playground also includes longer [`repl-basics.tape`](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/playground/Terminals/repl-basics.tape) and [`shell-basics.tape`](https://github.com/microsoft/aspire/blob/3e16358e0ae00e1a3846994304436be554837282/playground/Terminals/shell-basics.tape) examples.
+The playground also includes longer [`repl-basics.tape`](https://github.com/microsoft/aspire/blob/1a8582231734df69b8af9487153bc67fa963b7e8/playground/Terminals/repl-basics.tape) and [`shell-basics.tape`](https://github.com/microsoft/aspire/blob/1a8582231734df69b8af9487153bc67fa963b7e8/playground/Terminals/shell-basics.tape) examples.
 
 ## Record screens as text
 
@@ -271,10 +269,10 @@ Aspire doesn't launch or resize a process for playback. Configure the resource's
 ## Diagnose a failed tape
 
 - **Command not found:** Use the source CLI or a build containing tape playback, and enable `features.terminalCommandsEnabled`.
-- **Resource or replica unavailable:** Run `aspire terminal ps`; verify the resource has `WithTerminal()`, the selected replica is alive, and you're targeting the correct AppHost. Playback doesn't start an exited replica.
+- **Resource or replica unavailable:** Run `aspire terminal ps`; verify the resource has `WithTerminal()`, the selected replica is alive, and you're targeting the correct AppHost. If the selected replica has no live producer yet, playback waits within `--timeout`. It doesn't start or restart the resource.
 - **Preflight diagnostic:** Correct the reported file, line, and column. Unsupported effects, missing includes, missing output directories, or existing output files prevent input from being sent.
 - **Wait failure:** Check the failure screen on stdout and the source-located diagnostic on stderr. Match meaningful application output, not input echo or stale screen text.
-- **Timeout:** `--timeout` defaults to 120 seconds and bounds terminal connection and playback, not initial AppHost discovery. Overall timeout returns **17**; user cancellation returns **130**. A failed tape command, including its own wait timeout, returns **16**. Cleanup and recording finalization can continue after cancellation.
+- **Timeout:** `--timeout` defaults to 120 seconds and bounds the initial wait for a live producer, terminal connection, and playback, not initial AppHost discovery. Overall timeout returns **17**; user cancellation returns **130**. A failed tape command, including its own wait timeout, returns **16**. Cleanup and recording finalization can continue after cancellation.
 - **Disconnect:** Playback fails rather than retrying input that could have side effects.
 
 The CLI doesn't stop the resource on completion, failure, or cancellation, although input in the tape can cause the application to exit. Stop the AppHost separately when you're finished.
