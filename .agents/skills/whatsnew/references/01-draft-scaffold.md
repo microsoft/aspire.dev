@@ -34,6 +34,11 @@ duplicating.
    the **content-standards taxonomy**: Deployment and Integrations **separate**, plus
    dedicated **"New integrations"** and **"Default container image updates"** sections.
    If the file already exists, reconcile structure without clobbering existing content.
+   Set `resourceImage` to existing artwork that represents the release. The template
+   supplies shared light/dark dashboard artwork; prefer a verified release-specific
+   screenshot when available, without borrowing another release's versioned artwork.
+   The resource directory automatically includes the page as `release-notes` and
+   reads its image and `publishDate`; no separate catalog entry is needed.
 3. **Version constants.** Update `src/frontend/config/aspire-versions.mjs`:
    `currentAspireMajorMinorVersion = 'N.N'`, `currentAspireVersion` to the latest
    stable `N.N.PATCH`, and `currentAspirePreviewVersion` to the matching full
@@ -55,8 +60,9 @@ duplicating.
    `{ label: 'Aspire N.N', slug: 'whats-new/{SLUG}' }` at the **top** of the What's-new
    `items`. Roll the now-older version into the "Previous versions" group per the
    existing pattern.
-6. **Assets folder.** Create `src/frontend/src/assets/whats-new/aspire-{VERSION_FULL}/`
-   (empty) for screenshots to land later.
+6. **Assets.** Create `src/frontend/src/assets/whats-new/aspire-{VERSION_FULL}/`
+   only when adding actual screenshots. Do not create an empty directory or
+   `.gitkeep`; reused shared artwork needs no release-specific folder.
 7. **Commit the scaffold.** Stage and commit all of the above on `release/{N.N}` so the
    branch has a diff against the default branch (nothing to PR otherwise).
 8. **Draft PR.** *Now* open a **draft** PR from `release/{N.N}` into the repository's
@@ -72,5 +78,7 @@ duplicating.
 
 - Page exists and is structurally sound (frontmatter + imports + section skeleton).
 - Sidebar resolves the new slug; banner points at the new article across locales.
+- `resourceImage` resolves to real artwork, and the resource directory discovers
+  one release-notes entry with the expected image and metadata.
 - Version constants updated; draft PR is open.
 - **No researched prose yet** — only structure and placeholders.

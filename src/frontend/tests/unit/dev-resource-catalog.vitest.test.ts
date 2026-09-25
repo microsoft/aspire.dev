@@ -227,13 +227,27 @@ describe('resource catalog normalization', () => {
 describe('current source coverage', () => {
   it('uses existing release screenshots and preserves a fallback for articles without artwork', () => {
     const releases = catalog.filter(({ type }) => type === 'release-notes');
-    expect(releases.filter(({ image }) => image)).toHaveLength(11);
+    expect(releases.filter(({ image }) => image)).toHaveLength(12);
     expect(releases.find(({ href }) => href === '/whats-new/aspire-13-4/')?.image).toBeUndefined();
     for (const resource of releases) {
       for (const asset of [resource.image?.light, resource.image?.dark].filter((value) => value !== undefined)) {
         expect(existsSync(path.join(root, 'src', asset.replace(/^~\//, ''))), asset).toBe(true);
       }
     }
+  });
+
+  it('discovers the 13.6 release card with its frontmatter artwork and date', () => {
+    const releases = catalog.filter(({ href }) => href === '/whats-new/aspire-13-6/');
+    expect(releases).toHaveLength(1);
+    expect(releases[0]).toMatchObject({
+      title: "What's new in Aspire 13.6",
+      type: 'release-notes',
+      date: '2026-09-29',
+      image: {
+        light: '~/assets/dashboard/landing/resources-graph-light.png',
+        dark: '~/assets/dashboard/landing/resources-graph-dark.png',
+      },
+    });
   });
 
   it('indexes AppHost and consuming-client examples under each demonstrated language', () => {

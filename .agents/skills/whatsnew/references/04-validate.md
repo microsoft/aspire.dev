@@ -34,6 +34,10 @@ then **fix → re-review → repeat** until it converges clean:
   targets.
 - **Banner + version wiring:** banner points at the new article across locales; version
   constants in `aspire-versions.mjs` are correct.
+- **Resource directory:** `resourceImage` is present and every configured image
+  resolves. Run `dev-resource-catalog.vitest.test.ts` and preview the release card
+  under `/hub/browse/` in both themes. Confirm one `release-notes` entry with the
+  correct link, title, date, and artwork; do not hand-maintain a duplicate catalog.
 
 ## Editorial guardrails enforced here
 

@@ -62,6 +62,11 @@ infer from context — e.g. a fresh release with no page → `draft`).
   distinct **"New integrations"** section for brand-new ones; a **"Default container
   image updates"** section for tag bumps. The release-date badge + GitHub release-notes
   link render **automatically** from `publishDate` + slug — never hand-place them.
+- **Resource artwork:** Every new release page must set `resourceImage` to an
+  existing, relevant asset, with `light`/`dark` paths when variants exist. The
+  resource directory discovers release pages and consumes this frontmatter
+  automatically; do not add a duplicate catalog entry. Verify the card's image
+  and release metadata in the resource-catalog tests and browser preview.
 
 ### Safety / mechanics
 - **Never run `pnpm build` locally** — validate build-readiness by inspection.
