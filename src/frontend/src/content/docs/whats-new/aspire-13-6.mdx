@@ -31,14 +31,14 @@ This release introduces:
 - **Dashboard persistence and run history** — revisit completed application runs, retain more telemetry, and use docked terminals.
 - **New first-party integrations** — orchestrate Java and Rust apps, configure Azure Connector Namespace resources, or deploy container-backed compute to Azure Container Apps Sandboxes.
 - **More flexible AppHosts** — coordinate .NET project builds, pass portable volume paths, and load TypeScript AppHost settings from `appsettings.json`.
-- **Sharper CLI workflows** — update repository-pinned CLIs, select launch profiles, export TypeScript API data, and automate terminals.
+- **Sharper CLI workflows** — update repository-pinned CLIs, select launch profiles, export TypeScript API data, automate terminals, and run a faster native agent telemetry hook.
 - **A more capable Visual Studio Code extension** — drive AppHosts from coding agents, run deployment actions from the Aspire pane, and work cleanly across multiple roots and git worktrees.
 - **More predictable deployment** — customize Azure infrastructure from polyglot AppHosts, isolate deployment state, and preserve Kubernetes hostnames and embedded parameter values.
 - **Integration improvements** — run Deno apps, initialize MongoDB replica sets, compose Foundry Toolboxes, and debug Blazor WebAssembly apps.
 - **Updated emulator images** — move Azure App Configuration to `1.2.0` and make the Linux-based vNext Cosmos DB emulator the default.
 - **Bug fixes** — improvements across orchestration, debugging, telemetry, and deployment.
 - **Community contributions** — contributions span major features, integration improvements, reliability fixes, and project tooling.
-- **Breaking changes** — review Cosmos DB emulator defaults, Front Door origin names, portable connection-string aliases, and the experimental terminal namespace move.
+- **Breaking changes** — review Cosmos DB emulator defaults, Front Door origin names, the smaller default OTLP request size, portable connection-string aliases, and the experimental terminal namespace move.
 - …and much more.
 
 ## 🆙 Upgrade to Aspire 13.6
@@ -48,8 +48,8 @@ This release introduces:
 
 <Aside type="caution">
   Review the [Breaking changes](#breaking-changes) before upgrading, especially
-  if you use the Cosmos DB emulator, Azure Front Door, custom connection-string
-  consumers, or experimental terminal APIs.
+  if you use the Cosmos DB emulator, Azure Front Door, large OTLP telemetry
+  batches, custom connection-string consumers, or experimental terminal APIs.
 </Aside>
 
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
@@ -281,6 +281,21 @@ The managed server keeps its logging defaults, while application settings can ov
 </LearnMore>
 
 ## 🛠️ Aspire CLI enhancements
+
+#### Faster agent telemetry hook
+
+The `PostToolUse` hook installed by `aspire agent init` now runs the CLI's native `aspire agent telemetry --hook` executable directly instead of the previous shell-script wrapper, removing shell startup and synchronous upload waits from every agent tool call. GitHub Copilot CLI and Claude Code hook registrations still match every tool call (`matcher: "*"` for Claude, unfiltered `postToolUse` for Copilot); coverage of Aspire skills, MCP tools, and skill reference files is unchanged. Refresh existing hook registrations after upgrading:
+
+```bash title="Aspire CLI — Refresh agent hook configuration"
+aspire agent init
+```
+
+Set `ASPIRE_AGENT_TELEMETRY_MAX_PAYLOAD_CHARACTERS` to change the maximum size of the hook input the CLI reads before parsing. The default is `65536` UTF-16 characters, and the accepted range is `1`-`1048576`; oversized input is drained without being retained, and an invalid value produces a diagnostic without breaking the agent.
+
+<LearnMore>
+  See [AI agent skill usage
+  data](/reference/cli/microsoft-collected-cli-telemetry/#ai-agent-skill-usage-data).
+</LearnMore>
 
 #### Select an AppHost launch profile
 
@@ -553,6 +568,27 @@ The callback runs after the integration's defaults and applies to every configur
   Review the [Front Door origin naming
   change](https://github.com/microsoft/aspire/pull/20035) and the [Azure Front
   Door integration](/integrations/cloud/azure/azure-front-door/) documentation.
+</LearnMore>
+
+#### OpenTelemetry packages upgraded, smaller default OTLP request size
+
+Aspire 13.6 coordinates its bundled OpenTelemetry packages (the Console, in-memory, and OTLP exporters, `Extensions.Hosting`, ASP.NET Core/HTTP/Runtime/SQL Client instrumentation, and gRPC client instrumentation) on the `1.18.x` line, and the Azure Monitor Exporter on `1.9.0`. Generated `ServiceDefaults` projects pick up the updated versions; existing customer projects aren't rewritten.
+
+OpenTelemetry 1.18 reduces the default maximum serialized OTLP request size from 128 MiB to 64 MiB. Oversized telemetry batches are dropped instead of exported. If your app produces large batches (for example, high-cardinality traces or bulk log export), restore the previous limit:
+
+```csharp title="AppHost.cs or Program.cs"
+builder.Services.Configure<OpenTelemetry.Exporter.OtlpExporterOptions>(options =>
+{
+    options.MaxRequestSizeBytes = 128 * 1024 * 1024;
+});
+```
+
+The default maximum OTLP response size remains 4 MiB.
+
+<LearnMore>
+  See [Telemetry in Aspire](/fundamentals/telemetry/) and the [OpenTelemetry .NET
+  exporter
+  release notes](https://github.com/open-telemetry/opentelemetry-dotnet/releases).
 </LearnMore>
 
 #### Portable connection-string environment variable names

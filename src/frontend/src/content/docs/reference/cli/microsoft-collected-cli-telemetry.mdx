@@ -15,7 +15,11 @@ Aspire CLI telemetry is collected when using the CLI to run commands. Telemetry 
 
 When you run `aspire agent init`, Aspire installs Aspire's AI skills and a `PostToolUse` hook into each detected agent client's user-level configuration (for example, GitHub Copilot CLI and Claude Code). The hook lets Aspire understand which of its AI skills and tools are actually used so the team can invest in the most valuable ones.
 
+Since Aspire 13.6, the hook runs the CLI's native `aspire agent telemetry --hook` executable directly rather than through a shell wrapper, reducing the overhead added to every agent tool call. GitHub Copilot CLI and Claude Code hook registrations still match every tool call, so coverage is unchanged.
+
 After each agent tool use, the hook checks if an **Aspire** skill, Aspire MCP tool, or Aspire skill reference file was involved. If so, the hook inspects the event and forwards a low-cardinality usage event to the hidden `aspire agent telemetry` command. The command records the event through the same CLI telemetry pipeline. Tool uses that don't involve Aspire skills or tools are ignored. See [AI agent skill usage data](#ai-agent-skill-usage-data) for exactly what's recorded.
+
+Set `ASPIRE_AGENT_TELEMETRY_MAX_PAYLOAD_CHARACTERS` to change the maximum size of hook input the CLI reads before parsing. The default is `65536` UTF-16 characters, and the accepted range is `1`-`1048576`; oversized input is drained without being retained, and an invalid value produces a diagnostic without breaking the agent.
 
 ## How to opt-out
 
