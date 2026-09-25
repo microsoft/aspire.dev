@@ -203,6 +203,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/customize-resources',
             },
             {
+              label: 'Bicep helpers',
+              slug: 'integrations/cloud/azure/bicep-helpers',
+            },
+            {
               label: 'Azure security best practices',
               translations: {
                 da: 'Bedste praksis for Azure-sikkerhed',
