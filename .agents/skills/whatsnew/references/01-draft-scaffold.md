@@ -34,9 +34,14 @@ duplicating.
    the **content-standards taxonomy**: Deployment and Integrations **separate**, plus
    dedicated **"New integrations"** and **"Default container image updates"** sections.
    If the file already exists, reconcile structure without clobbering existing content.
-   Set `resourceImage` to existing artwork that represents the release. The template
-   supplies shared light/dark dashboard artwork; prefer a verified release-specific
-   screenshot when available, without borrowing another release's versioned artwork.
+   The template's `{{RESOURCE_IMAGE_LIGHT}}` and `{{RESOURCE_IMAGE_DARK}}` tokens
+   must resolve to newly captured screenshots of a feature introduced in this
+   release. Verify the running product version, exercise the feature, and capture
+   the same UI state in both themes. Store the files under the release assets folder
+   and then set `resourceImage` to their `~/assets/whats-new/...` paths. Never use
+   generic or older-release artwork, fabricate UI, or point at nonexistent files.
+   If capture isn't possible during scaffolding, omit `resourceImage` temporarily
+   and track it as a required research/polish task; do not consider validation complete.
    The resource directory automatically includes the page as `release-notes` and
    reads its image and `publishDate`; no separate catalog entry is needed.
 3. **Version constants.** Update `src/frontend/config/aspire-versions.mjs`:
@@ -78,7 +83,8 @@ duplicating.
 
 - Page exists and is structurally sound (frontmatter + imports + section skeleton).
 - Sidebar resolves the new slug; banner points at the new article across locales.
-- `resourceImage` resolves to real artwork, and the resource directory discovers
-  one release-notes entry with the expected image and metadata.
+- Release-specific screenshots exist and `resourceImage` resolves to them, or
+  their capture is explicitly tracked as incomplete. The resource directory
+  discovers one release-notes entry with the expected metadata.
 - Version constants updated; draft PR is open.
 - **No researched prose yet** — only structure and placeholders.

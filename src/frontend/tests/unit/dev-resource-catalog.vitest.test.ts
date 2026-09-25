@@ -244,8 +244,8 @@ describe('current source coverage', () => {
       type: 'release-notes',
       date: '2026-09-29',
       image: {
-        light: '~/assets/dashboard/landing/resources-graph-light.png',
-        dark: '~/assets/dashboard/landing/resources-graph-dark.png',
+        light: '~/assets/whats-new/aspire-13.6.0/run-history-light.webp',
+        dark: '~/assets/whats-new/aspire-13.6.0/run-history-dark.webp',
       },
     });
   });
