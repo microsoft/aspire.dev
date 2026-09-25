@@ -12,7 +12,7 @@ import LearnMore from '@components/LearnMore.astro';
 Use `aspire deploy` to deploy Aspire applications to [Azure Container Apps Sandboxes](https://sandboxes.azure.com/docs/sandboxes/quickstart/setup-portal). Aspire provisions a sandbox group, an Azure Container Registry, and the managed identities and role assignments the group needs. It then builds or resolves a container image for each compute resource and runs it as a sandbox with the lifecycle and endpoint settings you configure in your AppHost.
 
 :::caution[Experimental and in preview]
-Azure Container Apps Sandboxes is a preview Azure service, and the `Aspire.Hosting.Azure.Sandboxes` APIs are experimental. They report the [`ASPIREAZURE001`](/diagnostics/aspireazure001/) diagnostic, which you must suppress in a C# AppHost to build. The API surface and deployment behavior may change in future releases.
+Azure Container Apps Sandboxes is a preview Azure service, and the `Aspire.Hosting.Azure.Sandboxes` libary is prerelease. The API surface and deployment behavior may change in future releases.
 :::
 
 <LearnMore>
@@ -69,8 +69,6 @@ await builder.build().run();
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIREAZURE001 // Azure Container Apps Sandboxes APIs are experimental.
-
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureSandboxGroup("sandboxes");
@@ -85,7 +83,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-The sandbox group only affects publish and deploy. When you run the AppHost locally with `aspire run`, Aspire doesn't add the sandbox group to the app model, and your resources run locally as usual.
+The sandbox group only affects publish and deploy. When you run the AppHost locally with `aspire run`, Aspire adds the sandbox group to the app model but doesn't provision Azure sandbox resources, so your resources run locally as usual.
 
 For a standard deployment, you only need the sandbox group and your compute resources. Use `PublishAsAzureSandbox` only when you want to customize the sandbox runtime options for a resource.
 
@@ -126,8 +124,6 @@ await builder.build().run();
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIREAZURE001 // Azure Container Apps Sandboxes APIs are experimental.
-
 using Aspire.Hosting.Azure;
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -165,8 +161,8 @@ The `Tier` option sets the CPU, memory, and disk for each sandbox. The default t
 
 | Tier         | vCPU | Memory  | Disk   |
 | ------------ | ---- | ------- | ------ |
-| `ExtraSmall` | 0.25 | 0.5 GiB | 20 GiB |
-| `Small`      | 0.5  | 1 GiB   | 20 GiB |
+| `ExtraSmall` | 0.25 | 0.5 GiB | 5 GiB |
+| `Small`      | 0.5  | 1 GiB   | 10 GiB |
 | `Medium`     | 1    | 2 GiB   | 20 GiB |
 | `Large`      | 2    | 4 GiB   | 40 GiB |
 | `ExtraLarge` | 4    | 8 GiB   | 80 GiB |
@@ -194,7 +190,7 @@ Aspire creates sandbox ports only for endpoints that are marked external, such a
 - **Anonymous access is opt-in.** To allow anonymous access, set `Anonymous` to `true` for the endpoint in `AzureSandboxOptions.Endpoints`, as shown in the preceding example.
 - **HTTP only.** Sandbox ports support HTTP and HTTP/2 endpoints. TCP endpoints aren't supported.
 - **Target ports are required.** Each external endpoint needs a target port. Endpoints that share a target port share one sandbox port, so they must use the same protocol and anonymous-access policy.
-- **.NET projects.** When an external project resource has the usual paired HTTP and HTTPS endpoints on the same target port, Aspire exposes one sandbox port that forwards HTTP to the container on port `8080`. References to either endpoint resolve to the same HTTPS URL. An external HTTPS endpoint without a matching HTTP endpoint on the same target port isn't supported.
+- **.NET projects.** When an external project resource has the usual paired HTTP and HTTPS endpoints on the same target port, Aspire exposes one sandbox port that forwards HTTP to the container on that shared target port (8080 when no target port is configured). References to either endpoint resolve to the same HTTPS URL. An external HTTPS endpoint without a matching HTTP endpoint on the same target port isn't supported.
 
 Public URLs for each exposed endpoint, along with a link to each sandbox group's dashboard, appear in the deployment summary after `aspire deploy` completes.
 
