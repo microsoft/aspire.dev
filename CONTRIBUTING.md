@@ -58,19 +58,6 @@ setting only to the vnext build, not the live build. If vnext builds a different
 source branch, set the intended label explicitly instead. Changing the badge on
 a deployed static site requires rebuilding its frontend assets.
 
-## TypeScript API navigation
-
-The TypeScript API sidebar must not repeat a module's full catalog on every
-generated page. Keep the catalog on the module overview and link to that shared
-page from item and member pages. The API index sidebar lists modules only;
-module sidebars link to catalog sections; detail sidebars show the current item
-and member, with links generated from that page's actual headings.
-
-Reuse the canonical route slugs when constructing navigation, including
-disambiguated overload slugs. Memoizing a large sidebar array only avoids
-rebuilding the array; it does not avoid rendering that array into every HTML
-file. Keep the rendered navigation small as well.
-
 ## 🆘 Getting help
 
 - **Issues**: Report bugs or request features via [GitHub Issues](https://github.com/microsoft/aspire.dev/issues)
