@@ -164,13 +164,74 @@ The service requires preview access in your Azure subscription and region. Refer
 
 #### ☁️ Azure Container Apps Sandboxes
 
-The experimental `Aspire.Hosting.Azure.Sandboxes` package can provision a sandbox group and Azure Container Registry, then publish project, container, and Dockerfile resources as sandbox containers. Aspire resolves images to immutable Linux/AMD64 digests, supports deploy, redeploy, stale-generation pruning, and destroy, and requires an explicit opt-in before an HTTP endpoint allows anonymous access.
+The experimental `Aspire.Hosting.Azure.Sandboxes` package adds Azure Container Apps Sandboxes as a deployment target. Add a sandbox group to your AppHost, and `aspire deploy` provisions the group, an Azure Container Registry, and the identities and role assignments the group needs. It then runs your project, container, and Dockerfile resources as isolated sandboxes. When the sandbox group is the only compute environment, Aspire assigns compute resources to it automatically.
 
-<Aside type="caution" title="Experimental deployment target">
-  Azure Container Apps Sandboxes support is intentionally narrow and may change.
-  The initial package doesn't include Connector Gateway, MCP, triggers, OAuth,
-  or broad workload-role APIs from the earlier prototype. A formal threat model
-  and security review are also follow-up work.
+Use `PublishAsAzureSandbox` / `publishAsAzureSandbox` to choose one of five resource tiers and to configure auto-suspend and auto-delete:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import {
+    AzureSandboxAutoSuspendMode,
+    AzureSandboxTier,
+    createBuilder
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureSandboxGroup('sandboxes');
+
+await builder
+    .addDockerfile('web', './web')
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' })
+    .withExternalHttpEndpoints()
+    .publishAsAzureSandbox({
+        tier: AzureSandboxTier.Small,
+        autoSuspendEnabled: true,
+        autoSuspendInterval: 900_000, // 15 minutes, in milliseconds
+        autoSuspendMode: AzureSandboxAutoSuspendMode.Disk
+    });
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE001 // Azure Container Apps Sandboxes APIs are experimental.
+
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureSandboxGroup("sandboxes");
+
+builder.AddDockerfile("web", "./web")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http")
+    .WithExternalHttpEndpoints()
+    .PublishAsAzureSandbox(new AzureSandboxOptions
+    {
+        Tier = AzureSandboxTier.Small,
+        AutoSuspendEnabled = true,
+        AutoSuspendInterval = TimeSpan.FromMinutes(15),
+        AutoSuspendMode = AzureSandboxAutoSuspendMode.Disk
+    });
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Only endpoints marked external get a public HTTPS URL. Those URLs require Microsoft Entra ID authentication unless you opt in to anonymous access for a specific endpoint. Aspire resolves images to immutable Linux/amd64 digests and applies a deny-by-default egress policy. It also removes stale sandboxes and disk images on redeploy and on `aspire destroy`. For setup, identity, endpoint, and lifecycle details, see [Deploy to Azure Container Apps Sandboxes](/deployment/azure/sandboxes/).
+
+<Aside type="caution" title="Experimental preview">
+  Azure Container Apps Sandboxes requires preview access in your Azure
+  subscription and region, and the Aspire APIs report `ASPIREAZURE001` and may
+  change. The integration doesn't yet support volumes, TCP ports, private
+  service discovery, or Windows and ARM64 images.
 </Aside>
 
 <LearnMore>
@@ -420,7 +481,7 @@ Existing integrations add new workflows and safer defaults:
 - **Dev Tunnel discovery and expiration.** Tunnel, inspect, and local endpoint URLs appear as highlighted resource properties, and a **Show tunnel URLs** command surfaces them through the dashboard Interaction Service. `WithExpiration` / `withExpiration` also configures idle expiration for new or reused tunnels, in whole hours from one hour through 30 days.
 - **Radius recipe configuration.** Experimental APIs configure recipe parameters and required secrets globally or per resource from the AppHost. The integration now recommends [Radius v0.60.2](https://github.com/radius-project/radius/releases/tag/v0.60.2); v0.60.0 remains the minimum supported control-plane version.
 - **Safer Azure location changes.** Changing a location-immutable Azure resource requires an explicit confirmation before Aspire deletes and recreates it. The CLI projects that confirmation as `--confirm-delete`.
-- **Azure identity reliability.** Role-assignment Bicep detects service principal and federated workload identity credentials more accurately, and the experimental Sandboxes integration now binds its deployment principal to the scoped data-owner role correctly.
+- **Azure identity reliability.** Role-assignment Bicep detects service principal and federated workload identity credentials more accurately.
 - **Cosmos DB client health.** `AddAzureCosmosClient` and `AddKeyedAzureCosmosClient` register default-on health checks that probe account reachability. Set `DisableHealthChecks` to opt out.
 - **Cosmos DB emulator defaults.** `RunAsEmulator` / `runAsEmulator` now uses the Linux-based vNext emulator. Use `RunAsClassicEmulator` / `runAsClassicEmulator` to retain the classic emulator, or configure the vNext Data Explorer without suppressing `ASPIRECOSMOSDB001`. See the [Cosmos DB emulator guide](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-host/#run-as-emulator) and [migration guidance](#breaking-changes).
 - **Foundry model refreshes.** Generated Foundry model constants were refreshed throughout the release cycle without changing the hosting API shape.
