@@ -192,6 +192,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
               label: 'Azure App Service',
               slug: 'deployment/azure/app-service',
             },
+            {
+              label: 'Azure Container Apps Sandboxes',
+              slug: 'deployment/azure/sandboxes',
+            },
           ],
         },
         {
