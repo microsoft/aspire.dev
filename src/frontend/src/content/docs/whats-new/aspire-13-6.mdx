@@ -177,13 +177,20 @@ The service requires preview access in your Azure subscription and region. Refer
 
 #### ☁️ Azure Container Apps Sandboxes
 
-The experimental `Aspire.Hosting.Azure.Sandboxes` package can provision a sandbox group and Azure Container Registry, then publish project, container, and Dockerfile resources as sandbox containers. Aspire resolves images to immutable Linux/AMD64 digests, supports deploy, redeploy, stale-generation pruning, and destroy, and requires an explicit opt-in before an HTTP endpoint allows anonymous access.
+The `Aspire.Hosting.Azure.Sandboxes` package can provision a sandbox group and Azure Container Registry, then publish project, container, and Dockerfile resources as sandbox containers. Aspire resolves images to immutable Linux/AMD64 digests, supports deploy, redeploy, stale-generation pruning, and destroy, and requires an explicit opt-in before an HTTP endpoint allows anonymous access.
 
-<Aside type="caution" title="Experimental deployment target">
+```csharp title="AppHost.cs"
+builder.AddAzureSandboxGroup("sandboxes");
+var api = builder.AddProject<Projects.ApiService>("api");
+```
+
+<Aside type="caution" title="Narrow deployment target">
   Azure Container Apps Sandboxes support is intentionally narrow and may change.
   The initial package doesn't include Connector Gateway, MCP, triggers, OAuth,
   or broad workload-role APIs from the earlier prototype. A formal threat model
-  and security review are also follow-up work.
+  and security review are also follow-up work. The `Aspire.Hosting.Azure.Sandboxes`
+  package remains prerelease, but its APIs no longer require suppressing
+  `ASPIREAZURE001` because the entire package is already prerelease.
 </Aside>
 
 <LearnMore>
@@ -441,8 +448,9 @@ Existing integrations add new workflows and safer defaults:
 - **GitHub Models integration removed.** [GitHub Models was retired for all customers on July 30, 2026](https://github.blog/changelog/2026-07-30-github-models-is-now-retired/). `Aspire.Hosting.GitHub.Models` was deprecated in Aspire 13.5 and its source, tests, and playground sample are removed from the repository in 13.6. The final `13.5.x` package stays published for apps that already reference it. `Aspire.Hosting.GitHub.Models` is hidden from `aspire add`. Migrate to the [Microsoft Foundry integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/); see [Migrate Aspire apps from GitHub Models](/integrations/ai/github-models/github-models-get-started/) for guidance.
 
 <Aside type="note">
-  Radius recipe APIs, the Dotnet project Blazor gateway, and Azure Container
-  Apps Sandboxes remain experimental.
+  Radius recipe APIs and the Dotnet project Blazor gateway remain experimental.
+  Azure Container Apps Sandboxes no longer requires suppressing `ASPIREAZURE001`;
+  the package itself remains prerelease.
 </Aside>
 
 <LearnMore>
