@@ -5,21 +5,21 @@ description: Use Aspire's Bicep helpers to compose deployment-time values, custo
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Use `await infrastructure.bicep()` inside a typed Azure infrastructure callback to construct literals and deployment-time expressions. The returned `BicepValueFactoryProxy` is an Aspire API exported through generated language SDKs. It isn't a projection of every method or overload in the C# Azure Provisioning SDK.
+Use `await infrastructure.bicep()` inside an Azure infrastructure callback to construct literals and deployment-time expressions for your resources.
 
 This reference covers the 32 factory methods available in Aspire 13.6, plus the string builder and declaration helpers that work with them. For callback setup and resource discovery, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/).
 
 :::caution[Experimental API]
-The provisioning proxy packages are experimental and report `ASPIREAZUREPROVISIONING001`. Add the `Aspire.Hosting.Azure.Provisioning.*` package for each Azure SDK model you customize. C# AppHosts use the Azure Provisioning SDK directly and don't need the proxy packages.
+These provisioning APIs are experimental and report `ASPIREAZUREPROVISIONING001`. The examples below show which packages to add for each AppHost language.
 :::
 
 ## Understand when values are evaluated
 
-The TypeScript factory and its results are remote handles. Awaiting a factory call creates a value in the provisioning model; it doesn't ask Azure to evaluate the expression. For example, `await bicep.resourceGroup()` represents `resourceGroup()`, not a JavaScript object containing the current resource group.
+Bicep expressions are evaluated during deployment, not while your AppHost runs. For example, `await bicep.resourceGroup()` represents `resourceGroup()` in the generated Bicep; it doesn't retrieve the current resource group.
 
-Use `member`, `index`, and the expression operators to compose those handles. Don't use JavaScript property access, arithmetic, string interpolation, or `if` to evaluate a deployment-time value. A JavaScript `if` decides what the AppHost builds; a Bicep `conditional` decides which value the deployment uses.
+Use `member`, `index`, and the expression operators to compose deployment-time expressions. Don't use JavaScript property access, arithmetic, string interpolation, or `if` to evaluate a deployment-time value. A JavaScript `if` decides what the AppHost builds; a Bicep `conditional` decides which value the deployment uses.
 
-The underlying C# [BicepValue&lt;T&gt;](https://learn.microsoft.com/dotnet/api/azure.provisioning.bicepvalue-1?view=azure-dotnet) can hold a literal or an expression. The proxy also preserves reference and secure-value metadata. A literal's .NET type still matters: an integer literal isn't automatically a string merely because a destination accepts a `BicepValueProxy`.
+Choose a literal helper that matches the destination's type. An integer literal isn't automatically a string; use `asString` when you need a deployment-time string conversion.
 
 ## Name and tag an Azure Storage account
 
@@ -147,7 +147,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2024-01-01' = {
 output accountId string = storage.id
 ```
 
-`resourceIdentifier(account)` emits the resource's Bicep symbol, `storage`, not its physical name or Azure resource ID. The `member(..., 'id')` call produces `storage.id`. Use the callback's resource handle instead of guessing symbols for child or companion resources.
+`resourceIdentifier(account)` emits the resource's Bicep symbol, `storage`, not its physical name or Azure resource ID. The `member(..., 'id')` call produces `storage.id`. Pass the resource from the callback instead of guessing symbols for child or companion resources.
 
 ## Select Key Vault retention at deployment time
 
@@ -286,11 +286,11 @@ output retentionDays int = (environment == 'Production') ? retentionSettings.day
 
 ## Factory method reference
 
-The following tables list every method on the factory returned by `infrastructure.bicep()`. Calls are asynchronous in the generated TypeScript SDK. Unless stated otherwise, await the result to obtain a `BicepValueProxy`, not an evaluated value. In the tables, `v`, `a`, and `b` denote proxy values, and `values` denotes an array of proxies, not an array of JavaScript primitives.
+The following tables list every method on the factory returned by `infrastructure.bicep()`. Await these calls in TypeScript. In the tables, `v`, `a`, and `b` denote Bicep values created with the helpers, and `values` denotes an array of those values. Unless a method explicitly accepts a JavaScript primitive, use a literal helper such as `string` or `integer` to create its arguments.
 
 ### Literal values
 
-These methods construct C# `BicepValue<T>` instances. They don't invoke a Bicep conversion function.
+These methods create literal values, not Bicep conversion function calls. The C# equivalents use [BicepValue&lt;T&gt;](https://learn.microsoft.com/dotnet/api/azure.provisioning.bicepvalue-1?view=azure-dotnet).
 
 | TypeScript method | Argument and underlying C# type                                | Emitted Bicep                                                                                                                                            |
 | ----------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -312,7 +312,7 @@ Bicep doesn't gain `double`, `guid`, `uri`, `location`, or `timeSpan` declaratio
 | `parameter(parameter, { bicepIdentifier? })`                       | Bridge an Aspire parameter resource into the current module. The identifier defaults to its normalized resource name.                                                           | Aspire `AsProvisioningParameter` creates or reuses a C# `ProvisioningParameter` and records its Aspire input binding. Returns a string-valued reference such as `environment`; the module contains `param environment string`. |
 | `referenceExpression(expression, { bicepIdentifier?, isSecure? })` | Bridge an Aspire `ReferenceExpression`, not a JavaScript template string, into a module input. Without an explicit identifier, Aspire derives one from the manifest expression. | Aspire `AsProvisioningParameter` records the binding and creates or reuses a string parameter. Emits a parameter identifier, not Bicep's `reference(...)` function.                                                            |
 | `identifier(bicepIdentifier)`                                      | Reference a nonempty symbol name that you have already declared in this module.                                                                                                 | C# `IdentifierExpression`; emits the unquoted symbol. Doesn't create a declaration or an input binding.                                                                                                                        |
-| `resourceIdentifier(resource)`                                     | Reference a `ProvisionableResourceProxy` from the callback.                                                                                                                     | Export alias of Aspire's resource-taking `Identifier` overload; reads `resource.BicepIdentifier` and constructs `IdentifierExpression`. Emits the resource symbol, not an Azure resource ID.                                   |
+| `resourceIdentifier(resource)`                                     | Reference a resource from the callback.                                                                                                                                         | C# `IdentifierExpression` using the resource's `BicepIdentifier`. Emits the resource symbol, not an Azure resource ID.                                                                                                         |
 
 Use different identifiers for distinct inputs. Parameter bridging reuses an existing declaration by name; it isn't a way to redeclare that parameter with a different type or security policy. For a cross-module value, use an Aspire reference expression and its input binding rather than an identifier belonging to another module.
 
@@ -326,7 +326,7 @@ These helpers call [Azure.Provisioning.Expressions.BicepFunction](https://learn.
 | `createGuid(values)`             | `CreateGuid`                | `guid(a, b, ...)`; deterministic GUID-formatted **string**. Requires at least one string-compatible input; input order matters. Not a random GUID generator.                                                            |
 | `uniqueString(values)`           | `GetUniqueString`           | `uniqueString(a, b, ...)`; deterministic 13-character hash string. Requires at least one string-compatible input.                                                                                                       |
 | `subscriptionResourceId(values)` | `GetSubscriptionResourceId` | `subscriptionResourceId(...)`; Azure subscription-scoped resource ID, wrapped as `BicepValue<ResourceIdentifier>`. Requires at least type and name, with optional leading subscription ID and additional name segments. |
-| `take(value, count)`             | `Take`                      | `take(value, count)`; first characters of a string. `value` accepts a string or proxy; `count` accepts an integer or proxy. This helper isn't the array overload.                                                       |
+| `take(value, count)`             | `Take`                      | `take(value, count)`; first characters of a string. `value` accepts a string or Bicep value; `count` accepts an integer or Bicep value. This helper isn't the array overload.                                           |
 | `toLower(v)`                     | `ToLower`                   | `toLower(v)`; lowercase string                                                                                                                                                                                          |
 | `toUpper(v)`                     | `ToUpper`                   | `toUpper(v)`; uppercase string                                                                                                                                                                                          |
 | `asString(v)`                    | `AsString`                  | `string(v)`; deployment-time conversion to a string, **not** a host-language cast                                                                                                                                       |
@@ -342,14 +342,14 @@ See the Bicep [string functions](https://learn.microsoft.com/azure/azure-resourc
 
 These methods construct [Azure Provisioning expression AST nodes](https://learn.microsoft.com/dotnet/api/azure.provisioning.expressions?view=azure-dotnet), rather than calling a corresponding `BicepFunction` method.
 
-| TypeScript method                               | Underlying C# node                                      | Emitted Bicep and arguments                                                                                                                             |
-| ----------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `function(name, args)`                          | `FunctionCallExpression` with an `IdentifierExpression` | `name(a, b, ...)`. Supply a valid function name and an array of proxy arguments. This is an escape hatch, not signature or deployment-scope validation. |
-| `member(v, member)`                             | `MemberExpression`                                      | `v.member`; nonempty member name                                                                                                                        |
-| `index(v, index)`                               | `IndexExpression`                                       | `v[index]`; index is a string, integer, or proxy                                                                                                        |
-| `binary(a, operator, b)`                        | `BinaryExpression`                                      | `(a operator b)`; use `BinaryBicepOperator`, not a JavaScript operator string                                                                           |
-| `unary(operator, v)`                            | `UnaryExpression`                                       | `!v`, `-v`, or `v!`; use `UnaryBicepOperator`                                                                                                           |
-| `conditional(condition, consequent, alternate)` | `ConditionalExpression`                                 | `condition ? consequent : alternate`; all three arguments are proxies                                                                                   |
+| TypeScript method                               | Underlying C# node                                      | Emitted Bicep and arguments                                                                                                                          |
+| ----------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `function(name, args)`                          | `FunctionCallExpression` with an `IdentifierExpression` | `name(a, b, ...)`. Supply a valid function name and an array of Bicep values. This is an escape hatch, not signature or deployment-scope validation. |
+| `member(v, member)`                             | `MemberExpression`                                      | `v.member`; nonempty member name                                                                                                                     |
+| `index(v, index)`                               | `IndexExpression`                                       | `v[index]`; index is a string, integer, or Bicep value                                                                                               |
+| `binary(a, operator, b)`                        | `BinaryExpression`                                      | `(a operator b)`; use `BinaryBicepOperator`, not a JavaScript operator string                                                                        |
+| `unary(operator, v)`                            | `UnaryExpression`                                       | `!v`, `-v`, or `v!`; use `UnaryBicepOperator`                                                                                                        |
+| `conditional(condition, consequent, alternate)` | `ConditionalExpression`                                 | `condition ? consequent : alternate`; all three arguments are Bicep values                                                                           |
 
 The generic `function` helper can express Bicep functions without a named factory helper, such as `uri(base, relative)`. It doesn't expose additional C# `BicepFunction` overloads or check their argument types. Don't use `identifier` to smuggle a whole expression into a symbol name.
 
@@ -376,49 +376,49 @@ Null suppression changes type checking; it doesn't supply a fallback value. See 
 
 ### String interpolation
 
-`createStringBuilder()` returns a `BicepStringBuilderProxy` backed by the C# [BicepStringBuilder](https://learn.microsoft.com/dotnet/api/azure.provisioning.expressions.bicepstringbuilder?view=azure-dotnet).
+Use `createStringBuilder()` to combine literal text and Bicep expressions into an interpolated string. The C# equivalent is [BicepStringBuilder](https://learn.microsoft.com/dotnet/api/azure.provisioning.expressions.bicepstringbuilder?view=azure-dotnet).
 
 :::caution[TypeScript SDK limitation]
-In the generated TypeScript SDK from `13.6.0-preview.1.26473.12`, calling this builder's `build()` inside `configureInfrastructure` waits for pending calls, including the enclosing callback, and can time out. Use `concat` in TypeScript infrastructure callbacks, as in the Storage example, until this SDK issue is resolved. The table below describes the underlying factory contract; C# can use `BicepStringBuilder` or `BicepFunction.Interpolate` directly.
+In TypeScript SDK version `13.6.0-preview.1.26473.12`, calling this builder's `build()` inside `configureInfrastructure` can time out. Use `concat` in TypeScript infrastructure callbacks, as in the Storage example, until this issue is resolved. C# can use `BicepStringBuilder` or `BicepFunction.Interpolate`.
 :::
 
-| Builder method        | C# counterpart                               | Behavior                                                                  |
-| --------------------- | -------------------------------------------- | ------------------------------------------------------------------------- |
-| `appendLiteral(text)` | `BicepStringBuilder.Append(string)`          | Add literal text; returns the same builder                                |
-| `appendValue(v)`      | `BicepStringBuilder.Append(BicepExpression)` | Add a proxy's expression; returns the same builder                        |
-| `build()`             | `BicepStringBuilder.Build()`                 | Return a string-valued proxy containing the interpolated Bicep expression |
+| Builder method        | C# counterpart                               | Behavior                                        |
+| --------------------- | -------------------------------------------- | ----------------------------------------------- |
+| `appendLiteral(text)` | `BicepStringBuilder.Append(string)`          | Add literal text; returns the same builder      |
+| `appendValue(v)`      | `BicepStringBuilder.Append(BicepExpression)` | Add a Bicep value; returns the same builder     |
+| `build()`             | `BicepStringBuilder.Build()`                 | Return the interpolated Bicep string expression |
 
-At the SDK expression layer, appending literal `storage-` and the parameter expression `environment` emits `'storage-${environment}'`. It doesn't insert the text representation of a remote handle. In C#, `BicepFunction.Interpolate` provides the corresponding interpolated-string authoring syntax; the factory doesn't expose a separate `interpolate()` method.
+Appending literal `storage-` and the parameter expression `environment` emits `'storage-${environment}'`. In C#, `BicepFunction.Interpolate` provides the corresponding interpolated-string authoring syntax; the factory doesn't expose a separate `interpolate()` method.
 
 ### Arrays and objects
 
 The factory has no `array()`, `object()`, or `null()` method. For JSON-compatible constant data, use `parseJson(await bicep.string(jsonText))`, then `member` or `index` to access its deployment-time contents, as in the retention example. This emits `json('...')`, not a literal Bicep object or array AST node.
 
-For resource properties, prefer generated typed collection handles: for example, `await account.tags.get()` returns a dictionary whose `set(key, value)` operations populate the Bicep object. Typed list properties similarly expose collection operations. The upstream SDK has `ArrayExpression` and `ObjectExpression` classes, but their existence doesn't make them factory exports. Don't substitute arbitrary JavaScript objects for typed resource model handles.
+For resource properties, use their collection methods: for example, `await account.tags.get()` returns a dictionary whose `set(key, value)` operations populate the Bicep object. List properties similarly provide collection operations. The C# SDK also has `ArrayExpression` and `ObjectExpression` classes; there are no corresponding factory methods.
 
 ## Declare parameters, variables, and outputs
 
 These companion methods are on `infrastructure`, **not** on the Bicep factory:
 
-| Infrastructure method                          | Underlying C# SDK type                                                                                                     | Bicep declaration                                                                                    |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `addBicepParameter(name, type, { isSecure? })` | [ProvisioningParameter](https://learn.microsoft.com/dotnet/api/azure.provisioning.provisioningparameter?view=azure-dotnet) | `param name type`; setting `value` adds a default expression                                         |
-| `addBicepVariable(name, type)`                 | [ProvisioningVariable](https://learn.microsoft.com/dotnet/api/azure.provisioning.provisioningvariable?view=azure-dotnet)   | `var name = expression`; the type controls proxy assignment, not an emitted variable type annotation |
-| `addBicepOutput(name, type)`                   | [ProvisioningOutput](https://learn.microsoft.com/dotnet/api/azure.provisioning.provisioningoutput?view=azure-dotnet)       | `output name type = expression`                                                                      |
+| Infrastructure method                          | Underlying C# SDK type                                                                                                     | Bicep declaration                                                                                           |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `addBicepParameter(name, type, { isSecure? })` | [ProvisioningParameter](https://learn.microsoft.com/dotnet/api/azure.provisioning.provisioningparameter?view=azure-dotnet) | `param name type`; setting `value` adds a default expression                                                |
+| `addBicepVariable(name, type)`                 | [ProvisioningVariable](https://learn.microsoft.com/dotnet/api/azure.provisioning.provisioningvariable?view=azure-dotnet)   | `var name = expression`; the type constrains the assigned value but doesn't emit a variable type annotation |
+| `addBicepOutput(name, type)`                   | [ProvisioningOutput](https://learn.microsoft.com/dotnet/api/azure.provisioning.provisioningoutput?view=azure-dotnet)       | `output name type = expression`                                                                             |
 
 Pass `ProvisioningValueType.String`, `Boolean`, `Integer`, `Object`, or `Guid`; these map to C# `string`, `bool`, `int`, `object`, and `Guid`, and Bicep `string`, `bool`, `int`, `object`, and `string`, respectively. There is no `Array`, `Double`, or `TimeSpan` declaration option.
 
-Await the declaration, then assign an expression with `await declaration.value.set(valueProxy)`. Variable and output values must be supplied. To refer to a variable by name, use `bicep.identifier(name)` as in the retention example; reading the declaration's `value` reads its assigned value handle, not a host-language evaluation.
+Await the declaration, then assign an expression with `await declaration.value.set(value)`. Variable and output values must be supplied. To refer to a variable by name, use `bicep.identifier(name)` as in the retention example; reading the declaration's `value` returns its assigned literal or expression, not a reference to the variable.
 
 Unlike `bicep.parameter`, `addBicepParameter` doesn't bind an Aspire parameter resource to the new input. Use the bridge when the value should come from an Aspire parameter; use a standalone declaration when you control its default or external module inputs.
 
 ### Preserve secure values
 
-`bicep.parameter` uses the Aspire parameter's `secret` flag when creating its Bicep declaration. `referenceExpression` accepts an explicit `isSecure` option; don't assume it infers secrecy from every embedded reference. Standalone declarations support `isSecure` at creation and through the parameter proxy's `isSecure.set(...)`.
+`bicep.parameter` uses the Aspire parameter's `secret` flag when creating its Bicep declaration. `referenceExpression` accepts an explicit `isSecure` option; don't assume it infers secrecy from every embedded reference. Standalone declarations support `isSecure` at creation and through the parameter's `isSecure.set(...)`.
 
 Only string, object, and GUID parameter declarations can be secure; GUIDs map to Bicep strings. Boolean and integer secure declarations are rejected. A secure parameter emits `@secure()` above its `param` declaration.
 
-`BicepValueProxy` exposes asynchronous `kind.get()` and `isSecure.get()` metadata. Expression composition, including operators, member/index access, function calls, and string building, propagates the secure flag from its inputs. A bare `identifier` or `resourceIdentifier` doesn't infer that metadata from the symbol name.
+Bicep values provide `kind.get()` and `isSecure.get()` to inspect their kind and secure flag. Expression composition, including operators, member/index access, function calls, and string building, preserves the secure flag from its inputs. A bare `identifier` or `resourceIdentifier` doesn't infer that flag from the symbol name.
 
 :::caution[Secure metadata isn't encryption]
 Preserving the flag doesn't make a hard-coded literal secret, redact a generated file, or make a tag a safe destination. In the SDK version used here, `ProvisioningOutput` doesn't emit a secure-output decorator from this metadata. Don't put secrets in tags, names, outputs, or parameter defaults. Use [secure parameter inputs](https://learn.microsoft.com/azure/azure-resource-manager/bicep/parameters#secure-parameters) instead.
@@ -426,7 +426,7 @@ Preserving the flag doesn't make a hard-coded literal secret, redact a generated
 
 ## Reference versions
 
-The factory mappings above were checked against Aspire 13.6's [hand-authored factory](https://github.com/microsoft/aspire/blob/43496a2a306c81c862c947b11b4f4e5494b6fe08/src/Aspire.Hosting.Azure.Provisioning/BicepValueFactory.cs), the generated 13.6 TypeScript SDK, and the official C# SDK reference for Azure.Provisioning **1.6.0**. The resource examples use Azure.Provisioning.Storage **1.1.2** and Azure.Provisioning.KeyVault **1.1.0**.
+The factory mappings above were checked against Aspire 13.6's [Bicep helpers](https://github.com/microsoft/aspire/blob/43496a2a306c81c862c947b11b4f4e5494b6fe08/src/Aspire.Hosting.Azure.Provisioning/BicepValueFactory.cs), the 13.6 TypeScript SDK, and the official C# SDK reference for Azure.Provisioning **1.6.0**. The resource examples use Azure.Provisioning.Storage **1.1.2** and Azure.Provisioning.KeyVault **1.1.0**.
 
 Microsoft Learn links stable and preview source versions separately. The stable [BicepFunction implementation](https://github.com/Azure/azure-sdk-for-net/blob/4d32854480515e716c762be7925660bce6da251a/sdk/provisioning/Azure.Provisioning/src/Expressions/BicepFunction.cs) and [literal type mapping](https://github.com/Azure/azure-sdk-for-net/blob/4d32854480515e716c762be7925660bce6da251a/sdk/provisioning/Azure.Provisioning/src/Expressions/BicepTypeMapping.cs) establish the mappings, including numeric and duration serialization. Don't infer new Aspire factory methods from a newer upstream SDK reference.
 
