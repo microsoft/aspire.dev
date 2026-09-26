@@ -1,0 +1,172 @@
+---
+title: Use interactive terminals in the dashboard
+description: Choose a dashboard terminal experience for resource apps, AppHost shells, authentication dialogs, or automation, and learn how to manage its lifetime.
+---
+
+import { CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components';
+import { Image } from 'astro:assets';
+import resourceTerminal from '@assets/dashboard/terminals/resource-terminal.png';
+import terminalDock from '@assets/dashboard/terminals/terminal-dock.png';
+import terminalInteraction from '@assets/dashboard/terminals/terminal-interaction.png';
+import detachedTerminal from '@assets/dashboard/terminals/detached-terminal.png';
+
+The Aspire dashboard can display interactive terminal applications as well as logs. A terminal lets you type into a running process, respond to its prompts, and use a terminal user interface (TUI) without leaving the dashboard.
+
+:::caution[Aspire 13.6 preview]
+The AppHost terminal dock, terminal interactions, detached windows, and tape playback described here are part of the Aspire 13.6 preview work. Use matching AppHost, dashboard, and CLI builds. Terminal APIs are experimental and use the [`ASPIRETERMINAL001`](/diagnostics/aspireterminal001/) diagnostic.
+:::
+
+## Choose a terminal experience
+
+The dashboard displays terminals that your AppHost makes available. Resource terminals have their own dedicated view, separate from the AppHost terminal dock.
+
+| Experience                      | Use it for                                                                                        | Where to find it                                                                                         |
+| ------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Resource terminal**           | Interact with a TUI, REPL, or shell that is part of your app model.                               | Select a resource configured with `WithTerminal` on the **Console logs** page, then choose **Terminal**. |
+| **AppHost terminal dock**       | Keep a shell or an interactive tool available while navigating dashboard pages.                   | Use the terminal button in the header, or run a resource command that opens a dock terminal.             |
+| **Terminal interaction dialog** | Complete a focused task, such as authentication, or watch AppHost code drive an interactive tool. | The AppHost opens a dialog using `PromptTerminalAsync`.                                                  |
+| **Detached terminal window**    | Give a resource or dock terminal more space, including on another monitor.                        | Use the terminal's open-in-new-window button. This is another view of the same process.                  |
+
+<CardGrid>
+  <LinkCard
+    title="Run an interactive resource"
+    description="Configure WithTerminal for a resource and its replicas."
+    href="/app-host/with-terminal/"
+  />
+  <LinkCard
+    title="Open a shell from your AppHost"
+    description="Create persistent shells and container exec sessions."
+    href="/app-host/terminal-service/"
+  />
+  <LinkCard
+    title="Prompt with a terminal"
+    description="Build authentication flows and visible automation."
+    href="/extensibility/interaction-service/#terminal-interactions"
+  />
+  <LinkCard
+    title="Automate a terminal with a tape"
+    description="Run tape play examples and learn the supported file syntax."
+    href="/dashboard/terminal-automation/"
+  />
+</CardGrid>
+
+## Open a resource terminal
+
+<Steps>
+
+1. Configure your interactive resource with [`WithTerminal`](/app-host/with-terminal/) and start your AppHost.
+2. Open **Console logs** in the dashboard and select the resource or its replica.
+3. If the log view is displayed, select **Settings** in the page toolbar, then select **Terminal**.
+
+</Steps>
+
+<Image
+  src={resourceTerminal}
+  alt="Resource terminal in the dashboard Console logs page, showing an interactive REPL and its available commands."
+/>
+
+Selecting a running terminal-enabled resource initially shows **Terminal**. A resource that is waiting, starting, or has exited initially shows **Console logs**, so startup and exit messages are available. After that initial selection, state changes don't switch the view for you.
+
+Use that toolbar menu to switch between **Terminal** and **Console logs**. Switching views doesn't stop the resource or its console-log capture.
+
+## Use the terminal dock
+
+Select **Toggle terminal** in the dashboard header or press the unshifted backtick key (<Kbd windows="`" />) to show or hide the dock. The shortcut doesn't run while a terminal or text input has focus, because the key belongs to that input. Use the header button instead, or press <Kbd windows="F6" /> to leave terminal input before toggling the dock.
+
+An empty dock means your AppHost hasn't created a dock terminal. Follow [Open a shell from your AppHost](/app-host/terminal-service/) to add one. AppHost code can call `Show()` to reveal the dock and activate a terminal, even if you haven't opened the dock yet.
+
+Select a tab to switch terminals. Terminals remain available as you navigate dashboard pages. Multiple connected dashboards see the same AppHost-owned terminals, but each viewer chooses which tab to display and whether its dock is visible.
+
+<Image
+  src={terminalDock}
+  alt="Terminal dock with the shellbox tab selected, showing a container shell and controls to detach, hide, or close the terminal."
+/>
+
+To change the dock height, drag its top edge. With the resize handle focused, use <Kbd windows="ArrowUp" /> or <Kbd windows="ArrowDown" />; hold <Kbd windows="Shift" /> for larger steps. <Kbd windows="Home" /> and <Kbd windows="End" /> select its minimum and maximum height.
+
+:::caution[Hide is not close]
+**Hide terminal panel** collapses the dock without stopping its terminals. The close button on an individual terminal tab disposes that AppHost-owned terminal and stops its process for every viewer.
+:::
+
+## Use a terminal interaction dialog
+
+AppHost code can open a terminal in a dialog for a focused task, such as authentication or an interactive command. The following example shows an AppHost-owned shell in a dialog.
+
+<Image
+  src={terminalInteraction}
+  alt="AppHost shell interaction dialog with an interactive terminal, font controls, and a Cancel button."
+/>
+
+The interaction borrows the terminal; its caller controls when to stop and dispose it. See [Terminal interactions](/extensibility/interaction-service/#terminal-interactions) for examples using `PromptTerminalAsync`.
+
+## Open a separate window
+
+For a resource terminal, use **Open in new window** in the terminal title bar, not the page toolbar's **Settings** menu. For a dock terminal, select its tab and use **Open terminal in a new window** in the dock's tab strip.
+
+The dashboard opens or reuses a window for that terminal instead of starting another process:
+
+- A **resource terminal** keeps its inline viewer available while the separate window is open.
+- A **dock terminal** shows a placeholder in the dock while detached. Select **Focus window** to reach the existing window, or **Return to panel** to bring its viewer back into the dock.
+
+<Image
+  src={detachedTerminal}
+  alt="Detached resource terminal window showing the same REPL, with font and grid-dimension controls but no dashboard navigation."
+/>
+
+Closing the detached browser window releases that viewer; it doesn't stop the terminal process. If its originating dock is still open, the terminal returns there. Closing the originating dashboard browser tab also doesn't stop an AppHost-owned process or its independent window.
+
+If the browser blocks the new window, the dashboard displays feedback. Allow pop-ups for your trusted dashboard origin and retry the terminal's launch button. Terminal interaction dialogs don't offer another window-launch button.
+
+## Adjust font size and terminal dimensions
+
+Use the minus and plus buttons in a terminal's footer to adjust its font size. The resource Terminal view and detached windows also provide a dimensions selector and a fit-to-container control. Dock panes and interaction dialogs fit their available space rather than offering fixed-dimension presets.
+
+A detached window starts with the originating viewer's selected font size, then manages its font preference independently. Resizing the dock or window changes the terminal's rows and columns without changing the selected font size.
+
+Multiple viewers can share a terminal, but only one is the **primary** viewer that controls the process's grid dimensions. Opening a detached window requests that role. Revealing or returning to an active dock pane also requests sizing control. Explicit sizing actions can request control; ordinary typing and pasting don't. A viewer that loses control doesn't continuously reclaim it from another viewer.
+
+## Navigate with the keyboard
+
+Terminal applications handle many keys themselves, including keys normally used to navigate a web page.
+
+| Focus location  | Keys                                                       | Action                                         |
+| --------------- | ---------------------------------------------------------- | ---------------------------------------------- |
+| Terminal input  | <Kbd windows="F6" />                                       | Move focus to the terminal footer controls.    |
+| Terminal input  | <Kbd windows="Shift+F6" />                                 | Move focus to the preceding dashboard control. |
+| Terminal footer | <Kbd windows="F6" />                                       | Return focus to terminal input.                |
+| Dock tab header | <Kbd windows="ArrowLeft" /> / <Kbd windows="ArrowRight" /> | Select the previous or next terminal tab.      |
+| Dock tab header | <Kbd windows="Home" /> / <Kbd windows="End" />             | Select the first or last terminal tab.         |
+
+Use the [CLI attachment experience](/reference/cli/commands/aspire-terminal-attach/) if you prefer to interact through your own terminal. The browser terminal's graphical rendering isn't a guarantee that every TUI is accessible to every assistive technology; console logs remain a separate text view.
+
+## Understand what stops a terminal
+
+A **viewer** is a browser view or CLI connection. The **producer** is the process running the terminal application. Disconnecting a viewer is different from stopping the producer.
+
+| Action                                                                         | Effect on the process                                                                          |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Hide the dock, switch tabs, switch to Console logs, or close a detached window | The process keeps running.                                                                     |
+| Close an AppHost-owned dock terminal tab                                       | The terminal is disposed and its process is stopped.                                           |
+| Complete or cancel a terminal interaction                                      | The interaction itself doesn't stop or dispose the terminal. Its caller controls cleanup.      |
+| Dispose an AppHost-owned terminal in code                                      | Stops that terminal's workload and removes the terminal.                                       |
+| Release a handle to a resource terminal                                        | Leaves the resource workload running. Use resource lifecycle controls to stop the resource.    |
+| Shut down the AppHost                                                          | Cleans up its AppHost-owned terminals. Resource shutdown follows the app's resource lifecycle. |
+
+An AppHost-owned process exiting doesn't automatically complete its interaction dialog. Conversely, a dialog's work can finish while the process is still running. See [terminal interactions](/extensibility/interaction-service/#terminal-interactions) for completion, cancellation, and reuse patterns.
+
+## Prerequisites and limitations
+
+- **AppHost connection:** These experiences need a live, writable AppHost resource-service connection. An [OTEL-only standalone dashboard](/dashboard/standalone/#unavailable-features-when-standalone) has telemetry, not terminal producers; it doesn't show the dock. Historical read-only runs don't provide live resource terminals or a terminal dock.
+- **Installed tools:** A terminal doesn't install its executable. Host shells and tools must exist on the AppHost machine; a container exec command also needs a running container and an appropriate container CLI.
+- **Browser support:** Terminal rendering needs a browser with module workers and `OffscreenCanvas`. The renderer prefers WebGPU and can fall back to WebGL2. WebGPU requires HTTPS or localhost; clipboard access remains subject to browser permissions and secure-context rules.
+- **Shared input:** Browser viewers, CLI attachments, and automation share the same process. Coordinate their input; a terminal isn't an isolated session for each viewer.
+- **Sensitive operations:** Commands run with the host or container process's permissions. Output, copied text, and recordings can contain secrets. Only share access with trusted users and review [terminal security considerations](/dashboard/security-considerations/#interactive-terminals).
+
+## See also
+
+- [Configure resource terminals](/app-host/with-terminal/)
+- [Create AppHost-owned terminals](/app-host/terminal-service/)
+- [Terminal interactions](/extensibility/interaction-service/#terminal-interactions)
+- [Automate terminals with tape files](/dashboard/terminal-automation/)
+- [Aspire terminal CLI reference](/reference/cli/commands/aspire-terminal/)

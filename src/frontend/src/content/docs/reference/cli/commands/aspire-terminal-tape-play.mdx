@@ -1,0 +1,115 @@
+---
+title: aspire terminal tape play command
+seoTitle: aspire terminal tape play command reference for Aspire CLI
+description: Play a tape against a running Aspire resource terminal, select a replica, configure a timeout, and capture final or per-command text screens.
+sidebar:
+  badge: Preview
+---
+
+import Include from '@components/Include.astro';
+
+## Name
+
+`aspire terminal tape play` - Play a tape file against an existing resource terminal.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire terminal tape play <resource> --tape-file <path> [options]
+```
+
+## Description
+
+The command parses a `.tape` file, discovers a running AppHost, selects a live terminal replica, validates the tape, and plays it against that terminal. The resource must be registered with [`WithTerminal()`](/app-host/with-terminal/), and the AppHost must advertise the `terminals.v1` capability.
+
+:::caution[Experimental in Aspire 13.6]
+Tape playback is part of the Aspire 13.6 preview. Use matching CLI and AppHost builds that include tape playback, and enable the terminal commands:
+
+```bash title="Enable terminal commands"
+aspire config set features.terminalCommandsEnabled true
+```
+
+:::
+
+Playback connects as a secondary peer. It doesn't request primary ownership, resize the terminal, start a new shell, or stop the resource on completion or failure. Input remains shared with other connected peers; coordinate playback with dashboard and CLI users.
+
+An empty or comment-only tape reads the current screen. If the selected replica has no live terminal producer yet, playback waits for one within `--timeout`, including during startup or recycling. The command doesn't start or restart the resource. Dashboard-only AppHost interaction terminals aren't resource targets for this command.
+
+See [Tape file syntax](/dashboard/terminal-automation/#tape-file-syntax) for supported commands and compatibility limits. Unsupported media, clipboard, scrolling, sizing, and shell-launch settings fail preflight before any tape input is sent.
+
+## Arguments
+
+- **`<resource>`**
+
+  The name of the terminal-enabled resource to automate.
+
+## Options
+
+- **`--tape-file <path>`** (required)
+
+  Path to the tape on the CLI machine. Relative paths resolve from the CLI's working directory.
+
+- **`-r, --replica <index>`**
+
+  The zero-based terminal replica index. A single replica is selected automatically. With multiple replicas, the CLI prompts for a choice unless you supply this option; non-interactive playback requires an explicit selection.
+
+- **`--apphost <path>`**
+
+  Path to the AppHost used to select a running application. `--project` is a legacy alias. This option doesn't start the AppHost.
+
+- **`--timeout <seconds>`**
+
+  Overall timeout for waiting for a live terminal producer, connecting, and playing the tape. Defaults to `120` seconds; accepts integers from `1` through `4294967`. The deadline starts after resource selection, so it doesn't bound initial AppHost discovery. Recording finalization and cleanup may continue after cancellation. Individual tape waits can have shorter timeouts.
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+- <Include relativePath="reference/cli/includes/option-banner.md" />
+- <Include relativePath="reference/cli/includes/option-wait.md" />
+
+## Output and exit codes
+
+The final plain-text screen is written to **stdout**. Discovery messages, warnings, and diagnostics are written to **stderr**. A failed tape command also prints its failure screen to stdout, with the source location and command context on stderr.
+
+| Exit code | Meaning                                                                                      |
+| --------- | -------------------------------------------------------------------------------------------- |
+| `0`       | The tape completed. This doesn't assert that every program invoked inside a shell succeeded. |
+| `1`       | Invalid input, tape syntax, preflight validation, or resource selection.                     |
+| `16`      | Tape command failure, including a wait failure, or a terminal connection failure.            |
+| `17`      | The overall `--timeout` deadline expired.                                                    |
+| `130`     | User cancellation.                                                                           |
+
+AppHost discovery and compatibility errors use their corresponding CLI exit codes. A disconnected terminal fails playback instead of retrying potentially non-idempotent input.
+
+Use `Output recording.txt` or `Output recording.ascii` in the root tape to record **per-command** text screens. This differs from stdout's final screen. `Output` and `Source` paths resolve relative to the root tape file's directory, including directives in nested sources. Included sources require the exact `.tape` extension; their `Output` directives are ignored. Output parent directories must exist, and existing recording files aren't overwritten.
+
+## Examples
+
+Use the [complete shell smoke test and resource setup](/dashboard/terminal-automation/#run-a-shell-smoke-test) to create `shell-smoke.tape` and start the `shell` resource:
+
+```bash title="Play a shell smoke test"
+aspire terminal tape play shell --tape-file shell-smoke.tape
+```
+
+Use the [complete REPL check](/dashboard/terminal-automation/#exercise-a-multi-step-repl) against replica zero:
+
+```bash title="Select a replica and AppHost"
+aspire terminal tape play repl --replica 0 --tape-file repl-check.tape --apphost Terminals.AppHost/Terminals.AppHost.csproj --timeout 30
+```
+
+Save the final screen and diagnostics separately:
+
+```bash title="Redirect the playback result"
+aspire terminal tape play repl --replica 0 --tape-file repl-check.tape > final-screen.txt 2> tape-diagnostics.txt
+```
+
+Shell redirection can overwrite files independently of tape `Output` protections. For a multi-screen recording, follow [Record screens as text](/dashboard/terminal-automation/#record-screens-as-text).
+
+## See also
+
+- [Automate resource terminals with tape files](/dashboard/terminal-automation/)
+- [Tape file syntax](/dashboard/terminal-automation/#tape-file-syntax)
+- [aspire terminal tape command](../aspire-terminal-tape/)
+- [aspire terminal ps command](../aspire-terminal-ps/)
+- [aspire terminal attach command](../aspire-terminal-attach/)
