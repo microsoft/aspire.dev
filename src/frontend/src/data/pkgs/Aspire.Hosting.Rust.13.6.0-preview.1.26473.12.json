@@ -1,0 +1,2000 @@
+{
+  "package": {
+    "name": "Aspire.Hosting.Rust",
+    "version": "13.6.0-preview.1.26473.12",
+    "targetFramework": "net10.0",
+    "sourceRepository": "https://github.com/microsoft/aspire",
+    "sourceCommit": "a11eca9611073f7cf66fa87faac63c2119e87713"
+  },
+  "types": [
+    {
+      "name": "RustHostingExtensions",
+      "fullName": "Aspire.Hosting.RustHostingExtensions",
+      "namespace": "Aspire.Hosting",
+      "kind": "class",
+      "accessibility": "public",
+      "isStatic": true,
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Provides extension methods for adding Rust applications to an "
+          },
+          {
+            "kind": "cref",
+            "value": "T:Aspire.Hosting.IDistributedApplicationBuilder"
+          },
+          {
+            "kind": "text",
+            "text": ". "
+          }
+        ]
+      },
+      "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+      "sourceLines": "25-25",
+      "members": [
+        {
+          "name": "AddRustApp",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<RustAppResource> RustHostingExtensions.AddRustApp(this IDistributedApplicationBuilder builder, string name, string appDirectory)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.Rust.RustAppResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.IDistributedApplicationBuilder",
+              "modifier": "this"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "appDirectory",
+              "type": "string"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds a Rust application to the application model. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " The resource runs "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "cargo run"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " in "
+                  },
+                  {
+                    "kind": "paramref",
+                    "value": "appDirectory"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ". Cargo discovers the manifest from that directory by default; use "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "WithCargoManifestPath"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " to select another manifest. Cargo requires the two kinds of argument to be separated by "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "--"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", so they are configured separately: "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "WithCargoArgs"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " adds arguments for cargo itself (before the separator) and "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "WithArgs"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " adds arguments for the application (after it). "
+                  }
+                ]
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " Debugging is wired up automatically. In VS Code the resource is built with "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "cargo build"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " and the resulting binary is launched under a native debugger, so the cargo arguments are applied to the build rather than to "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "cargo run"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ". "
+                  }
+                ]
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " Aspire configures the OTLP endpoint and development certificate environment variables. The Rust application must still enable the transport and TLS features required by its OpenTelemetry SDK and load native trust roots when using the development certificate. Rust does not read a port from the environment on its own, so bind to the port named by "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "WithHttpEndpoint(env: ...)"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " rather than a hard-coded one. "
+                  }
+                ]
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " When publishing, a multi-stage Dockerfile is generated that builds the crate inside the container; the crate is never compiled on the host. If the app directory already contains a "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "Dockerfile"
+                  },
+                  {
+                    "kind": "text",
+                    "text": ", that file is used instead. Call "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "WithDockerfileBaseImage"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " once with both arguments to override the build and runtime base images together; each call replaces the previous image configuration. "
+                  }
+                ]
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "appDirectory": [
+                {
+                  "kind": "text",
+                  "text": "The working directory for cargo and the Docker build context used when publishing."
+                }
+              ],
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The "
+                },
+                {
+                  "kind": "cref",
+                  "value": "T:Aspire.Hosting.IDistributedApplicationBuilder"
+                },
+                {
+                  "kind": "text",
+                  "text": " to add the resource to."
+                }
+              ],
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the resource."
+                }
+              ]
+            },
+            "examples": [
+              {
+                "code": "\n             var builder = DistributedApplication.CreateBuilder(args);\n            \n             builder.AddRustApp(\"api\", \"../rust-api\")\n                    .WithHttpEndpoint(env: \"PORT\")\n                    .WithCargoReleaseBuild();\n            \n             builder.Build().Run();\n             ",
+                "language": "csharp",
+                "description": [
+                  {
+                    "kind": "text",
+                    "text": "Add a Rust application to the AppHost and expose an HTTP endpoint:"
+                  }
+                ]
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "80-173"
+        },
+        {
+          "name": "WithCargoArgs",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoArgs<T>(this IResourceBuilder<T> builder, params string[] args)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "args",
+              "type": "string[]",
+              "modifier": "params"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds command-line arguments to the cargo command used by a Rust application. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Arguments are forwarded to cargo verbatim and are not interpreted. Publishing and debugging work out which file cargo produces from the "
+              },
+              {
+                "kind": "code",
+                "text": "WithCargo*"
+              },
+              {
+                "kind": "text",
+                "text": " options alone, so a target selection that has a dedicated method — "
+              },
+              {
+                "kind": "code",
+                "text": "WithCargoBinTarget"
+              },
+              {
+                "kind": "text",
+                "text": ", "
+              },
+              {
+                "kind": "code",
+                "text": "WithCargoExample"
+              },
+              {
+                "kind": "text",
+                "text": ", "
+              },
+              {
+                "kind": "code",
+                "text": "WithCargoPackage"
+              },
+              {
+                "kind": "text",
+                "text": ", "
+              },
+              {
+                "kind": "code",
+                "text": "WithCargoProfile"
+              },
+              {
+                "kind": "text",
+                "text": ", "
+              },
+              {
+                "kind": "code",
+                "text": "WithCargoReleaseBuild"
+              },
+              {
+                "kind": "text",
+                "text": " and "
+              },
+              {
+                "kind": "code",
+                "text": "WithCargoTarget"
+              },
+              {
+                "kind": "text",
+                "text": " — has to go through it rather than being passed here. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "args": [
+                {
+                  "kind": "text",
+                  "text": "The cargo arguments to append before "
+                },
+                {
+                  "kind": "code",
+                  "text": "--"
+                },
+                {
+                  "kind": "text",
+                  "text": "."
+                }
+              ],
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "195-204"
+        },
+        {
+          "name": "WithCargoArgs",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoArgs<T>(this IResourceBuilder<T> builder, Action<RustCargoArgsCallbackContext> callback)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "callback",
+              "type": "System.Action<Aspire.Hosting.Rust.RustCargoArgsCallbackContext>"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportIgnoreAttribute",
+              "arguments": {
+                "Reason": "Callback-based cargo arguments are not expressible in polyglot AppHosts."
+              }
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds command-line arguments to the cargo command used by a Rust application. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": "This method is not available in polyglot AppHosts. Use the string[] overload instead."
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "callback": [
+                {
+                  "kind": "text",
+                  "text": "A callback that computes cargo arguments at execution time."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs"
+        },
+        {
+          "name": "WithCargoArgs",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoArgs<T>(this IResourceBuilder<T> builder, Func<RustCargoArgsCallbackContext, Task> callback)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "callback",
+              "type": "System.Func<Aspire.Hosting.Rust.RustCargoArgsCallbackContext, System.Threading.Tasks.Task>"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportIgnoreAttribute",
+              "arguments": {
+                "Reason": "Callback-based cargo arguments are not expressible in polyglot AppHosts."
+              }
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds command-line arguments to the cargo command used by a Rust application. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": "This method is not available in polyglot AppHosts. Use the string[] overload instead."
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "callback": [
+                {
+                  "kind": "text",
+                  "text": "A callback that computes cargo arguments at execution time."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs"
+        },
+        {
+          "name": "WithCargoBinTarget",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoBinTarget<T>(this IResourceBuilder<T> builder, string binName)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "binName",
+              "type": "string"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures the binary target to run for Rust applications that declare more than one. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Passed to cargo as "
+              },
+              {
+                "kind": "code",
+                "text": "--bin"
+              },
+              {
+                "kind": "text",
+                "text": ". Debugging and publishing also use it to work out which file cargo produces, so a package with several binaries must select one here (or set "
+              },
+              {
+                "kind": "code",
+                "text": "default-run"
+              },
+              {
+                "kind": "text",
+                "text": " in Cargo.toml). "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "binName": [
+                {
+                  "kind": "text",
+                  "text": "The binary target name, as declared by "
+                },
+                {
+                  "kind": "code",
+                  "text": "[[bin]] name"
+                },
+                {
+                  "kind": "text",
+                  "text": " in Cargo.toml."
+                }
+              ],
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "335-339"
+        },
+        {
+          "name": "WithCargoExample",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoExample<T>(this IResourceBuilder<T> builder, string exampleName)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "exampleName",
+              "type": "string"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures an example target to run instead of a binary. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Passed to cargo as "
+              },
+              {
+                "kind": "code",
+                "text": "--example"
+              },
+              {
+                "kind": "text",
+                "text": ". Cargo writes examples to "
+              },
+              {
+                "kind": "code",
+                "text": "target/<profile>/examples/"
+              },
+              {
+                "kind": "text",
+                "text": ", and debugging and publishing both follow that layout. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "exampleName": [
+                {
+                  "kind": "text",
+                  "text": "The example name, as declared by a file or directory under "
+                },
+                {
+                  "kind": "code",
+                  "text": "examples/"
+                },
+                {
+                  "kind": "text",
+                  "text": "."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "358-362"
+        },
+        {
+          "name": "WithCargoFeatures",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoFeatures<T>(this IResourceBuilder<T> builder, params string[] features)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "features",
+              "type": "string[]",
+              "modifier": "params"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds cargo features for the Rust application. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": "Repeated calls accumulate features in call order."
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "features": [
+                {
+                  "kind": "text",
+                  "text": "The features to enable."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "308-315"
+        },
+        {
+          "name": "WithCargoLocked",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoLocked<T>(this IResourceBuilder<T> builder, bool locked = true)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "locked",
+              "type": "bool",
+              "isOptional": true,
+              "defaultValue": "True"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures the Rust application to build and run with the exact dependency versions recorded in "
+              },
+              {
+                "kind": "code",
+                "text": "Cargo.lock"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Passed to cargo as "
+              },
+              {
+                "kind": "code",
+                "text": "--locked"
+              },
+              {
+                "kind": "text",
+                "text": ", which fails the build rather than updating "
+              },
+              {
+                "kind": "code",
+                "text": "Cargo.lock"
+              },
+              {
+                "kind": "text",
+                "text": ". Publishing already adds this whenever the crate has a lock file, so a published image cannot silently pick up dependency versions that were never committed; pass "
+              },
+              {
+                "kind": "langword",
+                "value": "false"
+              },
+              {
+                "kind": "text",
+                "text": " to opt out. See https://doc.rust-lang.org/cargo/commands/cargo-build.html#manifest-options "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "locked": [
+                {
+                  "kind": "langword",
+                  "value": "true"
+                },
+                {
+                  "kind": "text",
+                  "text": " to add "
+                },
+                {
+                  "kind": "code",
+                  "text": "--locked"
+                },
+                {
+                  "kind": "text",
+                  "text": "; otherwise "
+                },
+                {
+                  "kind": "langword",
+                  "value": "false"
+                },
+                {
+                  "kind": "text",
+                  "text": "."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "289-292"
+        },
+        {
+          "name": "WithCargoManifestPath",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoManifestPath<T>(this IResourceBuilder<T> builder, string manifestPath)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "manifestPath",
+              "type": "string"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures the "
+              },
+              {
+                "kind": "code",
+                "text": "Cargo.toml"
+              },
+              {
+                "kind": "text",
+                "text": " cargo builds from. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Passed to cargo as "
+              },
+              {
+                "kind": "code",
+                "text": "--manifest-path"
+              },
+              {
+                "kind": "text",
+                "text": ". Cargo otherwise discovers the manifest by searching upwards from the app directory, which is what most apps want, so this is only needed to point at a manifest somewhere else — for example the crate of one workspace member when the app directory is the workspace root. "
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " Publishing copies the app directory into the container image and rewrites the manifest path to match, so the manifest has to live inside the app directory and the path has to be relative to it. An absolute path is accepted when running and rejected when publishing. "
+                  }
+                ]
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "manifestPath": [
+                {
+                  "kind": "text",
+                  "text": "The path to the manifest, absolute or relative to the app directory."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "450-454"
+        },
+        {
+          "name": "WithCargoPackage",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoPackage<T>(this IResourceBuilder<T> builder, string packageName)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "packageName",
+              "type": "string"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures the workspace package to build and run. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Passed to cargo as "
+              },
+              {
+                "kind": "code",
+                "text": "--package"
+              },
+              {
+                "kind": "text",
+                "text": ". Required when the crate directory is a workspace whose default members include more than one package with a binary target, because the binary to run would otherwise be ambiguous. Library-only members are ignored, so an app crate beside library crates needs nothing. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "packageName": [
+                {
+                  "kind": "text",
+                  "text": "The cargo package name."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "382-386"
+        },
+        {
+          "name": "WithCargoProfile",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoProfile<T>(this IResourceBuilder<T> builder, string profileName)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "profileName",
+              "type": "string"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures the named cargo profile to build with. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Passed to cargo as "
+              },
+              {
+                "kind": "code",
+                "text": "--profile"
+              },
+              {
+                "kind": "text",
+                "text": ", which takes precedence over "
+              },
+              {
+                "kind": "code",
+                "text": "WithCargoReleaseBuild"
+              },
+              {
+                "kind": "text",
+                "text": " because cargo rejects "
+              },
+              {
+                "kind": "code",
+                "text": "--profile"
+              },
+              {
+                "kind": "text",
+                "text": " and "
+              },
+              {
+                "kind": "code",
+                "text": "--release"
+              },
+              {
+                "kind": "text",
+                "text": " together. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "profileName": [
+                {
+                  "kind": "text",
+                  "text": "The profile name, for example "
+                },
+                {
+                  "kind": "code",
+                  "text": "dev"
+                },
+                {
+                  "kind": "text",
+                  "text": ", "
+                },
+                {
+                  "kind": "code",
+                  "text": "release"
+                },
+                {
+                  "kind": "text",
+                  "text": ", or a custom profile."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "473-477"
+        },
+        {
+          "name": "WithCargoReleaseBuild",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoReleaseBuild<T>(this IResourceBuilder<T> builder, bool releaseBuild = true)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "releaseBuild",
+              "type": "bool",
+              "isOptional": true,
+              "defaultValue": "True"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures the Rust application to run using release optimization. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Publishing builds an optimized image by default, so pass "
+              },
+              {
+                "kind": "langword",
+                "value": "false"
+              },
+              {
+                "kind": "text",
+                "text": " to opt a published image out of "
+              },
+              {
+                "kind": "code",
+                "text": "--release"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "releaseBuild": [
+                {
+                  "kind": "langword",
+                  "value": "true"
+                },
+                {
+                  "kind": "text",
+                  "text": " to add "
+                },
+                {
+                  "kind": "code",
+                  "text": "--release"
+                },
+                {
+                  "kind": "text",
+                  "text": "; otherwise "
+                },
+                {
+                  "kind": "langword",
+                  "value": "false"
+                },
+                {
+                  "kind": "text",
+                  "text": "."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "264-267"
+        },
+        {
+          "name": "WithCargoTarget",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> RustHostingExtensions.WithCargoTarget<T>(this IResourceBuilder<T> builder, string target)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "target",
+              "type": "string"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.Rust.RustAppResource"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures the target triple cargo builds for. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Passed to cargo as "
+              },
+              {
+                "kind": "code",
+                "text": "--target"
+              },
+              {
+                "kind": "text",
+                "text": ". Cargo writes a cross-compiled binary to "
+              },
+              {
+                "kind": "code",
+                "text": "target/<triple>/<profile>/"
+              },
+              {
+                "kind": "text",
+                "text": ", and the generated Dockerfile follows that layout and adds the target's standard library to the build image with "
+              },
+              {
+                "kind": "code",
+                "text": "rustup target add"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " Aspire-generated Dockerfiles map native Linux x86_64, aarch64, 32-bit ARM, and 32-bit x86 targets to Docker Linux platforms. Docker's "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "linux/arm"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " platform represents the ARMv7 variant. The default build and runtime images support x86_64 and aarch64 musl targets. A 32-bit musl target needs a custom build image but can use the default runtime image. Other ABIs require custom build and runtime images configured together in one "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "WithDockerfileBaseImage"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " call because later calls replace the previous image configuration. "
+                  }
+                ]
+              },
+              {
+                "kind": "para",
+                "children": [
+                  {
+                    "kind": "text",
+                    "text": " Custom images opt out of default-image compatibility checks, but the target must still map to a supported native Docker Linux platform. A custom build image must already contain any linker or native dependencies the target needs; "
+                  },
+                  {
+                    "kind": "code",
+                    "text": "WithDockerfileBaseImage"
+                  },
+                  {
+                    "kind": "text",
+                    "text": " changes images but does not install cross-compilation tooling. Other targets require an authored Dockerfile for publishing. "
+                  }
+                ]
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": " for chaining."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "target": [
+                {
+                  "kind": "text",
+                  "text": "The target triple, for example "
+                },
+                {
+                  "kind": "code",
+                  "text": "x86_64-unknown-linux-musl"
+                },
+                {
+                  "kind": "text",
+                  "text": "."
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The resource type."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustHostingExtensions.cs",
+          "sourceLines": "420-424"
+        }
+      ]
+    },
+    {
+      "name": "RustAppResource",
+      "fullName": "Aspire.Hosting.Rust.RustAppResource",
+      "namespace": "Aspire.Hosting.Rust",
+      "kind": "class",
+      "accessibility": "public",
+      "baseType": "Aspire.Hosting.ApplicationModel.ExecutableResource",
+      "interfaces": [
+        "Aspire.Hosting.ApplicationModel.IContainerFilesDestinationResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.IResourceWithServiceDiscovery"
+      ],
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Represents a Rust application resource in the distributed application model. "
+          }
+        ],
+        "parameters": {
+          "name": [
+            {
+              "kind": "text",
+              "text": "The name of the resource in the application model."
+            }
+          ],
+          "workingDirectory": [
+            {
+              "kind": "text",
+              "text": "The working directory for the Rust application."
+            }
+          ]
+        }
+      },
+      "attributes": [
+        {
+          "name": "Aspire.Hosting.AspireExportAttribute",
+          "arguments": {
+            "ExposeProperties": "True"
+          }
+        }
+      ],
+      "sourceFile": "src/Aspire.Hosting.Rust/RustAppResource.cs",
+      "sourceLines": "14-14",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public RustAppResource.RustAppResource(string name, string workingDirectory)",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "workingDirectory",
+              "type": "string"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Represents a Rust application resource in the distributed application model. "
+              }
+            ],
+            "parameters": {
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the resource in the application model."
+                }
+              ],
+              "workingDirectory": [
+                {
+                  "kind": "text",
+                  "text": "The working directory for the Rust application."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustAppResource.cs",
+          "sourceLines": "15-15"
+        }
+      ]
+    },
+    {
+      "name": "RustCargoArgsCallbackContext",
+      "fullName": "Aspire.Hosting.Rust.RustCargoArgsCallbackContext",
+      "namespace": "Aspire.Hosting.Rust",
+      "kind": "class",
+      "accessibility": "public",
+      "isSealed": true,
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Represents callback context for cargo-level command-line arguments. "
+          }
+        ],
+        "remarks": [
+          {
+            "kind": "text",
+            "text": " Unlike program arguments, cargo arguments are plain strings rather than "
+          },
+          {
+            "kind": "cref",
+            "value": "T:System.Object"
+          },
+          {
+            "kind": "text",
+            "text": ". They select build behaviour ("
+          },
+          {
+            "kind": "code",
+            "text": "--release"
+          },
+          {
+            "kind": "text",
+            "text": ", "
+          },
+          {
+            "kind": "code",
+            "text": "--features"
+          },
+          {
+            "kind": "text",
+            "text": ", "
+          },
+          {
+            "kind": "code",
+            "text": "--bin"
+          },
+          {
+            "kind": "text",
+            "text": ") before the program starts, so there is nothing for a deferred value such as an endpoint reference to resolve against; those belong after the "
+          },
+          {
+            "kind": "code",
+            "text": "--"
+          },
+          {
+            "kind": "text",
+            "text": " separator and are added with "
+          },
+          {
+            "kind": "code",
+            "text": "WithArgs"
+          },
+          {
+            "kind": "text",
+            "text": ". "
+          }
+        ],
+        "parameters": {
+          "args": [
+            {
+              "kind": "text",
+              "text": "The command-line arguments collection."
+            }
+          ],
+          "cancellationToken": [
+            {
+              "kind": "text",
+              "text": "The cancellation token associated with this callback context."
+            }
+          ],
+          "resource": [
+            {
+              "kind": "text",
+              "text": "The Rust application resource whose cargo arguments are being built."
+            }
+          ]
+        }
+      },
+      "sourceFile": "src/Aspire.Hosting.Rust/RustCargoArgsCallbackAnnotation.cs",
+      "sourceLines": "46-46",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public RustCargoArgsCallbackContext.RustCargoArgsCallbackContext(RustAppResource resource, IList<string> args, CancellationToken cancellationToken = default(CancellationToken))",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "resource",
+              "type": "Aspire.Hosting.Rust.RustAppResource"
+            },
+            {
+              "name": "args",
+              "type": "System.Collections.Generic.IList<string>"
+            },
+            {
+              "name": "cancellationToken",
+              "type": "System.Threading.CancellationToken",
+              "isOptional": true
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Represents callback context for cargo-level command-line arguments. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Unlike program arguments, cargo arguments are plain strings rather than "
+              },
+              {
+                "kind": "cref",
+                "value": "T:System.Object"
+              },
+              {
+                "kind": "text",
+                "text": ". They select build behaviour ("
+              },
+              {
+                "kind": "code",
+                "text": "--release"
+              },
+              {
+                "kind": "text",
+                "text": ", "
+              },
+              {
+                "kind": "code",
+                "text": "--features"
+              },
+              {
+                "kind": "text",
+                "text": ", "
+              },
+              {
+                "kind": "code",
+                "text": "--bin"
+              },
+              {
+                "kind": "text",
+                "text": ") before the program starts, so there is nothing for a deferred value such as an endpoint reference to resolve against; those belong after the "
+              },
+              {
+                "kind": "code",
+                "text": "--"
+              },
+              {
+                "kind": "text",
+                "text": " separator and are added with "
+              },
+              {
+                "kind": "code",
+                "text": "WithArgs"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ],
+            "parameters": {
+              "args": [
+                {
+                  "kind": "text",
+                  "text": "The command-line arguments collection."
+                }
+              ],
+              "cancellationToken": [
+                {
+                  "kind": "text",
+                  "text": "The cancellation token associated with this callback context."
+                }
+              ],
+              "resource": [
+                {
+                  "kind": "text",
+                  "text": "The Rust application resource whose cargo arguments are being built."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustCargoArgsCallbackAnnotation.cs",
+          "sourceLines": "46-66"
+        },
+        {
+          "name": "Args",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public IList<string> RustCargoArgsCallbackContext.Args",
+          "returnType": "System.Collections.Generic.IList<string>",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the list of command-line arguments. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustCargoArgsCallbackAnnotation.cs",
+          "sourceLines": "61-61"
+        },
+        {
+          "name": "CancellationToken",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public CancellationToken RustCargoArgsCallbackContext.CancellationToken",
+          "returnType": "System.Threading.CancellationToken",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the cancellation token associated with the callback context. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustCargoArgsCallbackAnnotation.cs",
+          "sourceLines": "66-66"
+        },
+        {
+          "name": "Resource",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public RustAppResource RustCargoArgsCallbackContext.Resource",
+          "returnType": "Aspire.Hosting.Rust.RustAppResource",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the Rust application resource whose cargo arguments are being built. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " The same callbacks run for both the local "
+              },
+              {
+                "kind": "code",
+                "text": "cargo run"
+              },
+              {
+                "kind": "text",
+                "text": " command line and the generated Dockerfile, so a callback that needs to know which resource it is configuring — or that needs to read annotations placed on it — reads them from here rather than capturing the resource itself. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.Rust/RustCargoArgsCallbackAnnotation.cs",
+          "sourceLines": "56-56"
+        }
+      ]
+    }
+  ]
+}

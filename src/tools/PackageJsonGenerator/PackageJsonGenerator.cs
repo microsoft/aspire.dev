@@ -52,10 +52,18 @@ public static class PackageJsonGenerator
         ValidateReferencedAssemblies(compilation, assemblySymbol, packageName);
         ValidatePublicApiTypes(types, packageName);
 
-        if (types.Count == 0)
+        var hasGeneratedExports = assemblySymbol.GetAttributes().Any(attribute =>
+            attribute.AttributeClass?.GetAttributes().Any(provider =>
+                provider.AttributeClass?.ToDisplayString() == "Aspire.Hosting.AspireExportProviderAttribute") == true);
+
+        if (types.Count == 0 && !hasGeneratedExports)
         {
             Console.WriteLine($"No public types found in assembly: {assemblySymbol.Name}");
             return false;
+        }
+        if (types.Count == 0)
+        {
+            Console.WriteLine($"Preserving package metadata for generated ATS exports: {assemblySymbol.Name}");
         }
 
         var assemblyName = packageName;
@@ -167,7 +175,8 @@ public static class PackageJsonGenerator
             targetFramework,
             typeModels,
             sourceRepo,
-            sourceCommit);
+            sourceCommit,
+            hasGeneratedExports);
 
         // Ensure output directory exists
         var outputDir = Path.GetDirectoryName(outputFile);

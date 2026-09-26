@@ -292,7 +292,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'AWS',
-          link: 'https://docs.aws.amazon.com/sdk-for-net/v4/developer-guide/aspire-integrations.html',
+          slug: 'integrations/cloud/aws/overview',
         },
         {
           label: 'Azure',

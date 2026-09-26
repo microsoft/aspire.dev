@@ -196,6 +196,50 @@ await builder.build().run();
 
 The resource is added as an [`ExecutableResource`](/app-host/executable-resources/) rather than a `ProjectResource`, so it doesn't need to be referenced from the AppHost's own solution. Before the resource starts, Aspire validates that the path resolves to a `.csproj` or `.cs` file (or a directory containing a single `.csproj`) and, for file-based apps, that the active .NET SDK version is 10 or later.
 
+The TypeScript `addDotnetProject` overload accepts a plain options object rather than the shared `ProjectResourceOptions` handle used by the legacy `addProject` / `addCSharpApp` polyglot APIs, so it can be constructed directly from a generated SDK caller without an RPC round-trip:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDotnetProject("inventoryservice", @"..\InventoryService.cs", options =>
+{
+    options.LaunchProfileName = "https";
+    options.ExcludeLaunchProfile = false;
+    options.ExcludeKestrelEndpoints = false;
+});
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addDotnetProject('inventoryservice', '../InventoryService.cs', {
+  launchProfileName: 'https',
+  excludeLaunchProfile: false,
+  excludeKestrelEndpoints: false,
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+- Omitting the options object, or leaving `launchProfileName` unset or null, selects the default launch profile.
+- `excludeLaunchProfile: true` disables launch profiles entirely and takes precedence over a supplied `launchProfileName`.
+- `excludeKestrelEndpoints: true` stops Aspire from deriving model endpoints from the project's Kestrel configuration. It doesn't rewrite or disable the service's own Kestrel configuration.
+
+These properties have the same behavior as the corresponding `LaunchProfileName`, `ExcludeLaunchProfile`, and `ExcludeKestrelEndpoints` properties on the C# `ProjectResourceOptions` type. The options are polyglot-specific to `addDotnetProject`; they don't change the shared `ProjectResourceOptions` handle used by the legacy `addProject` / `addCSharpApp` exports.
+
 ## Publishing
 
 Automatic project publishing for `DotnetProjectResource` isn't currently supported. A plain

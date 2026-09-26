@@ -3,8 +3,7 @@ import { execFileSync } from 'child_process';
 export const NUGET_ORG_SERVICE_INDEX = 'https://api.nuget.org/v3/index.json';
 
 const RELEASE_BRANCH_PREFIX = 'release/';
-const AZURE_ARTIFACTS_PACKAGING_BASE =
-  'https://pkgs.dev.azure.com/dnceng/public/_packaging';
+const AZURE_ARTIFACTS_PACKAGING_BASE = 'https://pkgs.dev.azure.com/dnceng/public/_packaging';
 const ASPIRE_REPO_CANDIDATES = [
   process.env.ASPIRE_GITHUB_REPO_URL,
   'https://github.com/microsoft/aspire',
@@ -177,6 +176,29 @@ export function isOfficialAspirePackage(packageId: string): boolean {
 
 export function isReleaseBranch(branchName: string): boolean {
   return branchName.toLowerCase().startsWith(RELEASE_BRANCH_PREFIX);
+}
+
+export function getPinnedReleaseVersion(
+  branchName: string,
+  version = process.env.ASPIRE_RELEASE_VERSION
+): string | undefined {
+  if (!isReleaseBranch(branchName) || !version?.trim()) {
+    return undefined;
+  }
+
+  const pinnedVersion = version.trim();
+  const release = branchName.match(/^release\/(\d+\.\d+)(?:\.\d+)?$/i)?.[1];
+  if (
+    !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(pinnedVersion) ||
+    !release ||
+    !pinnedVersion.startsWith(`${release}.`)
+  ) {
+    throw new Error(
+      `ASPIRE_RELEASE_VERSION "${pinnedVersion}" must be an exact package version for ${branchName}.`
+    );
+  }
+
+  return pinnedVersion;
 }
 
 export function resolveOfficialAspirePackageSource(): OfficialAspirePackageSource {

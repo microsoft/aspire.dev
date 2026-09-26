@@ -35,6 +35,8 @@ export class InpageSearchSync {
       this.input.focus();
       this.onClear();
     }, { signal });
+    // Text can be entered or restored before the controller attaches its listeners.
+    this.updateClearButton();
   }
 
   readQuery(): string {

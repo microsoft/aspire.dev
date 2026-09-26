@@ -56,8 +56,9 @@ write_findings() {
   fi
 }
 
-FINDINGS_TMP="$(mktemp)"
-trap 'rm -f "$FINDINGS_TMP"' EXIT
+SCAN_TMP="$(mktemp -d)"
+FINDINGS_TMP="$SCAN_TMP/findings.jsonl"
+trap 'rm -rf "$SCAN_TMP"' EXIT
 
 if [[ "$rule_count" -eq 0 ]]; then
   echo "No rules defined in $CONFIG_FILE; nothing to check."
@@ -159,6 +160,31 @@ for file in "${CHANGED_FILES[@]}"; do
   ' <<< "$diff_output")
 
   [[ -z "$added_lines" ]] && continue
+
+  # Search whole files once per rule. Keep grep's input free of line-number
+  # prefixes so anchors/lookbehinds retain their original semantics. Only
+  # matching lines need the more expensive suggestion/annotation loop.
+  printf '%s\n' "$added_lines" > "$SCAN_TMP/added"
+  cut -d: -f2- "$SCAN_TMP/added" > "$SCAN_TMP/content"
+  : > "$SCAN_TMP/candidates"
+  for ((r = 0; r < rule_count; r++)); do
+    [[ "${rule_applies[$r]}" == "1" ]] || continue
+    grep_opts=(-n -P)
+    if [[ "${CASE_SENSITIVE[$r]}" != "true" ]]; then
+      grep_opts+=(-i)
+    fi
+    status=0
+    grep "${grep_opts[@]}" -- "${PATTERNS[$r]}" "$SCAN_TMP/content" > "$SCAN_TMP/matches" || status=$?
+    if [[ "$status" -gt 1 ]]; then
+      echo "::error::Unable to evaluate forbidden-word rule: ${PATTERNS[$r]}"
+      write_findings
+      exit 2
+    fi
+    cut -d: -f1 "$SCAN_TMP/matches" >> "$SCAN_TMP/candidates"
+  done
+  [[ -s "$SCAN_TMP/candidates" ]] || continue
+  added_lines=$(awk 'NR == FNR { matches[$1] = 1; next } FNR in matches' \
+    "$SCAN_TMP/candidates" "$SCAN_TMP/added")
 
   # Check each added line against every applicable rule, aggregating all matches
   # on the line into a single corrected line (at most one suggestion per line).

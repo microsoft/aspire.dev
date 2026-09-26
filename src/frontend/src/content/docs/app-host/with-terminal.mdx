@@ -5,6 +5,11 @@ description: Use WithTerminal to expose an interactive terminal for a resource i
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ThemeImage from '@components/ThemeImage.astro';
+import terminalResourceDark from '@assets/dashboard/terminals/terminal-resource-dark.png';
+import terminalResourceLight from '@assets/dashboard/terminals/terminal-resource-light.png';
+import terminalDetachedDark from '@assets/dashboard/terminals/terminal-detached-dark.png';
+import terminalDetachedLight from '@assets/dashboard/terminals/terminal-detached-light.png';
 
 If you have a terminal user interface (TUI) application or a shell-based experience that you want to exercise while it runs under Aspire, add `WithTerminal(...)` to the resource. Aspire then exposes an interactive terminal session that you can attach to from the [Aspire dashboard](/dashboard/overview/) or from the [`aspire terminal`](/reference/cli/commands/aspire-terminal/) CLI command.
 
@@ -74,10 +79,14 @@ The terminal session is described by a set of options with sensible defaults:
 | ------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Columns`           | `120`   | The initial number of columns for the terminal grid.                                                                                                            |
 | `Rows`              | `30`    | The initial number of rows for the terminal grid.                                                                                                               |
-| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists. Set to `true` to diagnose terminal-host startup or connectivity issues. |
+| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists **and** export their diagnostic logs, metrics, and traces. Set to `true` to diagnose terminal-host startup or connectivity issues. |
 
 <Aside type="tip">
 `Columns` and `Rows` must each be `1` or greater. Configuring either with zero or a negative value in the `WithTerminal(...)` callback throws an `ArgumentOutOfRangeException` immediately instead of failing later during terminal-host startup.
+</Aside>
+
+<Aside type="note" title="Terminal host telemetry is opt-in">
+By default, the hidden terminal host helper resources don't export logs, metrics, or traces, even when an OTLP endpoint is configured for the app—so they never show up in the dashboard's telemetry resource list (including the **Traces** filter). Setting `ShowTerminalHost = true` both reveals the helper resources and turns on their diagnostic telemetry when an OTLP endpoint is available. This is independent of the parent resource's own telemetry, which is never affected by `WithTerminal`.
 </Aside>
 
 <Aside type="note">
@@ -171,6 +180,12 @@ Add a terminal to a resource only once. Calling `WithTerminal()` more than once 
 
 When a resource has `WithTerminal` applied, its **Console Logs** page in the [Aspire dashboard](/dashboard/overview/) gains a live terminal session alongside the usual console log stream. You can drive the running process directly in the browser without leaving the dashboard. For example, you can type commands, scroll the scrollback buffer, and switch between replicas. Each replica appears as its own entry (for example, `agent-r0`, `agent-r1`, `agent-r2`) with an independent session.
 
+<ThemeImage
+  dark={terminalResourceDark}
+  light={terminalResourceLight}
+  alt="Aspire dashboard resource terminal running local shell commands and displaying catalog data."
+/>
+
 The page picks a default view based on the resource's state at the moment you navigate to it:
 
 - **Running** (the PTY is live) → the page defaults to the **Terminal** view, so the interactive session is the first thing you see.
@@ -181,6 +196,24 @@ Open the toolbar's options (⋯) menu and choose **Terminal** or **Console logs*
 <Aside type="note">
 The view you pick only affects what's currently displayed—it doesn't change what's captured. Console logs keep streaming, and the terminal session keeps running, regardless of which view is active.
 </Aside>
+
+<Aside type="tip" title="Firefox renderer">
+Desktop and Android Firefox always render dashboard terminals using WebGL2, even when WebGPU is available, to avoid a [known Firefox WebGPU performance issue](https://bugzilla.mozilla.org/show_bug.cgi?id=1870699). This applies to every terminal mount—including automatic retries and explicit reconnects—and requires no configuration. Firefox on iOS (`FxiOS/`) uses WebKit rather than Gecko, so it isn't affected and keeps automatic renderer selection like other browsers.
+</Aside>
+
+Because a terminal-backed executable bridges its standard output and error through the pseudo-terminal (PTY) instead of separate log streams, the **Console logs** view and [`aspire logs`](/reference/cli/commands/aspire-logs/) only show that resource's startup and system logs. For example the view shows lifecycle and DCP diagnostics but not the interleaved `stdout` and `stderr` text you see in the **Terminal** view. Use the **Terminal** view or `aspire terminal attach <resource>` to see the process's own output.
+
+### Open a terminal in a separate window
+
+Use **Open in new window** to keep a terminal visible while you inspect other dashboard pages. AppHost-owned terminal dock tabs can also open in a separate window, as shown below. Their detached view contains the terminal and its controls rather than the dashboard navigation.
+
+<ThemeImage
+  dark={terminalDetachedDark}
+  light={terminalDetachedLight}
+  alt="An AppHost-owned terminal in a separate window, showing completed local catalog checks."
+/>
+
+Resource terminals and AppHost-owned dock terminals have different ownership and lifetimes. Closing a viewer doesn't replace disposing an AppHost-owned terminal. For more about docked terminals, see [Explore the Aspire dashboard](/dashboard/explore/#interactive-terminals).
 
 ## Access terminals from VS Code
 

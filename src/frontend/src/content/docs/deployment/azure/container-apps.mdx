@@ -4,7 +4,7 @@ seoTitle: Deploy Aspire apps to Azure Container Apps with azd
 description: "Deploy Aspire applications to Azure Container Apps with the `aspire deploy` command — environments, revisions, scaling, ingress, and secret-backed configuration."
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Use `aspire deploy` to deploy Aspire applications to Azure Container Apps. Aspire provisions the Container Apps environment, Azure Container Registry, managed identity, and the Container Apps resources needed for the compute resources in your AppHost.
@@ -353,6 +353,73 @@ await env.withDashboard(false);
 ```
 </TabItem>
 </Tabs>
+
+### Express environments
+
+<Aside type="danger" title="Experimental">
+  Express environments are experimental and may change in future releases. The
+  `AsExpress` API reports [ASPIREACAEXPRESS001](/diagnostics/aspireacaexpress001/),
+  which you must suppress to build. Check the
+  [Azure Container Apps Express overview](https://learn.microsoft.com/azure/container-apps/express-overview)
+  for current availability and supported features before you adopt it.
+</Aside>
+
+[Azure Container Apps Express](https://learn.microsoft.com/azure/container-apps/express-overview) is a preview environment type for HTTP applications. To use Express, call `AsExpress` on the environment resource in your AppHost, as shown below:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREACAEXPRESS001
+builder.AddAzureContainerAppEnvironment("aspire-env")
+    .AsExpress();
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints();
+
+builder.AddProject<Projects.Frontend>("frontend")
+    .WithExternalHttpEndpoints()
+    .WithReference(api);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const env = await builder.addAzureContainerAppEnvironment("aspire-env");
+await env.asExpress();
+
+const api = await builder.addCSharpApp("api", "../Api/Api.csproj");
+await api.withExternalHttpEndpoints();
+
+const frontend = await builder.addCSharpApp("frontend", "../Frontend/Frontend.csproj");
+await frontend.withExternalHttpEndpoints();
+await frontend.withReference(api);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+Express is emitted as `properties.environmentMode: "Express"` on the managed environment, and local `aspire run` orchestration is unchanged.
+
+Express adjusts the defaults Aspire applies to the environment:
+
+- **Scale to zero.** Minimum replicas default to `0` when no replica count is specified, so apps must tolerate cold starts. Explicit replica counts and scale customizations still take precedence.
+- **Fewer implicit resources.** Aspire omits the implicit Consumption workload profile, the managed Aspire Dashboard, and automatic .NET data-protection configuration.
+
+The following limitations apply when you use Express:
+
+- **No managed Aspire Dashboard.** The managed Aspire Dashboard isn't available in Azure Container Apps Express environments. This limitation doesn't affect the local Aspire Dashboard.
+- **Referenced endpoints must be public.** Express apps have no private `.internal` hostname, so a referenced endpoint must be explicitly exposed with `WithExternalHttpEndpoints`. Referencing an internal-only endpoint fails during deployment rather than emitting an address that can't resolve. Exposing an endpoint doesn't add authentication — enforce authorization in the app.
+- **HTTPS ingress is required.** Combining `AsExpress` with `WithHttpsUpgrade(false)` is rejected, in either call order.
+
+You can combine `AsExpress` with `AsExisting` or `PublishAsExisting` to declare that an existing environment already uses Express. Aspire doesn't verify or convert the deployed environment's mode.
 
 ## Deploy with aspire deploy
 

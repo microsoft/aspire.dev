@@ -1,5 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+
+const require = createRequire(import.meta.url);
+const pagefindRequire = createRequire(require.resolve('@astrojs/starlight'));
+// Native prefix expansion can match an indexed "Z" for an unquoted nonsense
+// term. Exact-phrase syntax makes these tests exercise a genuinely empty search.
+const missingSearchQuery = '"zzzznonexistentcatalogquery"';
 
 // Exercise native transitions on desktop and the supported swap fallback on
 // touch projects, matching the other client-navigation regression suites.
@@ -59,6 +67,163 @@ async function navigateClient(page: Page, navigate: () => Promise<unknown>): Pro
 }
 
 test.describe('site search dialog', () => {
+  for (const theme of ['light', 'dark']) {
+    test(`native Pagefind input presentation matches browse in ${theme}`, async ({ page }, testInfo) => {
+      await page.addInitScript((value) => localStorage.setItem('starlight-theme', value), theme);
+      await page.goto('/hub/browse/');
+      await dismissCookieConsentIfVisible(page);
+      const presentation = (element: Element) => {
+        const style = getComputedStyle(element);
+        return {
+          height: element.getBoundingClientRect().height,
+          fontSize: style.fontSize,
+          background: style.backgroundColor,
+          color: style.color,
+          borderColor: style.borderColor,
+          borderRadius: style.borderRadius,
+          padding: style.padding,
+        };
+      };
+      const expected = await page.locator('#browse-search-input').evaluate(presentation);
+      const iconColor = await page.locator('#browse-search-input').locator('..').locator('.search-field-icon').evaluate(
+        (icon) => getComputedStyle(icon).color,
+      );
+      const focusPresentation = (element: Element) => {
+        const style = getComputedStyle(element);
+        return {
+          outlineStyle: style.outlineStyle,
+          outlineWidth: style.outlineWidth,
+          outlineOffset: style.outlineOffset,
+          outlineColor: style.outlineColor,
+          borderColor: style.borderColor,
+          boxShadow: style.boxShadow,
+        };
+      };
+      await page.locator('#browse-search-input').focus();
+      const expectedFocus = await page.locator('#browse-search-input').evaluate(focusPresentation);
+      expect(expectedFocus).toMatchObject({
+        outlineStyle: 'solid',
+        outlineWidth: '2px',
+        outlineOffset: '2px',
+        boxShadow: 'none',
+      });
+      await page.goto('/');
+      const ready = await openSearchDialog(page);
+      if (!ready) {
+        testInfo.annotations.push({
+          type: 'presentation-only',
+          description: 'Mounts installed native Pagefind UI with an empty-result backend fixture; production index behavior is tested separately.',
+        });
+        await page.route('**/__pagefind-presentation__/pagefind.js', (route) => route.fulfill({
+          contentType: 'text/javascript',
+          body: `
+            export async function options() {}
+            export async function filters() { return {}; }
+            export async function preload() {}
+            export async function search() { return { results: [], filters: {}, unfilteredResultCount: 0 }; }
+          `,
+        }));
+        const nativeModule = readFileSync(
+          pagefindRequire.resolve('@pagefind/default-ui/npm_dist/mjs/ui-core.mjs'), 'utf8',
+        );
+        await page.addScriptTag({
+          type: 'module',
+          content: `${nativeModule}\nwindow.PagefindUI = PagefindUI;`,
+        });
+        await page.evaluate(() => {
+          const container = document.createElement('div');
+          container.className = 'search-container';
+          const root = document.createElement('div');
+          root.id = 'starlight__search';
+          const frame = document.querySelector('site-search .dialog-frame')!;
+          // Match the production wrapper's Astro-scoped styles, including
+          // reserved mobile Cancel space, when mounting the native UI in dev.
+          for (const element of [container, root]) {
+            element.classList.add(...[...frame.classList].filter((name) => name.startsWith('astro-')));
+            for (const name of frame.getAttributeNames().filter((name) => name.startsWith('data-astro-cid-'))) {
+              element.setAttribute(name, '');
+            }
+          }
+          container.append(root);
+          frame.prepend(container);
+          const PagefindUI = Reflect.get(window, 'PagefindUI') as new (options: {
+            element: string;
+            autofocus: boolean;
+            bundlePath: string;
+          }) => unknown;
+          new PagefindUI({ element: '#starlight__search', autofocus: false, bundlePath: '/__pagefind-presentation__/' });
+        });
+      }
+      const input = page.locator('#starlight__search .pagefind-ui__search-input');
+      await input.blur();
+      await expect(input).toBeVisible();
+      expect(await input.evaluate(presentation)).toEqual(expected);
+      await input.focus();
+      expect(await input.evaluate(focusPresentation)).toEqual(expectedFocus);
+      const icon = await page.locator('#starlight__search .pagefind-ui__form').evaluate((form) => {
+        const style = getComputedStyle(form, '::before');
+        return { width: style.width, height: style.height, color: style.backgroundColor, mask: style.maskImage };
+      });
+      expect(icon).toMatchObject({ width: '18px', height: '18px', color: iconColor });
+      expect(decodeURIComponent(icon.mask)).toContain('m21 21-4.35-4.35');
+      const clear = page.locator('#starlight__search .pagefind-ui__search-clear');
+      await expect(clear).toHaveAccessibleName('Clear search');
+      await expect(clear).toHaveCSS('font-size', '0px');
+      await expect(clear).toHaveText('Clear');
+      const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+      await expect(clear).toHaveCSS('width', coarse ? '44px' : '36px');
+      await expect(clear).toHaveCSS('height', coarse ? '44px' : '36px');
+      const clearIcon = await clear.evaluate((button) => {
+        const style = getComputedStyle(button, '::before');
+        return { width: style.width, height: style.height, mask: style.maskImage };
+      });
+      expect(clearIcon).toMatchObject({ width: '16px', height: '16px' });
+      expect(decodeURIComponent(clearIcon.mask)).toContain('m18 6-12 12M6 6l12 12');
+      await input.fill(missingSearchQuery);
+      const message = page.locator('#starlight__search .pagefind-ui__message');
+      await expect(message).toContainText(/no results|0 results/i);
+      await expect(page.locator('#starlight__search .pagefind-ui__result-link')).toHaveCount(0);
+      await expect(message).toHaveCSS('font-size', '14px');
+      await expect(message).toHaveCSS('font-weight', '400');
+      await expect(message).toHaveCSS('font-style', 'normal');
+      await expect(message).toHaveCSS('line-height', '21px');
+      const apiLinks = page.locator('site-search dialog[open]');
+      for (const language of ['csharp', 'typescript']) {
+        await expect(apiLinks.locator(`a[data-api-lang="${language}"]`)).toHaveAttribute(
+          'href', `/reference/api/${language}/?q=${encodeURIComponent(missingSearchQuery)}`,
+        );
+      }
+      await clear.click();
+      await expect(input).toHaveValue('');
+      await expect(input).toBeFocused();
+      for (const language of ['csharp', 'typescript']) {
+        await expect(apiLinks.locator(`a[data-api-lang="${language}"]`)).toHaveAttribute(
+          'href', `/reference/api/${language}/`,
+        );
+      }
+    });
+  }
+
+  test('zero matches retain one native clear action and return focus to the query', async ({ page }) => {
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+    const ready = await openSearchDialog(page);
+    test.skip(!ready, 'Pagefind requires the existing CI production artifact; no local build.');
+    const dialog = page.locator('site-search dialog[open]');
+    const input = dialog.locator('.pagefind-ui__search-input');
+    await input.fill(missingSearchQuery);
+    await expect(dialog.locator('.pagefind-ui__message')).toContainText(/no results|0 results/i);
+    await expect(dialog.locator('.pagefind-ui__result-link')).toHaveCount(0);
+    await expect(dialog.locator('.pagefind-ui__message')).toHaveAttribute('aria-live', 'polite');
+    const clear = dialog.locator('.pagefind-ui__search-clear');
+    await expect(clear).toHaveCount(1);
+    await expect(clear).toHaveAccessibleName('Clear search');
+    await clear.click();
+    await expect(input).toHaveValue('');
+    await expect(input).toBeFocused();
+    await expect(dialog.locator('a[data-api-lang="csharp"]')).toHaveAttribute('href', /\/reference\/api\/csharp\/$/);
+  });
+
   for (const openWith of ['button', 'shortcut'] as const) {
     test(`docs search survives client navigation and history when opened by ${openWith}`, async ({
       page,
