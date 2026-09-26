@@ -548,6 +548,41 @@ await mongo.withLifetime("Persistent");
 </TabItem>
 </Tabs>
 
+## Add MongoDB resource with a REPL command
+
+The `WithRepl` method adds an opt-in **REPL** command to the MongoDB server resource in the Aspire dashboard. Selecting the command while the container is running opens the bundled `mongosh` client in the dashboard's terminal dock, authenticated against `admin` with the resource's configured credentials—no local MongoDB client installation is required:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+    .WithRepl();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withRepl();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The REPL command is disabled by default and is only registered in run mode—it isn't available in published applications. Use `exit` to end the `mongosh` session cleanly before closing the terminal tab; closing the tab alone can leave `mongosh` running inside the container, and stopping the container ends any remaining REPL processes. The session connects directly to the server inside its container, including replica set members, and credentials are passed through the environment rather than command-line arguments. When TLS is enabled, the shell uses the configured certificate trust bundle and validates the server certificate for `localhost`; custom certificates must cover `localhost` and their issuing CA must be trusted through Aspire's certificate configuration.
+
+:::caution
+Only enable `WithRepl()` for resources whose authenticated client access is appropriate for everyone who can access the dashboard. The shell uses the resource's configured credentials and isn't read-only. Sharing the dashboard through a tunnel, Codespaces, or VS Code remote development also exposes this capability to anyone who can execute resource commands.
+:::
+
 ## Pass custom environment variables
 
 By default, Aspire injects the MongoDB connection information using variable names derived from the resource name (for example, `MONGODB_URI`, `MONGODB_HOST`, `MONGODB_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:

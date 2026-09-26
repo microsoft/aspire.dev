@@ -549,6 +549,41 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
+## Add PostgreSQL resource with a REPL command
+
+The `WithRepl` method adds an opt-in **REPL** command to the PostgreSQL server resource in the Aspire dashboard. Selecting the command while the container is running opens `psql` in the dashboard's terminal dock, already connected to the `postgres` database with the resource's configured credentials—no local PostgreSQL client installation is required:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithRepl();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres");
+await postgres.withRepl();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The REPL command is disabled by default and is only registered in run mode—it isn't available in published applications. Use `\connect` to switch databases and `\q` to exit `psql` cleanly before closing the terminal tab; closing the tab alone can leave `psql` running inside the container, and stopping the container ends any remaining REPL processes. The session runs inside the container using Docker (or the configured Podman runtime), and passwords are passed through environment variables rather than command-line arguments.
+
+:::caution
+Only enable `WithRepl()` for resources whose authenticated client access is appropriate for everyone who can access the dashboard. The shell uses the resource's configured credentials and isn't read-only. Sharing the dashboard through a tunnel, Codespaces, or VS Code remote development also exposes this capability to anyone who can execute resource commands.
+:::
+
 ## Pass custom environment variables
 
 By default, Aspire injects the PostgreSQL connection information using variable names derived from the resource name (for example, `POSTGRESDB_URI`, `POSTGRESDB_HOST`, `POSTGRESDB_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:

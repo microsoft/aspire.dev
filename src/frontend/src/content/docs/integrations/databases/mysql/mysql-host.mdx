@@ -478,6 +478,41 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method. For more information, see [External parameters](/get-started/resources/).
 
+## Add MySQL resource with a REPL command
+
+The `WithRepl` method adds an opt-in **REPL** command to the MySQL server resource in the Aspire dashboard. Selecting the command while the container is running opens the bundled `mysql` client in the dashboard's terminal dock, authenticated as `root` with the resource's configured password—no local MySQL client installation is required:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mysql = builder.AddMySql("mysql")
+    .WithRepl();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withRepl();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The REPL command is disabled by default and is only registered in run mode—it isn't available in published applications. Use `quit` to exit `mysql` cleanly before closing the terminal tab; closing the tab alone can leave `mysql` running inside the container, and stopping the container ends any remaining REPL processes. The session runs inside the container using Docker (or the configured Podman runtime), and the password is passed through an environment variable rather than command-line arguments or SQL history.
+
+:::caution
+Only enable `WithRepl()` for resources whose authenticated client access is appropriate for everyone who can access the dashboard. The shell uses the resource's configured credentials and isn't read-only. Sharing the dashboard through a tunnel, Codespaces, or VS Code remote development also exposes this capability to anyone who can execute resource commands.
+:::
+
 ## Pass custom environment variables
 
 By default, Aspire injects the MySQL connection information using variable names derived from the resource name (for example, `MYSQLDB_URI`, `MYSQLDB_HOST`, `MYSQLDB_PORT`, `MYSQLDB_PASSWORD`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
