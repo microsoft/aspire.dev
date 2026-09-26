@@ -19,6 +19,17 @@ test('themed animations load one initial source and preserve playback when switc
   const image = wrapper.locator('img.looping-image');
   const button = wrapper.locator('.looping-image-toggle');
   const canvas = wrapper.locator('canvas');
+  const prefersNoHover = await page.evaluate(() => window.matchMedia('(hover: none)').matches);
+
+  async function togglePlayback() {
+    if (prefersNoHover) {
+      await wrapper.tap();
+    } else {
+      await wrapper.hover();
+      await button.click();
+    }
+  }
+
   await expect(image).toHaveAttribute('src', /dashboard-geni-visualizer-light/);
   await expect
     .poll(() =>
@@ -29,8 +40,7 @@ test('themed animations load one initial source and preserve playback when switc
   expect(animationRequests.some((url) => url.includes('visualizer-dark'))).toBe(false);
 
   await wrapper.scrollIntoViewIfNeeded();
-  await wrapper.hover();
-  await button.click();
+  await togglePlayback();
   await expect(button).toHaveAttribute('data-state', 'paused');
   await expect(canvas).toBeVisible();
   const lightPixel = await canvas.evaluate((element: HTMLCanvasElement) =>
@@ -54,8 +64,7 @@ test('themed animations load one initial source and preserve playback when switc
     )
     .not.toEqual(lightPixel);
 
-  await wrapper.hover();
-  await button.click();
+  await togglePlayback();
   await expect(button).toHaveAttribute('data-state', 'playing');
   await expect(canvas).toBeHidden();
   await expect(image).toHaveCSS('opacity', '1');
