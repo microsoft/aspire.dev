@@ -3,7 +3,6 @@ import { defineConfig } from 'astro/config';
 import { unified } from '@astrojs/markdown-remark';
 import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
-import { iconPacks } from './config/icon-packs.mjs';
 import { locales } from './config/locales.ts';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
@@ -11,16 +10,15 @@ import { aspireProject } from './src/data/aspire-project.ts';
 import { aspireVersionPlaceholdersIntegration } from './config/aspire-version-placeholders-integration.mjs';
 import { remarkAspireVersionPlaceholders } from './config/remark-aspire-version-placeholders.mjs';
 import { remarkTypeScriptFirstAppHostTabs } from './config/remark-typescript-first-apphost-tabs.mjs';
+import { remarkMermaid } from './config/remark-mermaid.mjs';
 import catppuccin from '@catppuccin/starlight';
 import lunaria from './config/lunaria-starlight.mjs';
-import mermaid from 'astro-mermaid';
 import mdx from '@astrojs/mdx';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightImageZoom from 'starlight-image-zoom';
 import starlightKbd from 'starlight-kbd';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
-import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import buildTiming from './config/build-timing.mjs';
@@ -56,19 +54,34 @@ const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
 // https://astro.build/config
 export default defineConfig({
+  cacheDir: './node_modules/.astro',
   ...(outDir ? { outDir } : {}),
   vite: {
     define: {
       // Resolve filesystem-backed redirects before prerender modules are bundled.
       __ASPIRE_REDIRECT_PATHS__: JSON.stringify(Object.keys(redirects)),
     },
+    ...(staticHostUrl
+      ? {
+          server: {
+            proxy: {
+              // Bypass Astro's trailing-slash routing for JSON and SSE.
+              '^/api/live(?:/.*)?$': {
+                target: staticHostUrl,
+                changeOrigin: true,
+                secure: false,
+              },
+            },
+          },
+        }
+      : {}),
   },
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',
   markdown: {
     processor: unified({
-      remarkPlugins: [remarkTypeScriptFirstAppHostTabs, remarkAspireVersionPlaceholders],
+      remarkPlugins: [remarkTypeScriptFirstAppHostTabs, remarkAspireVersionPlaceholders, remarkMermaid],
     }),
   },
   redirects: redirects,
@@ -144,31 +157,6 @@ export default defineConfig({
               '/hub/', '/hub/glossary/ats/', '/get-started/glossary/#polyglot',
             ],
           }),
-          starlightScrollToTop({
-            // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/
-            svgPath: 'M4 16L12 8L20 16',
-            showTooltip: true,
-            threshold: 10,
-            showOnHomepage: true,
-            svgStrokeWidth: 4,
-            tooltipText: {
-              da: 'Rul op',
-              de: 'Nach oben scrollen',
-              en: 'Scroll to top',
-              es: 'Ir arriba',
-              fr: 'Retour en haut',
-              hi: 'ऊपर स्क्रॉल करें',
-              id: 'Gulir ke atas',
-              it: 'Torna su',
-              ja: 'トップへ戻る',
-              ko: '맨 위로',
-              'pt-br': 'Voltar ao topo',
-              ru: 'Наверх',
-              tr: 'Başa dön',
-              uk: 'Прокрутити вгору',
-              'zh-cn': '回到顶部',
-            },
-          }),
           starlightGitHubAlerts(),
           starlightLlmsTxt({
             projectName: 'Aspire',
@@ -240,11 +228,6 @@ export default defineConfig({
         ],
       },
     }),
-    mermaid({
-      theme: 'forest',
-      autoTheme: true,
-      iconPacks,
-    }),
     mdx({
       optimize: true,
       gfm: true,
@@ -255,21 +238,4 @@ export default defineConfig({
   build: {
     concurrency: buildConcurrency,
   },
-  ...(staticHostUrl
-    ? {
-        vite: {
-          server: {
-            proxy: {
-              // A regular-expression context bypasses Astro's trailing-slash
-              // routing for both the JSON snapshot and SSE stream.
-              '^/api/live(?:/.*)?$': {
-                target: staticHostUrl,
-                changeOrigin: true,
-                secure: false,
-              },
-            },
-          },
-        },
-      }
-    : {}),
 });

@@ -21,57 +21,82 @@ import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
 
 This page describes how consuming apps connect to an Azure AI Foundry resource that's already modeled in your AppHost. For the AppHost API surface — adding a Foundry account, model deployments, Foundry projects, hosted agents, and more — see [Azure AI Foundry hosting integration](../azure-ai-foundry-host/).
 
-When you reference an Azure AI Foundry deployment resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Azure AI Foundry client integration for automatic dependency injection, health checks, and telemetry via Microsoft.Extensions.AI.
+When you reference an Azure AI Foundry deployment resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app reads those environment variables and constructs a client with the OpenAI SDK — Microsoft's currently recommended way to call Azure AI Foundry Models — the pattern works the same from any language. In C#, you can also use the legacy Aspire Azure AI Inference client integration for automatic dependency injection, health checks, and telemetry via Microsoft.Extensions.AI.
 
 ## Connection properties
 
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Endpoint` property of a resource called `chat` becomes `CHAT_ENDPOINT`.
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `chat` becomes `CHAT_URI`.
+
+<Aside type="caution">
+  These property names reflect the resource types' actual `GetConnectionProperties()` implementation. If you see older guidance referencing `Endpoint`, `ApiKey`, `Deployment`, or `Model`, those names are outdated. Use the names below instead.
+</Aside>
 
 ### Foundry account resource
 
-The Foundry account resource (`FoundryResource`) exposes the following connection properties:
+The Foundry account resource exposes the following connection properties:
 
-| Property Name | Description |
-| ------------- | ----------- |
-| `Endpoint`    | The base endpoint URI for the Azure AI Foundry account |
-| `ApiKey`      | The API key for authentication (when local auth is enabled) |
+| Property Name    | Description |
+| ----------------- | ----------- |
+| `Uri`             | The base endpoint URI for the Azure AI Foundry account |
+| `AIInferenceUri`  | The account's model-inference endpoint (the base URI plus a `models` suffix) |
+| `Key`             | The API key **only present when running [Foundry Local](../azure-ai-foundry-host/#use-foundry-local-for-development)**; cloud-provisioned and existing Foundry accounts never expose a key through Aspire, regardless of the resource's own local-auth setting |
 
-**Example connection string:**
+**Example environment variables** (cloud, resource named `chat`):
 
 ```
-Endpoint=https://my-foundry.services.ai.azure.com/;ApiKey=abc123...
+CHAT_URI=https://my-foundry.services.ai.azure.com/
+CHAT_AIINFERENCEURI=https://my-foundry.services.ai.azure.com/models
 ```
+
+<Aside type="note">
+  By default, `AddFoundry(...)` provisions the Foundry account with `disableLocalAuth: true` and creates the role assignments consuming apps need, so apps authenticate via managed identity. Because Aspire only ever surfaces `Key` for Foundry Local, the examples below default to token-based authentication (`DefaultAzureCredential`) for every scenario except Foundry Local.
+</Aside>
 
 ### Foundry deployment resource
 
 The Foundry deployment resource inherits all properties from its parent account resource and adds:
 
 | Property Name | Description |
-| ------------- | ----------- |
-| `Deployment`  | The deployment name as configured in Azure AI Foundry |
-| `Model`       | The model identifier for inference requests, for instance `gpt-5-mini` |
+| -------------- | ----------- |
+| `ModelName`    | The deployment name as configured in Azure AI Foundry |
+| `Format`       | The model provider format, for instance `OpenAI` |
+| `Version`      | The model version, for instance `2025-06-01` |
 
-**Example connection string:**
+**Example environment variables** (cloud, deployment resource named `chat`):
 
 ```
-Endpoint=https://my-foundry.services.ai.azure.com/;Deployment=chat;Model=gpt-5-mini
+CHAT_URI=https://my-foundry.services.ai.azure.com/
+CHAT_AIINFERENCEURI=https://my-foundry.services.ai.azure.com/models
+CHAT_MODELNAME=chat
+CHAT_FORMAT=OpenAI
+CHAT_VERSION=2025-06-01
+```
+
+For .NET apps that consume the composed `ConnectionStrings:{name}` value (for example, via `AddAzureChatCompletionsClient(connectionName: "chat")`) instead of the individual properties above, the format is:
+
+```
+Endpoint=https://my-foundry.services.ai.azure.com/;EndpointAIInference=https://my-foundry.services.ai.azure.com/models;Deployment=chat
 ```
 
 ### Foundry project resource
 
-The Foundry project resource (`FoundryProjectResource`) exposes:
+The Foundry project resource exposes:
 
-| Property Name  | Description |
-| -------------- | ----------- |
-| `Endpoint`     | The project-scoped endpoint URI |
-| `ApiKey`       | The API key for authentication (when local auth is enabled) |
-| `Project`      | The project name within the Foundry account |
+| Property Name                        | Description |
+| ------------------------------------- | ----------- |
+| `Uri`                                 | The project-scoped endpoint URI (already includes the project name and `api-version` query string) |
+| `ConnectionString`                    | The composed `Endpoint=...` connection string, for .NET apps using `ConnectionStrings:{name}` |
+| `ApplicationInsightsConnectionString` | The project's Application Insights connection string, if configured |
 
-**Example connection string:**
+**Example environment variables** (project resource named `myProject`):
 
 ```
-Endpoint=https://my-foundry.services.ai.azure.com/;Project=my-project
+MYPROJECT_URI=https://my-foundry.services.ai.azure.com/api/projects/my-project?api-version=...
 ```
+
+<Aside type="note">
+  The project resource never exposes an API key or a separate project-name property through Aspire. Authenticate with `DefaultAzureCredential` and use `Uri` directly as the project endpoint.
+</Aside>
 
 ## Connect from your app
 
@@ -80,20 +105,121 @@ Pick the language your consuming app is written in. Each example assumes your Ap
 <Tabs syncKey="azure-ai-foundry-consuming-lang">
 <TabItem label="C#">
 
-For C# apps, the recommended approach is the Aspire Azure AI Foundry client integration via the [📦 Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspire.Azure.AI.Inference) NuGet package. It registers a `ChatCompletionsClient` through dependency injection and, optionally, registers an [`IChatClient`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.ai.ichatclient) via `Microsoft.Extensions.AI`. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+For C# apps, the recommended approach is the OpenAI SDK, which Microsoft now recommends for connecting to Azure AI Foundry Models. Read the Aspire-injected connection properties from the environment and construct an OpenAI `ChatClient` pointed at your Foundry endpoint's OpenAI-compatible route.
 
-### Install the client integration
+<Aside type="note">
+  Microsoft has retired the Azure AI Inference SDK (`Azure.AI.Inference` / `ChatCompletionsClient`) in favor of the OpenAI SDK for calling Azure AI Foundry Models. For details, see Microsoft's [Azure AI Inference SDK to OpenAI SDK migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration). If your app still uses the Aspire Azure AI Inference client integration, see [Legacy: Azure AI Inference SDK](#legacy-azure-ai-inference-sdk) below.
+</Aside>
+
+### Install the OpenAI SDK
+
+<InstallDotNetPackage packageName="OpenAI" />
+
+The default `AddFoundry(...)` resource has local auth disabled, so consuming apps authenticate with Managed Identity. Also install the [📦 Azure.Identity](https://www.nuget.org/packages/Azure.Identity/) package:
+
+```bash title="Terminal"
+dotnet add package Azure.Identity
+```
+
+### Connect with the OpenAI SDK
+
+In _Program.cs_, read the Aspire-injected connection properties and construct a `ChatClient` authenticated with `DefaultAzureCredential`, pointing it at the Foundry endpoint's `openai/v1` route:
+
+```csharp title="Program.cs"
+using Azure.Identity;
+using OpenAI;
+using OpenAI.Chat;
+using System.ClientModel.Primitives;
+
+#pragma warning disable OPENAI001
+
+var endpoint = Environment.GetEnvironmentVariable("CHAT_URI");
+var deployment = Environment.GetEnvironmentVariable("CHAT_MODELNAME");
+
+var tokenPolicy = new BearerTokenPolicy(
+    new DefaultAzureCredential(),
+    "https://ai.azure.com/.default");
+
+var client = new ChatClient(
+    model: deployment,
+    authenticationPolicy: tokenPolicy,
+    options: new OpenAIClientOptions
+    {
+        Endpoint = new Uri($"{endpoint}openai/v1/")
+    });
+
+ChatCompletion completion = client.CompleteChat(
+    new UserChatMessage("Hello from Aspire!"));
+
+Console.WriteLine(completion.Content[0].Text);
+```
+
+<Aside type="note">
+  `BearerTokenPolicy` is marked experimental (`OPENAI001`) in the current OpenAI SDK, hence the `#pragma warning disable`. Aspire only ever exposes a `Key` property for [Foundry Local](../azure-ai-foundry-host/#use-foundry-local-for-development) — a cloud or existing Foundry account never surfaces an API key through Aspire, regardless of its own local-auth setting. If you're running Foundry Local, read `CHAT_KEY` and pass `new ApiKeyCredential(apiKey!)` (from `System.ClientModel`) as the `credential` argument instead of `authenticationPolicy`. For more authentication examples, see Microsoft's [migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration?tabs=openai&pivots=programming-language-dotnet).
+</Aside>
+
+If your app has a host builder — for example, an ASP.NET Core or worker service `Program.cs` using `WebApplication.CreateBuilder(args)` or `Host.CreateApplicationBuilder(args)` — you can instead register an [`IChatClient`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.ai.ichatclient) from `Microsoft.Extensions.AI` for dependency injection. Install [📦 Microsoft.Extensions.AI.OpenAI](https://www.nuget.org/packages/Microsoft.Extensions.AI.OpenAI), construct the `ChatClient` the same way shown above, then chain `AsIChatClient()` and register it before calling `Build()`:
+
+```csharp title="Program.cs"
+using Azure.Identity;
+using Microsoft.Extensions.AI;
+using OpenAI;
+using OpenAI.Chat;
+using System.ClientModel.Primitives;
+
+#pragma warning disable OPENAI001
+
+var builder = Host.CreateApplicationBuilder(args);
+
+var endpoint = Environment.GetEnvironmentVariable("CHAT_URI");
+var deployment = Environment.GetEnvironmentVariable("CHAT_MODELNAME");
+
+var tokenPolicy = new BearerTokenPolicy(
+    new DefaultAzureCredential(),
+    "https://ai.azure.com/.default");
+
+var client = new ChatClient(
+    model: deployment,
+    authenticationPolicy: tokenPolicy,
+    options: new OpenAIClientOptions
+    {
+        Endpoint = new Uri($"{endpoint}openai/v1/")
+    });
+
+IChatClient chatClient = client.AsIChatClient();
+builder.Services.AddSingleton(chatClient);
+
+var host = builder.Build();
+host.Run();
+```
+
+Resolve the `IChatClient` through dependency injection:
+
+```csharp title="ExampleService.cs"
+public class ExampleService(IChatClient chatClient)
+{
+    public async Task<string> GetResponseAsync(string prompt)
+    {
+        var response = await chatClient.GetResponseAsync(prompt);
+        return response.Text;
+    }
+}
+```
+
+### Legacy: Azure AI Inference SDK
+
+<Aside type="caution">
+  Microsoft has retired the Azure AI Inference SDK in favor of the OpenAI SDK shown above. The Aspire Azure AI Inference client integration below still works and provides dependency injection, health checks, and telemetry, but new code should prefer the OpenAI SDK. Use this section only if you have an existing app you haven't migrated yet.
+</Aside>
 
 Install the [📦 Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspire.Azure.AI.Inference) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.Azure.AI.Inference" />
 
-### Add a chat completions client
-
-In _Program.cs_, call `AddAzureAIInferenceChatClient` on your `IHostApplicationBuilder` to register a `ChatCompletionsClient`:
+In _Program.cs_, call `AddAzureChatCompletionsClient` on your `IHostApplicationBuilder` to register a `ChatCompletionsClient`:
 
 ```csharp title="Program.cs"
-builder.AddAzureAIInferenceChatClient(connectionName: "chat");
+builder.AddAzureChatCompletionsClient(connectionName: "chat");
 ```
 
 <Aside type="tip">
@@ -109,148 +235,23 @@ public class ExampleService(ChatCompletionsClient client)
 }
 ```
 
-### Add an IChatClient via Microsoft.Extensions.AI
-
-To also register an `IChatClient` from `Microsoft.Extensions.AI`, chain `AsIChatClient()`:
-
-```csharp title="Program.cs"
-builder.AddAzureAIInferenceChatClient("chat")
-       .AsIChatClient();
-```
-
-Resolve the abstraction through dependency injection:
-
-```csharp title="ExampleService.cs"
-public class ExampleService(IChatClient chatClient)
-{
-    public async Task<string> CompleteAsync(string prompt)
-    {
-        var response = await chatClient.CompleteAsync(prompt);
-        return response.Message.Text ?? string.Empty;
-    }
-}
-```
-
-### Add keyed clients
-
-To register multiple `ChatCompletionsClient` instances with different connection names, use `AddKeyedAzureAIInferenceChatClient`:
-
-```csharp title="Program.cs"
-builder.AddKeyedAzureAIInferenceChatClient(name: "chat");
-builder.AddKeyedAzureAIInferenceChatClient(name: "embeddings");
-```
-
-Then resolve each instance by key:
-
-```csharp title="ExampleService.cs"
-public class ExampleService(
-    [FromKeyedServices("chat")] ChatCompletionsClient chatClient,
-    [FromKeyedServices("embeddings")] ChatCompletionsClient embeddingsClient)
-{
-    // Use clients...
-}
-```
-
-### Configuration
-
-The Aspire Azure AI Inference client integration supports multiple configuration approaches.
-
-**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureAIInferenceChatClient`:
-
-```csharp title="Program.cs"
-builder.AddAzureAIInferenceChatClient("chat");
-```
-
-The connection string is resolved from the `ConnectionStrings` section:
-
-```json title="appsettings.json"
-{
-  "ConnectionStrings": {
-    "chat": "Endpoint=https://my-foundry.services.ai.azure.com/;Deployment=chat;Model=gpt-5-mini"
-  }
-}
-```
-
-**Configuration providers.** The integration supports `Microsoft.Extensions.Configuration` using the `Aspire:Azure:AI:Inference` key:
-
-```json title="appsettings.json"
-{
-  "Aspire": {
-    "Azure": {
-      "AI": {
-        "Inference": {
-          "DisableTracing": false,
-          "DisableMetrics": false
-        }
-      }
-    }
-  }
-}
-```
-
-### Client integration health checks
-
-The Aspire Azure AI Inference client integration enables health checks by default, verifying that the endpoint is reachable. Integration with the `/health` HTTP endpoint ensures all registered health checks must pass before the app is considered ready to accept traffic.
-
-### Observability and telemetry
-
-The Aspire Azure AI Inference client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
-
-**Logging** categories:
-
-- `Azure.AI.Inference`
-
-**Tracing** activities:
-
-- `Azure.AI.Inference.*`
-
-**Metrics:**
-
-- `Azure.AI.Inference.*`
-
-### Read environment variables in C\#
-
-If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection properties from the environment and construct an `AzureAIInferenceClient` directly using the [📦 Azure.AI.Inference](https://www.nuget.org/packages/Azure.AI.Inference/) NuGet package:
-
-```csharp title="Program.cs"
-using Azure;
-using Azure.AI.Inference;
-
-var endpoint = Environment.GetEnvironmentVariable("CHAT_ENDPOINT");
-var apiKey = Environment.GetEnvironmentVariable("CHAT_APIKEY");
-var deployment = Environment.GetEnvironmentVariable("CHAT_DEPLOYMENT");
-
-var client = new ChatCompletionsClient(
-    new Uri(endpoint!),
-    new AzureKeyCredential(apiKey!));
-
-var response = await client.CompleteAsync(new ChatCompletionsOptions
-{
-    Model = deployment,
-    Messages =
-    {
-        new ChatRequestUserMessage("Hello from Aspire!")
-    }
-});
-
-Console.WriteLine(response.Value.Choices[0].Message.Content);
-```
-
-<Aside type="tip">
-  In production, use Managed Identity instead of an API key. Remove the `AzureKeyCredential` and use `new DefaultAzureCredential()` from the [📦 Azure.Identity](https://www.nuget.org/packages/Azure.Identity/) package.
-</Aside>
+For keyed clients, configuration options, health checks, and telemetry details for this legacy integration, see [Connect to Azure AI Inference](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/).
 
 </TabItem>
 <TabItem label="Go">
 
-Use the [Azure SDK for Go](https://github.com/Azure/azure-sdk-for-go) `azopenai` package, which supports the Azure AI Inference REST API:
+Use the official [openai-go](https://github.com/openai/openai-go) SDK, which Microsoft recommends for calling Azure AI Foundry Models, together with the Azure SDK for Go's `azure` helper package for token authentication:
 
 ```bash title="Terminal"
-go get github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai
-go get github.com/Azure/azure-sdk-for-go/sdk/azcore
+go get github.com/openai/openai-go/v3
+go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
 ```
 
-Read the injected environment variables and connect:
+<Aside type="note">
+  Microsoft has retired the classic `azopenai` client calls (`GetChatCompletions` against the versioned REST API) in favor of `openai-go` against the `openai/v1` route. For details, see Microsoft's [Azure AI Inference SDK to OpenAI SDK migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration). A [legacy example](#legacy-azopenai-go) using `azopenai` is provided below for apps that haven't migrated yet.
+</Aside>
+
+The default `AddFoundry(...)` resource has local auth disabled, so authenticate with the `azidentity` package:
 
 ```go title="main.go"
 package main
@@ -260,21 +261,79 @@ import (
     "fmt"
     "os"
 
-    "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
-    "github.com/Azure/azure-sdk-for-go/sdk/azcore"
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/openai/openai-go/v3"
+    "github.com/openai/openai-go/v3/azure"
+    "github.com/openai/openai-go/v3/option"
 )
 
 func main() {
     // Read the Aspire-injected connection properties
-    endpoint   := os.Getenv("CHAT_ENDPOINT")
-    apiKey     := os.Getenv("CHAT_APIKEY")
-    deployment := os.Getenv("CHAT_DEPLOYMENT")
+    endpoint   := os.Getenv("CHAT_URI")
+    deployment := os.Getenv("CHAT_MODELNAME")
 
-    client, err := azopenai.NewClientWithKeyCredential(
-        endpoint,
-        azcore.NewKeyCredential(apiKey),
-        nil,
+    tokenCredential, err := azidentity.NewDefaultAzureCredential(nil)
+    if err != nil {
+        panic(err)
+    }
+
+    client := openai.NewClient(
+        option.WithBaseURL(fmt.Sprintf("%sopenai/v1", endpoint)),
+        azure.WithTokenCredential(tokenCredential),
     )
+
+    resp, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
+        Messages: []openai.ChatCompletionMessageParamUnion{
+            openai.UserMessage("Hello from Aspire!"),
+        },
+        Model: deployment,
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(resp.Choices[0].Message.Content)
+}
+```
+
+<Aside type="note">
+  If you're running [Foundry Local](../azure-ai-foundry-host/#use-foundry-local-for-development) — the only scenario where Aspire exposes a `Key` property — read `CHAT_KEY` and use `option.WithAPIKey(apiKey)` (from `github.com/openai/openai-go/v3/option`) in place of `azure.WithTokenCredential(...)`.
+</Aside>
+
+### Legacy: azopenai (Go)
+
+<Aside type="caution">
+  Microsoft has retired this pattern — calling the classic, versioned Azure OpenAI REST API through `azopenai.GetChatCompletions` — in favor of `openai-go` against the `openai/v1` route shown above. Use this only for existing apps you haven't migrated yet.
+</Aside>
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai
+go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
+```
+
+```go title="main.go (legacy)"
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+
+    "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+)
+
+func main() {
+    // Read the Aspire-injected connection properties
+    endpoint   := os.Getenv("CHAT_URI")
+    deployment := os.Getenv("CHAT_MODELNAME")
+
+    credential, err := azidentity.NewDefaultAzureCredential(nil)
+    if err != nil {
+        panic(err)
+    }
+
+    client, err := azopenai.NewClient(endpoint, credential, nil)
     if err != nil {
         panic(err)
     }
@@ -299,30 +358,110 @@ func main() {
 }
 ```
 
+<Aside type="note">
+  If you're running Foundry Local, read `CHAT_KEY` and use `azopenai.NewClientWithKeyCredential(endpoint, azcore.NewKeyCredential(apiKey), nil)` (from `github.com/Azure/azure-sdk-for-go/sdk/azcore`) instead.
+</Aside>
+
 </TabItem>
 <TabItem label="Python">
 
-Install the [azure-ai-inference](https://pypi.org/project/azure-ai-inference/) and [azure-ai-projects](https://pypi.org/project/azure-ai-projects/) packages:
+Install the [openai](https://pypi.org/project/openai/), [azure-identity](https://pypi.org/project/azure-identity/), and [azure-ai-projects](https://pypi.org/project/azure-ai-projects/) packages:
 
 ```bash title="Terminal"
-pip install azure-ai-inference azure-ai-projects
+pip install openai azure-identity azure-ai-projects
 ```
 
-**Using `azure-ai-inference` for direct model calls:**
+<Aside type="note">
+  Microsoft has retired the `azure-ai-inference` SDK in favor of the `openai` package for calling Azure AI Foundry Models. For details, see Microsoft's [Azure AI Inference SDK to OpenAI SDK migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration). A [legacy example](#legacy-azure-ai-inference-sdk-python) using `azure-ai-inference` is provided below for apps that haven't migrated yet.
+</Aside>
+
+**Using the OpenAI SDK for direct model calls (recommended):**
+
+The default `AddFoundry(...)` resource has local auth disabled, so authenticate with `azure-identity`:
 
 ```python title="app.py"
 import os
-from azure.ai.inference import ChatCompletionsClient
-from azure.core.credentials import AzureKeyCredential
+from openai import OpenAI
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
 # Read the Aspire-injected connection properties
-endpoint   = os.environ["CHAT_ENDPOINT"]
-api_key    = os.environ["CHAT_APIKEY"]
-deployment = os.environ["CHAT_DEPLOYMENT"]
+endpoint   = os.environ["CHAT_URI"]
+deployment = os.environ["CHAT_MODELNAME"]
+
+token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(),
+    "https://ai.azure.com/.default",
+)
+
+client = OpenAI(
+    base_url=f"{endpoint}openai/v1/",
+    api_key=token_provider,
+)
+
+response = client.chat.completions.create(
+    model=deployment,
+    messages=[{"role": "user", "content": "Hello from Aspire!"}],
+)
+
+print(response.choices[0].message.content)
+```
+
+<Aside type="note">
+  If you're running [Foundry Local](../azure-ai-foundry-host/#use-foundry-local-for-development) — the only scenario where Aspire exposes a `Key` property — read `CHAT_KEY` and pass it as `api_key` instead of the token provider.
+</Aside>
+
+**Using `azure-ai-projects` for Foundry project-scoped access:**
+
+```python title="app.py"
+import os
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
+
+# Read the Aspire-injected project connection properties
+project_endpoint = os.environ["MYPROJECT_URI"]
+
+project_client = AIProjectClient(
+    endpoint=project_endpoint,
+    credential=DefaultAzureCredential(),
+)
+
+client = project_client.get_openai_client()
+
+response = client.chat.completions.create(
+    model=os.environ.get("CHAT_MODELNAME", "gpt-5-mini"),
+    messages=[{"role": "user", "content": "Hello from Aspire!"}],
+)
+
+print(response.choices[0].message.content)
+```
+
+### Legacy: Azure AI Inference SDK (Python)
+
+<Aside type="caution">
+  Microsoft has retired the Azure AI Inference SDK in favor of the OpenAI SDK shown above. Use this only for existing apps you haven't migrated yet.
+</Aside>
+
+Install the [azure-ai-inference](https://pypi.org/project/azure-ai-inference/) and [azure-identity](https://pypi.org/project/azure-identity/) packages:
+
+```bash title="Terminal"
+pip install azure-ai-inference azure-identity
+```
+
+The default `AddFoundry(...)` resource has local auth disabled, so this example authenticates with `DefaultAzureCredential`:
+
+```python title="app.py (legacy)"
+import os
+from azure.ai.inference import ChatCompletionsClient
+from azure.identity import DefaultAzureCredential
+
+# Read the Aspire-injected connection properties
+endpoint   = os.environ["CHAT_AIINFERENCEURI"]
+deployment = os.environ["CHAT_MODELNAME"]
 
 client = ChatCompletionsClient(
     endpoint=endpoint,
-    credential=AzureKeyCredential(api_key),
+    credential=DefaultAzureCredential(),
+    credential_scopes=["https://cognitiveservices.azure.com/.default"],
 )
 
 response = client.complete(
@@ -333,53 +472,106 @@ response = client.complete(
 print(response.choices[0].message.content)
 ```
 
-**Using `azure-ai-projects` for Foundry project-scoped access:**
-
-```python title="app.py"
-import os
-from azure.ai.projects import AIProjectClient
-from azure.core.credentials import AzureKeyCredential
-
-# Read the Aspire-injected project connection properties
-project_endpoint = os.environ["MY_PROJECT_ENDPOINT"]
-api_key          = os.environ["MY_PROJECT_APIKEY"]
-
-project_client = AIProjectClient(
-    endpoint=project_endpoint,
-    credential=AzureKeyCredential(api_key),
-)
-
-chat = project_client.inference.get_chat_completions_client()
-
-response = chat.complete(
-    model=os.environ.get("CHAT_DEPLOYMENT", "gpt-5-mini"),
-    messages=[{"role": "user", "content": "Hello from Aspire!"}],
-)
-
-print(response.choices[0].message.content)
-```
+<Aside type="note">
+  If you're running [Foundry Local](../azure-ai-foundry-host/#use-foundry-local-for-development) — the only scenario where Aspire exposes a `Key` property — read `CHAT_KEY` and use `AzureKeyCredential(api_key)` (from `azure.core.credentials`) instead.
+</Aside>
 
 </TabItem>
 <TabItem label="TypeScript">
 
-Install the official [@azure/ai-inference](https://www.npmjs.com/package/@azure/ai-inference) and [@azure/ai-projects](https://www.npmjs.com/package/@azure/ai-projects) packages:
+Install the official [openai](https://www.npmjs.com/package/openai), [@azure/identity](https://www.npmjs.com/package/@azure/identity), and [@azure/ai-projects](https://www.npmjs.com/package/@azure/ai-projects) packages:
 
 ```bash title="Terminal"
-npm install @azure/ai-inference @azure/ai-projects @azure/core-auth
+npm install openai @azure/identity @azure/ai-projects
 ```
 
-**Using `@azure/ai-inference` for direct model calls:**
+<Aside type="note">
+  Microsoft has retired the `@azure-rest/ai-inference` SDK in favor of the `openai` package for calling Azure AI Foundry Models. For details, see Microsoft's [Azure AI Inference SDK to OpenAI SDK migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration). A [legacy example](#legacy-azure-ai-inference-sdk-typescript) using `@azure-rest/ai-inference` is provided below for apps that haven't migrated yet.
+</Aside>
+
+**Using the OpenAI SDK for direct model calls (recommended):**
+
+The default `AddFoundry(...)` resource has local auth disabled, so authenticate with `@azure/identity`:
 
 ```typescript title="index.ts"
-import ModelClient from '@azure/ai-inference';
-import { AzureKeyCredential } from '@azure/core-auth';
+import OpenAI from 'openai';
+import { DefaultAzureCredential, getBearerTokenProvider } from '@azure/identity';
 
 // Read Aspire-injected connection properties
-const endpoint   = process.env.CHAT_ENDPOINT!;
-const apiKey     = process.env.CHAT_APIKEY!;
-const deployment = process.env.CHAT_DEPLOYMENT ?? 'chat';
+const endpoint   = process.env.CHAT_URI!;
+const deployment = process.env.CHAT_MODELNAME ?? 'chat';
 
-const client = new ModelClient(endpoint, new AzureKeyCredential(apiKey));
+const tokenProvider = getBearerTokenProvider(
+    new DefaultAzureCredential(),
+    'https://ai.azure.com/.default',
+);
+
+const client = new OpenAI({
+    baseURL: `${endpoint}openai/v1/`,
+    apiKey: tokenProvider,
+});
+
+const response = await client.chat.completions.create({
+    model: deployment,
+    messages: [{ role: 'user', content: 'Hello from Aspire!' }],
+});
+
+console.log(response.choices[0].message.content);
+```
+
+<Aside type="note">
+  If you're running [Foundry Local](../azure-ai-foundry-host/#use-foundry-local-for-development) — the only scenario where Aspire exposes a `Key` property — read `CHAT_KEY` and pass it as `apiKey` instead of the token provider.
+</Aside>
+
+**Using `@azure/ai-projects` for Foundry project-scoped access:**
+
+```typescript title="index.ts"
+import { AIProjectClient } from '@azure/ai-projects';
+import { DefaultAzureCredential } from '@azure/identity';
+
+// Read Aspire-injected project connection properties
+const projectEndpoint = process.env.MYPROJECT_URI!;
+
+const projectClient = new AIProjectClient(
+    projectEndpoint,
+    new DefaultAzureCredential(),
+);
+
+const client = projectClient.getOpenAIClient();
+
+const response = await client.chat.completions.create({
+    model: process.env.CHAT_MODELNAME ?? 'gpt-5-mini',
+    messages: [{ role: 'user', content: 'Hello from Aspire!' }],
+});
+
+console.log(response.choices[0].message.content);
+```
+
+### Legacy: Azure AI Inference SDK (TypeScript)
+
+<Aside type="caution">
+  Microsoft has retired the Azure AI Inference SDK in favor of the OpenAI SDK shown above. Use this only for existing apps you haven't migrated yet.
+</Aside>
+
+Install the [@azure-rest/ai-inference](https://www.npmjs.com/package/@azure-rest/ai-inference) and [@azure/identity](https://www.npmjs.com/package/@azure/identity) packages:
+
+```bash title="Terminal"
+npm install @azure-rest/ai-inference @azure/identity
+```
+
+The default `AddFoundry(...)` resource has local auth disabled, so this example authenticates with `DefaultAzureCredential`:
+
+```typescript title="index.ts (legacy)"
+import ModelClient from '@azure-rest/ai-inference';
+import { DefaultAzureCredential } from '@azure/identity';
+
+// Read Aspire-injected connection properties
+const endpoint   = process.env.CHAT_AIINFERENCEURI!;
+const deployment = process.env.CHAT_MODELNAME ?? 'chat';
+
+const client = ModelClient(endpoint, new DefaultAzureCredential(), {
+    credentials: { scopes: ['https://cognitiveservices.azure.com/.default'] },
+});
 
 const response = await client.path('/chat/completions').post({
     body: {
@@ -395,47 +587,21 @@ if (response.status !== '200') {
 console.log(response.body.choices[0].message.content);
 ```
 
-**Using `@azure/ai-projects` for Foundry project-scoped access:**
-
-```typescript title="index.ts"
-import { AIProjectClient } from '@azure/ai-projects';
-import { AzureKeyCredential } from '@azure/core-auth';
-
-// Read Aspire-injected project connection properties
-const projectEndpoint = process.env.MY_PROJECT_ENDPOINT!;
-const apiKey          = process.env.MY_PROJECT_APIKEY!;
-
-const projectClient = new AIProjectClient(
-    projectEndpoint,
-    new AzureKeyCredential(apiKey),
-);
-
-const chatClient = projectClient.inference.getChatCompletionsClient();
-
-const response = await chatClient.path('/chat/completions').post({
-    body: {
-        model: process.env.CHAT_DEPLOYMENT ?? 'gpt-5-mini',
-        messages: [{ role: 'user', content: 'Hello from Aspire!' }],
-    },
-});
-
-if (response.status !== '200') {
-    throw new Error(`Request failed: ${response.status}`);
-}
-
-console.log(response.body.choices[0].message.content);
-```
+<Aside type="note">
+  If you're running [Foundry Local](../azure-ai-foundry-host/#use-foundry-local-for-development) — the only scenario where Aspire exposes a `Key` property — read `CHAT_KEY` and use `AzureKeyCredential(apiKey)` (from `@azure/core-auth`) instead.
+</Aside>
 
 </TabItem>
 </Tabs>
 
 <Aside type="tip">
-  In production, use Managed Identity instead of an API key. Replace `AzureKeyCredential` with `DefaultAzureCredential` from the respective Azure Identity package for your language.
+  Every example above, including the legacy Azure AI Inference SDK examples defaults to Managed Identity (`DefaultAzureCredential`), because that's how `AddFoundry(...)` provisions the resource and Aspire only ever surfaces a `Key` property for Foundry Local. Each example includes a note on swapping in `CHAT_KEY` if you're running Foundry Local. See the "Foundry account resource" and "Foundry project resource" connection properties above for details.
 </Aside>
 
 ## See also
 
 - [Get started with Azure AI Foundry integrations](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/)
 - [Azure AI Foundry hosting integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/)
-- [Azure AI Inference integration](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/)
+- [Azure AI Inference SDK to OpenAI SDK migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration)
+- [Azure AI Inference integration (legacy)](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/)
 - [Azure AI Foundry documentation](https://learn.microsoft.com/azure/ai-foundry/)

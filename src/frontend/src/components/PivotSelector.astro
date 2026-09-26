@@ -23,8 +23,9 @@ const renderedOptions =
     : options;
 ---
 
-<div
+<aspire-pivot-selector
   class="pivot-container not-content"
+  data-pivot-key={key}
   data-tour-target="pivot-selector"
   data-tour-step="pivot-selector"
 >
@@ -73,7 +74,7 @@ const renderedOptions =
         stroke-linejoin="round"></path>
     </svg>
   </button>
-</div>
+</aspire-pivot-selector>
 
 <style
   define:vars={{
@@ -81,6 +82,7 @@ const renderedOptions =
   }}
 >
   .pivot-container {
+    display: block;
     background: var(--sl-color-bg-nav);
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.5rem;
@@ -93,7 +95,8 @@ const renderedOptions =
 
   .pivot-container.floating {
     position: fixed;
-    top: calc(var(--sl-nav-height) + 0.35rem);
+    /* The site's mobile TOC can remain visible beyond this component's 72rem layout. */
+    top: calc(var(--sl-nav-height) + var(--sl-mobile-toc-height, 0px) + 0.35rem);
     left: 50%;
     transform: translateX(-50%);
     z-index: var(--sl-z-index-toc, 10);
@@ -240,7 +243,7 @@ const renderedOptions =
 
   /* Collapsed floating position */
   .pivot-container.floating.collapsed {
-    top: calc(var(--sl-nav-height) - 1px);
+    top: calc(var(--sl-nav-height) + var(--sl-mobile-toc-height, 0px) - 1px);
   }
 
   .pivot-container.collapsed .pivot-expand-btn {
@@ -344,419 +347,6 @@ const renderedOptions =
   }
 </style>
 
-<script is:inline define:vars={{ key }}>
-  function initPivotSelector() {
-    const qsKey = key;
-    const selector = document.getElementById(`pivot-selector-${key}`);
-
-    if (!selector) {
-      console.warn('Pivot selector not found!');
-      return;
-    }
-    if (selector.dataset.pivotInitialized === 'true') return;
-    selector.dataset.pivotInitialized = 'true';
-
-    const container = selector.closest('.pivot-container');
-    if (!container) {
-      console.warn('Pivot container not found!');
-      return;
-    }
-
-    // Get all valid (non-disabled) options
-    const validButtons = [...selector.querySelectorAll('button:not(:disabled)')];
-    const validOptions = validButtons.map((btn) => btn.dataset.pivotOption);
-
-    // Read from query string -> storage -> first valid option
-    const qs = new URLSearchParams(window.location.search);
-    const qsValue = qs.get(qsKey);
-    const storageValue = localStorage.getItem(qsKey);
-    const firstValid = validButtons[0]?.dataset.pivotOption;
-
-    // Validate and use the first valid value
-    let current =
-      qsValue && validOptions.includes(qsValue)
-        ? qsValue
-        : storageValue && validOptions.includes(storageValue)
-          ? storageValue
-          : firstValid;
-
-    function findNearestVisibleHeading() {
-      // Find all headings in the main content area
-      const headings = document.querySelectorAll(
-        'main h1, main h2, main h3, main h4, main h5, main h6'
-      );
-
-      if (headings.length === 0) return null;
-
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      const viewportTop = scrollTop;
-
-      // Find the nearest heading above or at the current scroll position
-      let nearestHeading = null;
-      let minDistance = Infinity;
-
-      for (const heading of headings) {
-        // Skip headings that are hidden
-        if (heading.offsetParent === null) continue;
-
-        const rect = heading.getBoundingClientRect();
-        const headingTop = scrollTop + rect.top;
-        const distance = viewportTop - headingTop;
-
-        // We want headings that are above the viewport (distance >= 0)
-        // or just slightly below (within reasonable threshold)
-        if (distance >= -100 && distance < minDistance) {
-          minDistance = distance;
-          nearestHeading = heading;
-        }
-      }
-
-      if (!nearestHeading) return null;
-
-      const rect = nearestHeading.getBoundingClientRect();
-      return {
-        id: nearestHeading.id,
-        text: nearestHeading.textContent,
-        offset: rect.top, // Distance from top of viewport
-      };
-    }
-
-    function restoreScrollPosition(anchor) {
-      if (!anchor) return;
-
-      // Try to find the heading by ID first, then by text content
-      let targetHeading = null;
-
-      if (anchor.id) {
-        targetHeading = document.getElementById(anchor.id);
-      }
-
-      if (!targetHeading && anchor.text) {
-        const headings = document.querySelectorAll(
-          'main h1, main h2, main h3, main h4, main h5, main h6'
-        );
-        for (const heading of headings) {
-          if (heading.offsetParent !== null && heading.textContent === anchor.text) {
-            targetHeading = heading;
-            break;
-          }
-        }
-      }
-
-      if (targetHeading) {
-        // Calculate the scroll position to maintain the same offset
-        const rect = targetHeading.getBoundingClientRect();
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const targetScrollTop = scrollTop + rect.top - anchor.offset;
-
-        // Use smooth scroll for better UX
-        window.scrollTo({
-          top: targetScrollTop,
-          behavior: 'instant', // Use 'instant' to avoid jarring effect
-        });
-      }
-    }
-
-    function apply(id) {
-      if (!id) return;
-
-      // Only apply if it's a valid, non-disabled option
-      if (!validOptions.includes(id)) {
-        console.warn(`Invalid pivot option: ${id}`);
-        return;
-      }
-
-      // Capture scroll position anchor before changing content
-      const scrollAnchor = findNearestVisibleHeading();
-
-      current = id;
-
-      // persist pref
-      localStorage.setItem(qsKey, id);
-
-      // When the pivot drives the global `aspire-lang` preference, mirror the
-      // selection into the Starlight synced-tabs storage so that destination
-      // pages with `<Tabs syncKey="aspire-lang">` default to the same language.
-      // Mirrors the label map in src/components/starlight/Head.astro.
-      if (qsKey === 'aspire-lang') {
-        const appHostLangLabels = { csharp: 'C#', typescript: 'TypeScript' };
-        const label = appHostLangLabels[id];
-        if (label) {
-          try {
-            localStorage.setItem('starlight-synced-tabs__aspire-lang', label);
-          } catch (e) {}
-        }
-      }
-
-      // sync URL
-      const url = new URL(window.location);
-      url.searchParams.set(qsKey, id);
-      window.history.replaceState({}, '', url);
-
-      // style buttons
-      [...selector.querySelectorAll('button')].forEach((btn) =>
-        btn.classList.toggle('active', btn.dataset.pivotOption === id)
-      );
-
-      // show/hide pivot blocks
-      const blocks = document.querySelectorAll('[data-pivot-block]');
-      blocks.forEach((el) => {
-        const blockId = el.dataset.pivotBlock;
-        // Support multiple IDs separated by comma or semicolon
-        const blockIds = blockId.split(/[,;]/).map((id) => id.trim());
-        const shouldShow = blockIds.includes(id);
-        el.style.display = shouldShow ? '' : 'none';
-      });
-
-      // Restore scroll position after content change
-      // Use requestAnimationFrame to ensure the new content has been rendered
-      requestAnimationFrame(() => {
-        restoreScrollPosition(scrollAnchor);
-      });
-    }
-
-    selector.addEventListener('click', (e) => {
-      if (e.target.dataset.pivotOption) {
-        apply(e.target.dataset.pivotOption);
-      }
-    });
-
-    apply(current);
-
-    // Floating behavior
-    let placeholder = null;
-    let originalTop = 0;
-    let isFloating = false;
-    let ticking = false;
-
-    function createPlaceholder() {
-      if (!placeholder) {
-        placeholder = document.createElement('div');
-        placeholder.className = 'pivot-placeholder';
-        container.parentNode.insertBefore(placeholder, container.nextSibling);
-      }
-      const rect = container.getBoundingClientRect();
-      placeholder.style.height = `${rect.height}px`;
-      placeholder.style.marginBottom = getComputedStyle(container).marginBottom;
-    }
-
-    function updateFloatingState() {
-      const rect = container.getBoundingClientRect();
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-      // Calculate the original position (only once or when not floating)
-      if (!isFloating) {
-        originalTop = scrollTop + rect.top;
-      }
-
-      const shouldFloat = scrollTop > originalTop;
-
-      if (shouldFloat !== isFloating) {
-        isFloating = shouldFloat;
-
-        if (isFloating) {
-          createPlaceholder();
-          container.classList.add('floating');
-        } else {
-          container.classList.remove('floating');
-          if (placeholder) {
-            placeholder.style.height = '0px';
-          }
-        }
-      }
-
-      ticking = false;
-    }
-
-    function onScroll() {
-      if (!ticking) {
-        window.requestAnimationFrame(updateFloatingState);
-        ticking = true;
-      }
-    }
-
-    // Initialize floating behavior
-    function initFloating() {
-      // Delay to ensure layout is settled
-      setTimeout(() => {
-        const rect = container.getBoundingClientRect();
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        originalTop = scrollTop + rect.top;
-
-        window.addEventListener('scroll', onScroll, { passive: true });
-
-        // Check initial state (e.g., if user deep-linked and page loaded scrolled)
-        updateFloatingState();
-      }, 100);
-    }
-
-    // Handle resize - recalculate positions
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        if (!isFloating) {
-          const rect = container.getBoundingClientRect();
-          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-          originalTop = scrollTop + rect.top;
-        }
-        updateFloatingState();
-      }, 150);
-    });
-
-    initFloating();
-
-    // Collapse/Expand functionality
-    const collapseBtn = document.getElementById(`pivot-collapse-${key}`);
-    const expandBtn = document.getElementById(`pivot-expand-${key}`);
-
-    let isCollapsed = false;
-    let autoCollapseTimer = null;
-    let userExpanded = false; // Track if user manually expanded
-    let enableScrollCollapse = false; // Track if scroll collapse should be active
-
-    function setCollapsed(collapsed, isUserAction = false) {
-      isCollapsed = collapsed;
-
-      if (collapsed) {
-        container.classList.add('collapsed');
-        clearAutoCollapseTimer();
-        enableScrollCollapse = false;
-      } else {
-        container.classList.remove('collapsed');
-
-        // If user manually expanded, mark it and start auto-collapse timer
-        if (isUserAction) {
-          userExpanded = true;
-          startAutoCollapseTimer();
-        }
-      }
-    }
-
-    function startAutoCollapseTimer() {
-      clearAutoCollapseTimer();
-      enableScrollCollapse = false; // Disable scroll collapse during the 5 second wait
-
-      autoCollapseTimer = setTimeout(() => {
-        // After 5 seconds, enable scroll-to-collapse instead of immediately collapsing
-        if (isFloating && !isCollapsed) {
-          enableScrollCollapse = true;
-        }
-      }, 5000); // 5 seconds
-    }
-
-    function clearAutoCollapseTimer() {
-      if (autoCollapseTimer) {
-        clearTimeout(autoCollapseTimer);
-        autoCollapseTimer = null;
-      }
-    }
-
-    // Always start collapsed when floating
-    if (isFloating) {
-      setCollapsed(true);
-    }
-
-    collapseBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setCollapsed(true, true);
-      userExpanded = false; // Reset user expanded flag
-    });
-
-    expandBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setCollapsed(false, true);
-    });
-
-    // Handle scroll behavior - collapse when user scrolls if they expanded it
-    let scrollTimeout;
-    let lastScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-    function handleScrollCollapse() {
-      const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-      // Only auto-collapse if:
-      // 1. It's floating
-      // 2. Not already collapsed
-      // 3. User has scrolled (not just the initial floating trigger)
-      // 4. User previously expanded it manually
-      // 5. The 5 second timer has elapsed (enableScrollCollapse is true)
-      if (
-        isFloating &&
-        !isCollapsed &&
-        userExpanded &&
-        enableScrollCollapse &&
-        Math.abs(currentScrollTop - lastScrollTop) > 10
-      ) {
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(() => {
-          setCollapsed(true);
-          userExpanded = false;
-          enableScrollCollapse = false;
-        }, 150); // Small delay to avoid collapsing during smooth scroll
-      }
-
-      lastScrollTop = currentScrollTop;
-    }
-
-    window.addEventListener('scroll', handleScrollCollapse, { passive: true });
-
-    // When floating state changes, restore collapsed preference
-    const originalUpdateFloatingState = updateFloatingState;
-    updateFloatingState = function () {
-      const wasFloatingBefore = isFloating;
-      originalUpdateFloatingState();
-
-      // Always collapse when becoming floating
-      if (!wasFloatingBefore && isFloating) {
-        setCollapsed(true);
-      }
-      // If we're no longer floating, remove collapsed state
-      if (wasFloatingBefore && !isFloating && isCollapsed) {
-        setCollapsed(false);
-        clearAutoCollapseTimer();
-        userExpanded = false;
-        enableScrollCollapse = false;
-      }
-    };
-  }
-
-  // Add titles on desktop only
-  function updateTitles() {
-    const collapseBtn = document.getElementById(`pivot-collapse-${key}`);
-    const expandBtn = document.getElementById(`pivot-expand-${key}`);
-
-    const isDesktop = window.matchMedia('(min-width: 72rem)').matches;
-
-    if (collapseBtn) {
-      if (isDesktop) {
-        collapseBtn.setAttribute('title', 'Collapse selector');
-      } else {
-        collapseBtn.removeAttribute('title');
-      }
-    }
-
-    if (expandBtn) {
-      if (isDesktop) {
-        expandBtn.setAttribute('title', 'Show selector');
-      } else {
-        expandBtn.removeAttribute('title');
-      }
-    }
-  }
-
-  const initializePivotSelector = () => {
-    initPivotSelector();
-    updateTitles();
-  };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializePivotSelector);
-  } else {
-    initializePivotSelector();
-  }
-  document.addEventListener('astro:page-load', initializePivotSelector);
-
-  // Update titles on resize
-  window.addEventListener('resize', updateTitles);
+<script>
+  import './pivot-selector';
 </script>

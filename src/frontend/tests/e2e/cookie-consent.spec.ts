@@ -7,6 +7,7 @@ const ANALYTICS_SELECTOR = 'script[data-category="analytics"]';
 const INERT_ANALYTICS_SELECTOR = 'script[type="text/plain"][data-category="analytics"]';
 const EXECUTABLE_ANALYTICS_SELECTOR = 'script[data-category="analytics"]:not([type="text/plain"])';
 const MANAGE_TRIGGER_SELECTOR = '[data-cookie-manage-consent]';
+const SCANNER_XPATH = 'xpath=//*[@id="c-uhff-footer_managecookies"]';
 
 // astro dev fires a one-time full-page reload once Vite finishes pre-bundling
 // dependencies on a cold server, which can destroy the page's execution context
@@ -20,6 +21,9 @@ type WcpStubOptions = {
   consentRequired: boolean;
   /** Whether the stubbed consent record grants the Analytics category. */
   analyticsGranted: boolean;
+  /** Delay region resolution to exercise cached state and scanner readiness. */
+  initDelayMs?: number;
+  cachedConsentRequired?: boolean;
 };
 
 type WcpStubState = {
@@ -80,6 +84,9 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
   );
 
   await page.addInitScript((opts: WcpStubOptions) => {
+    if (opts.cachedConsentRequired !== undefined) {
+      localStorage.setItem('aspireConsentRequired', String(opts.cachedConsentRequired));
+    }
     // WCP v2 is key-based: `siteConsent.applyTheme(name)` looks the theme up in
     // this map and throws on a miss, and `WcpConsent.themes` is a string-keyed
     // record of theme objects.
@@ -160,7 +167,7 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
         const themeStyle = document.createElement('style');
         themeStyle.id = 'ms-consent-banner-theme-styles';
         document.head.append(baseStyle, themeStyle);
-        banner.hidden = !opts.consentRequired;
+        banner.hidden = !opts.consentRequired || sessionStorage.getItem('wcp-test-choice') !== null;
         const message = document.createElement('p');
         message.textContent = 'Choose whether to allow optional cookies.';
         banner.append(message);
@@ -191,6 +198,14 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
           preferences.hidden = true;
         });
         preferences.append(close);
+        const save = document.createElement('button');
+        save.type = 'button';
+        save.textContent = 'Save changes';
+        save.addEventListener('click', () => {
+          sessionStorage.setItem('wcp-test-choice', 'Save changes');
+          onConsentChanged?.();
+        });
+        preferences.append(save);
         host.append(banner, preferences);
 
         // Expose WCP's own consent-changed callback (init's 4th argument) so a
@@ -200,7 +215,11 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
         (
           window as unknown as { __triggerWcpConsentChanged?: () => void }
         ).__triggerWcpConsentChanged = () => onConsentChanged?.();
-        initCallback(null, siteConsent);
+        if (opts.initDelayMs) {
+          window.setTimeout(() => initCallback(null, siteConsent), opts.initDelayMs);
+        } else {
+          initCallback(null, siteConsent);
+        }
       },
     };
   }, options);
@@ -328,7 +347,7 @@ test.describe('WCP cookie consent bridge', () => {
       )
       .toBe(themeCalls + 1);
 
-    await page.locator(`${MANAGE_TRIGGER_SELECTOR}:visible`).first().click();
+    await page.locator(SCANNER_XPATH).click();
     const preferences = page.getByRole('dialog', { name: 'Cookie preferences', exact: true });
     await expect(preferences).toBeVisible();
     await navigateWithConsent(page, 'home');
@@ -365,6 +384,8 @@ test.describe('WCP cookie consent bridge', () => {
       await navigateWithConsent(page, destination);
       await expect(page.locator('html')).toHaveAttribute('data-consent-not-required', '');
       await expect(page.locator(`${MANAGE_TRIGGER_SELECTOR}:visible`)).toHaveCount(0);
+      await expect(page.locator(SCANNER_XPATH)).toHaveCount(1);
+      await expect(page.locator(SCANNER_XPATH).locator('..')).toBeHidden();
       await expect(page.getByRole('region', { name: 'Cookie consent', exact: true })).toBeHidden();
       expect(await page.evaluate(() => window.__wcpStub?.initCalls)).toBe(1);
       await expect
@@ -375,6 +396,82 @@ test.describe('WCP cookie consent bridge', () => {
         )
         .toBe('0px');
     }
+  });
+
+  for (const path of ['/', '/support/', '/ja/get-started/install-cli/']) {
+    test(`exposes one actionable scanner target under Legal on ${path}`, async ({ page }) => {
+      await installWcpStub(page, { consentRequired: true, analyticsGranted: false });
+      const response = await page.goto(path);
+      expect(response?.ok()).toBe(true);
+      const html = await response!.text();
+      expect(html.match(/id="c-uhff-footer_managecookies"/g)).toHaveLength(1);
+      await waitForConsentBootstrap(page);
+
+      const trigger = page.locator(SCANNER_XPATH);
+      await expect(trigger).toHaveCount(1);
+      await expect(trigger).toHaveAccessibleName('Manage Cookies');
+      await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+      await expect(
+        page.locator('nav[aria-labelledby="footer-legal-heading"] #c-uhff-footer_managecookies')
+      ).toHaveCount(1);
+      await expect(page.locator('.footer-socials [data-cookie-manage-consent]')).toHaveCount(0);
+      await trigger.click();
+      const dialog = page.getByRole('dialog', { name: 'Cookie preferences', exact: true });
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: 'Close cookie preferences' }).click();
+      await trigger.focus();
+      await trigger.press('Enter');
+      await expect(dialog).toBeVisible();
+      await expect(page.locator(EXECUTABLE_ANALYTICS_SELECTOR)).toHaveCount(0);
+    });
+  }
+
+  for (const choice of ['Accept all', 'Reject all', 'Save changes']) {
+    test(`the scanner can reopen preferences after ${choice}`, async ({ page }) => {
+      await installWcpStub(page, { consentRequired: true, analyticsGranted: false });
+      await page.goto('/');
+      await waitForConsentBootstrap(page);
+      if (choice === 'Save changes') {
+        await page.locator(SCANNER_XPATH).click();
+      }
+      await page.getByRole('button', { name: choice, exact: true }).click();
+      await expect
+        .poll(() => safeEvaluate(page, () => sessionStorage.getItem('wcp-test-choice')))
+        .toBe(choice);
+      await page.waitForLoadState('load');
+      await waitForConsentBootstrap(page);
+      await expect(page.getByRole('region', { name: 'Cookie consent' })).toBeHidden();
+      await page.locator(SCANNER_XPATH).click();
+      await expect(page.getByRole('dialog', { name: 'Cookie preferences' })).toBeVisible();
+    });
+  }
+
+  test('exposes the scanner target after delayed WCP corrects a cached non-consent region', async ({
+    page,
+  }) => {
+    await installWcpStub(page, {
+      consentRequired: true,
+      analyticsGranted: false,
+      cachedConsentRequired: false,
+      initDelayMs: 1500,
+    });
+    await page.goto('/');
+    await waitForConsentBootstrap(page);
+    await expect(page.locator('html')).not.toHaveAttribute('data-consent-not-required');
+    await page.locator(SCANNER_XPATH).click();
+    await expect(page.getByRole('dialog', { name: 'Cookie preferences' })).toBeVisible();
+  });
+
+  test('does not imply a working dialog or grant analytics when WCP is blocked', async ({
+    page,
+  }) => {
+    await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
+    await page.goto('/');
+    const trigger = page.locator(SCANNER_XPATH);
+    await expect(trigger).toHaveCount(1);
+    await trigger.click();
+    await expect(page.locator('#wcpCookiePreferenceCtrl')).toHaveCount(0);
+    await expect(page.locator(EXECUTABLE_ANALYTICS_SELECTOR)).toHaveCount(0);
   });
 
   test('promotes inert analytics scripts once Analytics consent is granted', async ({ page }) => {
@@ -472,9 +569,8 @@ test.describe('WCP cookie consent bridge', () => {
     await page.goto('/');
     await waitForConsentBootstrap(page);
 
-    // At least one manage-cookies control must be server-rendered (the homepage
-    // ships three: the header's desktop and mobile buttons plus the footer's
-    // social row). The exact count varies by page/viewport, so assert on the
+    // Manage-cookies controls are server-rendered in the header and footer Legal
+    // list. The exact count varies by page/viewport, so assert on the
     // behavior — every rendered control opens WCP's dialog — rather than a
     // brittle fixed number.
     await expect

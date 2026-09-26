@@ -71,15 +71,16 @@ let packagesPromise: Promise<PackageCollectionEntry[]> | undefined;
 const shouldCachePackages = import.meta.env.PROD;
 
 /**
- * Fetch all package entries from the content collection.
+ * Fetch packages with public C# types from the content collection.
  * Memoized so Astro's many API routes reuse a single collection load.
  */
 export function getPackages(): Promise<PackageCollectionEntry[]> {
+  const hasPublicTypes = ({ data }: CollectionEntry<'packages'>) => data.types.length > 0;
   if (!shouldCachePackages) {
-    return getCollection('packages');
+    return getCollection('packages', hasPublicTypes);
   }
 
-  packagesPromise ??= getCollection('packages');
+  packagesPromise ??= getCollection('packages', hasPublicTypes);
   return packagesPromise;
 }
 

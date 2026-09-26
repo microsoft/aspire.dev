@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace StaticHost.Live.Twitch;
 
@@ -54,6 +55,42 @@ public static class TwitchWebhookHandler
 
         var age = now - sent;
         return age <= maxAge && age >= TimeSpan.FromMinutes(-1);
+    }
+
+    internal static string SanitizeDiagnosticValue(string value)
+    {
+        const int maxLength = 128;
+        var bounded = value.Length > maxLength ? value[..(maxLength - 3)] + "..." : value;
+        return Regex.Replace(bounded, "[^a-zA-Z0-9_.:+-]", "_");
+    }
+
+    private static void LogRevocation(string bodyJson, ILogger logger)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(bodyJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty("subscription", out var subscription) ||
+                subscription.ValueKind != JsonValueKind.Object)
+            {
+                logger.LogWarning("Twitch EventSub subscription revoked; subscription details unavailable.");
+                return;
+            }
+
+            // Retain the subscription state, not transport URLs or other payload data.
+            logger.LogWarning(
+                "Twitch EventSub subscription revoked (Id: {SubscriptionId}, Type: {SubscriptionType}, Status: {SubscriptionStatus}).",
+                LogField("id"), LogField("type"), LogField("status"));
+
+            string LogField(string name) =>
+                subscription.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                    ? SanitizeDiagnosticValue(value.GetString()!)
+                    : "<missing>";
+        }
+        catch (JsonException)
+        {
+            logger.LogWarning("Twitch EventSub subscription revoked; payload is not valid JSON.");
+        }
     }
 
     /// <summary>
@@ -121,10 +158,11 @@ public static class TwitchWebhookHandler
                     return Results.Ok();
                 }
             case "revocation":
-                logger.LogWarning("Twitch EventSub subscription revoked: {Body}", bodyJson);
+                LogRevocation(bodyJson, logger);
                 return Results.NoContent();
             default:
-                logger.LogDebug("Twitch webhook of unknown message-type {Type}", messageType);
+                logger.LogDebug("Twitch webhook of unknown message type {MessageType} (sanitized).",
+                    SanitizeDiagnosticValue(messageType));
                 return Results.Ok();
         }
     }

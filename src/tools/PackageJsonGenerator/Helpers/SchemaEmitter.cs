@@ -26,7 +26,8 @@ internal static class SchemaEmitter
         string targetFramework,
         List<CanonicalType> types,
         string? sourceRepository = null,
-        string? sourceCommit = null)
+        string? sourceCommit = null,
+        bool hasGeneratedExports = false)
     {
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream, s_writerOptions))
@@ -36,6 +37,10 @@ internal static class SchemaEmitter
             writer.WriteString("name", assemblyName);
             writer.WriteString("version", assemblyVersion);
             writer.WriteString("targetFramework", targetFramework);
+            if (hasGeneratedExports)
+            {
+                writer.WriteBoolean("hasGeneratedExports", true);
+            }
             if (!string.IsNullOrEmpty(sourceRepository))
             {
                 writer.WriteString("sourceRepository", sourceRepository);

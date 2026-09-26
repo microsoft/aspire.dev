@@ -1,0 +1,435 @@
+---
+title: Deploy to Azure Container Apps Sandboxes
+seoTitle: Deploy Aspire apps to Azure Container Apps Sandboxes
+description: "Deploy Aspire compute resources to Azure Container Apps Sandboxes with `aspire deploy` — sandbox groups, tiers, auto-suspend, endpoint access, and identity."
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+<Badge text="🧪 Experimental" variant="caution" size="large" class="mb-1" />
+
+Use `aspire deploy` to deploy Aspire applications to [Azure Container Apps Sandboxes](https://sandboxes.azure.com/docs/sandboxes/quickstart/setup-portal). Aspire provisions a sandbox group, an Azure Container Registry, and the managed identities and role assignments the group needs. It then builds or resolves a container image for each compute resource and runs it as a sandbox with the lifecycle and endpoint settings you configure in your AppHost.
+
+:::caution[Experimental and in preview]
+Azure Container Apps Sandboxes is a preview Azure service, and the `Aspire.Hosting.Azure.Sandboxes` libary is prerelease. The API surface and deployment behavior may change in future releases.
+:::
+
+<LearnMore>
+  Start with [Deploy to Azure](/deployment/azure/) for the shared Azure
+  deployment model, authentication, and target selection.
+</LearnMore>
+
+## Prerequisites
+
+- [Aspire prerequisites](/get-started/prerequisites/)
+- [Aspire CLI](/get-started/install-cli/) installed
+- For local deployment with the default credential source, [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and available on your `PATH`
+- An Azure subscription and region with Azure Container Apps Sandboxes preview access
+- Permission to create sandbox groups, Azure Container Registry resources, managed identities, and scoped role assignments in the target subscription
+- Docker or Podman, which Aspire uses to build images and inspect them for a Linux/amd64 manifest
+
+By default, local deployment uses Azure CLI credentials. Authenticate with Azure CLI before deploying:
+
+```bash title="Authenticate with Azure CLI"
+az login
+```
+
+## Configure your AppHost for Azure Container Apps Sandboxes
+
+Add Azure Container Apps Sandboxes support to your AppHost:
+
+```bash title="Aspire CLI — Add Azure Container Apps Sandboxes"
+aspire add Aspire.Hosting.Azure.Sandboxes
+```
+
+The Aspire CLI adds the [📦 Aspire.Hosting.Azure.Sandboxes](https://www.nuget.org/packages/Aspire.Hosting.Azure.Sandboxes) integration to your AppHost. The package is prerelease-only while the Azure service is in preview.
+
+Then add a sandbox group to your AppHost. When the sandbox group is the only compute environment in the AppHost, Aspire automatically deploys container-backed compute resources—projects, containers, and Dockerfile-based resources—to it:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureSandboxGroup("sandboxes");
+
+await builder
+    .addDockerfile("web", "./web")
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: "http" })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureSandboxGroup("sandboxes");
+
+builder.AddDockerfile("web", "./web")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The sandbox group only affects publish and deploy. When you run the AppHost locally with `aspire run`, Aspire adds the sandbox group to the app model but doesn't provision Azure sandbox resources, so your resources run locally as usual.
+
+For a standard deployment, you only need the sandbox group and your compute resources. Use `PublishAsAzureSandbox` only when you want to customize the sandbox runtime options for a resource.
+
+## Customize sandbox runtime options
+
+Call `PublishAsAzureSandbox` on a compute resource to choose its resource tier, configure auto-suspend and auto-delete, or change endpoint access:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import {
+    AzureSandboxAutoSuspendMode,
+    AzureSandboxTier,
+    createBuilder
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureSandboxGroup("sandboxes");
+
+await builder
+    .addDockerfile("web", "./web")
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: "http" })
+    .withExternalHttpEndpoints()
+    .publishAsAzureSandbox({
+        tier: AzureSandboxTier.Large,
+        autoSuspendEnabled: true,
+        autoSuspendInterval: 900_000, // 15 minutes, in milliseconds
+        autoSuspendMode: AzureSandboxAutoSuspendMode.Disk,
+        endpoints: [{ name: "http", anonymous: true }]
+    });
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureSandboxGroup("sandboxes");
+
+builder.AddDockerfile("web", "./web")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http")
+    .WithExternalHttpEndpoints()
+    .PublishAsAzureSandbox(new AzureSandboxOptions
+    {
+        Tier = AzureSandboxTier.Large,
+        AutoSuspendEnabled = true,
+        AutoSuspendInterval = TimeSpan.FromMinutes(15),
+        AutoSuspendMode = AzureSandboxAutoSuspendMode.Disk,
+        Endpoints =
+        [
+            new AzureSandboxEndpointOptions { Name = "http", Anonymous = true }
+        ]
+    });
+
+builder.Build().Run();
+```
+
+In C#, you can also pass a callback that configures the options: `PublishAsAzureSandbox(options => options.Tier = AzureSandboxTier.Small)`.
+
+</TabItem>
+</Tabs>
+
+`PublishAsAzureSandbox` has no effect during `aspire run`.
+
+### Resource tiers
+
+The `Tier` option sets the CPU, memory, and disk for each sandbox. The default tier is `Medium`.
+
+| Tier         | vCPU | Memory  | Disk   |
+| ------------ | ---- | ------- | ------ |
+| `ExtraSmall` | 0.25 | 0.5 GiB | 5 GiB |
+| `Small`      | 0.5  | 1 GiB   | 10 GiB |
+| `Medium`     | 1    | 2 GiB   | 20 GiB |
+| `Large`      | 2    | 4 GiB   | 40 GiB |
+| `ExtraLarge` | 4    | 8 GiB   | 80 GiB |
+
+### Lifecycle options
+
+Use the lifecycle options to suspend idle sandboxes or delete them after an interval. When you don't set `AutoSuspendEnabled` or `AutoDeleteEnabled`, Aspire doesn't send a lifecycle policy for that setting, and the service defaults apply.
+
+| Option                | Description                                                                                                                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `AutoSuspendEnabled`  | Enables or disables auto-suspend. Required when you set `AutoSuspendInterval` or `AutoSuspendMode`.                                                        |
+| `AutoSuspendInterval` | How long a sandbox can be idle before it's suspended.                                                                                                        |
+| `AutoSuspendMode`     | What the sandbox preserves when it's suspended: `Memory` preserves memory and disk state, `Disk` preserves disk state only, and `None` disables snapshot preservation. |
+| `AutoDeleteEnabled`   | Enables or disables auto-delete. Required when you set `AutoDeleteInterval` or `AutoDeleteTrigger`.                                                          |
+| `AutoDeleteInterval`  | How long to wait before the sandbox is deleted.                                                                                                              |
+| `AutoDeleteTrigger`   | The event that starts the auto-delete interval: `AfterSuspend` or `AfterCreation`.                                                                           |
+
+Durations must use whole-second precision. C# AppHosts use `TimeSpan` values, and TypeScript AppHosts use numbers of milliseconds, where one second is `1_000`.
+
+## Endpoints and access
+
+Aspire creates sandbox ports only for endpoints that are marked external, such as with `WithExternalHttpEndpoints`. Each exposed port gets a public HTTPS URL on the sandbox proxy, which terminates TLS and forwards traffic to the container's target port.
+
+- **Authenticated by default.** External endpoints require Microsoft Entra ID authentication by default. The sandbox port doesn't use an allow-list, so any authenticated Entra ID user can access it.
+- **Anonymous access is opt-in.** To allow anonymous access, set `Anonymous` to `true` for the endpoint in `AzureSandboxOptions.Endpoints`, as shown in the preceding example.
+- **HTTP only.** Sandbox ports support HTTP and HTTP/2 endpoints. TCP endpoints aren't supported.
+- **Target ports are required.** Each external endpoint needs a target port. Endpoints that share a target port share one sandbox port, so they must use the same protocol and anonymous-access policy.
+- **.NET projects.** When an external project resource has the usual paired HTTP and HTTPS endpoints on the same target port, Aspire exposes one sandbox port that forwards HTTP to the container on that shared target port (8080 when no target port is configured). References to either endpoint resolve to the same HTTPS URL. An external HTTPS endpoint without a matching HTTP endpoint on the same target port isn't supported.
+
+Public URLs for each exposed endpoint, along with a link to each sandbox group's dashboard, appear in the deployment summary after `aspire deploy` completes.
+
+### Reference other resources
+
+A sandbox can reference another sandbox's endpoint when both resources are deployed to the same sandbox group and the referenced endpoint is external. The reference resolves to the referenced sandbox's public HTTPS URL, so Aspire deploys the referenced sandbox first. Private service discovery and references across sandbox groups aren't supported.
+
+### Outbound network access
+
+Sandbox egress uses full traffic inspection with a deny-by-default policy. Aspire allows outbound traffic only to hosts that it finds in the resolved environment variables and arguments for each sandbox, such as endpoint URLs and the address fields of connection strings from referenced resources.
+
+## Deploy to multiple compute environments
+
+When an AppHost contains more than one compute environment, assign each compute resource explicitly with `WithComputeEnvironment`. `PublishAsAzureSandbox` uses that assignment and doesn't select an environment on its own:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { AzureSandboxTier, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const aca = await builder.addAzureContainerAppEnvironment("aca");
+const sandboxes = await builder.addAzureSandboxGroup("sandboxes");
+
+await builder
+    .addProject("api", "../Api/Api.csproj")
+    .withComputeEnvironment(aca);
+
+await builder
+    .addDockerfile("worker", "./worker")
+    .withComputeEnvironment(sandboxes)
+    .publishAsAzureSandbox({ tier: AzureSandboxTier.Small });
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE001 // Azure Container Apps Sandboxes APIs are experimental.
+
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var aca = builder.AddAzureContainerAppEnvironment("aca");
+var sandboxes = builder.AddAzureSandboxGroup("sandboxes");
+
+builder.AddProject<Projects.Api>("api")
+    .WithComputeEnvironment(aca);
+
+builder.AddDockerfile("worker", "./worker")
+    .WithComputeEnvironment(sandboxes)
+    .PublishAsAzureSandbox(new AzureSandboxOptions { Tier = AzureSandboxTier.Small });
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+## Identity and permissions
+
+A sandbox group uses separate identities for deployment, image pulls, and workloads.
+
+### Deployment identity
+
+After Azure provisions the sandbox group, Aspire creates disk images, sandboxes, lifecycle settings, and ports through the Azure Container Apps Sandboxes data-plane API. Those calls run as the identity that runs `aspire deploy`, so Aspire grants that identity the built-in **Container Apps SandboxGroup Data Owner** role, scoped to the sandbox group it provisions.
+
+When you run `aspire deploy` directly, Aspire binds the role assignment to the authenticated Azure credential's object ID and principal type. When you deploy the Bicep generated by `aspire publish` yourself, supply the `userPrincipalId` and `principalType` parameters for the identity that performs the deployment.
+
+### Image pull identity
+
+For a new sandbox group, Aspire creates a dedicated user-assigned managed identity, attaches it to the sandbox group, and grants it only the `AcrPull` role on the group's Azure Container Registry. The service uses this identity to import private images from the registry. Public registry images are imported without it, and registry credentials aren't sent to the service or stored in deployment state.
+
+Use `WithAcrPullIdentity` to supply a different user-assigned identity. For sandbox groups that Aspire creates, the identity is attached automatically, but you're responsible for granting it `AcrPull` on the registry.
+
+### Workload identities
+
+The image pull identity isn't exposed to sandbox workloads. To give workloads a managed identity, configure it on the sandbox group:
+
+- `WithSystemAssignedIdentity` adds a system-assigned managed identity for sandbox workloads.
+- `WithUserAssignedIdentity` adds a user-assigned managed identity for sandbox workloads.
+- `WithNoManagedIdentity` clears the workload identities configured on the sandbox group.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const workloadIdentity = await builder.addAzureUserAssignedIdentity("sandbox-identity");
+
+const sandboxes = await builder.addAzureSandboxGroup("sandboxes");
+await sandboxes.withUserAssignedIdentity(workloadIdentity);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE001 // Azure Container Apps Sandboxes APIs are experimental.
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var workloadIdentity = builder.AddAzureUserAssignedIdentity("sandbox-identity");
+
+builder.AddAzureSandboxGroup("sandboxes")
+    .WithUserAssignedIdentity(workloadIdentity);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Workload identities that individual compute resources request are also added to the sandbox group during deployment.
+
+<LearnMore>
+  For more information about managed identities in Aspire, see [Azure
+  user-assigned managed identity](/integrations/cloud/azure/user-assigned-identity/).
+</LearnMore>
+
+## Use an existing sandbox group
+
+To deploy into a sandbox group that already exists, mark it as existing. Aspire doesn't create role assignments or an image pull identity for an existing sandbox group, so before you deploy:
+
+- Grant the deployment identity the **Container Apps SandboxGroup Data Owner** role on the sandbox group.
+- Attach a user-assigned managed identity to the sandbox group, grant it `AcrPull` on the registry that the group uses, and pass it to `WithAcrPullIdentity`. The identity must also be marked as existing; otherwise, publish and deploy fail.
+
+The following example references an existing sandbox group, container registry, and image pull identity:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const resourceGroup = await builder.addParameter("sandboxResourceGroup");
+const groupName = await builder.addParameter("sandboxGroupName");
+const registryName = await builder.addParameter("sandboxRegistryName");
+const pullIdentityName = await builder.addParameter("sandboxPullIdentityName");
+
+const registry = await builder.addAzureContainerRegistry("registry");
+await registry.asExisting(registryName, resourceGroup);
+
+const pullIdentity = await builder.addAzureUserAssignedIdentity("sandbox-pull");
+await pullIdentity.asExisting(pullIdentityName, resourceGroup);
+
+const sandboxes = await builder.addAzureSandboxGroup("sandboxes");
+await sandboxes.asExisting(groupName, resourceGroup);
+await sandboxes.withAzureContainerRegistry(registry);
+await sandboxes.withAcrPullIdentity(pullIdentity);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE001 // Azure Container Apps Sandboxes APIs are experimental.
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var resourceGroup = builder.AddParameter("sandboxResourceGroup");
+var groupName = builder.AddParameter("sandboxGroupName");
+var registryName = builder.AddParameter("sandboxRegistryName");
+var pullIdentityName = builder.AddParameter("sandboxPullIdentityName");
+
+var registry = builder.AddAzureContainerRegistry("registry")
+    .AsExisting(registryName, resourceGroup);
+
+var pullIdentity = builder.AddAzureUserAssignedIdentity("sandbox-pull")
+    .AsExisting(pullIdentityName, resourceGroup);
+
+builder.AddAzureSandboxGroup("sandboxes")
+    .AsExisting(groupName, resourceGroup)
+    .WithAzureContainerRegistry(registry)
+    .WithAcrPullIdentity(pullIdentity);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Aspire uses the subscription, resource group, location, and name from the existing sandbox group's Azure outputs rather than the resource group of the current deployment.
+
+<LearnMore>
+  For more information about referencing existing Azure resources, see [Use
+  existing Azure resources](/integrations/cloud/azure/customize-resources/#use-existing-azure-resources).
+</LearnMore>
+
+## Publish, deploy, and destroy
+
+Sandbox groups are Azure Resource Manager resources, but sandboxes, disk images, ports, and lifecycle settings are exposed only through the regional data-plane API. Aspire therefore provisions the sandbox group with Bicep and performs the sandbox deployment itself.
+
+- **`aspire publish`** generates Bicep for the sandbox group, container registry, managed identities, and role assignments. Sandboxes, disk images, ports, and their URLs are created at deploy time, so they aren't part of the published output.
+- **`aspire deploy`** provisions the Azure resources, builds or resolves each workload image to an immutable Linux/amd64 digest, creates the disk image and sandbox, configures lifecycle settings and ports, and records the results in deployment state.
+- **`aspire destroy`** removes the current and retained sandboxes and disk images before Azure resource cleanup.
+
+Aspire labels the sandboxes and disk images it creates with the AppHost and Azure deployment scope. Those labels let a later deploy or destroy find the resources even after you clear deployment state with `--clear-cache`, without affecting resources that belong to other apps.
+
+### Redeployment
+
+To keep endpoint references working during an ordinary redeploy of the same image and endpoint policy, Aspire can retain the immediately previous sandbox until the next successful deployment. When the image digest, endpoint exposure, protocol, or anonymous-access setting changes, Aspire removes the previous sandbox immediately so an older workload or security configuration doesn't stay reachable. If Aspire can't remove it after such a change, the deployment reports a failure but keeps the new deployment and its state.
+
+<LearnMore>
+  For more information about the deployment commands, see [`aspire
+  publish`](/reference/cli/commands/aspire-publish/), [`aspire
+  deploy`](/reference/cli/commands/aspire-deploy/), [`aspire
+  destroy`](/reference/cli/commands/aspire-destroy/), and [Deployment state
+  caching](/deployment/deployment-state-caching/).
+</LearnMore>
+
+## Limitations
+
+The Azure Container Apps Sandboxes integration is experimental and intentionally narrow. It doesn't currently support:
+
+- Volumes or container mounts, snapshots, shell and file APIs, or interactive lifecycle commands
+- TCP ports, private service discovery, or endpoint references across sandbox groups
+- Windows or ARM64 images; images must provide a Linux/amd64 manifest
+- Arbitrary registry credentials
+- Sandbox URLs as inputs to first-pass Azure provisioning, because they don't exist until the sandbox is deployed
+
+## See also
+
+- [Deploy to Azure](/deployment/azure/)
+- [Azure Container Apps Sandboxes quickstart](https://sandboxes.azure.com/docs/sandboxes/quickstart/setup-portal)
+- [Azure security best practices](/deployment/azure/azure-security-best-practices/)
+- [📦 Aspire.Hosting.Azure.Sandboxes](https://www.nuget.org/packages/Aspire.Hosting.Azure.Sandboxes)
+- [Aspire.Hosting.Azure.Sandboxes source on GitHub](https://github.com/microsoft/aspire/tree/release/13.6/src/Aspire.Hosting.Azure.Sandboxes)

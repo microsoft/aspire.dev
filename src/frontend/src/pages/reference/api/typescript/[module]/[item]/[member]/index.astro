@@ -51,7 +51,6 @@ export async function getStaticPaths() {
 
 const { pkg, parentType, method } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const tsSidebar = await getTsApiReferenceSidebar({ packageName: pkg.package.name });
 const pkgSlug = tsModuleSlug(pkg.package.name);
 const topLevelItems = getTsTopLevelRouteItems(pkg);
 const parentSlug = Astro.params.item ?? getTsItemSlug(parentType, topLevelItems);
@@ -83,6 +82,12 @@ if ((method.parameters ?? []).length > 0 || method.returnType) {
   // Signature section already includes params & returns via TsMemberCard
 }
 headings.push({ depth: 2, slug: 'defined-on', text: 'Defined on' });
+const tsSidebar = await getTsApiReferenceSidebar({
+  packageName: pkg.package.name,
+  item: { name: parentType.name, slug: parentSlug },
+  member: { name: method.name, slug: Astro.params.member! },
+  headings,
+});
 ---
 
 <StarlightPage

@@ -4,7 +4,6 @@ import { Icon } from '@astrojs/starlight/components';
 import DevHubSvg from '@assets/icons/dev-hub.svg';
 
 const currentPath = Astro.url.pathname.replace(/\/$/, '').replace(/^\//, '');
-const isApiSubpage = currentPath.startsWith('reference/api/');
 const isDevDirectory = ['hub', 'hub/browse', 'hub/glossary'].includes(currentPath);
 ---
 
@@ -100,7 +99,7 @@ const isDevDirectory = ['hub', 'hub/browse', 'hub/glossary'].includes(currentPat
   }
 </style>
 
-<script is:inline define:vars={{ isApiSubpage }}>
+<script is:inline>
   function initPageTitle() {
     var actions = document.querySelector('.actions-container');
     if (actions) {
@@ -108,10 +107,11 @@ const isDevDirectory = ['hub', 'hub/browse', 'hub/glossary'].includes(currentPat
       actions.setAttribute('data-tour-step', 'page-actions');
     }
 
-    if (isApiSubpage) {
-      var h1 = document.querySelector('main h1#_top');
-      if (h1) h1.classList.add('api-page-title');
-    }
+    var h1 = document.querySelector('main h1#_top');
+    if (!h1) return;
+
+    var currentPath = window.location.pathname.replace(/\/$/, '').replace(/^\//, '');
+    h1.classList.toggle('api-page-title', currentPath.startsWith('reference/api/'));
   }
 
   if (window.__pageTitleAbort) window.__pageTitleAbort.abort();

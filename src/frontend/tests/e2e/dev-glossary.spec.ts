@@ -69,16 +69,17 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
   await expect(filterPanel.getByRole('search', { name: 'Search the glossary' })).toBeVisible();
   await expect(filterPanel.getByRole('navigation', { name: 'Glossary letters' })).toBeVisible();
   await expect(page.getByRole('searchbox', { name: 'Find a term' })).toHaveAttribute('placeholder', 'Search glossary');
-  await expect(page.locator('.dev-description')).toHaveText('Search for a term, or filter by topic and first letter.');
+  await expect(page.locator('.dev-description')).toHaveCount(0);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', 'Search for a term, or filter by topic and first letter.');
   const label = page.locator('label[for="glossary-search-input"]');
   await expect(label).toHaveCSS('clip-path', 'inset(50%)');
   for (const width of [320, 390, 768, 1024, 1199, 1200, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     const titleBox = (await heading.boundingBox())!;
     const breadcrumbBox = (await page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).boundingBox())!;
-    const introductionBox = (await page.locator('.dev-description').boundingBox())!;
+    const filterPanelBox = (await filterPanel.boundingBox())!;
     expect(breadcrumbBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
-    expect(introductionBox.y).toBeGreaterThanOrEqual(breadcrumbBox.y + breadcrumbBox.height);
+    expect(filterPanelBox.y).toBeGreaterThanOrEqual(breadcrumbBox.y + breadcrumbBox.height);
     for (const theme of ['light', 'dark']) {
       await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
       await page.mouse.move(0, 0);
@@ -105,7 +106,7 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
       }
       const search = (await page.getByRole('searchbox', { name: 'Find a term' }).boundingBox())!;
       expect(search.width).toBeLessThanOrEqual(512);
-      expect(search.height).toBe(44);
+      expect(search.height).toBe(48);
       const topics = (await page.locator('#glossary-kind-filters').boundingBox())!;
       const stats = (await page.locator('.glossary-controls .inpage-search-stats').boundingBox())!;
       if (width >= 1200) {
@@ -181,26 +182,29 @@ test('searches aliases, definitions, and context with combined letter/topic filt
   await expect(cards).toHaveCount(40);
   await search.fill('OTEL');
   await expect(page.locator('[data-glossary-card]:visible h3')).toContainText(['OpenTelemetry']);
-  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await page.getByRole('button', { name: 'Clear search', exact: true }).click();
   await search.fill('configured readiness');
   await expect(page.locator('[data-glossary-card]:visible h3')).toContainText(['WaitFor']);
-  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await page.getByRole('button', { name: 'Clear search', exact: true }).click();
   await page.getByRole('button', { name: 'Reference', exact: true }).click();
   await page.getByRole('navigation', { name: 'Glossary letters' }).getByRole('link', { name: 'W', exact: true }).click();
   await expect(cards).toHaveCount(5);
   await expect(page).toHaveURL(/topic=reference&letter=W/);
   await search.fill('no-such-term');
   await expect(page.getByRole('heading', { name: 'No matching terms' })).toBeVisible();
+  await expect(page.locator('[data-glossary-empty] .search-empty-query')).toHaveText('Search: "no-such-term"');
   await expect(cards).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Clear filters', exact: true })).toBeHidden();
-  await page.getByRole('button', { name: 'Show all terms', exact: true }).click();
-  await expect(cards).toHaveCount(40);
+  await page.locator('[data-glossary-empty]').getByRole('button', { name: 'Clear search', exact: true }).click();
+  await expect(cards).toHaveCount(5);
+  await expect(page).toHaveURL(/topic=reference&letter=W/);
   await expect(search).toBeFocused();
 });
 
-test('empty results stay compact and offer one reset action in both themes', async ({ page }) => {
+test('empty results stay contained and offer one intent-preserving action in both themes', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/hub/glossary/?q=abd&topic=reference&letter=W');
+  await page.evaluate(() => document.fonts.ready);
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
@@ -212,16 +216,28 @@ test('empty results stay compact and offer one reset action in both themes', asy
       const filterPanel = (await page.locator('.glossary-filter-panel').boundingBox())!;
       expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeGreaterThanOrEqual(0);
       expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeLessThanOrEqual(16);
-      expect(bounds.height).toBeLessThan(width >= 768 ? 160 : 240);
+      // Allow the stacked mobile artwork plus the wrapped hint, filter chips, and action.
+      expect(bounds.height).toBeLessThanOrEqual(width >= 800 ? 324 : 480);
+      const parts = await empty.locator('.search-empty-title, .search-empty-query, .search-empty-hint, .search-active-filters, .search-action').evaluateAll(
+        (elements) => elements.map((element) => {
+          const bounds = element.getBoundingClientRect();
+          return { x: bounds.x, y: bounds.y, bottom: bounds.bottom };
+        }),
+      );
+      expect(parts).toHaveLength(5);
+      for (let index = 1; index < parts.length; index++) {
+        expect(parts[index].x).toBeCloseTo(parts[0].x, 0);
+        expect(parts[index].y).toBeGreaterThanOrEqual(parts[index - 1].bottom);
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       const result = await new AxeBuilder({ page }).include('glossary-browser').analyze();
       expect(result.violations).toEqual([]);
     }
   }
-  await page.getByRole('button', { name: 'Show all terms', exact: true }).press('Enter');
+  await page.locator('[data-glossary-empty]').getByRole('button', { name: 'Clear search', exact: true }).press('Enter');
   await expect(page.getByRole('searchbox', { name: 'Find a term' })).toBeFocused();
-  await expect(page.locator('[data-glossary-card]:visible')).toHaveCount(40);
-  await expect(page).toHaveURL(/\/hub\/glossary\/$/);
+  await expect(page.locator('[data-glossary-card]:visible')).toHaveCount(5);
+  await expect(page).toHaveURL(/\/hub\/glossary\/\?topic=reference&letter=W$/);
   await expect(page.locator('[data-glossary-empty]')).toBeHidden();
 });
 
@@ -231,12 +247,13 @@ test('restores filters on reload and Back, and supports keyboard return to the s
   await page.reload();
   await expect(page.getByRole('searchbox')).toHaveValue('wait');
   await page.getByRole('button', { name: 'Foundations', exact: true }).click();
+  await expect(page).toHaveURL(/topic=foundations/);
   await page.goBack();
   await expect(page.getByRole('button', { name: 'Reference', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'Foundations', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('heading', { name: 'WaitFor', exact: true }).getByRole('link').click();
   await expect(page.getByRole('heading', { level: 1, name: 'WaitFor', exact: true })).toBeVisible();
-  await expect(page.locator('h1')).toHaveCount(1);
+  await expect(page.locator('main h1')).toHaveCount(1);
   const collapsedBreadcrumb = page.locator('.bc-collapse summary');
   if (await collapsedBreadcrumb.isVisible()) await collapsedBreadcrumb.press('Enter');
   await page.getByRole('link', { name: 'Back to your glossary results' }).press('Enter');
@@ -687,7 +704,7 @@ test('topic pills support multiple selections, keyboard toggling, and persistent
   await expect(reference).toHaveAttribute('aria-pressed', 'true');
   await expect(foundations).toHaveAttribute('aria-pressed', 'true');
   await expect(cards).toHaveCount(expected);
-  expect(new URL(page.url()).searchParams.getAll('topic')).toEqual(['foundations', 'reference']);
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('topic')).toEqual(['foundations', 'reference']);
   await page.reload();
   await expect(cards).toHaveCount(expected);
   await expect(reference).toHaveClass(/active/);

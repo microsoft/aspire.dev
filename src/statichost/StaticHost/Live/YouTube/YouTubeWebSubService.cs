@@ -1,5 +1,5 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Options;
-using Polly.Timeout;
 
 namespace StaticHost.Live.YouTube;
 
@@ -30,6 +30,10 @@ public sealed class YouTubeWebSubService(
     private DateTimeOffset _nextDiscoveryPollAt = DateTimeOffset.MinValue;
     private string? _resolvedChannelHandle;
     private string? _resolvedChannelId;
+    private DateTimeOffset? _lastSuccessfulDiscoveryAt;
+    private bool? _lastDiscoveryLive;
+    private string? _diagnosticConfiguredChannelId;
+    private string? _diagnosticChannelHandle;
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -63,7 +67,9 @@ public sealed class YouTubeWebSubService(
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
             catch (Exception ex)
             {
-                logger.LogError(ex, "YouTube WebSub tick failed; will retry.");
+                YouTubeDiagnostics.LogFailure(logger, ex, "BackgroundTick", "local coordination/state",
+                    lastSuccessfulDiscoveryAt: _lastSuccessfulDiscoveryAt, lastDiscoveryLive: _lastDiscoveryLive,
+                    skipIfLogged: true);
             }
 
             try
@@ -80,6 +86,15 @@ public sealed class YouTubeWebSubService(
         var opts = options.CurrentValue;
         var youtube = opts.YouTube;
 
+        if (!string.Equals(_diagnosticConfiguredChannelId, youtube.ChannelId, StringComparison.Ordinal) ||
+            !string.Equals(_diagnosticChannelHandle, youtube.ChannelHandle, StringComparison.OrdinalIgnoreCase))
+        {
+            _diagnosticConfiguredChannelId = youtube.ChannelId;
+            _diagnosticChannelHandle = youtube.ChannelHandle;
+            _lastSuccessfulDiscoveryAt = null;
+            _lastDiscoveryLive = null;
+        }
+
         var channelId = youtube.ChannelId;
         if (string.IsNullOrEmpty(channelId))
         {
@@ -92,12 +107,19 @@ public sealed class YouTubeWebSubService(
             channelId = _resolvedChannelId ?? "";
             if (string.IsNullOrEmpty(channelId))
             {
-                channelId = await client.ResolveChannelIdAsync(youtube.ChannelHandle, cancellationToken).ConfigureAwait(false) ?? "";
+                channelId = await RunOperationAsync("ChannelResolution", YouTubeDiagnostics.ChannelsEndpoint,
+                    () => client.ResolveChannelIdAsync(youtube.ChannelHandle, cancellationToken),
+                    cancellationToken).ConfigureAwait(false) ?? "";
+                if (!string.IsNullOrEmpty(channelId))
+                {
+                    logger.LogInformation("YouTube {Operation} succeeded at {CheckedAt}.", "ChannelResolution", _time.GetUtcNow());
+                }
             }
 
             if (string.IsNullOrEmpty(channelId))
             {
-                logger.LogWarning("Could not resolve YouTube channel id for {Handle}.", youtube.ChannelHandle);
+                logger.LogWarning("YouTube {Operation} returned no channel; live detection is unavailable, not confirmed offline.",
+                    "ChannelResolution");
                 return;
             }
 
@@ -115,6 +137,7 @@ public sealed class YouTubeWebSubService(
         if (request is not null)
         {
             var requestSent = false;
+            var started = Stopwatch.GetTimestamp();
             try
             {
                 var callback = $"{opts.PublicBaseUrl.TrimEnd('/')}/api/live/youtube/webhook";
@@ -134,31 +157,21 @@ public sealed class YouTubeWebSubService(
             }
             catch (Exception ex)
             {
+                var elapsedMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
                 var retry = await _subscriptions.MarkRequestFailedAsync(
                     request,
                     CancellationToken.None).ConfigureAwait(false);
-                if (ex is HttpRequestException or OperationCanceledException or TimeoutRejectedException)
-                {
-                    if (retry is not null)
-                    {
-                        logger.LogWarning(
-                            "YouTube WebSub subscribe failed ({FailureType}, HTTP {StatusCode}); attempt {FailureCount}. " +
-                            "Next subscription attempt no earlier than {RetryAt}. Live-status polling continues.",
-                            ex.GetType().Name,
-                            (ex as HttpRequestException)?.StatusCode,
-                            retry.FailureCount,
-                            retry.RetryAt);
-                    }
-                    logger.LogDebug(ex, "YouTube WebSub subscription request failure details.");
-                }
-                else
-                {
-                    logger.LogError(ex, "Unexpected YouTube WebSub subscription failure.");
-                }
+                YouTubeDiagnostics.LogFailure(logger, ex, "WebSubSubscribe", YouTubeDiagnostics.SubscribeEndpoint,
+                    retry, _lastSuccessfulDiscoveryAt, _lastDiscoveryLive, elapsedMs: elapsedMs);
             }
 
             if (requestSent)
             {
+                var elapsedMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                logger.LogInformation(
+                    "YouTube {Operation} accepted at {AcceptedAt} after {ElapsedMs} ms; HTTP acceptance does not establish a verified lease. " +
+                    "Only a matching verification callback establishes or renews the subscription.",
+                    "WebSubSubscribe", _time.GetUtcNow(), elapsedMs);
                 await _subscriptions.MarkRequestSentAsync(
                     request,
                     _time.GetUtcNow(),
@@ -171,12 +184,24 @@ public sealed class YouTubeWebSubService(
         var current = observed.Snapshot.YouTube;
         if (current.Live && !string.IsNullOrEmpty(current.VideoId))
         {
-            live = await client.GetVideoLiveStatusAsync(current.VideoId, cancellationToken).ConfigureAwait(false);
+            live = await RunOperationAsync("KnownVideoStatus", YouTubeDiagnostics.VideosEndpoint,
+                () => client.GetVideoLiveStatusAsync(current.VideoId, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("YouTube {Operation} succeeded at {CheckedAt}; observed live {ObservedLive}.",
+                "KnownVideoStatus", _time.GetUtcNow(), live.Live);
         }
         else if (now >= _nextDiscoveryPollAt)
         {
             _nextDiscoveryPollAt = now.AddSeconds(youtube.DiscoveryPollingIntervalSeconds);
-            live = await client.GetCurrentLiveAsync(channelId, cancellationToken).ConfigureAwait(false);
+            live = await RunOperationAsync("OfflineDiscovery", YouTubeDiagnostics.SearchEndpoint,
+                () => client.GetCurrentLiveAsync(channelId, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+            _lastSuccessfulDiscoveryAt = _time.GetUtcNow();
+            _lastDiscoveryLive = live.Live;
+            logger.LogInformation(
+                "YouTube {Operation} succeeded; last successful discovery {LastSuccessfulDiscoveryAt}, live {LastDiscoveryLive}. " +
+                "Next discovery no earlier than {NextDiscoveryAt}.",
+                "OfflineDiscovery", _lastSuccessfulDiscoveryAt, _lastDiscoveryLive, _nextDiscoveryPollAt);
         }
 
         if (live is null)
@@ -194,5 +219,23 @@ public sealed class YouTubeWebSubService(
                     youtube.OfflineConfirmationCount),
             },
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<T> RunOperationAsync<T>(
+        string operation, string endpoint, Func<Task<T>> action, CancellationToken cancellationToken)
+    {
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            return await action().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception exception)
+        {
+            YouTubeDiagnostics.LogFailure(logger, exception, operation, endpoint,
+                lastSuccessfulDiscoveryAt: _lastSuccessfulDiscoveryAt, lastDiscoveryLive: _lastDiscoveryLive,
+                elapsedMs: Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            throw;
+        }
     }
 }

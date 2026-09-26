@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('card title underlines animate from the left for hover and keyboard focus', async ({ page }) => {
-  await page.goto('/hub/browse/?provider=aws');
+  await page.goto('/hub/browse/?q=aws');
   const link = results(page).first().locator('a');
   const title = link.locator('[data-link-underline]');
   const underline = () => title.evaluate((element) => {
@@ -39,7 +39,7 @@ test('card title underlines animate from the left for hover and keyboard focus',
 });
 
 test('AWS artwork switches to a legible logo for each theme', async ({ page }) => {
-  await page.goto('/hub/browse/?provider=aws');
+  await page.goto('/hub/browse/?q=aws');
   const card = results(page).filter({ has: page.getByRole('heading', { name: 'AWS integrations overview', exact: true }) });
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
@@ -192,7 +192,7 @@ test('resource links remain usable if the browser controller fails to load', asy
   await expect(page.getByText('Interactive browsing could not load. All resource links are listed below.')).toBeVisible();
   await expect(page.locator('.browse-loading')).toBeHidden();
   expect(await page.locator('.browse-result:visible').count()).toBeGreaterThan(100);
-  await expect(page.locator('noscript[data-resource-image]')).toHaveCount(0);
+  await expect(page.locator('template[data-resource-image]')).toHaveCount(0);
   await expect(page.locator('resource-browser')).not.toHaveAttribute('aria-busy');
 });
 
@@ -203,8 +203,8 @@ test('only displayed resource artwork is materialized on first load', async ({ p
   const visibleCards = cards.filter({ visible: true });
   expect(await cards.count()).toBeGreaterThan(100);
   await expect(visibleCards).toHaveCount(24);
-  await expect(visibleCards.locator('noscript[data-resource-image]')).toHaveCount(0);
-  expect(await cards.filter({ has: page.locator('noscript[data-resource-image]') }).count()).toBeGreaterThan(0);
+  await expect(visibleCards.locator('template[data-resource-image]')).toHaveCount(0);
+  expect(await cards.filter({ has: page.locator('template[data-resource-image]') }).count()).toBeGreaterThan(0);
   expect(await cards.locator('img').count()).toBeLessThan(75);
 });
 
@@ -260,6 +260,7 @@ test('search highlights card matches through typing, pagination, reload and hist
   };
   await assertHighlights('aspire');
   await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page).toHaveURL(/page=2$/);
   await assertHighlights('aspire');
   await page.reload();
   await assertHighlights('aspire');
@@ -281,11 +282,14 @@ test('search highlights card matches through typing, pagination, reload and hist
   }
   await page.locator('#browse-search-clear').click();
   await expect(marks).toHaveCount(0);
+  await expect(page).toHaveURL(/\/hub\/browse\/$/);
   await page.goBack();
   await expect(input).toHaveValue('REDIS cach');
   await assertHighlights('redis');
   await input.fill('<img src=x onerror=alert(1)>');
   await expect(page.locator('.browse-empty')).toBeVisible();
+  await expect(page.locator('.browse-empty .search-empty-query')).toContainText('<img src=x onerror=alert(1)>');
+  await expect(page.locator('.browse-empty img')).toHaveCount(0);
   await expect(marks).toHaveCount(0);
   await expect(page.locator('[data-search-highlight] img')).toHaveCount(0);
   await input.fill('   ');
@@ -364,20 +368,22 @@ test('reference identities and release imagery stay distinct in both themes', as
   }
 });
 
-test('empty results reset completely and unknown URL state is normalized', async ({ page }) => {
+test('empty results preserve useful filters and unknown URL state is normalized', async ({ page }) => {
   await page.goto('/hub/browse/?q=not-a-real-resource-555&type=glossary');
   await expect(page.getByRole('heading', { name: 'No matching resources' })).toBeVisible();
+  await expect(page.locator('.browse-empty .search-empty-query')).toHaveText('Search: "not-a-real-resource-555"');
   await expect(results(page)).toHaveCount(0);
-  await page.getByRole('button', { name: 'Show all resources' }).click();
-  await expect(page).toHaveURL(/\/hub\/browse\/$/);
+  await page.locator('.browse-empty').getByRole('button', { name: 'Clear search', exact: true }).click();
+  await expect(page).toHaveURL(/\/hub\/browse\/\?type=glossary$/);
   await expect(results(page)).toHaveCount(24);
+  await expect(page.locator('.browse-result:not([hidden])[data-resource-type="glossary"]')).toHaveCount(24);
   await expect(page.getByRole('searchbox', { name: 'Search resources...' })).toBeFocused();
   await page.goto('/hub/browse/?type=unknown&topic=unknown&page=999999999&sort=unknown');
   await expect(results(page).first()).toBeVisible();
   await expect(page).not.toHaveURL(/unknown|999999999/);
 });
 
-test('provider, multi-type filters and sorting reflect their URL state', async ({ page }) => {
+test('multi-type filters and sorting reflect their URL state', async ({ page }) => {
   await page.goto('/hub/browse/?type=video&type=blog');
   const types = await results(page).evaluateAll((cards) => cards.map((card) => card.getAttribute('data-resource-type')));
   expect(types.every((type) => type === 'video' || type === 'blog')).toBe(true);
@@ -386,19 +392,25 @@ test('provider, multi-type filters and sorting reflect their URL state', async (
   const dates = await results(page).locator('time').evaluateAll((times) => times.map((time) => time.getAttribute('datetime')!.slice(0, 10)));
   expect(dates.length).toBeGreaterThan(0);
   expect(dates).toEqual([...dates].sort().reverse());
-  for (const name of ['provider']) {
-    await page.goto('/hub/browse/');
-    await openFacet(page, name);
-    const option = page.locator(`.browse-filters input[name="${name}"]`).nth(1);
-    const value = await option.getAttribute('value');
-    expect(value).toBeTruthy();
-    await option.check();
-    expect(new URL(page.url()).searchParams.get(name)).toBe(value);
-    expect(await results(page).count()).toBeGreaterThan(0);
-    const entries = await results(page).evaluateAll((cards) =>
-      cards.map((card) => JSON.parse(card.getAttribute('data-resource-entry')!) as Record<string, string[]>));
-    expect(entries.every((entry) => entry[name].includes(value!))).toBe(true);
-  }
+});
+
+test('legacy provider links do not leave an invisible filter active', async ({ page }) => {
+  await page.goto('/hub/browse/?type=sample&sort=oldest');
+  await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
+  const initialResults = await results(page).locator('h3').allTextContents();
+  const initialSummary = await page.locator('[data-results-summary]').textContent();
+  await page.goto('/hub/browse/?keep=1&type=sample&provider=aws&provider=azure&sort=oldest');
+  await expect(page).toHaveURL(/\?keep=1&type=sample&sort=oldest$/);
+  await expect(page.locator('[data-filter-group="provider"], input[name="provider"]')).toHaveCount(0);
+  await expect(results(page).locator('h3')).toHaveText(initialResults);
+  await expect(page.locator('[data-results-summary]')).toHaveText(initialSummary!);
+  await page.reload();
+  await expect(results(page).locator('h3')).toHaveText(initialResults);
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await expect(page).toHaveURL(/\?keep=1&sort=oldest$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\?keep=1&type=sample&sort=oldest$/);
+  await expect(results(page).locator('h3')).toHaveText(initialResults);
 });
 
 test('multiple languages combine with other filters and survive reload, history, and clearing', async ({ page }) => {
@@ -425,12 +437,12 @@ test('multiple languages combine with other filters and survive reload, history,
   await csharp.focus();
   await csharp.press('Space');
   await expect(csharp).not.toBeChecked();
-  expect(new URL(page.url()).searchParams.getAll('language')).toEqual(['typescript']);
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('language')).toEqual(['typescript']);
   await page.goBack();
   await expect(csharp).toBeChecked();
   await expect(typescript).toBeChecked();
   await expect(page.locator('[data-filter-group="language"]')).not.toHaveAttribute('open');
-  await page.getByRole('button', { name: 'Clear all', exact: true }).click();
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
   await expect(csharp).not.toBeChecked();
   await expect(typescript).not.toBeChecked();
   await expect(page.locator('[data-filter-active="language"]')).toBeHidden();
@@ -462,7 +474,7 @@ for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/hub/browse/');
     await expect(page.locator('.dev-breadcrumbs .breadcrumb')).toHaveCount(1);
-    const hubMark = await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).locator('svg').innerHTML();
+    const hubMark = await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML();
     await expect(page.locator('.dev-breadcrumbs a[href="/hub/"] svg')).toHaveCount(2);
     for (const mark of await page.locator('.dev-breadcrumbs a[href="/hub/"] svg').all()) {
       await expect(mark).toHaveAttribute('aria-hidden', 'true');
@@ -471,7 +483,7 @@ for (const width of [390, 768, 1440]) {
     await expect(page.locator('.browse-trail')).toHaveCount(0);
     if (width === 390) {
       await page.locator('.bc-collapse > summary').click();
-      await expect(page.locator('.bc-dropdown').getByRole('link', { name: 'Dev Hub' })).toBeVisible();
+      await expect(page.locator('.bc-dropdown').getByRole('link', { name: 'Aspire resources' })).toBeVisible();
     }
     for (const type of ['guide', 'integration', 'video', 'sample', 'glossary', 'blog']) {
       await page.goto(`/hub/browse/?type=${type}`);
@@ -525,7 +537,7 @@ test('top filters support keyboard dismissal and stay within the viewport', asyn
   });
   expect(inset).toBeGreaterThanOrEqual(16);
   expect(search!.x - controlsBox.x).toBeCloseTo(inset, 0);
-  for (const name of ['type', 'topic', 'language', 'provider', 'sort']) {
+  for (const name of ['type', 'topic', 'language', 'sort']) {
     const group = page.locator(`[data-filter-group="${name}"]`);
     await group.locator('summary').focus();
     await group.locator('summary').press('Enter');
@@ -615,7 +627,7 @@ test('every dropdown shows responsive options without a separate search input', 
   const initialUrl = page.url();
   const initialResults = await results(page).locator('h3').allTextContents();
   const mobile = page.viewportSize()!.width < 600;
-  for (const name of ['type', 'topic', 'language', 'provider', 'sort']) {
+  for (const name of ['type', 'topic', 'language', 'sort']) {
     const group = page.locator(`[data-filter-group="${name}"]`);
     await expect(group).toHaveCSS('user-select', 'none');
     // A second pointer click would hit the newly opened mobile overlay.
@@ -671,11 +683,11 @@ test('filter changes preserve control and result positions', async ({ page }) =>
   await page.getByRole('checkbox', { name: 'Glossary', exact: true }).uncheck();
   expect(await measure()).toEqual(before);
   await page.keyboard.press('Escape');
-  await openFacet(page, 'provider');
-  await page.getByRole('radio', { name: 'Azure', exact: true }).check();
+  await openFacet(page, 'language');
+  await page.getByRole('checkbox', { name: 'TypeScript', exact: true }).check();
   expect(await measure()).toEqual(before);
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Clear all', exact: true }).click();
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
   expect(await measure()).toEqual(before);
   await page.getByRole('searchbox', { name: 'Search resources...' }).fill('no-results-555');
   const emptyPositions = await measure();
@@ -696,27 +708,21 @@ test('type options use available height without unnecessary scrolling', async ({
   expect(panel!.y + panel!.height).toBeLessThanOrEqual(700);
 });
 
-test('filtered selections persist, including single-select history and clearing', async ({ page }) => {
+test('filtered selections persist alongside sort history and clearing', async ({ page }) => {
   await page.goto('/hub/browse/?language=csharp');
   await openFacet(page, 'language');
   const group = page.locator('[data-filter-group="language"]');
   await group.getByRole('checkbox', { name: 'TypeScript', exact: true }).check();
-  expect(new URL(page.url()).searchParams.getAll('language')).toEqual(['csharp', 'typescript']);
-  await openFacet(page, 'provider');
-  const provider = page.locator('[data-filter-group="provider"]');
-  await provider.getByRole('radio', { name: 'Azure', exact: true }).check();
-  await expect(provider).not.toHaveAttribute('open');
-  await expect(provider.locator('summary')).toBeFocused();
-  await expect(provider.locator('summary')).toHaveText('Azure');
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('language')).toEqual(['csharp', 'typescript']);
   await openFacet(page, 'sort');
   await page.getByRole('radio', { name: 'Oldest first', exact: true }).check();
   await expect(page).toHaveURL(/sort=oldest/);
   await page.goBack();
   await expect(page.locator('[data-filter-group="sort"] summary')).toHaveAccessibleName('Sort by: Date Newest first, then Title A-Z');
   await page.reload();
-  await expect(provider.locator('summary')).toHaveText('Azure');
-  await page.getByRole('button', { name: 'Clear all', exact: true }).click();
-  await expect(provider.locator('summary')).toHaveText('Provider');
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('language')).toEqual(['csharp', 'typescript']);
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await expect(page.locator('.browse-filters input:checked[type="checkbox"]')).toHaveCount(0);
   await expect(page).toHaveURL(/\/hub\/browse\/$/);
 });
 
@@ -767,6 +773,7 @@ test('date and title directions persist across searches, reloads and history', a
   await expect(page.getByRole('radio', { name: 'Title (Z-A)', exact: true })).toBeChecked();
   await checkOrder('newest', 'desc');
   await page.getByRole('radio', { name: 'Oldest first', exact: true }).check();
+  await expect(page).toHaveURL(/sort=oldest/);
   await page.reload();
   await expect(sort.locator('summary')).toHaveAccessibleName('Sort by: Date Oldest first, then Title Z-A');
   await openFacet(page, 'sort');
@@ -783,9 +790,9 @@ test('date and title directions persist across searches, reloads and history', a
   await page.goForward();
   await expect(sort.locator('summary')).toHaveAccessibleName('Sort by: Date Oldest first, then Title Z-A');
   await expect(page.getByRole('searchbox', { name: 'Search resources...' })).toHaveValue('aspire');
-  await page.getByRole('button', { name: 'Clear all', exact: true }).click();
-  await expect(page).toHaveURL(/\/hub\/browse\/$/);
-  await expect(sort.locator('summary')).toHaveAccessibleName('Sort by: Date Newest first, then Title A-Z');
+  await page.getByRole('button', { name: 'Reset all', exact: true }).click();
+  await expect(page).toHaveURL(/\/hub\/browse\/\?sort=oldest&title=desc$/);
+  await expect(sort.locator('summary')).toHaveAccessibleName('Sort by: Date Oldest first, then Title Z-A');
 });
 
 test('history returns focus from hidden pagination and closed filter options without stealing it', async ({ page }) => {
@@ -794,9 +801,11 @@ test('history returns focus from hidden pagination and closed filter options wit
   const nav = page.getByRole('navigation', { name: 'Resource pages' });
   await openFacet(page, 'type');
   await page.getByRole('checkbox', { name: 'Quickstart', exact: true }).check();
+  await expect(page).toHaveURL(/type=quickstart/);
   await page.keyboard.press('Escape');
   await expect(nav).toBeHidden();
-  await page.getByRole('button', { name: 'Clear all', exact: true }).click();
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await expect(page).toHaveURL(/\/hub\/browse\/$/);
   await nav.locator('[aria-current="page"]').focus();
   await page.goBack();
   await expect(nav).toBeHidden();
@@ -812,7 +821,7 @@ test('history returns focus from hidden pagination and closed filter options wit
   await expect(group.locator('summary')).toBeFocused();
 
   await page.goForward();
-  const hub = page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true });
+  const hub = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
   await hub.focus();
   await page.goBack();
   await expect(hub).toBeFocused();
@@ -827,8 +836,11 @@ test('numbered pagination preserves combined sorting, keyboard focus, history, a
   await expect(nav.locator('.browse-page-gap')).toHaveCount(2);
   expect(await nav.locator('[data-page]').count()).toBeLessThanOrEqual(7);
   const currentUrl = page.url();
+  await active.scrollIntoViewIfNeeded();
+  const currentScroll = await page.evaluate(() => scrollY);
   await active.click();
   expect(page.url()).toBe(currentUrl);
+  expect(await page.evaluate(() => scrollY)).toBeCloseTo(currentScroll, 0);
   await nav.getByRole('button', { name: 'Page 7', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/sort=oldest&title=desc&page=7$/);
@@ -878,32 +890,53 @@ test('numbered pagination preserves combined sorting, keyboard focus, history, a
   await expect(nav).toBeHidden();
 });
 
-test('pagination keeps the controls at the same viewport position across different page heights', async ({ page }) => {
-  await page.goto('/hub/browse/?page=2');
-  const nav = page.getByRole('navigation', { name: 'Resource pages' });
-  const pages = Math.ceil(await page.locator('.browse-result').count() / 24);
-  await nav.scrollIntoViewIfNeeded();
-  for (const name of ['Next', 'Previous', 'Page 3', 'First page', 'Last page']) {
-    const control = nav.getByRole('button', { name, exact: true });
-    await expect(control).toBeInViewport();
-    const before = (await nav.boundingBox())!;
-    await control.click();
-    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    const after = (await nav.boundingBox())!;
-    expect(after.x).toBe(before.x);
-    expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(1);
-    await expect(['Next', 'Previous'].includes(name) ? control : nav.locator('[aria-current="page"]')).toBeFocused();
-  }
-  const previous = nav.getByRole('button', { name: 'Previous', exact: true });
-  await expect(previous).toBeInViewport();
-  await previous.focus();
-  const before = (await nav.boundingBox())!;
-  await previous.press('Enter');
-  await expect(previous).toBeFocused();
-  await expect(page).toHaveURL(new RegExp(`page=${pages - 1}$`));
-  await expect.poll(async () => Math.abs((await nav.boundingBox())!.y - before.y)).toBeLessThanOrEqual(1);
-  await expect(previous).toBeInViewport();
-});
+for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+  test(`pagination scrolls to the breadcrumb with ${reducedMotion} motion without losing keyboard focus`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion });
+    await page.goto('/hub/browse/?page=2');
+    await page.evaluate(() => {
+      const scrollIntoView = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = function (options) {
+        if (this.matches('.breadcrumb') && typeof options === 'object' && options.behavior) {
+          this.setAttribute('data-pagination-scroll', options.behavior);
+        }
+        scrollIntoView.call(this, options);
+      };
+    });
+    const nav = page.getByRole('navigation', { name: 'Resource pages' });
+    const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb', exact: true });
+    const pages = Math.ceil(await page.locator('.browse-result').count() / 24);
+    const expectBreadcrumbAtTop = async () => {
+      await expect(breadcrumb).toHaveAttribute('data-pagination-scroll', reducedMotion === 'reduce' ? 'instant' : 'smooth');
+      await expect(breadcrumb).toBeInViewport();
+      await expect.poll(() => breadcrumb.evaluate((element) => {
+        const offset = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
+        return Math.abs(element.getBoundingClientRect().top - offset);
+      })).toBeLessThanOrEqual(1);
+      const header = (await page.locator('header.header').boundingBox())!;
+      expect((await breadcrumb.boundingBox())!.y).toBeGreaterThanOrEqual(header.y + header.height);
+    };
+    for (const [name, targetPage] of [
+      ['Next', 3], ['Previous', 2], ['Page 3', 3], ['First page', 1], ['Last page', pages],
+    ] as const) {
+      await nav.scrollIntoViewIfNeeded();
+      const control = nav.getByRole('button', { name, exact: true });
+      await expect(control).toBeInViewport();
+      await control.click();
+      await expect(page).toHaveURL(targetPage === 1 ? /\/hub\/browse\/$/ : new RegExp(`page=${targetPage}$`));
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await expectBreadcrumbAtTop();
+      await expect(['Next', 'Previous'].includes(name) ? control : nav.locator('[aria-current="page"]')).toBeFocused();
+    }
+    const previous = nav.getByRole('button', { name: 'Previous', exact: true });
+    await previous.focus();
+    await expect(previous).toBeInViewport();
+    await previous.press('Enter');
+    await expect(previous).toBeFocused();
+    await expect(page).toHaveURL(new RegExp(`page=${pages - 1}$`));
+    await expectBreadcrumbAtTop();
+  });
+}
 
 test('language icons show article coverage opposite the type badge in both themes', async ({ page }) => {
   await page.goto('/hub/browse/?q=connect%20openai');

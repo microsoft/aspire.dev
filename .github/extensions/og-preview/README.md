@@ -40,6 +40,36 @@ port) that serves the static UI from `ui/` and a JSON API:
 The target page is fetched and parsed server-side (no external dependencies),
 which sidesteps browser CORS and lets it reach `localhost`.
 
+## Network access and isolation
+
+Select a localhost URL in the address form or through a canvas action to authorize
+that exact origin (scheme, hostname, and port). Links and resources discovered in
+the page cannot authorize another local origin. Public-to-local redirects are
+blocked, even if the local origin was previously selected.
+
+Private-network destinations beyond loopback require `OG_ALLOW_PRIVATE_NETWORK=1`
+in addition to explicit selection. This setting does not grant arbitrary private
+access to fetched pages. Selecting a different origin invalidates the previous
+browse capability; resources on additional local ports must be previewed separately.
+
+Every connection validates all DNS answers and pins the validated addresses to
+the request, including redirect hops. IPv4-mapped IPv6 addresses are checked
+against the same policy as IPv4. The original hostname remains in use for HTTP
+Host and TLS certificate verification.
+
+The host-provided canvas URL contains a private UI capability in its fragment.
+The renderer uses it for API calls and events; do not share that URL. Sandboxed
+pages receive a separate, revocable resource-only capability and cannot select
+origins or invoke session/issue actions. Public errors omit exception details.
+The browse frame continues to run scripts without `allow-same-origin`; module
+import rewriting is a preview transform, not an HTML sanitizer.
+
+Run the dependency-free regression suite with Node.js 24:
+
+```powershell
+node --test .github\extensions\og-preview\tests\*.test.mjs
+```
+
 ## Agent actions & tools
 
 - **`open_og_preview`** `{ url?, instanceId? }` *(tool)* — open or focus the

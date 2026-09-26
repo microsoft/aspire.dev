@@ -106,11 +106,26 @@ The SQLite schema stores data in relational tables rather than retaining opaque 
 - Traces, spans, events, links, and attributes.
 - Metric instruments, dimensions, points, histogram data, and exemplars.
 
-Console logs are persisted only after their stream is viewed or exported. A historical run can therefore omit console logs that weren't captured. The frontend's `Dashboard:Frontend:MaxConsoleLogCount` setting limits how many console entries are retained in the viewer, but it doesn't bound the number already persisted to disk.
+Console logs are persisted only after their stream is viewed or exported. A historical run can therefore omit console logs that weren't captured. The `Dashboard:Frontend:MaxConsoleLogCount` setting limits how many console entries are retained per database, shared across resources.
 
 ## Telemetry retention and disk use
 
-Telemetry limits apply independently to each database. By default, the dashboard retains up to 10,000 structured logs and 10,000 traces per database, and up to 50,000 metric points per dimension. When these limits are exceeded, the oldest corresponding data is removed. Attribute, span-event, resource, instrumentation-scope, instrument, and dimension limits also apply.
+The dashboard applies the following default data retention limits:
+
+| Data type | Default limit | Scope |
+|-----------|---------------|-------|
+| Console logs | 100,000 entries | Per database, shared across resources. |
+| Structured logs | 100,000 entries | Per database, shared across resources. |
+| Traces | 100,000 traces | Per database, shared across resources. |
+| Metric points | 50,000 points | Per dimension in each database. |
+
+When these limits are exceeded, the oldest corresponding data is removed. Attribute, span-event, resource, instrumentation-scope, instrument, and dimension limits also apply.
+
+| Mode | Database retention |
+|------|--------------------|
+| `None` | The temporary database lasts for the dashboard process and is deleted after a clean shutdown. |
+| `Run` | Each dashboard start creates a database. The dashboard retains up to 10 unpinned runs per application and prunes the oldest unpinned runs. Pinned runs don't count toward this limit. |
+| `Resume` | One database is reused across dashboard restarts. It isn't subject to the `Run` history limit; telemetry limits evict the oldest data as the database is reused. |
 
 These limits aren't disk quotas. Database size also depends on attribute size, span events, metric cardinality, and captured console logs. Removing rows makes database pages reusable but doesn't shrink _dashboard.db_, because the dashboard doesn't run SQLite `VACUUM`. Write-ahead log files also consume disk space.
 

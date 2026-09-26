@@ -67,7 +67,7 @@ test('production Dev Hub scripts, styles, and Pagefind load from static assets',
 
 test('custom destinations excluded from the Markdown validator exist with their bookmark targets', async ({ page, request }) => {
   for (const [route, title] of [
-    ['/hub/', 'Dev Hub'],
+    ['/hub/', 'Aspire resources'],
     ['/hub/glossary/ats/', 'Aspire Type System'],
   ]) {
     const response = await page.goto(route);
@@ -334,7 +334,7 @@ test('newcomer paths precede three-column topic cards with responsive layouts', 
   const newcomers = page.getByRole('region', { name: 'New to Aspire?' });
   const topics = page.getByRole('navigation', { name: 'Browse by topic' });
   const intro = page.getByRole('region', { name: 'Find resources and get started' });
-  await expect(intro.locator('.dev-description')).toHaveText('Find guides, working samples, and reference docs for your next Aspire app.');
+  await expect(intro.locator('.dev-description')).toHaveText('Find guides, working samples, integrations, and reference docs for your next Aspire app. Browse this directory by topic, language, or cloud and deployment target.');
   await expect(intro).toContainText('Search Aspire documentation');
   await expect(intro).toContainText('New to Aspire?');
   await expect(newcomers.locator('.onboarding-option-icon')).toHaveCount(4);
@@ -394,10 +394,10 @@ test('newcomer paths precede three-column topic cards with responsive layouts', 
 
 test('Dev Hub uses consistent heading, body, and action sizes across viewports', async ({ page }) => {
   await page.goto('/hub/');
-  const title = page.getByRole('heading', { level: 1, name: 'Dev Hub', exact: true });
+  const title = page.getByRole('heading', { level: 1, name: 'Aspire resources', exact: true });
   await expect(title.locator('svg')).toHaveAttribute('aria-hidden', 'true');
   expect(await title.locator('svg').innerHTML()).toBe(
-    await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).locator('svg').innerHTML(),
+    await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML(),
   );
   for (const width of [320, 390, 768, 1440, 2000]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -407,7 +407,7 @@ test('Dev Hub uses consistent heading, body, and action sizes across viewports',
     expect(icon.width).toBeGreaterThan(24);
     expect(icon.x + icon.width).toBeLessThan(label.x);
     expect(icon.y + icon.height / 2).toBeCloseTo(label.y + label.height / 2, 0);
-    for (const heading of await page.locator('.dev-home h3').all()) {
+    for (const heading of await page.locator('.dev-home h3:not(.search-empty-title)').all()) {
       await expect(heading).toHaveCSS('font-size', '18px');
     }
     for (const body of await page.locator('.topic-links p, .onboarding p, .language-links p, .sample-copy p, .cloud-links p, .reference-links p, .blog-copy p, .dashboard-previews figcaption p, .topic-action').all()) {
@@ -460,8 +460,8 @@ test('desktop header actions use consistent spacing', async ({ page }) => {
   for (const width of [1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
     const banner = page.getByRole('banner');
-    const hubLink = banner.getByRole('link', { name: 'Dev Hub', exact: true });
-    await expect(hubLink).toHaveAttribute('aria-label', 'Dev Hub');
+    const hubLink = banner.getByRole('link', { name: 'Aspire resources', exact: true });
+    await expect(hubLink).toHaveAttribute('aria-label', 'Aspire resources');
     await expect(hubLink).toHaveAttribute('aria-current', 'page');
     await expect(hubLink.locator('svg')).toBeVisible();
     await expect(hubLink).toHaveCSS('border-width', '1px');
@@ -475,26 +475,118 @@ test('desktop header actions use consistent spacing', async ({ page }) => {
     expect(hubIcon.width).toBeCloseTo(20, 0);
     expect(hubIcon.height).toBeCloseTo(20, 0);
     const docs = (await banner.getByRole('link', { name: 'Docs', exact: true }).boundingBox())!;
+    const videos = (await banner.locator('.live-btn:visible').boundingBox())!;
     const start = (await banner.getByRole('link', { name: 'Try Aspire', exact: true }).boundingBox())!;
+    expect(videos.x - install.x - install.width).toBeCloseTo(8, 0);
+    expect(dev.x - videos.x - videos.width).toBeCloseTo(8, 0);
     expect(docs.x - dev.x - dev.width).toBeCloseTo(8, 0);
     expect(start.x - docs.x - docs.width).toBeCloseTo(8, 0);
   }
-  await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).hover();
-  await expect(page.getByRole('tooltip')).toContainText('Dev Hub');
+  await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).hover();
+  await expect(page.getByRole('tooltip')).toContainText('Aspire resources');
+});
+
+test('mobile header controls share an inactive border in both themes', async ({ page }) => {
+  await page.goto('/reference/samples/');
+  const banner = page.getByRole('banner');
+  const hub = banner.getByRole('link', { name: 'Aspire resources', exact: true });
+  for (const width of [320, 640, 799]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const theme of ['light', 'dark']) {
+      await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
+      await expect(hub).not.toHaveAttribute('aria-current');
+      await expect(hub).toHaveCSS('border-width', '1px');
+      await expect(hub).toHaveCSS('border-style', 'solid');
+      await expect(hub).toHaveCSS('border-radius', '6px');
+      const borderColor = await hub.evaluate((element) => getComputedStyle(element).borderColor);
+      for (const control of [
+        banner.locator('button[data-open-modal]:visible'),
+        banner.locator('.live-btn:visible'),
+        page.locator('starlight-menu-button button'),
+      ]) {
+        await expect(control).toHaveCSS('border-width', '1px');
+        await expect(control).toHaveCSS('border-style', 'solid');
+        await expect(control).toHaveCSS('border-color', borderColor);
+        await expect(control).toHaveCSS('border-radius', '6px');
+      }
+    }
+  }
+});
+
+test('header icon order and Videos selected effect survive client navigation', async ({ page }) => {
+  for (const theme of ['light', 'dark']) {
+    await page.goto('/hub/');
+    await page.evaluate((value) => {
+      localStorage.setItem('starlight-theme', value);
+      document.documentElement.dataset.theme = value;
+    }, theme);
+    const hub = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
+    const videos = page.locator('header .live-btn:visible');
+    const selectedStyle = await hub.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { color: style.color, background: style.backgroundColor, radius: style.borderRadius };
+    });
+    await expect(videos).not.toHaveAttribute('aria-current');
+    for (const group of ['.right-group', '.right-group-mobile']) {
+      await expect(page.locator(`header ${group} > .header-icon-btn`).nth(0)).toHaveClass(/install-cli-btn/);
+      await expect(page.locator(`header ${group} > .header-icon-btn`).nth(1)).toHaveClass(/live-btn/);
+      await expect(page.locator(`header ${group} > .header-icon-btn`).nth(2)).toHaveClass(/dev-center-btn/);
+      await expect(page.locator(`header ${group} > .header-icon-btn`).nth(3)).toHaveClass(/cookie-consent-btn/);
+    }
+    const hubBox = (await hub.boundingBox())!;
+    const videoBox = (await videos.boundingBox())!;
+    expect(hubBox.x - videoBox.x - videoBox.width).toBeCloseTo(8, 0);
+    await videos.click();
+    await expect(page).toHaveURL(/\/community\/videos\/$/);
+    await expect(videos).toHaveAttribute('aria-current', 'page');
+    await expect(hub).not.toHaveAttribute('aria-current');
+    await expect(videos).toHaveCSS('color', selectedStyle.color);
+    await expect(videos).toHaveCSS('background-color', selectedStyle.background);
+    await expect(videos).toHaveCSS('border-radius', selectedStyle.radius);
+    await page.keyboard.press('Tab');
+    await videos.focus();
+    await expect(videos).toHaveCSS('outline-style', 'solid');
+    await expect(videos).toHaveCSS('color', 'rgb(31, 30, 51)');
+    await hub.click();
+    await expect(page).toHaveURL(/\/hub\/$/);
+    await expect(hub).toHaveAttribute('aria-current', 'page');
+    await expect(videos).not.toHaveAttribute('aria-current');
+  }
 });
 
 test('Dev Hub has a distinct active header button on hub and browse routes in both themes', async ({ page }) => {
   for (const route of ['/hub/', '/hub/browse/', '/']) {
     await page.goto(route);
-    const hub = page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true });
+    const hub = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
     for (const theme of ['light', 'dark']) {
       await page.mouse.move(0, 0);
       await hub.evaluate((element) => element.blur());
       await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
+      const foreground = await hub.evaluate((element) => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--sl-color-text)';
+        element.append(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+      });
+      await expect(page.locator('header .site-title span')).toHaveCSS('color', foreground);
+      for (const control of await page.locator('header :is(.header-icon-btn, .docs-btn, .docs-btn-mobile, site-search > button[data-open-modal]):visible').all()) {
+        const expectedColor = await control.getAttribute('aria-current') === 'page' ? 'rgb(31, 30, 51)' : foreground;
+        await expect(control).toHaveCSS('color', expectedColor);
+        await control.hover();
+        await expect(control).toHaveCSS('color', expectedColor);
+        await control.focus();
+        await expect(control).toHaveCSS('color', expectedColor);
+        await control.evaluate((element) => element.blur());
+      }
+      await page.mouse.move(0, 0);
       await expect(hub).toBeVisible();
       if (route === '/') {
         await expect(hub).not.toHaveAttribute('aria-current');
-        await expect(hub).toHaveCSS('border-width', '0px');
+        const borderWidth = await page.locator('header .live-btn:visible')
+          .evaluate((element) => getComputedStyle(element).borderWidth);
+        await expect(hub).toHaveCSS('border-width', borderWidth);
         await expect(hub).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       } else {
         await expect(hub).toHaveAttribute('aria-current', 'page');
@@ -506,9 +598,10 @@ test('Dev Hub has a distinct active header button on hub and browse routes in bo
           return { foreground: style.color, background: style.backgroundColor };
         });
         expect(colors.foreground).not.toBe(colors.background);
+        expect(colors.foreground).toBe('rgb(31, 30, 51)');
         if (theme === 'light') {
           expect(colors.background).toBe('rgb(213, 210, 246)');
-          expect(colors.foreground).toBe('rgb(81, 43, 212)');
+          expect(colors.foreground).toBe(foreground);
         }
         await hub.focus();
         await expect(hub).not.toHaveCSS('outline-style', 'none');
@@ -520,7 +613,7 @@ test('Dev Hub has a distinct active header button on hub and browse routes in bo
         for (const control of await page.locator('header :is(.dev-center-btn, .dev-center-btn-mobile, .install-cli-btn):visible').all()) {
           await control.hover();
           await expect(control).toHaveCSS('background-color', 'rgb(213, 210, 246)');
-          await expect(control).toHaveCSS('color', 'rgb(81, 43, 212)');
+          await expect(control).toHaveCSS('color', foreground);
           await control.focus();
           await expect(control).toHaveCSS('outline-style', 'solid');
           await control.evaluate((element) => element.blur());
@@ -532,7 +625,7 @@ test('Dev Hub has a distinct active header button on hub and browse routes in bo
 
 test('Developer Hub dashboard screenshots load and its links reach real sections', async ({ page }) => {
   await page.goto('/hub/#dashboard');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dev Hub');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Aspire resources');
   const dashboard = page.getByRole('region', { name: 'Dashboard', exact: true });
   const screenshots = dashboard.locator('img');
   await expect(screenshots).toHaveCount(2);
@@ -623,11 +716,11 @@ test('Developer Hub typography and glossary controls reflow in both themes', asy
       });
       expect(layout.overflow).toBe(false);
       expect(layout.headingSize).toBeGreaterThanOrEqual(32);
-      expect(layout.hasTagline).toBe(true);
+      expect(layout.hasTagline).toBe(false);
       expect(layout.pillHeights.every((height) => height >= (width <= 600 ? 44 : 36))).toBe(true);
       expect(layout.searchClass).toContain('inpage-search-input');
       await expect(page.locator('glossary-browser select')).toHaveCount(0);
-      await expect(page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true })).toBeVisible();
+      await expect(page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true })).toBeVisible();
     }
   }
 });
@@ -670,7 +763,7 @@ test('unpublished dev routes do not duplicate the canonical hub pages or Markdow
 
 test('localized navigation keeps the English Developer Hub destination', async ({ page }) => {
   await page.goto('/de/docs/');
-  const link = page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true });
+  const link = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute('href', '/hub/');
 });
@@ -692,7 +785,7 @@ test('the hub and glossary retain accessible light and dark layouts', async ({ p
 
 test('browsing pages omit page actions while keeping their Markdown endpoints', async ({ page }) => {
   for (const [route, heading] of [
-    ['/hub/', 'Dev Hub'],
+    ['/hub/', 'Aspire resources'],
     ['/hub/glossary/', 'Aspire glossary'],
   ]) {
     for (const width of [320, 768, 1440]) {
@@ -760,41 +853,56 @@ test('page-action menus stay within narrow viewports on glossary term pages', as
   }
 });
 
-test('Developer Hub opens site search without filtering the page and retains keyboard shortcuts', async ({ page }) => {
-  await page.goto('/hub/');
-  const trigger = page.getByRole('button', { name: 'Search Aspire documentation' });
-  const dialog = page.locator('site-search dialog');
-  await expect(page.locator('site-search')).toHaveCount(1);
-  await expect(page.getByRole('banner').locator('button[data-open-modal]')).toBeHidden();
-  await expect(trigger).toBeEnabled();
-  await trigger.click();
-  await expect(dialog).toBeVisible();
-  const input = dialog.locator('input.pagefind-ui__search-input');
-  const devWarning = dialog.getByText(/Search is only available in production builds/i);
-  await expect(input.or(devWarning)).toBeVisible();
-  if (await input.isVisible()) {
-    await expect(input).toBeFocused();
-    await input.fill('redis');
-    await expect(dialog.locator('.pagefind-ui__result-link').first()).toBeVisible();
-  }
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
-  await expect(trigger).toBeFocused();
-  for (const key of ['Enter', 'Space', 'Control+k', 'Meta+k']) {
-    await trigger.press(key);
+for (const language of ['', 'python']) {
+  test(`Developer Hub opens site search without changing ${language || 'all'} samples and retains keyboard shortcuts`, async ({ page }) => {
+    const path = language ? `/hub/?sample-language=${language}` : '/hub/';
+    await page.goto(path);
+    const samples = page.locator('featured-samples');
+    const visibleTitles = samples.locator('[data-sample-languages]:visible h3');
+    const expectedTitles = language ? ['FastAPI + JavaScript'] : [
+      'Aspire Shop', 'Angular, React, and Vue', 'FastAPI + JavaScript',
+      'Go REST API', 'Persistent Volume', 'Node.js Weather Explorer',
+    ];
+    await expect(samples).toHaveAttribute('data-ready', '');
+    await expect(visibleTitles).toHaveText(expectedTitles);
+    const trigger = page.getByRole('button', { name: 'Search Aspire documentation' });
+    const dialog = page.locator('site-search dialog');
+    await expect(page.locator('site-search')).toHaveCount(1);
+    await expect(page.getByRole('banner').locator('button[data-open-modal]')).toBeHidden();
+    await expect(trigger).toBeEnabled();
+    await trigger.click();
     await expect(dialog).toBeVisible();
+    const input = dialog.locator('input.pagefind-ui__search-input');
+    const devWarning = dialog.getByText(/Search is only available in production builds/i);
+    await expect(input.or(devWarning)).toBeVisible();
+    if (await input.isVisible()) {
+      await expect(input).toBeFocused();
+      await input.fill('redis');
+      await expect(dialog.locator('.pagefind-ui__result-link').first()).toBeVisible();
+    }
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(trigger).toBeFocused();
-  }
-  await expect(page.getByRole('region', { name: 'New to Aspire?' })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Browse by topic' })).toBeVisible();
-  await expect(page.locator('.dev-home [hidden], .dev-home input, .dev-empty')).toHaveCount(0);
-  await expect(page).toHaveURL(/\/hub\/$/);
-  await page.goto('/hub/glossary/');
-  await expect(page.getByRole('banner').locator('button[data-open-modal]')).toBeVisible();
-  await expect(page.getByRole('searchbox', { name: 'Find a term' })).toBeVisible();
-});
+    for (const key of ['Enter', 'Space', 'Control+k', 'Meta+k']) {
+      await trigger.press(key);
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+    }
+    await expect(page.getByRole('region', { name: 'New to Aspire?' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Browse by topic' })).toBeVisible();
+    await expect(page.locator('.dev-home input[type="search"], .dev-empty')).toHaveCount(0);
+    await expect(visibleTitles).toHaveText(expectedTitles);
+    await expect(samples.getByRole('checkbox', { checked: true })).toHaveCount(language ? 1 : 0);
+    if (language) await expect(samples.getByRole('checkbox', { name: 'Python', exact: true })).toBeChecked();
+    await expect(samples.locator('[data-sample-empty]')).toBeHidden();
+    await expect(page).toHaveURL(path);
+    await page.goto('/hub/glossary/');
+    await expect(page.getByRole('banner').locator('button[data-open-modal]')).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Find a term' })).toBeVisible();
+  });
+}
 
 test('discovery cards have working destinations, images, icons, colors, and matching Markdown', async ({ page }) => {
   test.setTimeout(120_000);
@@ -847,7 +955,7 @@ test('discovery cards have working destinations, images, icons, colors, and matc
 
 test('cloud and blog discovery stays readable and responsive', async ({ page }) => {
   await page.goto('/hub/');
-  const clouds = page.getByRole('region', { name: 'Browse by cloud' });
+  const clouds = page.getByRole('region', { name: 'Browse by cloud and deployment target' });
   await expect(clouds.getByRole('heading', { level: 3 })).toHaveText(['AWS', 'Azure', 'Kubernetes']);
   expect(await clouds.locator('a').evaluateAll((links) => links.map((link) => link.getAttribute('href')))).toEqual([
     '/integrations/cloud/aws/overview/',
@@ -904,21 +1012,26 @@ test('Hub search surfaces stay consistent inside tinted control panels', async (
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   const hubSearchBackground = await page.locator('.dev-search').evaluate((element) => getComputedStyle(element).backgroundColor);
 
+  await page.goto('/integrations/gallery/');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  const inputBackground = await page.locator('main .search-field-input').evaluate((element) => getComputedStyle(element).backgroundColor);
+
   await page.goto('/hub/browse/');
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await expect(page.locator('.browse-search')).toBeVisible();
   const browseBackgrounds = await page.locator('.inpage-search-input, .browse-filter-group summary')
     .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
-  expect(browseBackgrounds.every((background) => background === hubSearchBackground)).toBe(true);
-  expect(await page.locator('.browse-controls').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(hubSearchBackground);
+  expect(browseBackgrounds.every((background) => background === inputBackground)).toBe(true);
+  expect(await page.locator('.browse-controls').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(inputBackground);
 
   await page.goto('/hub/glossary/');
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await expect(page.locator('.glossary-controls')).toBeVisible();
-  const glossaryBackgrounds = await page.locator('.glossary-controls .inpage-search-input, .glossary-controls .api-filter-chip:not(.active)')
+  await expect(page.locator('.glossary-controls .inpage-search-input')).toHaveCSS('background-color', inputBackground);
+  const glossaryBackgrounds = await page.locator('.glossary-controls .api-filter-chip:not(.active)')
     .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
   expect(glossaryBackgrounds.every((background) => background === hubSearchBackground)).toBe(true);
-  expect(await page.locator('.glossary-filter-panel').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(hubSearchBackground);
+  expect(await page.locator('.glossary-filter-panel').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(inputBackground);
 });
 
 test('AWS discovery opens a first-party overview with provider guidance', async ({ page }) => {
@@ -973,7 +1086,7 @@ test('Developer Hub and glossary share content alignment and complete breadcrumb
         await expect(breadcrumb.locator('.bc-toggle-label')).toHaveText(title);
         await breadcrumb.locator('summary').click();
       }
-      await expect(breadcrumb.getByRole('link', { name: 'Dev Hub', exact: true })).toHaveAttribute('href', '/hub/');
+      await expect(breadcrumb.getByRole('link', { name: 'Aspire resources', exact: true })).toHaveAttribute('href', '/hub/');
       if (width <= 480) await breadcrumb.locator('summary').click();
       expect(content!.x).toBeCloseTo(hub!.x, 0);
       expect(content!.width).toBeCloseTo(hub!.width, 0);

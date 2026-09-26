@@ -37,6 +37,8 @@ internal sealed class InMemoryLiveStatusStore(TimeProvider timeProvider) : ILive
 
 internal sealed class SingleInstanceLiveStatusCoordination : ILiveStatusCoordination
 {
+    public int YouTubeConfirmationRequests { get; private set; }
+
     private const string CompletedMessage = "completed";
 
     private readonly ConcurrentDictionary<string, string> _twitchMessageIds =
@@ -70,6 +72,7 @@ internal sealed class SingleInstanceLiveStatusCoordination : ILiveStatusCoordina
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        YouTubeConfirmationRequests++;
         return ValueTask.FromResult(true);
     }
 
@@ -114,8 +117,20 @@ internal sealed class SingleInstanceLiveStatusCoordination : ILiveStatusCoordina
 
 internal sealed class YouTubeWebSubSubscriptionState(TimeProvider? timeProvider = null) : IYouTubeWebSubSubscriptionState
 {
+    public Exception? MarkRequestSentException { get; set; }
     private readonly Lock _gate = new();
     private YouTubeWebSubSubscriptionData _state = YouTubeWebSubSubscriptionData.Empty;
+
+    public YouTubeWebSubSubscriptionData Current
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _state;
+            }
+        }
+    }
 
     public ValueTask<YouTubeWebSubSubscriptionRequest?> TryBeginSubscriptionAsync(
         string channelId,
@@ -156,6 +171,10 @@ internal sealed class YouTubeWebSubSubscriptionState(TimeProvider? timeProvider 
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (MarkRequestSentException is { } exception)
+        {
+            return ValueTask.FromException(exception);
+        }
 
         lock (_gate)
         {

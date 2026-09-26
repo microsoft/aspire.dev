@@ -1,0 +1,665 @@
+{
+  "package": {
+    "name": "Aspire.Hosting.Java",
+    "version": "13.6.0-preview.1.26473.12",
+    "language": "typescript",
+    "sourceRepository": "https://github.com/microsoft/aspire",
+    "sourceCommit": "a11eca9611073f7cf66fa87faac63c2119e87713"
+  },
+  "functions": [
+    {
+      "name": "addJavaApp",
+      "capabilityId": "Aspire.Hosting.Java/addJavaApp",
+      "qualifiedName": "addJavaApp",
+      "description": "Adds a Java application to the application model, launched with `java`.",
+      "remarks": "Combine with `WithMavenGoal``1` or\n`WithGradleTask``1` to run the application through a build tool,\nor use the overload that accepts a `jarPath` to run a prebuilt JAR with `java -jar`.\nExactly one of those three launch modes must be configured.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "addJavaApp(name: string, appDirectory: string): JavaAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The application directory. Relative paths are resolved against the AppHost directory."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addJavaAppWithJar",
+      "capabilityId": "Aspire.Hosting.Java/addJavaAppWithJar",
+      "qualifiedName": "addJavaAppWithJar",
+      "description": "Adds a Java application that runs a prebuilt JAR with `java -jar`.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "addJavaAppWithJar(name: string, appDirectory: string, jarPath: string, args: string[]): JavaAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The application directory. Relative paths are resolved against the AppHost directory."
+        },
+        {
+          "name": "jarPath",
+          "type": "string",
+          "description": "The path to the JAR file to execute. Relative paths are resolved against `appDirectory`."
+        },
+        {
+          "name": "args",
+          "type": "string[]",
+          "description": "Arguments passed to the Java application after the JAR path."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addJavaContainer",
+      "capabilityId": "Aspire.Hosting.Java/addJavaContainer",
+      "qualifiedName": "addJavaContainer",
+      "description": "Adds a Java application that runs from an existing container image.",
+      "remarks": "Use this when the image is built elsewhere — by a separate CI pipeline, or by a team that ships the\napplication as a container. Aspire runs the image as-is and never rebuilds it, so the JAR, the JDK,\nand any OpenTelemetry agent all come from the image. Use\n`AddJavaApp` instead when Aspire should\nbuild and run the application from source.\nNo endpoint is declared, because the port the image listens on is a property of the image. Add one\nwith `WithHttpEndpoint(targetPort: 8080)`, using whichever port the application binds — 8080\nfor a default Spring Boot or Quarkus image.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "addJavaContainer(name: string, image: string, tag?: string): JavaContainerResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        {
+          "name": "image",
+          "type": "string",
+          "description": "The container image that runs the application, for example `mycompany/catalog`."
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "isOptional": true,
+          "description": "The image tag. Defaults to the image's `latest` tag."
+        }
+      ],
+      "returnType": "JavaContainerResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addQuarkusApp",
+      "capabilityId": "Aspire.Hosting.Java/addQuarkusApp",
+      "qualifiedName": "addQuarkusApp",
+      "description": "Adds a Quarkus application to the application model, built and launched with its own Maven or Gradle wrapper.",
+      "remarks": "The build tool is detected when the resource starts, the application runs in Quarkus dev mode\n(`quarkus:dev` or `quarkusDev`) so live coding works, and an HTTP endpoint is declared through\n`QUARKUS_HTTP_PORT`, the environment variable Quarkus reads for its listening port. Everything else\nbehaves like `AddJavaApp`.\nThe dev-mode goal compiles the application itself, so Aspire does not add a separate build resource before it.\nThere are two exceptions. `WithOtelAgent``1` with a build-produced agent\ncannot be loaded until a build has written it, and a debug session launches the packaged fast JAR rather\nthan the dev-mode wrapper, which no build has written on a clean checkout.\nQuarkus Dev Services are left enabled but do not activate for anything Aspire supplies: Dev Services only\nstart a container when the corresponding configuration is missing, and a `WithReference` to a database\nor broker provides it. That means Aspire's resources are used rather than a second set started underneath.\n`QUARKUS_PROFILE` is set to `dev` in run mode. Dev mode already selects that profile; setting it\nexplicitly means a debugger, which launches the packaged application rather than the dev-mode wrapper,\nresolves the same `%dev.` configuration the application would see when run normally.\nIn run mode the application is bound to all interfaces. Quarkus enables Host header validation\nwhenever it binds a localhost name, and that filter rejects the hostname Aspire publishes, which\nmakes the endpoint link in the dashboard return `400`. Published output is left alone, where\nthe application already binds all interfaces.\nNo health check is added. `/q/health` only exists when the application depends on\n`quarkus-smallrye-health`, and adding it unconditionally would leave applications without that\nextension permanently unhealthy and silently stall every `WaitFor` on them. Add\n`WithHttpHealthCheck(\"/q/health\")` when the extension is present.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "addQuarkusApp(name: string, appDirectory: string): JavaAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The application directory, containing `pom.xml`, `build.gradle`, `build.gradle.kts`, `settings.gradle`, or `settings.gradle.kts`. Relative paths are resolved against the AppHost directory."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addSpringBootApp",
+      "capabilityId": "Aspire.Hosting.Java/addSpringBootApp",
+      "qualifiedName": "addSpringBootApp",
+      "description": "Adds a Spring Boot application to the application model, built and launched with its own Maven or Gradle wrapper.",
+      "remarks": "This is `AddJavaApp` with the common\nSpring Boot configuration already applied: the build tool is detected when the resource starts, the\napplication is launched through that tool's Spring Boot plugin (`spring-boot:run` or `bootRun`),\nand an HTTP endpoint is declared through `SERVER_PORT`, which is the environment\nvariable Spring Boot reads for its listening port. Everything else is the same, so any `With…` method\nthat works on `AddJavaApp` works here too.\nThe launch goal compiles the application itself, so Aspire does not add a separate build resource before\nit. Publishing still packages the application with tests skipped (`-DskipTests` for Maven,\n`-x test` for Gradle). Call `WithMavenBuild``1` or\n`WithGradleBuild``1` afterwards to customize those package arguments.\nThe one thing that does add a build resource is\n`WithOtelAgent``1` with a build-produced agent, which cannot be\nloaded until a build has written it.\nNo health check is added. `/actuator/health` only exists when the application depends on\n`spring-boot-starter-actuator`, and adding it unconditionally would leave applications without that\ndependency permanently unhealthy and silently stall every `WaitFor` on them. Add\n`WithHttpHealthCheck(\"/actuator/health\")` when the actuator is present.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "addSpringBootApp(name: string, appDirectory: string): JavaAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The application directory, containing `pom.xml`, `build.gradle`, `build.gradle.kts`, `settings.gradle`, or `settings.gradle.kts`. Relative paths are resolved against the AppHost directory."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "withGradleBuild",
+      "capabilityId": "Aspire.Hosting.Java/withGradleBuild",
+      "qualifiedName": "withGradleBuild",
+      "description": "Runs a Gradle build before the Java application starts.",
+      "remarks": "When the application launches with `WithGradleTask``1`,\nthat task performs the local compilation, so these arguments normally configure publishing without adding a\nsecond run-mode build. Otherwise, the build step is a child resource that the application waits for.\nNo child is created when publishing because the generated container image performs the build.\nThis runs a build before the application starts. To launch the application through Gradle,\nuse `WithGradleTask``1` instead.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withGradleBuild(args: string[]): JavaAppResource",
+      "parameters": [
+        {
+          "name": "args",
+          "type": "string[]",
+          "description": "Arguments passed to the Gradle wrapper. Defaults to `clean build`."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Java.JavaAppResource"
+      ]
+    },
+    {
+      "name": "withGradleTask",
+      "capabilityId": "Aspire.Hosting.Java/withGradleTask",
+      "qualifiedName": "withGradleTask",
+      "description": "Launches the Java application through a Gradle task instead of `java`, for example `bootRun`.",
+      "remarks": "The wrapper defaults to `gradlew` (`gradlew.bat` on Windows) in the resource's working\ndirectory and can be overridden with `WithWrapperPath``1`.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withGradleTask(task: string, args: string[]): JavaAppResource",
+      "parameters": [
+        {
+          "name": "task",
+          "type": "string",
+          "description": "The Gradle task to execute."
+        },
+        {
+          "name": "args",
+          "type": "string[]",
+          "description": "Additional arguments passed to the Gradle wrapper after the task."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Java.JavaAppResource"
+      ]
+    },
+    {
+      "name": "withJarArtifact",
+      "capabilityId": "Aspire.Hosting.Java/withJarArtifact",
+      "qualifiedName": "withJarArtifact",
+      "description": "Selects the JAR the generated container image runs, for projects whose build produces more than one.",
+      "remarks": "Only affects publishing, and only when the application is built in the image. Without it the\ncontainer build selects the single JAR that is not a `-plain`, `-sources`, or\n`-javadoc` artifact, and fails the build if that is ambiguous.\nThis takes precedence over the JAR named by the `jarPath` overload of\n`AddJavaApp`, so a\nresource can run one JAR locally and publish another. It has no effect on an application published\nfrom a prebuilt JAR, because nothing is built in the image for it to select from.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withJarArtifact(jarPath: string): JavaAppResource",
+      "parameters": [
+        {
+          "name": "jarPath",
+          "type": "string",
+          "description": "The path to the JAR produced by the build, relative to the application directory, for example `target/app.jar`."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Java.JavaAppResource"
+      ]
+    },
+    {
+      "name": "withJvmArgs",
+      "capabilityId": "Aspire.Hosting.Java/withJvmArgs",
+      "qualifiedName": "withJvmArgs",
+      "description": "Adds arguments to the Java Virtual Machine that runs the application.",
+      "remarks": "Arguments are passed through the `JAVA_TOOL_OPTIONS` environment variable, which the JVM reads\nhowever it was started — `java -jar`, a Maven goal, a Gradle task, or a container image's own\nentrypoint, including the JVM those build tools fork. Values containing spaces are quoted, because\nthe JVM splits this variable on whitespace.\nThis is also how a container image that already carries the OpenTelemetry Java agent turns it on,\nsince `WithOtelAgent``1` copies an agent from the build\ncontext and so applies only to applications Aspire itself launches or builds:\n`WithJvmArgs(\"-javaagent:/app/opentelemetry-javaagent.jar\")`.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withJvmArgs(args: string[]): IJavaAppResource",
+      "parameters": [
+        {
+          "name": "args",
+          "type": "string[]",
+          "description": "The JVM arguments, for example `-Xmx512m`."
+        }
+      ],
+      "returnType": "IJavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.IJavaAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Java.JavaAppResource",
+        "Aspire.Hosting.Java.JavaContainerResource"
+      ]
+    },
+    {
+      "name": "withMainClass",
+      "capabilityId": "Aspire.Hosting.Java/withMainClass",
+      "qualifiedName": "withMainClass",
+      "description": "Sets the main class an IDE launches when running or debugging this application. Has no effect on how Aspire starts the process, which is decided by the JAR path, Maven goal, or Gradle task.",
+      "remarks": "Only affects IDE execution. When omitted, the IDE resolves the main class from the project's build\nfiles; set it explicitly when a project declares more than one class with a `main` method.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withMainClass(mainClass: string): JavaAppResource",
+      "parameters": [
+        {
+          "name": "mainClass",
+          "type": "string",
+          "description": "The fully qualified name of the class declaring `main`, for example `com.example.Application`."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Java.JavaAppResource"
+      ]
+    },
+    {
+      "name": "withMavenBuild",
+      "capabilityId": "Aspire.Hosting.Java/withMavenBuild",
+      "qualifiedName": "withMavenBuild",
+      "description": "Runs a Maven build before the Java application starts.",
+      "remarks": "When the application launches with `WithMavenGoal``1`,\nthat goal performs the local compilation, so these arguments normally configure publishing without adding a\nsecond run-mode build. Otherwise, the build step is a child resource that the application waits for.\nNo child is created when publishing because the generated container image performs the build.\nThis runs a build before the application starts. To launch the application through Maven,\nuse `WithMavenGoal``1` instead.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withMavenBuild(args: string[]): JavaAppResource",
+      "parameters": [
+        {
+          "name": "args",
+          "type": "string[]",
+          "description": "Arguments passed to the Maven wrapper. Defaults to `clean package`."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Java.JavaAppResource"
+      ]
+    },
+    {
+      "name": "withMavenGoal",
+      "capabilityId": "Aspire.Hosting.Java/withMavenGoal",
+      "qualifiedName": "withMavenGoal",
+      "description": "Launches the Java application through a Maven goal instead of `java`, for example `spring-boot:run`.",
+      "remarks": "The wrapper defaults to `mvnw` (`mvnw.cmd` on Windows) in the resource's working directory\nand can be overridden with `WithWrapperPath``1`.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withMavenGoal(goal: string, args: string[]): JavaAppResource",
+      "parameters": [
+        {
+          "name": "goal",
+          "type": "string",
+          "description": "The Maven goal to execute."
+        },
+        {
+          "name": "args",
+          "type": "string[]",
+          "description": "Additional arguments passed to the Maven wrapper after the goal."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Java.JavaAppResource"
+      ]
+    },
+    {
+      "name": "withOtelAgent",
+      "capabilityId": "Aspire.Hosting.Java/withOtelAgent",
+      "qualifiedName": "withOtelAgent",
+      "description": "Runs the application with the OpenTelemetry Java agent so it exports traces, metrics, and logs to Aspire.",
+      "remarks": "The agent is not downloaded. Obtain it as a build dependency, or from\nhttps://github.com/open-telemetry/opentelemetry-java-instrumentation/releases, and point this at the\nresulting file. The OTLP exporter is configured by `AddJavaApp` regardless of whether an agent\nis used, so call this only when you want the agent's automatic instrumentation.\nA relative `agentPath` is resolved against the application directory and made absolute\nwhen running locally. This is required, not cosmetic: `JAVA_TOOL_OPTIONS` is inherited by every JVM\nstarted beneath the resource, and build tools start JVMs whose working directory is not the application\ndirectory. The Gradle daemon, for example, starts from its own distribution directory, so a relative\n`-javaagent:` path fails to resolve and the daemon dies during VM initialization with\n\"Error opening zip file or JAR manifest missing\".\nA relative path names a file the build produces, so Aspire runs that build as its own resource in run\nmode and holds the application until it finishes. An absolute path names a file that exists\nindependently of the build, so no build resource is added.\nIn publish mode a relative path is rewritten to the location the generated Dockerfile copies the\nagent to, because the path has to be interpreted inside the container rather than on the build\nmachine. An absolute path is emitted unchanged, since it cannot have come from the build context\nand must be supplied by the base image or a mount.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withOtelAgent(agentPath: string): JavaAppResource",
+      "parameters": [
+        {
+          "name": "agentPath",
+          "type": "string",
+          "description": "The path to the `opentelemetry-javaagent.jar` file."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Java.JavaAppResource"
+      ]
+    },
+    {
+      "name": "withOtelAgentDefaultPath",
+      "capabilityId": "Aspire.Hosting.Java/withOtelAgentDefaultPath",
+      "qualifiedName": "withOtelAgentDefaultPath",
+      "description": "Runs the application with the OpenTelemetry Java agent from the location the build tool writes it to.",
+      "remarks": "The agent is expected at `target/agent/opentelemetry-javaagent.jar` for Maven and\n`build/agent/opentelemetry-javaagent.jar` for Gradle — the conventional output directory of each tool\nwith an `agent` subdirectory. The build has to put it there; nothing is downloaded. With Maven, copy it\nwith `maven-dependency-plugin`'s `copy` goal bound to `process-resources`; with Gradle,\ndeclare the agent in its own configuration and add a `Copy` task that `compileJava` depends on.\nMay be called before or after the build tool is configured: which directory the agent is read from is\ndecided when the application model is built, so the result does not depend on the order of builder calls.\nBecause the build writes the agent, Aspire runs that build as its own resource in run mode and holds\nthe application until it finishes — including for Spring Boot and Quarkus, whose launch goals would\notherwise be the only build. This is required rather than an optimization: `JAVA_TOOL_OPTIONS` is\nread by every JVM started beneath the resource, and the first of those is the wrapper's own, so an\nagent the build has not written yet kills that JVM during VM initialization with \"Error opening zip\nfile or JAR manifest missing\" before the launch goal runs.\nUse `WithOtelAgent``1` when the agent lives anywhere else, including\nwhen it is committed to the repository or supplied by the container base image.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withOtelAgentDefaultPath(): JavaAppResource",
+      "parameters": [],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Java.JavaAppResource"
+      ]
+    },
+    {
+      "name": "withWrapperPath",
+      "capabilityId": "Aspire.Hosting.Java/withWrapperPath",
+      "qualifiedName": "withWrapperPath",
+      "description": "Overrides the build tool wrapper script path, for repositories whose wrapper is not in the default location or does not use the default name.",
+      "remarks": "May be called before or after the build tool is configured. A later call re-points anything that\nalready resolved the default wrapper, so the result does not depend on the order of builder calls.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withWrapperPath(wrapperPath: string): JavaAppResource",
+      "parameters": [
+        {
+          "name": "wrapperPath",
+          "type": "string",
+          "description": "The path to the wrapper script, absolute or relative to the resource's working directory."
+        }
+      ],
+      "returnType": "JavaAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Java.JavaAppResource"
+      ]
+    }
+  ],
+  "handleTypes": [
+    {
+      "name": "JavaAppResource",
+      "fullName": "Aspire.Hosting.Java.JavaAppResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "Represents a Java application resource in the distributed application model.",
+      "remarks": "The command is always `java`. When the application is launched through a Maven goal or a Gradle\ntask, the wrapper script replaces that command; see `WithMavenGoal` and `WithGradleTask`.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IContainerFilesDestinationResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithServiceDiscovery",
+        "Aspire.Hosting.Java.IJavaAppResource"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": [
+        {
+          "name": "withGradleBuild",
+          "capabilityId": "Aspire.Hosting.Java/withGradleBuild",
+          "qualifiedName": "withGradleBuild",
+          "description": "Runs a Gradle build before the Java application starts.",
+          "remarks": "When the application launches with `WithGradleTask``1`,\nthat task performs the local compilation, so these arguments normally configure publishing without adding a\nsecond run-mode build. Otherwise, the build step is a child resource that the application waits for.\nNo child is created when publishing because the generated container image performs the build.\nThis runs a build before the application starts. To launch the application through Gradle,\nuse `WithGradleTask``1` instead.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withGradleBuild(args: string[]): JavaAppResource",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "string[]",
+              "description": "Arguments passed to the Gradle wrapper. Defaults to `clean build`."
+            }
+          ],
+          "returnType": "JavaAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Java.JavaAppResource"
+          ]
+        },
+        {
+          "name": "withGradleTask",
+          "capabilityId": "Aspire.Hosting.Java/withGradleTask",
+          "qualifiedName": "withGradleTask",
+          "description": "Launches the Java application through a Gradle task instead of `java`, for example `bootRun`.",
+          "remarks": "The wrapper defaults to `gradlew` (`gradlew.bat` on Windows) in the resource's working\ndirectory and can be overridden with `WithWrapperPath``1`.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withGradleTask(task: string, args: string[]): JavaAppResource",
+          "parameters": [
+            {
+              "name": "task",
+              "type": "string",
+              "description": "The Gradle task to execute."
+            },
+            {
+              "name": "args",
+              "type": "string[]",
+              "description": "Additional arguments passed to the Gradle wrapper after the task."
+            }
+          ],
+          "returnType": "JavaAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Java.JavaAppResource"
+          ]
+        },
+        {
+          "name": "withJarArtifact",
+          "capabilityId": "Aspire.Hosting.Java/withJarArtifact",
+          "qualifiedName": "withJarArtifact",
+          "description": "Selects the JAR the generated container image runs, for projects whose build produces more than one.",
+          "remarks": "Only affects publishing, and only when the application is built in the image. Without it the\ncontainer build selects the single JAR that is not a `-plain`, `-sources`, or\n`-javadoc` artifact, and fails the build if that is ambiguous.\nThis takes precedence over the JAR named by the `jarPath` overload of\n`AddJavaApp`, so a\nresource can run one JAR locally and publish another. It has no effect on an application published\nfrom a prebuilt JAR, because nothing is built in the image for it to select from.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withJarArtifact(jarPath: string): JavaAppResource",
+          "parameters": [
+            {
+              "name": "jarPath",
+              "type": "string",
+              "description": "The path to the JAR produced by the build, relative to the application directory, for example `target/app.jar`."
+            }
+          ],
+          "returnType": "JavaAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Java.JavaAppResource"
+          ]
+        },
+        {
+          "name": "withMainClass",
+          "capabilityId": "Aspire.Hosting.Java/withMainClass",
+          "qualifiedName": "withMainClass",
+          "description": "Sets the main class an IDE launches when running or debugging this application. Has no effect on how Aspire starts the process, which is decided by the JAR path, Maven goal, or Gradle task.",
+          "remarks": "Only affects IDE execution. When omitted, the IDE resolves the main class from the project's build\nfiles; set it explicitly when a project declares more than one class with a `main` method.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withMainClass(mainClass: string): JavaAppResource",
+          "parameters": [
+            {
+              "name": "mainClass",
+              "type": "string",
+              "description": "The fully qualified name of the class declaring `main`, for example `com.example.Application`."
+            }
+          ],
+          "returnType": "JavaAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Java.JavaAppResource"
+          ]
+        },
+        {
+          "name": "withMavenBuild",
+          "capabilityId": "Aspire.Hosting.Java/withMavenBuild",
+          "qualifiedName": "withMavenBuild",
+          "description": "Runs a Maven build before the Java application starts.",
+          "remarks": "When the application launches with `WithMavenGoal``1`,\nthat goal performs the local compilation, so these arguments normally configure publishing without adding a\nsecond run-mode build. Otherwise, the build step is a child resource that the application waits for.\nNo child is created when publishing because the generated container image performs the build.\nThis runs a build before the application starts. To launch the application through Maven,\nuse `WithMavenGoal``1` instead.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withMavenBuild(args: string[]): JavaAppResource",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "string[]",
+              "description": "Arguments passed to the Maven wrapper. Defaults to `clean package`."
+            }
+          ],
+          "returnType": "JavaAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Java.JavaAppResource"
+          ]
+        },
+        {
+          "name": "withMavenGoal",
+          "capabilityId": "Aspire.Hosting.Java/withMavenGoal",
+          "qualifiedName": "withMavenGoal",
+          "description": "Launches the Java application through a Maven goal instead of `java`, for example `spring-boot:run`.",
+          "remarks": "The wrapper defaults to `mvnw` (`mvnw.cmd` on Windows) in the resource's working directory\nand can be overridden with `WithWrapperPath``1`.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withMavenGoal(goal: string, args: string[]): JavaAppResource",
+          "parameters": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The Maven goal to execute."
+            },
+            {
+              "name": "args",
+              "type": "string[]",
+              "description": "Additional arguments passed to the Maven wrapper after the goal."
+            }
+          ],
+          "returnType": "JavaAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Java.JavaAppResource"
+          ]
+        },
+        {
+          "name": "withOtelAgent",
+          "capabilityId": "Aspire.Hosting.Java/withOtelAgent",
+          "qualifiedName": "withOtelAgent",
+          "description": "Runs the application with the OpenTelemetry Java agent so it exports traces, metrics, and logs to Aspire.",
+          "remarks": "The agent is not downloaded. Obtain it as a build dependency, or from\nhttps://github.com/open-telemetry/opentelemetry-java-instrumentation/releases, and point this at the\nresulting file. The OTLP exporter is configured by `AddJavaApp` regardless of whether an agent\nis used, so call this only when you want the agent's automatic instrumentation.\nA relative `agentPath` is resolved against the application directory and made absolute\nwhen running locally. This is required, not cosmetic: `JAVA_TOOL_OPTIONS` is inherited by every JVM\nstarted beneath the resource, and build tools start JVMs whose working directory is not the application\ndirectory. The Gradle daemon, for example, starts from its own distribution directory, so a relative\n`-javaagent:` path fails to resolve and the daemon dies during VM initialization with\n\"Error opening zip file or JAR manifest missing\".\nA relative path names a file the build produces, so Aspire runs that build as its own resource in run\nmode and holds the application until it finishes. An absolute path names a file that exists\nindependently of the build, so no build resource is added.\nIn publish mode a relative path is rewritten to the location the generated Dockerfile copies the\nagent to, because the path has to be interpreted inside the container rather than on the build\nmachine. An absolute path is emitted unchanged, since it cannot have come from the build context\nand must be supplied by the base image or a mount.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withOtelAgent(agentPath: string): JavaAppResource",
+          "parameters": [
+            {
+              "name": "agentPath",
+              "type": "string",
+              "description": "The path to the `opentelemetry-javaagent.jar` file."
+            }
+          ],
+          "returnType": "JavaAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Java.JavaAppResource"
+          ]
+        },
+        {
+          "name": "withOtelAgentDefaultPath",
+          "capabilityId": "Aspire.Hosting.Java/withOtelAgentDefaultPath",
+          "qualifiedName": "withOtelAgentDefaultPath",
+          "description": "Runs the application with the OpenTelemetry Java agent from the location the build tool writes it to.",
+          "remarks": "The agent is expected at `target/agent/opentelemetry-javaagent.jar` for Maven and\n`build/agent/opentelemetry-javaagent.jar` for Gradle — the conventional output directory of each tool\nwith an `agent` subdirectory. The build has to put it there; nothing is downloaded. With Maven, copy it\nwith `maven-dependency-plugin`'s `copy` goal bound to `process-resources`; with Gradle,\ndeclare the agent in its own configuration and add a `Copy` task that `compileJava` depends on.\nMay be called before or after the build tool is configured: which directory the agent is read from is\ndecided when the application model is built, so the result does not depend on the order of builder calls.\nBecause the build writes the agent, Aspire runs that build as its own resource in run mode and holds\nthe application until it finishes — including for Spring Boot and Quarkus, whose launch goals would\notherwise be the only build. This is required rather than an optimization: `JAVA_TOOL_OPTIONS` is\nread by every JVM started beneath the resource, and the first of those is the wrapper's own, so an\nagent the build has not written yet kills that JVM during VM initialization with \"Error opening zip\nfile or JAR manifest missing\" before the launch goal runs.\nUse `WithOtelAgent``1` when the agent lives anywhere else, including\nwhen it is committed to the repository or supplied by the container base image.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withOtelAgentDefaultPath(): JavaAppResource",
+          "parameters": [],
+          "returnType": "JavaAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Java.JavaAppResource"
+          ]
+        },
+        {
+          "name": "withWrapperPath",
+          "capabilityId": "Aspire.Hosting.Java/withWrapperPath",
+          "qualifiedName": "withWrapperPath",
+          "description": "Overrides the build tool wrapper script path, for repositories whose wrapper is not in the default location or does not use the default name.",
+          "remarks": "May be called before or after the build tool is configured. A later call re-points anything that\nalready resolved the default wrapper, so the result does not depend on the order of builder calls.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withWrapperPath(wrapperPath: string): JavaAppResource",
+          "parameters": [
+            {
+              "name": "wrapperPath",
+              "type": "string",
+              "description": "The path to the wrapper script, absolute or relative to the resource's working directory."
+            }
+          ],
+          "returnType": "JavaAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Java/Aspire.Hosting.Java.JavaAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Java.JavaAppResource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "JavaContainerResource",
+      "fullName": "Aspire.Hosting.Java.JavaContainerResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "Represents a Java application that runs from a prebuilt container image.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithServiceDiscovery",
+        "Aspire.Hosting.Java.IJavaAppResource"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.ApplicationModel.ContainerResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": []
+    }
+  ],
+  "dtoTypes": [],
+  "enumTypes": []
+}

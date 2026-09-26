@@ -3,6 +3,7 @@ import DefaultSearch from "@astrojs/starlight/components/Search.astro";
 import { Image } from 'astro:assets';
 import csharpIcon from '@assets/icons/csharp.svg';
 import typescriptIcon from '@assets/icons/typescript.svg';
+import '../../styles/search-controls.css';
 
 const routeData = Astro.locals.starlightRoute;
 const pageId = routeData?.id ?? '';
@@ -15,7 +16,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
 
 { hideSearch ? <></> : <DefaultSearch><slot /></DefaultSearch> }
 
-<template id="api-search-notice-tpl">
+<template id="api-search-notice-tpl" data-clear-search={Astro.locals.t('catalogSearch.clearSearch')}>
   <div class="api-search-notice">
     <p class="api-search-notice-text">API references are intentionally omitted from this search. To find API references, please search these dedicated API pages instead:</p>
     <div class="api-search-notice-buttons">
@@ -71,6 +72,8 @@ const typescriptHref = `${base}/reference/api/typescript/`;
    *   4. Forwards the typed query into the API notice buttons as `?q=`,
    *      so a user who searches and falls back to the API listings keeps
    *      their query.
+   *   5. Aligns clear/search status presentation without replacing Pagefind's
+   *      localized loading, result, or failure states.
    *
    * Pagefind UI is rendered lazily (and not at all in `astro dev`), so we
    * use a single MutationObserver on the <site-search> custom element to
@@ -357,16 +360,17 @@ const typescriptHref = `${base}/reference/api/typescript/`;
 
       const sameLength = buttons.length === this.buttons.length;
       const sameNodes = sameLength && buttons.every((b, i) => b === this.buttons[i]);
-      if (sameNodes && this.buttons.length > 0) return;
-
-      for (const stale of this.buttons) {
-        stale.removeEventListener('mousedown', this.clickHandler);
+      if (!sameNodes) {
+        for (const stale of this.buttons) {
+          stale.removeEventListener('mousedown', this.clickHandler);
+        }
+        this.buttons = buttons;
+        for (const btn of this.buttons) {
+          // Recompute href on mousedown so middle-click / right-click → "Open in new tab" use the latest query.
+          btn.addEventListener('mousedown', this.clickHandler);
+        }
       }
-      this.buttons = buttons;
-      for (const btn of this.buttons) {
-        // Recompute href on mousedown so middle-click / right-click → "Open in new tab" use the latest query.
-        btn.addEventListener('mousedown', this.clickHandler);
-      }
+      // Pagefind's native clear updates the input without emitting an input event.
       this.update();
     }
 
@@ -414,7 +418,22 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       injectTemplate(dialogFrame, 'search-keyboard-footer-tpl', '.search-keyboard-footer');
       nav.refresh();
       linker.refresh();
+      const message = dialog.querySelector<HTMLElement>('.pagefind-ui__message');
+      message?.setAttribute('role', 'status');
+      message?.setAttribute('aria-live', 'polite');
+      message?.setAttribute('aria-atomic', 'true');
+      const clear = dialog.querySelector<HTMLButtonElement>('.pagefind-ui__search-clear');
+      const clearLabel = document.querySelector<HTMLTemplateElement>('#api-search-notice-tpl')?.dataset.clearSearch;
+      if (clear && clearLabel && document.documentElement.lang.startsWith('en')) {
+        if (clear.getAttribute('aria-label') !== clearLabel) clear.setAttribute('aria-label', clearLabel);
+      }
     };
+    const focusAfterClear = (event: MouseEvent) => {
+      if ((event.target as Element)?.closest('.pagefind-ui__search-clear')) {
+        dialog.querySelector<HTMLInputElement>('.pagefind-ui__search-input')?.focus();
+      }
+    };
+    dialog.addEventListener('click', focusAfterClear);
 
     setup();
 
@@ -439,20 +458,97 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       if (hubTrigger) hubTrigger.disabled = true;
       nav.destroy();
       linker.destroy();
+      dialog.removeEventListener('click', focusAfterClear);
     };
   }
 
   initSearchEnhancements();
   document.addEventListener('astro:after-swap', initSearchEnhancements);
+  document.addEventListener('astro:before-swap', () => cleanup?.());
 </script>
 
 <style is:global>
+  #starlight__search .pagefind-ui__search-input {
+    height: var(--search-control-height);
+    padding: 0.5rem 2.75rem;
+    border: 1px solid var(--search-control-border);
+    border-radius: var(--search-control-radius);
+    background: var(--search-control-bg);
+    color: var(--sl-color-text);
+    font: inherit;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+  #starlight__search .pagefind-ui__search-input::placeholder {
+    color: var(--sl-color-gray-1);
+    opacity: 1;
+  }
+  #starlight__search .pagefind-ui__search-input:focus {
+    outline: 2px solid var(--search-control-focus);
+    outline-offset: 2px;
+    border-color: var(--search-control-focus);
+    box-shadow: none;
+  }
+  #starlight__search .pagefind-ui__form::before {
+    top: calc((var(--search-control-height) - 1.125rem) / 2);
+    left: 0.85rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    background-color: var(--sl-color-gray-1);
+    opacity: 1;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  #starlight__search .pagefind-ui__search-clear:focus-visible {
+    outline: 2px solid var(--search-control-focus);
+    outline-offset: 2px;
+  }
+  #starlight__search .pagefind-ui__message {
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    line-height: 1.5;
+    color: var(--sl-color-gray-2);
+    padding-block: 0.75rem;
+  }
+  #starlight__search .pagefind-ui__search-clear {
+    top: calc((var(--search-control-height) - 2.25rem) / 2);
+    inset-inline-end: calc(var(--sl-search-cancel-space, 0px) + 0.25rem);
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: var(--search-control-radius);
+    background: transparent;
+    color: var(--sl-color-text);
+    /* Keep Pagefind's translated button text as its accessible name. */
+    font-size: 0;
+  }
+  #starlight__search .pagefind-ui__search-clear::before {
+    width: 1rem;
+    height: 1rem;
+    margin: auto;
+    background-color: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m18 6-12 12M6 6l12 12'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  #starlight__search .pagefind-ui__search-clear:hover {
+    background: var(--sl-color-gray-6);
+  }
+  @media (pointer: coarse) {
+    #starlight__search .pagefind-ui__search-clear {
+      top: calc((var(--search-control-height) - 2.75rem) / 2);
+      width: 2.75rem;
+      height: 2.75rem;
+    }
+  }
   body:has(.dev-home) site-search > button[data-open-modal] {
     display: none;
   }
 
   site-search button[data-open-modal] {
-    color: var(--sl-color-gray-1) !important;
+    color: var(--sl-color-text) !important;
   }
 
   site-search button[data-open-modal] :where(svg, span) {

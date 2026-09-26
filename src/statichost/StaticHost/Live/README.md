@@ -51,17 +51,159 @@ restart the retry sequence. Successful verification resets the backoff;
 acceptance of the subscription POST alone does not. A channel change starts a
 fresh sequence.
 
-Each failed attempt logs one concise warning for expected HTTP errors or
-timeouts, including the failure count and next retry deadline. Exception
-details and hub error response bodies are available at Debug; unexpected
-exceptions remain Error-level with their stack traces. Successful verification
-is logged at Information. Shutdown or leadership cancellation does not count
-as an upstream failure.
+Each failed attempt logs one warning for expected HTTP errors or timeouts,
+including the failure count and next retry deadline. Unexpected failures are
+Error-level, with a bounded `SafeStackTrace` rendered from stack frames alone,
+without exception messages, argument values, or source file paths. Expected
+HTTP and timeout warnings omit stack traces. Diagnostics intentionally omit
+raw exception messages, URLs with query strings, and response bodies, which
+can contain credentials. HTTP acceptance is logged separately from successful callback
+verification: only verification establishes or renews the lease and resets
+backoff. Shutdown or leadership cancellation does not count as an upstream
+failure.
 
 The live and idle polling intervals remain unchanged during subscription
 backoff. Google documents feed notifications for uploads and video
 title/description updates, not guaranteed broadcast start/stop events, so
 fallback polling is still necessary.
+
+### YouTube operational diagnostics
+
+In the Aspire dashboard, open **Structured logs**, select the `aspiredev`
+resource, and filter for `YouTube` (the `StaticHost.Live.YouTube` categories).
+Information, Warning, and Error events are sufficient; enabling Debug or
+logging HTTP request bodies is not required.
+
+| `Operation` | Meaning |
+| --- | --- |
+| `ChannelResolution` | Resolve the configured handle through `channels.list`. A missing channel means detection is unavailable, not offline. |
+| `OfflineDiscovery` | Interval-limited `search.list` check for a broadcast while no live video is known; not a daily quota guard. |
+| `KnownVideoStatus` | Low-cost `videos.list` check of the currently known live video. |
+| `WebSubSubscribe` | Subscription POST accepted or failed; acceptance does **not** prove callback verification. |
+| `WebSubVerification` | A matching callback was acknowledged, with its `LeaseSeconds`; matching retries do not extend the original lease or reset backoff. |
+| `WebSubDenialReport` | An untrusted, unauthenticated `hub.mode=denied` report; not proof that Google denied a subscription. No state or polling changes. |
+| `NotificationChannelResolution` / `NotificationConfirmation` | Resolve the channel or run the confirming search after a signed notification. |
+| `BackgroundTick` | A failure outside the provider calls, such as state coordination. |
+
+Failed provider operations include the query-free outbound `Endpoint`,
+`ElapsedMs` measured with a monotonic clock, numeric `StatusCode`,
+standard `StatusReason` (not an untrusted reason phrase), `FailureType`,
+`IsTimeout`, `HttpRequestError`, `SocketError`, and `InnerFailureType` where
+available. Google JSON errors add bounded `ProviderReason` and `ProviderDomain`
+codes, for example `quotaExceeded` / `youtube.quota` or `accessNotConfigured` /
+`usageLimits`. These distinguish quota exhaustion from API configuration,
+network, and hub failures.
+
+The duration covers the client operation, including any existing Data API
+resilience retries and response parsing, but not the later Redis backoff write.
+For example, `WebSubSubscribe` with endpoint
+`pubsubhubbub.appspot.com/subscribe` and status 503 identifies an outbound hub
+failure, not an inbound website 503. Duration and status alone cannot establish
+the underlying provider cause.
+
+HTTP acceptance is logged before recording the sent request in Redis, so a
+subsequent persistence failure does not hide the provider's successful response.
+
+`ProviderDetail` contains only a fixed classification, such as temporary
+unavailability, transient error, invalid topic, or callback verification failure. Unknown or
+malformed bodies are omitted; `BodyTruncated` indicates the diagnostic read
+exceeded 4,096 characters. No raw HTML, provider message, API key, webhook
+secret, verification token, authorization header, or subscription form is
+logged by these diagnostics. Subscription failures also expose `FailureCount`
+and `RetryAt`. A valid provider `Retry-After` header is recorded as typed
+`RetryAfterSeconds` or `RetryAfterDate`, never as raw header text. These fields
+are diagnostic only and do not change the persisted retry schedule. For
+example, a 503 with `Transient error; please try again later` and
+`Retry-After: 120` reports a transient error and 120 seconds; it does not stop
+polling or prove why a broadcast was missed.
+
+Both named YouTube HTTP clients cap response buffering at 1 MiB, including
+responses without a Content-Length header. The existing request timeouts still
+cover buffering. Responses exceeding that limit fail before diagnostic body
+classification; they are logged as request failures, not offline observations.
+The 4,096-character classification limit applies within that response-size cap.
+
+When `WebhookSecret` is configured, the callback acknowledges notifications with missing, invalid, or mismatched
+signatures with HTTP 200, as required by PubSubHubbub authenticated content
+distribution, but discards them before parsing, state updates, coordination,
+or confirmation queuing. A warning explicitly records the discard. HTTP 200
+does not mean that a notification was authenticated or processed. Development
+overrides still require both a valid signature and the dev command secret.
+If `WebhookSecret` is empty, the callback instead returns HTTP 503 before
+signature validation and logs the missing configuration.
+
+A denial GET requires `hub.topic`, but not a challenge, lease, or verification
+token. The static callback cannot authenticate these reports, so it logs only
+topic presence, a nullable comparison with the configured channel's topic,
+reason presence/length, and a bounded fixed classification. If only a channel
+handle is configured, topic correlation is unavailable. Even a matching topic
+does not authenticate the sender. Denials never confirm, revoke, clear, or
+otherwise change subscription state, live status, backoff, or polling.
+Subscribe verification still requires the matching `hub.verify_token`,
+challenge, and valid lease; repeated matching verifications retain the original
+renewal deadline.
+
+Rejected verification callbacks log a fixed `RejectionReason` (`Malformed` or
+`Unexpected`), a `ModeClassification` (`Subscribe`, `Unsubscribe`, or `Unknown`),
+`TopicPresent`, and nullable `MatchesConfiguredTopic`. Neither submitted modes
+nor topics enter the formatted message or structured fields. Topic correlation
+is diagnostic only, not callback authorization.
+
+Twitch callback diagnostics retain rejected timestamps, unknown message types,
+and replay/in-progress message IDs as sanitized fields: values are bounded to
+128 characters (including an ellipsis when truncated), and characters outside
+ASCII letters, digits, `_`, `.`, `:`,
+`+`, and `-` are replaced with `_`. This preserves ordinary RFC3339 timestamps
+and message-type names without letting line separators or control characters
+forge log entries. Revocations retain the subscription ID, type, and status using
+the same sanitizer, but omit the full body, transport URLs, and any other payload
+fields. Invalid revocation JSON still returns the original acknowledgment and
+logs that details were unavailable. Signature validation, freshness checks,
+replay coordination, challenge responses, and HTTP statuses are unchanged.
+
+Successful discovery logs `LastSuccessfulDiscoveryAt`, `LastDiscoveryLive`,
+and `NextDiscoveryAt`. The worker includes its last successful discovery time
+and result in subsequent failure logs, so operators can distinguish a
+successful offline observation from unavailable detection. These are
+process-local diagnostic values, not new Redis or public snapshot fields;
+they start empty after a restart, channel change, or before the first successful
+discovery.
+The reset happens before resolving changed channel settings, so a failed
+resolution cannot report a previous channel's successful discovery.
+A later successful check advances the timestamp, indicating polling recovery.
+Known-video and notification checks log `CheckedAt` and `ObservedLive`.
+These observations precede the guarded state update: an offline observation
+does not bypass the configured two-check confirmation rule.
+
+Without a useful notification, a new broadcast may take up to the configured
+30-minute discovery interval (plus request/tick delays) to be detected.
+Failures can extend that delay. Google's current
+[quota guide](https://developers.google.com/youtube/v3/determine_quota_cost) and
+[`search.list` reference](https://developers.google.com/youtube/v3/docs/search/list)
+describe a separate Search Queries bucket: one unit per search call, with a
+default limit of 100 calls per day. Other endpoints used here (`channels.list`
+and `videos.list`) each cost one unit in the general bucket, whose default daily
+allocation is 10,000 units. Actual project limits and usage must be checked in
+Google Cloud; daily quotas reset at midnight Pacific Time.
+
+The default idle schedule permits approximately 48 scheduled searches per
+24 hours for a continuously running leader before retries. Known-video checks
+can make 720 calls per 24 hours while continuously live. A Pacific calendar day
+can be 23 or 25 hours at daylight-saving transitions.
+
+These intervals are **not project-wide daily quota enforcement**. Notification
+confirmation searches use a separate Redis gate that admits a confirmation
+every 30 seconds, not the discovery interval. Data API resilience retries,
+restarts/leader changes (the next discovery timestamp is process-local), and
+other clients sharing the Google Cloud project can add usage. A budget must
+account for each outbound attempt across these paths and all replicas, not just
+successful worker ticks. The current implementation does not maintain such a
+shared daily budget.
+
+The WebSub subscription POST does not use a Data API key. Its Retry-After and
+subscription backoff are separate from Data API quota accounting; the observed
+hub 503 does not establish quota exhaustion. These diagnostic changes do not
+alter polling intervals, retry policies, or leader coordination.
 
 ## Configuration
 
@@ -311,6 +453,13 @@ dotnet test .\tests\Aspire.Dev.AppHost.Tests\Aspire.Dev.AppHost.Tests.csproj --c
 dotnet test .\tests\StaticHost.Tests\StaticHost.Tests.csproj --configuration Release --filter "Category!=RedisIntegration"
 ```
 
+For the focused YouTube diagnostics, callback authorization, and polling regressions, explicitly keep
+frontend build scripts and package installation disabled:
+
+```powershell
+dotnet test .\tests\StaticHost.Tests\StaticHost.Tests.csproj --configuration Release --filter "(FullyQualifiedName~YouTube|FullyQualifiedName~LiveEndpointsTests)&Category!=RedisIntegration" -p:ShouldRunBuildScript=false -p:ShouldRunNpmInstall=false
+```
+
 The real-Redis group has the xUnit trait `Category=RedisIntegration` and requires
 a running container runtime, such as Docker. Following the
 [Aspire testing pattern](https://aspire.dev/testing/overview/), its shared fixture
@@ -379,6 +528,10 @@ project or `Aspire.Dev.slnx` trigger that job.
 - Reconciliation timers are the safety net for missed individual webhooks.
 - SSE heartbeats every 15 s defeat proxy idle-timeouts; the client uses
   exponential backoff with a `visibilitychange`-aware reconnect.
+- A `404` from the initial `/api/live/` snapshot request closes the event stream
+  and cancels reconnects until a full page reload. Tab visibility changes and
+  Astro navigation do not restart it. This avoids repeated missing-endpoint
+  errors in frontend-only previews; transient failures still use backoff.
 - Frontend client is re-entrant, idempotent, and survives Astro view
   transitions.
 - Missing secrets ⇒ degraded but functional state — never a crash.

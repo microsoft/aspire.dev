@@ -32,7 +32,7 @@ test('links directly to local observability and agent debugging guides', async (
 test('section 08 pairs getting started with Dev Hub discovery and stacks on mobile', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const section = page.getByRole('region', { name: 'Start building with less friction.' });
-  const link = section.getByRole('link', { name: 'Explore Dev Hub', exact: true });
+  const link = section.getByRole('link', { name: 'Explore Aspire resources', exact: true });
   await expect(link).toHaveAttribute('href', '/hub/');
   await expect(page.locator('.home-dev-hub')).toHaveCount(0);
   await expect(page.locator('.home-testimonials + .home-closing')).toHaveCount(1);
@@ -41,7 +41,7 @@ test('section 08 pairs getting started with Dev Hub discovery and stacks on mobi
   await expect(section.getByRole('link', { name: 'View on GitHub', exact: true })).toHaveAttribute('href', 'https://github.com/microsoft/aspire');
   await expect(section.getByRole('heading', { level: 3, name: 'Find your next step.' })).toBeVisible();
   expect(await link.locator('.dev-hub-mark').innerHTML()).toBe(
-    await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).locator('svg').innerHTML(),
+    await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML(),
   );
   for (const width of [320, 390, 768, 1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -99,7 +99,7 @@ test('section 08 pairs getting started with Dev Hub discovery and stacks on mobi
   await expect(link).toHaveCSS('outline-style', 'solid');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/hub\/$/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dev Hub');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Aspire resources');
 });
 
 for (const [route, { lang }] of Object.entries(locales).filter(([route]) => route !== 'root')) {
@@ -546,6 +546,9 @@ test('presents the application model as a live polyglot topology', async ({ page
   await terminalWindow.scrollIntoViewIfNeeded();
   await expect(story).toHaveAttribute('data-story-playing', 'true', { timeout: 10_000 });
   await expect(story).toHaveAttribute('data-story-focus', 'stage', { timeout: 10_000 });
+  // Center the whole stage so clicking its tab does not scroll the terminal out of view.
+  await story.locator('[data-model-story-surface]').scrollIntoViewIfNeeded();
+  await expect(story).toHaveAttribute('data-story-viewport-active', '');
   await topologyStage.click();
   await expect(story).toHaveAttribute('data-story-playing', 'false');
   await expect(story).toHaveAttribute('data-story-stage', 'topology');
@@ -1588,12 +1591,14 @@ test('keeps the environment frame stable while each topology changes', async ({ 
     )
     .toBeLessThan(0.1);
   await expect.poll(async () => Math.max(...(await nodeOffsets()))).toBeLessThan(1);
-  const centeredTransforms = await productionPanel
-    .locator('.topology-node')
-    .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
-  expect(
-    enteringTransforms.some((transform, index) => transform !== centeredTransforms[index])
-  ).toBe(true);
+  await expect
+    .poll(async () => {
+      const centeredTransforms = await productionPanel
+        .locator('.topology-node')
+        .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transform));
+      return enteringTransforms.some((transform, index) => transform !== centeredTransforms[index]);
+    })
+    .toBe(true);
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(
     false
