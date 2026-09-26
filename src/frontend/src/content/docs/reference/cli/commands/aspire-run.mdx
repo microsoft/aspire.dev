@@ -52,6 +52,8 @@ If graceful shutdown is taking too long and you need to exit immediately, press 
 On Windows, TypeScript/JavaScript AppHosts started with `tsx` or `npm` run in an isolated console session so that the Ctrl+C signal is delivered correctly to the Node.js process rather than to an unrelated foreground window.
 :::
 
+On Windows, .NET AppHosts launched through `dotnet run` or the `dotnet watch` fallback path also skip the CLI's kill-on-close job so the Developer Control Plane (DCP) can finish removing session-scoped resources during shutdown. Without this, DCP could be terminated by the CLI before it finished cleanup, leaving session-scoped containers running after the AppHost exited. Persistent resources are unaffected, and no configuration is required — this applies automatically to both Ctrl+C and `aspire stop`.
+
 ## Configuring the startup timeout
 
 `aspire run` uses a default timeout of 120 seconds when connecting to the AppHost after preparation completes. If this connection takes longer—for example on a slow machine or in a CI environment—set the `ASPIRE_CLI_START_TIMEOUT` environment variable to a higher number of seconds:
