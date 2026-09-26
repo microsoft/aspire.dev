@@ -1,0 +1,438 @@
+---
+title: Compose Azure infrastructure with Bicep helpers
+description: Use Aspire's Bicep helpers to compose deployment-time values, customize Azure Storage and Key Vault, and map each helper to the Azure Provisioning SDK.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Use `await infrastructure.bicep()` inside an Azure infrastructure callback to construct literals and deployment-time expressions for your resources.
+
+This reference covers the 32 factory methods available in Aspire 13.6, plus the string builder and declaration helpers that work with them. For callback setup and resource discovery, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/).
+
+:::caution[Experimental API]
+These provisioning APIs are experimental and report `ASPIREAZUREPROVISIONING001`. The examples below show which packages to add for each AppHost language.
+:::
+
+## Understand when values are evaluated
+
+Bicep expressions are evaluated during deployment, not while your AppHost runs. For example, `await bicep.resourceGroup()` represents `resourceGroup()` in the generated Bicep; it doesn't retrieve the current resource group.
+
+Use `member`, `index`, and the expression operators to compose deployment-time expressions. Don't use JavaScript property access, arithmetic, string interpolation, or `if` to evaluate a deployment-time value. A JavaScript `if` decides what the AppHost builds; a Bicep `conditional` decides which value the deployment uses.
+
+Choose a literal helper that matches the destination's type. An integer literal isn't automatically a string; use `asString` when you need a deployment-time string conversion.
+
+## Name and tag an Azure Storage account
+
+Add the Storage provisioning package to a TypeScript AppHost:
+
+```bash title="Add Storage provisioning support"
+aspire add Aspire.Hosting.Azure.Provisioning.Storage
+```
+
+The package includes the hosting integration and shared Bicep factory. For the C# alternative, use `Aspire.Hosting.Azure.Storage`.
+
+This example combines a fixed prefix with a deployment-time hash, uses the resource group's location, and adds tags from a parameter and the deployment context. It also exports the account's full Azure resource ID.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import {
+  createBuilder,
+  ProvisioningValueType,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const environment = await builder.addParameter('environment');
+const storage = await builder.addAzureStorage('storage');
+
+await storage.configureInfrastructure(async (infrastructure) => {
+  const bicep = await infrastructure.bicep();
+  const account = await infrastructure.getStorageAccount();
+  const group = await bicep.resourceGroup();
+  const groupId = await bicep.member(group, 'id');
+  const suffix = await bicep.uniqueString([
+    groupId,
+    await bicep.string('storage'),
+  ]);
+  const name = await bicep.concat([await bicep.string('st'), suffix]);
+  await account.name.set(await bicep.take(name, 24));
+  await account.location.set(await bicep.member(group, 'location'));
+
+  const environmentValue = await bicep.parameter(environment, {
+    bicepIdentifier: 'environment',
+  });
+  const tags = await account.tags.get();
+  await tags.set('Environment', await bicep.toLower(environmentValue));
+  await tags.set(
+    'Deployment',
+    await bicep.member(await bicep.deployment(), 'name')
+  );
+  await tags.set(
+    'Label',
+    await bicep.concat([await bicep.string('storage-'), environmentValue])
+  );
+
+  const output = await infrastructure.addBicepOutput(
+    'accountId',
+    ProvisioningValueType.String
+  );
+  await output.value.set(
+    await bicep.member(await bicep.resourceIdentifier(account), 'id')
+  );
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Azure.Provisioning;
+using Azure.Provisioning.Expressions;
+using Azure.Provisioning.Storage;
+
+var builder = DistributedApplication.CreateBuilder(args);
+var environment = builder.AddParameter("environment");
+var storage = builder.AddAzureStorage("storage");
+
+storage.ConfigureInfrastructure(infrastructure =>
+{
+    var account = infrastructure.GetProvisionableResources()
+        .OfType<StorageAccount>().Single();
+    var group = BicepFunction.GetResourceGroup();
+    account.Name = BicepFunction.Take(
+        BicepFunction.Concat("st", BicepFunction.GetUniqueString(group.Id, "storage")),
+        24);
+    account.Location = group.Location;
+
+    BicepValue<string> environmentValue =
+        environment.AsProvisioningParameter(infrastructure, "environment");
+    account.Tags["Environment"] = BicepFunction.ToLower(environmentValue);
+    account.Tags["Deployment"] = BicepFunction.GetDeployment().Name;
+    account.Tags["Label"] = BicepFunction.Concat("storage-", environmentValue);
+
+    infrastructure.Add(new ProvisioningOutput("accountId", typeof(string))
+    {
+        Value = account.Id
+    });
+});
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Storage account names must contain 3-24 lowercase letters or digits and be globally unique. The fixed `st` prefix and 13-character `uniqueString` result meet the character and length constraints; `take` caps the expression at 24 characters. The hash is deterministic for the same ordered inputs, but it doesn't reserve a name or guarantee global availability. Use a different stable discriminator if you create multiple accounts in the same resource group.
+
+The corresponding Bicep excerpt is shown below. Other generated properties, parameters, tags, and outputs are omitted:
+
+```bicep title="Storage Bicep excerpt"
+param environment string
+
+resource storage 'Microsoft.Storage/storageAccounts@2024-01-01' = {
+  name: take(concat('st', uniqueString(resourceGroup().id, 'storage')), 24)
+  location: resourceGroup().location
+  // Other generated properties omitted.
+  tags: {
+    Environment: toLower(environment)
+    Deployment: deployment().name
+    Label: concat('storage-', environment)
+    // Other generated tags omitted.
+  }
+}
+
+output accountId string = storage.id
+```
+
+`resourceIdentifier(account)` emits the resource's Bicep symbol, `storage`, not its physical name or Azure resource ID. The `member(..., 'id')` call produces `storage.id`. Pass the resource from the callback instead of guessing symbols for child or companion resources.
+
+## Select Key Vault retention at deployment time
+
+Add the Key Vault provisioning package to a TypeScript AppHost:
+
+```bash title="Add Key Vault provisioning support"
+aspire add Aspire.Hosting.Azure.Provisioning.KeyVault
+```
+
+For the C# alternative, use `Aspire.Hosting.Azure.KeyVault`.
+
+This example uses a JSON object containing an array, a variable reference, an equality operator, and a conditional expression to choose 90 days for `Production` or 30 days otherwise. Both values are within the [Key Vault retention range of 7-90 days](https://learn.microsoft.com/dotnet/api/azure.provisioning.keyvault.keyvaultproperties.softdeleteretentionindays?view=azure-dotnet).
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import {
+  BinaryBicepOperator,
+  createBuilder,
+  ProvisioningValueType,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const environment = await builder.addParameter('environment');
+const vault = await builder.addAzureKeyVault('vault');
+
+await vault.configureInfrastructure(async (infrastructure) => {
+  const bicep = await infrastructure.bicep();
+  const resource = await infrastructure.getKeyVaultService();
+  const properties = await resource.properties.get();
+  const environmentValue = await bicep.parameter(environment, {
+    bicepIdentifier: 'environment',
+  });
+  const settings = await infrastructure.addBicepVariable(
+    'retentionSettings',
+    ProvisioningValueType.Object
+  );
+  await settings.value.set(
+    await bicep.parseJson(await bicep.string('{"days":[30,90]}'))
+  );
+  const days = await bicep.member(
+    await bicep.identifier('retentionSettings'),
+    'days'
+  );
+  const isProduction = await bicep.binary(
+    environmentValue,
+    BinaryBicepOperator.Equal,
+    await bicep.string('Production')
+  );
+  const retention = await bicep.conditional(
+    isProduction,
+    await bicep.index(days, 1),
+    await bicep.index(days, 0)
+  );
+  await properties.softDeleteRetentionInDays.set(retention);
+  await properties.enableSoftDelete.set(true);
+  await properties.enablePurgeProtection.set(true);
+
+  const output = await infrastructure.addBicepOutput(
+    'retentionDays',
+    ProvisioningValueType.Integer
+  );
+  await output.value.set(retention);
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Azure.Provisioning;
+using Azure.Provisioning.Expressions;
+using Azure.Provisioning.KeyVault;
+
+var builder = DistributedApplication.CreateBuilder(args);
+var environment = builder.AddParameter("environment");
+var vault = builder.AddAzureKeyVault("vault");
+
+vault.ConfigureInfrastructure(infrastructure =>
+{
+    var resource = infrastructure.GetProvisionableResources()
+        .OfType<KeyVaultService>().Single();
+    BicepValue<string> environmentValue =
+        environment.AsProvisioningParameter(infrastructure, "environment");
+    infrastructure.Add(new ProvisioningVariable("retentionSettings", typeof(object))
+    {
+        Value = BicepFunction.ParseJson("{\"days\":[30,90]}")
+    });
+    var days = new MemberExpression(
+        new IdentifierExpression("retentionSettings"), "days");
+    var isProduction = new BinaryExpression(
+        environmentValue.Compile(), BinaryBicepOperator.Equal, "Production");
+    var retention = new ConditionalExpression(
+        isProduction, new IndexExpression(days, 1), new IndexExpression(days, 0));
+    resource.Properties.SoftDeleteRetentionInDays = retention;
+    resource.Properties.EnableSoftDelete = true;
+    resource.Properties.EnablePurgeProtection = true;
+    infrastructure.Add(new ProvisioningOutput("retentionDays", typeof(int))
+    {
+        Value = retention
+    });
+});
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+:::caution[Retention is a creation-time choice]
+Choose retention before creating the vault; Azure doesn't let you change the retention period afterward. Purge protection can't be disabled once enabled. This example leaves Aspire's RBAC configuration intact and doesn't create secrets or grant additional permissions.
+:::
+
+The corresponding Bicep excerpt omits the generated name, location, tenant, SKU, authorization settings, and other properties:
+
+```bicep title="Key Vault Bicep excerpt"
+param environment string
+
+var retentionSettings = json('{"days":[30,90]}')
+
+resource vault 'Microsoft.KeyVault/vaults@2024-11-01' = {
+  // Other generated properties omitted.
+  properties: {
+    // Other generated properties omitted.
+    enableSoftDelete: true
+    softDeleteRetentionInDays: (environment == 'Production') ? retentionSettings.days[1] : retentionSettings.days[0]
+    enablePurgeProtection: true
+  }
+}
+
+output retentionDays int = (environment == 'Production') ? retentionSettings.days[1] : retentionSettings.days[0]
+```
+
+## Factory method reference
+
+The following tables list every method on the factory returned by `infrastructure.bicep()`. Await these calls in TypeScript. In the tables, `v`, `a`, and `b` denote Bicep values created with the helpers, and `values` denotes an array of those values. Unless a method explicitly accepts a JavaScript primitive, use a literal helper such as `string` or `integer` to create its arguments.
+
+### Literal values
+
+These methods create literal values, not Bicep conversion function calls. The C# equivalents use [BicepValue&lt;T&gt;](https://learn.microsoft.com/dotnet/api/azure.provisioning.bicepvalue-1?view=azure-dotnet).
+
+| TypeScript method | Argument and underlying C# type                                | Emitted Bicep                                                                                                                                            |
+| ----------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `string(value)`   | JavaScript string; `BicepValue<string>`                        | Escaped quoted literal, for example `'hello'`                                                                                                            |
+| `integer(value)`  | Integer in the .NET `Int32` range; `BicepValue<int>`           | Integer literal, for example `30`                                                                                                                        |
+| `boolean(value)`  | Boolean; `BicepValue<bool>`                                    | `true` or `false`                                                                                                                                        |
+| `double(value)`   | Number; `BicepValue<double>`                                   | Whole numbers in `Int32` range emit an integer; otherwise the SDK emits `json('...')`, for example `json('1.5')`                                         |
+| `guid(value)`     | GUID string; `BicepValue<Guid>`                                | Canonical quoted GUID, not `guid(...)`                                                                                                                   |
+| `uri(value)`      | URI string; `BicepValue<Uri>`                                  | Quoted absolute URI, possibly normalized, not `uri(base, relative)`                                                                                      |
+| `location(name)`  | Nonempty Azure location string; `BicepValue<AzureLocation>`    | Quoted Azure location, for example `'westus2'`                                                                                                           |
+| `timeSpan(value)` | Duration in milliseconds in TypeScript; `BicepValue<TimeSpan>` | A standalone one-hour value emits `'01:00:00'`; a resource property's SDK serialization format can instead require an ISO 8601 duration or numeric units |
+
+Bicep doesn't gain `double`, `guid`, `uri`, `location`, or `timeSpan` declaration types from these helpers. In particular, creating a `double` literal doesn't make it valid for an integer resource property. Supply finite numeric values and valid GUID/URI strings.
+
+### Parameters and symbols
+
+| TypeScript method                                                  | Purpose and arguments                                                                                                                                                           | Underlying API and Bicep mapping                                                                                                                                                                                               |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `parameter(parameter, { bicepIdentifier? })`                       | Bridge an Aspire parameter resource into the current module. The identifier defaults to its normalized resource name.                                                           | Aspire `AsProvisioningParameter` creates or reuses a C# `ProvisioningParameter` and records its Aspire input binding. Returns a string-valued reference such as `environment`; the module contains `param environment string`. |
+| `referenceExpression(expression, { bicepIdentifier?, isSecure? })` | Bridge an Aspire `ReferenceExpression`, not a JavaScript template string, into a module input. Without an explicit identifier, Aspire derives one from the manifest expression. | Aspire `AsProvisioningParameter` records the binding and creates or reuses a string parameter. Emits a parameter identifier, not Bicep's `reference(...)` function.                                                            |
+| `identifier(bicepIdentifier)`                                      | Reference a nonempty symbol name that you have already declared in this module.                                                                                                 | C# `IdentifierExpression`; emits the unquoted symbol. Doesn't create a declaration or an input binding.                                                                                                                        |
+| `resourceIdentifier(resource)`                                     | Reference a resource from the callback.                                                                                                                                         | C# `IdentifierExpression` using the resource's `BicepIdentifier`. Emits the resource symbol, not an Azure resource ID.                                                                                                         |
+
+Use different identifiers for distinct inputs. Parameter bridging reuses an existing declaration by name; it isn't a way to redeclare that parameter with a different type or security policy. For a cross-module value, use an Aspire reference expression and its input binding rather than an identifier belonging to another module.
+
+### Named Bicep functions
+
+These helpers call [Azure.Provisioning.Expressions.BicepFunction](https://learn.microsoft.com/dotnet/api/azure.provisioning.expressions.bicepfunction?view=azure-dotnet). The table gives the actual C# counterpart rather than assuming the TypeScript method name matches Bicep.
+
+| TypeScript method                | Underlying C# method        | Emitted Bicep and result                                                                                                                                                                                                |
+| -------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `concat(values)`                 | `Concat`                    | `concat(a, b, ...)`; string concatenation. Requires at least one string-compatible value; doesn't expose array concatenation.                                                                                           |
+| `createGuid(values)`             | `CreateGuid`                | `guid(a, b, ...)`; deterministic GUID-formatted **string**. Requires at least one string-compatible input; input order matters. Not a random GUID generator.                                                            |
+| `uniqueString(values)`           | `GetUniqueString`           | `uniqueString(a, b, ...)`; deterministic 13-character hash string. Requires at least one string-compatible input.                                                                                                       |
+| `subscriptionResourceId(values)` | `GetSubscriptionResourceId` | `subscriptionResourceId(...)`; Azure subscription-scoped resource ID, wrapped as `BicepValue<ResourceIdentifier>`. Requires at least type and name, with optional leading subscription ID and additional name segments. |
+| `take(value, count)`             | `Take`                      | `take(value, count)`; first characters of a string. `value` accepts a string or Bicep value; `count` accepts an integer or Bicep value. This helper isn't the array overload.                                           |
+| `toLower(v)`                     | `ToLower`                   | `toLower(v)`; lowercase string                                                                                                                                                                                          |
+| `toUpper(v)`                     | `ToUpper`                   | `toUpper(v)`; uppercase string                                                                                                                                                                                          |
+| `asString(v)`                    | `AsString`                  | `string(v)`; deployment-time conversion to a string, **not** a host-language cast                                                                                                                                       |
+| `parseJson(v)`                   | `ParseJson`                 | `json(v)`; parse a JSON string into its represented value. Returns an object-typed SDK value that can represent an array or another JSON value.                                                                         |
+| `resourceGroup()`                | `GetResourceGroup`          | `resourceGroup()`; deployment-scope object. Use `member` for fields such as `id` and `location`.                                                                                                                        |
+| `subscription()`                 | `GetSubscription`           | `subscription()`; subscription object                                                                                                                                                                                   |
+| `tenant()`                       | `GetTenant`                 | `tenant()`; tenant object                                                                                                                                                                                               |
+| `deployment()`                   | `GetDeployment`             | `deployment()`; current deployment object                                                                                                                                                                               |
+
+See the Bicep [string functions](https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-functions-string), [resource functions](https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-functions-resource), and [scope functions](https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-functions-scope) for argument constraints and scope restrictions. For example, `resourceGroup()` requires a resource-group deployment context.
+
+### General expressions
+
+These methods construct [Azure Provisioning expression AST nodes](https://learn.microsoft.com/dotnet/api/azure.provisioning.expressions?view=azure-dotnet), rather than calling a corresponding `BicepFunction` method.
+
+| TypeScript method                               | Underlying C# node                                      | Emitted Bicep and arguments                                                                                                                          |
+| ----------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `function(name, args)`                          | `FunctionCallExpression` with an `IdentifierExpression` | `name(a, b, ...)`. Supply a valid function name and an array of Bicep values. This is an escape hatch, not signature or deployment-scope validation. |
+| `member(v, member)`                             | `MemberExpression`                                      | `v.member`; nonempty member name                                                                                                                     |
+| `index(v, index)`                               | `IndexExpression`                                       | `v[index]`; index is a string, integer, or Bicep value                                                                                               |
+| `binary(a, operator, b)`                        | `BinaryExpression`                                      | `(a operator b)`; use `BinaryBicepOperator`, not a JavaScript operator string                                                                        |
+| `unary(operator, v)`                            | `UnaryExpression`                                       | `!v`, `-v`, or `v!`; use `UnaryBicepOperator`                                                                                                        |
+| `conditional(condition, consequent, alternate)` | `ConditionalExpression`                                 | `condition ? consequent : alternate`; all three arguments are Bicep values                                                                           |
+
+The generic `function` helper can express Bicep functions without a named factory helper, such as `uri(base, relative)`. It doesn't expose additional C# `BicepFunction` overloads or check their argument types. Don't use `identifier` to smuggle a whole expression into a symbol name.
+
+Import the operator enums from `./.aspire/modules/aspire.mjs`. Their complete mappings are:
+
+| `BinaryBicepOperator` member | Bicep operator | `BinaryBicepOperator` member | Bicep operator |
+| ---------------------------- | -------------- | ---------------------------- | -------------- |
+| `And`                        | `&&`           | `Or`                         | `\|\|`         |
+| `Coalesce`                   | `??`           | `Equal`                      | `==`           |
+| `EqualIgnoreCase`            | `=~`           | `NotEqual`                   | `!=`           |
+| `NotEqualIgnoreCase`         | `!~`           | `Greater`                    | `>`            |
+| `GreaterOrEqual`             | `>=`           | `Less`                       | `<`            |
+| `LessOrEqual`                | `<=`           | `Add`                        | `+`            |
+| `Subtract`                   | `-`            | `Multiply`                   | `*`            |
+| `Divide`                     | `/`            | `Modulo`                     | `%`            |
+
+| `UnaryBicepOperator` member | Bicep expression |
+| --------------------------- | ---------------- |
+| `Not`                       | `!value`         |
+| `Negate`                    | `-value`         |
+| `SuppressNull`              | `value!`         |
+
+Null suppression changes type checking; it doesn't supply a fallback value. See the [Bicep operator reference](https://learn.microsoft.com/azure/azure-resource-manager/bicep/operators).
+
+### String interpolation
+
+Use `createStringBuilder()` to combine literal text and Bicep expressions into an interpolated string. The C# equivalent is [BicepStringBuilder](https://learn.microsoft.com/dotnet/api/azure.provisioning.expressions.bicepstringbuilder?view=azure-dotnet).
+
+:::caution[TypeScript SDK limitation]
+In TypeScript SDK version `13.6.0-preview.1.26473.12`, calling this builder's `build()` inside `configureInfrastructure` can time out. Use `concat` in TypeScript infrastructure callbacks, as in the Storage example, until this issue is resolved. C# can use `BicepStringBuilder` or `BicepFunction.Interpolate`.
+:::
+
+| Builder method        | C# counterpart                               | Behavior                                        |
+| --------------------- | -------------------------------------------- | ----------------------------------------------- |
+| `appendLiteral(text)` | `BicepStringBuilder.Append(string)`          | Add literal text; returns the same builder      |
+| `appendValue(v)`      | `BicepStringBuilder.Append(BicepExpression)` | Add a Bicep value; returns the same builder     |
+| `build()`             | `BicepStringBuilder.Build()`                 | Return the interpolated Bicep string expression |
+
+Appending literal `storage-` and the parameter expression `environment` emits `'storage-${environment}'`. In C#, `BicepFunction.Interpolate` provides the corresponding interpolated-string authoring syntax; the factory doesn't expose a separate `interpolate()` method.
+
+### Arrays and objects
+
+The factory has no `array()`, `object()`, or `null()` method. For JSON-compatible constant data, use `parseJson(await bicep.string(jsonText))`, then `member` or `index` to access its deployment-time contents, as in the retention example. This emits `json('...')`, not a literal Bicep object or array AST node.
+
+For resource properties, use their collection methods: for example, `await account.tags.get()` returns a dictionary whose `set(key, value)` operations populate the Bicep object. List properties similarly provide collection operations. The C# SDK also has `ArrayExpression` and `ObjectExpression` classes; there are no corresponding factory methods.
+
+## Declare parameters, variables, and outputs
+
+These companion methods are on `infrastructure`, **not** on the Bicep factory:
+
+| Infrastructure method                          | Underlying C# SDK type                                                                                                     | Bicep declaration                                                                                           |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `addBicepParameter(name, type, { isSecure? })` | [ProvisioningParameter](https://learn.microsoft.com/dotnet/api/azure.provisioning.provisioningparameter?view=azure-dotnet) | `param name type`; setting `value` adds a default expression                                                |
+| `addBicepVariable(name, type)`                 | [ProvisioningVariable](https://learn.microsoft.com/dotnet/api/azure.provisioning.provisioningvariable?view=azure-dotnet)   | `var name = expression`; the type constrains the assigned value but doesn't emit a variable type annotation |
+| `addBicepOutput(name, type)`                   | [ProvisioningOutput](https://learn.microsoft.com/dotnet/api/azure.provisioning.provisioningoutput?view=azure-dotnet)       | `output name type = expression`                                                                             |
+
+Pass `ProvisioningValueType.String`, `Boolean`, `Integer`, `Object`, or `Guid`; these map to C# `string`, `bool`, `int`, `object`, and `Guid`, and Bicep `string`, `bool`, `int`, `object`, and `string`, respectively. There is no `Array`, `Double`, or `TimeSpan` declaration option.
+
+Await the declaration, then assign an expression with `await declaration.value.set(value)`. Variable and output values must be supplied. To refer to a variable by name, use `bicep.identifier(name)` as in the retention example; reading the declaration's `value` returns its assigned literal or expression, not a reference to the variable.
+
+Unlike `bicep.parameter`, `addBicepParameter` doesn't bind an Aspire parameter resource to the new input. Use the bridge when the value should come from an Aspire parameter; use a standalone declaration when you control its default or external module inputs.
+
+### Preserve secure values
+
+`bicep.parameter` uses the Aspire parameter's `secret` flag when creating its Bicep declaration. `referenceExpression` accepts an explicit `isSecure` option; don't assume it infers secrecy from every embedded reference. Standalone declarations support `isSecure` at creation and through the parameter's `isSecure.set(...)`.
+
+Only string, object, and GUID parameter declarations can be secure; GUIDs map to Bicep strings. Boolean and integer secure declarations are rejected. A secure parameter emits `@secure()` above its `param` declaration.
+
+Bicep values provide `kind.get()` and `isSecure.get()` to inspect their kind and secure flag. Expression composition, including operators, member/index access, function calls, and string building, preserves the secure flag from its inputs. A bare `identifier` or `resourceIdentifier` doesn't infer that flag from the symbol name.
+
+:::caution[Secure metadata isn't encryption]
+Preserving the flag doesn't make a hard-coded literal secret, redact a generated file, or make a tag a safe destination. In the SDK version used here, `ProvisioningOutput` doesn't emit a secure-output decorator from this metadata. Don't put secrets in tags, names, outputs, or parameter defaults. Use [secure parameter inputs](https://learn.microsoft.com/azure/azure-resource-manager/bicep/parameters#secure-parameters) instead.
+:::
+
+## Reference versions
+
+The factory mappings above were checked against Aspire 13.6's [Bicep helpers](https://github.com/microsoft/aspire/blob/43496a2a306c81c862c947b11b4f4e5494b6fe08/src/Aspire.Hosting.Azure.Provisioning/BicepValueFactory.cs), the 13.6 TypeScript SDK, and the official C# SDK reference for Azure.Provisioning **1.6.0**. The resource examples use Azure.Provisioning.Storage **1.1.2** and Azure.Provisioning.KeyVault **1.1.0**.
+
+Microsoft Learn links stable and preview source versions separately. The stable [BicepFunction implementation](https://github.com/Azure/azure-sdk-for-net/blob/4d32854480515e716c762be7925660bce6da251a/sdk/provisioning/Azure.Provisioning/src/Expressions/BicepFunction.cs) and [literal type mapping](https://github.com/Azure/azure-sdk-for-net/blob/4d32854480515e716c762be7925660bce6da251a/sdk/provisioning/Azure.Provisioning/src/Expressions/BicepTypeMapping.cs) establish the mappings, including numeric and duration serialization. Don't infer new Aspire factory methods from a newer upstream SDK reference.
+
+## See also
+
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
+- [Azure Storage account C# SDK reference](https://learn.microsoft.com/dotnet/api/azure.provisioning.storage.storageaccount?view=azure-dotnet)
+- [Key Vault properties C# SDK reference](https://learn.microsoft.com/dotnet/api/azure.provisioning.keyvault.keyvaultproperties?view=azure-dotnet)
+- [Azure resource naming rules](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules)
