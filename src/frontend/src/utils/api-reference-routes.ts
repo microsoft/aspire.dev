@@ -32,3 +32,9 @@ export function stripApiReferenceLocale(pathname: string): string | undefined {
 
   return normalizedPathname.slice(localeMatch[0].length) || '/';
 }
+
+export function normalizeApiReferenceSidebarHref(href: string): string {
+  const canonical = stripApiReferenceLocale(href) ?? href;
+  // Starlight's trailingSlash formatting also appends "/" after section fragments.
+  return canonical.replace(/^(\/reference\/api\/typescript\/[^#]*#[\w-]+)\/$/, '$1');
+}
