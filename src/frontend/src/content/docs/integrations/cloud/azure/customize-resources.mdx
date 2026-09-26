@@ -160,14 +160,27 @@ For TypeScript and other polyglot AppHosts, add the `Aspire.Hosting.Azure.Provis
 aspire add Aspire.Hosting.Azure.Provisioning.Storage
 ```
 
-The examples below use these packages, depending on the resource being customized:
+Select a provisioning package for the SDK models you want to customize:
 
-| Hosting integration | Opt-in provisioning package                         |
-| ------------------- | --------------------------------------------------- |
-| Azure Storage       | `Aspire.Hosting.Azure.Provisioning.Storage`         |
-| Azure Service Bus   | `Aspire.Hosting.Azure.Provisioning.ServiceBus`      |
-| Azure Key Vault     | `Aspire.Hosting.Azure.Provisioning.KeyVault`        |
-| Azure Managed Redis | `Aspire.Hosting.Azure.Provisioning.RedisEnterprise` |
+| Hosting integration           | Opt-in provisioning package                          | Selected SDK models                                                                                                      |
+| ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Azure App Configuration       | `Aspire.Hosting.Azure.Provisioning.AppConfiguration` | `AppConfigurationStore`                                                                                                  |
+| Azure Container Apps          | `Aspire.Hosting.Azure.Provisioning.AppContainers`    | `ContainerAppManagedEnvironment`, `ContainerApp`, `ContainerAppJob`                                                      |
+| Azure App Service             | `Aspire.Hosting.Azure.Provisioning.AppService`       | `AppServicePlan`, `WebSite`                                                                                              |
+| Azure Front Door              | `Aspire.Hosting.Azure.Provisioning.Cdn`              | `CdnProfile`                                                                                                             |
+| Azure Kubernetes Service      | `Aspire.Hosting.Azure.Provisioning.ContainerService` | `ContainerServiceManagedCluster`                                                                                         |
+| Azure Data Explorer           | `Aspire.Hosting.Azure.Provisioning.Kusto`            | `KustoCluster`                                                                                                           |
+| Azure networking              | `Aspire.Hosting.Azure.Provisioning.Network`          | `VirtualNetwork`, `NetworkSecurityGroup`, `NatGateway`, `PublicIPAddress`, `PrivateEndpoint`, `NetworkSecurityPerimeter` |
+| Azure private DNS             | `Aspire.Hosting.Azure.Provisioning.PrivateDns`       | `PrivateDnsZone`                                                                                                         |
+| Azure Database for PostgreSQL | `Aspire.Hosting.Azure.Provisioning.PostgreSql`       | `PostgreSqlFlexibleServer`                                                                                               |
+| Azure Cache for Redis         | `Aspire.Hosting.Azure.Provisioning.Redis`            | `RedisResource`                                                                                                          |
+| Azure Managed Redis           | `Aspire.Hosting.Azure.Provisioning.RedisEnterprise`  | `RedisEnterpriseCluster`                                                                                                 |
+| Azure SignalR Service         | `Aspire.Hosting.Azure.Provisioning.SignalR`          | `SignalRService`                                                                                                         |
+| Azure Storage                 | `Aspire.Hosting.Azure.Provisioning.Storage`          | `StorageAccount`                                                                                                         |
+| Azure Service Bus             | `Aspire.Hosting.Azure.Provisioning.ServiceBus`       | `ServiceBusNamespace`                                                                                                    |
+| Azure Key Vault               | `Aspire.Hosting.Azure.Provisioning.KeyVault`         | `KeyVaultService`                                                                                                        |
+
+Package names follow the Azure Provisioning SDK, which can differ from the hosting integration name: Front Door uses `Cdn`, Kubernetes uses `ContainerService`, and PostgreSQL uses the SDK spelling `PostgreSql`. Network and PrivateDns are separate opt-ins, as are Redis and RedisEnterprise. To customize supporting resources such as a container registry or Log Analytics workspace, also add the corresponding provisioning package; a transitive hosting dependency doesn't enable its SDK proxies.
 
 Each provisioning package references its hosting integration and the shared `Aspire.Hosting.Azure.Provisioning` runtime. Install only the SDK proxies your AppHost uses. Existing C# customization through `Azure.Provisioning.*` doesn't require these proxy packages.
 
@@ -178,6 +191,31 @@ The provisioning proxies are experimental in Aspire 13.6 and report `ASPIREAZURE
 Proxy properties use asynchronous `get()` and `set(...)` operations. Dictionary and list properties expose collection handles after `get()`. Properties backed by `BicepValue<T>` accept compatible primitives or shared Bicep expression values from `infrastructure.bicep()`, preserving deployment-time references and secure-value metadata.
 
 Lookups are scoped to the current infrastructure callback. A no-argument root lookup matches the hosting resource's Bicep identifier, not its physical Azure name. Use an identifier-based lookup or typed resource list for child resources; a companion resource can have a separate callback.
+
+### Service-specific lookups
+
+The selected models in the table aren't all no-argument lookup roots:
+
+- **App Configuration**: Use `getAppConfigurationStore()` in the store's infrastructure callback.
+- **Container Apps**: Use `getContainerAppManagedEnvironment()` in the environment callback. Apps and jobs require identifier-based lookup in their publish callbacks. Their SDK Bicep identifiers use the normalized workload name, not the synthetic hosting resource identifier.
+- **App Service**: Use `getAppServicePlanByIdentifier(...)` with the environment's Bicep identifier followed by `_asplan`. Sites use the Bicep identifier `webapp` and must be accessed in the website publish callback, not the environment callback. Neither plans nor sites have a no-argument root lookup.
+- **Child resources**: Use identifier-based lookup for resources such as Kusto databases. Don't assume the parent resource's no-argument lookup selects a child.
+
+### IP address collections and projection limits
+
+The AppContainers SDK's `OutboundIPAddressList` and the AppService SDK's `IPAddresses`, `ExternalInboundIPAddresses`, `InternalInboundIPAddresses`, `LinuxOutboundIPAddresses`, and `WindowsOutboundIPAddresses` use IP address collection proxies.
+
+Writable collections accept IPv4 or IPv6 strings and compatible Bicep value handles for add, insert, and set operations. Invalid address strings fail validation. Element getters return Bicep value handles that preserve literal values, expressions, resource references, and secure-value metadata. An exported collection isn't necessarily writable: Azure SDK read-only output restrictions still apply.
+
+The projection deliberately excludes members without a type-safe representation:
+
+| Provisioning package suffix | Excluded member             | Unsupported SDK shape         |
+| --------------------------- | --------------------------- | ----------------------------- |
+| `ContainerService`          | `CustomCATrustCertificates` | `BicepList<BinaryData>`       |
+| `Network`                   | `AdditionalProperties`      | `BicepDictionary<BinaryData>` |
+| `Redis`                     | `AdditionalProperties`      | `BicepDictionary<BinaryData>` |
+
+These exclusions apply to the polyglot proxy surface, not direct Azure Provisioning SDK access in C#. Adding a proxy package doesn't change authentication, resource lifecycles, or deployment defaults.
 
 <LearnMore>
   See the [provisioning SDK inventory and compatibility
