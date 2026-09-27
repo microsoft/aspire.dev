@@ -88,12 +88,15 @@ Anyone who can reach an anonymously accessible dashboard can view potentially se
 [Dashboard terminals](/dashboard/terminals/) can send input to running processes, not just display output. Treat terminal access as access to the capabilities of the underlying program. An AppHost-owned shell runs on the AppHost machine with that process's permissions and inherited environment. A container shell has the container's configured permissions and access to its mounted files and credentials.
 
 - Restrict dashboard access to trusted users. Don't expose an interactive shell through an anonymously accessible dashboard on an untrusted network.
+- Enable `WithRepl()` only when trusted users need database or cache access. REPL clients use configured credentials, aren't read-only, and can modify or delete data. SQL Server REPLs run as `sa`. Dashboard sharing through tunnels or remote development exposes this command capability too.
 - Treat terminal output, scrollback, clipboard contents, screenshots, and [tape recordings](/dashboard/terminal-automation/) as potentially sensitive. Avoid typing secrets into commands that echo or persist them, and review recordings before sharing.
 - Review tape files and any included `Source` files before playback. They send real input to an existing process and can perform any action that process permits.
 - Coordinate input between browser viewers, CLI attachments, and automation. A secondary viewer doesn't provide exclusive access or a separate shell. A read-only presentation isn't a replacement for authorization to the underlying terminal.
 - Hiding the dock, closing a viewer, or canceling a terminal interaction doesn't itself stop the process. Dispose AppHost-owned terminals when finished, or use the resource's lifecycle controls for resource-owned processes.
 
 Detached windows use the dashboard's terminal connection; opening a separate window doesn't create an isolated security context for the workload. Only allow terminal pop-ups for a trusted dashboard origin.
+
+For container REPL and exec sessions, exit the client before closing the tab. Disposing the AppHost-owned runtime command doesn't guarantee that the client process inside the container stops.
 
 ## Secure telemetry endpoint
 

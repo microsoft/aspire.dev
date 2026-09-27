@@ -11,10 +11,10 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 Use [`aspire terminal tape play`](/reference/cli/commands/aspire-terminal-tape-play/) to send scripted input to an existing resource terminal, wait for expected output, and save text recordings. A tape is a plain-text `.tape` file containing commands such as `Type`, `Enter`, and `Wait+Screen`.
 
 :::caution[Experimental in Aspire 13.6]
-Tape playback is part of the Aspire 13.6 preview. Use matching CLI and AppHost builds that include tape playback; an older installed CLI won't recognize `terminal tape`. See [Install the Aspire CLI](/get-started/install-cli/) for development builds, or use the pinned source walkthrough below.
+Tape playback is available in the Aspire 13.6 staging build. Follow [Try the staging build](/dashboard/terminals/#try-the-staging-build) to install the CLI and create an AppHost with matching packages. An older installed CLI won't recognize `terminal tape`.
 :::
 
-Playback joins a running [`WithTerminal()`](/app-host/with-terminal/) resource as a secondary peer. It doesn't create a shell, take primary ownership, resize the terminal, or stop the resource when the tape completes or fails. It cannot target a dashboard-only AppHost interaction terminal. See [Dashboard terminals](/dashboard/terminals/) for the different terminal surfaces.
+Playback joins a running [`WithTerminal()`](/app-host/with-terminal/) resource as a secondary peer. It doesn't create a shell, take primary ownership, resize the terminal, or stop the resource when the tape completes or fails. It cannot target an AppHost-owned dock or interaction terminal, including a client opened by `WithRepl()`. See [Dashboard terminals](/dashboard/terminals/) for the different terminal surfaces.
 
 :::caution[Input is shared]
 Other dashboard and CLI peers can remain connected and send input during playback. Coordinate with them before running a tape. Run only trusted tapes: typing into a shell can execute commands with the resource's permissions.
@@ -107,6 +107,8 @@ The final screen printed to stdout contains `ASPIRE_TAPE_ready`. The expected ma
 Use a fresh marker or clear old output when adapting a tape for repeated checks. A wait can match text already present on the screen; it doesn't assert that the text was produced by the preceding command. Exit code zero means the tape completed, not that every program invoked inside the shell succeeded.
 
 ## Prepare the REPL playground
+
+This optional source walkthrough uses a pinned Aspire revision and its source-built CLI. It isn't required to use the staging build or the integration-level `WithRepl()` commands. Those commands open AppHost-owned dock terminals, which aren't tape targets.
 
 The next example uses the public [Terminals playground](https://github.com/microsoft/aspire/tree/1a8582231734df69b8af9487153bc67fa963b7e8/playground/Terminals), rather than the minimal shell AppHost above. It supplies `repl`: the included `Terminals.Repl` console project, registered with `WithTerminal()` and two replicas. Its commands include `help`, `whoami`, and `size`.
 

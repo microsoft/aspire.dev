@@ -3,9 +3,10 @@ title: Use interactive terminals in the dashboard
 description: Choose a dashboard terminal experience for resource apps, AppHost shells, authentication dialogs, or automation, and learn how to manage its lifetime.
 ---
 
-import { CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
 import { Image } from 'astro:assets';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 import resourceTerminal from '@assets/dashboard/terminals/resource-terminal.png';
 import terminalDock from '@assets/dashboard/terminals/terminal-dock.png';
 import terminalInteraction from '@assets/dashboard/terminals/terminal-interaction.png';
@@ -14,8 +15,50 @@ import detachedTerminal from '@assets/dashboard/terminals/detached-terminal.png'
 The Aspire dashboard can display interactive terminal applications as well as logs. A terminal lets you type into a running process, respond to its prompts, and use a terminal user interface (TUI) without leaving the dashboard.
 
 :::caution[Aspire 13.6 preview]
-The AppHost terminal dock, terminal interactions, detached windows, and tape playback described here are part of the Aspire 13.6 preview work. Use matching AppHost, dashboard, and CLI builds. Terminal APIs are experimental and use the [`ASPIRETERMINAL001`](/diagnostics/aspireterminal001/) diagnostic.
+The AppHost terminal dock, integration REPL commands, terminal interactions, detached windows, and tape playback described here are available in the Aspire 13.6 staging build. Use matching AppHost, dashboard, and CLI builds. Low-level terminal APIs are experimental and use the [`ASPIRETERMINAL001`](/diagnostics/aspireterminal001/) diagnostic.
 :::
+
+## Try the staging build
+
+Install the staging CLI:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash title="Install the staging Aspire CLI"
+curl -sSL https://aspire.dev/install.sh | bash -s -- --quality staging
+```
+
+</div>
+<div slot="windows">
+
+```powershell title="Install the staging Aspire CLI"
+iex "& { $(irm https://aspire.dev/install.ps1) } -Quality 'staging'"
+```
+
+</div>
+</OsAwareTabs>
+
+Create an empty AppHost from the matching staging channel:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```bash title="Create a staging TypeScript AppHost"
+aspire new aspire-ts-empty --channel staging
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```bash title="Create a staging AppHost"
+aspire new aspire-empty --language csharp --channel staging
+```
+
+</TabItem>
+</Tabs>
+
+Add integrations with `aspire add` from the generated AppHost directory so they use its configured package sources. For an existing AppHost, update its SDK and hosting packages to matching staging versions; updating the CLI alone doesn't update the app's packages.
 
 ## Choose a terminal experience
 
@@ -25,6 +68,7 @@ The dashboard displays terminals that your AppHost makes available. Resource ter
 | ------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | **Resource terminal**           | Interact with a TUI, REPL, or shell that is part of your app model.                               | Select a resource configured with `WithTerminal` on the **Console logs** page, then choose **Terminal**. |
 | **AppHost terminal dock**       | Keep a shell or an interactive tool available while navigating dashboard pages.                   | Use the terminal button in the header, or run a resource command that opens a dock terminal.             |
+| **Database or cache REPL**      | Query a supported database or cache with its bundled client and configured credentials.            | Enable `WithRepl()` / `withRepl()` on the server or cache resource, then select **REPL** to open a dock tab. |
 | **Terminal interaction dialog** | Complete a focused task, such as authentication, or watch AppHost code drive an interactive tool. | The AppHost opens a dialog using `PromptTerminalAsync`.                                                  |
 | **Detached terminal window**    | Give a resource or dock terminal more space, including on another monitor.                        | Use the terminal's open-in-new-window button. This is another view of the same process.                  |
 
@@ -38,6 +82,11 @@ The dashboard displays terminals that your AppHost makes available. Resource ter
     title="Open a shell from your AppHost"
     description="Create persistent shells and container exec sessions."
     href="/app-host/terminal-service/"
+  />
+  <LinkCard
+    title="Query a database or cache"
+    description="Enable built-in REPL commands with WithRepl."
+    href="/app-host/terminal-service/#open-a-database-or-cache-repl"
   />
   <LinkCard
     title="Prompt with a terminal"
@@ -74,7 +123,7 @@ Use that toolbar menu to switch between **Terminal** and **Console logs**. Switc
 
 Select **Toggle terminal** in the dashboard header or press the unshifted backtick key (<Kbd windows="`" />) to show or hide the dock. The shortcut doesn't run while a terminal or text input has focus, because the key belongs to that input. Use the header button instead, or press <Kbd windows="F6" /> to leave terminal input before toggling the dock.
 
-An empty dock means your AppHost hasn't created a dock terminal. Follow [Open a shell from your AppHost](/app-host/terminal-service/) to add one. AppHost code can call `Show()` to reveal the dock and activate a terminal, even if you haven't opened the dock yet.
+An empty dock means no dock terminals are currently available. Enable [a database or cache REPL](/app-host/terminal-service/#open-a-database-or-cache-repl) or [open a shell from your AppHost](/app-host/terminal-service/) to add one. AppHost code can call `Show()` to reveal the dock and activate a terminal, even if you haven't opened the dock yet.
 
 Select a tab to switch terminals. Terminals remain available as you navigate dashboard pages. Multiple connected dashboards see the same AppHost-owned terminals, but each viewer chooses which tab to display and whether its dock is visible.
 
@@ -87,6 +136,8 @@ To change the dock height, drag its top edge. With the resize handle focused, us
 
 :::caution[Hide is not close]
 **Hide terminal panel** collapses the dock without stopping its terminals. The close button on an individual terminal tab disposes that AppHost-owned terminal and stops its process for every viewer.
+
+For a container REPL or exec session, exit the client first. Closing the tab stops the local runtime command but can leave the client running inside the container.
 :::
 
 ## Use a terminal interaction dialog
