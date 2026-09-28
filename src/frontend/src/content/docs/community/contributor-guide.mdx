@@ -120,7 +120,7 @@ Before you begin, ensure you have the following installed:
     Open your browser to `http://localhost:4321` (or the port shown in your terminal)
 
     :::tip
-    During local development, the site search functionality is disabled. This is normal behavior as the search index is built during the production build process. To test search functionality, run a production build locally using `pnpm build` and then preview it with `pnpm preview`.
+    During local development, site search is disabled because its index is generated during the production build. Use the PR's CI build and browser checks to validate search. You can also download its `frontend-dist` artifact into `dist` and serve that existing output with `pnpm preview`, without rebuilding locally.
     :::
 
 </Steps>
@@ -875,6 +875,14 @@ Empty-state recovery should preserve useful search intent: clear filters when th
 Show one recovery action in the empty state, without competing toolbar reset links. When results exist, show one toolbar action: **Clear filters** for filters alone, or **Reset all** for a query combined with filters. A query alone only needs the input's clear icon. Keep individual filter controls editable in every state.
 
 Test hub controls through client navigation as well as direct page loads. Selecting a different resource-results page smoothly scrolls to the breadcrumb after navigation settles, using the site's fixed-header scroll offset while preserving pagination focus. Respect reduced-motion preferences with instant scrolling. Selecting the current page is a no-op; search, filter, and browser-history scroll behavior remain unchanged. Astro removes `noscript` elements from incoming pages, so deferred resource images use inert templates with separate no-JavaScript markup. Preserve router-owned history state and dispose listeners when leaving a page.
+
+## Build performance and CI
+
+Frontend CI builds the site separately from lint and unit validation, so browser tests can start as soon as the site artifact is ready. Each desktop, tablet, and mobile Chromium project runs in two shards. All validation jobs and shards remain required.
+
+The `frontend-performance` artifact records build phase timings, output sizes, and route-rendering work. Route durations overlap during concurrent rendering; their sum is not elapsed build time. For an opt-in CPU profile and compression sample, add the `build-profile` label before the next PR workflow run. Profiles stay in the diagnostic artifact, not the published site. Keep performance builds and comparisons in the PR's CI checks rather than running production builds locally.
+
+Contributor lists share successful GitHub responses and in-flight requests within a build. A new build starts fresh. If a request exhausts its bounded retry budget, CI reports a warning and the page shows an unavailable state instead of an empty contributor list.
 
 ## 🆘 Getting help
 

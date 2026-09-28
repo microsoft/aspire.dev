@@ -10,9 +10,9 @@
  * Phases captured:
  *
  *   astro:config:setup → astro:config:done     // user config + integrations
- *   astro:config:done  → astro:build:setup     // Vite config preparation
- *   astro:build:setup  → astro:build:start     // Rollup/Vite bundle preflight
- *   astro:build:start  → astro:build:generated // page generation (render)
+ *   astro:config:done  → astro:build:start     // content preparation
+ *   astro:build:start  → astro:build:setup     // Vite bundle preparation
+ *   astro:build:setup  → astro:build:generated // bundling AND prerendering
  *   astro:build:generated → astro:build:done   // post-render (link validator,
  *                                                 llms-txt, asset finalize, etc.)
  *
@@ -106,8 +106,8 @@ export default function buildTiming() {
       'astro:config:done'() {
         mark('astro:config:done');
       },
-      'astro:build:setup'() {
-        mark('astro:build:setup');
+      'astro:build:setup'({ target }) {
+        mark(`astro:build:setup:${target}`);
       },
       'astro:build:start'() {
         mark('astro:build:start');
@@ -124,10 +124,10 @@ export default function buildTiming() {
       'astro:build:ssr'() {
         mark('astro:build:ssr');
       },
-      'astro:build:done'({ pages, routes }) {
+      'astro:build:done'({ pages, assets }) {
         mark('astro:build:done');
         meta.pagesGenerated = pages?.length ?? 0;
-        meta.routesTotal = routes?.length ?? 0;
+        meta.routesTotal = assets?.size ?? 0;
         emitReport(samples, meta, 'final');
       },
     },
