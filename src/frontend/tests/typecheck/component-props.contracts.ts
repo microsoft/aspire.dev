@@ -505,6 +505,23 @@ const validLoopingImageProps = {
   src: heroImage,
   alt: 'Animated diagram',
 } satisfies PropsOf<typeof LoopingImage>;
+const validThemedLoopingImageProps = {
+  light: heroImage,
+  dark: heroImage,
+  alt: 'Themed animated diagram',
+} satisfies PropsOf<typeof LoopingImage>;
+// @ts-expect-error Themed animations require both sources.
+const missingDarkLoopingImageProps: PropsOf<typeof LoopingImage> = {
+  light: heroImage,
+  alt: 'Incomplete themed diagram',
+};
+// @ts-expect-error A single source cannot be combined with a theme pair.
+const mixedLoopingImageProps: PropsOf<typeof LoopingImage> = {
+  src: heroImage,
+  light: heroImage,
+  dark: heroImage,
+  alt: 'Ambiguous animated diagram',
+};
 // @ts-expect-error LoopingImage src must be imported image metadata.
 const invalidLoopingImageProps: PropsOf<typeof LoopingImage> = {
   src: '/diagram.png',
@@ -848,6 +865,9 @@ void [
   validLicenseBadgeProps,
   invalidLicenseBadgeProps,
   validLoopingImageProps,
+  validThemedLoopingImageProps,
+  missingDarkLoopingImageProps,
+  mixedLoopingImageProps,
   invalidLoopingImageProps,
   validLoopingVideoProps,
   invalidLoopingVideoProps,

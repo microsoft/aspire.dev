@@ -33,6 +33,7 @@ import Integrations from '@components/Integrations.astro';
 import IntegrationTotals from '@components/IntegrationTotals.astro';
 import LearnMore from '@components/LearnMore.astro';
 import LicenseBadge from '@components/LicenseBadge.astro';
+import LoopingImage from '@components/LoopingImage.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
 import MediaCard from '@components/MediaCard.astro';
 import NotFoundPage from '@components/NotFoundPage.astro';
@@ -603,6 +604,18 @@ const basicRenderCases: BasicRenderCase[] = [
     ],
   },
   {
+    name: 'LoopingImage preserves a single animation source and playback controls',
+    Component: LoopingImage,
+    props: { src: heroImage, alt: 'Animated dashboard' },
+    includes: ['looping-image-toggle', 'Pause animation', 'Animated dashboard'],
+  },
+  {
+    name: 'LoopingImage renders paired animation sources and a no-script fallback',
+    Component: LoopingImage,
+    props: { light: heroImage, dark: heroImage, alt: 'Themed animated dashboard' },
+    includes: ['data-light-src=', 'data-dark-src=', 'data-themed-animation', '<noscript>', 'Pause animation'],
+  },
+  {
     name: 'LoopingVideo renders sources and toggle button state',
     Component: LoopingVideo,
     props: {
@@ -1066,6 +1079,23 @@ describe('custom Astro component render coverage', () => {
 
     // Regression: `fit` must not leak onto the rendered <img> as an attribute.
     expect(html).not.toContain('fit="contain"');
+  });
+
+  it('LoopingImage defers themed requests until the page theme is known', async () => {
+    const html = normalizeHtml(
+      await renderComponent(LoopingImage, {
+        props: { light: heroImage, dark: heroImage, alt: 'Themed animation' },
+      })
+    );
+    const animation = [...html.matchAll(/<img\b[^>]*>/g)]
+      .map(([tag]) => tag)
+      .find((tag) => tag.includes('data-light-src=') && tag.includes('data-dark-src='));
+
+    expect(animation).toBeDefined();
+    expect(animation).toContain('data-light-src=');
+    expect(animation).toContain('data-dark-src=');
+    expect(animation).not.toMatch(/\ssrc=/);
+    expect(html).toContain('looping-image-fallback');
   });
 
   it('keeps every statement-player locale complete and preserves technology names', () => {
