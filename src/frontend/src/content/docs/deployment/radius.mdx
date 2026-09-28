@@ -1,0 +1,117 @@
+---
+title: Deploy Aspire applications with Radius
+description: Publish Aspire apps to Radius, understand recipe-backed connection values and credentials, and resolve deployment and publish diagnostics.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+Radius is a compute environment for `aspire publish` and `aspire deploy`. Adding it doesn't change local execution: `aspire run` still runs your resources locally.
+
+:::caution[Prototype integration]
+`Aspire.Hosting.Radius` is an early prototype. Pin its package version and review generated Bicep before deploying. Cloud provider, recipe, and secret-store APIs have their own experimental diagnostics; runtime publish validation errors aren't compiler diagnostics you can suppress.
+:::
+
+## Prerequisites
+
+- A Kubernetes cluster with Radius v0.60.0 or later; v0.60.2 is recommended
+- The `rad` CLI on `PATH` and a workspace configured with `rad init` for your target cluster
+- Container images that the cluster can pull
+
+Upgrade older control planes with `rad upgrade kubernetes`. Before deployment, Aspire checks the control plane targeted by the active Radius workspace, honoring `ASPIRE_RADIUS_KUBE_CONTEXT`. A detected version below v0.60 fails with `ASPIRERADIUS091`; an unreadable version isn't proof of compatibility. Older control planes can silently drop fields from the generated recipe pack.
+
+## Add the compute environment
+
+<InstallPackage packageName="Aspire.Hosting.Radius" />
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const radius = await builder.addRadiusEnvironment('radius');
+const web = await builder.addContainer('web', 'nginx');
+await web.withHttpEndpoint({ targetPort: 80 });
+await web.withComputeEnvironment(radius);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var radius = builder.AddRadiusEnvironment("radius");
+
+builder.AddContainer("web", "nginx")
+    .WithHttpEndpoint(targetPort: 80)
+    .WithComputeEnvironment(radius);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Generate artifacts for review, then deploy to the configured environment:
+
+```bash title="Publish and deploy to Radius"
+aspire publish -o radius-artifacts
+aspire deploy
+```
+
+Container workloads are emitted as `Radius.Compute/containers`. Project resources require a prebuilt, pushed image attached with `WithContainerImage` / `withContainerImage`; the Radius publisher doesn't build that project image for you. Include any files requested by container-file publishing in the externally built image.
+
+## Understand recipe-backed connections
+
+Redis, PostgreSQL, MongoDB, SQL Server, and RabbitMQ are **backing resources** provisioned by Radius recipes, not ordinary container workloads. Recipes determine their deployed addresses. Aspire 13.6 projects consumer connection strings, individual connection properties, URIs, and service-discovery values from the backing Radius resource instead of guessing a Kubernetes service name from the local Aspire endpoint.
+
+| Resource | Deployed credential behavior |
+| -------- | ---------------------------- |
+| PostgreSQL | Required username and password properties receive the same parameters used by the consumer connection string |
+| RabbitMQ | An explicit username is required; the password is supplied through a `Radius.Security/secrets` resource ID |
+| MongoDB and SQL Server | Legacy `Applications.*` recipes generate credentials; consumers use recipe outputs, with warnings when explicit AppHost parameters are replaced |
+| Redis | The pinned recipe deploys **without authentication**; generated passwords are discarded with `ASPIRERADIUS075`, while explicit passwords fail with `ASPIRERADIUS085` |
+
+Don't copy run-mode connection strings into deployment configuration. Host and port values come from the backing resource's properties, and legacy recipe passwords use `listSecrets()`. URI credential values are encoded before composition. Radius also injects `CONNECTION_<NAME>_<PROPERTY>` variables for its `connections` block; these don't replace Aspire's `ConnectionStrings__*` contract.
+
+Connection strings use [portable aliases](/fundamentals/environment-variables/#portable-connection-name-encoding). Connection-property prefixes retain their own rules: `db__primary` produces `DB__PRIMARY_PASSWORD`, while its connection-string alias is `ConnectionStrings__db_primary`.
+
+### Protect credential-bearing values
+
+Aspire publishes credential-bearing environment values through `valueFrom.secretKeyRef` backed by `Radius.Security/secrets`, rather than putting them directly in the Kubernetes Deployment specification. A recipe-generated `listSecrets()` expression avoids writing the resolved password in local publish artifacts, but it can still expose the resolved value in deployment records. Radius's own connection variables can also contain plaintext credentials. Restrict access to the cluster, deployment records, and secrets.
+
+For workloads that require authenticated Redis, provision a suitable service yourself instead of assuming the pinned unauthenticated recipe applies the local password.
+
+## Resolve publish diagnostics
+
+These runtime diagnostics identify unsupported projections or inconsistent output. Fix the application model or callback rather than suppressing them.
+
+| Diagnostic | Remediation |
+| ---------- | ----------- |
+| `ASPIRERADIUS070` | Review the warning that a recipe-generated credential replaces a referenced parameter |
+| `ASPIRERADIUS072` | Reference only the database supported by the recipe; multiple child databases on one server aren't independently provisioned |
+| `ASPIRERADIUS073`, `ASPIRERADIUS078`, `ASPIRERADIUS086` | Remove unsupported formatting, deploy-time conditions, or run-only values from published connection expressions |
+| `ASPIRERADIUS074`, `ASPIRERADIUS084` | Keep backing constructs and generated environment secrets that consumers still reference |
+| `ASPIRERADIUS075`, `ASPIRERADIUS085` | Review the unauthenticated Redis recipe; don't assume a supplied password will be installed |
+| `ASPIRERADIUS076` | Supply the connection properties required by the mapped Radius resource type |
+| `ASPIRERADIUS077` | Reference the primary endpoint instead of a secondary endpoint the recipe doesn't deploy |
+| `ASPIRERADIUS080` | Review the warning for a named SQL Server child database the legacy recipe doesn't create |
+| `ASPIRERADIUS081` | Don't project local TLS scheme, URL, or TLS-enabled values when the backing recipe has no transport-security output |
+| `ASPIRERADIUS082` | Give RabbitMQ an explicit username rather than the loopback-only `guest` account |
+| `ASPIRERADIUS083`, `ASPIRERADIUS087`, `ASPIRERADIUS088` | Use valid Kubernetes names and secret keys, and set either a literal environment value or a complete secret reference |
+| `ASPIRERADIUS089` | Keep the broker's credential aligned with its consumers when customizing infrastructure |
+| `ASPIRERADIUS090` | Rename colliding Kubernetes secrets, including collisions with generated `<container>-env-secret` names |
+| `ASPIRERADIUS091` | Upgrade the target Radius control plane to v0.60 or later |
+
+`ASPIRERADIUS071` and `ASPIRERADIUS079` indicate an internal resource-to-connection-schema mismatch. Report them with the package version and a minimal reproduction instead of substituting a local endpoint.
+
+## See also
+
+- [Radius installation](https://docs.radapp.io/installation/)
+- [Radius integration configuration and recipe APIs](https://github.com/microsoft/aspire/blob/e8fd6fbb954f50ccd2e66479538392f65e13e71d/src/Aspire.Hosting.Radius/README.md)
+- [Connection strings and environment variables](/fundamentals/environment-variables/)
+- [Deployment state caching](/deployment/deployment-state-caching/)
