@@ -1542,7 +1542,7 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('404 / Not found');
     expect(html).toContain('>Wrong <span');
     expect(html).toContain('>route?</span>');
-    expect(html).toContain('not-found');
+    expect(html).toContain('not-found-map.webp');
     expect(html).toContain('Go home');
     expect(html).toContain('Go back');
   });
