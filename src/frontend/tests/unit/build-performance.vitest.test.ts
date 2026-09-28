@@ -91,6 +91,15 @@ test('Astro build source does not receive workflow credentials', async () => {
   expect(workflow).toMatch(/fetch-depth: 0\n\s+persist-credentials: false/);
 });
 
+test('all frontend workflow checkouts disable persisted credentials', async () => {
+  const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-build.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const checkouts = workflow.split(/\n {6}- /).filter((step) => step.startsWith('uses: actions/checkout@'));
+  expect(checkouts).toHaveLength(4);
+  for (const checkout of checkouts) {
+    expect(checkout).toContain('\n          persist-credentials: false');
+  }
+});
+
 test('timing reports distinguish generated pages from asset URLs', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'aspire-timing-report-'));
   directories.push(directory);
