@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { appendFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { promisify, stripVTControlCharacters } from 'node:util';
+import { promisify } from 'node:util';
 import { gzip } from 'node:zlib';
 
 const compress = promisify(gzip);
@@ -25,13 +25,15 @@ export async function measureOutput(directory) {
   }
   await walk();
   files.sort((a, b) => a.path.localeCompare(b.path));
-  /** @type {Map<string, { path: string, files: number, bytes: number }>} */
+  /** @type {Map<string, { path: string, files: number, bytes: number, htmlFiles: number, markdownFiles: number }>} */
   const groups = new Map();
   for (const file of files) {
     const key = outputGroup(file.path);
-    const group = groups.get(key) ?? { path: key, files: 0, bytes: 0 };
+    const group = groups.get(key) ?? { path: key, files: 0, bytes: 0, htmlFiles: 0, markdownFiles: 0 };
     group.files++;
     group.bytes += file.bytes;
+    if (file.path.endsWith('.html')) group.htmlFiles++;
+    if (file.path.endsWith('.md')) group.markdownFiles++;
     groups.set(key, group);
   }
   return {
@@ -39,26 +41,6 @@ export async function measureOutput(directory) {
     totalBytes: files.reduce((sum, file) => sum + file.bytes, 0),
     groups: [...groups.values()].sort((a, b) => b.bytes - a.bytes),
   };
-}
-
-export function measureRoutes(log) {
-  /** @type {Map<string, { group: string, count: number, summedRenderMs: number, firstCompletion: string, lastCompletion: string }>} */
-  const groups = new Map();
-  // Astro renders concurrently: summed durations are work, NOT elapsed wall time.
-  for (const line of stripVTControlCharacters(log).split('\n')) {
-    const match = line.match(/(\d{2}:\d{2}:\d{2})\s+[├└]─\s+\/(\S+)\s+\(\+([\d.]+)(ms|s)\)/);
-    if (!match) continue;
-    const [, time, path, amount, unit] = match;
-    const key = `${outputGroup(path)} (${path.endsWith('.md') ? 'markdown' : 'html/assets'})`;
-    const group = groups.get(key) ?? {
-      group: key, count: 0, summedRenderMs: 0, firstCompletion: time, lastCompletion: time,
-    };
-    group.count++;
-    group.summedRenderMs += Number(amount) * (unit === 's' ? 1000 : 1);
-    group.lastCompletion = time;
-    groups.set(key, group);
-  }
-  return [...groups.values()];
 }
 
 export async function sampleCompression(directory, files) {
@@ -94,7 +76,6 @@ async function main() {
   if (!out) throw new Error('BUILD_METRICS_DIR is required.');
   await mkdir(out, { recursive: true });
   const output = await measureOutput(resolve('dist'));
-  const routes = measureRoutes(await readFile(join(out, 'build.log'), 'utf8'));
   const summary = {
     commit: process.env.GITHUB_SHA,
     run: process.env.GITHUB_RUN_ID,
@@ -107,7 +88,6 @@ async function main() {
     fileCount: output.files.length,
     totalBytes: output.totalBytes,
     directories: output.groups,
-    routes,
     largestFiles: [...output.files].sort((a, b) => b.bytes - a.bytes).slice(0, 20),
   };
   await writeFile(join(out, 'output.json'), JSON.stringify(summary, null, 2));
@@ -121,8 +101,8 @@ async function main() {
       '## Frontend build measurements',
       '',
       `- ${summary.fileCount} output files; ${(summary.totalBytes / 1024 / 1024).toFixed(1)} MiB before artifact compression.`,
-      '- Phase timing, route work, largest directories/files, and output manifest: `frontend-performance` artifact.',
-      '- Summed route times overlap; they are not wall-clock build time.',
+      '- Phase timing, HTML/Markdown counts, largest directories/files, and output manifest: `frontend-performance` artifact.',
+      '- Concurrent Astro route logs can interleave paths and durations; they are not used for timing attribution.',
       '',
     ].join('\n'));
   }

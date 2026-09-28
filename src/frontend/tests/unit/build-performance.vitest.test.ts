@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
-import { measureOutput, measureRoutes, sampleCompression } from '../../scripts/measure-build-output.mjs';
+import { measureOutput, sampleCompression } from '../../scripts/measure-build-output.mjs';
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -22,8 +22,8 @@ test('output metrics preserve native paths and separate API languages', async ()
     { path: 'reference/api/typescript/index.html', bytes: 10 },
   ]);
   expect(output.groups).toEqual([
-    { path: 'reference/api/typescript', files: 1, bytes: 10 },
-    { path: '(root)', files: 1, bytes: 4 },
+    { path: 'reference/api/typescript', files: 1, bytes: 10, htmlFiles: 1, markdownFiles: 0 },
+    { path: '(root)', files: 1, bytes: 4, htmlFiles: 1, markdownFiles: 0 },
   ]);
   const sample = await sampleCompression(directory, output.files);
   expect(sample.inputBytes).toBe(14);
@@ -31,22 +31,15 @@ test('output metrics preserve native paths and separate API languages', async ()
   expect(sample.results.every(({ compressedBytes }) => compressedBytes > 0)).toBe(true);
 });
 
-test('route metrics label overlapping work and retain milliseconds', () => {
-  const routes = measureRoutes([
-    '\u001b[2m23:59:59\u001b[22m   ├─ /reference/api/typescript/module/index.html (+1.2s)',
-    '00:00:01   ├─ /reference/api/typescript/module/type/index.html (+23ms)',
-    '00:00:02   └─ /reference/api/typescript/module.md (+2ms)',
-    '00:00:03 [build] complete',
-  ].join('\n'));
-  expect(routes).toEqual([
-    {
-      group: 'reference/api/typescript (html/assets)',
-      count: 2, summedRenderMs: 1223, firstCompletion: '23:59:59', lastCompletion: '00:00:01',
-    },
-    {
-      group: 'reference/api/typescript (markdown)',
-      count: 1, summedRenderMs: 2, firstCompletion: '00:00:02', lastCompletion: '00:00:02',
-    },
+test('output counts distinguish markdown and HTML without parsing interleaved logs', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'aspire-output-counts-'));
+  directories.push(directory);
+  await mkdir(join(directory, 'reference', 'api', 'csharp'), { recursive: true });
+  await writeFile(join(directory, 'reference', 'api', 'csharp', 'type.md'), 'api');
+  await writeFile(join(directory, 'reference', 'api', 'csharp', 'index.html'), 'html');
+  await writeFile(join(directory, 'reference', 'api', 'csharp', 'search.json'), '{}');
+  expect((await measureOutput(directory)).groups).toEqual([
+    { path: 'reference/api/csharp', files: 3, bytes: 9, htmlFiles: 1, markdownFiles: 1 },
   ]);
 });
 
