@@ -18,11 +18,12 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, relative, resolve, sep, posix, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { twoslasher } from '@ec-ts/twoslash';
+import { createTwoslasher } from '@ec-ts/twoslash';
 import {
   TWOSLASH_ENABLED,
   TWOSLASH_LANGUAGES,
   getTwoslashOptions,
+  finishTwoslashRun,
   readAspireTypes,
 } from '../../config/twoslash.config.mjs';
 
@@ -192,9 +193,10 @@ function mapLangForTwoslash(lang: string): string {
 function compileBlock(
   source: string,
   lang: string,
-  options: ReturnType<typeof getTwoslashOptions>
+  options: ReturnType<typeof getTwoslashOptions>,
+  compiler: ReturnType<typeof createTwoslasher>
 ): BlockDiagnostic[] {
-  const result = twoslasher(source, lang, options);
+  const result = compiler(source, lang, options);
   return result.errors
     .filter((e) => e && typeof e.line === 'number')
     .map<BlockDiagnostic>((e) => ({
@@ -242,6 +244,7 @@ export function runAudit(): AuditReport {
   // Owning the cache here isolates changes to either on subsequent audits
   // without serializing the large declaration bundle into every block's key.
   const sharedOptions = getTwoslashOptions();
+  const compiler = createTwoslasher(sharedOptions);
   const compilations = new Map<string, CompilationResult>();
   let compilerCalls = 0;
 
@@ -264,10 +267,12 @@ export function runAudit(): AuditReport {
         compilation = { diagnostics: [], crashed: false, crashMessage: undefined };
         try {
           compilerCalls++;
-          compilation.diagnostics = compileBlock(source, lang, sharedOptions);
+          compilation.diagnostics = compileBlock(source, lang, sharedOptions, compiler);
         } catch (err) {
           compilation.crashed = true;
           compilation.crashMessage = err instanceof Error ? err.message : String(err);
+        } finally {
+          finishTwoslashRun(sharedOptions, compilation.crashed);
         }
         compilations.set(key, compilation);
       }

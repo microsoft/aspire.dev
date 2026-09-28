@@ -39,7 +39,7 @@ vi.mock('node:fs', () => ({
   readdirSync: mocks.readDir,
 }));
 
-vi.mock('@ec-ts/twoslash', () => ({ twoslasher: mocks.compiler }));
+vi.mock('@ec-ts/twoslash', () => ({ createTwoslasher: () => mocks.compiler }));
 
 vi.mock('../../config/twoslash.config.mjs', () => ({
   get TWOSLASH_ENABLED() {
@@ -47,6 +47,7 @@ vi.mock('../../config/twoslash.config.mjs', () => ({
   },
   TWOSLASH_LANGUAGES: ['ts', 'tsx', 'typescript'],
   getTwoslashOptions: mocks.options,
+  finishTwoslashRun: vi.fn(),
   readAspireTypes: mocks.readTypes,
 }));
 
