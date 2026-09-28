@@ -5,7 +5,9 @@ description: Use Aspire's Bicep helpers to compose deployment-time values, custo
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Use `await infrastructure.bicep()` inside an Azure infrastructure callback to construct literals and deployment-time expressions for your resources.
+In a polyglot AppHost, use `infrastructure.bicep()` inside an Azure infrastructure callback to construct literals and deployment-time expressions for your resources. The examples in this reference use TypeScript.
+
+C# AppHosts don't need these helpers: use the Azure Provisioning SDK directly. The C# examples and SDK mappings below show the equivalent operations.
 
 This reference covers the 32 factory methods available in Aspire 13.6, plus the string builder and declaration helpers that work with them. For callback setup and resource discovery, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/).
 
@@ -379,7 +381,7 @@ Null suppression changes type checking; it doesn't supply a fallback value. See 
 Use `createStringBuilder()` to combine literal text and Bicep expressions into an interpolated string. The C# equivalent is [BicepStringBuilder](https://learn.microsoft.com/dotnet/api/azure.provisioning.expressions.bicepstringbuilder?view=azure-dotnet).
 
 :::caution[TypeScript SDK limitation]
-In TypeScript SDK version `13.6.0-preview.1.26473.12`, calling this builder's `build()` inside `configureInfrastructure` can time out. Use `concat` in TypeScript infrastructure callbacks, as in the Storage example, until this issue is resolved. C# can use `BicepStringBuilder` or `BicepFunction.Interpolate`.
+Local validation with TypeScript SDK version `13.6.0-preview.1.26473.12` found that calling this builder's `build()` inside `configureInfrastructure` timed out after 120 seconds. For that version, use `concat` in TypeScript infrastructure callbacks, as in the Storage example. This observation doesn't establish the behavior of later SDK versions. C# can use `BicepStringBuilder` or `BicepFunction.Interpolate`.
 :::
 
 | Builder method        | C# counterpart                               | Behavior                                        |
