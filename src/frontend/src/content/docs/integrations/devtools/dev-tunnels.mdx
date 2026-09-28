@@ -211,6 +211,21 @@ The preceding code exposes:
 - The `public` endpoint of the `api` project with anonymous access.
 - The `admin` endpoint of the `api` project that requires authentication.
 
+### Show tunnel URLs
+
+While the dev tunnel is running, the Aspire dashboard publishes the public tunnel URL, the inspect URL, and the local endpoint URL as highlighted properties on the tunnel port resource's property pane so they're discoverable at a glance.
+
+You can also select the highlighted **Show tunnel URLs** command from the tunnel port resource's command menu in the dashboard. This opens a message box listing:
+
+- **Tunnel URL** &mdash; the public dev tunnel URL for the port
+- **Inspect URL** &mdash; the [Dev Tunnels inspection URL](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started#host) for viewing tunneled HTTP traffic
+- **Local endpoint URL** &mdash; the local address the tunnel forwards to, once allocated
+
+<Aside type="note">
+  The **Show tunnel URLs** command is only enabled once the tunnel port is
+  running and its public URL has been allocated.
+</Aside>
+
 ### Service discovery integration
 
 When another resource references a dev tunnel, environment variables are injected using the Aspire service discovery configuration format:
@@ -247,7 +262,7 @@ The `DevTunnelOptions` class provides several configuration options:
 | `Region`         | The `DevTunnelRegion` to create the tunnel in; automatic when unset    |
 
 <Aside type="note">
-  `Region` is only configurable in C# via `DevTunnelOptions`. The polyglot
+  `Region` is only configurable in C# via `DevTunnelOptions`. The non-C#
   TypeScript `addDevTunnel` export doesn't surface a region parameter.
 </Aside>
 
@@ -306,14 +321,15 @@ Verify that:
 - You're using the correct tunnel URL
 - Anonymous access is configured correctly if accessing without authentication
 
-### Dashboard doesn't show a tunnel URL
+#### Dashboard doesn't show a tunnel URL
 
-In Aspire 13.5, dev tunnel resources could reach the *Running* and *Healthy*
-states in the dashboard without ever publishing a public URL. This was fixed
-in Aspire 13.6: dev tunnel endpoints stay unallocated until the integration
-publishes the real tunnel endpoint, so the dashboard and MCP resource
-snapshots now show the tunnel URL as expected. If you still don't see a URL,
-update to Aspire 13.6 or later.
+Dev tunnel endpoints stay unallocated until the integration publishes the
+real tunnel endpoint. The dashboard and MCP resource snapshots then show
+the public tunnel URL.
+
+If you're using Aspire 13.5 and the resource reaches the _Running_ and
+_Healthy_ states without showing a URL, update to Aspire 13.6 or later
+to resolve a known endpoint-publication regression.
 
 ## See also
 

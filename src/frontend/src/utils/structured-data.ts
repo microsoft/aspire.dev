@@ -1,4 +1,5 @@
 import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import { aspireProject } from '../data/aspire-project';
 
 import {
   getContentBasePath,
@@ -21,13 +22,10 @@ interface FaqEntry {
 
 const organizationName = 'Aspire';
 const organizationAlternateNames = ['.NET Aspire', 'Aspire.dev'];
-const organizationDescription =
-  'Aspire is an agent-ready, code-first tool for building, running, debugging, and deploying distributed apps for any language, stack, or cloud.';
-const softwareDescription =
-  'Aspire is an agent-ready, code-first tool for composing, debugging, and deploying any distributed app, no matter programming language, stack, or cloud.';
+const organizationDescription = aspireProject.description;
+const softwareDescription = aspireProject.description;
 const sameAsLinks = [
-  'https://github.com/microsoft/aspire',
-  'https://github.com/dotnet/aspire',
+  aspireProject.repo,
   'https://learn.microsoft.com/dotnet/aspire/',
   'https://devblogs.microsoft.com/aspire',
   'https://x.com/aspiredotdev',
@@ -35,6 +33,7 @@ const sameAsLinks = [
   'https://www.youtube.com/@aspiredotdev',
   'https://www.twitch.tv/aspiredotdev',
 ] as const;
+const codeRepositoryUrl = aspireProject.repo;
 const aspireConfName = 'Aspire Conf 2026';
 const aspireConfReplayUrl =
   'https://www.youtube.com/playlist?list=PLSi5JsxQ5oNvRCeQj5v6ZYUe1gwzTSUfR';
@@ -80,6 +79,8 @@ function isCommunityPagePath(contentBasePath: string): boolean {
 
 function buildHomePageSchema(siteUrl: string, language: string, description: string): JsonObject {
   const organizationId = `${siteUrl}/#org`;
+  const applicationId = `${siteUrl}/#app`;
+  const sourceCodeId = `${siteUrl}/#source`;
 
   return {
     '@context': 'https://schema.org',
@@ -101,6 +102,23 @@ function buildHomePageSchema(siteUrl: string, language: string, description: str
         name: organizationName,
         publisher: { '@id': organizationId },
         inLanguage: language,
+      },
+      {
+        ...buildSoftwareApplication(siteUrl),
+        '@id': applicationId,
+        author: { '@id': organizationId },
+        publisher: { '@id': organizationId },
+        sameAs: codeRepositoryUrl,
+      },
+      {
+        '@type': 'SoftwareSourceCode',
+        '@id': sourceCodeId,
+        name: organizationName,
+        description: softwareDescription,
+        codeRepository: codeRepositoryUrl,
+        author: { '@id': organizationId },
+        isAccessibleForFree: true,
+        targetProduct: { '@id': applicationId },
       },
     ],
   };
@@ -316,6 +334,12 @@ function buildSoftwareApplication(siteUrl: string): JsonObject {
     applicationCategory: 'DeveloperApplication',
     operatingSystem: 'Windows, macOS, Linux',
     url: `${siteUrl}/`,
+    isAccessibleForFree: true,
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
   };
 }
 

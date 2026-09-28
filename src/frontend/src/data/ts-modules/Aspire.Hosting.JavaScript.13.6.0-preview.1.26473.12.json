@@ -1,0 +1,2066 @@
+{
+  "package": {
+    "name": "Aspire.Hosting.JavaScript",
+    "version": "13.6.0-preview.1.26473.12",
+    "language": "typescript",
+    "sourceRepository": "https://github.com/microsoft/aspire",
+    "sourceCommit": "a11eca9611073f7cf66fa87faac63c2119e87713"
+  },
+  "functions": [
+    {
+      "name": "addBunApp",
+      "capabilityId": "Aspire.Hosting.JavaScript/addBunApp",
+      "qualifiedName": "addBunApp",
+      "description": "Adds a Bun application to the application model. Bun should be available on the PATH.",
+      "remarks": "This method executes the script directly using `bun <script>`. Bun natively runs JavaScript and TypeScript\nfiles so no transpile step is required.\nIf the application directory contains a `package.json` file, Bun will be added as the default package manager.\nWhen publishing to a container, the default base image is `oven/bun:1` for both the build and runtime stages.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addBunApp(name: string, appDirectory: string, scriptPath: string): BunAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The path to the directory containing the Bun application."
+        },
+        {
+          "name": "scriptPath",
+          "type": "string",
+          "description": "The path to the script (for example, `server.ts`) relative to `appDirectory` to run."
+        }
+      ],
+      "returnType": "BunAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addDenoApp",
+      "capabilityId": "Aspire.Hosting.JavaScript/addDenoApp",
+      "qualifiedName": "addDenoApp",
+      "description": "Adds a Deno application to the application model. Deno should be available on the PATH.",
+      "remarks": "In run mode this method executes the script directly using `deno run -A <script>`. Generated\ncontainers use the more restrictive `deno run --allow-net --allow-env <script>` default. Deno\nnatively runs JavaScript and TypeScript files so no transpile step is required. Deno's built-in OpenTelemetry\nintegration is enabled via the `OTEL_DENO` environment variable, so traces, metrics, and logs flow to the\nAspire dashboard with no application-level SDK wiring.\nThe full Deno flag surface (granular permissions, `--config`/`--import-map`/`--lock`, unstable\nfeatures, `--watch`, inspector flags, script args, and the `run`/`task`/`serve` sub-command\nmodes) can be configured with the fluent `WithDeno*` methods (for example `WithDenoAllow`,\n`WithDenoConfig`, `WithDenoUnstable`, `WithDenoServe`). Configuring any of\nthese fully replaces the default arg vector, so a Deno workload never has to fall back to `AddExecutable`.\nIf the application directory contains a `package.json`, `deno.json`, or `deno.jsonc` file, Deno will\nbe added as the default package manager. When publishing to a container, the default base image is\n`denoland/deno:2.9.0` for both the build and runtime stages.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addDenoApp(name: string, appDirectory: string, scriptPath: string): DenoAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The path to the directory containing the Deno application."
+        },
+        {
+          "name": "scriptPath",
+          "type": "string",
+          "description": "The path to the script (for example, `main.ts`) relative to `appDirectory` to run."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addJavaScriptApp",
+      "capabilityId": "Aspire.Hosting.JavaScript/addJavaScriptApp",
+      "qualifiedName": "addJavaScriptApp",
+      "description": "Adds a JavaScript application resource to the distributed application using the specified app directory and run script.",
+      "remarks": "If a Dockerfile does not exist in the application's directory, one will be generated\nautomatically when publishing. The method configures the resource with Node.js defaults and sets up npm\nintegration.",
+      "returns": "A resource builder for the newly added JavaScript application resource.",
+      "kind": "Method",
+      "signature": "addJavaScriptApp(name: string, appDirectory: string, runScriptName?: string): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The unique name of the JavaScript application resource. Cannot be null or empty."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The path to the directory containing the JavaScript application."
+        },
+        {
+          "name": "runScriptName",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": "dev",
+          "description": "The name of the npm script to run when starting the application. Defaults to \"dev\". Cannot be null or empty."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addNextJsApp",
+      "capabilityId": "Aspire.Hosting.JavaScript/addNextJsApp",
+      "qualifiedName": "addNextJsApp",
+      "description": "Adds a Next.js app to the distributed application builder.",
+      "remarks": "This method configures the Next.js application for both local development and publishing.\nIn run mode, it starts the Next.js dev server with the correct port binding.\nIn publish mode, it generates a multi-stage Dockerfile using Next.js standalone output mode,\nwhich copies `public/`, `.next/standalone/`, and `.next/static/` into a\nNode.js runtime container.\nThe Next.js application must have `output: \"standalone\"` configured in `next.config.ts`\nand a `public/` directory (even if empty) for the published container to build correctly.\nThe following example creates a Next.js app.\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nbuilder.AddNextJsApp(\"frontend\", \"./frontend\");\nbuilder.Build().Run();\n```",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addNextJsApp(name: string, appDirectory: string, runScriptName?: string): NextJsAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the Next.js app."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The path to the directory containing the Next.js app."
+        },
+        {
+          "name": "runScriptName",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": "dev",
+          "description": "The name of the script that runs the Next.js dev server. Defaults to \"dev\"."
+        }
+      ],
+      "returnType": "NextJsAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addNodeApp",
+      "capabilityId": "Aspire.Hosting.JavaScript/addNodeApp",
+      "qualifiedName": "addNodeApp",
+      "description": "Adds a node application to the application model. Node should be available on the PATH.",
+      "remarks": "This method executes a Node script directly using `node script.js`. If you want to use a package manager\nyou can add one and configure the install and run scripts using the provided extension methods.\nIf the application directory contains a `package.json` file, npm will be added as the default package manager.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addNodeApp(name: string, appDirectory: string, scriptPath: string): NodeAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The path to the directory containing the node application."
+        },
+        {
+          "name": "scriptPath",
+          "type": "string",
+          "description": "The path to the script relative to the app directory to run."
+        }
+      ],
+      "returnType": "NodeAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addViteApp",
+      "capabilityId": "Aspire.Hosting.JavaScript/addViteApp",
+      "qualifiedName": "addViteApp",
+      "description": "Adds a Vite app to the distributed application builder.",
+      "remarks": "The following example creates a Vite app using npm as the package manager.\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nbuilder.AddViteApp(\"frontend\", \"./frontend\");\nbuilder.Build().Run();\n```",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addViteApp(name: string, appDirectory: string, runScriptName?: string): ViteAppResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the Vite app."
+        },
+        {
+          "name": "appDirectory",
+          "type": "string",
+          "description": "The path to the directory containing the Vite app."
+        },
+        {
+          "name": "runScriptName",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": "dev",
+          "description": "The name of the script that runs the Vite app. Defaults to \"dev\"."
+        }
+      ],
+      "returnType": "ViteAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "disableBuildValidation",
+      "capabilityId": "Aspire.Hosting.JavaScript/disableBuildValidation",
+      "qualifiedName": "disableBuildValidation",
+      "description": "Disables deploy-time build validation checks for the Next.js application.",
+      "remarks": "By default, `AddNextJsApp` adds publish prerequisite steps that verify\nthe Next.js configuration (e.g. that `output: \"standalone\"` is set). Use this method\nto suppress those checks when the configuration is set dynamically or via an external\nmechanism that cannot be detected by static file inspection.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "disableBuildValidation(): NextJsAppResource",
+      "parameters": [],
+      "returnType": "NextJsAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.NextJsAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.NextJsAppResource"
+      ]
+    },
+    {
+      "name": "publishAsNodeServer",
+      "capabilityId": "Aspire.Hosting.JavaScript/publishAsNodeServer",
+      "qualifiedName": "publishAsNodeServer",
+      "description": "Configures the JavaScript application to publish as a standalone Node.js server that runs a built artifact directly.",
+      "remarks": "Use this method for frameworks that produce a Node.js server artifact during the build and recommend\nrunning that artifact directly in production rather than invoking a package manager script at runtime.\nThe application source is still built using the configured package manager and build script; this method\nonly changes the publish-time runtime container shape.\nThe container files source path is automatically set to `outputPath` so that only\nthe built output directory is copied into the runtime container, not the full application source.",
+      "returns": "The updated resource builder.",
+      "kind": "Method",
+      "signature": "publishAsNodeServer(entryPoint: string, outputPath?: string): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "entryPoint",
+          "type": "string",
+          "description": "The relative path to the Node.js entry point to execute in the published container after the build completes, such as `.output/server/index.mjs` or `build/index.js`."
+        },
+        {
+          "name": "outputPath",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": ".",
+          "description": "The relative path containing the built runtime files to copy into the published container. Defaults to the application root."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "publishAsPackageScript",
+      "capabilityId": "Aspire.Hosting.JavaScript/publishAsPackageScript",
+      "qualifiedName": "publishAsPackageScript",
+      "description": "Configures the JavaScript application to publish as a server that runs a package manager script at runtime.",
+      "remarks": "Use this method for frameworks where the production server depends on packages resolved at runtime, either\nfrom `node_modules` or from the Deno dependency cache. The resulting container includes the full\napplication with its production dependencies already installed.\nThis method is appropriate for frameworks like Nuxt (where `useAsyncData`/`useFetch` requires the\nfull Nitro environment), Remix (where `react-router-serve` is an npm dependency), and Astro SSR\n(where the built entry point imports unbundled `@astrojs/*` packages).\nFor Deno applications the generated container runs `deno task <scriptName>` and copies the populated\n`DENO_DIR` cache from the build stage, so whatever the build resolved is already present at runtime.\nUnlike the Node.js and Bun package managers there is no separate production install step, because the build\nstage runs `deno install` and `DENO_DIR` is carried forward as-is rather than being pruned.\n`deno install` only resolves the dependencies declared in `deno.json` or `package.json`. An\nimport written as a bare specifier in source, such as `import { assert } from \"jsr:@std/assert\"`, is not\ndeclared anywhere the installer can see, so it is fetched on first use and the container needs network access\nat startup. The same applies to anything reachable only from inside the build script's own task command, which\nAspire cannot inspect. Add those imports to the `imports` map in `deno.json` if the container has to\nstart without network access.\nFor frameworks that produce a self-contained server artifact that does not require `node_modules`,\nuse `PublishAsNodeServer``1` instead for a smaller runtime image.",
+      "returns": "The updated resource builder.",
+      "kind": "Method",
+      "signature": "publishAsPackageScript(scriptName?: string, runScriptArguments?: string): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "scriptName",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": "start",
+          "description": "The name of the script to run in the published container. For Node.js and Bun applications this is a `package.json` script; for Deno applications it is a task defined in `deno.json`. For example, `start` invokes the configured package manager's run command for the `start` script, such as `npm run start`, `pnpm run start`, `yarn run start`, `bun run start`, or `deno task start`."
+        },
+        {
+          "name": "runScriptArguments",
+          "type": "string",
+          "isOptional": true,
+          "description": "Optional arguments appended after the script name at runtime, such as `-- --port \"$PORT\"`."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "publishAsStaticWebsite",
+      "capabilityId": "Aspire.Hosting.JavaScript/publishAsStaticWebsite",
+      "qualifiedName": "publishAsStaticWebsite",
+      "description": "Publishes the JavaScript application as a standalone static website using YARP.",
+      "kind": "Method",
+      "signature": "publishAsStaticWebsite(apiPath?: string, apiTarget?: IResourceWithServiceDiscovery, outputPath?: string, stripPrefix?: boolean, targetEndpointName?: string): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "apiPath",
+          "type": "string",
+          "isOptional": true
+        },
+        {
+          "name": "apiTarget",
+          "type": "IResourceWithServiceDiscovery",
+          "isOptional": true
+        },
+        {
+          "name": "outputPath",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": "dist"
+        },
+        {
+          "name": "stripPrefix",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "False"
+        },
+        {
+          "name": "targetEndpointName",
+          "type": "string",
+          "isOptional": true
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "withBrowserDebugger",
+      "capabilityId": "Aspire.Hosting.JavaScript/withBrowserDebugger",
+      "qualifiedName": "withBrowserDebugger",
+      "description": "Configures a browser debugger for the JavaScript application resource, enabling browser-based debugging through a child resource that launches when the parent application is ready.",
+      "remarks": "This method creates a child `BrowserDebuggerResource` that waits for the parent JavaScript\napplication to start, then launches a browser debug session targeting the parent's HTTP or HTTPS endpoint.\nThe parent resource must have at least one HTTP or HTTPS endpoint configured.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withBrowserDebugger(browser?: string): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "browser",
+          "type": "string",
+          "isOptional": true,
+          "defaultValue": "msedge",
+          "description": "The browser to use for debugging. Defaults to `\"msedge\"`. Supported values include `\"msedge\"` and `\"chrome\"`."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "withBuildScript",
+      "capabilityId": "Aspire.Hosting.JavaScript/withBuildScript",
+      "qualifiedName": "withBuildScript",
+      "description": "Adds a build script annotation to the resource builder using the specified command-line arguments.",
+      "remarks": "Use this method to specify custom build scripts for JavaScript application resources during\ndeployment.",
+      "returns": "The same resource builder instance with the build script annotation applied.",
+      "kind": "Method",
+      "signature": "withBuildScript(scriptName: string, args?: string[]): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "scriptName",
+          "type": "string",
+          "description": "The name of the script to be executed when the resource is built."
+        },
+        {
+          "name": "args",
+          "type": "string[]",
+          "isOptional": true,
+          "description": "An array of command-line arguments to use for the build script."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "withBun",
+      "capabilityId": "Aspire.Hosting.JavaScript/withBun",
+      "qualifiedName": "withBun",
+      "description": "Configures the JavaScript resource to use Bun as the package manager and optionally installs packages before the application starts.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withBun(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "install",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "True",
+          "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
+        },
+        {
+          "name": "installArgs",
+          "type": "string[]",
+          "isOptional": true,
+          "description": "Additional command-line arguments passed to \"bun install\". When null, defaults are applied based on publish mode and lockfile presence."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "withDeno",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDeno",
+      "qualifiedName": "withDeno",
+      "description": "Configures the JavaScript resource to use Deno as the package manager.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDeno(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "install",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "False",
+          "description": "When `true`, creates an installer resource that runs `deno install` before the application starts. Defaults to `false`: unlike npm/Bun, Deno does not require a separate install step — `deno run` fetches and caches dependencies under `DENO_DIR` on first use — so no installer is wired by default. Set to `true` to pre-cache dependencies or to materialize a `node_modules` folder for Node compatibility."
+        },
+        {
+          "name": "installArgs",
+          "type": "string[]",
+          "isOptional": true,
+          "description": "Additional command-line arguments passed to `deno install`."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "withDenoAllow",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoAllow",
+      "qualifiedName": "withDenoAllow",
+      "description": "Grants a Deno permission, optionally scoped to the supplied values.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoAllow(kind: DenoPermissionKind, values: string[]): DenoAppResource",
+      "parameters": [
+        {
+          "name": "kind",
+          "type": "DenoPermissionKind",
+          "description": "The permission to grant."
+        },
+        {
+          "name": "values",
+          "type": "string[]",
+          "description": "Optional values that scope the permission. When empty, all access of the selected kind is allowed."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoAllowAll",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoAllowAll",
+      "qualifiedName": "withDenoAllowAll",
+      "description": "Controls the blanket `-A`/`--allow-all` grant.",
+      "remarks": "Without explicit permission configuration, local run mode emits `-A` for parity with Node and Bun,\nwhile generated containers default direct `run`/`serve` entrypoints to\n`--allow-net --allow-env`. Calling this method with `true` explicitly emits `-A`\nin both modes.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoAllowAll(enabled?: boolean): DenoAppResource",
+      "parameters": [
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "True",
+          "description": "Whether to emit `-A`/`--allow-all`. Pass `false` to grant only permissions configured with `WithDenoAllow`."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoConfig",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoConfig",
+      "qualifiedName": "withDenoConfig",
+      "description": "Sets `--config <file>` (path to a `deno.json`/`deno.jsonc`).",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoConfig(configFile: string): DenoAppResource",
+      "parameters": [
+        {
+          "name": "configFile",
+          "type": "string",
+          "description": "The Deno configuration file path."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoDeny",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoDeny",
+      "qualifiedName": "withDenoDeny",
+      "description": "Denies a Deno permission, optionally scoped to the supplied values.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoDeny(kind: DenoPermissionKind, values: string[]): DenoAppResource",
+      "parameters": [
+        {
+          "name": "kind",
+          "type": "DenoPermissionKind",
+          "description": "The permission to deny."
+        },
+        {
+          "name": "values",
+          "type": "string[]",
+          "description": "Optional values that scope the permission. When empty, all access of the selected kind is denied."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoImportMap",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoImportMap",
+      "qualifiedName": "withDenoImportMap",
+      "description": "Sets `--import-map <file>`.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoImportMap(importMapFile: string): DenoAppResource",
+      "parameters": [
+        {
+          "name": "importMapFile",
+          "type": "string",
+          "description": "The import map file path."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoInspect",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoInspect",
+      "qualifiedName": "withDenoInspect",
+      "description": "Enables a Deno inspector mode, optionally at `hostPort` (for example `127.0.0.1:9229`).",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoInspect(mode?: DenoInspectMode, hostPort?: string): DenoAppResource",
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "DenoInspectMode",
+          "isOptional": true,
+          "defaultValue": "Inspect",
+          "description": "The inspector mode to enable."
+        },
+        {
+          "name": "hostPort",
+          "type": "string",
+          "isOptional": true,
+          "description": "The optional inspector host:port value."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoLock",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoLock",
+      "qualifiedName": "withDenoLock",
+      "description": "Sets `--lock <file>`.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoLock(lockFile: string): DenoAppResource",
+      "parameters": [
+        {
+          "name": "lockFile",
+          "type": "string",
+          "description": "The lockfile path."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoNodeModulesDir",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoNodeModulesDir",
+      "qualifiedName": "withDenoNodeModulesDir",
+      "description": "Sets `--node-modules-dir`, optionally with a mode emitted as `--node-modules-dir=<mode>`.",
+      "remarks": "The generated Deno Dockerfile publisher does not support `manual` mode because it excludes local\n`node_modules` from the build context. Use `auto` or provide a custom Dockerfile for that mode.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoNodeModulesDir(mode?: DenoNodeModulesDirMode): DenoAppResource",
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "DenoNodeModulesDirMode",
+          "isOptional": true,
+          "isNullable": true,
+          "description": "The node_modules mode. When `null`, emits `--node-modules-dir` without a value."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoNoLock",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoNoLock",
+      "qualifiedName": "withDenoNoLock",
+      "description": "Sets `--no-lock`, disabling lockfile use.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoNoLock(): DenoAppResource",
+      "parameters": [],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoRun",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoRun",
+      "qualifiedName": "withDenoRun",
+      "description": "Selects the `deno run <entrypoint>` mode (the default).",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoRun(): DenoAppResource",
+      "parameters": [],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoRuntimeArgs",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoRuntimeArgs",
+      "qualifiedName": "withDenoRuntimeArgs",
+      "description": "Appends raw runtime arguments injected verbatim BEFORE the entrypoint. This is the escape hatch that gives full parity with `AddExecutable(\"name\", \"deno\", workdir, args...)` for any flag not covered by a dedicated `WithDeno*` method.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoRuntimeArgs(args: string[]): DenoAppResource",
+      "parameters": [
+        {
+          "name": "args",
+          "type": "string[]",
+          "description": "The runtime arguments to append before the entrypoint or task name."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoScriptArgs",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoScriptArgs",
+      "qualifiedName": "withDenoScriptArgs",
+      "description": "Appends arguments passed to the script AFTER the entrypoint. Deno forwards everything after the entrypoint to the running program.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoScriptArgs(args: string[]): DenoAppResource",
+      "parameters": [
+        {
+          "name": "args",
+          "type": "string[]",
+          "description": "The script arguments to append after the entrypoint or task name."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoServe",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoServe",
+      "qualifiedName": "withDenoServe",
+      "description": "Selects the `deno serve <entrypoint>` mode for serving an HTTP entrypoint.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoServe(): DenoAppResource",
+      "parameters": [],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoTask",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoTask",
+      "qualifiedName": "withDenoTask",
+      "description": "Selects the `deno task <taskName>` mode, running a task defined in `deno.json` instead of a script entrypoint. Permissions are defined by the task itself and are not emitted for this mode.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoTask(taskName: string): DenoAppResource",
+      "parameters": [
+        {
+          "name": "taskName",
+          "type": "string",
+          "description": "The name of the task in `deno.json` to run."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoUnstable",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoUnstable",
+      "qualifiedName": "withDenoUnstable",
+      "description": "Adds one or more `--unstable-*` flags. Each feature may be supplied bare (for example `\"kv\"`, `\"worker-options\"`, `\"sloppy-imports\"`) or fully qualified (`\"--unstable-kv\"`).",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoUnstable(features: string[]): DenoAppResource",
+      "parameters": [
+        {
+          "name": "features",
+          "type": "string[]",
+          "description": "The unstable feature names or fully-qualified `--unstable-*` flags to emit."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withDenoWatch",
+      "capabilityId": "Aspire.Hosting.JavaScript/withDenoWatch",
+      "qualifiedName": "withDenoWatch",
+      "description": "Enables `--watch` (or `--watch-hmr` when `hmr` is `true`).",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withDenoWatch(hmr?: boolean): DenoAppResource",
+      "parameters": [
+        {
+          "name": "hmr",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "False",
+          "description": "Whether to emit `--watch-hmr` instead of `--watch`."
+        }
+      ],
+      "returnType": "DenoAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.DenoAppResource"
+      ]
+    },
+    {
+      "name": "withNpm",
+      "capabilityId": "Aspire.Hosting.JavaScript/withNpm",
+      "qualifiedName": "withNpm",
+      "description": "Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withNpm(install?: boolean, installCommand?: string, installArgs?: string[]): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "install",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "True",
+          "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
+        },
+        {
+          "name": "installCommand",
+          "type": "string",
+          "isOptional": true,
+          "description": "The install command itself passed to npm to install dependencies."
+        },
+        {
+          "name": "installArgs",
+          "type": "string[]",
+          "isOptional": true,
+          "description": "The command-line arguments passed to npm to install dependencies."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "withPnpm",
+      "capabilityId": "Aspire.Hosting.JavaScript/withPnpm",
+      "qualifiedName": "withPnpm",
+      "description": "Configures the Node.js resource to use pnpm as the package manager and optionally installs packages before the application starts.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withPnpm(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "install",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "True",
+          "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
+        },
+        {
+          "name": "installArgs",
+          "type": "string[]",
+          "isOptional": true,
+          "description": "The command-line arguments passed to \"pnpm install\"."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "withRunScript",
+      "capabilityId": "Aspire.Hosting.JavaScript/withRunScript",
+      "qualifiedName": "withRunScript",
+      "description": "Adds a run script annotation to the specified JavaScript application resource builder, specifying the script to execute and its arguments during run mode.",
+      "remarks": "Use this method to specify a custom script and its arguments that should be executed when the resource is executed\nin RunMode.",
+      "returns": "The same resource builder instance with the run script annotation applied, enabling further configuration.",
+      "kind": "Method",
+      "signature": "withRunScript(scriptName: string, args?: string[]): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "scriptName",
+          "type": "string",
+          "description": "The name of the script to be executed when the resource is run."
+        },
+        {
+          "name": "args",
+          "type": "string[]",
+          "isOptional": true,
+          "description": "An array of arguments to pass to the script."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "withViteConfig",
+      "capabilityId": "Aspire.Hosting.JavaScript/withViteConfig",
+      "qualifiedName": "withViteConfig",
+      "description": "Configures the Vite app to use the specified Vite configuration file instead of the default resolution behavior.",
+      "remarks": "Use this method to specify a specific Vite configuration file if you need to override the default Vite configuration resolution behavior.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withViteConfig(configPath: string): ViteAppResource",
+      "parameters": [
+        {
+          "name": "configPath",
+          "type": "string",
+          "description": "The path to the Vite configuration file. Relative to the Vite service project root."
+        }
+      ],
+      "returnType": "ViteAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.ViteAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    },
+    {
+      "name": "withYarn",
+      "capabilityId": "Aspire.Hosting.JavaScript/withYarn",
+      "qualifiedName": "withYarn",
+      "description": "Configures the Node.js resource to use yarn as the package manager and optionally installs packages before the application starts.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withYarn(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
+      "parameters": [
+        {
+          "name": "install",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "True",
+          "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
+        },
+        {
+          "name": "installArgs",
+          "type": "string[]",
+          "isOptional": true,
+          "description": "The command-line arguments passed to \"yarn install\"."
+        }
+      ],
+      "returnType": "JavaScriptAppResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.JavaScript.BunAppResource",
+        "Aspire.Hosting.JavaScript.DenoAppResource",
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.JavaScript.NextJsAppResource",
+        "Aspire.Hosting.JavaScript.NodeAppResource",
+        "Aspire.Hosting.JavaScript.ViteAppResource"
+      ]
+    }
+  ],
+  "handleTypes": [
+    {
+      "name": "BunAppResource",
+      "fullName": "Aspire.Hosting.JavaScript.BunAppResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "A resource that represents a Bun application.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IContainerFilesDestinationResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithContainerFiles",
+        "Aspire.Hosting.IResourceWithServiceDiscovery"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": []
+    },
+    {
+      "name": "DenoAppResource",
+      "fullName": "Aspire.Hosting.JavaScript.DenoAppResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "A resource that represents a Deno application.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IContainerFilesDestinationResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithContainerFiles",
+        "Aspire.Hosting.IResourceWithServiceDiscovery"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": [
+        {
+          "name": "withDenoAllow",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoAllow",
+          "qualifiedName": "withDenoAllow",
+          "description": "Grants a Deno permission, optionally scoped to the supplied values.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoAllow(kind: DenoPermissionKind, values: string[]): DenoAppResource",
+          "parameters": [
+            {
+              "name": "kind",
+              "type": "DenoPermissionKind",
+              "description": "The permission to grant."
+            },
+            {
+              "name": "values",
+              "type": "string[]",
+              "description": "Optional values that scope the permission. When empty, all access of the selected kind is allowed."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoAllowAll",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoAllowAll",
+          "qualifiedName": "withDenoAllowAll",
+          "description": "Controls the blanket `-A`/`--allow-all` grant.",
+          "remarks": "Without explicit permission configuration, local run mode emits `-A` for parity with Node and Bun,\nwhile generated containers default direct `run`/`serve` entrypoints to\n`--allow-net --allow-env`. Calling this method with `true` explicitly emits `-A`\nin both modes.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoAllowAll(enabled?: boolean): DenoAppResource",
+          "parameters": [
+            {
+              "name": "enabled",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "True",
+              "description": "Whether to emit `-A`/`--allow-all`. Pass `false` to grant only permissions configured with `WithDenoAllow`."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoConfig",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoConfig",
+          "qualifiedName": "withDenoConfig",
+          "description": "Sets `--config <file>` (path to a `deno.json`/`deno.jsonc`).",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoConfig(configFile: string): DenoAppResource",
+          "parameters": [
+            {
+              "name": "configFile",
+              "type": "string",
+              "description": "The Deno configuration file path."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoDeny",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoDeny",
+          "qualifiedName": "withDenoDeny",
+          "description": "Denies a Deno permission, optionally scoped to the supplied values.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoDeny(kind: DenoPermissionKind, values: string[]): DenoAppResource",
+          "parameters": [
+            {
+              "name": "kind",
+              "type": "DenoPermissionKind",
+              "description": "The permission to deny."
+            },
+            {
+              "name": "values",
+              "type": "string[]",
+              "description": "Optional values that scope the permission. When empty, all access of the selected kind is denied."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoImportMap",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoImportMap",
+          "qualifiedName": "withDenoImportMap",
+          "description": "Sets `--import-map <file>`.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoImportMap(importMapFile: string): DenoAppResource",
+          "parameters": [
+            {
+              "name": "importMapFile",
+              "type": "string",
+              "description": "The import map file path."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoInspect",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoInspect",
+          "qualifiedName": "withDenoInspect",
+          "description": "Enables a Deno inspector mode, optionally at `hostPort` (for example `127.0.0.1:9229`).",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoInspect(mode?: DenoInspectMode, hostPort?: string): DenoAppResource",
+          "parameters": [
+            {
+              "name": "mode",
+              "type": "DenoInspectMode",
+              "isOptional": true,
+              "defaultValue": "Inspect",
+              "description": "The inspector mode to enable."
+            },
+            {
+              "name": "hostPort",
+              "type": "string",
+              "isOptional": true,
+              "description": "The optional inspector host:port value."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoLock",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoLock",
+          "qualifiedName": "withDenoLock",
+          "description": "Sets `--lock <file>`.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoLock(lockFile: string): DenoAppResource",
+          "parameters": [
+            {
+              "name": "lockFile",
+              "type": "string",
+              "description": "The lockfile path."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoNodeModulesDir",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoNodeModulesDir",
+          "qualifiedName": "withDenoNodeModulesDir",
+          "description": "Sets `--node-modules-dir`, optionally with a mode emitted as `--node-modules-dir=<mode>`.",
+          "remarks": "The generated Deno Dockerfile publisher does not support `manual` mode because it excludes local\n`node_modules` from the build context. Use `auto` or provide a custom Dockerfile for that mode.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoNodeModulesDir(mode?: DenoNodeModulesDirMode): DenoAppResource",
+          "parameters": [
+            {
+              "name": "mode",
+              "type": "DenoNodeModulesDirMode",
+              "isOptional": true,
+              "isNullable": true,
+              "description": "The node_modules mode. When `null`, emits `--node-modules-dir` without a value."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoNoLock",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoNoLock",
+          "qualifiedName": "withDenoNoLock",
+          "description": "Sets `--no-lock`, disabling lockfile use.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoNoLock(): DenoAppResource",
+          "parameters": [],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoRun",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoRun",
+          "qualifiedName": "withDenoRun",
+          "description": "Selects the `deno run <entrypoint>` mode (the default).",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoRun(): DenoAppResource",
+          "parameters": [],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoRuntimeArgs",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoRuntimeArgs",
+          "qualifiedName": "withDenoRuntimeArgs",
+          "description": "Appends raw runtime arguments injected verbatim BEFORE the entrypoint. This is the escape hatch that gives full parity with `AddExecutable(\"name\", \"deno\", workdir, args...)` for any flag not covered by a dedicated `WithDeno*` method.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoRuntimeArgs(args: string[]): DenoAppResource",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "string[]",
+              "description": "The runtime arguments to append before the entrypoint or task name."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoScriptArgs",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoScriptArgs",
+          "qualifiedName": "withDenoScriptArgs",
+          "description": "Appends arguments passed to the script AFTER the entrypoint. Deno forwards everything after the entrypoint to the running program.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoScriptArgs(args: string[]): DenoAppResource",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "string[]",
+              "description": "The script arguments to append after the entrypoint or task name."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoServe",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoServe",
+          "qualifiedName": "withDenoServe",
+          "description": "Selects the `deno serve <entrypoint>` mode for serving an HTTP entrypoint.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoServe(): DenoAppResource",
+          "parameters": [],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoTask",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoTask",
+          "qualifiedName": "withDenoTask",
+          "description": "Selects the `deno task <taskName>` mode, running a task defined in `deno.json` instead of a script entrypoint. Permissions are defined by the task itself and are not emitted for this mode.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoTask(taskName: string): DenoAppResource",
+          "parameters": [
+            {
+              "name": "taskName",
+              "type": "string",
+              "description": "The name of the task in `deno.json` to run."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoUnstable",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoUnstable",
+          "qualifiedName": "withDenoUnstable",
+          "description": "Adds one or more `--unstable-*` flags. Each feature may be supplied bare (for example `\"kv\"`, `\"worker-options\"`, `\"sloppy-imports\"`) or fully qualified (`\"--unstable-kv\"`).",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoUnstable(features: string[]): DenoAppResource",
+          "parameters": [
+            {
+              "name": "features",
+              "type": "string[]",
+              "description": "The unstable feature names or fully-qualified `--unstable-*` flags to emit."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        },
+        {
+          "name": "withDenoWatch",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDenoWatch",
+          "qualifiedName": "withDenoWatch",
+          "description": "Enables `--watch` (or `--watch-hmr` when `hmr` is `true`).",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDenoWatch(hmr?: boolean): DenoAppResource",
+          "parameters": [
+            {
+              "name": "hmr",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "False",
+              "description": "Whether to emit `--watch-hmr` instead of `--watch`."
+            }
+          ],
+          "returnType": "DenoAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.DenoAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.DenoAppResource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "JavaScriptAppResource",
+      "fullName": "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "A resource that represents a JavaScript application.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithContainerFiles",
+        "Aspire.Hosting.IResourceWithServiceDiscovery"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": [
+        {
+          "name": "publishAsNodeServer",
+          "capabilityId": "Aspire.Hosting.JavaScript/publishAsNodeServer",
+          "qualifiedName": "publishAsNodeServer",
+          "description": "Configures the JavaScript application to publish as a standalone Node.js server that runs a built artifact directly.",
+          "remarks": "Use this method for frameworks that produce a Node.js server artifact during the build and recommend\nrunning that artifact directly in production rather than invoking a package manager script at runtime.\nThe application source is still built using the configured package manager and build script; this method\nonly changes the publish-time runtime container shape.\nThe container files source path is automatically set to `outputPath` so that only\nthe built output directory is copied into the runtime container, not the full application source.",
+          "returns": "The updated resource builder.",
+          "kind": "Method",
+          "signature": "publishAsNodeServer(entryPoint: string, outputPath?: string): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "entryPoint",
+              "type": "string",
+              "description": "The relative path to the Node.js entry point to execute in the published container after the build completes, such as `.output/server/index.mjs` or `build/index.js`."
+            },
+            {
+              "name": "outputPath",
+              "type": "string",
+              "isOptional": true,
+              "defaultValue": ".",
+              "description": "The relative path containing the built runtime files to copy into the published container. Defaults to the application root."
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        },
+        {
+          "name": "publishAsPackageScript",
+          "capabilityId": "Aspire.Hosting.JavaScript/publishAsPackageScript",
+          "qualifiedName": "publishAsPackageScript",
+          "description": "Configures the JavaScript application to publish as a server that runs a package manager script at runtime.",
+          "remarks": "Use this method for frameworks where the production server depends on packages resolved at runtime, either\nfrom `node_modules` or from the Deno dependency cache. The resulting container includes the full\napplication with its production dependencies already installed.\nThis method is appropriate for frameworks like Nuxt (where `useAsyncData`/`useFetch` requires the\nfull Nitro environment), Remix (where `react-router-serve` is an npm dependency), and Astro SSR\n(where the built entry point imports unbundled `@astrojs/*` packages).\nFor Deno applications the generated container runs `deno task <scriptName>` and copies the populated\n`DENO_DIR` cache from the build stage, so whatever the build resolved is already present at runtime.\nUnlike the Node.js and Bun package managers there is no separate production install step, because the build\nstage runs `deno install` and `DENO_DIR` is carried forward as-is rather than being pruned.\n`deno install` only resolves the dependencies declared in `deno.json` or `package.json`. An\nimport written as a bare specifier in source, such as `import { assert } from \"jsr:@std/assert\"`, is not\ndeclared anywhere the installer can see, so it is fetched on first use and the container needs network access\nat startup. The same applies to anything reachable only from inside the build script's own task command, which\nAspire cannot inspect. Add those imports to the `imports` map in `deno.json` if the container has to\nstart without network access.\nFor frameworks that produce a self-contained server artifact that does not require `node_modules`,\nuse `PublishAsNodeServer``1` instead for a smaller runtime image.",
+          "returns": "The updated resource builder.",
+          "kind": "Method",
+          "signature": "publishAsPackageScript(scriptName?: string, runScriptArguments?: string): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "scriptName",
+              "type": "string",
+              "isOptional": true,
+              "defaultValue": "start",
+              "description": "The name of the script to run in the published container. For Node.js and Bun applications this is a `package.json` script; for Deno applications it is a task defined in `deno.json`. For example, `start` invokes the configured package manager's run command for the `start` script, such as `npm run start`, `pnpm run start`, `yarn run start`, `bun run start`, or `deno task start`."
+            },
+            {
+              "name": "runScriptArguments",
+              "type": "string",
+              "isOptional": true,
+              "description": "Optional arguments appended after the script name at runtime, such as `-- --port \"$PORT\"`."
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        },
+        {
+          "name": "publishAsStaticWebsite",
+          "capabilityId": "Aspire.Hosting.JavaScript/publishAsStaticWebsite",
+          "qualifiedName": "publishAsStaticWebsite",
+          "description": "Publishes the JavaScript application as a standalone static website using YARP.",
+          "kind": "Method",
+          "signature": "publishAsStaticWebsite(apiPath?: string, apiTarget?: IResourceWithServiceDiscovery, outputPath?: string, stripPrefix?: boolean, targetEndpointName?: string): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "apiPath",
+              "type": "string",
+              "isOptional": true
+            },
+            {
+              "name": "apiTarget",
+              "type": "IResourceWithServiceDiscovery",
+              "isOptional": true
+            },
+            {
+              "name": "outputPath",
+              "type": "string",
+              "isOptional": true,
+              "defaultValue": "dist"
+            },
+            {
+              "name": "stripPrefix",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "False"
+            },
+            {
+              "name": "targetEndpointName",
+              "type": "string",
+              "isOptional": true
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        },
+        {
+          "name": "withBrowserDebugger",
+          "capabilityId": "Aspire.Hosting.JavaScript/withBrowserDebugger",
+          "qualifiedName": "withBrowserDebugger",
+          "description": "Configures a browser debugger for the JavaScript application resource, enabling browser-based debugging through a child resource that launches when the parent application is ready.",
+          "remarks": "This method creates a child `BrowserDebuggerResource` that waits for the parent JavaScript\napplication to start, then launches a browser debug session targeting the parent's HTTP or HTTPS endpoint.\nThe parent resource must have at least one HTTP or HTTPS endpoint configured.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withBrowserDebugger(browser?: string): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "browser",
+              "type": "string",
+              "isOptional": true,
+              "defaultValue": "msedge",
+              "description": "The browser to use for debugging. Defaults to `\"msedge\"`. Supported values include `\"msedge\"` and `\"chrome\"`."
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        },
+        {
+          "name": "withBuildScript",
+          "capabilityId": "Aspire.Hosting.JavaScript/withBuildScript",
+          "qualifiedName": "withBuildScript",
+          "description": "Adds a build script annotation to the resource builder using the specified command-line arguments.",
+          "remarks": "Use this method to specify custom build scripts for JavaScript application resources during\ndeployment.",
+          "returns": "The same resource builder instance with the build script annotation applied.",
+          "kind": "Method",
+          "signature": "withBuildScript(scriptName: string, args?: string[]): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "scriptName",
+              "type": "string",
+              "description": "The name of the script to be executed when the resource is built."
+            },
+            {
+              "name": "args",
+              "type": "string[]",
+              "isOptional": true,
+              "description": "An array of command-line arguments to use for the build script."
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        },
+        {
+          "name": "withBun",
+          "capabilityId": "Aspire.Hosting.JavaScript/withBun",
+          "qualifiedName": "withBun",
+          "description": "Configures the JavaScript resource to use Bun as the package manager and optionally installs packages before the application starts.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withBun(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "install",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "True",
+              "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
+            },
+            {
+              "name": "installArgs",
+              "type": "string[]",
+              "isOptional": true,
+              "description": "Additional command-line arguments passed to \"bun install\". When null, defaults are applied based on publish mode and lockfile presence."
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        },
+        {
+          "name": "withDeno",
+          "capabilityId": "Aspire.Hosting.JavaScript/withDeno",
+          "qualifiedName": "withDeno",
+          "description": "Configures the JavaScript resource to use Deno as the package manager.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withDeno(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "install",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "False",
+              "description": "When `true`, creates an installer resource that runs `deno install` before the application starts. Defaults to `false`: unlike npm/Bun, Deno does not require a separate install step — `deno run` fetches and caches dependencies under `DENO_DIR` on first use — so no installer is wired by default. Set to `true` to pre-cache dependencies or to materialize a `node_modules` folder for Node compatibility."
+            },
+            {
+              "name": "installArgs",
+              "type": "string[]",
+              "isOptional": true,
+              "description": "Additional command-line arguments passed to `deno install`."
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        },
+        {
+          "name": "withNpm",
+          "capabilityId": "Aspire.Hosting.JavaScript/withNpm",
+          "qualifiedName": "withNpm",
+          "description": "Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withNpm(install?: boolean, installCommand?: string, installArgs?: string[]): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "install",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "True",
+              "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
+            },
+            {
+              "name": "installCommand",
+              "type": "string",
+              "isOptional": true,
+              "description": "The install command itself passed to npm to install dependencies."
+            },
+            {
+              "name": "installArgs",
+              "type": "string[]",
+              "isOptional": true,
+              "description": "The command-line arguments passed to npm to install dependencies."
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        },
+        {
+          "name": "withPnpm",
+          "capabilityId": "Aspire.Hosting.JavaScript/withPnpm",
+          "qualifiedName": "withPnpm",
+          "description": "Configures the Node.js resource to use pnpm as the package manager and optionally installs packages before the application starts.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withPnpm(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "install",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "True",
+              "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
+            },
+            {
+              "name": "installArgs",
+              "type": "string[]",
+              "isOptional": true,
+              "description": "The command-line arguments passed to \"pnpm install\"."
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        },
+        {
+          "name": "withRunScript",
+          "capabilityId": "Aspire.Hosting.JavaScript/withRunScript",
+          "qualifiedName": "withRunScript",
+          "description": "Adds a run script annotation to the specified JavaScript application resource builder, specifying the script to execute and its arguments during run mode.",
+          "remarks": "Use this method to specify a custom script and its arguments that should be executed when the resource is executed\nin RunMode.",
+          "returns": "The same resource builder instance with the run script annotation applied, enabling further configuration.",
+          "kind": "Method",
+          "signature": "withRunScript(scriptName: string, args?: string[]): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "scriptName",
+              "type": "string",
+              "description": "The name of the script to be executed when the resource is run."
+            },
+            {
+              "name": "args",
+              "type": "string[]",
+              "isOptional": true,
+              "description": "An array of arguments to pass to the script."
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        },
+        {
+          "name": "withYarn",
+          "capabilityId": "Aspire.Hosting.JavaScript/withYarn",
+          "qualifiedName": "withYarn",
+          "description": "Configures the Node.js resource to use yarn as the package manager and optionally installs packages before the application starts.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withYarn(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
+          "parameters": [
+            {
+              "name": "install",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "True",
+              "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
+            },
+            {
+              "name": "installArgs",
+              "type": "string[]",
+              "isOptional": true,
+              "description": "The command-line arguments passed to \"yarn install\"."
+            }
+          ],
+          "returnType": "JavaScriptAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.BunAppResource",
+            "Aspire.Hosting.JavaScript.DenoAppResource",
+            "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+            "Aspire.Hosting.JavaScript.NextJsAppResource",
+            "Aspire.Hosting.JavaScript.NodeAppResource",
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "NextJsAppResource",
+      "fullName": "Aspire.Hosting.JavaScript.NextJsAppResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "Represents a Next.js application resource.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithContainerFiles",
+        "Aspire.Hosting.IResourceWithServiceDiscovery"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": [
+        {
+          "name": "disableBuildValidation",
+          "capabilityId": "Aspire.Hosting.JavaScript/disableBuildValidation",
+          "qualifiedName": "disableBuildValidation",
+          "description": "Disables deploy-time build validation checks for the Next.js application.",
+          "remarks": "By default, `AddNextJsApp` adds publish prerequisite steps that verify\nthe Next.js configuration (e.g. that `output: \"standalone\"` is set). Use this method\nto suppress those checks when the configuration is set dynamically or via an external\nmechanism that cannot be detected by static file inspection.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "disableBuildValidation(): NextJsAppResource",
+          "parameters": [],
+          "returnType": "NextJsAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.NextJsAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.NextJsAppResource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "NodeAppResource",
+      "fullName": "Aspire.Hosting.JavaScript.NodeAppResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "A resource that represents a node application.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IContainerFilesDestinationResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithContainerFiles",
+        "Aspire.Hosting.IResourceWithServiceDiscovery"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": []
+    },
+    {
+      "name": "ViteAppResource",
+      "fullName": "Aspire.Hosting.JavaScript.ViteAppResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "Represents a Vite application resource that can be managed and executed within a Node.js environment.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithContainerFiles",
+        "Aspire.Hosting.IResourceWithServiceDiscovery"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.JavaScript.JavaScriptAppResource",
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": [
+        {
+          "name": "withViteConfig",
+          "capabilityId": "Aspire.Hosting.JavaScript/withViteConfig",
+          "qualifiedName": "withViteConfig",
+          "description": "Configures the Vite app to use the specified Vite configuration file instead of the default resolution behavior.",
+          "remarks": "Use this method to specify a specific Vite configuration file if you need to override the default Vite configuration resolution behavior.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withViteConfig(configPath: string): ViteAppResource",
+          "parameters": [
+            {
+              "name": "configPath",
+              "type": "string",
+              "description": "The path to the Vite configuration file. Relative to the Vite service project root."
+            }
+          ],
+          "returnType": "ViteAppResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.ViteAppResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.JavaScript.ViteAppResource"
+          ]
+        }
+      ]
+    }
+  ],
+  "dtoTypes": [],
+  "enumTypes": [
+    {
+      "name": "DenoInspectMode",
+      "fullName": "Aspire.Hosting.JavaScript.DenoInspectMode",
+      "kind": "enum",
+      "description": "The Deno inspector flavor.",
+      "members": [
+        "Inspect",
+        "InspectBrk",
+        "InspectWait"
+      ],
+      "memberDocs": [
+        {
+          "name": "Inspect",
+          "description": "`--inspect` — attach a debugger; execution starts immediately."
+        },
+        {
+          "name": "InspectBrk",
+          "description": "`--inspect-brk` — attach a debugger and break on the first statement."
+        },
+        {
+          "name": "InspectWait",
+          "description": "`--inspect-wait` — wait for a debugger to attach before running any code."
+        }
+      ]
+    },
+    {
+      "name": "DenoNodeModulesDirMode",
+      "fullName": "Aspire.Hosting.JavaScript.DenoNodeModulesDirMode",
+      "kind": "enum",
+      "description": "Controls how Deno manages a local `node_modules` directory.",
+      "members": [
+        "None",
+        "Auto",
+        "Manual"
+      ],
+      "memberDocs": [
+        {
+          "name": "None",
+          "description": "Do not use a local `node_modules` directory."
+        },
+        {
+          "name": "Auto",
+          "description": "Automatically manage a local `node_modules` directory when packages require it."
+        },
+        {
+          "name": "Manual",
+          "description": "Use a manually managed local `node_modules` directory."
+        }
+      ]
+    },
+    {
+      "name": "DenoPermissionKind",
+      "fullName": "Aspire.Hosting.JavaScript.DenoPermissionKind",
+      "kind": "enum",
+      "description": "A granular Deno permission grant/denial (for example `--allow-net` or `--deny-read`).",
+      "members": [
+        "Net",
+        "Read",
+        "Write",
+        "Run",
+        "Env",
+        "Import",
+        "Sys",
+        "Ffi"
+      ],
+      "memberDocs": [
+        {
+          "name": "Net",
+          "description": "Network access controlled by `--allow-net` or `--deny-net`."
+        },
+        {
+          "name": "Read",
+          "description": "File-system read access controlled by `--allow-read` or `--deny-read`."
+        },
+        {
+          "name": "Write",
+          "description": "File-system write access controlled by `--allow-write` or `--deny-write`."
+        },
+        {
+          "name": "Run",
+          "description": "Subprocess execution controlled by `--allow-run` or `--deny-run`."
+        },
+        {
+          "name": "Env",
+          "description": "Environment-variable access controlled by `--allow-env` or `--deny-env`."
+        },
+        {
+          "name": "Import",
+          "description": "Remote import access controlled by `--allow-import` or `--deny-import`."
+        },
+        {
+          "name": "Sys",
+          "description": "System-information access controlled by `--allow-sys` or `--deny-sys`."
+        },
+        {
+          "name": "Ffi",
+          "description": "Foreign-function-interface access controlled by `--allow-ffi` or `--deny-ffi`."
+        }
+      ]
+    }
+  ]
+}

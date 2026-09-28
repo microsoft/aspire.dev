@@ -116,6 +116,26 @@ builder.Build().Run();
   correct network context for the consuming resource.
 </Aside>
 
+### Container network endpoints for projects and executables
+
+Starting with Aspire 13.6, project and executable resources can resolve endpoints belonging to themselves or other project and executable resources on the Aspire container network using `KnownNetworkIdentifiers.DefaultAspireContainerNetwork`. Previously, these endpoint references could wait indefinitely unless a container resource also referenced the same endpoint. This capability supports dynamic configuration scenarios such as a project or executable registering itself with a container resource through an API.
+
+When the container tunnel is enabled, Aspire registers the referenced endpoint with the tunnel, making it available to container resources like a direct container-to-project or container-to-executable reference. When the tunnel is disabled, Aspire instead resolves the endpoint through the container host name without creating a tunnel.
+
+For more information about how Aspire resolves endpoint references for different network contexts, see [Context-based endpoint resolution](/architecture/resource-hierarchies/#context-based-endpoint-resolution).
+
+<Aside type="note">
+  Resolving a `DefaultAspireContainerNetwork` endpoint doesn't add a startup or
+  readiness dependency on the referenced resource—only the endpoint allocation
+  is awaited. The default container network is only created when the app model
+  contains a container resource; if it doesn't, resolving one of these endpoints
+  fails with an actionable, resource-scoped error instead of silently creating a
+  network. Project and executable resources configured with
+  [`WithExplicitStart`](/app-host/resource-lifetimes/#defer-resource-start-with-explicit-start)
+  continue to defer endpoint allocation and configuration evaluation until
+  they're manually started.
+</Aside>
+
 ## Disable the container tunnel
 
 Starting with Aspire 13.3, the container tunnel is **enabled by default**. If the tunnel causes issues in your environment, you can disable it by setting the `ASPIRE_ENABLE_CONTAINER_TUNNEL` environment variable to `false`. You can set this in your AppHost _launchSettings.json_:

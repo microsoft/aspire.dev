@@ -1,6 +1,6 @@
 ---
 title: aspire docs search command
-description: Learn about the aspire docs search command and its usage. This command searches Aspire documentation by keywords.
+description: Learn about the aspire docs search command and its usage. This command searches Aspire documentation using relevance-ranked keyword and phrase queries.
 ---
 
 import Include from '@components/Include.astro';
@@ -17,7 +17,9 @@ aspire docs search <query> [options]
 
 ## Description
 
-The `aspire docs search` command performs a keyword-based search across the Aspire documentation on [aspire.dev](https://aspire.dev). Results are ranked by relevance and include the page title, slug, matching section, and a relevance score.
+The `aspire docs search` command performs a relevance-ranked search across the Aspire documentation on [aspire.dev](https://aspire.dev). Results include the page title, slug, matching section, and a relevance score.
+
+The ranker rewards exact title, slug, and heading matches and uses inverse document frequency (IDF) weighting so common terms such as `new` or `azure` count less than specific terms. Version separators are normalized so queries like `whats new 13.5`, `what's new 13-5`, and `whats new 135` all match the same pages. Explicit release-note queries (for example, `whats new 13.5` or `changelog`) surface What's New pages at the top, while incidental mentions in feature docs do not outrank the dedicated pages.
 
 The slugs returned in search results can be passed to the [`aspire docs get`](../aspire-docs-get/) command to retrieve the full content of a matching page.
 
@@ -25,7 +27,7 @@ The slugs returned in search results can be passed to the [`aspire docs get`](..
 
 - **`<query>`**
 
-  The search query. Use keywords to describe what you're looking for. For best results, include relevant terms such as API names, configuration keys, or feature names.
+  The search query. For best results, use multi-word phrases that match the title or heading you are looking for (for example, `"service discovery"` or `"azure container apps environment"`). Specific API names, configuration keys, and feature names work well. Version numbers in the form `13.5`, `13-5`, or `135` are all equivalent and match What's New pages for that release.
 
 ## Options
 
@@ -57,6 +59,19 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire docs search "redis"
+  ```
+
+- Search for What's New content for a specific release:
+
+  ```bash title="Aspire CLI"
+  aspire docs search "whats new 13.5"
+  ```
+
+- Find documentation for a multi-word feature by phrase:
+
+  ```bash title="Aspire CLI"
+  aspire docs search "service discovery"
+  aspire docs search "azure container apps environment"
   ```
 
 - Search with a custom result limit:
