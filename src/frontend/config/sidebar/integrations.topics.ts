@@ -304,6 +304,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/customize-resources',
             },
             {
+              label: 'Bicep helpers',
+              slug: 'integrations/cloud/azure/bicep-helpers',
+            },
+            {
               label: 'Local Azure provisioning',
               slug: 'integrations/cloud/azure/local-provisioning',
             },
