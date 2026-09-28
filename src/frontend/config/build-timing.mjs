@@ -83,7 +83,7 @@ export default function buildTiming() {
     nodeOptions: process.env.NODE_OPTIONS || '',
     label: process.env.BUILD_TIMING_LABEL || '',
     pagesGenerated: 0,
-    routesTotal: 0,
+    assetsTotal: 0,
   };
 
   function mark(name) {
@@ -127,7 +127,9 @@ export default function buildTiming() {
       'astro:build:done'({ pages, assets }) {
         mark('astro:build:done');
         meta.pagesGenerated = pages?.length ?? 0;
-        meta.routesTotal = assets?.size ?? 0;
+        meta.assetsTotal = assets
+          ? [...assets.values()].reduce((total, urls) => total + urls.length, 0)
+          : 0;
         emitReport(samples, meta, 'final');
       },
     },
@@ -171,7 +173,7 @@ function emitReport(samples, meta, kind = 'final') {
   console.log(`${TAG} summary  label=${meta.label || '(none)'}  kind=${kind}`);
   console.log(`${TAG}   node=${meta.nodeVersion}  cores=${meta.cpuCount}  UV_THREADPOOL_SIZE=${meta.uvThreadpoolSize}`);
   console.log(`${TAG}   NODE_OPTIONS=${meta.nodeOptions || '(unset)'}`);
-  console.log(`${TAG}   pages=${meta.pagesGenerated}  routes=${meta.routesTotal}`);
+  console.log(`${TAG}   pages=${meta.pagesGenerated}  assets=${meta.assetsTotal}`);
   console.log(`${TAG}   ${'phase'.padEnd(50)} ${'wall'.padStart(10)} ${'cpu-user'.padStart(10)} ${'cpu-sys'.padStart(9)} ${'cpu%'.padStart(6)} ${'rss'.padStart(8)} ${'heap'.padStart(8)}`);
   for (const p of phases) {
     console.log(

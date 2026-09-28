@@ -1,11 +1,14 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { measureOutput, sampleCompression } from '../../scripts/measure-build-output.mjs';
+import buildTiming from '../../config/build-timing.mjs';
 
 const directories: string[] = [];
 afterEach(async () => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
 
@@ -78,4 +81,48 @@ test('CPU, timing, output inventories and diagnostic uploads are opt-in only', a
   expect(workflow).toMatch(/else\n\s+pnpm build:production\n\s+fi/);
   expect(workflow).toContain('name: Measure frontend output\n        if: ${{ inputs.profile_build }}');
   expect(workflow).toContain('name: Upload build diagnostics\n        if: ${{ always() && inputs.profile_build }}');
+});
+
+test('Astro build source does not receive workflow credentials', async () => {
+  const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-build.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const buildStep = workflow.match(/- name: Build frontend\n([\s\S]*?)(?=\n {6}- name:)/)?.[1];
+  expect(buildStep).toBeDefined();
+  expect(buildStep).not.toMatch(/GITHUB_TOKEN|GH_TOKEN|github\.token|secrets\./);
+  expect(workflow).toMatch(/fetch-depth: 0\n\s+persist-credentials: false/);
+});
+
+test('all frontend workflow checkouts disable persisted credentials', async () => {
+  const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-build.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const checkouts = workflow.split(/\n {6}- /).filter((step) => step.startsWith('uses: actions/checkout@'));
+  expect(checkouts).toHaveLength(4);
+  for (const checkout of checkouts) {
+    expect(checkout).toContain('\n          persist-credentials: false');
+  }
+});
+
+test('timing reports distinguish generated pages from asset URLs', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'aspire-timing-report-'));
+  directories.push(directory);
+  const output = join(directory, 'timing.jsonl');
+  vi.stubEnv('BUILD_TIMING_OUT', output);
+  const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+  const hooks = buildTiming().hooks;
+  const start = hooks['astro:build:start'];
+  const done = hooks['astro:build:done'];
+  if (!start || !done) throw new Error('Expected build timing lifecycle hooks.');
+  Reflect.apply(start, undefined, [{}]);
+  Reflect.apply(done, undefined, [{
+    pages: [{ pathname: '/one/' }, { pathname: '/two/' }],
+    assets: new Map([
+      ['one', [new URL('file:///one.css'), new URL('file:///one.js')]],
+      ['two', [new URL('file:///two.js')]],
+    ]),
+  }]);
+  const report: unknown = JSON.parse(await readFile(output, 'utf8'));
+  expect(report).toMatchObject({
+    kind: 'final',
+    meta: { pagesGenerated: 2, assetsTotal: 3 },
+  });
+  expect(report).not.toHaveProperty('meta.routesTotal');
+  expect(log).toHaveBeenCalledWith('[build-timing]   pages=2  assets=3');
 });

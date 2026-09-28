@@ -98,6 +98,24 @@ MYPROJECT_URI=https://my-foundry.services.ai.azure.com/api/projects/my-project?a
   The project resource never exposes an API key or a separate project-name property through Aspire. Authenticate with `DefaultAzureCredential` and use `Uri` directly as the project endpoint.
 </Aside>
 
+### Foundry Toolbox resource
+
+A Toolbox exposes one MCP endpoint for its configured tools. See [Add a Toolbox](../azure-ai-foundry-host/#add-a-toolbox) for the AppHost walkthrough.
+
+| Property | Description |
+| -------- | ----------- |
+| `Uri` | Default MCP endpoint, or the endpoint of a pinned immutable version |
+| `ProjectEndpoint` | Parent Foundry project endpoint |
+| `Name` | Toolbox name |
+| `ApiVersion` | Toolbox data-plane API version |
+| `Version` | Pinned immutable version, when configured |
+| `FoundryFeatures` | Required `Foundry-Features` request-header value |
+| `AuthorizationScope` | Microsoft Entra scope for Toolbox requests |
+
+For a resource named `field-tools`, read `FIELD_TOOLS_URI`, `FIELD_TOOLS_FOUNDRYFEATURES`, and `FIELD_TOOLS_AUTHORIZATIONSCOPE`. Acquire an Entra token for the supplied scope, include the `Foundry-Features` header, and perform the MCP `initialize` and `tools/list` handshake against `Uri`. The composed connection string contains `Uri=https://.../toolboxes/field-tools/mcp`.
+
+Tool approval policies returned during discovery aren't enforced by the Toolbox service. Your client must inspect them and obtain approval before calling a tool.
+
 ## Connect from your app
 
 Pick the language your consuming app is written in. Each example assumes your AppHost adds a Foundry deployment resource named `chat` and references it from the consuming app.

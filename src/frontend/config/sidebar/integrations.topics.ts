@@ -316,6 +316,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/configure-container-apps',
             },
             {
+              label: 'Azure Connector Namespace',
+              slug: 'integrations/cloud/azure/azure-connector-namespace',
+            },
+            {
               label: 'Default Azure credential',
               slug: 'integrations/cloud/azure/azure-default-credential',
             },
