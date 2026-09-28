@@ -131,6 +131,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/docker-compose',
     },
     {
+      label: 'Radius',
+      slug: 'deployment/radius',
+    },
+    {
       label: 'Kubernetes',
       collapsed: false,
       items: [
