@@ -113,26 +113,19 @@ Install the [📦 Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) N
 
 <InstallDotNetPackage packageName="Aspire.OpenAI" />
 
-The Aspire OpenAI integration uses the Foundry Local API key that Aspire injects. This example uses the `chat` deployment, so its endpoint and key are `CHAT_URI` and `CHAT_KEY`; replace `chat` with your deployment resource name.
+Aspire injects the Foundry Local deployment's connection string as `ConnectionStrings:chat`, with the format `Endpoint=<uri>;Key=unused;Model=<id>`. The `unused` key is a placeholder because Foundry Local doesn't require authentication.
 
-`AddOpenAIClient("chat")` reads the deployment's connection string to determine the model. The settings callback reads the injected environment variables to supply the API key and rewrite the endpoint to its OpenAI-compatible `openai/v1/` route. `AddChatClient()` then registers an `IChatClient`:
+`AddOpenAIClient("chat")` parses the endpoint and key before invoking the settings callback. The callback only changes the endpoint to Foundry Local's `/v1/` route, documented in the [Foundry Local REST API reference](https://learn.microsoft.com/azure/foundry-local/reference/reference-rest#post-v1chatcompletions). `AddChatClient()` reads the model from the same connection string and registers an `IChatClient`:
 
 ```csharp title="Program.cs"
-using Microsoft.Extensions.AI;
-
 var builder = WebApplication.CreateBuilder(args);
-
-var endpoint = Environment.GetEnvironmentVariable("CHAT_URI")
-    ?? throw new InvalidOperationException("CHAT_URI is required.");
-var apiKey = Environment.GetEnvironmentVariable("CHAT_KEY")
-    ?? throw new InvalidOperationException("CHAT_KEY is required.");
 
 builder.AddOpenAIClient(
         "chat",
         settings =>
         {
-            settings.Endpoint = new Uri(new Uri(endpoint), "openai/v1/");
-            settings.Key = apiKey;
+            ArgumentNullException.ThrowIfNull(settings.Endpoint);
+            settings.Endpoint = new Uri(settings.Endpoint, "v1/");
         })
     .AddChatClient();
 ```
@@ -177,7 +170,7 @@ Console.WriteLine(completion.Content[0].Text);
 ```
 
 <Aside type="note">
-  `BearerTokenPolicy` is marked experimental (`OPENAI001`) in the current OpenAI SDK, hence the `#pragma warning disable`. Aspire only ever exposes a `Key` property for [Foundry Local](../azure-ai-foundry-host/#use-foundry-local-for-development) — a cloud or existing Foundry account never surfaces an API key through Aspire, regardless of its own local-auth setting. If you're running Foundry Local, read `CHAT_KEY` and pass `new ApiKeyCredential(apiKey!)` (from `System.ClientModel`) as the `credential` argument instead of `authenticationPolicy`. For more authentication examples, see Microsoft's [migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration?tabs=openai&pivots=programming-language-dotnet).
+  `BearerTokenPolicy` is marked experimental (`OPENAI001`) in the current OpenAI SDK, hence the `#pragma warning disable`. Aspire only ever exposes a `Key` property for [Foundry Local](../azure-ai-foundry-host/#use-foundry-local-for-development) — a cloud or existing Foundry account never surfaces an API key through Aspire, regardless of its own local-auth setting. For Foundry Local, prefer the [Aspire.OpenAI example](#connect-with-aspireopenai-foundry-local) above, which uses the local `/v1/` route rather than the cloud `/openai/v1/` route. For more authentication examples, see Microsoft's [migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration?tabs=openai&pivots=programming-language-dotnet).
 </Aside>
 
 If your app has a host builder — for example, an ASP.NET Core or worker service `Program.cs` using `WebApplication.CreateBuilder(args)` or `Host.CreateApplicationBuilder(args)` — you can instead register an [`IChatClient`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.ai.ichatclient) from `Microsoft.Extensions.AI` for dependency injection. Install [📦 Microsoft.Extensions.AI.OpenAI](https://www.nuget.org/packages/Microsoft.Extensions.AI.OpenAI), construct the `ChatClient` the same way shown above, then chain `AsIChatClient()` and register it before calling `Build()`:

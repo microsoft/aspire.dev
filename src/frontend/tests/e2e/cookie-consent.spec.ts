@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { dismissCookieConsentIfVisible } from './helpers';
 
 // The analytics scripts ship inert (`type="text/plain"`) and are promoted to
 // executable at runtime once WCP reports Analytics consent. These selectors let
@@ -24,6 +25,7 @@ type WcpStubOptions = {
   /** Delay region resolution to exercise cached state and scanner readiness. */
   initDelayMs?: number;
   cachedConsentRequired?: boolean;
+  rejectLabel?: 'Reject' | 'Reject all';
 };
 
 type WcpStubState = {
@@ -171,7 +173,7 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
         const message = document.createElement('p');
         message.textContent = 'Choose whether to allow optional cookies.';
         banner.append(message);
-        for (const label of ['Accept all', 'Reject all']) {
+        for (const label of ['Accept all', opts.rejectLabel ?? 'Reject all']) {
           const action = document.createElement('button');
           action.type = 'button';
           action.textContent = label;
@@ -270,6 +272,43 @@ async function navigateWithConsent(page: Page, destination: 'videos' | 'home'): 
 }
 
 test.describe('WCP cookie consent bridge', () => {
+  for (const rejectLabel of ['Reject', 'Reject all'] as const) {
+    test(`shared dismissal helper handles "${rejectLabel}"`, async ({ page }) => {
+      await installWcpStub(page, {
+        consentRequired: true,
+        analyticsGranted: false,
+        rejectLabel,
+      });
+      await page.goto('/');
+      await waitForConsentBootstrap(page);
+      await dismissCookieConsentIfVisible(page);
+      await expect(page.getByRole('region', { name: 'Cookie consent', exact: true })).toBeHidden();
+      expect(await page.evaluate(() => sessionStorage.getItem('wcp-test-choice'))).toBe(rejectLabel);
+    });
+  }
+
+  test('shared dismissal helper handles a banner that appears later', async ({ page }) => {
+    await installWcpStub(page, {
+      consentRequired: true,
+      analyticsGranted: false,
+      rejectLabel: 'Reject',
+    });
+    await page.goto('/');
+    await waitForConsentBootstrap(page);
+    const banner = page.locator('#wcpConsentBannerCtrl');
+    await banner.evaluate((element) => {
+      element.hidden = true;
+    });
+    await dismissCookieConsentIfVisible(page);
+    await banner.evaluate((element) => {
+      element.hidden = false;
+    });
+
+    await page.locator('.header .site-title').click();
+    await expect(banner).toBeHidden();
+    expect(await page.evaluate(() => sessionStorage.getItem('wcp-test-choice'))).toBe('Reject');
+  });
+
   test('keeps an unanswered banner and its original callbacks usable across client navigation', async ({
     page,
   }) => {
