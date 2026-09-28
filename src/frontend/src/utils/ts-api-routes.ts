@@ -7,6 +7,7 @@ export interface TsRouteParameterLike {
 
 export interface TsRouteCallableLike {
   name: string;
+  kind?: string;
   description?: string;
   signature?: string;
   qualifiedName?: string;
@@ -17,6 +18,7 @@ export interface TsRouteCallableLike {
 
 export interface TsTopLevelRouteItemLike extends TsRouteCallableLike {
   fullName?: string;
+  capabilities?: TsRouteCallableLike[];
 }
 
 export interface TsApiDocumentRouteLike {
@@ -24,6 +26,63 @@ export interface TsApiDocumentRouteLike {
   handleTypes?: TsTopLevelRouteItemLike[];
   dtoTypes?: TsTopLevelRouteItemLike[];
   enumTypes?: TsTopLevelRouteItemLike[];
+}
+
+const stableDocuments = new WeakSet<TsApiDocumentRouteLike>();
+const stableCollections = new WeakSet<TsRouteCallableLike[]>();
+const standaloneFunctions = new WeakMap<TsApiDocumentRouteLike, TsTopLevelRouteItemLike[]>();
+const topLevelItems = new WeakMap<TsApiDocumentRouteLike, TsTopLevelRouteItemLike[]>();
+const typesByName = new WeakMap<TsApiDocumentRouteLike, Map<string, TsTopLevelRouteItemLike>>();
+const methodCollections = new WeakMap<TsRouteCallableLike[], Map<boolean, TsRouteCallableLike[]>>();
+const itemIndexes = new WeakMap<TsTopLevelRouteItemLike[], SlugIndex<TsTopLevelRouteItemLike>>();
+const methodIndexes = new WeakMap<TsRouteCallableLike[], Map<string | undefined, SlugIndex<TsRouteCallableLike>>>();
+
+/**
+ * Opt production collection data into route reuse. Freeze the JSON graph first:
+ * array identity alone cannot detect edits to names, parameters or nested types.
+ * Development and caller-owned mutable documents never enter these caches.
+ * Weak keys keep indexes scoped to the lifetime of the loaded collection.
+ */
+export function prepareTsApiRoutes(doc: TsApiDocumentRouteLike): void {
+  if (stableDocuments.has(doc)) return;
+  freezeRouteData(doc);
+  stableDocuments.add(doc);
+  getTsTopLevelRouteItems(doc);
+}
+
+function freezeRouteData(value: object, seen = new WeakSet<object>()): void {
+  if (seen.has(value)) return;
+  seen.add(value);
+  for (const child of Object.values(value) as unknown[]) {
+    if (child && typeof child === 'object') freezeRouteData(child, seen);
+  }
+  Object.freeze(value);
+}
+
+function stableCollection<T extends TsRouteCallableLike>(items: T[]): T[] {
+  Object.freeze(items);
+  stableCollections.add(items);
+  return items;
+}
+
+/** Keep source ordering for URLs; sorted presentation has its own collision order. */
+export function getTsMethods<T extends TsRouteCallableLike>(
+  handle: { capabilities?: T[] },
+  sorted = false
+): T[] {
+  const capabilities = handle.capabilities;
+  const cached = capabilities && methodCollections.get(capabilities)?.get(sorted);
+  if (cached) return cached as T[];
+  const methods = (capabilities ?? []).filter(
+    (candidate) => candidate.kind === 'Method' || candidate.kind === 'InstanceMethod'
+  );
+  if (sorted) methods.sort((left, right) => left.name.localeCompare(right.name));
+  if (capabilities && stableCollections.has(capabilities)) {
+    const collections = methodCollections.get(capabilities) ?? new Map<boolean, TsRouteCallableLike[]>();
+    collections.set(sorted, stableCollection(methods));
+    methodCollections.set(capabilities, collections);
+  }
+  return methods;
 }
 
 export function tsSlugify(name: string): string {
@@ -37,26 +96,65 @@ export function getTsMemberAnchor(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, '-');
 }
 
-export function getTsStandaloneFunctions(doc: TsApiDocumentRouteLike): TsTopLevelRouteItemLike[] {
-  return (doc.functions ?? []).filter(
+export function getTsStandaloneFunctions<T extends TsTopLevelRouteItemLike>(
+  doc: { functions?: T[] }
+): T[] {
+  const cached = standaloneFunctions.get(doc);
+  if (cached) return cached as T[];
+  const functions = (doc.functions ?? []).filter(
     (fn) => !fn.qualifiedName || !fn.qualifiedName.includes('.')
   );
+  if (stableDocuments.has(doc)) standaloneFunctions.set(doc, stableCollection(functions));
+  return functions;
+}
+
+/** Resolve the first type with this display name, in the original catalog order. */
+export function getTsTypeByName(doc: TsApiDocumentRouteLike, name: string): TsTopLevelRouteItemLike | undefined {
+  let index = typesByName.get(doc);
+  if (!index && stableDocuments.has(doc)) {
+    index = new Map();
+    for (const collection of [doc.handleTypes, doc.dtoTypes, doc.enumTypes]) {
+      for (const item of collection ?? []) {
+        if (!index.has(item.name)) index.set(item.name, item);
+      }
+    }
+    typesByName.set(doc, index);
+  }
+  return index
+    ? index.get(name)
+    : doc.handleTypes?.find((item) => item.name === name)
+      ?? doc.dtoTypes?.find((item) => item.name === name)
+      ?? doc.enumTypes?.find((item) => item.name === name);
 }
 
 export function getTsTopLevelRouteItems(doc: TsApiDocumentRouteLike): TsTopLevelRouteItemLike[] {
-  return [
+  const cached = topLevelItems.get(doc);
+  if (cached) return cached;
+  const items = [
     ...(doc.handleTypes ?? []),
     ...(doc.dtoTypes ?? []),
     ...(doc.enumTypes ?? []),
     ...getTsStandaloneFunctions(doc),
   ];
+  if (stableDocuments.has(doc)) {
+    topLevelItems.set(doc, stableCollection(items));
+    for (const handle of doc.handleTypes ?? []) {
+      if (handle.capabilities) stableCollections.add(handle.capabilities);
+    }
+  }
+  return items;
 }
 
 export function getTsItemSlug(
   item: TsTopLevelRouteItemLike,
   allItems: TsTopLevelRouteItemLike[]
 ): string {
-  return getUniqueSlug(item, allItems, getTopLevelDisambiguator);
+  let index = itemIndexes.get(allItems);
+  if (!index) {
+    index = createSlugIndex(allItems, getTopLevelDisambiguator);
+    if (stableCollections.has(allItems)) itemIndexes.set(allItems, index);
+  }
+  return index.get(item);
 }
 
 export function getTsMethodSlug(
@@ -64,34 +162,63 @@ export function getTsMethodSlug(
   siblingMethods: TsRouteCallableLike[],
   parentName?: string
 ): string {
-  return getUniqueSlug(method, siblingMethods, (candidate) =>
-    getCallableDisambiguator(candidate, { includeTarget: false, parentName })
-  );
+  let index = methodIndexes.get(siblingMethods)?.get(parentName);
+  if (!index) {
+    index = createSlugIndex(siblingMethods, (candidate) =>
+      getCallableDisambiguator(candidate, { includeTarget: false, parentName })
+    );
+    if (stableCollections.has(siblingMethods)) {
+      const contexts = methodIndexes.get(siblingMethods) ?? new Map<string | undefined, SlugIndex<TsRouteCallableLike>>();
+      contexts.set(parentName, index);
+      methodIndexes.set(siblingMethods, contexts);
+    }
+  }
+  return index.get(method);
 }
 
-function getUniqueSlug<T extends { name: string }>(
-  item: T,
+interface SlugIndex<T> {
+  get(item: T): string;
+}
+
+function createSlugIndex<T extends { name: string }>(
   siblings: T[],
   getDisambiguator: (candidate: T) => string
-): string {
-  const baseSlug = tsSlugify(item.name);
-  const conflicts = siblings.filter((candidate) => tsSlugify(candidate.name) === baseSlug);
-
-  if (conflicts.length <= 1) {
-    return baseSlug;
+): SlugIndex<T> {
+  const groups = new Map<string, T[]>();
+  const slugs = new Map<T, string>();
+  for (const item of siblings) {
+    const base = tsSlugify(item.name);
+    const group = groups.get(base);
+    if (group) group.push(item);
+    else groups.set(base, [item]);
   }
 
-  const disambiguatedSlug = appendDisambiguator(baseSlug, getDisambiguator(item));
-  const sameSlugConflicts = conflicts.filter(
-    (candidate) => appendDisambiguator(baseSlug, getDisambiguator(candidate)) === disambiguatedSlug
-  );
-
-  if (sameSlugConflicts.length <= 1) {
-    return disambiguatedSlug;
+  for (const [base, group] of groups) {
+    if (group.length === 1) {
+      slugs.set(group[0], base);
+      continue;
+    }
+    const occurrences = new Map<string, number>();
+    for (const item of group) {
+      const slug = appendDisambiguator(base, getDisambiguator(item));
+      const occurrence = (occurrences.get(slug) ?? 0) + 1;
+      occurrences.set(slug, occurrence);
+      // Repeated references count as occurrences, but identity resolves to the first.
+      if (!slugs.has(item)) slugs.set(item, occurrence > 1 ? `${slug}-${occurrence}` : slug);
+    }
   }
 
-  const occurrence = sameSlugConflicts.findIndex((candidate) => candidate === item);
-  return occurrence > 0 ? `${disambiguatedSlug}-${occurrence + 1}` : disambiguatedSlug;
+  return {
+    get(item) {
+      const known = slugs.get(item);
+      if (known !== undefined) return known;
+      const base = tsSlugify(item.name);
+      // A caller may supply an equivalent object not present in the collection.
+      return (groups.get(base)?.length ?? 0) > 1
+        ? appendDisambiguator(base, getDisambiguator(item))
+        : base;
+    },
+  };
 }
 
 function appendDisambiguator(baseSlug: string, disambiguator: string): string {

@@ -24,6 +24,7 @@ import {
   validateApiReferenceFiles,
   validateApiReferenceSource,
 } from '@utils/api-reference-validator';
+import type { TargetLanguageProvider } from '@utils/api-reference/language-provider';
 import { normalizeHtml, renderComponent } from './astro-test-utils';
 import { resolveMemberAnchors } from '@utils/api-member-anchors';
 
@@ -762,7 +763,7 @@ describe('API reference provider registry', () => {
 
     let buildIndexCalls = 0;
     let resolveTargetCalls = 0;
-    const pythonProvider = {
+    const pythonProvider: TargetLanguageProvider<PythonModuleDocument, PythonIndex> = {
       id: 'python',
       role: 'target' as const,
       buildIndex(documents: readonly PythonModuleDocument[]): PythonIndex {
@@ -1283,7 +1284,8 @@ describe('API reference authoring validator', () => {
         path: '/reference/api/csharp/aspire.hosting/resourcebuilderextensions/methods/#withenvironment-iresourcebuilder-t-string-string',
       },
       typescript: {
-        label: 'withEnvironment(name: string, value: IExpressionValue)',
+        label:
+          'withEnvironment(name: string, value: string | ReferenceExpression | EndpointReference | ParameterResource | ExternalServiceResource | IResourceWithConnectionString | IExpressionValue)',
         path: '/reference/api/typescript/aspire.hosting/withenvironment/',
       },
       diagnostics: [],

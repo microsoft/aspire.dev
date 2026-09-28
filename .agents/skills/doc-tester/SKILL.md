@@ -323,6 +323,17 @@ For each documentation page:
 2. **Take a snapshot** to read the page content
 3. **Evaluate the content** - Is it clear? Complete? Accurate?
 4. **Note any confusion** - What would a new user struggle with?
+5. **Inspect current-version references in the source MDX** - Rendered pages
+   show the replaced value, so confirm that current guidance uses the shared
+   placeholders rather than a hard-coded Aspire version:
+   - `%ASPIRE_VERSION%` for the full current stable version
+   - `%ASPIRE_VERSION_MAJOR_MINOR%` for the current major/minor version
+
+Flag hard-coded Aspire versions in current installation instructions, package
+references, AppHost SDK declarations, CLI output, and copy/paste examples.
+Keep fixed versions when the exact version is intentional, such as release
+notes, upgrade comparisons, minimum-version requirements, compatibility notes,
+or issue reproduction steps.
 
 ### Phase 2: Test CLI Commands
 

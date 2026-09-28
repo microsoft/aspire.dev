@@ -42,6 +42,18 @@ When a `.sln` or `.slnx` is present, the C# option creates a **project-based App
 
 In all cases, the AppHost language does not limit what you can orchestrate — C#, JavaScript, Python, Go, Rust, Java, containers, and more can all be modeled in the same application model.
 
+### Skipping solution discovery with --file-based
+
+Repositories can contain incidental `.sln` or `.slnx` files that aren't meant to back the AppHost — they cause `aspire init` to prompt for a solution or scaffold a project-based AppHost even when you only want a minimal, file-based AppHost at the repository root.
+
+Pass `--file-based` to bypass .NET solution discovery entirely and always create the single-file `apphost.cs` scaffold in the current directory, regardless of any `.sln` or `.slnx` files present.
+
+`--file-based` requires C#. If another language is selected — explicitly with `--language`, through existing `aspire.config.json` configuration, or at the interactive language prompt — the command fails with an error before scaffolding or persisting the language selection. Omitting `--file-based` (or passing `--file-based false`) preserves normal initialization for all languages. Existing-file protection and agent skill setup are unaffected by this option.
+
+```bash title="Aspire CLI"
+aspire init --file-based --language csharp
+```
+
 ### Channel persistence in aspire.config.json
 
 When `aspire init` runs with an explicit, non-stable channel (such as `daily` or `staging`), it writes a top-level `channel` key into the generated `aspire.config.json`. This ensures that subsequent commands — `aspire add`, `aspire update`, and others — resolve packages and templates against the same channel the project was initialized with, rather than falling back to the implicit stable default.
@@ -102,6 +114,10 @@ The following options are available:
 
   The AppHost language to scaffold (`csharp`, `typescript`).
 
+- **`--file-based`**
+
+  Create `apphost.cs` in the current directory, skipping .NET solution discovery. Requires C#: fails with an error if another language is selected explicitly, via configuration, or at the language prompt.
+
 - **`--skill-locations <skill-locations>`**
 
   Comma-separated list of skill locations to configure. Use `all` to configure all supported locations or `none` to skip skill location configuration. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available locations, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
@@ -140,6 +156,12 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire init --channel daily
+  ```
+
+- Initialize an empty C# AppHost at the repository root, ignoring any incidental `.sln` or `.slnx` files:
+
+  ```bash title="Aspire CLI"
+  aspire init --file-based --language csharp
   ```
 
 - Initialize Aspire support non-interactively without installing any agent skills:

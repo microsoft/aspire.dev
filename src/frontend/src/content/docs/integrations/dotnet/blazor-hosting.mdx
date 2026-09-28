@@ -212,23 +212,9 @@ await builder.build().run();
 [`AddDotnetProjectBlazorGateway`](/reference/api/csharp/aspire.hosting.blazor/blazorgatewayextensions/methods/#adddotnetprojectblazorgateway) adds a Blazor Gateway that hosts a [`DotnetProjectResource`](/integrations/frameworks/dotnet/dotnet-host/) (a C# project or file-based app added with <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" />) instead of the standard `ProjectResource`-based gateway. Use the distinct [`WithBlazorClientApp`](/reference/api/csharp/aspire.hosting.blazor/blazorgatewayextensions/methods/#withblazorclientapp-iresourcebuilder-dotnetprojectresource-iresourcebuilder-blazorwasmappresource-string-string-bool) overload on this resource to attach a Blazor WebAssembly client app:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var client = builder.AddBlazorWasmProject<Projects.Client>("client");
-
-builder.AddDotnetProjectBlazorGateway("gateway")
-    .WithBlazorClientApp(client);
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -245,15 +231,36 @@ await builder.build().run();
 ```
 
 </TabItem>
+
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREBLAZOR001, ASPIREDOTNETPROJECT001
+
+var client = builder.AddBlazorWasmProject<Projects.Client>("client");
+
+builder.AddDotnetProjectBlazorGateway("gateway")
+    .WithBlazorClientApp(client);
+
+builder.Build().Run();
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="caution" title="Experimental">
-  `AddDotnetProjectBlazorGateway` and its `WithBlazorClientApp` overload are
-  gated behind the `ASPIREDOTNETPROJECT001` diagnostic. This gateway variant
+  `AddDotnetProjectBlazorGateway` and its `WithBlazorClientApp` overload
+  carry `ASPIREDOTNETPROJECT001`, in addition to the
+  Blazor integration's `ASPIREBLAZOR001` diagnostic. These gateway APIs are
+  experimental independently of the core Dotnet project APIs. This gateway
   runs as a file-based C# app and supports both `aspire run` and publishing.
   For details on suppressing the diagnostic, see
   [ASPIREDOTNETPROJECT001](/diagnostics/aspiredotnetproject001/).
 </Aside>
+
+The gateway forwards the client's service references and supports publishing through the shared Blazor client attachment and publish-companion pipeline. Browser-debugger resources are created only for local runs.
 
 ## See also
 

@@ -180,6 +180,14 @@ Also verify:
 aspire update --self
 ```
 
+### Authenticated feeds return 401
+
+Bundled NuGet search and restore run in-process and initialize NuGet's credential service so installed credential-provider plugins can authenticate to feeds such as Azure Artifacts.
+
+If an authenticated feed still returns `401`, check the configured feed URL, package source mapping, and credential provider installation. Authenticate using the provider's documented workflow, and verify a restore from that same feed outside Aspire, for example with `dotnet restore --interactive` on a project that actually references a package from it. `dotnet nuget locals` only inspects or clears caches; it doesn't verify feed authentication.
+
+Bundled NuGet operations initialize credentials non-interactively. Complete any required interactive sign-in first rather than expecting the Aspire operation to display a credential prompt. Non-bundled search still uses `dotnet package search`.
+
 ## TypeScript AppHost issues
 
 ### "Command not found" errors
@@ -245,11 +253,11 @@ aspire run --log-level Debug
 
 ### CLI logs
 
-Aspire CLI logs are stored at:
+Persisted Aspire CLI logs are stored in the Aspire home directory's `logs` folder. The default locations are:
 
 <OsAwareTabs syncKey="terminal">
-  <Code slot="unix" lang="bash" code="$HOME/.aspire/cli/logs/" />
-  <Code slot="windows" lang="powershell" code="$HOME\.aspire\cli\logs\" />
+  <Code slot="unix" lang="bash" code="$HOME/.aspire/logs/" />
+  <Code slot="windows" lang="powershell" code="$HOME\.aspire\logs\" />
 </OsAwareTabs>
 
 ## Building from source

@@ -201,7 +201,7 @@ test('searches aliases, definitions, and context with combined letter/topic filt
   await expect(search).toBeFocused();
 });
 
-test('empty results stay compact and offer one intent-preserving action in both themes', async ({ page }) => {
+test('empty results stay contained and offer one intent-preserving action in both themes', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/hub/glossary/?q=abd&topic=reference&letter=W');
   await page.evaluate(() => document.fonts.ready);
@@ -216,8 +216,8 @@ test('empty results stay compact and offer one intent-preserving action in both 
       const filterPanel = (await page.locator('.glossary-filter-panel').boundingBox())!;
       expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeGreaterThanOrEqual(0);
       expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeLessThanOrEqual(16);
-      // Allow the wrapped hint, filter chips, and 44px action within the final spacing.
-      expect(bounds.height).toBeLessThan(width >= 800 ? 272 : 320);
+      // Allow the stacked mobile artwork plus the wrapped hint, filter chips, and action.
+      expect(bounds.height).toBeLessThanOrEqual(width >= 800 ? 324 : 480);
       const parts = await empty.locator('.search-empty-title, .search-empty-query, .search-empty-hint, .search-active-filters, .search-action').evaluateAll(
         (elements) => elements.map((element) => {
           const bounds = element.getBoundingClientRect();
