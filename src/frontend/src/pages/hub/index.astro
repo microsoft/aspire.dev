@@ -1,6 +1,7 @@
 ---
 import HubLayout from '@components/dev-center/HubLayout.astro';
 import '../../styles/link-underline.css';
+import '../../styles/search-controls.css';
 import { Icon } from '@astrojs/starlight/components';
 import ThemeImage from '@components/ThemeImage.astro';
 import resourcesGraphLight from '@assets/dashboard/landing/resources-graph-light.png';
@@ -24,7 +25,7 @@ import azureIcon from '@assets/icons/azure-icon.png';
 import kubernetesIcon from '@assets/icons/kubernetes.svg';
 import rustIcon from '@assets/icons/rust.svg';
 import { tagLabel } from '@utils/sample-tags';
-import { devTitle, devDescription, topicLinks, resources, languages, cloudLinks, featuredSamples, referenceLinks, dashboardLinks, videos, blogHighlights } from '../../data/dev-hub';
+import { devTitle, devDescription, topicLinks, resources, languages, cloudLinks, featuredSamples, sampleLanguageOptions, referenceLinks, dashboardLinks, videos, blogHighlights } from '@data/dev-hub';
 
 const sampleImages: Record<string, { light: ImageMetadata; dark: ImageMetadata }> = {
   'aspire-shop': { light: shopLight, dark: shopDark },
@@ -53,6 +54,12 @@ const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', t
           <span>Search Aspire documentation</span>
         </button>
         <a class="dev-browse-link" href="/hub/browse/" data-underline-trigger><span data-link-underline>Browse all resources</span><Icon name="right-arrow" size="1rem" /></a>
+        <nav class="discovery-shortcuts" aria-label="Browse resource sections">
+          <a href="#topics" data-underline-trigger><span data-link-underline>By topic</span></a>
+          <a href="#languages" data-underline-trigger><span data-link-underline>By language</span></a>
+          <a href="#clouds" data-underline-trigger><span data-link-underline>By cloud and deployment target</span></a>
+          <a href="#samples" data-underline-trigger><span data-link-underline>Featured samples</span></a>
+        </nav>
       </div>
       <div class="onboarding" role="region" aria-labelledby="getting-started-heading">
         <h2 id="getting-started-heading">New to Aspire?</h2>
@@ -77,7 +84,7 @@ const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', t
         </ul>
       </div>
     </section>
-    <nav class="topic-links" aria-labelledby="topics-heading">
+    <nav id="topics" class="topic-links" aria-labelledby="topics-heading">
       <h2 id="topics-heading">Browse by topic</h2>
       <ul>
         {topicLinks.map((topic) => (
@@ -92,7 +99,7 @@ const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', t
         ))}
       </ul>
     </nav>
-    <section aria-labelledby="languages-heading">
+    <section id="languages" aria-labelledby="languages-heading">
       <h2 id="languages-heading">Start with your language</h2>
       <ul class="language-links">
         {languages.map((language) => (
@@ -109,7 +116,7 @@ const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', t
       </ul>
     </section>
     <section id="clouds" aria-labelledby="clouds-heading">
-      <h2 id="clouds-heading">Browse by cloud</h2>
+      <h2 id="clouds-heading">Browse by cloud and deployment target</h2>
       <p class="section-description">Explore AWS and Azure integrations, or deploy to Kubernetes.</p>
       <ul class="cloud-links">
         {cloudLinks.map((cloud) => (
@@ -123,33 +130,55 @@ const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', t
         ))}
       </ul>
     </section>
-    <section aria-labelledby="samples-heading">
-      <div class="section-heading">
-        <h2 id="samples-heading">Samples to build on</h2>
-        <a class="channel-link" href="/reference/samples/" data-underline-trigger><span data-link-underline>All samples</span><Icon name="right-arrow" size="1rem" /></a>
-      </div>
-      <ul class="featured-samples">
-        {featuredSamples.map((sample) => (
-          <li>
-            <a href={sample.href} data-underline-trigger>
-              <div class="sample-preview">
-                <ThemeImage
-                  {...sampleImages[sample.name]}
-                  width={520}
-                  height={Math.round(520 * sampleImages[sample.name].dark.height / sampleImages[sample.name].dark.width)}
-                  alt={`Screenshot of the ${sample.title} sample`}
-                  zoomable={false}
-                />
-              </div>
-              <div class="sample-copy">
-                <h3><span data-link-underline>{sample.title}</span><Icon name="right-arrow" size="1rem" /></h3>
-                <p>{sample.description}</p>
-                <div class="sample-tags">{sample.tags.slice(0, 4).map((tag) => <span>{tagLabel(tag)}</span>)}</div>
-              </div>
-            </a>
-          </li>
-        ))}
-      </ul>
+    <section id="samples" aria-labelledby="samples-heading">
+      <featured-samples data-filter-path={Astro.url.pathname}>
+        <div class="section-heading">
+          <h2 id="samples-heading">Samples to build on</h2>
+          <a class="channel-link" href="/hub/browse/?type=sample" data-all-samples data-underline-trigger><span data-link-underline>All samples</span><Icon name="right-arrow" size="1rem" /></a>
+        </div>
+        <fieldset class="sample-filter" aria-describedby="sample-language-hint" hidden>
+          <legend class="search-sr-only">Sample languages</legend>
+          <span class="sample-filter-label" aria-hidden="true">Languages</span>
+          {sampleLanguageOptions.map((language) => (
+            <label>
+              <input type="checkbox" name="sample-language" value={language} aria-controls="featured-sample-list" />
+              <span>{tagLabel(language)}</span>
+            </label>
+          ))}
+          <button type="button" class="search-action" data-clear-sample-language hidden>Clear language filter</button>
+        </fieldset>
+        <p id="sample-language-hint" class="section-description">Match any selected language, including the sample's services and AppHost. Leave all unchecked to show every sample.</p>
+        <p class="sample-count search-results-summary" role="status" aria-live="polite" aria-atomic="true" data-sample-count>{featuredSamples.length} featured samples</p>
+        <div class="search-empty" data-sample-empty hidden>
+          <div class="search-empty-content">
+            <h3 class="search-empty-title">No featured samples for these languages</h3>
+            <p class="search-empty-hint">Browse all samples, or clear the language filter to see the featured selection.</p>
+            <button type="button" class="search-action" data-clear-sample-language>Clear language filter</button>
+          </div>
+        </div>
+        <ul id="featured-sample-list" class="featured-samples">
+          {featuredSamples.map((sample) => (
+            <li data-sample-languages={sample.languages.join(' ')}>
+              <a href={sample.href} data-underline-trigger>
+                <div class="sample-preview">
+                  <ThemeImage
+                    {...sampleImages[sample.name]}
+                    width={520}
+                    height={Math.round(520 * sampleImages[sample.name].dark.height / sampleImages[sample.name].dark.width)}
+                    alt={`Screenshot of the ${sample.title} sample`}
+                    zoomable={false}
+                  />
+                </div>
+                <div class="sample-copy">
+                  <h3><span data-link-underline>{sample.title}</span><Icon name="right-arrow" size="1rem" /></h3>
+                  <p>{sample.description}</p>
+                  <div class="sample-tags">{sample.tags.slice(0, 4).map((tag) => <span>{tagLabel(tag)}</span>)}</div>
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </featured-samples>
     </section>
     <section id="reference" aria-labelledby="reference-heading" class="reference-section">
       <div class="section-heading">
@@ -249,3 +278,7 @@ const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', t
     </section>
   </div>
 </HubLayout>
+
+<script>
+  import '@components/dev-center/FeaturedSamples';
+</script>

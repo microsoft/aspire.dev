@@ -1,11 +1,10 @@
 ---
 title: Get started with the Rust integration
 category: quickstart
-description: Use the Community Toolkit Rust integration to run Cargo or Bacon applications, configure endpoints, and monitor them with Aspire.
+description: Run Rust applications with Aspire's first-party Cargo integration, configure endpoints, debug in Visual Studio Code, and publish container images.
 ---
 
 import {
-  Badge,
   LinkButton,
   Steps,
   TabItem,
@@ -24,13 +23,11 @@ import rustIcon from '@assets/icons/rust-icon.png';
   data-zoom-off
 />
 
-<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
-
-The Community Toolkit Rust hosting integration runs Rust applications through Cargo or Bacon alongside the other resources in your Aspire AppHost. Rust app resources support endpoints, service discovery, health checks, environment configuration, and OpenTelemetry export. They are also configured for Dockerfile publishing.
+The first-party `Aspire.Hosting.Rust` integration runs Cargo applications alongside the other resources in your Aspire AppHost. Rust resources support endpoints, service discovery, health checks, environment configuration, OpenTelemetry export, debugging, and generated Dockerfiles for publishing.
 
 ## How the pieces fit together
 
-The integration is installed in the AppHost. The AppHost starts Cargo or Bacon in the Rust application's working directory, applies standard Aspire resource configuration, and exposes the resulting resource in the dashboard.
+The integration is installed in the AppHost. The AppHost starts Cargo in the Rust application's working directory, applies standard Aspire resource configuration, and exposes the resulting resource in the dashboard.
 
 ```mermaid
 architecture-beta
@@ -40,7 +37,7 @@ architecture-beta
 
   service hosting(server)[Rust hosting integration] in apphost
   service resource(logos:rust)[Rust app resource] in apphost
-  service toolchain(logos:rust)[Cargo or Bacon] in rustapp
+  service toolchain(logos:rust)[Cargo] in rustapp
   service app(logos:rust)[Rust process] in rustapp
 
   hosting:R --> L:resource
@@ -50,21 +47,40 @@ architecture-beta
 
 ## Prerequisites
 
-- Install Rust with [rustup](https://www.rust-lang.org/tools/install) and make `cargo` available on your `PATH`.
-- Install [Bacon](https://dystroy.org/bacon/) when you use `AddBaconApp` / `addBaconApp`.
+- Install Rust with [rustup](https://www.rust-lang.org/tools/install) and make Cargo 1.71 or later available on your `PATH`.
 - Create an [Aspire AppHost](/get-started/app-host/) in C# or TypeScript.
 
 <Steps>
 
 1. ### Install the hosting package
 
-   Add `CommunityToolkit.Aspire.Hosting.Rust` to your AppHost. You can use `aspire add communitytoolkit-rust` or install the NuGet package directly.
+   Add the first-party hosting package from the AppHost directory:
+
+   ```bash title="Add Rust hosting"
+   aspire add Aspire.Hosting.Rust
+   ```
 
 2. ### Add a Rust app
 
    Register the directory that contains your Rust project, then configure an endpoint for the port that the app reads from `PORT`.
 
    <Tabs syncKey='aspire-lang'>
+   <TabItem id='typescript' label='TypeScript'>
+
+   ```typescript title="apphost.mts" twoslash
+   import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+   const builder = await createBuilder();
+
+   const api = await builder.addRustApp('rust-api', '../rust-api');
+   await api.withHttpEndpoint({ port: 8080, env: 'PORT' });
+   await api.withExternalHttpEndpoints();
+
+   await builder.build().run();
+   ```
+
+   </TabItem>
+
    <TabItem id='csharp' label='C#'>
 
    ```csharp title="AppHost.cs"
@@ -78,26 +94,11 @@ architecture-beta
    ```
 
    </TabItem>
-   <TabItem id='typescript' label='TypeScript'>
-
-   ```typescript title="apphost.mts"
-   import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-   const builder = await createBuilder();
-
-   const api = await builder.addRustApp('rust-api', '../rust-api');
-   await api.withHttpEndpoint({ port: 8080, env: 'PORT' });
-   await api.withExternalHttpEndpoints();
-
-   await builder.build().run();
-   ```
-
-   </TabItem>
    </Tabs>
 
 3. ### Configure the app resource
 
-   Choose Cargo or Bacon, pass command arguments, add health checks, and learn about publishing in the [Rust AppHost reference](/integrations/frameworks/rust/rust-host/).
+   Configure Cargo options separately from application arguments, add health checks, and learn about debugging and publishing in the [Rust AppHost reference](/integrations/frameworks/rust/rust-host/).
 
    <LinkButton
      variant="secondary"
@@ -111,6 +112,8 @@ architecture-beta
 </Steps>
 
 ## See also
+
+If you use the Community Toolkit package, follow [Migrate from the Community Toolkit](/integrations/frameworks/rust/rust-host/#migrate-from-the-community-toolkit). Bacon support remains Toolkit-only.
 
 - [Rust documentation](https://www.rust-lang.org/learn)
 - [Cargo documentation](https://doc.rust-lang.org/cargo/)

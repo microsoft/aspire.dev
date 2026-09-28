@@ -371,6 +371,20 @@ The callback receives an `HttpsCertificateConfigurationCallbackAnnotationContext
 - `ExecutionContext`: The current execution context
 - `Resource`: The resource being configured
 
+<Aside type="note">
+  For .NET project resources with a TLS-enabled endpoint, `WithProjectDefaults`
+  maps the available HTTPS certificate to Kestrel's default PFX certificate
+  environment variables (`Kestrel__Certificates__Default__Path` and
+  `Kestrel__Certificates__Default__Password`). If an earlier
+  `WithHttpsCertificateConfiguration` callback already set
+  `Kestrel__Certificates__Default__Path`, `Kestrel__Certificates__Default__KeyPath`,
+  or `Kestrel__Certificates__Default__Subject` (matched case-insensitively), the
+  default PFX mapping is skipped entirely and the existing certificate
+  configuration — including any password — is left untouched. This prevents
+  Aspire from mixing an explicit PEM certificate/key pair with a replaced PFX
+  path, which Kestrel can't load.
+</Aside>
+
 ## Certificate trust configuration
 
 Certificate trust configuration determines which certificates a resource trusts when making outbound HTTPS connections. This is client-side certificate configuration.

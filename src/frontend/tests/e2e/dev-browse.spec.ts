@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('card title underlines animate from the left for hover and keyboard focus', async ({ page }) => {
-  await page.goto('/hub/browse/?provider=aws');
+  await page.goto('/hub/browse/?q=aws');
   const link = results(page).first().locator('a');
   const title = link.locator('[data-link-underline]');
   const underline = () => title.evaluate((element) => {
@@ -39,7 +39,7 @@ test('card title underlines animate from the left for hover and keyboard focus',
 });
 
 test('AWS artwork switches to a legible logo for each theme', async ({ page }) => {
-  await page.goto('/hub/browse/?provider=aws');
+  await page.goto('/hub/browse/?q=aws');
   const card = results(page).filter({ has: page.getByRole('heading', { name: 'AWS integrations overview', exact: true }) });
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
@@ -383,7 +383,7 @@ test('empty results preserve useful filters and unknown URL state is normalized'
   await expect(page).not.toHaveURL(/unknown|999999999/);
 });
 
-test('provider, multi-type filters and sorting reflect their URL state', async ({ page }) => {
+test('multi-type filters and sorting reflect their URL state', async ({ page }) => {
   await page.goto('/hub/browse/?type=video&type=blog');
   const types = await results(page).evaluateAll((cards) => cards.map((card) => card.getAttribute('data-resource-type')));
   expect(types.every((type) => type === 'video' || type === 'blog')).toBe(true);
@@ -392,19 +392,25 @@ test('provider, multi-type filters and sorting reflect their URL state', async (
   const dates = await results(page).locator('time').evaluateAll((times) => times.map((time) => time.getAttribute('datetime')!.slice(0, 10)));
   expect(dates.length).toBeGreaterThan(0);
   expect(dates).toEqual([...dates].sort().reverse());
-  for (const name of ['provider']) {
-    await page.goto('/hub/browse/');
-    await openFacet(page, name);
-    const option = page.locator(`.browse-filters input[name="${name}"]`).nth(1);
-    const value = await option.getAttribute('value');
-    expect(value).toBeTruthy();
-    await option.check();
-    await expect.poll(() => new URL(page.url()).searchParams.get(name)).toBe(value);
-    expect(await results(page).count()).toBeGreaterThan(0);
-    const entries = await results(page).evaluateAll((cards) =>
-      cards.map((card) => JSON.parse(card.getAttribute('data-resource-entry')!) as Record<string, string[]>));
-    expect(entries.every((entry) => entry[name].includes(value!))).toBe(true);
-  }
+});
+
+test('legacy provider links do not leave an invisible filter active', async ({ page }) => {
+  await page.goto('/hub/browse/?type=sample&sort=oldest');
+  await expect(page.locator('resource-browser')).toHaveAttribute('data-ready', '');
+  const initialResults = await results(page).locator('h3').allTextContents();
+  const initialSummary = await page.locator('[data-results-summary]').textContent();
+  await page.goto('/hub/browse/?keep=1&type=sample&provider=aws&provider=azure&sort=oldest');
+  await expect(page).toHaveURL(/\?keep=1&type=sample&sort=oldest$/);
+  await expect(page.locator('[data-filter-group="provider"], input[name="provider"]')).toHaveCount(0);
+  await expect(results(page).locator('h3')).toHaveText(initialResults);
+  await expect(page.locator('[data-results-summary]')).toHaveText(initialSummary!);
+  await page.reload();
+  await expect(results(page).locator('h3')).toHaveText(initialResults);
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await expect(page).toHaveURL(/\?keep=1&sort=oldest$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\?keep=1&type=sample&sort=oldest$/);
+  await expect(results(page).locator('h3')).toHaveText(initialResults);
 });
 
 test('multiple languages combine with other filters and survive reload, history, and clearing', async ({ page }) => {
@@ -468,7 +474,7 @@ for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/hub/browse/');
     await expect(page.locator('.dev-breadcrumbs .breadcrumb')).toHaveCount(1);
-    const hubMark = await page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true }).locator('svg').innerHTML();
+    const hubMark = await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML();
     await expect(page.locator('.dev-breadcrumbs a[href="/hub/"] svg')).toHaveCount(2);
     for (const mark of await page.locator('.dev-breadcrumbs a[href="/hub/"] svg').all()) {
       await expect(mark).toHaveAttribute('aria-hidden', 'true');
@@ -477,7 +483,7 @@ for (const width of [390, 768, 1440]) {
     await expect(page.locator('.browse-trail')).toHaveCount(0);
     if (width === 390) {
       await page.locator('.bc-collapse > summary').click();
-      await expect(page.locator('.bc-dropdown').getByRole('link', { name: 'Dev Hub' })).toBeVisible();
+      await expect(page.locator('.bc-dropdown').getByRole('link', { name: 'Aspire resources' })).toBeVisible();
     }
     for (const type of ['guide', 'integration', 'video', 'sample', 'glossary', 'blog']) {
       await page.goto(`/hub/browse/?type=${type}`);
@@ -531,7 +537,7 @@ test('top filters support keyboard dismissal and stay within the viewport', asyn
   });
   expect(inset).toBeGreaterThanOrEqual(16);
   expect(search!.x - controlsBox.x).toBeCloseTo(inset, 0);
-  for (const name of ['type', 'topic', 'language', 'provider', 'sort']) {
+  for (const name of ['type', 'topic', 'language', 'sort']) {
     const group = page.locator(`[data-filter-group="${name}"]`);
     await group.locator('summary').focus();
     await group.locator('summary').press('Enter');
@@ -621,7 +627,7 @@ test('every dropdown shows responsive options without a separate search input', 
   const initialUrl = page.url();
   const initialResults = await results(page).locator('h3').allTextContents();
   const mobile = page.viewportSize()!.width < 600;
-  for (const name of ['type', 'topic', 'language', 'provider', 'sort']) {
+  for (const name of ['type', 'topic', 'language', 'sort']) {
     const group = page.locator(`[data-filter-group="${name}"]`);
     await expect(group).toHaveCSS('user-select', 'none');
     // A second pointer click would hit the newly opened mobile overlay.
@@ -677,8 +683,8 @@ test('filter changes preserve control and result positions', async ({ page }) =>
   await page.getByRole('checkbox', { name: 'Glossary', exact: true }).uncheck();
   expect(await measure()).toEqual(before);
   await page.keyboard.press('Escape');
-  await openFacet(page, 'provider');
-  await page.getByRole('radio', { name: 'Azure', exact: true }).check();
+  await openFacet(page, 'language');
+  await page.getByRole('checkbox', { name: 'TypeScript', exact: true }).check();
   expect(await measure()).toEqual(before);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
@@ -702,27 +708,21 @@ test('type options use available height without unnecessary scrolling', async ({
   expect(panel!.y + panel!.height).toBeLessThanOrEqual(700);
 });
 
-test('filtered selections persist, including single-select history and clearing', async ({ page }) => {
+test('filtered selections persist alongside sort history and clearing', async ({ page }) => {
   await page.goto('/hub/browse/?language=csharp');
   await openFacet(page, 'language');
   const group = page.locator('[data-filter-group="language"]');
   await group.getByRole('checkbox', { name: 'TypeScript', exact: true }).check();
   await expect.poll(() => new URL(page.url()).searchParams.getAll('language')).toEqual(['csharp', 'typescript']);
-  await openFacet(page, 'provider');
-  const provider = page.locator('[data-filter-group="provider"]');
-  await provider.getByRole('radio', { name: 'Azure', exact: true }).check();
-  await expect(provider).not.toHaveAttribute('open');
-  await expect(provider.locator('summary')).toBeFocused();
-  await expect(provider.locator('summary')).toHaveText('Azure');
   await openFacet(page, 'sort');
   await page.getByRole('radio', { name: 'Oldest first', exact: true }).check();
   await expect(page).toHaveURL(/sort=oldest/);
   await page.goBack();
   await expect(page.locator('[data-filter-group="sort"] summary')).toHaveAccessibleName('Sort by: Date Newest first, then Title A-Z');
   await page.reload();
-  await expect(provider.locator('summary')).toHaveText('Azure');
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('language')).toEqual(['csharp', 'typescript']);
   await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
-  await expect(provider.locator('summary')).toHaveText('Provider');
+  await expect(page.locator('.browse-filters input:checked[type="checkbox"]')).toHaveCount(0);
   await expect(page).toHaveURL(/\/hub\/browse\/$/);
 });
 
@@ -821,7 +821,7 @@ test('history returns focus from hidden pagination and closed filter options wit
   await expect(group.locator('summary')).toBeFocused();
 
   await page.goForward();
-  const hub = page.getByRole('banner').getByRole('link', { name: 'Dev Hub', exact: true });
+  const hub = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
   await hub.focus();
   await page.goBack();
   await expect(hub).toBeFocused();

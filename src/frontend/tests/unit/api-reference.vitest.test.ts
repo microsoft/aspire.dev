@@ -1284,7 +1284,8 @@ describe('API reference authoring validator', () => {
         path: '/reference/api/csharp/aspire.hosting/resourcebuilderextensions/methods/#withenvironment-iresourcebuilder-t-string-string',
       },
       typescript: {
-        label: 'withEnvironment(name: string, value: IExpressionValue)',
+        label:
+          'withEnvironment(name: string, value: string | ReferenceExpression | EndpointReference | ParameterResource | ExternalServiceResource | IResourceWithConnectionString | IExpressionValue)',
         path: '/reference/api/typescript/aspire.hosting/withenvironment/',
       },
       diagnostics: [],

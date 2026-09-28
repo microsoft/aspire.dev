@@ -304,12 +304,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/customize-resources',
             },
             {
+              label: 'Bicep helpers',
+              slug: 'integrations/cloud/azure/bicep-helpers',
+            },
+            {
               label: 'Local Azure provisioning',
               slug: 'integrations/cloud/azure/local-provisioning',
             },
             {
               label: 'Configure Azure Container Apps',
               slug: 'integrations/cloud/azure/configure-container-apps',
+            },
+            {
+              label: 'Azure Connector Namespace',
+              slug: 'integrations/cloud/azure/azure-connector-namespace',
             },
             {
               label: 'Default Azure credential',

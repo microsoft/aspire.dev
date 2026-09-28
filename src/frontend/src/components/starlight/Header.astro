@@ -1,7 +1,7 @@
 ---
 import SiteTitle from '@astrojs/starlight/components/SiteTitle.astro';
 import Search from 'virtual:starlight/components/Search';
-import { Icon } from '@astrojs/starlight/components';
+import { Badge, Icon } from '@astrojs/starlight/components';
 import InstallCliModal from '@components/InstallCliModal.astro';
 import LivePip from '@components/LivePip.astro';
 import CookiesSvg from '@assets/icons/cookies.svg';
@@ -9,21 +9,30 @@ import LiveSvg from '@assets/icons/live.svg';
 import SiteNavHelpSvg from '@assets/icons/site-nav-help.svg';
 import DevHubSvg from '@assets/icons/dev-hub.svg';
 import { addLocaleToPath } from '@utils/locale-routes';
+import { devTitle } from '@data/dev-hub';
 
 const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
+const environmentBadge = (
+  import.meta.env.PUBLIC_ENVIRONMENT_BADGE ?? (import.meta.env.DEV ? 'localhost' : '')
+).trim();
 const t = Astro.locals.t;
 const locale = Astro.locals.starlightRoute?.locale;
 const docsUrl = addLocaleToPath('/docs/', locale);
 const tryAspireUrl = addLocaleToPath('/get-started/first-app/', locale);
 const docsLabel = t('header.docs' as any);
-const devCenterLabel = 'Dev Hub';
+const devCenterLabel = devTitle;
 const tryAspireLabel = t('home.hero.tryAspire' as any);
 const tryLabel = t('header.try' as any);
 ---
 
 <div class="header">
-  <div class="title-wrapper sl-flex">
+  <div class:list={['title-wrapper sl-flex', { 'has-environment-badge': environmentBadge }]}>
     <SiteTitle />
+    {
+      environmentBadge && (
+        <Badge text={environmentBadge} title={environmentBadge} variant="tip" size="small" />
+      )
+    }
   </div>
   <div class="sl-flex print:hidden" data-tour-target="search" data-tour-step="search">
     <Search />
@@ -165,6 +174,20 @@ const tryLabel = t('header.try' as any);
       padding: 0.25rem;
       margin: -0.25rem;
       min-width: 0;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .title-wrapper :global(.sl-badge) {
+      min-width: 0;
+      max-width: 12rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .has-environment-badge :global(.site-title) {
+      flex-shrink: 0;
     }
 
     .right-group,
@@ -470,6 +493,18 @@ const tryLabel = t('header.try' as any);
 
       .title-wrapper {
         flex: 1 1 auto;
+      }
+
+      .has-environment-badge {
+        gap: 0.25rem;
+      }
+
+      .has-environment-badge :global(.site-title) {
+        font-size: 1rem;
+      }
+
+      .has-environment-badge :global(.site-title img) {
+        height: 1.5rem;
       }
 
       .header > [data-tour-target='search'] {

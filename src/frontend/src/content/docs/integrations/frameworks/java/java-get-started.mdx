@@ -4,16 +4,10 @@ category: quickstart
 description: Run Java applications with Aspire, model executable and container resources, and configure Maven or Gradle development workflows.
 ---
 
-import {
-  Badge,
-  LinkButton,
-  TabItem,
-  Tabs,
-} from '@astrojs/starlight/components';
+import { LinkButton, TabItem, Tabs } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import javaIcon from '@assets/icons/java-icon.png';
-
-<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
 <Image
   src={javaIcon}
@@ -25,13 +19,17 @@ import javaIcon from '@assets/icons/java-icon.png';
   data-zoom-off
 />
 
-The [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) Java hosting integration adds Java executable and container applications to your [AppHost](/get-started/app-host/). It supports Maven and Gradle wrapper workflows, running an existing JAR, and container images.
+The first-party `Aspire.Hosting.Java` integration adds Java applications to your [AppHost](/get-started/app-host/). It supports Spring Boot, Quarkus, Maven and Gradle wrappers, existing JARs, and prebuilt container images.
+
+:::note[New in Aspire 13.6]
+This package replaces `CommunityToolkit.Aspire.Hosting.Java` for Aspire 13.6 and later. If you use the Toolkit package, follow the [migration guidance](/integrations/frameworks/java/java-host/#migrate-from-community-toolkit) before changing the package reference.
+:::
 
 ## How the integration works
 
-The integration is a hosting integration: install it in the AppHost, create a Java app resource, and apply a launch mode. An executable resource runs the local Java command, Maven wrapper, or Gradle wrapper from the configured project directory. A container resource runs an image. Both resource types can have endpoints, environment variables, health checks, and references configured through the AppHost.
+Install the integration in the AppHost, then describe how each Java application runs. `AddSpringBootApp` / `addSpringBootApp` and `AddQuarkusApp` / `addQuarkusApp` detect Maven or Gradle and configure the framework's launch mode and listening-port environment variable. Use `AddJavaApp` / `addJavaApp` for other Java applications or `AddJavaContainer` / `addJavaContainer` for an image built elsewhere.
 
-Build helpers create setup resources that the executable application waits for during local development. JVM arguments and optional OpenTelemetry Java-agent configuration are supplied through `JAVA_TOOL_OPTIONS`.
+Aspire configures telemetry export, certificate trust, service discovery, and VS Code debugging. For publishing, it uses your application's Dockerfile or generates a multi-stage Dockerfile. JVM options and optional Java-agent attachment use `JAVA_TOOL_OPTIONS`.
 
 ## Prerequisites
 
@@ -40,25 +38,17 @@ Build helpers create setup resources that the executable application waits for d
 - Install the [Aspire CLI](/get-started/install-cli/) and meet the [Aspire prerequisites](/get-started/prerequisites/).
 - Download the [OpenTelemetry Java agent](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases) if you plan to configure an agent path.
 
+The JDK must match your Java application's requirements. Hosting a Java service from a C# or TypeScript AppHost doesn't require JDK 25; writing the AppHost itself in Java is a separate scenario that requires JDK 25 or later.
+
 ## Add a Java app
 
-Add `CommunityToolkit.Aspire.Hosting.Java` to the AppHost, then configure an executable Java application. This short example runs a Spring Boot application through its Maven wrapper:
+Install the package in your AppHost:
+
+<InstallPackage packageName="Aspire.Hosting.Java" />
+
+The following example assumes an existing Spring Boot project in `../java-api`, relative to your AppHost. Include its `pom.xml` or Gradle build file and the corresponding wrapper in that directory.
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var api = builder.AddJavaApp("java-api", "../java-api")
-    .WithMavenGoal("spring-boot:run")
-    .WithHttpEndpoint(targetPort: 8080, env: "SERVER_PORT")
-    .WithHttpHealthCheck("/health");
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
@@ -66,17 +56,32 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const api = await builder
-  .addJavaApp('java-api', '../java-api')
-  .withMavenGoal('spring-boot:run', [])
-  .withHttpEndpoint({ targetPort: 8080, env: 'SERVER_PORT' })
-  .withHttpHealthCheck({ path: '/health' });
+const api = await builder.addSpringBootApp('java-api', '../java-api');
 
 await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddSpringBootApp("java-api", "../java-api");
+
+builder.Build().Run();
+```
+
+</TabItem>
 </Tabs>
+
+Run the AppHost:
+
+```bash title="Run the Java application with Aspire"
+aspire run
+```
+
+The Spring Boot helper configures `SERVER_PORT` and skips tests in its default build arguments. It doesn't add a health check: add one for `/actuator/health` only if your application includes Spring Boot Actuator. For a Quarkus application, use the [Quarkus helper](/integrations/frameworks/java/java-host/#spring-boot-and-quarkus) instead.
 
 <LinkButton
   variant="secondary"

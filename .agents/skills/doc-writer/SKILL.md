@@ -1095,6 +1095,23 @@ The aspire.dev site supports multiple languages. When creating new content:
 
 ### Version-Specific Information
 
+Use the shared build-time placeholders whenever current guidance needs to show
+the active Aspire release:
+
+| Placeholder | Use for |
+| ----------- | ------- |
+| `%ASPIRE_VERSION%` | Full current stable version, including patch |
+| `%ASPIRE_VERSION_MAJOR_MINOR%` | Current major/minor display or installer version |
+
+Use these placeholders in package references, `Aspire.AppHost.Sdk`
+declarations, file-based app directives, CLI/AppHost output, and generic
+installation examples that should advance with the release branch. This
+applies to localized documentation as well as English documentation.
+
+Keep a literal version when the exact version is part of the information being
+documented, such as a what's-new page, upgrade comparison, minimum-version
+requirement, compatibility note, historical package pin, or issue reproduction.
+
 ```mdx
 <Aside type="caution">This feature requires Aspire version 9.0 or later.</Aside>
 ```
