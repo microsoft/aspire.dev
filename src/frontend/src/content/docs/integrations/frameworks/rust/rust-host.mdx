@@ -197,6 +197,26 @@ The integration configures the Rust app with the OpenTelemetry Protocol exporter
 
 The dashboard exposes the standard executable-resource lifecycle actions and process logs. The integration doesn't add Rust-specific dashboard commands.
 
+## Debug Cargo apps on macOS with VS Code
+
+When you attach [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb) in VS Code to a Rust process started by Aspire, macOS developer mode must permit debugger attachment. This is a macOS developer tools access policy, not the Developer Mode setting for iOS devices.
+
+Check the macOS developer mode status:
+
+```bash title="Terminal"
+/usr/sbin/DevToolsSecurity -status
+```
+
+If the command reports `Developer mode is currently disabled`, enable it:
+
+```bash title="Terminal"
+sudo /usr/sbin/DevToolsSecurity -enable
+```
+
+macOS prompts for administrator authentication. You must authorize the change yourself. Run `/usr/sbin/DevToolsSecurity -status` again to confirm that developer mode is enabled.
+
+Start your AppHost with `aspire run`, then attach CodeLLDB to the Rust process in VS Code. Enabling macOS developer mode addresses this specific attach prerequisite; it doesn't resolve every possible debugger attachment failure.
+
 ## Publish Rust apps
 
 Both Cargo and Bacon app resources are configured as Dockerfile-published resources when they are added. During `aspire publish`, Aspire converts the executable resource to a container resource and uses the Rust app's working directory as the Docker build context. Include a suitable `Dockerfile` there. The local Cargo or Bacon arguments are cleared for the containerized resource, so configure the Dockerfile with the command and arguments it needs.
