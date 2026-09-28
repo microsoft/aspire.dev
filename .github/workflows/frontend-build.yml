@@ -14,7 +14,7 @@ on:
         default: ""
         type: string
       profile_build:
-        description: Capture an opt-in Astro CPU profile in the diagnostic artifact
+        description: Capture opt-in CPU, timing, and output diagnostics
         required: false
         default: false
         type: boolean
@@ -92,15 +92,15 @@ jobs:
           ASTRO_TELEMETRY_DISABLED: 1
           # The complete provisioning API catalog exceeds Node's default 4 GiB heap.
           NODE_OPTIONS: --max-old-space-size=8192
-          BUILD_TIMING: "1"
+          BUILD_TIMING: ${{ inputs.profile_build && '1' || '0' }}
           BUILD_TIMING_OUT: ${{ runner.temp }}/frontend-performance/timing.jsonl
           BUILD_TIMING_LABEL: ${{ github.sha }}
           PROFILE_BUILD: ${{ inputs.profile_build }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/frontend-performance"
           if [[ "$PROFILE_BUILD" == "true" ]]; then
+            mkdir -p "$RUNNER_TEMP/frontend-performance"
             pnpm git-env
             pnpm compute-skill-digests
             /usr/bin/time -v node --cpu-prof \
@@ -108,11 +108,11 @@ jobs:
               ./node_modules/astro/bin/astro.mjs build --mode production \
               2>&1 | tee "$RUNNER_TEMP/frontend-performance/build.log"
           else
-            /usr/bin/time -v pnpm build:production \
-              2>&1 | tee "$RUNNER_TEMP/frontend-performance/build.log"
+            pnpm build:production
           fi
 
       - name: Measure frontend output
+        if: ${{ inputs.profile_build }}
         env:
           BUILD_METRICS_DIR: ${{ runner.temp }}/frontend-performance
           ASTRO_CACHE_HIT: ${{ steps.astro_cache.outputs.cache-hit }}
@@ -120,7 +120,7 @@ jobs:
         run: node scripts/measure-build-output.mjs
 
       - name: Upload build diagnostics
-        if: ${{ always() }}
+        if: ${{ always() && inputs.profile_build }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-performance

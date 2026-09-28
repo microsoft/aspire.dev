@@ -67,3 +67,15 @@ test('frontend workflow keeps validation parallel and every shard required', asy
   expect(job('build')).toContain('path: src/frontend/dist');
   expect(job('build')).toContain('./node_modules/astro/bin/astro.mjs build --mode production');
 });
+
+test('CPU, timing, output inventories and diagnostic uploads are opt-in only', async () => {
+  const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-build.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const caller = await readFile(new URL('../../../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  expect(workflow).toMatch(/profile_build:\n\s+description:.*\n\s+required: false\n\s+default: false/);
+  expect(caller).toContain("contains(github.event.pull_request.labels.*.name, 'build-profile')");
+  expect(workflow).toContain("BUILD_TIMING: ${{ inputs.profile_build && '1' || '0' }}");
+  expect(workflow).toMatch(/if \[\[ "\$PROFILE_BUILD" == "true" \]\]; then\n\s+mkdir -p/);
+  expect(workflow).toMatch(/else\n\s+pnpm build:production\n\s+fi/);
+  expect(workflow).toContain('name: Measure frontend output\n        if: ${{ inputs.profile_build }}');
+  expect(workflow).toContain('name: Upload build diagnostics\n        if: ${{ always() && inputs.profile_build }}');
+});
