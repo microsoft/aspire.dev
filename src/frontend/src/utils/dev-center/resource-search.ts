@@ -4,7 +4,7 @@ import { topics } from './topics';
 import { tagLabel } from '../sample-tags';
 
 export const RESOURCE_PAGE_SIZE = 24;
-export const facetNames = ['type', 'topic', 'language', 'provider'] as const;
+export const facetNames = ['type', 'topic', 'language'] as const;
 export type FacetName = (typeof facetNames)[number];
 export type ResourceFacets = Record<FacetName, string[]>;
 export type BrowseSort = 'newest' | 'oldest';
@@ -23,7 +23,6 @@ export interface ResourceSearchEntry {
   type: string;
   topic: string[];
   language: string[];
-  provider: string[];
   platform: string[];
   date: string;
 }
@@ -45,7 +44,6 @@ export function resourceSearchEntry(resource: DevResource): ResourceSearchEntry 
     type: resource.type,
     topic: resource.topics,
     language: resource.languages,
-    provider: resource.providers,
     platform: resource.platform ? [resource.platform] : [],
     date: resource.date?.slice(0, 10) ?? '',
   };
@@ -66,7 +64,6 @@ export function readBrowseState(params: URLSearchParams, available: ResourceFace
     type: [...new Set(params.getAll('type'))].filter((value) => available.type.includes(value)),
     topic: [...new Set(params.getAll('topic'))].filter((value) => available.topic.includes(value)),
     language: [...new Set(params.getAll('language'))].filter((value) => available.language.includes(value)),
-    provider: params.getAll('provider').filter((value) => available.provider.includes(value)).slice(0, 1),
     sort: sort === 'oldest' ? 'oldest' : 'newest',
     titleSort: params.get('title') === 'desc' || (!params.has('title') && sort === 'title-desc') ? 'desc' : 'asc',
     page: Number.isSafeInteger(page) && page > 0 ? page : 1,
@@ -75,7 +72,7 @@ export function readBrowseState(params: URLSearchParams, available: ResourceFace
 
 export function writeBrowseState(url: URL, state: BrowseState): URL {
   const next = new URL(url);
-  for (const key of ['q', 'sort', 'title', 'page', 'platform', ...facetNames]) next.searchParams.delete(key);
+  for (const key of ['q', 'sort', 'title', 'page', 'platform', 'provider', ...facetNames]) next.searchParams.delete(key);
   if (state.q.trim()) next.searchParams.set('q', state.q.trim());
   for (const name of facetNames) {
     for (const value of state[name]) next.searchParams.append(name, value);

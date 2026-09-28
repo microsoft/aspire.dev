@@ -111,6 +111,14 @@ describe('validateGeneratedApiData', () => {
     expect(validateGeneratedApiData(input).errors).toEqual([]);
   });
 
+  test('accepts the generated string-union and const-object enum representation', () => {
+    const input = createValidInput();
+    input.modules[0].data.enumTypes = [{ name: 'Sku', members: ['Standard'] }];
+    input.declarations +=
+      '\nexport type Sku = "Standard";\nexport declare const Sku: { readonly Standard: "Standard"; };';
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+  });
+
   test('requires TypeScript output for generated exports without public C# types', () => {
     const input = createValidInput();
     input.packages[0].data.package.hasGeneratedExports = true;

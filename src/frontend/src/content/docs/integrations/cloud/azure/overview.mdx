@@ -19,6 +19,55 @@ import azureIcon from '@assets/icons/azure-icon.png';
 
 Aspire provides a comprehensive set of integrations for Azure services that enable you to build cloud-native distributed applications. These integrations handle configuration, health checks, telemetry, and deployment for various Azure services. Use the AppHost APIs to model Azure resources alongside your application services—Aspire provisions them automatically during local development and generates Bicep templates for production deployments. Both C# and TypeScript AppHosts are supported, with consistent API conventions across all Azure integrations.
 
+## Connect your app to Azure Blob Storage
+
+From your AppHost directory, run `aspire add azure-storage`. This example connects an existing `Api` project to blob storage backed by the local Azurite emulator. You need a [container runtime](/get-started/prerequisites/), but not an Azure subscription, to run this example.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage('storage');
+await storage.runAsEmulator();
+const blobs = await storage.addBlobs('blobs');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(blobs);
+await api.waitFor(blobs);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var blobs = builder.AddAzureStorage("storage")
+    .RunAsEmulator()
+    .AddBlobs("blobs");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(blobs)
+    .WaitFor(blobs);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The resource reference supplies connection information to your API, and the startup dependency waits for blob storage to be ready. Your app still uses a Blob Storage client to read and write data—you don't need to copy emulator endpoints or connection strings into its configuration. The emulator is only for local runs; publishing models an Azure Storage account.
+
+- [Connect to Azure Blob Storage](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-connect/) to add the consuming client.
+- [Configure the hosting integration](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-host/) for blob containers, persistent emulator data, and existing accounts.
+- [Deploy to Azure Container Apps](/deployment/azure/container-apps/) when you're ready to deploy your application and Azure resources.
+
 ## Why use Azure with Aspire?
 
 - **Unified app model**: Define Azure services and application code side-by-side in a single AppHost project.

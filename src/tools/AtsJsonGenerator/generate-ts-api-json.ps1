@@ -435,11 +435,35 @@ function Get-CSharpHostingPackageMetadata {
                         SourceRepository = if ($sourceRepository) { [string]$sourceRepository.Value } else { $null }
                         SourceCommit     = if ($sourceCommit) { [string]$sourceCommit.Value } else { $null }
                         HasGeneratedExports = $generatedExports -and [bool]$generatedExports.Value
+                        RequiresDotnetScanContext = Test-RequiresDotnetScanContext -PackageJson $json
                         Path             = $_.FullName
                     }
                 }
             }
     )
+}
+
+function Test-RequiresDotnetScanContext {
+    param([psobject]$PackageJson)
+
+    if ($PackageJson.package.name -ne "Aspire.Hosting.Radius") { return $false }
+    foreach ($type in $PackageJson.types) {
+        $members = $type.PSObject.Properties["members"]
+        if (-not $members) { continue }
+        foreach ($member in @($members.Value)) {
+            $attributes = $member.PSObject.Properties["attributes"]
+            $parameters = $member.PSObject.Properties["genericParameters"]
+            if (-not $attributes -or -not $parameters) { continue }
+            if (-not @($attributes.Value | Where-Object { $_.name -match '(^|\.)AspireExportAttribute$' }).Count) { continue }
+            foreach ($parameter in $parameters.Value) {
+                $constraints = $parameter.PSObject.Properties["constraints"]
+                if ($constraints -and $constraints.Value -contains "Aspire.Hosting.ApplicationModel.IDotnetProgramResource") {
+                    return $true
+                }
+            }
+        }
+    }
+    return $false
 }
 
 function Get-PackageSourceRepository {
@@ -655,7 +679,27 @@ if ($NuGetPackageVersion -and $NuGetPackageVersion.Count -gt 0) {
             SourceRepository = $packageMetadata.SourceRepository
             SourceCommit = $packageMetadata.SourceCommit
             HasGeneratedExports = $packageMetadata.HasGeneratedExports
+            RequiresDotnetScanContext = $packageMetadata.RequiresDotnetScanContext
         }
+    }
+}
+
+# Radius's interface export needs the independent .NET project receiver in scope;
+# core ProjectResource receivers alone are shadowed by its concrete overload.
+foreach ($pkg in $Packages | Where-Object { $_.Name -eq "Aspire.Hosting.Radius" }) {
+    if ($AspireRepoPath) {
+        $contextProject = Join-Path $AspireRepoPath "src\Aspire.Hosting.Dotnet\Aspire.Hosting.Dotnet.csproj"
+        if (Test-Path $contextProject) {
+            $pkg.ScanContext = @{ Name = "Aspire.Hosting.Dotnet"; Version = $null; DumpArgs = @($contextProject) }
+        }
+    }
+    elseif ($pkg.RequiresDotnetScanContext) {
+        $contextMetadata = @($generatedPackageMetadata | Where-Object { $_.Name -eq "Aspire.Hosting.Dotnet" })
+        if ($contextMetadata.Count -ne 1) {
+            throw "Radius's .NET program exports require exactly one generated Aspire.Hosting.Dotnet package version as supporting scan context."
+        }
+        $context = $contextMetadata[0]
+        $pkg.ScanContext = @{ Name = $context.Name; Version = $context.Version; DumpArgs = @("$($context.Name)@$($context.Version)") }
     }
 }
 
@@ -824,8 +868,26 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
     # Step 1: Run aspire sdk dump --format json
     Write-Host "  Dumping ATS capabilities..."
     try {
+        $contextOutputFile = $null
         $dumpArgs = @("sdk", "dump", "--format", "json", "--non-interactive", "--nologo", "-o", $dumpFile)
         $dumpArgs += $pkg.DumpArgs
+        if ($pkg.ContainsKey("ScanContext")) {
+            $context = $pkg.ScanContext
+            $contextFileName = if ($context.Version) { "$($context.Name).$($context.Version).json" } else { "$($context.Name).json" }
+            $contextOutputFile = @(
+                (Join-Path $OutputDir $contextFileName),
+                (Join-Path $FinalOutputDir $contextFileName)
+            ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+            if (-not $contextOutputFile) {
+                throw "Generate $contextFileName before Radius so supporting APIs can be excluded from Radius's output."
+            }
+            $contextModel = Get-Content $contextOutputFile -Raw | ConvertFrom-Json
+            if ($contextModel.package.name -ne $context.Name -or ($context.Version -and $contextModel.package.version -ne $context.Version)) {
+                throw "Supporting API metadata does not match the exact scan context: $contextOutputFile"
+            }
+            $dumpArgs += $context.DumpArgs
+            Write-Host "  Supporting scan context: $($context.DumpArgs -join ', ')" -ForegroundColor DarkGray
+        }
 
         $workDir = if ($AspireRepoPath) { $AspireRepoPath } elseif ($aspireCliWorkingDirectory) { $aspireCliWorkingDirectory } else { $PWD.Path }
         $proc = Invoke-AspireCli -Arguments $dumpArgs -WorkingDirectory $workDir `
@@ -893,6 +955,9 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
         # Dedup against core if available
         if ($coreOutputFile) {
             $transformArgs += @("--base", $coreOutputFile)
+        }
+        if ($contextOutputFile) {
+            $transformArgs += @("--base", $contextOutputFile)
         }
 
         & dotnet @transformArgs 2>&1 | ForEach-Object {

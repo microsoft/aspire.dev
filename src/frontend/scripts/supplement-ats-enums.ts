@@ -43,7 +43,7 @@ interface CanonicalItem {
 
 export function readEnumDeclarations(source: string): { name: string; members: string[] }[] {
   const file = ts.createSourceFile('sdk.mts', source, ts.ScriptTarget.Latest, true);
-  return file.statements.filter(ts.isEnumDeclaration).map((declaration) => ({
+  const enums = file.statements.filter(ts.isEnumDeclaration).map((declaration) => ({
     name: declaration.name.text,
     members: declaration.members.map((member) => {
       if (!ts.isIdentifier(member.name) && !ts.isStringLiteral(member.name)) {
@@ -59,6 +59,37 @@ export function readEnumDeclarations(source: string): { name: string; members: s
       return member.name.text;
     }),
   }));
+  for (const statement of file.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (
+        !ts.isIdentifier(declaration.name) ||
+        !declaration.type ||
+        !ts.isTypeLiteralNode(declaration.type) ||
+        declaration.type.members.length === 0
+      ) {
+        continue;
+      }
+      const members: string[] = [];
+      for (const member of declaration.type.members) {
+        if (
+          !ts.isPropertySignature(member) ||
+          (!ts.isIdentifier(member.name) && !ts.isStringLiteral(member.name)) ||
+          !member.type ||
+          !ts.isLiteralTypeNode(member.type) ||
+          !ts.isStringLiteral(member.type.literal) ||
+          member.type.literal.text !== member.name.text
+        ) {
+          break;
+        }
+        members.push(member.name.text);
+      }
+      if (members.length === declaration.type.members.length) {
+        enums.push({ name: declaration.name.text, members });
+      }
+    }
+  }
+  return enums;
 }
 
 export function supplementAtsEnums(dump: AtsDump, reference: CanonicalExport): AtsDump {

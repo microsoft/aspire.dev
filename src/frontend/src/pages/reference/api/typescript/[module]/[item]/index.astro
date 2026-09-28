@@ -7,10 +7,10 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
-import { tsModuleSlug, getTsModules, simplifyType, formatTsSignature } from '@utils/ts-modules';
+import { tsModuleSlug, getTsModules, simplifyType, formatTsSignature, type TsFunction } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
 import { getTsFunctionDisplayLabel, isTsExtensionStyleFunction } from '@utils/ts-api-function-kind';
-import { getTsItemSlug, getTsMemberAnchor, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import { getTsItemSlug, getTsMemberAnchor, getTsMethods, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems, getTsTypeByName } from '@utils/ts-api-routes';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import TsMemberCard from '@components/api-reference/TsMemberCard.astro';
@@ -69,21 +69,15 @@ export async function getStaticPaths() {
 
 const { pkg, item, itemKind } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const tsSidebar = await getTsApiReferenceSidebar({ packageName: pkg.package.name });
 const pkgSlug = tsModuleSlug(pkg.package.name);
 const topLevelItems = getTsTopLevelRouteItems(pkg);
-const typeItems = [
-  ...(pkg.handleTypes ?? []),
-  ...(pkg.dtoTypes ?? []),
-  ...(pkg.enumTypes ?? []),
-];
 const currentItemSlug = Astro.params.item ?? getTsItemSlug(item, topLevelItems);
 
 /* ── Handle type: group capabilities into properties & methods ── */
 const capabilities = item.capabilities ?? [];
 const getters = capabilities.filter((c: any) => c.kind === 'PropertyGetter');
 const setters = capabilities.filter((c: any) => c.kind === 'PropertySetter');
-const methods = capabilities.filter((c: any) => c.kind === 'Method' || c.kind === 'InstanceMethod');
+const methods = getTsMethods<TsFunction>(item, true);
 
 /* ── Kind labels and CSS ─────────────────────────────────────── */
 
@@ -125,7 +119,7 @@ if (itemKind === 'handle') {
   }
 
   // Methods — fully expanded with parameter signatures
-  for (const m of methods.sort((a: any, b: any) => a.name.localeCompare(b.name))) {
+  for (const m of methods) {
     const rawSig = `${m.name}(${(m.parameters ?? []).map((p: any) => {
       const opt = p.isOptional ? '?' : '';
       const type = p.isCallback && p.callbackSignature ? p.callbackSignature : p.type;
@@ -210,6 +204,11 @@ if (itemKind === 'handle') {
   headings.push({ depth: 2, slug: 'signature', text: 'Signature' });
   if ((item.expandedTargetTypes ?? []).length > 0) headings.push({ depth: 2, slug: 'applies-to', text: 'Applies to' });
 }
+const tsSidebar = await getTsApiReferenceSidebar({
+  packageName: pkg.package.name,
+  item: { name: item.name, slug: currentItemSlug },
+  headings,
+});
 ---
 
 <StarlightPage
@@ -325,7 +324,7 @@ if (itemKind === 'handle') {
           <section>
             <h2 id="methods">Methods</h2>
                <div class="api-list ts-member-stack">
-              {methods.sort((a: any, b: any) => a.name.localeCompare(b.name)).map((m: any) => (
+              {methods.map((m: any) => (
                 <div id={getTsMethodSlug(m, methods, item.name)}>
                   <TsMemberCard
                     member={m}
@@ -405,7 +404,7 @@ if (itemKind === 'handle') {
             <div class="api-list not-content">
               {item.expandedTargetTypes.map((t: string) => {
                 const simpleName = simplifyType(t);
-                const targetType = typeItems.find((candidate: any) => candidate.name === simpleName);
+                const targetType = getTsTypeByName(pkg, simpleName);
                 const typeSlug = targetType ? getTsItemSlug(targetType, topLevelItems) : simpleName.toLowerCase();
                 return (
                   <a href={`${base}/reference/api/typescript/${pkgSlug}/${typeSlug}/`} class="api-list-item">

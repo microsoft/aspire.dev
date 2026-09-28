@@ -235,12 +235,26 @@ pnpm --filter ./src/frontend run update:ts-api
 
 The companion `generate-ts-api-json.ps1` script reads the generated C# package JSON files in `src/frontend/src/data/pkgs/`, selects `Aspire.Hosting`, `Aspire.Hosting.*`, and `CommunityToolkit.Aspire.Hosting.*` packages, and passes each package/version through to `aspire sdk dump`. This keeps `src/frontend/src/data/ts-modules/` aligned with the same package set and versions that already flowed through C# API generation.
 
+Radius versions exporting the generic `IDotnetProgramResource` overload are
+scanned with `Aspire.Hosting.Dotnet` as supporting context. Its exact version
+comes from the generated C# metadata, so the scanner can retain the export on
+`DotnetProjectResource` while the concrete overload serves legacy project
+resources. Generate the Dotnet module first when regenerating Radius selectively.
+The transformer excludes core and supporting APIs using their generated modules;
+it preserves Radius's real capability IDs and expanded receiver targets.
+A scanner collision that removes the generic export must be fixed upstream,
+not hidden by changing the C# metadata or weakening API-reference validation.
+
 For generated-export overlays, the script also obtains the matching
 `aspire sdk export --language typescript` document. Referenced SDK enum definitions
 missing from the raw dump are taken from that canonical export, with package identity
 and unambiguous ownership checks. Union members are preserved during transformation;
 missing or unsupported enum definitions fail generation rather than becoming empty
 interface stubs. Semantic validation checks enum members in the final Twoslash bundle.
+The bundle represents enums as string unions with companion constant objects.
+When independent packages export the same enum short name, the shared bundle
+combines their literals; each package's API JSON retains its exact enum surface.
+Use the package-specific SDK to validate behavior that depends on those differences.
 The generator rejects nonzero SDK dump exits and error diagnostics even when a JSON
 file was produced. An incomplete dump isn't a successful API-generation result.
 

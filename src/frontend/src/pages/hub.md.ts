@@ -1,20 +1,22 @@
 import type { APIRoute } from 'astro';
 import { devTitle, devDescription, topicLinks, resources, languages, cloudLinks, featuredSamples, referenceLinks, dashboardLinks, videos, blogHighlights } from '../data/dev-hub';
+import { tagLabel } from '@utils/sample-tags';
 
 export const GET: APIRoute = () => new Response([
   `# ${devTitle}`,
   devDescription,
-  '[Browse all resources](https://aspire.dev/hub/browse/): Search and filter by resource type, topic, language, or provider.',
+  '[Browse all resources](https://aspire.dev/hub/browse/): Search and filter by resource type, topic, and language.',
   '## New to Aspire?',
   ...resources.map((resource) => `- [${resource.title}](https://aspire.dev${resource.href}) (${resource.format}): ${resource.description}`),
   '## Browse by topic',
   ...topicLinks.map((topic) => `- [${topic.title}](https://aspire.dev${topic.href}): ${topic.description}`),
   '## Start with your language',
   ...languages.map((language) => `- [${language.title}](https://aspire.dev${language.href}): ${language.description}`),
-  '## Browse by cloud',
+  '## Browse by cloud and deployment target',
   ...cloudLinks.map((cloud) => `- [${cloud.title}](${cloud.href.startsWith('/') ? 'https://aspire.dev' : ''}${cloud.href}): ${cloud.description}`),
   '## Samples to build on',
-  ...featuredSamples.map((sample) => `- [${sample.title}](https://aspire.dev${sample.href}): ${sample.description}`),
+  '[All samples](https://aspire.dev/hub/browse/?type=sample): Filter by language, including the sample services and AppHost.',
+  ...featuredSamples.map((sample) => `- [${sample.title}](https://aspire.dev${sample.href}) (${sample.languages.map(tagLabel).join(', ')}): ${sample.description}`),
   '## Reference',
   '[All reference docs](https://aspire.dev/reference/overview/)',
   ...referenceLinks.map((link) => `- [${link.title}](https://aspire.dev${link.href}): ${link.description}`),
