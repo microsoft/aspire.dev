@@ -48,7 +48,7 @@ This release introduces:
 - **Updated emulator images** — move Azure App Configuration to `1.2.0` and make the Linux-based vNext Cosmos DB emulator the default.
 - **Bug fixes** — improvements across orchestration, debugging, telemetry, and deployment.
 - **Community contributions** — contributions span major features, integration improvements, reliability fixes, and project tooling.
-- **Breaking changes** — review Cosmos DB emulator defaults, Front Door origin names, portable connection-string aliases, and the experimental terminal namespace move.
+- **Breaking changes** — review MongoDB automatic TLS, Cosmos DB emulator defaults, Front Door origin names, portable connection-string aliases, and the experimental terminal namespace move.
 - …and much more.
 
 ## 🆙 Upgrade to Aspire 13.6
@@ -58,7 +58,7 @@ This release introduces:
 
 <Aside type="caution">
   Review the [Breaking changes](#breaking-changes) before upgrading, especially
-  if you use the Cosmos DB emulator, Azure Front Door, custom connection-string
+  if you use MongoDB, the Cosmos DB emulator, Azure Front Door, custom connection-string
   consumers, or experimental terminal APIs.
 </Aside>
 
@@ -507,6 +507,7 @@ Existing integrations add new workflows and safer defaults:
 
 - **Deno hosting.** `Aspire.Hosting.JavaScript` adds `AddDenoApp` / `addDenoApp`, with task and serve modes, permission controls, and runtime flags. Deno must be installed for local execution. See [Deno hosting](/integrations/frameworks/deno/deno-host/).
 - **MongoDB replica sets.** Experimental `WithReplicaSet` / `withReplicaSet` configures and initializes a single-member replica set, enabling transactions and change streams after readiness. A separate `AddMongoDBReplicaSet` API supports multi-member local scenarios. Both paths are local-run-only and reject publishing; see [MongoDB replica sets](/integrations/databases/mongodb/mongodb-host/#enable-transactions-and-change-streams-with-a-single-member-replica-set).
+- **MongoDB automatic TLS.** Local MongoDB resources now use Aspire's shared certificate configuration, including standalone servers. Existing plaintext clients should review the [TLS migration guidance](#mongodb-now-uses-automatic-tls-during-local-runs).
 - **Microsoft Foundry Toolboxes.** `AddToolbox` / `addToolbox` bundles tools behind one MCP endpoint and manages immutable versions as tool configuration changes. MCP approval policies are discovery metadata that the consuming application must enforce. See the [Toolbox integration guide](https://github.com/microsoft/aspire/blob/a11eca9611073f7cf66fa87faac63c2119e87713/src/Aspire.Hosting.Foundry/README.md#toolbox-usage).
 - **Blazor WebAssembly debugging.** Standalone and hosted WebAssembly apps can expose dashboard commands for starting and stopping an Edge or Chrome debugging session. The related Dotnet project gateway APIs are also available to polyglot AppHosts, but remain experimental and run-only.
 - **Dev Tunnel discovery and expiration.** Tunnel, inspect, and local endpoint URLs appear as highlighted resource properties, and a **Show tunnel URLs** command surfaces them through the dashboard Interaction Service. `WithExpiration` / `withExpiration` also configures idle expiration for new or reused tunnels, in whole hours from one hour through 30 days.
@@ -556,6 +557,21 @@ Aspire is built in the open, and this release wouldn't be what it is without you
 ## ⚠️ Breaking changes
 
 <span id="breaking-changes"></span>
+
+#### MongoDB now uses automatic TLS during local runs
+
+Starting in Aspire 13.6, MongoDB server resources participate in shared certificate configuration. When a certificate is configured and available, normally the developer certificate under default settings, Aspire starts the server with `--tlsMode requireTLS` and adds `tls=true` to its generated connection string. This changes the previous plaintext default for **ordinary `AddMongoDB` resources**, even if you don't use replica sets.
+
+Use the complete generated connection string instead of constructing a URI from host and port. Clients must trust the server certificate and use a hostname it covers. A container client connecting by the MongoDB resource name can encounter a hostname mismatch with the developer certificate; trusting the certificate alone doesn't fix that.
+
+For an explicit local-development opt-out, use `WithoutHttpsCertificate()` / `withoutHttpsCertificate()` on a standalone server or the simple `WithReplicaSet()` / `withReplicaSet()` configuration. This disables transport encryption. Don't apply it to advanced `AddMongoDBReplicaSet(...).WithMember(...)` members, which require TLS/SNI for split-horizon discovery.
+
+`PreferTls` accepts plaintext and TLS clients but still advertises TLS in generated connection strings. The global `ASPIRE_DEVELOPER_CERTIFICATE_DEFAULT_HTTPS_TERMINATION=false` switch affects ambient defaults for other resources too; it doesn't disable explicit member certificates. These local-run defaults don't automatically configure certificates for published MongoDB containers.
+
+<LearnMore>
+  See [MongoDB automatic TLS and migration](/integrations/databases/mongodb/mongodb-host/#automatic-tls-and-migration-from-earlier-versions)
+  for C# and TypeScript examples, certificate arrangements, and the limits of each option.
+</LearnMore>
 
 #### Azure Cosmos DB now defaults to the Linux-based vNext emulator
 
