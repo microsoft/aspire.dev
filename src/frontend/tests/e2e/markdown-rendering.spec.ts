@@ -2,6 +2,40 @@ import { expect, test } from '@playwright/test';
 
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
+test('FileTree file and folder icons retain visible dimensions', async ({ page }) => {
+  await page.goto('/get-started/first-app/?aspire-lang=typescript');
+  await dismissCookieConsentIfVisible(page);
+
+  const tree = page.locator('starlight-file-tree:visible').filter({ hasText: 'index.ts' }).first();
+  await expect(tree).toBeVisible();
+  const fileIcons = tree.locator('.file:visible .tree-icon');
+  expect(await fileIcons.count()).toBeGreaterThan(10);
+
+  for (const theme of ['light', 'dark']) {
+    await page.locator('html').evaluate((html, value) => {
+      html.dataset.theme = value;
+    }, theme);
+
+    for (const icon of await fileIcons.all()) {
+      await expect(icon).toHaveCSS('display', 'inline-block');
+      await expect(icon).toHaveCSS('vertical-align', 'middle');
+      const bounds = await icon.boundingBox();
+      expect(bounds?.width).toBeGreaterThanOrEqual(12);
+      expect(bounds?.height).toBeGreaterThanOrEqual(12);
+      await expect(icon).not.toHaveCSS('background-image', 'none');
+    }
+  }
+
+  const sourceFolder = tree.locator('summary').filter({ hasText: 'src/' }).first();
+  await expect(sourceFolder.locator('.icon-open')).toBeVisible();
+  await expect(sourceFolder.locator('.icon-closed')).toBeHidden();
+  await sourceFolder.click();
+  await expect(sourceFolder.locator('.icon-closed')).toBeVisible();
+  await expect(sourceFolder.locator('.icon-open')).toBeHidden();
+  await sourceFolder.click();
+  await expect(sourceFolder.locator('.icon-open')).toBeVisible();
+});
+
 test('contributor guide renders common Markdown as semantic HTML', async ({ page }) => {
   await page.goto('/community/contributor-guide/#write-markdown');
   await dismissCookieConsentIfVisible(page);

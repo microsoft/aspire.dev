@@ -7,6 +7,7 @@ next: false
 import { Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import { Kbd } from 'starlight-kbd/components';
+import ApiReference from '@components/ApiReference.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 Add Aspire to the app you already have instead of rebuilding your solution around a new template. The fastest path is `aspire init` paired with an AI coding agent that automatically discovers your services and wires them into an AppHost. If you prefer full control, manual steps are provided below.
@@ -64,7 +65,7 @@ The fastest way to add Aspire to an existing app is to let `aspire init` scaffol
 
    - Scan your repo and discover existing projects, services, containers, and infrastructure
    - Ask you to confirm the resources it found, which ones you want included, and other clarifying questions before starting
-   - Wire resources into the AppHost with `WithReference`, `WaitFor`, endpoints, and volumes
+   - Wire resources into the AppHost with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" />, <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" />, endpoints, and volumes
    - Add ServiceDefaults and configure OpenTelemetry for each service
    - Validate the setup by running `aspire start`
 
@@ -98,7 +99,7 @@ Aspire offers two C# AppHost styles:
 
 **File-based AppHost** — a single `apphost.cs` file that uses `#:sdk` and `#:package` directives. No `.csproj`, no solution integration required. Best for repos with [polyglot](/get-started/glossary/#polyglot) code or quick setups.
 
-**Project-based AppHost** — a traditional `AppHost.csproj` that lives inside a `.sln` alongside your other C# projects. Uses `ProjectReference` items and the generated `Projects` namespace for strongly-typed `AddProject<T>()` calls. Best when your repo is already a .NET solution and you want IDE-integrated orchestration.
+**Project-based AppHost** — a traditional `AppHost.csproj` that lives inside a `.sln` alongside your other C# projects. Uses `ProjectReference` items and the generated `Projects` namespace for strongly-typed <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> calls. Best when your repo is already a .NET solution and you want IDE-integrated orchestration.
 
 Both styles use the same `Aspire.AppHost.Sdk` and the same hosting APIs.
 
@@ -394,6 +395,8 @@ Use this approach when Aspire already has a first-class resource type for the wo
 
 Common examples include Node.js apps, Vite frontends, Python workers, and Uvicorn-based APIs.
 
+The following example registers a Python API with <ApiReference name="Aspire.Hosting.PythonAppResourceBuilderExtensions.AddUvicornApp" />, a worker with <ApiReference name="Aspire.Hosting.PythonAppResourceBuilderExtensions.AddPythonApp" />, and a frontend with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" />.
+
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
@@ -453,7 +456,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-If a workload does not have a dedicated hosting API yet, model it as an executable resource with `AddExecutable` or `addExecutable` so it can still participate in the same application model.
+If a workload does not have a dedicated hosting API yet, model it as an executable resource with <ApiReference name="Aspire.Hosting.ExecutableResourceBuilderExtensions.AddExecutable" /> so it can still participate in the same application model.
 
 <LearnMore>
 For first-class workload guidance, see [JavaScript integration](/integrations/frameworks/javascript/), [Python integration](/integrations/frameworks/python/), and [Multi-language architecture](/architecture/multi-language-architecture/).
@@ -473,6 +476,8 @@ When Aspire has a first-class integration for that infrastructure, add it first:
 aspire add postgres
 aspire add redis
 ```
+
+Use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddContainer" /> for the published application images and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpEndpoint" /> to configure their HTTP endpoints:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>

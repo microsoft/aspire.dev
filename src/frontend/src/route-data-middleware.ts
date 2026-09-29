@@ -1,5 +1,5 @@
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
-import { stripApiReferenceLocale } from './utils/api-reference-routes';
+import { normalizeApiReferenceSidebarHref } from './utils/api-reference-routes';
 import { getOgMetadata } from './utils/page-metadata';
 
 /**
@@ -164,17 +164,15 @@ interface SidebarEntry {
 /**
  * Walk the sidebar tree and rewrite any link whose href is a localized API
  * reference path (e.g. `/it/reference/api/csharp/`) to the canonical,
- * locale-stripped path (e.g. `/reference/api/csharp/`).
+ * locale-stripped path (e.g. `/reference/api/csharp/`). Also restore TypeScript
+ * section fragments after Starlight's trailing-slash formatting.
  */
 function canonicalizeApiReferenceLinks(entries: SidebarEntry[]): void {
   for (const entry of entries) {
     if (!entry) continue;
 
     if (entry.type === 'link' && typeof entry.href === 'string') {
-      const canonical = stripApiReferenceLocale(entry.href);
-      if (canonical) {
-        entry.href = canonical;
-      }
+      entry.href = normalizeApiReferenceSidebarHref(entry.href);
     }
 
     if (entry.entries) {

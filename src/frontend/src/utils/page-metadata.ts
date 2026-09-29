@@ -22,18 +22,9 @@ export const DEFAULT_OG_IMAGE_WIDTH = 1200;
 export const DEFAULT_OG_IMAGE_HEIGHT = 630;
 
 /**
- * Marketing-grade fallback description used for the home page and for any
- * page that somehow lacks a frontmatter `description`. This intentionally
- * differs from `structured-data.ts`'s `organizationDescription` and from the
- * site-wide `description` meta in `config/head.attrs.ts` because each is
- * sized for its own audience:
- *
- * - `astro.config.mjs` / `head.attrs.ts` — long-form marketing copy, no
- *   length cap, shown only on the home page.
- * - `structured-data.ts` `organizationDescription` — JSON-LD organization
- *   summary, slightly tighter and product-focused.
- * - This constant — Open Graph fallback, kept short enough for social-card
- *   previews and truncated to `OG_DESCRIPTION_MAX_LENGTH` before emission.
+ * Social-card fallback for pages without a frontmatter `description`.
+ * Starlight owns the standard description meta tag; this fallback only
+ * applies to Open Graph and Twitter previews.
  */
 export const FALLBACK_DESCRIPTION =
   'Aspire streamlines your development workflow with code-first control, ' +

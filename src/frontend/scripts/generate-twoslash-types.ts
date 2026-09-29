@@ -544,9 +544,18 @@ for (const mod of modules) {
     }
   }
   for (const en of mod.enumTypes ?? []) {
-    if (!enumByName.has(en.name)) {
-      enumByName.set(en.name, en);
-      enumTypes.push(en);
+    const existing = enumByName.get(en.name);
+    if (existing) {
+      // The shared docs bundle covers independent SDKs with colliding short names.
+      // Keep every known literal here; package JSON retains each exact enum surface.
+      existing.members = [...new Set([...existing.members, ...en.members])];
+      existing.fullName = [...new Set([...existing.fullName.split(' | '), en.fullName])].join(
+        ' | '
+      );
+    } else {
+      const combined = { ...en, members: [...en.members] };
+      enumByName.set(en.name, combined);
+      enumTypes.push(combined);
     }
   }
   for (const h of mod.handleTypes ?? []) {
