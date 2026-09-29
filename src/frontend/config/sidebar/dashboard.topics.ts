@@ -193,6 +193,7 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
     },
     {
       label: 'Terminal features',
+      badge: 'Preview',
       translations: {
         da: 'Terminalfunktioner',
         de: 'Terminalfunktionen',

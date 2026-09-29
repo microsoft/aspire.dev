@@ -1,8 +1,6 @@
 ---
 title: Automate resource terminals with tape files
 description: Run repeatable shell and REPL checks with aspire terminal tape play, wait for application output, and record terminal screens as text.
-sidebar:
-  badge: Preview
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -40,7 +38,6 @@ const shell = await builder.addExecutable('shell', '/bin/bash', '.', [
   '--norc',
   '-i',
 ]);
-await shell.withEnvironment('PS1', 'tape> ');
 await shell.withTerminal();
 
 await builder.build().run();
@@ -54,7 +51,6 @@ await builder.build().run();
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddExecutable("shell", "/bin/bash", ".", "--noprofile", "--norc", "-i")
-    .WithEnvironment("PS1", "tape> ")
     .WithTerminal();
 
 builder.Build().Run();
@@ -63,7 +59,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-This creates an interactive Bash resource with a predictable `tape>` prompt and no user startup scripts. [`WithTerminal()`](/app-host/with-terminal/) exposes its existing terminal for playback; you don't need a terminal library or an adapter.
+This creates an interactive Bash resource without loading user startup scripts. [`WithTerminal()`](/app-host/with-terminal/) exposes its existing terminal for playback; you don't need a terminal library or an adapter.
 
 From the directory containing your app's `aspire.config.json`, enable the terminal commands and start the AppHost:
 
@@ -114,6 +110,8 @@ Output shell-recording.txt
 Source shell-smoke.tape
 ```
 
+`Output` selects the recording file. `Source` includes and executes the commands from another `.tape` file at that point, so this example records the smoke test without duplicating its commands. You can also put `Output shell-recording.txt` at the top of `shell-smoke.tape` and run that tape directly.
+
 Run the tape:
 
 ```bash title="Record the shell smoke test"
@@ -123,6 +121,10 @@ aspire terminal tape play shell --tape-file record-shell.tape
 Open `shell-recording.txt` beside the root tape. `Output` records plain-text screen snapshots after visible executed commands, separated by horizontal lines. It is a sequence of screens, not just the final screen, a stream of raw console output, or a video. Identical snapshots can appear when consecutive commands don't change the screen.
 
 Only `.txt` and `.ascii` text destinations are supported. Output directories must already exist, and existing files aren't overwritten. Move the previous recording or choose a new destination before running the tape again. There is no CLI overwrite option.
+
+:::note[Asciicast recordings]
+`Output shell-recording.cast` isn't supported by `aspire terminal tape play`. Hex1b supports asciicast recording through its programmatic `TapeCaptureOptions.AsciinemaPath` API, but Aspire's tape command doesn't expose that option. Use `.txt` output for recordings made with this command.
+:::
 
 Paths in both `Source` and `Output` resolve on the **CLI machine**, relative to the **root tape's directory**, not the resource's working directory. This also applies to `Source` directives inside nested tapes. Included files must use the exact `.tape` extension; their own `Output` directives are ignored. Put the recording destination in the root tape.
 
@@ -175,17 +177,6 @@ The following effects are **rejected before any tape input is sent**:
 - Shell selection, environment declarations (`Env`), and executable requirements (`Require`) that would configure a newly launched shell.
 
 Aspire doesn't launch or resize a process for playback. Configure the resource's command, environment, and initial terminal dimensions in the AppHost instead.
-
-## Diagnose a failed tape
-
-- **Command not found:** Use Aspire CLI 13.6 or later and enable `features.terminalCommandsEnabled`.
-- **Resource or replica unavailable:** Run `aspire terminal ps`; verify the resource has `WithTerminal()`, the selected replica is alive, and you're targeting the correct AppHost. If the selected replica has no live producer yet, playback waits within `--timeout`. It doesn't start or restart the resource.
-- **Preflight diagnostic:** Correct the reported file, line, and column. Unsupported effects, missing includes, missing output directories, or existing output files prevent input from being sent.
-- **Wait failure:** Check the failure screen on stdout and the source-located diagnostic on stderr. Match meaningful application output, not input echo or stale screen text.
-- **Timeout:** `--timeout` defaults to 120 seconds and bounds the initial wait for a live producer, terminal connection, and playback, not initial AppHost discovery. Overall timeout returns **17**; user cancellation returns **130**. A failed tape command, including its own wait timeout, returns **16**. Cleanup and recording finalization can continue after cancellation.
-- **Disconnect:** Playback fails rather than retrying input that could have side effects.
-
-The CLI doesn't stop the resource on completion, failure, or cancellation, although input in the tape can cause the application to exit. Stop the AppHost separately when you're finished.
 
 ## See also
 
