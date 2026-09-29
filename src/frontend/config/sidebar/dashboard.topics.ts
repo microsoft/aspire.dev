@@ -251,7 +251,7 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
             uk: 'Термінали ресурсів',
             'zh-CN': '资源终端',
           },
-          link: '/app-host/with-terminal/',
+          slug: 'app-host/with-terminal',
         },
         {
           label: 'Ephemeral terminals',
@@ -272,7 +272,7 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
             uk: 'Термінали AppHost',
             'zh-CN': 'AppHost 终端',
           },
-          link: '/app-host/terminal-service/',
+          slug: 'dashboard/ephemeral-terminals',
         },
         {
           label: 'Terminal interactions',
@@ -293,7 +293,7 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
             uk: 'Взаємодія з терміналом',
             'zh-CN': '终端交互',
           },
-          link: '/extensibility/interaction-service/',
+          slug: 'dashboard/terminal-interactions',
         },
         {
           label: 'Terminal automation',
@@ -314,7 +314,7 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
             uk: 'Автоматизація термінала',
             'zh-CN': '终端自动化',
           },
-          link: '/app-host/terminal-automation/',
+          slug: 'dashboard/automate-terminals',
         },
         {
           label: 'Tape playback',
@@ -335,7 +335,7 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
             uk: 'Відтворення tape-файлів',
             'zh-CN': 'Tape 回放',
           },
-          slug: 'dashboard/terminal-automation',
+          slug: 'dashboard/terminal-tape-playback',
         },
       ],
     },
