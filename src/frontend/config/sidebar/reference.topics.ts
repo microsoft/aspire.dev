@@ -575,6 +575,14 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                   label: 'aspire terminal ps',
                   slug: 'reference/cli/commands/aspire-terminal-ps',
                 },
+                {
+                  label: 'aspire terminal tape',
+                  slug: 'reference/cli/commands/aspire-terminal-tape',
+                },
+                {
+                  label: 'aspire terminal tape play',
+                  slug: 'reference/cli/commands/aspire-terminal-tape-play',
+                },
               ],
             },
             {

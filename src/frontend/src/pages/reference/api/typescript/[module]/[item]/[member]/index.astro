@@ -10,7 +10,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
 import { tsModuleSlug, getTsModules, simplifyType, formatTsSignature } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
-import { getTsItemSlug, getTsMethodSlug, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import { getTsItemSlug, getTsMethods, getTsMethodSlug, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import TsMemberCard from '@components/api-reference/TsMemberCard.astro';
 
@@ -27,9 +27,7 @@ export async function getStaticPaths() {
       const itemSlug = getTsItemSlug(handle, topLevelItems);
       if (!itemSlug) continue;
 
-      const methods = (handle.capabilities ?? []).filter(
-        (c: any) => c.kind === 'Method' || c.kind === 'InstanceMethod'
-      );
+      const methods = getTsMethods(handle);
 
       for (const method of methods) {
         const memberSlug = getTsMethodSlug(method, methods, handle.name);
@@ -52,8 +50,7 @@ export async function getStaticPaths() {
 const { pkg, parentType, method } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pkgSlug = tsModuleSlug(pkg.package.name);
-const topLevelItems = getTsTopLevelRouteItems(pkg);
-const parentSlug = Astro.params.item ?? getTsItemSlug(parentType, topLevelItems);
+const parentSlug = Astro.params.item ?? getTsItemSlug(parentType, getTsTopLevelRouteItems(pkg));
 
 /** Simple string hash → 0–3 for parameter type color assignment. */
 function typeColorIndex(s: string): number {

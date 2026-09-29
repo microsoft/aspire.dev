@@ -43,7 +43,7 @@ async function expectBotLayout(empty: Locator) {
     };
   });
   const expectedArtWidth = layout.viewportWidth >= 1024 ? 400 : 216;
-  expect(layout.url).toContain('not-found');
+  expect(layout.url).toContain('search-no-results');
   expect(layout.artWidth).toBeCloseTo(expectedArtWidth, 0);
   expect(layout.artHeight).toBeCloseTo(expectedArtWidth * 2 / 3, 0);
   expect(layout.verticalPadding).toBeGreaterThanOrEqual(16);

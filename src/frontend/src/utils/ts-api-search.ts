@@ -8,6 +8,7 @@ import {
 import {
   getTsItemSlug,
   getTsMemberAnchor,
+  getTsMethods,
   getTsMethodSlug,
   getTsStandaloneFunctions,
   getTsTopLevelRouteItems,
@@ -117,9 +118,7 @@ function addHandleMemberEntries(
   const capabilities = handle.capabilities ?? [];
   const getters = capabilities.filter((capability) => capability.kind === 'PropertyGetter');
   const setters = capabilities.filter((capability) => capability.kind === 'PropertySetter');
-  const methods = capabilities.filter(
-    (capability) => capability.kind === 'Method' || capability.kind === 'InstanceMethod'
-  );
+  const methods = getTsMethods(handle);
 
   for (const getter of getters) {
     const hasSetter = setters.some(

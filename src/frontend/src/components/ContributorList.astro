@@ -1,0 +1,99 @@
+---
+import { getContributors } from '@utils/contributors';
+
+export interface Props {
+  githubRepo: string;
+  ignore?: readonly string[];
+  focusColor?: string;
+}
+
+const { githubRepo, ignore = [], focusColor } = Astro.props;
+const result = await getContributors(githubRepo);
+const contributors = result.status === 'available'
+  ? result.contributors.filter(({ login }) => !ignore.includes(login))
+  : [];
+---
+
+{
+  result.status === 'unavailable' ? (
+    <p class="contributors-unavailable">
+      {Astro.locals.t('contributors.unavailable')}{' '}
+      <a href={`https://github.com/${githubRepo.trim()}/graphs/contributors`}>
+        {Astro.locals.t('contributors.viewOnGitHub')}
+      </a>
+    </p>
+  ) : (
+    <div style={focusColor ? { '--avatar-focus-color': focusColor } : {}}>
+      <ul class="avatar-list">
+        {contributors.map(({ id, login }) => (
+          <li>
+            <a href={`https://github.com/${login}`}>
+              <img
+                alt={login}
+                title={login}
+                width="48"
+                height="48"
+                src={`https://avatars.githubusercontent.com/u/${id}?s=64`}
+                loading="lazy"
+              />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+<style>
+  .avatar-list {
+    --avatar-size: 3rem;
+    --avatar-overlap: -0.125em;
+    --avatar-row-spacing: 0.125em;
+    --avatar-outline-width: 1px;
+    --avatar-outline-offset: 0.08em;
+    --local-accent: var(--avatar-focus-color, var(--sl-color-accent, #3b82f6));
+
+    display: flex;
+    flex-wrap: wrap;
+    list-style: none;
+    padding: 0;
+    font-size: var(--avatar-size);
+  }
+
+  .avatar-list li {
+    position: relative;
+    --avatar-row-margin: calc(
+      var(--avatar-outline-offset) + var(--avatar-outline-width) +
+      var(--avatar-row-spacing) / 2
+    );
+    margin: var(--avatar-row-margin) var(--avatar-overlap) var(--avatar-row-margin) 0;
+  }
+
+  .avatar-list li:has(:focus-visible) {
+    z-index: 10;
+    transform: scale(1.1);
+  }
+
+  .avatar-list img,
+  .avatar-list a {
+    display: block;
+    border-radius: 50%;
+    width: var(--avatar-size);
+    height: var(--avatar-size);
+    text-decoration: none;
+    color: transparent;
+  }
+
+  .avatar-list img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background-color: var(--local-accent);
+    outline: 1px solid transparent;
+  }
+
+  .avatar-list a:focus-visible {
+    outline: 2px solid var(--local-accent);
+    outline-offset: var(--avatar-outline-offset);
+  }
+</style>
