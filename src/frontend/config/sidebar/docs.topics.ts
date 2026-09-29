@@ -965,10 +965,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 ja: '実行可能リソース',
               },
             },
-            {
-              label: 'Interactive terminals',
-              slug: 'app-host/with-terminal',
-            },
           ],
         },
         {

@@ -478,42 +478,6 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method. For more information, see [External parameters](/get-started/resources/).
 
-## Add MySQL resource with a REPL command
-
-The `WithRepl` method adds an opt-in **REPL** command to the MySQL server resource in the Aspire dashboard. Selecting the command while the container is running opens the bundled `mysql` client in the dashboard's terminal dock, authenticated as `root` with the resource's configured password—no local MySQL client installation is required:
-
-<Tabs syncKey="aspire-lang">
-<TabItem id="typescript" label="TypeScript">
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const mysql = await builder.addMySql("mysql");
-await mysql.withRepl();
-
-await builder.build().run();
-```
-</TabItem>
-
-<TabItem id="csharp" label="C#">
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var mysql = builder.AddMySql("mysql")
-    .WithRepl();
-
-builder.Build().Run();
-```
-</TabItem>
-</Tabs>
-
-The REPL command is disabled by default and is only registered in run mode—it isn't available in published applications. Use `quit` to exit `mysql` cleanly before closing the terminal tab; closing the tab alone can leave `mysql` running inside the container, and stopping the container ends any remaining REPL processes. The session runs inside the container using Docker (or the configured Podman runtime), and the password is passed through an environment variable rather than command-line arguments or SQL history.
-
-:::caution
-Only enable `WithRepl()` for resources whose authenticated client access is appropriate for everyone who can access the dashboard. The shell uses the resource's configured credentials and isn't read-only. Sharing the dashboard through a tunnel, Codespaces, or VS Code remote development also exposes this capability to anyone who can execute resource commands.
-:::
-
 ## Pass custom environment variables
 
 By default, Aspire injects the MySQL connection information using variable names derived from the resource name (for example, `MYSQLDB_URI`, `MYSQLDB_HOST`, `MYSQLDB_PORT`, `MYSQLDB_PASSWORD`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
@@ -562,6 +526,46 @@ await builder.build().run();
 ```
 </TabItem>
 </Tabs>
+
+<span id="add-mysql-resource-with-a-repl-command"></span>
+
+## Open an interactive REPL
+
+In Aspire 13.6 or later, add `WithRepl()` to the MySQL server resource to enable a **REPL** command that opens `mysql` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addMySql('mysql').withRepl();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddMySql("mysql").WithRepl();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The command is opt-in and available only in run mode while the container is running. It uses the container's bundled client through Docker or Podman, so no local MySQL client is needed. The client authenticates as `root`, with the configured password passed through an environment variable rather than command-line arguments or SQL history.
+
+Use `quit` before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client uses the resource's configured credentials and can modify or delete data. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
+:::
 
 ## Connection properties
 
