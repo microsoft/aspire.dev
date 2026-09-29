@@ -1,10 +1,10 @@
 ---
 title: Compiler Warning ASPIREDOTNETPROJECT001
 seoTitle: 'ASPIREDOTNETPROJECT001: AddDotnetProject types and members'
-description: Learn what causes the Aspire compiler warning ASPIREDOTNETPROJECT001 and how to fix it so your AppHost builds cleanly.
+description: Learn why Aspire 13.6 removed ASPIREDOTNETPROJECT001 from the prerelease Dotnet and Blazor hosting packages while their APIs remain unstable.
 ---
 
-import { Badge, Aside } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
 
 <Badge
   text="Version introduced: 13.5"
@@ -13,9 +13,13 @@ import { Badge, Aside } from '@astrojs/starlight/components';
   class:list={'mb-1'}
 />
 
-<Aside type="note">
-  `AddDotnetProject`, `DotnetProjectResource`, and the related `WithBuildEnvironment` overloads don't trigger `ASPIREDOTNETPROJECT001` when using Aspire 13.6 or later. `Aspire.Hosting.Dotnet` is a prerelease package, so its API surface may change before it ships stable. The separate `AddDotnetProjectBlazorGateway` and matching `WithBlazorClientApp` overload in `Aspire.Hosting.Blazor` carry this diagnostic.
-</Aside>
+:::note[Removed in Aspire 13.6]
+`Aspire.Hosting.Dotnet` and `Aspire.Hosting.Blazor` are already prerelease packages, so the separate `ASPIREDOTNETPROJECT001` experimental designation was unnecessary. Their APIs remain unstable and may change in future releases.
+
+Starting with Aspire 13.6, `AddDotnetProject`, `DotnetProjectResource`, and the related `WithBuildEnvironment` overloads no longer emit `ASPIREDOTNETPROJECT001`. You can remove suppressions for these APIs after upgrading.
+
+`AddDotnetProjectBlazorGateway` and the matching `WithBlazorClientApp` overload in `Aspire.Hosting.Blazor` also no longer emit this diagnostic. The separate [`ASPIREBLAZOR001`](/diagnostics/aspireblazor001/) diagnostic still applies to experimental Blazor hosting types.
+:::
 
 > AddDotnetProject types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
@@ -23,12 +27,13 @@ In Aspire 13.5, this diagnostic is reported when using the following experimenta
 
 - `AddDotnetProject` extension methods
 - `DotnetProjectResource`
+- `WithBuildEnvironment` overloads for `DotnetProjectResource`
 
-These APIs add a C# project or file-based C# app to the application model as an `ExecutableResource` that's launched through the .NET SDK.
+These APIs add and configure a C# project or file-based C# app in the application model as an `ExecutableResource` that's launched through the .NET SDK.
 
 ## Example in Aspire 13.5
 
-The following code generates `ASPIREDOTNETPROJECT001`:
+In Aspire 13.5, the following code generates `ASPIREDOTNETPROJECT001`:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -40,9 +45,9 @@ builder.Build().Run();
 
 ## To correct this warning
 
-If you use Aspire 13.6 or later, these APIs don't need a diagnostic suppression. Remove suppressions that were added for them.
+Upgrade to Aspire 13.6 or later. After upgrading, remove `ASPIREDOTNETPROJECT001` suppressions from _.editorconfig_ files, project `NoWarn` properties, and `#pragma warning` directives. Keep any required suppressions for other diagnostics, including `ASPIREBLAZOR001`.
 
-For earlier versions, or the still-experimental [Dotnet project Blazor gateway](/integrations/dotnet/blazor-hosting/#add-a-blazor-gateway-for-a-c-project-resource), suppress the warning with one of the following methods:
+For earlier versions, suppress the warning with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 
