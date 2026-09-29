@@ -170,8 +170,7 @@ var postgres = builder.AddPostgres("db")
     .WithDataVolume();
 
 // Add API service and reference the database
-var api = builder.AddSpringApp("api", "../api", "otel.jar")
-    .WithHttpEndpoint(port: 8080)
+var api = builder.AddSpringBootApp("api", "../api")
     .WithReference(postgres)
     .WaitFor(postgres);
 

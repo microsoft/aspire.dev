@@ -19,12 +19,13 @@ import {
   section,
 } from '@utils/api-markdown-shared';
 import { getTsFunctionDisplayKind, getTsFunctionDisplayLabel } from '@utils/ts-api-function-kind';
+import { getTsItemSlug, getTsMethods, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems, getTsTypeByName } from '@utils/ts-api-routes';
 
 type TypeScriptItemKind = 'handle' | 'dto' | 'enum' | 'function';
 type TypeScriptItem = TsHandleType | TsDtoType | TsEnumType | TsFunction;
 type TypeScriptModuleType =
-  | (TsHandleType & { _typeKind: 'interface' | 'handle' })
-  | (TsDtoType & { _typeKind: 'type' });
+  | { item: TsHandleType; kind: 'handle' }
+  | { item: TsDtoType; kind: 'type' };
 
 export function typeScriptIndexMdHref(base: string): string {
   return `${normalizeBase(base)}/reference/api/typescript.md`;
@@ -34,17 +35,17 @@ export function typeScriptModuleMdHref(base: string, moduleName: string): string
   return `${normalizeBase(base)}/reference/api/typescript/${tsModuleSlug(moduleName)}.md`;
 }
 
-export function typeScriptItemMdHref(base: string, moduleName: string, itemName: string): string {
-  return `${normalizeBase(base)}/reference/api/typescript/${tsModuleSlug(moduleName)}/${tsSlugify(itemName)}.md`;
+export function typeScriptItemMdHref(base: string, moduleName: string, itemSlug: string): string {
+  return `${normalizeBase(base)}/reference/api/typescript/${tsModuleSlug(moduleName)}/${itemSlug}.md`;
 }
 
 export function typeScriptMemberMdHref(
   base: string,
   moduleName: string,
-  itemName: string,
-  memberName: string
+  itemSlug: string,
+  memberSlug: string
 ): string {
-  return `${normalizeBase(base)}/reference/api/typescript/${tsModuleSlug(moduleName)}/${tsSlugify(itemName)}/${tsSlugify(memberName)}.md`;
+  return `${normalizeBase(base)}/reference/api/typescript/${tsModuleSlug(moduleName)}/${itemSlug}/${memberSlug}.md`;
 }
 
 export function renderTypeScriptIndexMarkdown(modules: TsApiDocument[], base: string): string {
@@ -69,14 +70,13 @@ export function renderTypeScriptIndexMarkdown(modules: TsApiDocument[], base: st
 
 export function renderTypeScriptModuleMarkdown(pkg: TsApiDocument, base: string): string {
   const sourceHref = getTypeScriptSourceHref(pkg);
+  const items = getTsTopLevelRouteItems(pkg);
   const allTypes: TypeScriptModuleType[] = [
-    ...(pkg.handleTypes ?? []).map((item) => ({ ...item, _typeKind: item.isInterface ? 'interface' as const : 'handle' as const })),
-    ...(pkg.dtoTypes ?? []).map((item) => ({ ...item, _typeKind: 'type' as const })),
-  ].sort(compareByName);
+    ...(pkg.handleTypes ?? []).map((item) => ({ item, kind: 'handle' as const })),
+    ...(pkg.dtoTypes ?? []).map((item) => ({ item, kind: 'type' as const })),
+  ].sort((left, right) => compareByName(left.item, right.item));
   const allEnums = [...(pkg.enumTypes ?? [])].sort(compareByName);
-  const standaloneFunctions = (pkg.functions ?? [])
-    .filter((fn) => !fn.qualifiedName || !fn.qualifiedName.includes('.'))
-    .sort(compareByName);
+  const standaloneFunctions = [...getTsStandaloneFunctions(pkg)].sort(compareByName);
 
   const metadata = keyValueBullets([
     { label: 'Module', value: inlineCode(pkg.package.name) },
@@ -86,21 +86,22 @@ export function renderTypeScriptModuleMarkdown(pkg: TsApiDocument, base: string)
     { label: 'Types', value: inlineCode(String(allTypes.length + allEnums.length)) },
   ]);
 
-  const typeLines = allTypes.map((item) => {
-    const kind = item._typeKind === 'type' ? 'type' : item.isInterface ? 'interface' : 'handle';
-    const count = item._typeKind === 'type' ? `${item.fields?.length ?? 0} fields` : `${item.capabilities?.length ?? 0} members`;
+  const typeLines = allTypes.map((entry) => {
+    const { item } = entry;
+    const kind = entry.kind === 'type' ? 'type' : entry.item.isInterface ? 'interface' : 'handle';
+    const count = entry.kind === 'type' ? `${entry.item.fields?.length ?? 0} fields` : `${entry.item.capabilities?.length ?? 0} members`;
     const description = item.description ? ` — ${item.description}` : '';
-    return `- ${link(item.name, typeScriptItemMdHref(base, pkg.package.name, item.name))} — ${inlineCode(kind)} · ${count}${description}`;
+    return `- ${link(item.name, typeScriptItemMdHref(base, pkg.package.name, getTsItemSlug(item, items)))} — ${inlineCode(kind)} · ${count}${description}`;
   });
 
   const functionLines = standaloneFunctions.map((fn) => {
     const description = fn.description ? ` — ${fn.description}` : '';
-    return `- ${link(fn.name, typeScriptItemMdHref(base, pkg.package.name, fn.name))} — ${inlineCode(getTsFunctionDisplayKind(fn))}${description}`;
+    return `- ${link(fn.name, typeScriptItemMdHref(base, pkg.package.name, getTsItemSlug(fn, items)))} — ${inlineCode(getTsFunctionDisplayKind(fn))}${description}`;
   });
 
   const enumLines = allEnums.map((item) => {
     const description = item.description ? ` — ${item.description}` : '';
-    return `- ${link(item.name, typeScriptItemMdHref(base, pkg.package.name, item.name))} — ${inlineCode('enum')} · ${(item.members ?? []).length} values${description}`;
+    return `- ${link(item.name, typeScriptItemMdHref(base, pkg.package.name, getTsItemSlug(item, items)))} — ${inlineCode('enum')} · ${(item.members ?? []).length} values${description}`;
   });
 
   return finalizeMarkdown([
@@ -151,11 +152,12 @@ export function renderTypeScriptMemberMarkdownPage(
   method: TsFunction,
   base: string
 ): string {
+  const parentSlug = getTsItemSlug(parentType, getTsTopLevelRouteItems(pkg));
   const metadata = keyValueBullets([
     { label: 'Module', value: link(pkg.package.name, typeScriptModuleMdHref(base, pkg.package.name)) },
     {
       label: 'Defined on',
-      value: link(parentType.name, typeScriptItemMdHref(base, pkg.package.name, parentType.name)),
+      value: link(parentType.name, typeScriptItemMdHref(base, pkg.package.name, parentSlug)),
     },
     { label: 'Version', value: pkg.package.version ? inlineCode(pkg.package.version) : null },
     { label: 'Kind', value: inlineCode('method') },
@@ -172,7 +174,7 @@ export function renderTypeScriptMemberMarkdownPage(
     section(
       'Defined on',
       bulletList([
-        `- ${link(parentType.name, typeScriptItemMdHref(base, pkg.package.name, parentType.name))} — ${inlineCode(
+        `- ${link(parentType.name, typeScriptItemMdHref(base, pkg.package.name, parentSlug))} — ${inlineCode(
           parentType.isInterface ? 'interface' : 'handle'
         )}`,
       ])
@@ -219,7 +221,7 @@ function buildTypeScriptDeclaration(item: TypeScriptItem, itemKind: TypeScriptIt
 function buildHandleTypeDeclaration(item: TsHandleType): string {
   const getters = (item.capabilities ?? []).filter(isPropertyGetter);
   const setters = (item.capabilities ?? []).filter(isPropertySetter);
-  const methods = (item.capabilities ?? []).filter(isMethodCapability).sort(compareByName);
+  const methods = getTsMethods(item, true);
   const members: string[] = [];
 
   for (const getter of getters) {
@@ -301,14 +303,15 @@ function renderHandlePropertiesMarkdown(item: TsHandleType, pkg: TsApiDocument, 
 }
 
 function renderHandleMethodsMarkdown(item: TsHandleType, pkg: TsApiDocument, base: string): string {
-  const methods = (item.capabilities ?? []).filter(isMethodCapability).sort(compareByName);
+  const methods = getTsMethods(item);
   if (methods.length === 0) {
     return '';
   }
 
   return bulletList(
-    methods.map((method) => {
-      const href = typeScriptMemberMdHref(base, pkg.package.name, item.name, method.name);
+    getTsMethods(item, true).map((method) => {
+      const href = typeScriptMemberMdHref(base, pkg.package.name,
+        getTsItemSlug(item, getTsTopLevelRouteItems(pkg)), getTsMethodSlug(method, methods, item.name));
       const description = method.description ? ` — ${method.description}` : '';
       return `- ${link(method.name, href)} — ${inlineCode('method')}${description}\n  ${indentMarkdown(codeBlock(method.signature ?? '', 'typescript'), '  ')}`;
     })
@@ -385,7 +388,9 @@ function renderAppliesToMarkdown(targetTypes: string[], pkg: TsApiDocument, base
   return bulletList(
     targetTypes.map((targetType) => {
       const simpleName = simplifyType(targetType);
-      return `- ${link(simpleName, typeScriptItemMdHref(base, pkg.package.name, simpleName))}`;
+      const item = getTsTypeByName(pkg, simpleName);
+      const slug = item ? getTsItemSlug(item, getTsTopLevelRouteItems(pkg)) : tsSlugify(simpleName);
+      return `- ${link(simpleName, typeScriptItemMdHref(base, pkg.package.name, slug))}`;
     })
   );
 }
@@ -400,23 +405,15 @@ function formatTypeScriptTypeReferenceMarkdown(typeRef: string | undefined, pkg:
   }
 
   const simpleName = simplifyType(typeRef);
-  const allItems = [
-    ...(pkg.handleTypes ?? []).map((item) => item.name),
-    ...(pkg.dtoTypes ?? []).map((item) => item.name),
-    ...(pkg.enumTypes ?? []).map((item) => item.name),
-  ];
+  const item = getTsTypeByName(pkg, simpleName);
 
-  return allItems.includes(simpleName)
-    ? link(simpleName, typeScriptItemMdHref(base, pkg.package.name, simpleName))
+  return item
+    ? link(simpleName, typeScriptItemMdHref(base, pkg.package.name, getTsItemSlug(item, getTsTopLevelRouteItems(pkg))))
     : inlineCode(simpleName);
 }
 
 function compareByName<T extends { name: string }>(left: T, right: T): number {
   return left.name.localeCompare(right.name);
-}
-
-function isMethodCapability(capability: TsFunction): boolean {
-  return capability.kind === 'Method' || capability.kind === 'InstanceMethod';
 }
 
 function isPropertyGetter(capability: TsFunction): boolean {

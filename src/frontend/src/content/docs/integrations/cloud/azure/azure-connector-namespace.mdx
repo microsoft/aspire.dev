@@ -1,0 +1,142 @@
+---
+title: Azure Connector Namespace hosting integration
+description: Model Azure Connector Namespace connections, managed MCP servers, operation allow-lists, and access policies in C# and TypeScript Aspire AppHosts.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+Azure Connector Namespace connects applications to external services such as Office 365 and SharePoint. Aspire models the namespace, authenticated connections, managed MCP server configurations, and access policies together.
+
+:::caution[Preview access]
+The package and Azure service are preview features. Your subscription and region need Connector Namespace preview access. You need permission to create the namespace and child resources, and an authorized user must complete any connector-specific OAuth consent.
+:::
+
+## Install the integration
+
+<InstallPackage packageName="Aspire.Hosting.Azure.ConnectorNamespace" />
+
+Configure [Azure provisioning](/integrations/cloud/azure/local-provisioning/) before running or deploying the AppHost. The integration provisions real Azure resources; it doesn't provide a local connector emulator.
+
+## Add a connection and managed MCP server
+
+A **connection** is an authenticated binding to a service. A **managed MCP server configuration** exposes selected operations from that connection as MCP tools. The current preview supports one connector per managed MCP server configuration.
+
+This example exposes only the Office 365 `GetEmailsV3` operation. Replace the tenant and principal IDs with your own Microsoft Entra IDs and verify the connector's operation IDs against the metadata available in your region.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import {
+  AzureConnectorNamespaceMcpAccessPolicyPrincipalType,
+  createBuilder,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const connectors = await builder.addAzureConnectorNamespace('connectors');
+const outlook = await connectors.addConnection('outlook', 'office365', {
+  connectionName: 'office365-outlook',
+  displayName: 'Office 365 Outlook',
+});
+await outlook.withAccessPolicy('worker-access', {
+  objectId: '33333333-3333-3333-3333-333333333333',
+  tenantId: '22222222-2222-2222-2222-222222222222',
+});
+
+const worker = await builder.addProject('worker', '../Worker/Worker.csproj');
+await worker.withReference(outlook);
+
+const mcp = await connectors.addMcpServerConfig('outlook-mcp');
+await mcp.withConnector('office365', outlook, {
+  operations: [{ name: 'GetEmailsV3', displayName: 'Get emails' }],
+});
+await mcp.withAccessPolicy('developer-access', {
+  objectId: '11111111-1111-1111-1111-111111111111',
+  tenantId: '22222222-2222-2222-2222-222222222222',
+  principalType: AzureConnectorNamespaceMcpAccessPolicyPrincipalType.User,
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+var connectors = builder.AddAzureConnectorNamespace("connectors");
+var outlook = connectors.AddConnection(
+    "outlook",
+    "office365",
+    new AzureConnectorNamespaceConnectionOptions
+    {
+        ConnectionName = "office365-outlook",
+        DisplayName = "Office 365 Outlook"
+    })
+    .WithAccessPolicy("worker-access", new AzureConnectorNamespaceAccessPolicyOptions
+    {
+        ObjectId = "33333333-3333-3333-3333-333333333333",
+        TenantId = "22222222-2222-2222-2222-222222222222"
+    });
+
+builder.AddProject<Projects.Worker>("worker")
+    .WithReference(outlook);
+
+connectors.AddMcpServerConfig("outlook-mcp")
+    .WithConnector("office365", outlook, new AzureConnectorNamespaceMcpConnectorOptions
+    {
+        Operations =
+        [
+            new AzureConnectorNamespaceMcpOperationOptions
+            {
+                Name = "GetEmailsV3",
+                DisplayName = "Get emails"
+            }
+        ]
+    })
+    .WithAccessPolicy("developer-access", new AzureConnectorNamespaceMcpAccessPolicyOptions
+    {
+        ObjectId = "11111111-1111-1111-1111-111111111111",
+        TenantId = "22222222-2222-2222-2222-222222222222",
+        PrincipalType = AzureConnectorNamespaceMcpAccessPolicyPrincipalType.User
+    });
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The worker reference supplies `outlook__connectorGatewayName` and `outlook__connectionName` for the Azure Connector SDK. It **doesn't grant access**: the connection policy must identify the Entra principal that the worker actually uses. An explicit connection name on the reference can change the consumer's configuration prefix.
+
+After provisioning, open `https://connectors.azure.com/<subscription-id>/<resource-group>/<connector-namespace-name>/overview` and authorize connections that require consent. Aspire doesn't automate consent or store OAuth credentials.
+
+## Limit and revoke access
+
+Keep the two authorization surfaces separate:
+
+- **Connection policies** grant a specified Entra principal access to the connection. Use `WithIdentityAccessPolicy` / `withIdentityAccessPolicy` for a user-assigned managed identity without hard-coding its principal ID.
+- **MCP server policies** grant an Entra user or group access to the managed MCP endpoint. This preview doesn't support service principals or managed identities for MCP access policies.
+- **Operation allow-lists** restrict the connector operations exposed as MCP tools. Expose only what your application needs; don't put credentials or tokens in descriptions or operation metadata.
+
+:::danger[Removing code doesn't revoke deployed access]
+Incremental ARM deployments don't delete child resources omitted from the next deployment. Removing a connection, MCP configuration, or access policy from the AppHost doesn't revoke its deployed access. Explicitly delete the child resource in Azure or tear down its provisioning environment when retiring it.
+:::
+
+## Reference existing resources
+
+Use the standard Azure `PublishAsExisting` / `publishAsExisting` and `AsExisting` / `asExisting` workflows for a namespace. Existing connection and MCP configuration children support `AsExisting` / `asExisting` and are emitted as read-only Bicep references.
+
+When adding a new access policy beneath an existing namespace, set the Azure deployment location to the namespace's location. Bicep can't read the existing location early enough to assign the child resource location automatically.
+
+The integration doesn't support secret-valued connection parameter sets, connector triggers, event subscriptions, hosted MCP servers, or arbitrary MCP operation parameter schemas. Create connections that require unsupported secret parameter sets outside Aspire and reference them as existing resources.
+
+## See also
+
+- [Azure Connector Namespace overview](https://learn.microsoft.com/azure/connector-namespace/connector-namespace-overview)
+- [Create a Connector Namespace connection](https://learn.microsoft.com/azure/connector-namespace/create-connector-namespace-connection)
+- [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)

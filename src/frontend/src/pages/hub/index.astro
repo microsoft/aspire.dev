@@ -1,0 +1,284 @@
+---
+import HubLayout from '@components/dev-center/HubLayout.astro';
+import '../../styles/link-underline.css';
+import '../../styles/search-controls.css';
+import { Icon } from '@astrojs/starlight/components';
+import ThemeImage from '@components/ThemeImage.astro';
+import resourcesGraphLight from '@assets/dashboard/landing/resources-graph-light.png';
+import resourcesGraphDark from '@assets/dashboard/landing/resources-graph-dark.png';
+import traceDetailLight from '@assets/dashboard/landing/trace-detail-light.png';
+import traceDetailDark from '@assets/dashboard/landing/trace-detail-dark.png';
+import shopLight from '@assets/samples/aspire-shop/aspireshop-frontend-light.png';
+import shopDark from '@assets/samples/aspire-shop/aspireshop-frontend-dark.png';
+import javascriptLight from '@assets/samples/aspire-with-javascript/reactvite-app-light.png';
+import javascriptDark from '@assets/samples/aspire-with-javascript/reactvite-app-dark.png';
+import pythonLight from '@assets/samples/aspire-with-python/aspire-with-python-primary-page-light.png';
+import pythonDark from '@assets/samples/aspire-with-python/aspire-with-python-primary-page-dark.png';
+import goImage from '@assets/samples/golang-api/golang-api.png';
+import volumeLight from '@assets/samples/volume-mount/volume-mount-frontend-login-light.png';
+import volumeDark from '@assets/samples/volume-mount/volume-mount-frontend-login-dark.png';
+import nodeLight from '@assets/samples/aspire-with-node/aspire-with-node-primary-page-light.png';
+import nodeDark from '@assets/samples/aspire-with-node/aspire-with-node-primary-page-dark.png';
+import awsDark from '@assets/icons/aws-icon.png';
+import awsLight from '@assets/icons/aws-light-icon.png';
+import azureIcon from '@assets/icons/azure-icon.png';
+import kubernetesIcon from '@assets/icons/kubernetes.svg';
+import rustIcon from '@assets/icons/rust.svg';
+import { tagLabel } from '@utils/sample-tags';
+import { devTitle, devDescription, topicLinks, resources, languages, cloudLinks, featuredSamples, sampleLanguageOptions, referenceLinks, dashboardLinks, videos, blogHighlights } from '@data/dev-hub';
+
+const sampleImages: Record<string, { light: ImageMetadata; dark: ImageMetadata }> = {
+  'aspire-shop': { light: shopLight, dark: shopDark },
+  'aspire-with-javascript': { light: javascriptLight, dark: javascriptDark },
+  'aspire-with-python': { light: pythonLight, dark: pythonDark },
+  'golang-api': { light: goImage, dark: goImage },
+  'volume-mount': { light: volumeLight, dark: volumeDark },
+  'aspire-with-node': { light: nodeLight, dark: nodeDark },
+};
+const cloudImages = {
+  aws: { light: awsLight, dark: awsDark },
+  azure: { light: azureIcon, dark: azureIcon },
+  kubernetes: { light: kubernetesIcon, dark: kubernetesIcon },
+};
+const onboardingIcons = ['open-book', 'puzzle', 'rocket', 'notes'] as const;
+const blogDateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
+---
+
+<HubLayout title={devTitle} description={devDescription} showDescription={false} pageActions={false} pagefind={false}>
+  <div class="dev-home not-content">
+    <section class="hub-intro hub-grain" aria-label="Find resources and get started">
+      <div class="dev-discovery">
+        <p class="dev-description">{devDescription}</p>
+        <button class="dev-search" type="button" data-open-site-search aria-haspopup="dialog" disabled>
+          <Icon name="magnifier" size="1.25rem" />
+          <span>Search Aspire documentation</span>
+        </button>
+        <a class="dev-browse-link" href="/hub/browse/" data-underline-trigger><span data-link-underline>Browse all resources</span><Icon name="right-arrow" size="1rem" /></a>
+        <nav class="discovery-shortcuts" aria-label="Browse resource sections">
+          <a href="#topics" data-underline-trigger><span data-link-underline>By topic</span></a>
+          <a href="#languages" data-underline-trigger><span data-link-underline>By language</span></a>
+          <a href="#clouds" data-underline-trigger><span data-link-underline>By cloud and deployment target</span></a>
+          <a href="#samples" data-underline-trigger><span data-link-underline>Featured samples</span></a>
+        </nav>
+      </div>
+      <div class="onboarding" role="region" aria-labelledby="getting-started-heading">
+        <h2 id="getting-started-heading">New to Aspire?</h2>
+        <p class="onboarding-description">Choose the path that matches what you want to do.</p>
+        <ul class="onboarding-options">
+          {resources.map((resource, index) => (
+            <li data-recommended={index === 0 ? '' : undefined}>
+              <a href={resource.href} data-underline-trigger>
+                <span class="onboarding-option-icon"><Icon name={onboardingIcons[index]} size="1.25rem" /></span>
+                <div class="onboarding-option-copy">
+                  <div class="onboarding-option-title">
+                    <h3><span data-link-underline>{resource.title}</span></h3>
+                    {index === 0 && <span class="onboarding-recommended">Recommended</span>}
+                  </div>
+                  <p>{resource.description}</p>
+                </div>
+                <span class="onboarding-format">{resource.format}</span>
+                <Icon name="right-arrow" size="1rem" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+    <nav id="topics" class="topic-links" aria-labelledby="topics-heading">
+      <h2 id="topics-heading">Browse by topic</h2>
+      <ul>
+        {topicLinks.map((topic) => (
+          <li style={`--card-color: ${topic.color}`}>
+            <a href={topic.href} data-underline-trigger>
+              <span class="topic-icon"><Icon name={topic.icon} size="1.5rem" /></span>
+              <h3>{topic.title}</h3>
+              <p>{topic.description}</p>
+              <span class="topic-action"><span data-link-underline>{topic.action}</span><Icon name="right-arrow" size="1.1rem" /></span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    <section id="languages" aria-labelledby="languages-heading">
+      <h2 id="languages-heading">Start with your language</h2>
+      <ul class="language-links">
+        {languages.map((language) => (
+          <li style={`--card-color: ${language.color}`}>
+            <a href={language.href} data-underline-trigger>
+              {language.icon === 'rust-theme'
+                ? <img class="language-rust-icon" src={rustIcon.src} alt="" width="29" height="29" aria-hidden="true" />
+                : <span class:list={['language-devicon', `i-${language.icon}`]} aria-hidden="true"></span>}
+              <div><h3><span data-link-underline>{language.title}</span></h3><p>{language.description}</p></div>
+              <Icon name="right-arrow" size="1rem" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section id="clouds" aria-labelledby="clouds-heading">
+      <h2 id="clouds-heading">Browse by cloud and deployment target</h2>
+      <p class="section-description">Explore AWS and Azure integrations, or deploy to Kubernetes.</p>
+      <ul class="cloud-links">
+        {cloudLinks.map((cloud) => (
+          <li style={`--card-color: ${cloud.color}`}>
+            <a href={cloud.href} data-underline-trigger>
+              <ThemeImage {...cloudImages[cloud.id]} width={48} height={48} alt="" zoomable={false} />
+              <div><h3><span data-link-underline>{cloud.title}</span></h3><p>{cloud.description}</p></div>
+              <Icon name={cloud.href.startsWith('https://') ? 'external' : 'right-arrow'} size="1rem" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section id="samples" aria-labelledby="samples-heading">
+      <featured-samples data-filter-path={Astro.url.pathname}>
+        <div class="section-heading">
+          <h2 id="samples-heading">Samples to build on</h2>
+          <a class="channel-link" href="/hub/browse/?type=sample" data-all-samples data-underline-trigger><span data-link-underline>All samples</span><Icon name="right-arrow" size="1rem" /></a>
+        </div>
+        <fieldset class="sample-filter" aria-describedby="sample-language-hint" hidden>
+          <legend class="search-sr-only">Sample languages</legend>
+          <span class="sample-filter-label" aria-hidden="true">Languages</span>
+          {sampleLanguageOptions.map((language) => (
+            <label>
+              <input type="checkbox" name="sample-language" value={language} aria-controls="featured-sample-list" />
+              <span>{tagLabel(language)}</span>
+            </label>
+          ))}
+          <button type="button" class="search-action" data-clear-sample-language hidden>Clear language filter</button>
+        </fieldset>
+        <p id="sample-language-hint" class="section-description">Match any selected language, including the sample's services and AppHost. Leave all unchecked to show every sample.</p>
+        <p class="sample-count search-results-summary" role="status" aria-live="polite" aria-atomic="true" data-sample-count>{featuredSamples.length} featured samples</p>
+        <div class="search-empty" data-sample-empty hidden>
+          <div class="search-empty-content">
+            <h3 class="search-empty-title">No featured samples for these languages</h3>
+            <p class="search-empty-hint">Browse all samples, or clear the language filter to see the featured selection.</p>
+            <button type="button" class="search-action" data-clear-sample-language>Clear language filter</button>
+          </div>
+        </div>
+        <ul id="featured-sample-list" class="featured-samples">
+          {featuredSamples.map((sample) => (
+            <li data-sample-languages={sample.languages.join(' ')}>
+              <a href={sample.href} data-underline-trigger>
+                <div class="sample-preview">
+                  <ThemeImage
+                    {...sampleImages[sample.name]}
+                    width={520}
+                    height={Math.round(520 * sampleImages[sample.name].dark.height / sampleImages[sample.name].dark.width)}
+                    alt={`Screenshot of the ${sample.title} sample`}
+                    zoomable={false}
+                  />
+                </div>
+                <div class="sample-copy">
+                  <h3><span data-link-underline>{sample.title}</span><Icon name="right-arrow" size="1rem" /></h3>
+                  <p>{sample.description}</p>
+                  <div class="sample-tags">{sample.tags.slice(0, 4).map((tag) => <span>{tagLabel(tag)}</span>)}</div>
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </featured-samples>
+    </section>
+    <section id="reference" aria-labelledby="reference-heading" class="reference-section">
+      <div class="section-heading">
+        <h2 id="reference-heading">Find an API or command</h2>
+        <a class="channel-link" href="/reference/overview/" data-underline-trigger><span data-link-underline>All reference docs</span><Icon name="right-arrow" size="1rem" /></a>
+      </div>
+      <ul class="reference-links">
+        {referenceLinks.map((link) => (
+          <li>
+            <a href={link.href} data-underline-trigger>
+              <span class="reference-icon"><Icon name={link.icon} size="1.5rem" /></span>
+              <div><h3><span data-link-underline>{link.title}</span></h3><p>{link.description}</p></div>
+              <Icon name="right-arrow" size="1rem" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section id="dashboard" aria-label="Dashboard">
+      <div class="section-heading">
+        <h2 id="dashboard-heading">Explore the dashboard</h2>
+        <a class="channel-link" href="/dashboard/" data-underline-trigger><span data-link-underline>Dashboard docs</span><Icon name="right-arrow" size="1rem" /></a>
+      </div>
+      <p class="section-description">Follow your app from a running resource through the OpenTelemetry logs, traces, and metrics that explain its behavior.</p>
+      <div class="dashboard-previews">
+        <figure>
+          <div class="dashboard-preview">
+            <ThemeImage
+              light={traceDetailLight}
+              dark={traceDetailDark}
+              alt="Aspire dashboard trace detail showing an OpenTelemetry request waterfall across services with span attributes."
+            />
+          </div>
+          <figcaption>
+            <a href={dashboardLinks[1].href} data-underline-trigger><span data-link-underline>{dashboardLinks[1].title}</span><Icon name="right-arrow" size="1rem" /></a>
+            <p>Follow an OpenTelemetry trace across services and inspect its spans.</p>
+          </figcaption>
+        </figure>
+        <figure>
+          <div class="dashboard-preview">
+            <ThemeImage
+              light={resourcesGraphLight}
+              dark={resourcesGraphDark}
+              alt="Aspire dashboard resource graph showing connected services and their health."
+            />
+          </div>
+          <figcaption>
+            <a href={dashboardLinks[0].href} data-underline-trigger><span data-link-underline>{dashboardLinks[0].title}</span><Icon name="right-arrow" size="1rem" /></a>
+            <p>See how running services connect, then check their health and endpoints.</p>
+          </figcaption>
+        </figure>
+      </div>
+      <ul class="dashboard-links">
+        {dashboardLinks.slice(2).map((link) => <li><a href={link.href}><span>{link.title}</span><Icon name="right-arrow" size="1rem" /></a></li>)}
+      </ul>
+    </section>
+    <section aria-labelledby="videos-heading">
+      <div class="section-heading">
+        <h2 id="videos-heading">Latest from Aspire on YouTube</h2>
+        <a class="channel-link" href="/community/videos/" data-underline-trigger><span data-link-underline>All videos</span><Icon name="right-arrow" size="1rem" /></a>
+      </div>
+      <ul class="video-links">
+        {videos.map((video) => (
+          <li>
+            <a href={`https://www.youtube.com/watch?v=${video.id}`} data-underline-trigger>
+              <div class="video-thumbnail">
+                <img src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`} width="480" height="360" loading="lazy" alt="" />
+              </div>
+              <div class="video-caption">
+                <p>{video.series}</p>
+                <h3><span data-link-underline>{video.title}</span><Icon name="external" size="1rem" /></h3>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section id="blog" aria-labelledby="blog-heading">
+      <div class="section-heading">
+        <h2 id="blog-heading">From the blog</h2>
+        <a class="channel-link" href="https://devblogs.microsoft.com/aspire/" data-underline-trigger><span data-link-underline>All blog posts</span><Icon name="external" size="1rem" /></a>
+      </div>
+      <ul class="blog-links">
+        {blogHighlights.map((post) => (
+          <li>
+            <a href={post.href} data-underline-trigger>
+              <img src={post.image} width="768" height="432" loading="lazy" alt="" />
+              <div class="blog-copy">
+                <time datetime={post.date}>{blogDateFormat.format(new Date(post.date))}</time>
+                <h3><span data-link-underline>{post.title}</span><Icon name="external" size="1rem" /></h3>
+                <p>{post.description}</p>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </div>
+</HubLayout>
+
+<script>
+  import '@components/dev-center/FeaturedSamples';
+</script>
