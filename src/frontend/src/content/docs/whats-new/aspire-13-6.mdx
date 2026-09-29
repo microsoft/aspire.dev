@@ -129,11 +129,69 @@ Terminal interactions bring setup workflows into a focused dialog:
   alt="Aspire 13.6 terminal interaction dialog running and completing a local configuration workflow."
 />
 
-These APIs use `ASPIRETERMINAL001`. An AppHost-owned terminal belongs to its creator: closing a viewer isn't a general substitute for disposing the terminal, and stopping the AppHost stops its owned terminals. Resource terminals configured with `WithTerminal` remain separate from AppHost-owned dock tabs.
+These APIs use `ASPIRETERMINAL001`. An AppHost-owned terminal belongs to its creator: closing a viewer isn't a general substitute for disposing the terminal, and stopping the AppHost stops its owned terminals. Resource terminals configured with `WithTerminal` remain separate from AppHost-owned dock tabs. For example, the following AppHost gives a Python REPL its own resource terminal:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder
+  .addExecutable('repl', 'python3', '.', ['-i', '-q'])
+  .withTerminal();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIRETERMINAL001
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddExecutable("repl", "python3", ".", "-i", "-q")
+    .WithTerminal();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
 
 #### Database and cache REPLs
 
-Opt into `WithRepl` / `withRepl` on [PostgreSQL](/integrations/databases/postgres/postgres-host/#add-postgresql-resource-with-a-repl-command), [MySQL](/integrations/databases/mysql/mysql-host/#add-mysql-resource-with-a-repl-command), [MongoDB](/integrations/databases/mongodb/mongodb-host/#add-mongodb-resource-with-a-repl-command), [SQL Server](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-a-repl-command), [Redis](/integrations/caching/redis/redis-host/#add-redis-resource-with-a-repl-command), or [Valkey](/integrations/caching/valkey/valkey-host/#add-valkey-resource-with-a-repl-command) to open the container's bundled client from a **REPL** dashboard command. No local database client installation is needed.
+Opt into `WithRepl` / `withRepl` on [PostgreSQL](/integrations/databases/postgres/postgres-host/#open-an-interactive-repl), [MySQL](/integrations/databases/mysql/mysql-host/#open-an-interactive-repl), [MongoDB](/integrations/databases/mongodb/mongodb-host/#open-an-interactive-repl), [SQL Server](/integrations/databases/sql-server/sql-server-host/#open-an-interactive-repl), [Redis](/integrations/caching/redis/redis-host/#open-an-interactive-repl), or [Valkey](/integrations/caching/valkey/valkey-host/#open-an-interactive-repl) to open the container's bundled client from a **REPL** dashboard command. No local database client installation is needed.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addRedis('cache').withRepl();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRedis("cache").WithRepl();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
 
 REPL commands are run-only and disabled unless you opt in. They use the resource's actual credentials and aren't read-only, so enable them only for trusted dashboard users. Exit the client explicitly before closing its terminal tab; closing the viewer alone can leave the client process running inside the container.
 
@@ -177,22 +235,88 @@ The dashboard also moves to **Fluent UI Blazor v5**. Resources, console logs, st
 
 Aspire 13.6 adds first-party hosting integrations for Java, Rust, Azure Connector Namespace, and Azure Container Apps Sandboxes. Java and Rust build on implementations that originated in the Aspire Community Toolkit.
 
+:::note[Prerelease packages]
+`Aspire.Hosting.Java`, `Aspire.Hosting.Rust`, `Aspire.Hosting.Azure.ConnectorNamespace`, and `Aspire.Hosting.Azure.Sandboxes` ship as prerelease (`-preview`) packages in Aspire 13.6. Their APIs may change in future releases.
+:::
+
 #### ☕ Java
 
 The new `Aspire.Hosting.Java` package supports executable JARs, Maven and Gradle wrappers, Spring Boot, Quarkus, and prebuilt Java container images. It can detect the target Java release from Maven or Gradle, generate a multi-stage Dockerfile for publishing, attach the OpenTelemetry Java agent, and run both Java resources and Java AppHosts under the Visual Studio Code debugger.
 
 The generated container path uses the repository's Maven or Gradle wrapper rather than a machine-global tool, rejects paths outside the build context, and runs the application as a non-root user.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addSpringBootApp('catalog', '../catalog');
+await catalog.withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddSpringBootApp("catalog", "../catalog")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+`AddSpringBootApp` / `addSpringBootApp` detects Maven or Gradle from the build file, builds the app, and declares an HTTP endpoint through `SERVER_PORT`. Use `AddJavaApp`, `AddQuarkusApp`, or `AddJavaContainer` for other application shapes.
+
 <LearnMore>
   See [Java hosting and Toolkit
   migration](/integrations/frameworks/java/java-host/).
 </LearnMore>
 
-{/* TODO(@marshalhayes): consider adding a short C#/TypeScript AppHost code sample for Java hosting so this matches the depth of the other new integrations. Owner from microsoft/aspire#18033. */}
 
 #### 🦀 Rust
 
 The new `Aspire.Hosting.Rust` package models Cargo applications through `AddRustApp` / `addRustApp`. Configure the Cargo binary target, arguments, and features independently from application arguments, then let Aspire generate a multi-stage Dockerfile for publish and deploy. Visual Studio Code can discover, run, and debug both Rust resources and `apphost.rs` AppHosts.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder
+    .addRustApp('api', '../rust-api')
+    .withHttpEndpoint({ env: 'PORT' })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRustApp("api", "../rust-api")
+    .WithHttpEndpoint(env: "PORT")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
 
 The first-party package doesn't yet include the Community Toolkit integration's Bacon support. Custom build and runtime images also remain responsible for ABI and linker compatibility.
 
@@ -220,7 +344,7 @@ Use `PublishAsAzureSandbox` / `publishAsAzureSandbox` to choose one of five reso
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import {
     AzureSandboxAutoSuspendMode,
     AzureSandboxTier,
@@ -296,6 +420,35 @@ The `AddDotnetProject` / `addDotnetProject` APIs now coordinate compatible proje
 
 These resources also participate in .NET SDK container publishing. You can select launch profiles from either AppHost language and separate MSBuild inputs with `WithBuildEnvironment` / `withBuildEnvironment` from runtime environment variables. Build-only variables aren't supported for file-based apps and must not be used for secrets.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
+await api.withBuildEnvironment('ContinuousIntegrationBuild', 'true');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithBuildEnvironment("ContinuousIntegrationBuild", "true");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
 `AddDotnetProject`, `DotnetProjectResource`, and the related `WithBuildEnvironment` overloads no longer require `ASPIREDOTNETPROJECT001` suppression in 13.6. The package remains prerelease; the separate Dotnet project Blazor gateway retains its experimental diagnostics. Projects that depend on per-project restore hooks can opt into individual restore with `Aspire:Dotnet:RestoreProjectsIndividually` in the AppHost configuration.
 
 Aspire also enables MSBuild's multithreaded task execution (`-mt`) when the selected SDK supports it. Project and traversal builds require .NET SDK `11.0.100-rc.1` or later; file-based apps require `11.0.100-rtm.26473.104` or a stable `11.0.100` or later. Older or undetected SDKs keep the existing behavior.
@@ -314,7 +467,7 @@ Applications often need a host filesystem path during local process execution an
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -362,7 +515,7 @@ TypeScript AppHosts now load the standard configuration stack from the directory
 
 Read the value through the generated builder API:
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -543,8 +696,8 @@ Azure Container Apps environments can opt into the Express preview with `AsExpre
 
 Existing integrations add new workflows and safer defaults:
 
-- **Docked database and cache REPLs.** Opt into `WithRepl()` / `withRepl()` on PostgreSQL, Redis, Valkey, MongoDB, MySQL, and SQL Server resources to open an interactive client for the resource in the dashboard terminal dock, using bundled clients and the resource's configured credentials. It's run-mode only and leaves existing apps unchanged unless you enable it.
-- **Deno hosting.** `Aspire.Hosting.JavaScript` adds `AddDenoApp` / `addDenoApp`, with task and serve modes, permission controls, and runtime flags. Deno must be installed for local execution. See [Deno hosting](/integrations/frameworks/deno/deno-host/).
+- **Docked database and cache REPLs.** Opt into `WithRepl()` / `withRepl()` on PostgreSQL, Redis, Valkey, MongoDB, MySQL, and SQL Server resources to open an interactive client for the resource in the dashboard terminal dock, using bundled clients and the resource's configured credentials. It's run-mode only and leaves existing apps unchanged unless you enable it. See [Database and cache REPLs](#database-and-cache-repls).
+- **Deno hosting.** `Aspire.Hosting.JavaScript` adds experimental `AddDenoApp` / `addDenoApp`, which runs a script from an app directory, with task and serve modes, permission controls, and runtime flags. These APIs report `ASPIREDENO001`, and Deno must be installed for local execution. The first-party API differs from the Community Toolkit's [Deno integration](/integrations/frameworks/deno/deno-host/).
 - **MongoDB replica sets.** Experimental `WithReplicaSet` / `withReplicaSet` configures and initializes a single-member replica set, enabling transactions and change streams after readiness. A separate `AddMongoDBReplicaSet` API supports multi-member local scenarios. Both paths are local-run-only and reject publishing; see [MongoDB replica sets](/integrations/databases/mongodb/mongodb-host/#enable-transactions-and-change-streams-with-a-single-member-replica-set).
 - **MongoDB automatic TLS.** Local MongoDB resources now use Aspire's shared certificate configuration, including standalone servers. Existing plaintext clients should review the [TLS migration guidance](#mongodb-now-uses-automatic-tls-during-local-runs).
 - **Microsoft Foundry Toolboxes.** `AddToolbox` / `addToolbox` bundles tools behind one MCP endpoint and manages immutable versions as tool configuration changes. MCP approval policies are discovery metadata that the consuming application must enforce. See the [Toolbox walkthrough](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/#add-a-toolbox).
@@ -565,6 +718,64 @@ Existing integrations add new workflows and safer defaults:
 - **Front Door origin identity.** Generated origin names now include the origin's backend hostname, so switching backends creates a distinct origin instead of reusing the previous origin's Azure identity. Review the [breaking-change guidance](#breaking-changes) before upgrading.
 - **GitHub Models integration removed.** [GitHub Models was retired for all customers on July 30, 2026](https://github.blog/changelog/2026-07-30-github-models-is-now-retired/). `Aspire.Hosting.GitHub.Models` was deprecated in Aspire 13.5 and its source, tests, and playground sample are removed from the repository in 13.6. The final `13.5.x` package stays published for apps that already reference it. `Aspire.Hosting.GitHub.Models` is hidden from `aspire add`. Migrate to the [Microsoft Foundry integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/); see [Migrate Aspire apps from GitHub Models](/integrations/ai/github-models/github-models-get-started/) for guidance.
 
+The following AppHost combines two of these additions: a first-party Deno app that can only reach one host, and a Foundry Toolbox that a project references:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import {
+  createBuilder,
+  DenoPermissionKind,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const deno = await builder.addDenoApp('deno-api', '../deno-api', 'main.ts');
+await deno.withDenoAllow(DenoPermissionKind.Net, ['api.example.com']);
+
+const foundry = await builder.addFoundry('foundry');
+const project = await foundry.addProject('project');
+const toolbox = await project.addToolbox('field-tools');
+await toolbox.withWebSearchTool({
+  name: 'web-search',
+  description: 'Search the public web.',
+});
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(toolbox);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Foundry;
+using Aspire.Hosting.JavaScript;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDENO001
+builder.AddDenoApp("deno-api", "../deno-api", "main.ts")
+    .WithDenoAllow(DenoPermissionKind.Net, "api.example.com");
+#pragma warning restore ASPIREDENO001
+
+var toolbox = builder.AddFoundry("foundry")
+    .AddProject("project")
+    .AddToolbox("field-tools")
+    .WithWebSearchTool("web-search", "Search the public web.");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(toolbox);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
 <Aside type="note">
   Radius recipe APIs, the Dotnet project Blazor gateway, and Azure Container
   Apps Sandboxes remain experimental.
@@ -575,16 +786,6 @@ Existing integrations add new workflows and safer defaults:
   tunnels](/integrations/devtools/dev-tunnels/), and
   [Radius](https://docs.radapp.io/).
 </LearnMore>
-
-{/*
-  TODO(docs): The "Docked database and cache REPLs" bullet above has no dedicated docs page yet.
-  Tracking issue: https://github.com/microsoft/aspire.dev/issues/1777 (cc @mitchdenny).
-  Re-enable the LearnMore below and link it from that bullet once the page exists.
-
-  <LearnMore>
-    See [Docked database and cache REPLs](/dashboard/explore/).
-  </LearnMore>
-*/}
 
 ## 🐳 Default container image updates
 
@@ -635,7 +836,7 @@ For an explicit local-development opt-out, use `WithoutHttpsCertificate()` / `wi
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
