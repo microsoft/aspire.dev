@@ -21,7 +21,7 @@ export interface BreadcrumbItem {
   label: string;
   /** Link target — omit for the current (last) crumb */
   href?: string;
-  /** Optional Starlight icon identifier, for example 'open-book' or 'puzzle'. */
+  /** Optional Starlight icon identifier, or 'dev-hub' for the shared hub logo. */
   icon?: BreadcrumbIcon;
 }
 
@@ -30,13 +30,14 @@ interface Props {
 }
 
 import cornerIconRaw from '@assets/icons/subdirectory-arrow.svg?raw';
+import DevHubSvg from '@assets/icons/dev-hub.svg';
 import { Icon } from '@astrojs/starlight/components';
 import type { StarlightIcon } from '@astrojs/starlight/types';
 
-type BreadcrumbIcon = StarlightIcon | 'docs';
+type BreadcrumbIcon = StarlightIcon | 'docs' | 'dev-hub';
 
 const cornerIcon = cornerIconRaw.replace('<svg ', '<svg class="bc-corner" aria-hidden="true" ');
-const getIconName = (icon?: BreadcrumbIcon): StarlightIcon | undefined =>
+const getIconName = (icon?: Exclude<BreadcrumbIcon, 'dev-hub'>): StarlightIcon | undefined =>
   icon === 'docs' ? 'open-book' : icon;
 
 const { crumbs } = Astro.props;
@@ -51,7 +52,9 @@ const current = crumbs[crumbs.length - 1];
       <>
         {crumb.href ? (
           <a href={crumb.href} class:list={[{ 'bc-icon': !!crumb.icon }]}>
-            {crumb.icon && <Icon name={getIconName(crumb.icon)!} size="0.875em" />}
+            {crumb.icon === 'dev-hub'
+              ? <DevHubSvg width="0.875em" height="0.875em" aria-hidden="true" focusable="false" />
+              : crumb.icon && <Icon name={getIconName(crumb.icon)!} size="0.875em" />}
             {crumb.label}
           </a>
         ) : (
@@ -74,7 +77,9 @@ const current = crumbs[crumbs.length - 1];
         crumb.href ? (
           <a href={crumb.href} class:list={[{ 'bc-icon': !!crumb.icon }]} style={`--bc-depth: ${i}`}>
             {i > 0 && <Fragment set:html={cornerIcon} />}
-            {crumb.icon && <Icon name={getIconName(crumb.icon)!} size="0.875em" />}
+            {crumb.icon === 'dev-hub'
+              ? <DevHubSvg width="0.875em" height="0.875em" aria-hidden="true" focusable="false" />
+              : crumb.icon && <Icon name={getIconName(crumb.icon)!} size="0.875em" />}
             {crumb.label}
           </a>
         ) : (

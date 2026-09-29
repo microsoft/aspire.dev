@@ -28,7 +28,7 @@ actionable, severity-ranked findings report. **Makes no edits** — {polish} act
 - `<Aside>` used **judiciously** (not eye-burning). Breaking-changes caution present
   **only** when the release has breaking changes — when it has none, both the caution
   *and* the "⚠️ Breaking changes" section are omitted (no empty section left behind).
-- C#/TypeScript **tab parity** (`syncKey='aspire-lang'`) wherever a feature spans AppHost languages.
+- TypeScript/C# **tab parity** (`syncKey='aspire-lang'`, TypeScript first) wherever a feature spans AppHost languages.
 - `publishDate` frontmatter set (the `Released MMMM D, YYYY` badge + GitHub release-notes link auto-render; no hand-placed header).
 
 **Content standards (mandated)**

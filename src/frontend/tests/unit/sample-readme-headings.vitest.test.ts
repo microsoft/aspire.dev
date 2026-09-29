@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  headingPlainText,
   slugifyHeading,
   stripReadmeTitle,
   toSentenceCase,
@@ -29,6 +30,30 @@ describe('slugifyHeading', () => {
 
   it('returns "section" for collapsed inputs', () => {
     expect(slugifyHeading('???')).toBe('section');
+  });
+
+  it.each([
+    ['  AppHost -- setup\tand\nrun  ', 'apphost-setup-and-run'],
+    ['Crème 日本語 123', 'crème-日本語-123'],
+    ['List<T> and x < y > z', 'listt-and-x-y-z'],
+    ['<<script>name</script>>', 'scriptnamescript'],
+    ['', 'section'],
+    ['<> & !!!', 'section'],
+  ])('allows only slug characters in plain text %j', (text, expected) => {
+    expect(slugifyHeading(text)).toBe(expected);
+    expect(slugifyHeading(text)).toMatch(/^[\p{Letter}\p{Number}-]+$/u);
+  });
+
+  it('preserves heading IDs when the caller extracts MDAST text before slugging', () => {
+    const text = headingPlainText([
+      { type: 'html', value: '<em data-title="a > b">' },
+      { type: 'text', value: 'Running ' },
+      { type: 'strong', children: [{ type: 'text', value: 'the ' }] },
+      { type: 'link', url: '/app/', children: [{ type: 'inlineCode', value: 'AppHost' }] },
+      { type: 'html', value: '</em>' },
+    ]);
+    expect(text).toBe('Running the AppHost');
+    expect(slugifyHeading(text)).toBe('running-the-apphost');
   });
 });
 

@@ -1,13 +1,49 @@
 ---
 import PageActionsPageTitle from 'starlight-page-actions/overrides/PageTitle.astro';
+import { Icon } from '@astrojs/starlight/components';
+import DevHubSvg from '@assets/icons/dev-hub.svg';
 
 const currentPath = Astro.url.pathname.replace(/\/$/, '').replace(/^\//, '');
-const isApiSubpage = currentPath.startsWith('reference/api/');
+const isDevDirectory = ['hub', 'hub/browse', 'hub/glossary'].includes(currentPath);
 ---
 
-<PageActionsPageTitle />
+{isDevDirectory && (
+  <style is:inline>
+    .content-panel:has(.dev-directory-title) > .sl-container {
+      padding: 1.5rem 1rem;
+    }
+    .dev-directory-title {
+      margin: 0;
+      margin-inline-start: -1rem;
+    }
+    @media (min-width: 72rem) {
+      .content-panel:has(.dev-directory-title) > .sl-container {
+        padding-inline: 1.5rem;
+      }
+      .dev-directory-title {
+        margin-inline-start: -1.5rem;
+      }
+    }
+  </style>
+)}
+
+{isDevDirectory ? (
+  <h1 id="_top" data-page-title class="dev-directory-title">
+    {currentPath === 'hub' && <DevHubSvg aria-hidden="true" focusable="false" />}
+    {currentPath === 'dev/glossary' && <Icon name="notes" aria-hidden="true" />}
+    <span>{Astro.locals.starlightRoute.entry.data.title}</span>
+  </h1>
+) : <PageActionsPageTitle />}
 
 <style>
+  .dev-directory-title {
+    display: flex; align-items: center; gap: 0.3em;
+    font-size: clamp(2rem, 4vw, 2.5rem); line-height: 1.15; letter-spacing: -0.04em;
+    color: var(--sl-color-white);
+  }
+  .dev-directory-title :global(svg) {
+    width: 0.9em; height: 0.9em; flex-shrink: 0; color: var(--sl-color-text-accent);
+  }
   :global(.content-panel:has(.actions-container)) {
     position: relative;
     /* Promote the actions panel into its own stacking context that paints
@@ -48,22 +84,22 @@ const isApiSubpage = currentPath.startsWith('reference/api/');
     display: none;
   }
 
-:global(#dropdown-menu .dropdown-item .action-icon[data-action-icon='githubCopilot']) {
-  transform: none;
-  background-color: currentColor;
-  --github-octocat-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z'/%3E%3C/svg%3E");
-  -webkit-mask-image: var(--github-octocat-mask);
-  mask-image: var(--github-octocat-mask);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-}
+  :global(#dropdown-menu .dropdown-item .action-icon[data-action-icon='githubCopilot']) {
+    transform: none;
+    background-color: currentColor;
+    --github-octocat-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z'/%3E%3C/svg%3E");
+    -webkit-mask-image: var(--github-octocat-mask);
+    mask-image: var(--github-octocat-mask);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
 </style>
 
-<script is:inline define:vars={{ isApiSubpage }}>
+<script is:inline>
   function initPageTitle() {
     var actions = document.querySelector('.actions-container');
     if (actions) {
@@ -71,10 +107,11 @@ const isApiSubpage = currentPath.startsWith('reference/api/');
       actions.setAttribute('data-tour-step', 'page-actions');
     }
 
-    if (isApiSubpage) {
-      var h1 = document.querySelector('main h1#_top');
-      if (h1) h1.classList.add('api-page-title');
-    }
+    var h1 = document.querySelector('main h1#_top');
+    if (!h1) return;
+
+    var currentPath = window.location.pathname.replace(/\/$/, '').replace(/^\//, '');
+    h1.classList.toggle('api-page-title', currentPath.startsWith('reference/api/'));
   }
 
   if (window.__pageTitleAbort) window.__pageTitleAbort.abort();

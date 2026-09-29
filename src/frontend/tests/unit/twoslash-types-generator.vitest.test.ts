@@ -1,5 +1,14 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, test } from 'vitest';
@@ -22,6 +31,55 @@ beforeAll(() => {
 }, 60_000);
 
 describe('generate-twoslash-types', () => {
+  test('keeps enum literals from independent packages sharing an exported short name', () => {
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'aspire-enum-collision-'));
+    const modulesDir = path.join(fixtureRoot, 'ts-modules');
+    const packagesDir = path.join(fixtureRoot, 'pkgs');
+    const fixtureOutput = path.join(fixtureRoot, 'aspire.d.ts');
+    mkdirSync(modulesDir);
+    mkdirSync(packagesDir);
+    try {
+      for (const [name, members] of [
+        ['Cdn', ['EqualsAny']],
+        ['Network', ['EqualsValue', 'EqualsAny']],
+      ] as const) {
+        writeFileSync(
+          path.join(modulesDir, `${name}.json`),
+          JSON.stringify({
+            package: { name, version: '13.6.0' },
+            enumTypes: [
+              {
+                name: 'MatchOperator',
+                fullName: `${name}.MatchOperator`,
+                kind: 'enum',
+                members,
+              },
+            ],
+          })
+        );
+      }
+      execFileSync(
+        process.execPath,
+        [path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs'), generatorScript],
+        {
+          cwd: frontendRoot,
+          env: {
+            ...process.env,
+            ASPIRE_API_PKGS_DIR: packagesDir,
+            ASPIRE_API_TS_MODULES_DIR: modulesDir,
+            ASPIRE_API_TWOSLASH_FILE: fixtureOutput,
+          },
+        }
+      );
+      const generated = readFileSync(fixtureOutput, 'utf8');
+      expect(generated).toContain('readonly EqualsAny: "EqualsAny";');
+      expect(generated).toContain('readonly EqualsValue: "EqualsValue";');
+      expect(generated.match(/export declare const MatchOperator:/g)).toHaveLength(1);
+      expect(generated).toContain('Cdn.MatchOperator | Network.MatchOperator');
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  });
 
   test('writes aspire.d.ts to disk', () => {
     expect(existsSync(outputFile)).toBe(true);
@@ -70,6 +128,97 @@ describe('generate-twoslash-types', () => {
     expect(output).not.toMatch(
       /export interface \w+[^{]*extends[^{]*(?:ExecutableResource[^{]*ContainerResource|ContainerResource[^{]*ExecutableResource)/
     );
+  });
+
+  test('scopes fallback inheritance to the package when full type names collide', () => {
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'aspire-twoslash-types-'));
+    const packagesDir = path.join(fixtureRoot, 'pkgs');
+    const modulesDir = path.join(fixtureRoot, 'ts-modules');
+    const fixtureOutput = path.join(fixtureRoot, 'twoslash', 'aspire.d.ts');
+    mkdirSync(packagesDir);
+    mkdirSync(modulesDir);
+
+    const writeJson = (filePath: string, value: unknown): void => {
+      writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+    };
+    const collidingFullName = 'Aspire.Hosting.ApplicationModel.K8sManifestResource';
+
+    try {
+      writeJson(path.join(packagesDir, 'A.K3s.1.0.0.json'), {
+        package: { name: 'A.K3s', version: '1.0.0' },
+        types: [
+          {
+            name: 'K8sManifestResource',
+            fullName: collidingFullName,
+            kind: 'class',
+            baseType: 'Aspire.Hosting.ApplicationModel.ContainerResource',
+          },
+        ],
+      });
+      writeJson(path.join(packagesDir, 'B.Kind.1.0.0.json'), {
+        package: { name: 'B.Kind', version: '1.0.0' },
+        types: [
+          {
+            name: 'K8sManifestResource',
+            fullName: collidingFullName,
+            kind: 'class',
+            baseType: 'Aspire.Hosting.ApplicationModel.KindDeployedResource',
+          },
+        ],
+      });
+      writeJson(path.join(modulesDir, 'A.K3s.1.0.0.json'), {
+        package: { name: 'A.K3s', version: '1.0.0' },
+        handleTypes: [
+          {
+            name: 'ContainerResource',
+            fullName: 'Aspire.Hosting.ApplicationModel.ContainerResource',
+            kind: 'handle',
+          },
+          {
+            name: 'K8sManifestResource',
+            fullName: collidingFullName,
+            kind: 'handle',
+          },
+        ],
+      });
+      writeJson(path.join(modulesDir, 'B.Kind.1.0.0.json'), {
+        package: { name: 'B.Kind', version: '1.0.0' },
+        handleTypes: [
+          {
+            name: 'KindDeployedResource',
+            fullName: 'Aspire.Hosting.ApplicationModel.KindDeployedResource',
+            kind: 'handle',
+          },
+          {
+            name: 'K8sManifestResource',
+            fullName: collidingFullName,
+            kind: 'handle',
+          },
+        ],
+      });
+
+      const tsxBin = path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+      execFileSync(process.execPath, [tsxBin, generatorScript], {
+        cwd: frontendRoot,
+        env: {
+          ...process.env,
+          ASPIRE_API_PKGS_DIR: packagesDir,
+          ASPIRE_API_TS_MODULES_DIR: modulesDir,
+          ASPIRE_API_TWOSLASH_FILE: fixtureOutput,
+        },
+        stdio: 'pipe',
+      });
+
+      const fixtureDeclarations = readFileSync(fixtureOutput, 'utf8');
+      expect(fixtureDeclarations).toMatch(
+        /export interface K8sManifestResource extends ContainerResource/
+      );
+      expect(fixtureDeclarations).not.toMatch(
+        /export interface K8sManifestResource extends KindDeployedResource/
+      );
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
   });
 
   test('prefers generated DTO metadata over post-snapshot shims', () => {
