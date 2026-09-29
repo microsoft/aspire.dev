@@ -462,7 +462,8 @@ function Resolve-NuGetPackageRestoreGraph {
     param(
         [string]$PackageId,
         [string]$Version,
-        [string[]]$RestoreSources
+        [string[]]$RestoreSources,
+        [string]$HostingVersion
     )
 
     # A separate restore project is intentional: it prevents NuGet from unifying
@@ -477,11 +478,19 @@ function Resolve-NuGetPackageRestoreGraph {
         $escapedFramework = [System.Security.SecurityElement]::Escape($Framework)
         # Provisioning overlays extend an AppHost, not a standalone class library.
         # Keep each overlay isolated, but include its same-build hosting context.
+        # Prerelease overlays can ship beside a stable Aspire.Hosting build, so
+        # prefer the Aspire.Hosting version resolved in this run.
+        $escapedHostingVersion = if ([string]::IsNullOrWhiteSpace($HostingVersion)) {
+            $escapedVersion
+        }
+        else {
+            [System.Security.SecurityElement]::Escape($HostingVersion)
+        }
         $hostingReference = if (
             $PackageId.StartsWith("Aspire.Hosting.Azure.Provisioning.", [System.StringComparison]::OrdinalIgnoreCase) -and
             -not $PackageId.Equals("Aspire.Hosting.Azure.Provisioning.Generators", [System.StringComparison]::OrdinalIgnoreCase)
         ) {
-            "    <PackageReference Include=`"Aspire.Hosting`" Version=`"[$escapedVersion]`" />"
+            "    <PackageReference Include=`"Aspire.Hosting`" Version=`"[$escapedHostingVersion]`" />"
         }
         else { "" }
         $csproj = @"
@@ -850,6 +859,17 @@ Write-Host "Resolved $($packageInfos.Count) package versions ($failCount failed)
 Write-Host "Preparing packages..." -ForegroundColor Cyan
 
 $manifestEntries = @()
+$hostingInfo = $packageInfos | Where-Object { $_.PackageId -eq "Aspire.Hosting" } | Select-Object -First 1
+$hostingVersion = if ($hostingInfo) { $hostingInfo.Version } else { $null }
+if (-not $hostingVersion) {
+    $overlay = $packageInfos | Where-Object {
+        $_.PackageId.StartsWith("Aspire.Hosting.Azure.Provisioning.", [System.StringComparison]::OrdinalIgnoreCase)
+    } | Select-Object -First 1
+    if ($overlay) {
+        $hostingVersion = Get-LatestNuGetVersion -PackageId "Aspire.Hosting" `
+            -PackageBaseAddress $packageSourceMetadata[$overlay.PackageId].PackageBaseAddress
+    }
+}
 
 foreach ($info in $packageInfos) {
     $packageId = $info.PackageId
@@ -861,7 +881,8 @@ foreach ($info in $packageInfos) {
         $restoreGraph = Resolve-NuGetPackageRestoreGraph `
             -PackageId $packageId `
             -Version $version `
-            -RestoreSources $sourceInfo.RestoreSources
+            -RestoreSources $sourceInfo.RestoreSources `
+            -HostingVersion $hostingVersion
     }
     catch {
         Write-Warning "Failed to restore $packageId $version`: $_"
