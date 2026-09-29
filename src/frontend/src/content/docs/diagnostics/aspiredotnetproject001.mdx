@@ -1,10 +1,10 @@
 ---
 title: Compiler Warning ASPIREDOTNETPROJECT001
 seoTitle: 'ASPIREDOTNETPROJECT001: AddDotnetProject types and members'
-description: Learn what causes the Aspire compiler warning ASPIREDOTNETPROJECT001 and how to fix it so your AppHost builds cleanly.
+description: Learn why Aspire 13.6 removed the unnecessary ASPIREDOTNETPROJECT001 diagnostic from Aspire.Hosting.Dotnet while its APIs remain unstable.
 ---
 
-import { Badge, Aside } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
 
 <Badge
   text="Version introduced: 13.5"
@@ -13,22 +13,25 @@ import { Badge, Aside } from '@astrojs/starlight/components';
   class:list={'mb-1'}
 />
 
-<Aside type="note">
-  As of Aspire 14.0, `AddDotnetProject`, `DotnetProjectResource`, and the related `WithBuildEnvironment` overloads are no longer experimental and do not trigger `ASPIREDOTNETPROJECT001`. `Aspire.Hosting.Dotnet` remains a prerelease package, so its API surface may still change before it ships stable. This diagnostic only applies if you're using an earlier version of Aspire.
-</Aside>
+:::note[Removed from Aspire.Hosting.Dotnet in Aspire 13.6]
+`Aspire.Hosting.Dotnet` is already a prerelease package, so the separate experimental designation was unnecessary. The package's APIs remain unstable and may change in future releases.
+
+Starting with Aspire 13.6, `AddDotnetProject`, `DotnetProjectResource`, and the related `WithBuildEnvironment` overloads no longer emit `ASPIREDOTNETPROJECT001`. You can remove suppressions for these APIs after upgrading.
+:::
 
 > AddDotnetProject types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-This diagnostic warning is reported when using experimental `AddDotnetProject` APIs from the `Aspire.Hosting.Dotnet` integration, including:
+In versions earlier than Aspire 13.6, this diagnostic warning is reported when using experimental APIs from the `Aspire.Hosting.Dotnet` integration, including:
 
 - `AddDotnetProject` extension methods
 - `DotnetProjectResource`
+- `WithBuildEnvironment` overloads for `DotnetProjectResource`
 
-These APIs add a C# project or file-based C# app to the application model as an `ExecutableResource` that's launched through the .NET SDK.
+These APIs add and configure a C# project or file-based C# app in the application model as an `ExecutableResource` that's launched through the .NET SDK.
 
 ## Example
 
-The following code generates `ASPIREDOTNETPROJECT001`:
+In versions earlier than Aspire 13.6, the following code generates `ASPIREDOTNETPROJECT001`:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -40,9 +43,9 @@ builder.Build().Run();
 
 ## To correct this warning
 
-If you use Aspire 14.0 or later, you don't need to suppress this diagnostic and can remove any existing `ASPIREDOTNETPROJECT001` suppressions.
+Upgrade to Aspire 13.6 or later. After upgrading, remove `ASPIREDOTNETPROJECT001` suppressions for these APIs from _.editorconfig_ files, project `NoWarn` properties, and `#pragma warning` directives.
 
-If you use an Aspire version earlier than 14.0, suppress the warning with one of the following methods:
+If you use an Aspire version earlier than 13.6, suppress the warning with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 
