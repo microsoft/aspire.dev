@@ -1414,6 +1414,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               label: 'Set up Java apps in the AppHost',
               slug: 'integrations/frameworks/java/java-host',
             },
+            {
+              label: 'Connect to Java apps',
+              slug: 'integrations/frameworks/java/java-connect',
+            },
           ],
         },
         {
@@ -1499,6 +1503,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Set up Rust apps in the AppHost',
               slug: 'integrations/frameworks/rust/rust-host',
+            },
+            {
+              label: 'Connect to Rust apps',
+              slug: 'integrations/frameworks/rust/rust-connect',
             },
           ],
         },
