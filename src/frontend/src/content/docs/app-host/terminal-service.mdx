@@ -119,11 +119,11 @@ Run `aspire run`, wait for `cache` to be running, and select **REPL** from its r
 
 The command is disabled until the container is running and its runtime ID is available. Each invocation creates a new dock terminal and uses the current container ID, including after a container restart. Reopen the REPL after restarting its container; an old session doesn't reconnect automatically.
 
-:::caution[Privileged access and cleanup]
-REPL access is disabled by default and is only added in run mode, not publish mode. Enable it only for trusted dashboard users: clients use the configured credentials and aren't read-only. SQL Server sessions run as `sa`. Sharing the dashboard through a tunnel or remote development environment also exposes this capability to users who can execute resource commands.
-
-Exit the database client before closing its tab. Closing a dock tab disposes the AppHost-owned runtime command, but the container runtime can leave the client process running inside the container. Stopping the container ends any remaining REPL processes. Passwords are passed through environment variables rather than command-line arguments, but terminal output and query history can still contain sensitive data.
+:::caution[Docker exec process cleanup]
+Interrupting or terminating a local `docker exec` subprocess can leave the program it launched running inside the container. This is a [known Docker issue](https://github.com/moby/moby/issues/9098), not specific to REPLs. Exit the shell or client normally before closing its terminal tab. Stopping the container ends any processes left behind.
 :::
+
+REPL commands are opt-in and run-mode-only. They use the resource's configured credentials and can modify data, so enable them only for trusted dashboard users. See [terminal security considerations](/dashboard/security-considerations/#interactive-terminals).
 
 Use `WithTerminal()` for a resource whose main process is itself interactive. Use `WithRepl()` for an additional database or cache client in the dock. The REPL dock session isn't a resource-terminal target for [`aspire terminal tape play`](/reference/cli/commands/aspire-terminal-tape-play/).
 
