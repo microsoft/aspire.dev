@@ -64,11 +64,14 @@ test('install CLI entry adapts to viewport and remembers the selected channel', 
 
   const installModal = page.locator('#install-cli-modal');
   const versionSelect = installModal.locator('#version-select');
+  const releaseInfo = installModal.locator('.release-info');
   const channelTrigger = installModal.getByRole('combobox', {
     name: 'Select release channel',
   });
 
   await expect(installModal).toBeVisible();
+  await expect(versionSelect).toHaveValue('release');
+  await expect(releaseInfo).toBeVisible();
   await channelTrigger.click();
   await expect(channelTrigger).toHaveAttribute('aria-expanded', 'true');
   const channelListbox = page.getByRole('listbox', { name: 'Select release channel' });
@@ -81,6 +84,7 @@ test('install CLI entry adapts to viewport and remembers the selected channel', 
   await expect(channelTrigger).toHaveAttribute('aria-expanded', 'false');
   await expect(installModal.locator('.quality-aside[data-quality="dev"]')).toBeVisible();
   await expect(installModal.locator('.code-wrapper[data-version="dev"]').first()).toBeVisible();
+  await expect(releaseInfo).toBeHidden();
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('aspire-install-channel')))
     .toBe('dev');
@@ -89,8 +93,10 @@ test('install CLI entry adapts to viewport and remembers the selected channel', 
   await expect(installModal).not.toBeVisible();
 
   await openInstallButton.click();
+  await expect(installModal).toBeVisible();
   await expect(versionSelect).toHaveValue('dev');
   await expect(channelTrigger).toContainText('Dev');
+  await expect(releaseInfo).toBeHidden();
 });
 
 test('homepage header matches the compact mobile action geometry at reflow widths', async ({
