@@ -18,8 +18,6 @@ import multipleInputFilled from '@assets/extensibility/interaction-service-multi
 import multipleInputFilledLight from '@assets/extensibility/interaction-service-multiple-input-filled-light.png';
 import multipleInputLogs from '@assets/extensibility/interaction-service-multiple-input-logs.png';
 import multipleInputLogsLight from '@assets/extensibility/interaction-service-multiple-input-logs-light.png';
-import terminalInteractionDark from '@assets/dashboard/terminals/terminal-interaction-dark.png';
-import terminalInteractionLight from '@assets/dashboard/terminals/terminal-interaction-light.png';
 
 The interaction service (`Aspire.Hosting.IInteractionService`) allows you to prompt users for input, request confirmation, and display messages. It works in two different contexts:
 
@@ -93,13 +91,16 @@ The following sections describe how to use these APIs effectively in both contex
 | `PromptInputAsync`        | Prompts the user for a single input value, such as text or secret.                                  | Dashboard, CLI     |
 | `PromptInputsAsync`       | Prompts the user for multiple input values in a single dialog (dashboard) or sequentially (CLI).    | Dashboard, CLI     |
 | `PromptProgressAsync`     | Displays a progress dialog with an indeterminate progress indicator during long-running operations. | Dashboard only     |
+| `PromptTerminalAsync`     | Borrows a caller-owned terminal for a dialog while optional work runs.                              | Dashboard only     |
 
 <Aside type="caution">
   During `aspire publish` and `aspire deploy` operations, only
   `PromptInputAsync` and `PromptInputsAsync` are available. Other interaction
   methods (`PromptMessageBoxAsync`, `PromptNotificationAsync`,
-  `PromptConfirmationAsync`, and `PromptProgressAsync`) will throw an exception
+  `PromptConfirmationAsync` and `PromptProgressAsync`) will throw an exception
   if called in CLI contexts.
+  `PromptTerminalAsync` is intended for dashboard workflows and isn't rendered
+  as a CLI prompt.
 </Aside>
 
 ## Where to use the interaction service
@@ -1092,15 +1093,7 @@ Because no `PrimaryButtonText` is set, the dialog has no cancel button and the u
 
 ## Terminal interactions
 
-An AppHost can use the experimental `TerminalService` API with `PromptTerminalAsync` to present an interactive setup tool in a dashboard dialog. Unlike a form prompt, the dialog displays the running terminal program and accepts its input. The following example shows a local configuration workflow after it saves the selected settings:
-
-<ThemeImage
-  dark={terminalInteractionDark}
-  light={terminalInteractionLight}
-  alt="Aspire dashboard terminal interaction showing a local catalog setup workflow and its saved configuration."
-/>
-
-These APIs use the `ASPIRETERMINAL001` diagnostic. The caller owns the terminal and is responsible for its lifetime; closing a viewer isn't a substitute for disposing it. See [AppHost terminals in Aspire 13.6](/whats-new/aspire-13-6/#apphost-terminals-and-automation) and [resource terminals](/app-host/with-terminal/) for the distinction between AppHost-owned and resource-owned sessions.
+Use `PromptTerminalAsync` to display an interactive terminal in a dashboard dialog. For terminal creation, cancellation, ownership, and examples, see [Display interactive terminals in dialogs](/dashboard/terminal-interactions/).
 
 ## Interaction contexts
 
@@ -1113,6 +1106,7 @@ When you run your application using `aspire run` or by directly launching the Ap
 - **Modal dialogs**: Message boxes and input prompts appear as overlay dialogs that require user interaction.
 - **Notification messages**: Informational messages appear as dismissible banners at the top of the dashboard.
 - **Progress dialogs**: Long-running operations display a non-dismissable progress indicator with an optional cancel button.
+- **Terminal dialogs**: Caller-owned terminals appear while optional work runs, with an optional cancel button.
 - **Rich UI**: Full support for interactive form elements, validation, and visual feedback.
 - **All methods available**: All interaction service methods are supported in dashboard contexts.
 
@@ -1122,7 +1116,7 @@ When you run `aspire publish` or `aspire deploy`, interactions are prompted thro
 
 - **Text prompts**: Only input prompts (`PromptInputAsync` and `PromptInputsAsync`) are available and appear as text-based prompts in the terminal.
 - **Sequential input**: Multiple inputs are requested one at a time rather than in a single dialog.
-- **Limited functionality**: Message boxes, notifications, confirmation dialogs, and progress dialogs aren't available and throw exceptions if called.
+- **Limited functionality**: Message boxes, notifications, confirmation dialogs, and progress dialogs aren't available and throw exceptions if called. Terminal dialogs aren't rendered by the CLI; use them only in dashboard workflows.
 
 <Aside type="caution">
   The interaction service adapts automatically to dashboard and CLI contexts. In
@@ -1130,11 +1124,14 @@ When you run `aspire publish` or `aspire deploy`, interactions are prompted thro
   `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`,
   `PromptNotificationAsync`, `PromptConfirmationAsync`, or `PromptProgressAsync`
   in CLI operations like `aspire publish` or `aspire deploy` results in an
-  exception.
+  exception. `PromptTerminalAsync` isn't rendered by the CLI, but those operation
+  modes alone don't guarantee that it throws.
 </Aside>
 
 ## See also
 
+- [AppHost terminal service](/dashboard/ephemeral-terminals/) — Create, own, and automate terminals
+- [Dashboard terminals](/dashboard/terminals/) — Use terminal views and the terminal dock
 - [Custom resource commands](/fundamentals/custom-resource-commands/) — Add commands with arguments to resources in the dashboard and CLI
 - [AppHost eventing](/app-host/eventing/) — Subscribe to resource lifecycle events
 - [Custom resources](/extensibility/custom-resources/) — Build custom resource types for the AppHost
