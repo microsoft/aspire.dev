@@ -22,44 +22,40 @@ The `AspireTerminal` handle exposes text and key input, bounded waits, and a sna
 - `WaitForTextAsync(text, timeout, cancellationToken)` waits for text on the current screen. The default timeout is 30 seconds; a timeout throws `TimeoutException`.
 - `GetScreenText()` returns the current screen with newline-separated lines, not a process-exit result or a complete log archive.
 
-The following helper runs on Linux or macOS with `/bin/sh`. Add the local function to your AppHost file after the top-level app setup, with the diagnostic suppression at the top. Call it from an asynchronous AppHost callback with the resolved service and the callback's cancellation token.
+The following code runs on Linux or macOS with `/bin/sh`. Use it inside an asynchronous AppHost callback, with `terminals` resolved from dependency injection and `cancellationToken` supplied by the callback.
 
-```csharp title="AppHost.cs — headless helper"
+```csharp title="AppHost.cs — headless automation"
 #pragma warning disable ASPIRETERMINAL001
 
-static async Task<string> RunHeadlessAsync(
-    TerminalService terminals, CancellationToken cancellationToken)
+await using var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
 {
-    await using var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
-    {
-        Title = "Headless check",
-        Executable = "/bin/sh",
-        Arguments =
-        [
-            "-c",
-            """
-            printf 'Ready for input\n'
-            read -r answer
-            printf 'Received:%s\n' "$answer"
-            read -r finish
-            """
-        ],
-        Placement = TerminalPlacement.None
-    });
+    Title = "Headless check",
+    Executable = "/bin/sh",
+    Arguments =
+    [
+        "-c",
+        """
+        printf 'Ready for input\n'
+        read -r answer
+        printf 'Received:%s\n' "$answer"
+        read -r finish
+        """
+    ],
+    Placement = TerminalPlacement.None
+});
 
-    terminal.Start();
-    await terminal.WaitForTextAsync(
-        "Ready for input", TimeSpan.FromSeconds(10), cancellationToken);
-    await terminal.SendTextAsync("hello", cancellationToken);
-    await terminal.SendKeyAsync(AspireTerminalKey.Enter, cancellationToken);
-    await terminal.WaitForTextAsync(
-        "Received:hello", TimeSpan.FromSeconds(10), cancellationToken);
+terminal.Start();
+await terminal.WaitForTextAsync(
+    "Ready for input", TimeSpan.FromSeconds(10), cancellationToken);
+await terminal.SendTextAsync("hello", cancellationToken);
+await terminal.SendKeyAsync(AspireTerminalKey.Enter, cancellationToken);
+await terminal.WaitForTextAsync(
+    "Received:hello", TimeSpan.FromSeconds(10), cancellationToken);
 
-    return terminal.GetScreenText();
-}
+var screenText = terminal.GetScreenText();
 ```
 
-The script stays alive at its final `read` until the helper disposes the terminal. This matters: after an **AppHost-owned workload stops**, input and screen-automation operations throw `InvalidOperationException`. The terminal remains registered and visible until disposal, but reopening it shows its ended state rather than replaying output.
+The script stays alive at its final `read` until `await using` disposes the terminal at the end of the enclosing scope. This matters: after an **AppHost-owned workload stops**, input and screen-automation operations throw `InvalidOperationException`. The terminal remains registered and visible until disposal, but reopening it shows its ended state rather than replaying output.
 
 Use distinctive, complete replies when automating. Waiting for text that also appears in the terminal's echoed input can report success before the command actually runs. Polling loops should have deadlines and observe cancellation; don't wait indefinitely for a prompt that might never appear.
 
