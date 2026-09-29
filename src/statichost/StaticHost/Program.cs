@@ -1,6 +1,16 @@
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+// Production supplies the vault reference; local Aspire runs intentionally do not.
+if (builder.Configuration.GetConnectionString("secrets") is not null)
+{
+    builder.Configuration.AddAzureKeyVaultSecrets("secrets");
+}
+
+builder.AddLiveStatus();
 
 builder.Services.AddHsts(options =>
 {
@@ -8,6 +18,11 @@ builder.Services.AddHsts(options =>
     options.IncludeSubDomains = true;
     options.MaxAge = TimeSpan.FromDays(180);
 });
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddOpenApi("v1");
+}
 
 await using var app = builder.Build();
 
@@ -74,6 +89,27 @@ app.Use(async (context, next) =>
 });
 
 app.MapGet("/healthz", () => Results.Ok());
+
+// Live-status API + SSE + webhooks.
+app.MapLiveStatus();
+
+// OpenAPI + Scalar API reference (with custom Aspire-brand theme) in dev.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference("/scalar/v1", options =>
+    {
+        options.WithTitle("aspire.dev API")
+               .WithTheme(ScalarTheme.None);
+
+        var brandPath = Path.Combine(AppContext.BaseDirectory, "aspire-brand.css");
+        var themePath = Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "scalar", "aspire-theme.css");
+        options.WithCustomCss(string.Concat(
+            File.ReadAllText(brandPath),
+            Environment.NewLine,
+            File.ReadAllText(themePath)));
+    });
+}
 
 app.MapGet("/install.ps1", (HttpContext context, OneDSTelemetryService telemetry) =>
 {

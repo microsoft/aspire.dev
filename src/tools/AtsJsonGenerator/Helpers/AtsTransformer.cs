@@ -17,6 +17,15 @@ internal static class AtsTransformer
         string? sourceRepository = null,
         string? sourceCommit = null)
     {
+        var errors = dump.Diagnostics
+            .Where(diagnostic => diagnostic.Severity.Equals("Error", StringComparison.OrdinalIgnoreCase))
+            .Select(diagnostic => diagnostic.Message)
+            .ToArray();
+        if (errors.Length > 0)
+        {
+            throw new InvalidOperationException($"ATS dump contains error diagnostics: {string.Join("; ", errors)}");
+        }
+
         sourceRepository = NormalizeSourceRepository(sourceRepository);
 
         // Fall back to the version from the dump's Packages metadata if not explicitly provided
@@ -34,8 +43,9 @@ internal static class AtsTransformer
         var handleLookup = handleModels.ToDictionary(h => h.FullName, h => h);
 
         // Transform capabilities into functions
+        var enumNames = dump.EnumTypes.ToDictionary(value => value.TypeId, value => value.Name);
         var functionModels = dump.Capabilities
-            .Select(TransformCapability)
+            .Select(capability => TransformCapability(capability, enumNames))
             .OrderBy(f => f.QualifiedName)
             .ToList();
 
@@ -56,7 +66,7 @@ internal static class AtsTransformer
 
         // Transform DTO types
         var dtoModels = dump.DtoTypes
-            .Select(TransformDto)
+            .Select(dto => TransformDto(dto, enumNames))
             .OrderBy(d => d.FullName)
             .ToList();
 
@@ -129,7 +139,8 @@ internal static class AtsTransformer
         };
     }
 
-    private static TsFunctionModel TransformCapability(AtsDumpCapability cap)
+    private static TsFunctionModel TransformCapability(
+        AtsDumpCapability cap, IReadOnlyDictionary<string, string> enumNames)
     {
         // Filter out the context/builder target parameter from visible params
         var visibleParams = cap.Parameters
@@ -147,12 +158,12 @@ internal static class AtsTransformer
         var paramModels = visibleParams.Select(p => new TsParameterModel
         {
             Name = p.Name,
-            Type = FormatTypeRef(p.Type),
+            Type = FormatTypeRef(p.Type, enumNames),
             IsOptional = p.IsOptional,
             IsNullable = p.IsNullable,
             DefaultValue = p.DefaultValue,
             IsCallback = p.IsCallback,
-            CallbackSignature = p.IsCallback ? FormatCallbackSignature(p) : null,
+            CallbackSignature = p.IsCallback ? FormatCallbackSignature(p, enumNames) : null,
             Description = paramDocLookup.TryGetValue(p.Name, out var pd) ? NormalizeDoc(pd) : null,
         }).ToList();
 
@@ -166,7 +177,7 @@ internal static class AtsTransformer
             return $"{p.Name}{opt}: {type}";
         });
 
-        var returnTypeStr = FormatTypeRef(cap.ReturnType);
+        var returnTypeStr = FormatTypeRef(cap.ReturnType, enumNames);
         var sig = $"{cap.MethodName}({string.Join(", ", paramParts)}): {returnTypeStr}";
 
         // Prefer the richer Documentation.Summary; fall back to the legacy
@@ -193,7 +204,8 @@ internal static class AtsTransformer
         };
     }
 
-    private static TsDtoTypeModel TransformDto(AtsDumpDtoType dto)
+    private static TsDtoTypeModel TransformDto(
+        AtsDumpDtoType dto, IReadOnlyDictionary<string, string> enumNames)
     {
         var fullName = StripAssemblyPrefix(dto.TypeId);
         return new TsDtoTypeModel
@@ -205,7 +217,7 @@ internal static class AtsTransformer
             Fields = dto.Properties.Select(p => new TsDtoFieldModel
             {
                 Name = p.Name,
-                Type = FormatTypeRef(p.Type),
+                Type = FormatTypeRef(p.Type, enumNames),
                 // The Aspire TypeScript SDK intentionally emits DTOs as partial
                 // object shapes, regardless of the raw ATS property's nullability.
                 IsOptional = true,
@@ -260,7 +272,8 @@ internal static class AtsTransformer
     /// <summary>
     /// Format a callback parameter into a TypeScript-style function type signature.
     /// </summary>
-    private static string FormatCallbackSignature(AtsDumpParameter param)
+    private static string FormatCallbackSignature(
+        AtsDumpParameter param, IReadOnlyDictionary<string, string> enumNames)
     {
         if (param.CallbackParameters is null)
         {
@@ -268,14 +281,14 @@ internal static class AtsTransformer
         }
 
         var cbParams = param.CallbackParameters.Select(p =>
-            $"{p.Name}: {FormatTypeRef(p.Type)}");
+            $"{p.Name}: {FormatTypeRef(p.Type, enumNames)}");
 
         // The generated TypeScript SDK always exposes callbacks as async
         // (the aspire TS code generator hardcodes `=> Promise<T>` for every
         // callback because invocation happens over RPC). Mirror that here so
         // the docs signatures match the actual SDK types.
         var innerReturnType = param.CallbackReturnType is not null
-            ? FormatTypeRef(param.CallbackReturnType)
+            ? FormatTypeRef(param.CallbackReturnType, enumNames)
             : "void";
 
         return $"({string.Join(", ", cbParams)}) => Promise<{innerReturnType}>";
@@ -284,7 +297,8 @@ internal static class AtsTransformer
     /// <summary>
     /// Format a type reference for display, simplifying common patterns.
     /// </summary>
-    internal static string FormatTypeRef(AtsDumpTypeRef? typeRef)
+    internal static string FormatTypeRef(
+        AtsDumpTypeRef? typeRef, IReadOnlyDictionary<string, string>? enumNames = null)
     {
         if (typeRef is null)
         {
@@ -295,8 +309,15 @@ internal static class AtsTransformer
         {
             "Primitive" => typeRef.TypeId,
             "Callback" => "callback",
+            "Enum" when enumNames?.TryGetValue(typeRef.TypeId, out var name) == true => name,
+            "Union" when typeRef.UnionTypes.Count > 0 =>
+                string.Join(" | ", typeRef.UnionTypes.Select(member => FormatTypeRef(member, enumNames))),
+            "Union" => throw new InvalidOperationException(
+                $"Union type '{typeRef.TypeId}' has no member metadata."),
+            "Array" when typeRef.ElementType?.Category == "Union" =>
+                $"({FormatTypeRef(typeRef.ElementType, enumNames)})[]",
             "Array" when typeRef.ElementType is not null =>
-                $"{FormatTypeRef(typeRef.ElementType)}[]",
+                $"{FormatTypeRef(typeRef.ElementType, enumNames)}[]",
             _ => SimplifyTypeId(typeRef.TypeId),
         };
     }

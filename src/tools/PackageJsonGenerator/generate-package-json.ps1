@@ -475,6 +475,15 @@ function Resolve-NuGetPackageRestoreGraph {
         $escapedPackageId = [System.Security.SecurityElement]::Escape($PackageId)
         $escapedVersion = [System.Security.SecurityElement]::Escape($Version)
         $escapedFramework = [System.Security.SecurityElement]::Escape($Framework)
+        # Provisioning overlays extend an AppHost, not a standalone class library.
+        # Keep each overlay isolated, but include its same-build hosting context.
+        $hostingReference = if (
+            $PackageId.StartsWith("Aspire.Hosting.Azure.Provisioning.", [System.StringComparison]::OrdinalIgnoreCase) -and
+            -not $PackageId.Equals("Aspire.Hosting.Azure.Provisioning.Generators", [System.StringComparison]::OrdinalIgnoreCase)
+        ) {
+            "    <PackageReference Include=`"Aspire.Hosting`" Version=`"[$escapedVersion]`" />"
+        }
+        else { "" }
         $csproj = @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -483,6 +492,7 @@ function Resolve-NuGetPackageRestoreGraph {
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="$escapedPackageId" Version="[$escapedVersion]" />
+$hostingReference
   </ItemGroup>
 </Project>
 "@

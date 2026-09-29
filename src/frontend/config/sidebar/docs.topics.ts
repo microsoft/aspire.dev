@@ -227,7 +227,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'Setup and tooling',
-          collapsed: false,
+          collapsed: true,
           translations: {
             da: 'Opsætning og værktøjer',
             de: 'Einrichtung und Werkzeuge',
@@ -417,7 +417,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Use AI coding agents',
-          collapsed: false,
+          collapsed: true,
           translations: {
             da: 'AI-kodningsagenter',
             de: 'KI-Coding-Agenten',
@@ -570,7 +570,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Glossary',
-              slug: 'get-started/glossary',
+              link: '/hub/glossary/',
               translations: {
                 da: 'Ordliste',
                 de: 'Glossar',

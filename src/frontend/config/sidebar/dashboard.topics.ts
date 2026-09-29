@@ -127,6 +127,27 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
+          label: 'Data persistence',
+          translations: {
+            da: 'Datapersistens',
+            de: 'Datenpersistenz',
+            en: 'Data persistence',
+            es: 'Persistencia de datos',
+            fr: 'Persistance des données',
+            hi: 'डेटा स्थायित्व',
+            id: 'Persistensi data',
+            it: 'Persistenza dei dati',
+            ja: 'データの永続化',
+            ko: '데이터 지속성',
+            'pt-BR': 'Persistência de dados',
+            ru: 'Сохранение данных',
+            tr: 'Veri kalıcılığı',
+            uk: 'Збереження даних',
+            'zh-CN': '数据持久性',
+          },
+          slug: 'dashboard/data-persistence',
+        },
+        {
           label: 'AI coding agents',
           translations: {
             da: 'AI-kodningsagenter',

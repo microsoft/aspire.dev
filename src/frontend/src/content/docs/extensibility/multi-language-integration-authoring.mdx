@@ -744,6 +744,8 @@ await myResource.withMyCallback(async (context) => {
 The `Action<T>` delegate type is ATS-compatible. The TypeScript side receives an async function. If your exported method invokes that synchronous delegate inline, use `RunSyncOnBackgroundThread = true` on `[AspireExport]` so the runtime can process nested async callback responses without blocking the RPC dispatcher.
 :::
 
+Callback parameters typed as `Action<IResourceBuilder<T>>` (a builder for a concrete exported resource type, rather than a plain callback context) are marshalled using that concrete resource type's identity, so generated guest-language wrappers resolve to the correct typed handle at runtime — for example, a Python callback that receives a `RedisCommanderResource` builder can call `with_host_port` on it directly.
+
 ## Services available from callback service providers
 
 Several ATS callback contexts expose an `IServiceProvider` handle through a `services()` or `serviceProvider()` accessor. These accessors are async `PropertyAccessor` values, so await them before using the returned service provider. For example, resource events expose `await event.services()`, command contexts expose `await context.serviceProvider()`, and `DistributedApplicationExecutionContext` exposes `await executionContext.serviceProvider()`.

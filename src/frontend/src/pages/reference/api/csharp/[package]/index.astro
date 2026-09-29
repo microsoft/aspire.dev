@@ -210,13 +210,14 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
   </div>
 
   <!-- Package-scoped search -->
-  <div class="pkg-search-section not-content">
+  <div class="pkg-search-section not-content" data-api-search-language="csharp" data-api-search-kind="package" data-base={base} data-package-name={pkgName} data-type-count={validTypes.length} data-member-count={memberCount}>
+    <script is:inline type="application/json" data-api-search-index set:html={pkgIndexJson.replace(/</g, '\\u003c')} />
     <InpageSearch
       id="pkg"
       placeholder={`Search types, methods, properties in ${pkg.package.name}...`}
       kinds={allKinds}
       defaultStatsText={`${validTypes.length.toLocaleString()} types and ${memberCount.toLocaleString()} members`}
-      size="sm"
+      size="lg"
     />
   </div>
 
@@ -252,17 +253,10 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
   </div>
 </StarlightPage>
 
-<!-- Embed the package search index -->
-<script is:inline define:vars={{ pkgIndexJson, base, pkgName, typeCount: validTypes.length, memberCount }}>
-  window.__pkgSearchIndex = JSON.parse(pkgIndexJson);
-  window.__pkgBase = base;
-  window.__pkgName = pkgName;
-  window.__pkgTypeCount = typeCount;
-  window.__pkgMemberCount = memberCount;
-</script>
-
 <script>
-  import '@components/api-reference/inpage-search-sync';
+  import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
+  import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+  import { ApiSearchPresentation, withApiSearchFallback } from '../../_search-presentation';
 
   interface PkgIndexEntry {
     n: string;
@@ -329,33 +323,38 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
     private lastScored: { entry: PkgIndexEntry; score: number }[] = [];
     private lastTokens: string[] = [];
     private visibleCount = 0;
-    private sync: any;
+    private sync: InpageSearchSync;
+    private presentation: ApiSearchPresentation;
 
-    constructor() {
-      this.input = document.getElementById('pkg-search-input') as HTMLInputElement;
-      this.resultsEl = document.getElementById('pkg-search-results') as HTMLElement;
+    constructor(root: HTMLElement, private signal: AbortSignal) {
+      this.input = root.querySelector<HTMLInputElement>('#pkg-search-input')!;
+      this.resultsEl = root.querySelector<HTMLElement>('#pkg-search-results')!;
       this.nsList = document.getElementById('pkg-namespace-list') as HTMLElement;
-      this.status = document.getElementById('pkg-search-status') as HTMLElement;
-      this.countEl = document.getElementById('pkg-search-count') as HTMLElement;
-      this.filtersEl = document.getElementById('pkg-kind-filters') as HTMLElement;
-      this.clearFiltersBtn = document.getElementById('pkg-clear-filters') as HTMLElement;
-      this.index = (window as any).__pkgSearchIndex ?? [];
-      this.base = (window as any).__pkgBase ?? '';
-      this.pkgName = (window as any).__pkgName ?? '';
-      this.typeCount = (window as any).__pkgTypeCount ?? 0;
-      this.memberCount = (window as any).__pkgMemberCount ?? 0;
+      this.status = root.querySelector<HTMLElement>('#pkg-search-status')!;
+      this.countEl = root.querySelector<HTMLElement>('#pkg-search-count')!;
+      this.filtersEl = root.querySelector<HTMLElement>('#pkg-kind-filters')!;
+      this.clearFiltersBtn = root.querySelector<HTMLElement>('#pkg-clear-filters')!;
+      this.index = readApiSearchIndex<PkgIndexEntry>(root);
+      this.base = root.dataset.base ?? '';
+      this.pkgName = root.dataset.packageName ?? '';
+      this.typeCount = Number(root.dataset.typeCount ?? 0);
+      this.memberCount = Number(root.dataset.memberCount ?? 0);
 
-      this.sync = new (window as any).InpageSearchSync('pkg', () => this.clear());
+      this.sync = new InpageSearchSync('pkg', () => this.clear(), root, signal);
+      this.presentation = new ApiSearchPresentation(root, this.input, () => this.clear(), signal);
+      signal.addEventListener('abort', () => {
+        if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      }, { once: true });
 
       this.init();
       this.restoreFromUrl();
     }
 
     private init(): void {
-      this.input.addEventListener('input', () => this.handleInput());
+      this.input.addEventListener('input', () => this.handleInput(), { signal: this.signal });
       this.input.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') this.clear();
-      });
+      }, { signal: this.signal });
 
       this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
         chip.addEventListener('click', () => {
@@ -372,7 +371,7 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
           this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
           this.syncUrl();
           this.applySearch();
-        });
+        }, { signal: this.signal });
       });
 
       this.clearFiltersBtn.addEventListener('click', () => {
@@ -384,18 +383,20 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
         this.clearFiltersBtn.style.display = 'none';
         this.syncUrl();
         this.applySearch();
-      });
+        this.input.focus();
+      }, { signal: this.signal });
     }
 
     private clear(): void {
       this.input.value = '';
       this.sync.updateClearButton();
       this.syncUrl();
-      this.showNamespaces();
+      this.applySearch();
+      this.input.focus();
     }
 
     private showNamespaces(): void {
-      if (this.activeKinds.size > 0) {
+      if (this.activeKinds.size > 0 || this.index.length === 0) {
         this.search('');
         return;
       }
@@ -403,6 +404,7 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
       this.resultsEl.innerHTML = '';
       this.nsList.style.display = '';
       this.countEl.textContent = `${fmtNum(this.typeCount)} types and ${fmtNum(this.memberCount)} members`;
+      this.status.textContent = this.countEl.textContent;
     }
 
     private handleInput(): void {
@@ -442,12 +444,12 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
         this.clearFiltersBtn.style.display = '';
       }
 
-      if (q || kinds.size > 0) {
-        this.applySearch();
-      }
+      this.applySearch();
     }
 
     private applySearch(): void {
+      if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      this.presentation.update(this.activeKinds.size > 0);
       const q = this.input.value.trim();
       if (!q && this.activeKinds.size === 0) {
         this.showNamespaces();
@@ -456,15 +458,15 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
       this.search(q);
     }
 
-    private search(query: string): void {
+    private findMatches(query: string, kinds = this.activeKinds) {
       const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-      const hasKindFilter = this.activeKinds.size > 0;
+      const hasKindFilter = kinds.size > 0;
 
       type Scored = { entry: PkgIndexEntry; score: number };
       const scored: Scored[] = [];
 
       for (const entry of this.index) {
-        if (hasKindFilter && !this.activeKinds.has(entry.k)) continue;
+        if (hasKindFilter && !kinds.has(entry.k)) continue;
 
         if (tokens.length === 0) {
           scored.push({ entry, score: 50 });
@@ -505,6 +507,13 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
         if (score > 0) scored.push({ entry, score });
       }
 
+      return scored;
+    }
+
+    private search(query: string): void {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = this.activeKinds.size > 0;
+      const scored = this.findMatches(query);
       scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
 
       this.lastScored = scored;
@@ -517,14 +526,10 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
       this.resultsEl.style.display = '';
 
       if (total === 0) {
-        const hint = query
-          ? `No results for "<strong>${this.esc(query)}</strong>"`
-          : 'No results match the selected filters';
-        this.resultsEl.innerHTML = `
-          <div class="api-search-empty">
-            <p>${hint}</p>
-            <p class="api-search-empty-hint">Try a different name, namespace, or keyword.</p>
-          </div>`;
+        this.presentation.renderEmpty(this.resultsEl, hasKindFilter, this.index.length === 0, {
+          withoutQuery: this.findMatches('').length,
+          withoutFilters: this.findMatches(query, new Set()).length,
+        }, this.activeKinds);
         this.countEl.textContent = '0 results';
         this.status.textContent = 'No results';
         return;
@@ -562,7 +567,7 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
         btn.type = 'button';
         const nextCount = Math.min(remaining, PAGE_SIZE);
         btn.textContent = `Show ${fmtNum(nextCount)} more of ${fmtNum(remaining)} remaining`;
-        btn.addEventListener('click', () => this.loadMore());
+        btn.addEventListener('click', () => this.loadMore(), { signal: this.signal });
         this.resultsEl.appendChild(btn);
       }
     }
@@ -621,9 +626,7 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    new PkgSearchController();
-  });
+  registerApiSearch('csharp', 'package', withApiSearchFallback((root, signal) => new PkgSearchController(root, signal)));
 </script>
 
 <style>

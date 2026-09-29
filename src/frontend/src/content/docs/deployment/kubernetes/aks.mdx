@@ -506,27 +506,31 @@ aspire publish -o aks-artifacts
 
 This generates Helm charts and Bicep infrastructure templates that you can review, customize, and deploy using your own CI/CD pipeline or GitOps workflow.
 
-## Clean up resources
+## Clean up a deployment
 
-To tear down a deployed AKS environment, use `aspire destroy`:
+Run `aspire destroy` for the deployed AppHost and environment to remove its resources:
 
-```bash title="Destroy an AKS deployment"
-aspire destroy
+```bash title="Destroy the selected AKS deployment"
+aspire destroy --environment my-environment
 ```
 
-`aspire destroy` acquires AKS credentials for the target cluster itself, so it doesn't depend on the cluster already being selected in your ambient `kubectl` context. It uninstalls the main Helm release along with any opted-in external charts and cert-manager resources, then deletes the Azure resource group — including the AKS cluster, ACR, and every other Azure resource that was provisioned. This action cannot be undone.
+Aspire acquires credentials for the target AKS cluster before running Kubernetes cleanup; it doesn't rely on a preselected ambient `kubectl` context. Helm cleanup, including external charts opted into uninstall and cert-manager cleanup, runs before deletion of the Azure provisioning resources.
+
+:::danger[Destructive operation]
+Destroy removes the deployment's Azure resources, including the cluster. Review the selected environment and confirmation prompt before continuing, and back up data you need to retain.
+:::
+
+For CI/CD, select the AppHost and environment explicitly and skip the confirmation prompt:
 
 ```bash title="Non-interactive destroy in CI/CD"
-KUBECONFIG="$(mktemp)" aspire destroy \
+aspire destroy \
   --apphost MyApp.AppHost/MyApp.AppHost.csproj \
   --environment my-environment \
   --non-interactive \
   --yes
 ```
 
-<LearnMore>
-See the [`aspire destroy` command reference](/reference/cli/commands/aspire-destroy/) for the full set of options.
-</LearnMore>
+See the [`aspire destroy` reference](/reference/cli/commands/aspire-destroy/) for AppHost selection and automation options.
 
 ## Azure-specific considerations
 

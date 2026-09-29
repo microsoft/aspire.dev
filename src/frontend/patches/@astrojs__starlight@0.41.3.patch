@@ -1,0 +1,114 @@
+diff --git a/components/Search.astro b/components/Search.astro
+index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..ec1f9b15f677f0c7ae98160eef1c9dc714330421 100644
+--- a/components/Search.astro
++++ b/components/Search.astro
+@@ -59,7 +59,7 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 	 * user agent is spoofed by some browsers when opening the devtools.
+ 	 */
+ }
+-<script is:inline>
++<script is:inline data-astro-rerun>
+ 	(() => {
+ 		const openBtn = document.querySelector('button[data-open-modal]');
+ 		const shortcut = openBtn?.querySelector('kbd');
+@@ -77,8 +77,13 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 	import { pagefindUserConfig } from 'virtual:starlight/pagefind-config';
+ 
+ 	class SiteSearch extends HTMLElement {
+-		constructor() {
+-			super();
++		private cleanup?: () => void;
++
++		connectedCallback() {
++			this.cleanup?.();
++			const controller = new AbortController();
++			const { signal } = controller;
++			let pagefindUI: { destroy(): void } | undefined;
+ 			const openBtn = this.querySelector<HTMLButtonElement>('button[data-open-modal]')!;
+ 			const closeBtn = this.querySelector<HTMLButtonElement>('button[data-close-modal]')!;
+ 			const dialog = this.querySelector('dialog')!;
+@@ -101,19 +106,19 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 				document.body.toggleAttribute('data-search-modal-open', true);
+ 				this.querySelector('input')?.focus();
+ 				event?.stopPropagation();
+-				window.addEventListener('click', onClick);
++				window.addEventListener('click', onClick, { signal });
+ 			};
+ 
+ 			const closeModal = () => dialog.close();
+ 
+-			openBtn.addEventListener('click', openModal);
++			openBtn.addEventListener('click', openModal, { signal });
+ 			openBtn.disabled = false;
+-			closeBtn.addEventListener('click', closeModal);
++			closeBtn.addEventListener('click', closeModal, { signal });
+ 
+ 			dialog.addEventListener('close', () => {
+ 				document.body.toggleAttribute('data-search-modal-open', false);
+ 				window.removeEventListener('click', onClick);
+-			});
++			}, { signal });
+ 
+ 			// Listen for `ctrl + k` and `cmd + k` keyboard shortcuts.
+ 			window.addEventListener('keydown', (e) => {
+@@ -121,7 +126,16 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 					dialog.open ? closeModal() : openModal();
+ 					e.preventDefault();
+ 				}
+-			});
++			}, { signal });
++
++			this.cleanup = () => {
++				controller.abort();
++				if (dialog.open) {
++					closeModal();
++					document.body.toggleAttribute('data-search-modal-open', false);
++				}
++				pagefindUI?.destroy();
++			};
+ 
+ 			let translations = {};
+ 			try {
+@@ -132,15 +146,18 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 			const stripTrailingSlash = (path: string) => path.replace(/(.)\/(#.*)?$/, '$1$2');
+ 			const formatURL = shouldStrip ? stripTrailingSlash : (path: string) => path;
+ 
+-			window.addEventListener('DOMContentLoaded', () => {
++			const initSearch = () => {
+ 				if (import.meta.env.DEV) return;
+ 				const onIdle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
+ 				onIdle(async () => {
++					if (signal.aborted) return;
+ 					// @ts-expect-error — Missing types for @pagefind/default-ui package.
+ 					const { PagefindUI } = await import('@pagefind/default-ui');
+-					new PagefindUI({
++					// Navigation can detach this instance while the module is loading.
++					if (signal.aborted) return;
++					pagefindUI = new PagefindUI({
+ 						...pagefindUserConfig,
+-						element: '#starlight__search',
++						element: this.querySelector('#starlight__search'),
+ 						baseUrl: import.meta.env.BASE_URL,
+ 						bundlePath: import.meta.env.BASE_URL.replace(/\/$/, '') + '/pagefind/',
+ 						showImages: false,
+@@ -154,8 +171,19 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 							});
+ 						},
+ 					});
++					if (dialog.open) this.querySelector('input')?.focus();
+ 				});
+-			});
++			};
++			if (document.readyState === 'loading') {
++				window.addEventListener('DOMContentLoaded', initSearch, { once: true, signal });
++			} else {
++				initSearch();
++			}
++		}
++
++		disconnectedCallback() {
++			this.cleanup?.();
++			this.cleanup = undefined;
+ 		}
+ 	}
+ 	customElements.define('site-search', SiteSearch);

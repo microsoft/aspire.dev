@@ -54,6 +54,46 @@ for (const pagePath of auditedPages) {
   });
 }
 
+test('collapsed sidebar rail links keep discernible names', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'Both the API and topic sidebars collapse into the icon rail at desktop widths.'
+  );
+
+  await page.addInitScript(() => {
+    localStorage.setItem('api-sidebar-collapsed', '1');
+    localStorage.setItem('topic-sidebar-collapsed', '1');
+  });
+
+  for (const [pagePath, collapsedAttribute] of [
+    [
+      '/reference/api/csharp/aspire.azure.ai.openai/aspireazureopenaiclientbuilder/constructors/',
+      'data-sidebar-collapsed',
+    ],
+    ['/app-host/certificate-configuration/', 'data-topic-sidebar-collapsed'],
+  ] as const) {
+    await page.goto(pagePath);
+    await dismissCookieConsentIfVisible(page);
+    await expect(page.locator('html')).toHaveAttribute(collapsedAttribute, '');
+
+    // Rail mode hides the link text, and tooltips replace each native title with an empty one.
+    const railLinks = page.locator(
+      '#starlight__sidebar :is(.starlight-sidebar-topics a, .sidebar-bottom .sl-link-button)'
+    );
+    await expect(railLinks.first()).toHaveAttribute('title', '');
+    await expect(railLinks.last()).toHaveAttribute('title', '');
+
+    const results = await new AxeBuilder({ page })
+      .include('#starlight__sidebar')
+      .withRules(['link-name'])
+      .analyze();
+    const unnamedLinks = results.violations.flatMap((violation) =>
+      violation.nodes.map((node) => node.target.join(' '))
+    );
+    expect(unnamedLinks, pagePath).toEqual([]);
+  }
+});
+
 test('Aspire 13.5 mobile reading experience passes WCAG AA in both themes', async ({ page }) => {
   test.skip(
     page.viewportSize()?.width !== 1440,

@@ -3,9 +3,10 @@
  * ApiSearchBar — unified search bar with kind filters, version dropdown,
  * stats line, no-results state, and search results container.
  *
- * Composes InpageSearch and VersionFilter into a single coordinated UI.
+ * Composes SearchField and VersionFilter into a single coordinated UI.
  * On tablet/desktop the version dropdown sits to the right of the search input.
- * On mobile they stack. The "Clear filters" button resets both kind and version filters.
+ * On mobile they stack. Clear search affects only the query; Clear filters
+ * resets kinds and versions. Reset all clears both without changing sort preferences.
  *
  * Usage:
  * ```astro
@@ -19,13 +20,16 @@
  * />
  * ```
  */
-import VersionFilter from './VersionFilter.astro';
+import VersionFilter from '@components/api-reference/VersionFilter.astro';
+import SearchField from '@components/search/SearchField.astro';
 
 interface Props {
   /** Unique prefix for element IDs (e.g. "api" or "ts-api") */
   id: string;
   /** Placeholder text for the search input */
   placeholder: string;
+  /** Stable accessible name; defaults to the contextual placeholder. */
+  label?: string;
   /** Unique kind strings to render as filter chips */
   kinds: string[];
   /** Version strings for the version dropdown (empty array to hide) */
@@ -36,7 +40,7 @@ interface Props {
   size?: 'lg' | 'sm';
 }
 
-const { id, placeholder, kinds, versions = [], defaultStatsText, size = 'lg' } = Astro.props;
+const { id, placeholder, label = placeholder, kinds, versions = [], defaultStatsText, size = 'lg' } = Astro.props;
 const hasVersions = versions.length > 0;
 const searchInputId = id + '-search-input';
 const searchStatusId = id + '-search-status';
@@ -51,33 +55,10 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
 <div class="api-search-bar-unified inpage-search" data-size={size}>
   <!-- Top row: search input + version dropdown -->
   <div class="asb-top-row">
-    <div class="asb-input-wrap">
-      <svg class="asb-search-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
-      <label class="sr-only" for={searchInputId}>{placeholder}</label>
-      <input
-        type="search"
-        id={searchInputId}
-        class="asb-search-input"
-        placeholder={placeholder}
-        autocomplete="off"
-        aria-describedby={searchStatusId}
-      />
-      <button
-        type="button"
-        class="asb-search-clear"
-        id={searchClearId}
-        aria-label="Clear search"
-        style="display: none;"
-      >
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </div>
+    <SearchField id={searchInputId} label={label} placeholder={placeholder}
+      clearId={searchClearId} describedBy={searchStatusId} size={size}
+      inputClass="asb-search-input" clearClass="asb-search-clear"
+      containerClass="asb-input-wrap" iconClass="asb-search-icon" />
 
     {hasVersions && (
       <div class="asb-version-slot">
@@ -90,7 +71,7 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
   <div class="inpage-kind-filters" id={kindFiltersId}>
     {kinds.map(kind => (
       <button
-        class="api-filter-chip"
+        class="api-filter-chip search-filter-chip"
         data-kind={kind}
         type="button"
         aria-pressed="false"
@@ -105,8 +86,11 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
 
   <!-- Stats line + clear filters -->
   <div class="inpage-search-stats">
-    <span id={searchCountId}>{defaultStatsText}</span>
-    <button class="inpage-clear-filters" id={clearFiltersId} type="button" style="display: none;">Clear filters</button>
+    <span id={searchCountId} class="search-results-summary">{defaultStatsText}</span>
+    <div class="inpage-search-actions">
+      <button class="inpage-clear-filters search-action" id={clearFiltersId} type="button" style="display: none;">Clear filters</button>
+      <button class="search-action" id={`${id}-reset-all`} type="button" style="display: none;">Reset all</button>
+    </div>
   </div>
 
   <!-- Search results (populated by the page's controller script) -->
@@ -135,89 +119,7 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
     margin-bottom: 0.25rem;
   }
 
-  .asb-input-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .asb-search-icon {
-    position: absolute;
-    left: 0.75rem;
-    width: 1.25rem;
-    height: 1.25rem;
-    color: var(--sl-color-gray-1);
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .asb-search-input {
-    width: 100%;
-    padding: 0.5rem 2.5rem 0.5rem 2.5rem;
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.625rem;
-    background: var(--sl-color-bg-nav);
-    color: var(--sl-color-text);
-    font-size: var(--sl-text-sm);
-    font-family: inherit;
-    outline: none;
-    transition: border-color 0.15s;
-    box-sizing: border-box;
-  }
-
-  .asb-search-input::placeholder {
-    color: var(--sl-color-gray-1);
-  }
-
-  .asb-search-input::-webkit-search-cancel-button {
-    -webkit-appearance: none;
-    appearance: none;
-  }
-
-  .asb-search-input:focus {
-    border-color: var(--sl-color-accent);
-    box-shadow: 0 0 0 1px var(--sl-color-accent);
-  }
-
-  [data-size="sm"] .asb-search-input {
-    padding: 0.4375rem 2.25rem 0.4375rem 2.25rem;
-    font-size: var(--sl-text-sm);
-    border-radius: 0.5rem;
-  }
-
-  [data-size="sm"] .asb-search-icon {
-    width: 1rem;
-    height: 1rem;
-    left: 0.625rem;
-  }
-
-  .asb-search-clear {
-    position: absolute;
-    right: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    border: none;
-    background: none;
-    color: var(--sl-color-gray-3);
-    cursor: pointer;
-    border-radius: 50%;
-    padding: 0;
-  }
-
-  .asb-search-clear svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  .asb-search-clear:hover {
-    color: var(--sl-color-text);
-    background: var(--sl-color-gray-6);
-  }
+  .inpage-search-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 
   /* Version slot aligns with the search bar */
   .asb-version-slot {
@@ -249,6 +151,7 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
   }
 
   .api-search-bar-unified .api-filter-chip {
+    min-height: 2.25rem;
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
@@ -269,6 +172,11 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
     border-color: var(--sl-color-gray-3);
     color: var(--sl-color-white);
     background: var(--sl-color-gray-6);
+  }
+
+  .api-search-bar-unified .api-filter-chip:focus-visible {
+    outline: 2px solid var(--search-control-focus);
+    outline-offset: 2px;
   }
 
   .api-search-bar-unified .api-filter-chip.active {
@@ -323,27 +231,11 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
   /* ── Stats line ─────────────────────────────────────────────── */
   .api-search-bar-unified .inpage-search-stats {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
     padding: 0.4rem 0 0.15rem;
-    font-size: var(--api-text-sm, 0.875rem);
-    color: var(--sl-color-gray-3);
-  }
-
-  .api-search-bar-unified .inpage-clear-filters {
-    background: none;
-    border: none;
-    color: var(--sl-color-text-accent);
-    font-size: 0.82rem;
-    cursor: pointer;
-    padding: 0;
-    text-decoration: underline;
-    white-space: nowrap;
-  }
-
-  .api-search-bar-unified .inpage-clear-filters:hover {
-    color: var(--sl-color-white);
   }
 
   /* ── Search result items (dynamically injected by controllers) ── */
@@ -450,20 +342,6 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
     text-decoration-color: var(--sl-color-text-accent);
     text-underline-offset: 2px;
     text-decoration-thickness: 2px;
-  }
-
-  .api-search-bar-unified .api-search-empty {
-    padding: 2.5rem 1.5rem;
-    text-align: center;
-    background: var(--api-surface, var(--sl-color-gray-6));
-    border-radius: var(--api-radius-lg, 0.75rem);
-    color: var(--sl-color-gray-2);
-  }
-
-  .api-search-bar-unified .api-search-empty-hint {
-    margin-top: 0.5rem;
-    font-size: var(--api-text-sm, 0.875rem);
-    color: var(--sl-color-gray-3);
   }
 
   .api-search-bar-unified .api-load-more {
