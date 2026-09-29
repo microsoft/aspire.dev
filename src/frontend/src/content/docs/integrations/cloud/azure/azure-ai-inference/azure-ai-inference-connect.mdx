@@ -181,6 +181,18 @@ builder.AddAzureChatCompletionsClient(
 
 The Azure AI Inference client integration participates in Aspire health checks. The integration wires into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
 
+The chat-completions and embeddings checks perform a model-info request using `GetModelInfoAsync`, which calls the endpoint's `/info` route. A reachable endpoint that doesn't implement this route can therefore fail its health check even when inference requests work.
+
+For an endpoint without model-info support, explicitly disable this integration's health check and choose an application-appropriate readiness probe:
+
+```csharp title="Program.cs"
+builder.AddAzureChatCompletionsClient(
+    connectionName: "ai-foundry",
+    configureSettings: settings => settings.DisableHealthChecks = true);
+```
+
+This behavior belongs to `Aspire.Azure.AI.Inference`; it doesn't add health-check support to the separate Azure OpenAI integration.
+
 ### Observability and telemetry
 
 The Aspire Azure AI Inference client integration automatically configures logging, tracing, and metrics through OpenTelemetry.

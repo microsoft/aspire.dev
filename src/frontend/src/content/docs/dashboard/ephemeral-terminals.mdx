@@ -3,8 +3,6 @@ title: Create ephemeral terminals from your AppHost
 description: Use TerminalService to launch interactive processes, display docked terminals, and manage their lifetime independently of resources in your AppHost.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
-
 Ephemeral terminals let AppHost code launch an interactive process for a specific task and display it in the dashboard. Redis's `WithRepl()` is one example: it adds a resource command that opens an authenticated `redis-cli` session inside the running container.
 
 The same building blocks are available for your own commands. Use `Aspire.Hosting.ApplicationModel.TerminalService` to create a terminal, configure its executable and placement, start its process, and show it in the dock. The [custom docked SQL REPL sample](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/docked-repl-csharp) demonstrates this with rqlite's SQL client.
@@ -79,43 +77,7 @@ The same mechanism can launch other interactive programs, not just REPLs. For ex
 
 A read-eval-print loop (REPL) accepts commands and displays their results interactively. The built-in `WithRepl()` methods are examples of this command-driven experience: they add an opt-in **REPL** resource command that opens the integration's bundled client in the dashboard terminal dock. They don't replace the database server's process or require `WithTerminal()`.
 
-The terminal basics samples use Redis's REPL alongside a Slumber REST client: create a note through the API, edit it in Redis, then read the changed value through the API. See the [TypeScript sample](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/basics-typescript) or [C# sample](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/basics-csharp) for the complete application. The following minimal example isolates the Redis command.
-
-Use Aspire 13.6 or later and a running Docker or Podman runtime. Add the hosting integration to your AppHost; for Redis:
-
-```bash title="Add the Redis hosting integration"
-aspire add Aspire.Hosting.Redis
-```
-
-Replace your AppHost code with the following example. For a file-based C# AppHost, retain its generated SDK and package directives.
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-await builder.addRedis('cache').withRepl();
-
-await builder.build().run();
-```
-
-</TabItem>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-builder.AddRedis("cache").WithRepl();
-
-builder.Build().Run();
-```
-
-</TabItem>
-</Tabs>
-
-Run `aspire run`, wait for `cache` to be running, and select **REPL** from its resource commands in the dashboard. Type `PING` and press Enter; the authenticated client replies with `PONG`. Type `quit` and press Enter before closing the terminal tab.
+For a complete TypeScript or C# Redis example, follow [Use the terminal dock](/dashboard/terminals/#use-the-terminal-dock). It covers setup, opening the **REPL** command, checking the connection with `PING`, and exiting cleanly.
 
 The command is disabled until the container is running and its runtime ID is available. Each invocation creates a new dock terminal and uses the current container ID, including after a container restart. Reopen the REPL after restarting its container; an old session doesn't reconnect automatically.
 

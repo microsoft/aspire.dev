@@ -134,6 +134,122 @@ If you'd rather connect to an existing MongoDB server, call `AddConnectionString
 
 <ContainerImages package="Aspire.Hosting.MongoDB" only="MongoDB" />
 
+## Automatic TLS and migration from earlier versions
+
+Starting in **Aspire 13.6**, MongoDB participates in Aspire's shared certificate configuration during local runs. This applies to ordinary `AddMongoDB` / `addMongoDB` resources, **not just replica sets**. When a certificate is configured and available, normally the ASP.NET Core developer certificate under the default settings, Aspire starts MongoDB with `--tlsMode requireTLS` and adds `tls=true` to its generated connection string. Without an available configured certificate, the standalone server uses plaintext.
+
+Existing clients that connected without TLS can stop working after upgrading. Use the **complete Aspire-generated connection string**, such as the `MONGODB_URI` environment variable for a database resource named `mongodb`, rather than rebuilding a URI from `Host` and `Port`. The generated URI preserves TLS and other connection options, but clients still need to validate the server certificate.
+
+### Certificate trust and hostname validation
+
+A successful TLS connection requires both:
+
+- **Certificate trust**: The client trusts the server certificate or its issuing certificate authority.
+- **Hostname validation**: The hostname used to connect matches a name in the server certificate.
+
+A client running directly on the host can connect through the generated `localhost` endpoint using the developer certificate, provided the client's runtime trusts that certificate. A client running in a container typically reaches MongoDB by its resource name, such as `mongo`. That name isn't covered by the default developer certificate, so trusting the certificate alone doesn't fix the hostname mismatch.
+
+For container-to-container TLS, configure a server certificate whose subject alternative names cover the actual connection hostnames, and configure the client to trust its issuing authority. C# AppHosts can supply a custom certificate with `WithHttpsCertificate`; this API isn't available in TypeScript AppHosts. Alternatively, run the consuming app directly on the host with a trusted localhost certificate, or explicitly choose the local-development opt-out below for a standalone or simple single-member server. Don't use disabled certificate or hostname validation as a general migration solution.
+
+<LearnMore>
+  See [Certificate configuration](/app-host/certificate-configuration/) for
+  developer-certificate trust and custom server certificates.
+</LearnMore>
+
+### Opt out for one local MongoDB server
+
+If you need plaintext connections for local development, opt out on the MongoDB resource rather than changing certificate defaults for the whole AppHost:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withoutHttpsCertificate();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIRECERTIFICATES001
+var mongo = builder.AddMongoDB("mongo")
+    .WithoutHttpsCertificate();
+#pragma warning restore ASPIRECERTIFICATES001
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The certificate API is experimental and reports [ASPIRECERTIFICATES001](/diagnostics/aspirecertificates001/) in C#. This opt-out also works when the server uses the [simple single-member replica-set configuration](#enable-transactions-and-change-streams-with-a-single-member-replica-set): configure `WithReplicaSet()` / `withReplicaSet()` on the same server. That path doesn't require TLS.
+
+:::caution
+This opt-out disables transport encryption. Use it only as an explicit local-development choice, not as a production security configuration. Don't apply it to members of an advanced `AddMongoDBReplicaSet(...).WithMember(...)` configuration, which requires TLS.
+:::
+
+### Allow plaintext and TLS clients
+
+To accept both plaintext and TLS connections while retaining the server's certificate configuration, select `PreferTls`:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder, MongoDBTlsMode } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withTlsMode({ mode: MongoDBTlsMode.PreferTls });
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREMONGODB001
+var mongo = builder.AddMongoDB("mongo")
+    .WithTlsMode(MongoDBTlsMode.PreferTls);
+#pragma warning restore ASPIREMONGODB001
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+This experimental API controls how the server accepts connections **when TLS is active**; it doesn't enable TLS without a certificate. The generated connection string still includes `tls=true`, so consumers using it still need certificate trust and a matching hostname. `PreferTls` isn't equivalent to disabling TLS, and allowing plaintext clients leaves those connections unencrypted.
+
+### Global defaults and replica-set limits
+
+Set `ASPIRE_DEVELOPER_CERTIFICATE_DEFAULT_HTTPS_TERMINATION=false` in the **AppHost's environment** to disable ambient developer-certificate server defaults globally. This affects other resources as well as MongoDB. Prefer the resource-level opt-out when only MongoDB needs different behavior. The global switch doesn't remove explicit certificate configuration.
+
+| MongoDB configuration | Local TLS behavior |
+| --------------------- | ------------------ |
+| Standalone `AddMongoDB` / `addMongoDB` | Uses automatic TLS when a certificate is configured and available; supports the resource-level opt-out. |
+| Simple `WithReplicaSet` / `withReplicaSet` on a server | Preserves the server's automatic TLS behavior; supports the same opt-out without requiring TLS or split-horizon discovery. |
+| Advanced `AddMongoDBReplicaSet(...).WithMember(...)` | Explicitly configures developer certificates unless a member already has certificate configuration. Requires TLS and Server Name Indication (SNI) for split-horizon discovery; don't use the no-TLS workaround. |
+
+The advanced path is for local multi-member experiments. Disabling ambient defaults doesn't disable its explicit certificate configuration, and initialization fails if a member has no TLS. Its certificate requirements aren't a reason to disable validation in application clients.
+
+### Run versus publish
+
+Automatic developer-certificate configuration applies to **local run mode**. Published MongoDB containers don't automatically receive the same certificate configuration; configure production transport security for your deployment separately. Both replica-set paths, keyfile configuration, and explicit MongoDB TLS configuration APIs such as `WithTlsMode` reject publish mode because their deployment support hasn't been implemented.
+
 ## Add MongoDB server resource with parameters
 
 When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters:
@@ -404,7 +520,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-Omit `WithReplicaSet` / `withReplicaSet` when a standalone server is sufficient — plain MongoDB and its automatic TLS behavior are unchanged.
+Omit `WithReplicaSet` / `withReplicaSet` when a standalone server is sufficient. Both configurations use the [automatic TLS behavior introduced in Aspire 13.6](#automatic-tls-and-migration-from-earlier-versions); the simple single-member path doesn't require TLS and supports the same local-development opt-out.
 
 The replica set's name is optional and defaults to the server's Aspire resource name. Pass an explicit name to override it:
 
@@ -552,6 +668,10 @@ await mongo.withLifetime("Persistent");
 
 By default, Aspire injects the MongoDB connection information using variable names derived from the resource name (for example, `MONGODB_URI`, `MONGODB_HOST`, `MONGODB_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
 
+:::caution
+The individual properties below aren't a replacement for the complete generated URI. Rebuilding a URI from host and port can omit `tls=true` and other required options. Prefer the generated `MONGODB_URI`; if your client requires separate settings, also configure its TLS and certificate validation to match the server. See [Automatic TLS and migration](#automatic-tls-and-migration-from-earlier-versions).
+:::
+
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 ```csharp title="AppHost.cs"
@@ -599,6 +719,8 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+<span id="add-mongodb-resource-with-a-repl-command"></span>
+
 ## Open an interactive REPL
 
 In Aspire 13.6 or later, add `WithRepl()` to the MongoDB server resource to enable a **REPL** command that opens `mongosh` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
@@ -628,6 +750,16 @@ builder.Build().Run();
 
 </TabItem>
 </Tabs>
+
+The command is opt-in and available only in run mode while the container is running. It uses the container's bundled client, so no local MongoDB client is needed. The client connects directly to the server inside its container, including replica set members, and authenticates against `admin` with the resource's configured credentials. Credentials are passed through environment variables rather than command-line arguments.
+
+When TLS is enabled, the client uses the configured certificate trust bundle and validates the server certificate for `localhost`. Custom certificates must cover `localhost`, and their issuing CA must be trusted through Aspire's certificate configuration.
+
+Use `exit` before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client uses the resource's configured credentials and can modify or delete data. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session. See [terminal security considerations](/dashboard/security-considerations/#interactive-terminals).
+:::
 
 ## Connection properties
 

@@ -2,7 +2,9 @@ import { sampleDescriptionText } from '../samples';
 import {
   getTsItemSlug,
   getTsMemberAnchor,
+  getTsMethods,
   getTsMethodSlug,
+  getTsStandaloneFunctions,
   getTsTopLevelRouteItems,
 } from '../ts-api-routes';
 import type {
@@ -91,9 +93,7 @@ function buildTsRouteIndex(modules: readonly ApiReferenceTsDocument[]): TsRouteI
     const modulePath = `/reference/api/typescript/${tsModuleSlug(moduleName)}`;
     const topLevelItems = getTsTopLevelRouteItems(module);
 
-    const standaloneFunctions = (module.functions ?? []).filter(
-      (fn) => !fn.qualifiedName || !fn.qualifiedName.includes('.')
-    );
+    const standaloneFunctions = getTsStandaloneFunctions(module);
     for (const fn of standaloneFunctions) {
       register({
         moduleName,
@@ -112,9 +112,7 @@ function buildTsRouteIndex(modules: readonly ApiReferenceTsDocument[]): TsRouteI
 
     for (const handle of module.handleTypes ?? []) {
       const itemSlug = getTsItemSlug(handle, topLevelItems);
-      const methods = (handle.capabilities ?? []).filter(
-        (capability) => capability.kind === 'Method' || capability.kind === 'InstanceMethod'
-      );
+      const methods = getTsMethods(handle);
 
       for (const capability of handle.capabilities ?? []) {
         let path: string | undefined;

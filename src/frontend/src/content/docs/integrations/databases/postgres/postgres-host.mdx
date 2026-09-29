@@ -232,6 +232,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 The preceding code adds a container based on the `docker.io/dpage/pgadmin4` image. The container is used to manage the PostgreSQL server and database resources and serves a web-based admin dashboard for PostgreSQL databases.
 
+The dashboard hides the pgAdmin management container from the main resource list. Open its **Manage** link from the PostgreSQL resource instead.
+
 <ContainerImages package="Aspire.Hosting.PostgreSQL" only="pgAdmin" />
 
 ### Configure the pgAdmin host port
@@ -662,6 +664,8 @@ docker rm -f <container-id>
 docker volume rm <old-volume-name>
 ```
 
+<span id="add-postgresql-resource-with-a-repl-command"></span>
+
 ## Open an interactive REPL
 
 In Aspire 13.6 or later, add `WithRepl()` to the PostgreSQL server resource to enable a **REPL** command that opens `psql` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
@@ -691,6 +695,14 @@ builder.Build().Run();
 
 </TabItem>
 </Tabs>
+
+The command is opt-in and available only in run mode while the container is running. It uses the container's bundled client through Docker or Podman, so no local PostgreSQL client is needed. The client connects to the `postgres` database using the resource's credentials, passed through environment variables rather than command-line arguments.
+
+Use `\connect` to switch databases and `\q` to exit before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client uses the resource's configured credentials and can modify or delete data. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session. See [terminal security considerations](/dashboard/security-considerations/#interactive-terminals).
+:::
 
 ## Connection properties
 

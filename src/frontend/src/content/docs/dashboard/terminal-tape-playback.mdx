@@ -61,10 +61,9 @@ builder.Build().Run();
 
 This creates an interactive Bash resource without loading user startup scripts. [`WithTerminal()`](/app-host/with-terminal/) exposes its existing terminal for playback; you don't need a terminal library or an adapter.
 
-From the directory containing your app's `aspire.config.json`, enable the terminal commands and start the AppHost:
+From the directory containing your app's `aspire.config.json`, start the AppHost:
 
-```bash title="Enable terminal commands and start your app"
-aspire config set features.terminalCommandsEnabled true
+```bash title="Start your app"
 aspire run
 ```
 
@@ -138,13 +137,7 @@ Shell redirection has its own overwrite behavior, separate from `Output` protect
 
 ## Automate a resource terminal from AppHost code
 
-For workflows that combine terminal input with application checks, use `TerminalService` directly rather than a tape. The [terminal automation sample](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/automation-csharp) demonstrates this by driving a REST client through a create, read, update, and delete sequence. Slumber is the sample's client; the APIs operate on the resource terminal, not on a client-specific integration.
-
-Follow the sample's README to start it, keeping the sibling `basics-csharp` directory because it supplies the API and container image source. Select **Run terminal walkthrough** on the client resource and confirm **Restart and run**. The command resets the terminal and reserved test note before sending input. Don't type into or resize the terminal during the run.
-
-The [AppHost implementation](https://github.com/microsoft/aspire-samples/blob/main/samples/terminals/automation-csharp/apphost.cs) shows how to acquire a resource terminal with `TryGetTerminal`, navigate with `SendKeyAsync`, and wait for output with `WaitForTextAsync`. It checks the API independently after each operation so a matching screen alone isn't treated as proof of success. It also guards against concurrent runs, bounds the work with cancellation and timeouts, and releases the handle without stopping the resource.
-
-This sample uses programmatic automation, not `.tape` files. For details on those APIs and terminal ownership, see [Automate terminals from your AppHost](/dashboard/automate-terminals/#acquire-a-resource-terminal-handle).
+For workflows that combine terminal input with independent application checks, use `TerminalService` directly rather than a tape. [Automate terminals from your AppHost](/dashboard/automate-terminals/#drive-a-real-tui) walks through a sample that drives a REST client and verifies each operation against its API. That sample uses programmatic automation, not `.tape` files.
 
 ## Tape file syntax
 
