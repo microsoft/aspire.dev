@@ -74,8 +74,6 @@ Direct `IConfiguration.GetConnectionString` calls don't automatically translate 
 
 If you must keep an older client integration, set the reference's `connectionName` to a portable name such as `my_db` and use **that same name** in the application's client registration or configuration lookup. Changing the reference without changing the consumer isn't sufficient.
 
-Connection-property prefixes retain their separate encoding rules: in Radius, the logical name `db__primary` produces `DB__PRIMARY_PASSWORD` alongside `ConnectionStrings__db_primary`, not `DB_PRIMARY_PASSWORD`.
-
 #### Custom publishers and integrations
 
 For generated injections, inspect `ConnectionStringReference` values in the environment-variable dictionary, not resource annotations. Their `EnvironmentVariableNames` property exposes a `ConnectionStringEnvironmentVariableNames` record with `LogicalName`, `OriginalName`, `PortableName`, and `IsExplicit`. Its `Create` factory derives names from a resource and logical name; `GetPhysicalNames` enumerates the distinct physical aliases.
@@ -147,6 +145,15 @@ For example, a ClickHouse resource named `my-clickhouse` exposes:
 | `MY_CLICKHOUSE_PASSWORD`     | The password      |
 | `MY_CLICKHOUSE_DATABASENAME` | The database name |
 
+Connection properties, such as a password passed separately, use different naming rules from a complete connection string. Their prefixes preserve repeated underscores; portable connection-string aliases collapse them. For example, a Radius reference with the logical connection name `db__primary` uses:
+
+| Value | Environment variable |
+| ----- | -------------------- |
+| Password connection property | `DB__PRIMARY_PASSWORD` |
+| Complete connection string | `ConnectionStrings__db_primary` |
+
+Use the property name emitted by the integration rather than deriving it from the portable connection-string alias.
+
 ## Resource name encoding rules
 
 When a resource name is used in an endpoint URL or property variable, Aspire applies the following transformations:
@@ -171,6 +178,8 @@ Connection-string aliases use [portable connection-name encoding](#portable-conn
 
 ## Accessing environment variables
 
+The following examples try the original connection name first and fall back to the portable alias only when the original is absent. This works both when a target supplies both aliases and when it supplies only the portable alias.
+
 ### C\#
 
 In .NET applications, updated Aspire client integrations handle connection-string alias lookup automatically. For manual access, try the logical key first and then its portable form:
@@ -193,7 +202,9 @@ string host = builder.Configuration.GetValue<string>("MY_CLICKHOUSE_HOST");
 import os
 
 # Connection strings
-cache_conn = os.getenv("ConnectionStrings__my_cache")
+cache_conn = os.getenv("ConnectionStrings__my-cache")
+if cache_conn is None:
+    cache_conn = os.getenv("ConnectionStrings__my_cache")
 
 # Endpoint URLs
 api_url = os.getenv("MY_API_HTTP")
@@ -206,7 +217,8 @@ db_host = os.getenv("MY_CLICKHOUSE_HOST")
 
 ```javascript title="JavaScript — app.js"
 // Connection strings
-const cacheConn = process.env.ConnectionStrings__my_cache;
+const cacheConn = process.env["ConnectionStrings__my-cache"]
+    ?? process.env.ConnectionStrings__my_cache;
 
 // Endpoint URLs
 const apiUrl = process.env.MY_API_HTTP;
