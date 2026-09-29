@@ -348,6 +348,19 @@ export declare const AzureKeyVaultRole: {
 };
 
 /**
+ * Enum Aspire.Hosting.ProvisioningValueType
+ */
+
+export type ProvisioningValueType = "String" | "Boolean" | "Integer" | "Object" | "Guid";
+export declare const ProvisioningValueType: {
+  readonly String: "String";
+  readonly Boolean: "Boolean";
+  readonly Integer: "Integer";
+  readonly Object: "Object";
+  readonly Guid: "Guid";
+};
+
+/**
  * Enum Aspire.Hosting.AzureSearchRole
  */
 
@@ -440,6 +453,16 @@ export declare const BrowserUserDataMode: {
 };
 
 /**
+ * Enum Aspire.Hosting.Foundry.FoundryToolboxMcpGlobalApprovalMode
+ */
+
+export type FoundryToolboxMcpGlobalApprovalMode = "Never" | "Always";
+export declare const FoundryToolboxMcpGlobalApprovalMode: {
+  readonly Never: "Never";
+  readonly Always: "Always";
+};
+
+/**
  * Enum Aspire.Hosting.Foundry.HostedAgentProtocol
  */
 
@@ -512,6 +535,44 @@ export declare const GitHubModelName: {
 };
 
 /**
+ * Enum Aspire.Hosting.JavaScript.DenoInspectMode
+ */
+
+export type DenoInspectMode = "Inspect" | "InspectBrk" | "InspectWait";
+export declare const DenoInspectMode: {
+  readonly Inspect: "Inspect";
+  readonly InspectBrk: "InspectBrk";
+  readonly InspectWait: "InspectWait";
+};
+
+/**
+ * Enum Aspire.Hosting.JavaScript.DenoNodeModulesDirMode
+ */
+
+export type DenoNodeModulesDirMode = "None" | "Auto" | "Manual";
+export declare const DenoNodeModulesDirMode: {
+  readonly None: "None";
+  readonly Auto: "Auto";
+  readonly Manual: "Manual";
+};
+
+/**
+ * Enum Aspire.Hosting.JavaScript.DenoPermissionKind
+ */
+
+export type DenoPermissionKind = "Net" | "Read" | "Write" | "Run" | "Env" | "Import" | "Sys" | "Ffi";
+export declare const DenoPermissionKind: {
+  readonly Net: "Net";
+  readonly Read: "Read";
+  readonly Write: "Write";
+  readonly Run: "Run";
+  readonly Env: "Env";
+  readonly Import: "Import";
+  readonly Sys: "Sys";
+  readonly Ffi: "Ffi";
+};
+
+/**
  * Enum Aspire.Hosting.Kubernetes.GatewayPathMatchType
  */
 
@@ -543,6 +604,17 @@ export declare const PersistentVolumeAccessMode: {
   readonly ReadOnlyMany: "ReadOnlyMany";
   readonly ReadWriteMany: "ReadWriteMany";
   readonly ReadWriteOncePod: "ReadWriteOncePod";
+};
+
+/**
+ * Enum Aspire.Hosting.MongoDBTlsMode
+ */
+
+export type MongoDBTlsMode = "AllowTls" | "PreferTls" | "RequireTls";
+export declare const MongoDBTlsMode: {
+  readonly AllowTls: "AllowTls";
+  readonly PreferTls: "PreferTls";
+  readonly RequireTls: "RequireTls";
 };
 
 /**
@@ -1232,6 +1304,16 @@ export interface AzureServiceBusRule {
 }
 
 /**
+ * DTO Aspire.Hosting.Dotnet.DotnetProjectOptions
+ */
+
+export interface DotnetProjectOptions {
+  launchProfileName?: string;
+  excludeLaunchProfile?: boolean;
+  excludeKestrelEndpoints?: boolean;
+}
+
+/**
  * DTO Aspire.Hosting.Foundry.FoundryModel
  */
 
@@ -1239,6 +1321,43 @@ export interface FoundryModel {
   name?: string;
   version?: string;
   format?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Foundry.FoundryToolboxMcpApprovalFilter
+ */
+
+export interface FoundryToolboxMcpApprovalFilter {
+  toolNames?: string[];
+  readOnly?: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.Foundry.FoundryToolboxMcpApprovalPolicy
+ */
+
+export interface FoundryToolboxMcpApprovalPolicy {
+  global?: FoundryToolboxMcpGlobalApprovalMode;
+  always?: FoundryToolboxMcpApprovalFilter;
+  never?: FoundryToolboxMcpApprovalFilter;
+}
+
+/**
+ * DTO Aspire.Hosting.Foundry.FoundryToolboxMcpToolOptions
+ */
+
+export interface FoundryToolboxMcpToolOptions {
+  serverLabel?: string;
+  serverDescription?: string;
+  approvalPolicy?: FoundryToolboxMcpApprovalPolicy;
+}
+
+/**
+ * DTO Aspire.Hosting.Foundry.FoundryToolboxOptions
+ */
+
+export interface FoundryToolboxOptions {
+  version?: string;
 }
 
 /**
@@ -1922,7 +2041,7 @@ export interface ContainerResource extends IComputeResource, IResource, IResourc
  * Handle Aspire.Hosting.ApplicationModel.CSharpAppResource
  */
 
-export interface CSharpAppResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface CSharpAppResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -2413,6 +2532,16 @@ export interface ExecutableResource extends IComputeResource, IResource, IResour
 
   withExecutableCommand(command: string): this;
   /**
+   * Adds a volume to an executable resource.
+   */
+
+  withVolume(target: string, name: string, env: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a volume to an executable resource.
+   */
+
+  withVolume(target: string, name: string, env: string, isReadOnly?: boolean): this;
+  /**
    * Sets the working directory for the executable resource.
    */
 
@@ -2579,6 +2708,13 @@ export interface IAspireStore {
  */
 
 export interface IComputeEnvironmentResource {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.IDotnetProgramResource
+ */
+
+export interface IDotnetProgramResource {
 }
 
 /**
@@ -3211,7 +3347,7 @@ export interface ParameterResource extends IExpressionValue, IManifestExpression
  * Handle Aspire.Hosting.ApplicationModel.ProjectResource
  */
 
-export interface ProjectResource extends IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface ProjectResource extends IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
    * Configures the project to disable forwarded headers when being published.
    */
@@ -3237,6 +3373,16 @@ export interface ProjectResource extends IComputeResource, IContainerFilesDestin
    */
 
   withReplicas(replicas: number): this;
+  /**
+   * Adds a volume to a project resource.
+   */
+
+  withVolume(target: string, name: string, env: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a volume to a project resource.
+   */
+
+  withVolume(target: string, name: string, env: string, isReadOnly?: boolean): this;
   /** Assigns Microsoft Foundry roles to this project resource. */
   withRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
@@ -3591,6 +3737,11 @@ export interface InputsInteractionResult {
  */
 
 export interface InteractionInputBuilder {
+  /**
+   * Releases uploaded files associated with the input.
+   */
+
+  releaseFiles(): void;
   /**
    * Sets the choice options for the input.
    */
@@ -4805,7 +4956,12 @@ export interface AzureAppConfigurationResource extends AzureBicepResource, Azure
  * Handle Aspire.Hosting.Azure.AppContainers.AzureContainerAppEnvironmentResource
  */
 
-export interface AzureContainerAppEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IContainerRegistry, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureContainerRegistry, IAzureDelegatedSubnetResource {
+export interface AzureContainerAppEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IComputeEnvironmentWithVolumeMounts, IContainerRegistry, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureContainerRegistry, IAzureDelegatedSubnetResource {
+  /**
+   * Configures the container app environment to publish and deploy HTTP applications using Azure Container Apps Express.
+   */
+
+  asExpress(): AzureContainerAppEnvironmentResource;
   /**
    * Configures the container app environment to use the supplied `AzureUserAssignedIdentityResource` as the managed identity that container apps in the environment use to pull images from the configured container registry (the `AcrPull` identity), instead of having Aspire create a new identity and a new `AcrPull` role assignment.
    */
@@ -5090,12 +5246,17 @@ export interface AzureCosmosDBResource extends AzureBicepResource, AzureProvisio
 
   addCosmosDatabase(name: string, databaseName?: string): AzureCosmosDBDatabaseResource;
   /**
-   * Configures the Azure Cosmos DB resource to run using the local emulator
+   * Configures the Azure Cosmos DB resource to run using the classic emulator
+   */
+
+  runAsClassicEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource;
+  /**
+   * Configures the Azure Cosmos DB resource to run using the local Linux-based (vNext) emulator
    */
 
   runAsEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource;
   /**
-   * Configures the Azure Cosmos DB resource to run using the Linux-based (vNext) emulator
+   * Configures the Azure Cosmos DB resource to run using the local Linux-based (vNext) emulator. Use runAsEmulator instead.
    */
 
   runAsPreviewEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource;
@@ -5230,7 +5391,7 @@ export interface AzureFrontDoorResource extends AzureBicepResource, AzureProvisi
  * Handle Aspire.Hosting.Azure.AzureFunctionsProjectResource
  */
 
-export interface AzureFunctionsProjectResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface AzureFunctionsProjectResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
    * Configures the Azure Functions project resource to use the specified Azure Storage resource as its host storage.
    */
@@ -5334,7 +5495,7 @@ export interface AksNodePoolResource extends KubernetesNodePoolResource, IResour
  * Handle Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource
  */
 
-export interface AzureKubernetesEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureNspAssociationTarget {
+export interface AzureKubernetesEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IComputeEnvironmentWithVolumeMounts, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureNspAssociationTarget {
   /**
    * Installs cert-manager into an AKS environment
    */
@@ -5683,6 +5844,290 @@ export interface AzurePostgresFlexibleServerResource extends AzureBicepResource,
    */
 
   withPasswordAuthentication(keyVaultBuilder?: IAzureKeyVaultResource, userName?: string | ParameterResource, password?: string | ParameterResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.BicepStringBuilderProxy
+ */
+
+export interface BicepStringBuilderProxy {
+  /**
+   * Appends literal text to the interpolated Bicep string.
+   */
+
+  appendLiteral(value: string): BicepStringBuilderProxy;
+  /**
+   * Appends a provisioning value to the interpolated Bicep string.
+   */
+
+  appendValue(value: BicepValueProxy): BicepStringBuilderProxy;
+  /**
+   * Builds the interpolated Bicep string.
+   */
+
+  build(): BicepValueProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.BicepValueFactoryProxy
+ */
+
+export interface BicepValueFactoryProxy {
+  /**
+   * Creates an explicitly typed Bicep string expression.
+   */
+
+  asString(value: BicepValueProxy): BicepValueProxy;
+  /**
+   * Creates a binary Bicep expression.
+   */
+
+  binary(left: BicepValueProxy, operator: BinaryBicepOperator, right: BicepValueProxy): BicepValueProxy;
+  /**
+   * Creates a Boolean literal.
+   */
+
+  boolean(value: boolean): BicepValueProxy;
+  /**
+   * Creates a Bicep expression that concatenates string values.
+   */
+
+  concat(values: BicepValueProxy[]): BicepValueProxy;
+  /**
+   * Creates a conditional Bicep expression.
+   */
+
+  conditional(condition: BicepValueProxy, consequent: BicepValueProxy, alternate: BicepValueProxy): BicepValueProxy;
+  /**
+   * Creates a deterministic GUID from the supplied values.
+   */
+
+  createGuid(values: BicepValueProxy[]): BicepValueProxy;
+  /**
+   * Creates a builder for an interpolated Bicep string.
+   */
+
+  createStringBuilder(): BicepStringBuilderProxy;
+  /**
+   * Creates an expression for the current deployment.
+   */
+
+  deployment(): BicepValueProxy;
+  /**
+   * Creates a double-precision numeric literal.
+   */
+
+  double(value: number): BicepValueProxy;
+  /**
+   * Creates a Bicep function-call expression.
+   */
+
+  function(name: string, args: BicepValueProxy[]): BicepValueProxy;
+  /**
+   * Creates a GUID literal.
+   */
+
+  guid(value: guid): BicepValueProxy;
+  /**
+   * Creates a Bicep identifier expression.
+   */
+
+  identifier(bicepIdentifier: string): BicepValueProxy;
+  /**
+   * Creates an expression that accesses an indexed value.
+   */
+
+  index(value: BicepValueProxy, index: BicepValueProxy): BicepValueProxy;
+  /**
+   * Creates an integer literal.
+   */
+
+  integer(value: number): BicepValueProxy;
+  /**
+   * Creates an Azure location literal.
+   */
+
+  location(name: string): BicepValueProxy;
+  /**
+   * Creates an expression that accesses a named member.
+   */
+
+  member(value: BicepValueProxy, member: string): BicepValueProxy;
+  /**
+   * Creates a Bicep parameter reference for an Aspire parameter.
+   */
+
+  parameter(parameter: string | ParameterResource, bicepIdentifier?: string): BicepValueProxy;
+  /**
+   * Creates an expression that parses a JSON string.
+   */
+
+  parseJson(value: BicepValueProxy): BicepValueProxy;
+  /**
+   * Creates a Bicep parameter reference for an Aspire reference expression.
+   */
+
+  referenceExpression(expression: ReferenceExpression, options?: { bicepIdentifier?: string; isSecure?: boolean }): BicepValueProxy;
+  /**
+   * Creates a Bicep parameter reference for an Aspire reference expression.
+   */
+
+  referenceExpression(expression: ReferenceExpression, bicepIdentifier?: string, isSecure?: boolean): BicepValueProxy;
+  /**
+   * Creates an expression for the current resource group.
+   */
+
+  resourceGroup(): BicepValueProxy;
+  /**
+   * Creates a Bicep identifier expression for a provisionable resource.
+   */
+
+  resourceIdentifier(resource: ProvisionableResourceProxy): BicepValueProxy;
+  /**
+   * Creates a string literal.
+   */
+
+  string(value: string): BicepValueProxy;
+  /**
+   * Creates an expression for the current subscription.
+   */
+
+  subscription(): BicepValueProxy;
+  /**
+   * Creates a subscription-scoped resource identifier.
+   */
+
+  subscriptionResourceId(values: BicepValueProxy[]): BicepValueProxy;
+  /**
+   * Creates a Bicep expression that takes characters from the start of a string.
+   */
+
+  take(value: BicepValueProxy, count: BicepValueProxy): BicepValueProxy;
+  /**
+   * Creates an expression for the current tenant.
+   */
+
+  tenant(): BicepValueProxy;
+  /**
+   * Creates a time-span literal.
+   */
+
+  timeSpan(value: timespan): BicepValueProxy;
+  /**
+   * Creates a lowercase string expression.
+   */
+
+  toLower(value: BicepValueProxy): BicepValueProxy;
+  /**
+   * Creates an uppercase string expression.
+   */
+
+  toUpper(value: BicepValueProxy): BicepValueProxy;
+  /**
+   * Creates a unary Bicep expression.
+   */
+
+  unary(operator: UnaryBicepOperator, value: BicepValueProxy): BicepValueProxy;
+  /**
+   * Creates a deterministic unique string from the supplied values.
+   */
+
+  uniqueString(values: BicepValueProxy[]): BicepValueProxy;
+  /**
+   * Creates a URI literal.
+   */
+
+  uri(value: uri): BicepValueProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.BicepValueProxy
+ */
+
+export interface BicepValueProxy {
+  /**
+   * Gets whether the value contains secure data.
+   */
+
+  isSecure: PropertyAccessor<boolean>;
+  /**
+   * Gets whether the value is unset, literal, or expression-backed.
+   */
+
+  kind: PropertyAccessor<BicepValueKind>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ProvisionableResourceProxy
+ */
+
+export interface ProvisionableResourceProxy {
+  /**
+   * Gets the identifier used for this resource in the generated Bicep module.
+   */
+
+  bicepIdentifier: PropertyAccessor<string>;
+}
+
+/**
+ * Handle Aspire.Hosting.ProvisioningOutputProxy
+ */
+
+export interface ProvisioningOutputProxy {
+  /**
+   * Sets the Value property
+   */
+
+  setValue(value: BicepValueProxy): ProvisioningOutputProxy;
+  /**
+   * Gets the Value property
+   */
+
+  value: PropertyAccessor<BicepValueProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.ProvisioningParameterProxy
+ */
+
+export interface ProvisioningParameterProxy {
+  /**
+   * Gets or sets whether the parameter is secure. Only string, object, and GUID parameters can be secure.
+   */
+
+  isSecure: PropertyAccessor<boolean>;
+  /**
+   * Gets or sets whether the parameter is secure. Only string, object, and GUID parameters can be secure.
+   */
+
+  setIsSecure(value: boolean): ProvisioningParameterProxy;
+  /**
+   * Sets the Value property
+   */
+
+  setValue(value: BicepValueProxy): ProvisioningParameterProxy;
+  /**
+   * Gets the Value property
+   */
+
+  value: PropertyAccessor<BicepValueProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.ProvisioningVariableProxy
+ */
+
+export interface ProvisioningVariableProxy {
+  /**
+   * Sets the Value property
+   */
+
+  setValue(value: BicepValueProxy): ProvisioningVariableProxy;
+  /**
+   * Gets the Value property
+   */
+
+  value: PropertyAccessor<BicepValueProxy>;
 }
 
 /**
@@ -6454,6 +6899,16 @@ export interface AzureWebPubSubResource extends AzureBicepResource, AzureProvisi
  */
 
 export interface BlazorWasmAppResource extends IResource, IResourceWithEnvironment, IResourceWithParent {
+  /**
+   * Configures the browser launched when starting a debug session for the Blazor WebAssembly app. The value is read when the debugger is registered on the gateway, so call this before `WithBlazorClientApp` or `WithBlazorClientApp` attaches the app.
+   */
+
+  withBlazorDebuggerBrowser(options?: { browser?: string }): this;
+  /**
+   * Configures the browser launched when starting a debug session for the Blazor WebAssembly app. The value is read when the debugger is registered on the gateway, so call this before `WithBlazorClientApp` or `WithBlazorClientApp` attaches the app.
+   */
+
+  withBlazorDebuggerBrowser(browser?: string): this;
 }
 
 /**
@@ -6571,6 +7026,11 @@ export interface DevTunnelResource extends ExecutableResource, IComputeResource,
 
   withAnonymousAccess(): this;
   /**
+   * Configures how long the tunnel can remain unused or unmodified before it expires.
+   */
+
+  withExpiration(expirationHours: number): this;
+  /**
    * Exposes the specified endpoint via the dev tunnel.
    */
 
@@ -6665,7 +7125,7 @@ export interface DockerComposeAspireDashboardResource extends ContainerResource,
  * Handle Aspire.Hosting.Docker.DockerComposeEnvironmentResource
  */
 
-export interface DockerComposeEnvironmentResource extends IComputeEnvironmentResource, IResource {
+export interface DockerComposeEnvironmentResource extends IComputeEnvironmentResource, IComputeEnvironmentWithVolumeMounts, IResource {
   /**
    * Configures the Docker Compose file for the environment resource.
    */
@@ -7799,7 +8259,27 @@ export interface Volume {
  * Handle Aspire.Hosting.Dotnet.DotnetProjectResource
  */
 
-export interface DotnetProjectResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface DotnetProjectResource extends ExecutableResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+  /**
+   * Disables forwarded headers for a .NET project in polyglot AppHosts.
+   */
+
+  disableForwardedHeaders(): DotnetProjectResource;
+  /**
+   * Adds an environment variable to the build process for a .NET project.
+   */
+
+  withBuildEnvironment(name: string, value: string): this;
+  /**
+   * Configures endpoint environment-variable injection for a .NET project in polyglot AppHosts.
+   */
+
+  withEndpointsInEnvironment(endpointNames: string[]): this;
+  /**
+   * Configures the number of .NET project replicas for polyglot AppHosts.
+   */
+
+  withReplicas(replicas: number): this;
 }
 
 /**
@@ -7908,6 +8388,11 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
 
   setScriptNoTransactions(value: boolean): EFMigrationResource;
   /**
+   * Gets the startup .NET program resource that contains the DbContext configuration.
+   */
+
+  startupProjectResource: PropertyAccessor<IDotnetProgramResource>;
+  /**
    * Configures the EF migration resource to generate a migration bundle during publishing.
    */
 
@@ -7946,12 +8431,12 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
    * Configures a separate project containing migrations for polyglot AppHosts.
    */
 
-  withMigrationsProject(options?: { migrationsProject?: ProjectResource }): this;
+  withMigrationsProject(options?: { migrationsProject?: IDotnetProgramResource }): this;
   /**
    * Configures a separate project containing migrations for polyglot AppHosts.
    */
 
-  withMigrationsProject(migrationsProject?: ProjectResource): this;
+  withMigrationsProject(migrationsProject?: IDotnetProgramResource): this;
 }
 
 /**
@@ -8109,6 +8594,11 @@ export interface AzureCognitiveServicesProjectResource extends AzureBicepResourc
 
   addStorageConnection(storage: AzureStorageResource): AzureCognitiveServicesProjectConnectionResource;
   /**
+   * Adds a Microsoft Foundry Toolbox endpoint to a Microsoft Foundry project.
+   */
+
+  addToolbox(name: string, options?: FoundryToolboxOptions): FoundryToolboxResource;
+  /**
    * Adds a Web Search tool to a Microsoft Foundry project, enabling agents to retrieve real-time information from the public web and return answers with inline citations.
    */
 
@@ -8257,6 +8747,11 @@ export interface FoundryDeploymentResource extends IExpressionValue, IManifestEx
 
   format: PropertyAccessor<string>;
   /**
+   * Gets or sets the model identifier used by Foundry Local.
+   */
+
+  localModelId: PropertyAccessor<string>;
+  /**
    * Gets or sets the name of the model.
    */
 
@@ -8281,6 +8776,11 @@ export interface FoundryDeploymentResource extends IExpressionValue, IManifestEx
    */
 
   setFormat(value: string): FoundryDeploymentResource;
+  /**
+   * Gets or sets the model identifier used by Foundry Local.
+   */
+
+  setLocalModelId(value: string): FoundryDeploymentResource;
   /**
    * Gets or sets the name of the model.
    */
@@ -8344,10 +8844,62 @@ export interface FoundryResource extends AzureBicepResource, AzureProvisioningRe
 
   addProject(name: string): AzureCognitiveServicesProjectResource;
   /**
-   * Adds a Foundry Local resource to the distributed application builder.
+   * Configures a Microsoft Foundry resource to use an Aspire-managed or existing Foundry Local service.
    */
 
-  runAsFoundryLocal(): FoundryResource;
+  runAsFoundryLocal(endpoint?: string): FoundryResource;
+}
+
+/**
+ * Handle Aspire.Hosting.Foundry.FoundryToolboxResource
+ */
+
+export interface FoundryToolboxResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IValueProvider, IValueWithReferences {
+  /**
+   * Uses an existing Microsoft Foundry Toolbox during local runs and deployment.
+   */
+
+  asExisting(): FoundryToolboxResource;
+  /**
+   * Reconciles a Microsoft Foundry Toolbox during local runs and uses an existing Toolbox during deployment.
+   */
+
+  publishAsExisting(): this;
+  /**
+   * Uses an existing Microsoft Foundry Toolbox during local runs and reconciles it during deployment.
+   */
+
+  runAsExisting(): FoundryToolboxResource;
+  /**
+   * Adds an Azure AI Search tool definition to the Toolbox.
+   */
+
+  withAISearchTool(name: string, search: AzureSearchResource, indexName: string, options?: { description?: string }): this;
+  /**
+   * Adds an Azure AI Search tool definition to the Toolbox.
+   */
+
+  withAISearchTool(name: string, search: AzureSearchResource, indexName: string, description?: string): this;
+  /**
+   * Sets the description persisted with each Toolbox version.
+   */
+
+  withDescription(description: string): this;
+  /**
+   * Adds an MCP tool definition to the Toolbox.
+   */
+
+  withMcpTool(name: string, endpoint: ReferenceExpression, options?: FoundryToolboxMcpToolOptions): this;
+  /**
+   * Adds a web search tool definition to the Toolbox.
+   */
+
+  withWebSearchTool(options?: { name?: string; description?: string }): this;
+  /**
+   * Adds a web search tool definition to the Toolbox.
+   */
+
+  withWebSearchTool(name?: string, description?: string): this;
 }
 
 /**
@@ -8571,6 +9123,113 @@ export interface BunAppResource extends ExecutableResource, JavaScriptAppResourc
 }
 
 /**
+ * Handle Aspire.Hosting.JavaScript.DenoAppResource
+ */
+
+export interface DenoAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+  /**
+   * Grants a Deno permission, optionally scoped to the supplied values.
+   */
+
+  withDenoAllow(kind: DenoPermissionKind, values: string[]): this;
+  /**
+   * Controls the blanket `-A`/`--allow-all` grant.
+   */
+
+  withDenoAllowAll(options?: { enabled?: boolean }): this;
+  /**
+   * Controls the blanket `-A`/`--allow-all` grant.
+   */
+
+  withDenoAllowAll(enabled?: boolean): this;
+  /**
+   * Sets `--config <file>` (path to a `deno.json`/`deno.jsonc`).
+   */
+
+  withDenoConfig(configFile: string): this;
+  /**
+   * Denies a Deno permission, optionally scoped to the supplied values.
+   */
+
+  withDenoDeny(kind: DenoPermissionKind, values: string[]): this;
+  /**
+   * Sets `--import-map <file>`.
+   */
+
+  withDenoImportMap(importMapFile: string): this;
+  /**
+   * Enables a Deno inspector mode, optionally at `hostPort` (for example `127.0.0.1:9229`).
+   */
+
+  withDenoInspect(options?: { mode?: DenoInspectMode; hostPort?: string }): this;
+  /**
+   * Enables a Deno inspector mode, optionally at `hostPort` (for example `127.0.0.1:9229`).
+   */
+
+  withDenoInspect(mode?: DenoInspectMode, hostPort?: string): this;
+  /**
+   * Sets `--lock <file>`.
+   */
+
+  withDenoLock(lockFile: string): this;
+  /**
+   * Sets `--node-modules-dir`, optionally with a mode emitted as `--node-modules-dir=<mode>`.
+   */
+
+  withDenoNodeModulesDir(options?: { mode?: DenoNodeModulesDirMode }): this;
+  /**
+   * Sets `--node-modules-dir`, optionally with a mode emitted as `--node-modules-dir=<mode>`.
+   */
+
+  withDenoNodeModulesDir(mode?: DenoNodeModulesDirMode): this;
+  /**
+   * Sets `--no-lock`, disabling lockfile use.
+   */
+
+  withDenoNoLock(): this;
+  /**
+   * Selects the `deno run <entrypoint>` mode (the default).
+   */
+
+  withDenoRun(): this;
+  /**
+   * Appends raw runtime arguments injected verbatim BEFORE the entrypoint. This is the escape hatch that gives full parity with `AddExecutable("name", "deno", workdir, args...)` for any flag not covered by a dedicated `WithDeno*` method.
+   */
+
+  withDenoRuntimeArgs(args: string[]): this;
+  /**
+   * Appends arguments passed to the script AFTER the entrypoint. Deno forwards everything after the entrypoint to the running program.
+   */
+
+  withDenoScriptArgs(args: string[]): this;
+  /**
+   * Selects the `deno serve <entrypoint>` mode for serving an HTTP entrypoint.
+   */
+
+  withDenoServe(): this;
+  /**
+   * Selects the `deno task <taskName>` mode, running a task defined in `deno.json` instead of a script entrypoint. Permissions are defined by the task itself and are not emitted for this mode.
+   */
+
+  withDenoTask(taskName: string): this;
+  /**
+   * Adds one or more `--unstable-*` flags. Each feature may be supplied bare (for example `"kv"`, `"worker-options"`, `"sloppy-imports"`) or fully qualified (`"--unstable-kv"`).
+   */
+
+  withDenoUnstable(features: string[]): this;
+  /**
+   * Enables `--watch` (or `--watch-hmr` when `hmr` is `true`).
+   */
+
+  withDenoWatch(options?: { hmr?: boolean }): this;
+  /**
+   * Enables `--watch` (or `--watch-hmr` when `hmr` is `true`).
+   */
+
+  withDenoWatch(hmr?: boolean): this;
+}
+
+/**
  * Handle Aspire.Hosting.JavaScript.JavaScriptAppResource
  */
 
@@ -8586,12 +9245,12 @@ export interface JavaScriptAppResource extends ExecutableResource, IComputeResou
 
   publishAsNodeServer(entryPoint: string, outputPath?: string): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
    */
 
   publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
    */
 
   publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
@@ -8635,6 +9294,16 @@ export interface JavaScriptAppResource extends ExecutableResource, IComputeResou
    */
 
   withBun(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(install?: boolean, installArgs?: string[]): this;
   /**
    * Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.
    */
@@ -8976,7 +9645,7 @@ export interface KubernetesAspireDashboardResource extends ContainerResource, IC
  * Handle Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource
  */
 
-export interface KubernetesEnvironmentResource extends IComputeEnvironmentResource, IResource {
+export interface KubernetesEnvironmentResource extends IComputeEnvironmentResource, IComputeEnvironmentWithVolumeMounts, IResource {
   /**
    * Installs cert-manager into a Kubernetes environment
    */
@@ -9165,12 +9834,12 @@ export interface KubernetesGatewayResource extends IResource, IResourceWithParen
 
   withGatewayHostRoute(host: string, path: string, endpoint: EndpointReference, pathType?: GatewayPathMatchType): this;
   /**
-   * Adds a path-based routing rule to the gateway. The rule matches all hosts and routes traffic matching the specified path to the given endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource attached to the Gateway.
+   * Adds a path-based routing rule to the gateway. The rule matches each hostname configured with `WithHostname`, or all hosts when no hostname is configured, and routes matching traffic to the endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource attached to the Gateway.
    */
 
   withGatewayPathRoute(path: string, endpoint: EndpointReference, options?: { pathType?: GatewayPathMatchType }): this;
   /**
-   * Adds a path-based routing rule to the gateway. The rule matches all hosts and routes traffic matching the specified path to the given endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource attached to the Gateway.
+   * Adds a path-based routing rule to the gateway. The rule matches each hostname configured with `WithHostname`, or all hosts when no hostname is configured, and routes matching traffic to the endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource attached to the Gateway.
    */
 
   withGatewayPathRoute(path: string, endpoint: EndpointReference, pathType?: GatewayPathMatchType): this;
@@ -9190,7 +9859,7 @@ export interface KubernetesGatewayResource extends IResource, IResourceWithParen
 
   withGatewayTlsParam(secretName: string | ParameterResource): this;
   /**
-   * Adds a hostname that this gateway's routes match. Multiple hostnames can be added by calling this method repeatedly. Hostnames are used as `hostnames` in generated `HTTPRoute` resources and as HTTPS listener hostnames when TLS is configured.
+   * Adds a hostname that this gateway's routes match. Multiple hostnames can be added by calling this method repeatedly. Routes without an explicit host apply to each configured hostname. Hostnames are used as `hostnames` in generated `HTTPRoute` resources and as HTTPS listener hostnames when TLS is configured.
    */
 
   withHostname(hostname: string): this;
@@ -9244,7 +9913,7 @@ export interface KubernetesIngressResource extends IResource, IResourceWithParen
 
   withDefaultBackend(endpoint: EndpointReference): this;
   /**
-   * Adds a hostname that this ingress matches. Multiple hostnames can be added by calling this method repeatedly. If no hostnames are configured, the ingress matches all hosts.
+   * Adds a hostname that this ingress matches. Multiple hostnames can be added by calling this method repeatedly. Path rules without an explicit host apply to each configured hostname. If no hostnames are configured, those rules match all hosts.
    */
 
   withHostname(hostname: string): this;
@@ -9284,12 +9953,12 @@ export interface KubernetesIngressResource extends IResource, IResourceWithParen
 
   withIngressHostnameParam(hostname: string | ParameterResource): this;
   /**
-   * Adds a path-based rule to the ingress. The rule matches all hosts and forwards traffic matching the specified path to the given endpoint's backing Kubernetes service.
+   * Adds a path-based rule to the ingress. The rule matches each hostname configured with `WithHostname`, or all hosts when no hostname is configured, and forwards matching traffic to the endpoint's backing Kubernetes service.
    */
 
   withIngressPath(path: string, endpoint: EndpointReference, options?: { pathType?: IngressPathType }): this;
   /**
-   * Adds a path-based rule to the ingress. The rule matches all hosts and forwards traffic matching the specified path to the given endpoint's backing Kubernetes service.
+   * Adds a path-based rule to the ingress. The rule matches each hostname configured with `WithHostname`, or all hosts when no hostname is configured, and forwards matching traffic to the endpoint's backing Kubernetes service.
    */
 
   withIngressPath(path: string, endpoint: EndpointReference, pathType?: IngressPathType): this;
@@ -9407,35 +10076,35 @@ export interface KubernetesResource extends IResource, IResourceWithParent {
  * Handle Aspire.Hosting.Maui.MauiAndroidDeviceResource
  */
 
-export interface MauiAndroidDeviceResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
+export interface MauiAndroidDeviceResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
 }
 
 /**
  * Handle Aspire.Hosting.Maui.MauiAndroidEmulatorResource
  */
 
-export interface MauiAndroidEmulatorResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
+export interface MauiAndroidEmulatorResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
 }
 
 /**
  * Handle Aspire.Hosting.Maui.MauiiOSDeviceResource
  */
 
-export interface MauiiOSDeviceResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
+export interface MauiiOSDeviceResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
 }
 
 /**
  * Handle Aspire.Hosting.Maui.MauiiOSSimulatorResource
  */
 
-export interface MauiiOSSimulatorResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
+export interface MauiiOSSimulatorResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
 }
 
 /**
  * Handle Aspire.Hosting.Maui.MauiMacCatalystPlatformResource
  */
 
-export interface MauiMacCatalystPlatformResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
+export interface MauiMacCatalystPlatformResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
 }
 
 /**
@@ -9489,7 +10158,7 @@ export interface MauiProjectResource extends IResource {
  * Handle Aspire.Hosting.Maui.MauiWindowsPlatformResource
  */
 
-export interface MauiWindowsPlatformResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
+export interface MauiWindowsPlatformResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithParent, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IMauiPlatformResource {
 }
 
 /**
@@ -9641,6 +10310,48 @@ export interface MongoDBDatabaseResource extends IExpressionValue, IManifestExpr
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.MongoDBReplicaSetResource
+ */
+
+export interface MongoDBReplicaSetResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the combined connection string for the MongoDB replica set, which includes the endpoints of all members, interpretable by the MongoDB driver.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the MongoDB server resources that are members of this replica set, in the order they were added.
+   */
+
+  members: PropertyAccessor<MongoDBServerResource[]>;
+  /**
+   * Gets the parameter that contains the content of the key file used for internal authentication between members of the MongoDB replica set.
+   */
+
+  sharedKeyFileParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the parameter that contains the password for authenticating to the MongoDB replica set.
+   */
+
+  sharedPasswordParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets the parameter that contains the username for authenticating to the MongoDB replica set.
+   */
+
+  sharedUserNameParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Gets a reference to the username for the MongoDB replica set.
+   */
+
+  sharedUserNameReference: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a MongoDB server resource as a member of the replica set.
+   */
+
+  withMember(member: MongoDBServerResource): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.MongoDBServerResource
  */
 
@@ -9686,6 +10397,31 @@ export interface MongoDBServerResource extends ContainerResource, IComputeResour
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
   /**
+   * Gets the name of the replica set this MongoDB server belongs to, or `null` if it is not part of a replica set.
+   */
+
+  replicaSetName: PropertyAccessor<string>;
+  /**
+   * Gets the parameter that contains the MongoDb server password.
+   */
+
+  setPasswordParameter(value: string | ParameterResource): MongoDBServerResource;
+  /**
+   * Gets the name of the replica set this MongoDB server belongs to, or `null` if it is not part of a replica set.
+   */
+
+  setReplicaSetName(value: string): MongoDBServerResource;
+  /**
+   * Gets the parameter that contains the MongoDb server username.
+   */
+
+  setUserNameParameter(value: string | ParameterResource): MongoDBServerResource;
+  /**
+   * Gets a value indicating whether TLS is enabled for the MongoDB server.
+   */
+
+  tlsEnabled: PropertyAccessor<boolean>;
+  /**
    * Gets the connection URI expression for the MongoDB server.
    */
 
@@ -9700,6 +10436,11 @@ export interface MongoDBServerResource extends ContainerResource, IComputeResour
    */
 
   userNameReference: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures the MongoDB server to bind to and listen on all network interfaces.
+   */
+
+  withBindIpAll(): this;
   /**
    * Adds a bind mount for the data folder to a MongoDB container resource.
    */
@@ -9726,6 +10467,16 @@ export interface MongoDBServerResource extends ContainerResource, IComputeResour
 
   withInitFiles(source: string): this;
   /**
+   * Sets up a keyfile for internal authentication between members of a MongoDB replica set, with the specified `keyValue` as the content of the file.
+   */
+
+  withKeyFile(keyValue: IExpressionValue, options?: { keyFilePath?: string }): this;
+  /**
+   * Sets up a keyfile for internal authentication between members of a MongoDB replica set, with the specified `keyValue` as the content of the file.
+   */
+
+  withKeyFile(keyValue: IExpressionValue, keyFilePath?: string): this;
+  /**
    * Adds a MongoExpress administration and development platform for MongoDB to the application model.
    */
 
@@ -9735,6 +10486,36 @@ export interface MongoDBServerResource extends ContainerResource, IComputeResour
    */
 
   withMongoExpress(configureContainer?: (obj: MongoExpressContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds a REPL command that opens an authenticated MongoDB shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
+  /**
+   * Configures and initializes the MongoDB server as a single-member replica set for local development.
+   */
+
+  withReplicaSet(options?: { name?: string }): this;
+  /**
+   * Configures and initializes the MongoDB server as a single-member replica set for local development.
+   */
+
+  withReplicaSet(name?: string): this;
+  /**
+   * Configures the MongoDB server to accept TLS connections whose peer certificate cannot be validated, by passing `--tlsAllowInvalidCertificates` to `mongod`.
+   */
+
+  withTlsAllowInvalidCertificates(): this;
+  /**
+   * Configures the `--tlsMode` the MongoDB server is started with when TLS is active.
+   */
+
+  withTlsMode(options?: { mode?: MongoDBTlsMode }): this;
+  /**
+   * Configures the `--tlsMode` the MongoDB server is started with when TLS is active.
+   */
+
+  withTlsMode(mode?: MongoDBTlsMode): this;
 }
 
 /**
@@ -9886,6 +10667,11 @@ export interface MySqlServerResource extends ContainerResource, IComputeResource
    */
 
   withPhpMyAdmin(configureContainer?: (obj: PhpMyAdminContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds a REPL command that opens an authenticated MySQL shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
 }
 
 /**
@@ -10392,6 +11178,11 @@ export interface PostgresServerResource extends ContainerResource, IComputeResou
 
   withPgWeb(configureContainer?: (obj: PgWebContainerResource) => Promise<void>, containerName?: string): this;
   /**
+   * Adds a REPL command that opens an authenticated PostgreSQL shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
+  /**
    * Configures the user name that the PostgreSQL resource is used.
    */
 
@@ -10779,6 +11570,11 @@ export interface RedisResource extends ContainerResource, IComputeResource, IExp
    */
 
   withRedisInsight(configureContainer?: (obj: RedisInsightResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds a REPL command that opens an authenticated Redis shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
 }
 
 /**
@@ -11004,6 +11800,11 @@ export interface SqlServerServerResource extends ContainerResource, IComputeReso
    */
 
   withPassword(password: string | ParameterResource): this;
+  /**
+   * Adds a REPL command that opens an authenticated SQL Server shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
 }
 
 /**
@@ -11071,6 +11872,11 @@ export interface ValkeyResource extends ContainerResource, IComputeResource, IEx
    */
 
   withPersistence(interval?: timespan, keysChangedThreshold?: number): this;
+  /**
+   * Adds a REPL command that opens an authenticated Valkey shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
 }
 
 /**
@@ -11744,18 +12550,6 @@ export interface DbxContainerResource extends ContainerResource, IComputeResourc
    */
 
   withHostPort(port: number | null): this;
-}
-
-/**
- * Handle Aspire.Hosting.ApplicationModel.DenoAppResource
- */
-
-export interface DenoAppResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
-  /**
-   * Ensures the Deno packages are installed before the application starts using Deno as the package manager.
-   */
-
-  withDenoPackageInstallation(): this;
 }
 
 /**
@@ -14854,6 +15648,11 @@ export interface IDistributedApplicationBuilder {
 
   addBlazorWasmProject(name: string, projectPath: string): BlazorWasmAppResource;
   /**
+   * Adds the built-in Blazor gateway as a .NET program resource.
+   */
+
+  addDotnetProjectBlazorGateway(name: string): DotnetProjectResource;
+  /**
    * Adds a ClickHouse resource to the application model.
    */
 
@@ -14882,7 +15681,7 @@ export interface IDistributedApplicationBuilder {
    * Adds a C# application resource.
    */
 
-  addDotnetProject(name: string, path: string, options?: ProjectResourceOptions): DotnetProjectResource;
+  addDotnetProject(name: string, path: string, options?: DotnetProjectOptions): DotnetProjectResource;
   /**
    * Adds a Microsoft Foundry resource to the application model.
    */
@@ -14933,6 +15732,11 @@ export interface IDistributedApplicationBuilder {
    */
 
   addBunApp(name: string, appDirectory: string, scriptPath: string): BunAppResource;
+  /**
+   * Adds a Deno application to the application model. Deno should be available on the PATH.
+   */
+
+  addDenoApp(name: string, appDirectory: string, scriptPath: string): DenoAppResource;
   /**
    * Adds a JavaScript application resource to the distributed application using the specified app directory and run script.
    */
@@ -15018,6 +15822,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addMongoDB(name: string, port?: number, userName?: string | ParameterResource, password?: string | ParameterResource): MongoDBServerResource;
+  /**
+   * Adds a MongoDB replica set resource to the application model.
+   */
+
+  addMongoDBReplicaSet(name: string, options?: { userName?: string | ParameterResource; password?: string | ParameterResource }): MongoDBReplicaSetResource;
+  /**
+   * Adds a MongoDB replica set resource to the application model.
+   */
+
+  addMongoDBReplicaSet(name: string, userName?: string | ParameterResource, password?: string | ParameterResource): MongoDBReplicaSetResource;
   /**
    * Adds a MySQL server resource to the application model. For local development a container is used.
    */
@@ -16746,6 +17560,29 @@ export interface AzureQueueStorageResource {
   withAzureStorageExplorer(configureContainer?: (obj: AzureStorageExplorerResource) => Promise<void>, name?: string): this;
 }
 
+// augments handle type AzureResourceInfrastructure with extension methods
+export interface AzureResourceInfrastructure {
+
+  addBicepOutput(bicepIdentifier: string, type: ProvisioningValueType): ProvisioningOutputProxy;
+  /**
+   * Adds a Bicep parameter. Only string, object, and GUID parameters can be secure.
+   */
+
+  addBicepParameter(bicepIdentifier: string, type: ProvisioningValueType, options?: { isSecure?: boolean }): ProvisioningParameterProxy;
+  /**
+   * Adds a Bicep parameter. Only string, object, and GUID parameters can be secure.
+   */
+
+  addBicepParameter(bicepIdentifier: string, type: ProvisioningValueType, isSecure?: boolean): ProvisioningParameterProxy;
+
+  addBicepVariable(bicepIdentifier: string, type: ProvisioningValueType): ProvisioningVariableProxy;
+  /**
+   * Creates a factory for composing Bicep values and expressions.
+   */
+
+  bicep(): BicepValueFactoryProxy;
+}
+
 // augments handle type AzureSearchResource with extension methods
 export interface AzureSearchResource {
   /**
@@ -17171,12 +18008,12 @@ export interface BunAppResource {
 
   publishAsNodeServer(entryPoint: string, outputPath?: string): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
    */
 
   publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
    */
 
   publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
@@ -17220,6 +18057,16 @@ export interface BunAppResource {
    */
 
   withBun(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(install?: boolean, installArgs?: string[]): this;
   /**
    * Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.
    */
@@ -18235,12 +19082,12 @@ export interface ContainerResource {
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean; env?: string }): this;
   /**
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean, env?: string): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -18830,6 +19677,16 @@ export interface CSharpAppResource {
    */
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
+  /**
+   * Adds a volume to a project resource.
+   */
+
+  withVolume(target: string, name: string, env: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a volume to a project resource.
+   */
+
+  withVolume(target: string, name: string, env: string, isReadOnly?: boolean): this;
 
   withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
 
@@ -19013,12 +19870,12 @@ export interface CSharpAppResource {
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean; env?: string }): this;
   /**
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean, env?: string): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -19126,6 +19983,125 @@ export interface CSharpAppResource {
   withStripeReference(source: StripeResource, webhookSigningSecretEnvVarName?: string): this;
 }
 
+// augments handle type DenoAppResource with extension methods
+export interface DenoAppResource {
+  /**
+   * Configures the JavaScript application to publish as a standalone Node.js server that runs a built artifact directly.
+   */
+
+  publishAsNodeServer(entryPoint: string, options?: { outputPath?: string }): this;
+  /**
+   * Configures the JavaScript application to publish as a standalone Node.js server that runs a built artifact directly.
+   */
+
+  publishAsNodeServer(entryPoint: string, outputPath?: string): this;
+  /**
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
+   */
+
+  publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
+  /**
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
+   */
+
+  publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
+  /**
+   * Publishes the JavaScript application as a standalone static website using YARP.
+   */
+
+  publishAsStaticWebsite(options?: { apiPath?: string; apiTarget?: IResourceWithServiceDiscovery; outputPath?: string; stripPrefix?: boolean; targetEndpointName?: string }): this;
+  /**
+   * Publishes the JavaScript application as a standalone static website using YARP.
+   */
+
+  publishAsStaticWebsite(apiPath?: string, apiTarget?: IResourceWithServiceDiscovery, outputPath?: string, stripPrefix?: boolean, targetEndpointName?: string): this;
+  /**
+   * Configures a browser debugger for the JavaScript application resource, enabling browser-based debugging through a child resource that launches when the parent application is ready.
+   */
+
+  withBrowserDebugger(options?: { browser?: string }): this;
+  /**
+   * Configures a browser debugger for the JavaScript application resource, enabling browser-based debugging through a child resource that launches when the parent application is ready.
+   */
+
+  withBrowserDebugger(browser?: string): this;
+  /**
+   * Adds a build script annotation to the resource builder using the specified command-line arguments.
+   */
+
+  withBuildScript(scriptName: string, options?: { args?: string[] }): this;
+  /**
+   * Adds a build script annotation to the resource builder using the specified command-line arguments.
+   */
+
+  withBuildScript(scriptName: string, args?: string[]): this;
+  /**
+   * Configures the JavaScript resource to use Bun as the package manager and optionally installs packages before the application starts.
+   */
+
+  withBun(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the JavaScript resource to use Bun as the package manager and optionally installs packages before the application starts.
+   */
+
+  withBun(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.
+   */
+
+  withNpm(options?: { install?: boolean; installCommand?: string; installArgs?: string[] }): this;
+  /**
+   * Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.
+   */
+
+  withNpm(install?: boolean, installCommand?: string, installArgs?: string[]): this;
+  /**
+   * Configures the Node.js resource to use pnpm as the package manager and optionally installs packages before the application starts.
+   */
+
+  withPnpm(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the Node.js resource to use pnpm as the package manager and optionally installs packages before the application starts.
+   */
+
+  withPnpm(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Adds a run script annotation to the specified JavaScript application resource builder, specifying the script to execute and its arguments during run mode.
+   */
+
+  withRunScript(scriptName: string, options?: { args?: string[] }): this;
+  /**
+   * Adds a run script annotation to the specified JavaScript application resource builder, specifying the script to execute and its arguments during run mode.
+   */
+
+  withRunScript(scriptName: string, args?: string[]): this;
+  /**
+   * Configures the Node.js resource to use yarn as the package manager and optionally installs packages before the application starts.
+   */
+
+  withYarn(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the Node.js resource to use yarn as the package manager and optionally installs packages before the application starts.
+   */
+
+  withYarn(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Ensures the Deno packages are installed before the application starts using Deno as the package manager.
+   */
+
+  withDenoPackageInstallation(): this;
+}
+
 // augments handle type DockerComposeAspireDashboardResource with extension methods
 export interface DockerComposeAspireDashboardResource {
   /**
@@ -19133,6 +20109,20 @@ export interface DockerComposeAspireDashboardResource {
    */
 
   publishAsDockerComposeService(configure: (arg1: DockerComposeServiceResource, arg2: Service) => Promise<void>): this;
+}
+
+// augments handle type DotnetProjectResource with extension methods
+export interface DotnetProjectResource {
+  /**
+   * Attaches a Blazor WebAssembly app to the gateway. The app's resource name becomes its URL path prefix, and its service references are forwarded to the gateway for proxying.
+   */
+
+  withBlazorClientApp(wasmApp: BlazorWasmAppResource, options?: { apiPrefix?: string; otlpPrefix?: string; proxyTelemetry?: boolean }): this;
+  /**
+   * Attaches a Blazor WebAssembly app to the gateway. The app's resource name becomes its URL path prefix, and its service references are forwarded to the gateway for proxying.
+   */
+
+  withBlazorClientApp(wasmApp: BlazorWasmAppResource, apiPrefix?: string, otlpPrefix?: string, proxyTelemetry?: boolean): this;
 }
 
 // augments handle type DotnetToolResource with extension methods
@@ -19593,6 +20583,16 @@ export interface DotnetToolResource {
 
   withUrls(callback: (obj: ResourceUrlsCallbackContext) => Promise<void>): this;
   /**
+   * Adds a volume to an executable resource.
+   */
+
+  withVolume(target: string, name: string, env: string, options?: { isReadOnly?: boolean }): this;
+  /**
+   * Adds a volume to an executable resource.
+   */
+
+  withVolume(target: string, name: string, env: string, isReadOnly?: boolean): this;
+  /**
    * Sets the working directory for the executable resource.
    */
 
@@ -19760,12 +20760,12 @@ export interface DotnetToolResource {
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean; env?: string }): this;
   /**
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean, env?: string): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -20499,12 +21499,12 @@ export interface ExecutableResource {
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean; env?: string }): this;
   /**
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean, env?: string): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -21028,6 +22028,15 @@ export interface FoundryResource {
   withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
 }
 
+// augments handle type FoundryToolboxResource with extension methods
+export interface FoundryToolboxResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Microsoft Foundry resource. This replaces the default role assignments for the resource.
+   */
+
+  withFoundryRoleAssignments(target: FoundryResource, roles: FoundryRole[]): this;
+}
+
 // augments handle type FoundryToolResource with extension methods
 export interface FoundryToolResource {
   /**
@@ -21134,12 +22143,12 @@ export interface IComputeResource {
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean; env?: string }): this;
   /**
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean, env?: string): this;
 }
 
 export interface IConfiguration {
@@ -21176,6 +22185,20 @@ export interface IContainerFilesDestinationResource {
    */
 
   publishWithContainerFiles(source: IResourceWithContainerFiles, destinationPath: string): this;
+}
+
+// augments handle type IDotnetProgramResource with extension methods
+export interface IDotnetProgramResource {
+  /**
+   * Adds EF Core migration management for polyglot AppHosts.
+   */
+
+  addEFMigrations(name: string, options?: { dbContextTypeName?: string }): EFMigrationResource;
+  /**
+   * Adds EF Core migration management for polyglot AppHosts.
+   */
+
+  addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
 }
 
 export interface IHostEnvironment {
@@ -21788,12 +22811,12 @@ export interface KubernetesAspireDashboardResource {
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean; env?: string }): this;
   /**
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean, env?: string): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -22035,12 +23058,12 @@ export interface NextJsAppResource {
 
   publishAsNodeServer(entryPoint: string, outputPath?: string): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
    */
 
   publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
    */
 
   publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
@@ -22084,6 +23107,16 @@ export interface NextJsAppResource {
    */
 
   withBun(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(install?: boolean, installArgs?: string[]): this;
   /**
    * Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.
    */
@@ -22149,12 +23182,12 @@ export interface NodeAppResource {
 
   publishAsNodeServer(entryPoint: string, outputPath?: string): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
    */
 
   publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
    */
 
   publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
@@ -22198,6 +23231,16 @@ export interface NodeAppResource {
    */
 
   withBun(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(install?: boolean, installArgs?: string[]): this;
   /**
    * Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.
    */
@@ -23300,12 +24343,12 @@ export interface ProjectResource {
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean }): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, options?: { isReadOnly?: boolean; env?: string }): this;
   /**
    * Binds a workload to a Kubernetes persistent volume and mounts it at a path
    */
 
-  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean): this;
+  withKubernetesPersistentVolumeMount(volume: KubernetesPersistentVolumeResource, mountPath: string, isReadOnly?: boolean, env?: string): this;
   /**
    * Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.
    */
@@ -23593,12 +24636,12 @@ export interface ViteAppResource {
 
   publishAsNodeServer(entryPoint: string, outputPath?: string): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
    */
 
   publishAsPackageScript(options?: { scriptName?: string; runScriptArguments?: string }): this;
   /**
-   * Configures the JavaScript application to publish as a Node.js server that uses a `package.json` script at runtime.
+   * Configures the JavaScript application to publish as a server that runs a package manager script at runtime.
    */
 
   publishAsPackageScript(scriptName?: string, runScriptArguments?: string): this;
@@ -23642,6 +24685,16 @@ export interface ViteAppResource {
    */
 
   withBun(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(options?: { install?: boolean; installArgs?: string[] }): this;
+  /**
+   * Configures the JavaScript resource to use Deno as the package manager.
+   */
+
+  withDeno(install?: boolean, installArgs?: string[]): this;
   /**
    * Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.
    */
@@ -23799,6 +24852,8 @@ export interface Service {
 }
 
 // ---- stubs for referenced SDK types not otherwise described ----
+export interface BicepValueKind {}
+export interface BinaryBicepOperator {}
 export interface ContainerAppJob {}
 export interface CookieSecurePolicy {}
 export interface ForwardedTransformActions {}
@@ -23814,6 +24869,7 @@ export interface IAzureNspAssociationTarget {}
 export interface IAzurePrivateEndpointTarget {}
 export interface IAzurePrivateEndpointTargetNotification {}
 export interface IComparable {}
+export interface IComputeEnvironmentWithVolumeMounts {}
 export interface IConfigurationSection {}
 export interface IContainerRegistry {}
 export interface IConvertible {}
@@ -23845,6 +24901,7 @@ export interface SameSiteMode {}
 export interface SecurityRuleAccess {}
 export interface SecurityRuleDirection {}
 export interface SecurityRuleProtocol {}
+export interface UnaryBicepOperator {}
 export interface UnixFileMode {}
 export interface arg {}
 export interface arg1 {}
