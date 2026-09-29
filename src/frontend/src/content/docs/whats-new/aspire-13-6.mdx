@@ -340,7 +340,7 @@ The service requires preview access in your Azure subscription and region. Refer
 
 The prerelease `Aspire.Hosting.Azure.Sandboxes` package adds Azure Container Apps Sandboxes as a deployment target. Add a sandbox group to your AppHost, and `aspire deploy` provisions the group, an Azure Container Registry, and the identities and role assignments the group needs. It then runs your project, container, and Dockerfile resources as isolated sandboxes. When the sandbox group is the only compute environment, Aspire assigns compute resources to it automatically.
 
-When an AppHost defines multiple compute environments, select the target sandbox group with `WithComputeEnvironment` / `withComputeEnvironment`. `PublishAsAzureSandbox` / `publishAsAzureSandbox` now configures sandbox-specific runtime options without taking a sandbox-group parameter. For migration guidance, see [Azure Container Apps Sandboxes now infer their compute environment](#azure-container-apps-sandboxes-now-infer-their-compute-environment).
+When an AppHost defines multiple compute environments, select the target sandbox group with `WithComputeEnvironment` / `withComputeEnvironment`. `PublishAsAzureSandbox` / `publishAsAzureSandbox` configures sandbox-specific runtime options without taking a sandbox-group parameter.
 
 Use `PublishAsAzureSandbox` / `publishAsAzureSandbox` to choose one of five resource tiers and to configure auto-suspend and auto-delete:
 
@@ -404,7 +404,6 @@ Only endpoints marked as external get a public HTTPS URL. Those URLs require Mic
 <Aside type="caution" title="Preview service">
   Azure Container Apps Sandboxes requires preview access in your Azure
   subscription and region, and its Aspire package remains prerelease.
-  The Sandbox APIs no longer require `ASPIREAZURE001` suppression in 13.6.
   The integration doesn't yet support volumes, TCP ports, private
   service discovery, or Windows and ARM64 images.
 </Aside>
@@ -879,71 +878,6 @@ If you adopt the new default:
 <LearnMore>
   See the [Azure Cosmos DB Linux emulator
   documentation](https://learn.microsoft.com/azure/cosmos-db/emulator-linux).
-</LearnMore>
-
-#### Azure Container Apps Sandboxes now infer their compute environment
-
-`PublishAsAzureSandbox` / `publishAsAzureSandbox` no longer takes a sandbox-group parameter. When an Azure sandbox group is the app model's only compute environment, Aspire automatically assigns compute resources to it; existing callers should rely on that single-environment inference. When an AppHost defines multiple compute environments, call `WithComputeEnvironment` / `withComputeEnvironment` with the target sandbox group before `PublishAsAzureSandbox` / `publishAsAzureSandbox`. The following example defines two sandbox groups and assigns the project to `env`:
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-using Aspire.Hosting.Azure;
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-var sandboxGroup = builder.AddAzureSandboxGroup("env");
-builder.AddAzureSandboxGroup("other-env");
-
-builder.AddProject<Projects.ApiService>("api")
-    .WithComputeEnvironment(sandboxGroup)
-    .WithExternalHttpEndpoints()
-    .PublishAsAzureSandbox(new AzureSandboxOptions
-    {
-        Tier = AzureSandboxTier.Medium
-    });
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-import { AzureSandboxTier, createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const sandboxGroup = await builder.addAzureSandboxGroup('env');
-await builder.addAzureSandboxGroup('other-env');
-
-const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
-await api.withComputeEnvironment(sandboxGroup);
-await api.withExternalHttpEndpoints();
-await api.publishAsAzureSandbox({ tier: AzureSandboxTier.Medium });
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
-
-Public ingress now follows the standard Aspire endpoint convention and requires an explicitly external endpoint, such as through `WithExternalHttpEndpoints` / `withExternalHttpEndpoints`. For a .NET project with paired external HTTP and HTTPS endpoints, sandbox deployment:
-
-- Exposes one shared container port.
-- Terminates TLS at the sandbox proxy.
-- Forwards HTTP to the container.
-- Resolves both app-model endpoint references to the same HTTPS sandbox URL.
-- Merges endpoint access policy on the shared target port, rejecting conflicting policies.
-
-`PublicEndpointReadyTimeout` was also removed from `AzureSandboxGroupOptions`. Sandbox deployment no longer probes public endpoint readiness itself; readiness is now reported by the Azure deployment operation instead.
-
-<LearnMore>
-  Review the [Azure Sandbox defaults
-  change](https://github.com/microsoft/aspire/pull/19810) and the [Azure
-  Container Apps Sandboxes hosting
-  integration](https://github.com/microsoft/aspire/tree/main/src/Aspire.Hosting.Azure.Sandboxes).
 </LearnMore>
 
 #### Front Door origin names now include the backend hostname
