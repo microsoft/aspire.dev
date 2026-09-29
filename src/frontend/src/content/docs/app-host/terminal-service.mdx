@@ -5,9 +5,9 @@ description: Use TerminalService to launch shells, open container exec sessions,
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-For supported databases and caches, use `WithRepl()` to open a client in the dashboard without writing a custom command. For other interactive tools, create and manage a terminal with `TerminalService`.
+Ephemeral terminals let AppHost code launch an interactive process for a specific task and display it in the dashboard. Redis's `WithRepl()` is one example: it adds a resource command that opens an authenticated `redis-cli` session inside the running container.
 
-Use `Aspire.Hosting.ApplicationModel.TerminalService` to launch an interactive process from your AppHost, display it in the dashboard, and automate its input. For example, a [resource command](/fundamentals/custom-resource-commands/) can open a persistent local shell or run `docker exec` against a container.
+The same building blocks are available for your own commands. Use `Aspire.Hosting.ApplicationModel.TerminalService` to create a terminal, configure its executable and placement, start its process, and show it in the dock. The [custom docked SQL REPL sample](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/docked-repl-csharp) demonstrates this with rqlite's SQL client.
 
 These are **ephemeral terminals**: the AppHost launches and owns a separate terminal workload for a specific task. They aren't resources in the app model. They differ from [resource terminals](/dashboard/terminals/), where Aspire runs the resource and a terminal exposes that resource's existing process.
 
@@ -19,9 +19,67 @@ The low-level terminal authoring APIs are experimental and [emit diagnostic `ASP
 The integration methods `withRepl()` and resource method `withTerminal()` are available to TypeScript AppHosts. Creating and automating AppHost-owned terminals directly with `TerminalService`, and displaying them with `PromptTerminalAsync`, aren't currently exported to TypeScript. The C#-only examples below apply to those lower-level operations.
 :::
 
+## How a command opens a terminal
+
+The [sample](https://github.com/microsoft/aspire-samples/blob/main/samples/terminals/docked-repl-csharp/apphost.cs) defines a custom rqlite container resource and an **Open SQL REPL** command. The excerpts below focus on the terminal code inside that command's callback. The surrounding implementation supplies `context`, the resource `builder`, and the running container's current `containerId`.
+
+### Resolve the runtime and terminal service
+
+The callback gets `TerminalService` from dependency injection. Because this process will run inside a container, it also resolves the configured container runtime:
+
+```csharp title="apphost.cs — resolve services"
+var runtime = await context.Services.GetRequiredService<IContainerRuntimeResolver>()
+    .ResolveAsync(context.CancellationToken);
+var terminals = context.Services.GetRequiredService<TerminalService>();
+```
+
+### Create a dock terminal
+
+`CreateTerminal` returns a handle to the new terminal. `Executable` selects the container runtime, and `Arguments` tells it to launch the SQL client with an interactive TTY. `TerminalPlacement.Dock` puts the session in the dashboard's terminal dock:
+
+```csharp title="apphost.cs — create the terminal"
+var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
+{
+    Title = $"SQL ({builder.Resource.Name})",
+    Executable = runtime.Name.ToLowerInvariant(),
+    Arguments = ["exec", "-it", containerId, "/bin/rqlite", "-H", "127.0.0.1", "-p", "4001"],
+    Placement = TerminalPlacement.Dock
+});
+```
+
+The database server continues running as a resource. The SQL client is a separate process inside the container, connecting to its container-local loopback endpoint.
+
+### Start, show, and wait for readiness
+
+`Start()` starts the terminal workload. `Show()` reveals its dock tab. The sample then waits for the client's prompt before reporting that the command succeeded:
+
+```csharp title="apphost.cs — start the session"
+try
+{
+    terminal.Start();
+    terminal.Show();
+    await terminal.WaitForTextAsync("127.0.0.1:4001>", TimeSpan.FromSeconds(20), context.CancellationToken);
+    // Keep the session alive for the user; TerminalService cleans up at AppHost shutdown.
+    return CommandResults.Success();
+}
+catch (Exception ex) when (ex is TimeoutException or OperationCanceledException or InvalidOperationException)
+{
+    await terminal.DisposeAsync();
+    context.Services.GetRequiredService<ResourceLoggerService>().GetLogger(builder.Resource)
+        .LogError(ex, "Could not open the SQL REPL.");
+    return CommandResults.Failure(ex is OperationCanceledException ? "Opening SQL REPL canceled." : ex.Message);
+}
+```
+
+A successful terminal intentionally outlives the command callback. Don't wrap it in `await using` here: that would dispose the session when the callback returns. If startup fails or is canceled, the catch block disposes it and reports a failed command instead.
+
+The same mechanism can launch other interactive programs, not just REPLs. For example, [open a Bash shell](#open-a-container-exec-session) when the container image includes Bash. Change the executable arguments and readiness check to match the program you launch.
+
 ## Open a database or cache REPL
 
-A read-eval-print loop (REPL) accepts commands and displays their results interactively. `WithRepl()` adds an opt-in **REPL** resource command that opens the integration's bundled client in the dashboard terminal dock. It doesn't replace the database server's process or require `WithTerminal()`.
+A read-eval-print loop (REPL) accepts commands and displays their results interactively. The built-in `WithRepl()` methods are examples of this command-driven experience: they add an opt-in **REPL** resource command that opens the integration's bundled client in the dashboard terminal dock. They don't replace the database server's process or require `WithTerminal()`.
+
+The terminal basics samples use Redis's REPL alongside a Slumber REST client: create a note through the API, edit it in Redis, then read the changed value through the API. See the [TypeScript sample](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/basics-typescript) or [C# sample](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/basics-csharp) for the complete application. The following minimal example isolates the Redis command.
 
 Use Aspire 13.6 or later and a running Docker or Podman runtime. Add the hosting integration to your AppHost; for Redis:
 
@@ -60,23 +118,6 @@ builder.Build().Run();
 Run `aspire run`, wait for `cache` to be running, and select **REPL** from its resource commands in the dashboard. Type `PING` and press Enter; the authenticated client replies with `PONG`. Type `quit` and press Enter before closing the terminal tab.
 
 The command is disabled until the container is running and its runtime ID is available. Each invocation creates a new dock terminal and uses the current container ID, including after a container restart. Reopen the REPL after restarting its container; an old session doesn't reconnect automatically.
-
-### Supported clients
-
-Call `WithRepl()` / `withRepl()` on the server or cache resource, not on the logical database returned by `AddDatabase` / `addDatabase`.
-
-| Integration | Resource creation (C# / TypeScript) | Client and initial connection | Exit command |
-| --- | --- | --- | --- |
-| [PostgreSQL](/integrations/databases/postgres/postgres-host/) | `AddPostgres` / `addPostgres` | `psql`, configured credentials, `postgres` database. Use `\connect` to switch databases. | `\q` |
-| [Redis](/integrations/caching/redis/redis-host/) | `AddRedis` / `addRedis` | `redis-cli`, configured password when present. | `quit` |
-| [Valkey](/integrations/caching/valkey/valkey-host/) | `AddValkey` / `addValkey` | `valkey-cli`, configured password when present. | `quit` |
-| [MongoDB](/integrations/databases/mongodb/mongodb-host/) | `AddMongoDB` / `addMongoDB` | `mongosh`, authenticates against `admin` and connects directly to the server, including replica set members. | `exit` |
-| [MySQL](/integrations/databases/mysql/mysql-host/) | `AddMySql` / `addMySql` | `mysql`, `root` with the configured password. | `quit` |
-| [SQL Server](/integrations/databases/sql-server/sql-server-host/) | `AddSqlServer` / `addSqlServer` | `sqlcmd`, `sa` with the configured password, `master` database. End each SQL batch with `GO` on its own line. | `QUIT` |
-
-The clients run inside their containers through the configured Docker or Podman runtime; you don't need to install database clients on the AppHost machine. Custom container images must include the appropriate client. SQL Server supports `/opt/mssql-tools18/bin/sqlcmd` and the older `/opt/mssql-tools/bin/sqlcmd`.
-
-Redis uses the in-container non-TLS loopback port when TLS is enabled. MongoDB uses the configured trust bundle when TLS is enabled; custom certificates must cover `localhost`. SQL Server trusts the local server certificate for this development session.
 
 :::caution[Privileged access and cleanup]
 REPL access is disabled by default and is only added in run mode, not publish mode. Enable it only for trusted dashboard users: clients use the configured credentials and aren't read-only. SQL Server sessions run as `sa`. Sharing the dashboard through a tunnel or remote development environment also exposes this capability to users who can execute resource commands.
@@ -155,46 +196,23 @@ Don't put this dock terminal in an `await using` declaration inside the command.
 
 ## Open a container exec session
 
-This variant launches the Docker CLI on the AppHost machine and opens a shell inside the container. It requires a running Docker container and the `docker` command on the AppHost's `PATH`. Use `-it` so Docker allocates an interactive TTY inside the container.
+To open a Bash shell instead of a SQL client, use the same command pattern with a container image that includes `/bin/bash`. Replace the terminal creation block with:
 
-```csharp title="AppHost.cs"
-using Microsoft.Extensions.DependencyInjection;
-
-#pragma warning disable ASPIRETERMINAL001
-
-var builder = DistributedApplication.CreateBuilder(args);
-var containerName = $"aspire-terminal-tools-{Guid.NewGuid():N}";
-
-builder.AddContainer("tools", "alpine", "3.22")
-    .WithContainerName(containerName)
-    .WithArgs("sleep", "infinity")
-    .WithCommand("container-shell", "Open container shell", commandContext =>
-    {
-        var terminals = commandContext.Services
-            .GetRequiredService<TerminalService>();
-
-        var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
-        {
-            Title = "Container shell",
-            Executable = "docker",
-            Arguments = ["exec", "-it", containerName, "/bin/sh"],
-            Placement = TerminalPlacement.Dock
-        });
-
-        terminal.Start();
-        terminal.Show();
-
-        return Task.FromResult(CommandResults.Success());
-    });
-
-builder.Build().Run();
+```csharp title="AppHost.cs — Bash terminal variant"
+var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
+{
+    Title = $"Shell ({builder.Resource.Name})",
+    Executable = runtime.Name.ToLowerInvariant(),
+    Arguments = ["exec", "-it", containerId, "/bin/bash", "-i"],
+    Placement = TerminalPlacement.Dock
+});
 ```
 
-Wait until `tools` is running before invoking the command. `WithContainerName` supplies the actual Docker name: the Aspire resource name alone isn't a reliable `docker exec` target because generated container names can have suffixes. The unique name in this example also avoids collisions with other AppHosts.
+Keep the `Start()` and `Show()` calls, but replace the SQL-specific `WaitForTextAsync` with a readiness check for your shell's configured prompt. Also update the command label and failure messages. Not every image includes Bash; use an available shell such as `/bin/sh` when appropriate.
 
-The AppHost owns this terminal's local `docker exec` workload, not the container's main process. This isn't the same as enabling a terminal on the container resource.
+Use the current container ID rather than guessing a name from the Aspire resource name. The sample's surrounding command resolves that ID on each invocation and disables the action while the resource isn't running.
 
-For supported databases and caches, prefer [the built-in REPL command](#open-a-database-or-cache-repl): it resolves the configured runtime, current container ID, and client credentials for you. For custom exec sessions, exit the in-container program before closing its tab; disposing the local runtime command doesn't guarantee that the remote process stops.
+The shell is separate from the container's main process. Type `exit` before closing its tab: disposing the local runtime command doesn't guarantee that the shell inside the container stops. Shell access runs with the container user's permissions, so expose it only to trusted dashboard users.
 
 ## Automate without a viewer
 
@@ -274,6 +292,14 @@ A successful lookup establishes registration, not that the workload is ready to 
 
 `Start()` is a no-op on resource-owned terminals: the resource starts its workload. Disposing this handle releases the automation connection, **not the resource or its terminal producer**. A later lookup can acquire a fresh handle.
 
+### Drive a real TUI
+
+The [terminal automation sample](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/automation-csharp) applies these APIs to Slumber, a REST client running as a resource terminal. Its [command implementation](https://github.com/microsoft/aspire-samples/blob/main/samples/terminals/automation-csharp/apphost.cs) acquires `resource:slumber:0`, sends navigation keys, waits for HTTP status text, and independently checks the API after each operation.
+
+Select **Run terminal walkthrough** and confirm **Restart and run**. The command restarts Slumber to clear its terminal state, resets only the reserved `automation` note, then creates, reads, updates, and deletes that note through the TUI. The [request collection](https://github.com/microsoft/aspire-samples/blob/main/samples/terminals/automation-csharp/requests.yml) disables persisted responses so old results can't satisfy a later run's waits.
+
+The sample also demonstrates a concurrency guard, cancellation, a bounded automation deadline, and logged command failures. Releasing the resource terminal handle leaves Slumber running with the final response visible. Don't type into or resize its terminal while the walkthrough runs.
+
 ## Separate terminal and dialog lifetimes
 
 For short-lived modal workflows, create a `Dialog` terminal with `await using`, start it, and pass it to [`IInteractionService.PromptTerminalAsync`](/extensibility/interaction-service/#terminal-interactions). The interaction **borrows** the handle and never disposes it. You can reuse the same live terminal across multiple prompts before the owner disposes it.
@@ -289,6 +315,7 @@ Keep these lifetimes separate:
 
 ## See also
 
+- [Terminal samples](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals)
 - [Dashboard terminals](/dashboard/terminals/)
 - [Interaction service](/extensibility/interaction-service/#terminal-interactions)
 - [Custom resource commands](/fundamentals/custom-resource-commands/)
