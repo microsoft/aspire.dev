@@ -63,23 +63,20 @@ Use distinctive, complete replies when automating. Waiting for text that also ap
 
 `TryGetTerminal(string terminalId, out AspireTerminal? terminal)` resolves both AppHost-owned and resource-owned terminals. Resource terminal IDs use `resource:<resource-name>:<replica-index>`, with a zero-based replica index.
 
-For a running shell resource named `shell` configured with [`WithTerminal()`](/app-host/with-terminal/), this local function acquires its first replica's handle and sends an Enter key. Add it to your AppHost file after the top-level app setup, with the diagnostic suppression at the top:
+For a running shell resource named `shell` configured with [`WithTerminal()`](/app-host/with-terminal/), the following code acquires its first replica's handle and sends an Enter key. Use it inside an asynchronous resource-command callback, where `context` provides the services and cancellation token. Add `using Microsoft.Extensions.DependencyInjection;` at the top of your AppHost file.
 
-```csharp title="AppHost.cs — resource terminal helper"
+```csharp title="AppHost.cs — resource terminal automation"
 #pragma warning disable ASPIRETERMINAL001
 
-static async Task SendEnterAsync(
-    TerminalService terminals, CancellationToken cancellationToken)
+var terminals = context.Services.GetRequiredService<TerminalService>();
+if (!terminals.TryGetTerminal("resource:shell:0", out var terminal))
 {
-    if (!terminals.TryGetTerminal("resource:shell:0", out var terminal))
-    {
-        throw new InvalidOperationException("The shell terminal isn't registered.");
-    }
+    throw new InvalidOperationException("The shell terminal isn't registered.");
+}
 
-    await using (terminal)
-    {
-        await terminal.SendKeyAsync(AspireTerminalKey.Enter, cancellationToken);
-    }
+await using (terminal)
+{
+    await terminal.SendKeyAsync(AspireTerminalKey.Enter, context.CancellationToken);
 }
 ```
 
