@@ -166,6 +166,19 @@ Use these workflows based on what you're editing:
 
 Aspire CLI doesn't currently provide a single hot reload command that applies every runtime's hot reload semantics across an AppHost-managed distributed application. Aspire default watch supports both AppHost languages by restarting the AppHost-managed application after AppHost changes. C# project resources are also controlled by this setting today. For other resources, keep the AppHost running and use the resource's framework, runtime, CLI action, or dashboard action for resource-specific reloads, restarts, and rebuilds.
 
+### Rebuild a project-backed dashboard
+
+When an AppHost references the dashboard as a C# project (for example, `Projects.Aspire_Dashboard`), the dashboard resource exposes Start, Stop, Restart, and Rebuild commands like any other C# project resource. The built-in dashboard executable continues to hide these commands. Restart and Rebuild requests issued from the dashboard itself continue to run when the browser disconnects while the dashboard stops.
+
+When only the dashboard changed, rebuild it without restarting the AppHost:
+
+```bash
+aspire resource aspire-dashboard rebuild --apphost <apphost-path> --non-interactive
+aspire wait aspire-dashboard --apphost <apphost-path> --non-interactive
+```
+
+Alternatively, enable **View options** > **Show hidden resources** in the dashboard and select **Actions** > **Rebuild** on `aspire-dashboard`. The dashboard action is asynchronous, so wait for the build and dashboard health before reloading the page. Changes to the AppHost or other projects still require restarting the AppHost.
+
 ## IDE hot reload and debugging
 
 Visual Studio, Visual Studio Code, and JetBrains Rider provide their own hot reload and debugging experiences. When you run the AppHost under a debugger in one of these IDEs, Aspire delegates debugging and IDE-managed hot reload behavior to that IDE. This doesn't integrate with or overlap Aspire's CLI restart, rebuild, or watch behavior.
