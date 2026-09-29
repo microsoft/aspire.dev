@@ -970,12 +970,12 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'app-host/with-terminal',
             },
             {
-              label: 'AppHost-owned terminals',
+              label: 'Ephemeral terminals',
               slug: 'app-host/terminal-service',
               translations: {
                 da: 'AppHost-ejede terminaler',
                 de: 'AppHost-eigene Terminals',
-                en: 'AppHost-owned terminals',
+                en: 'Ephemeral terminals',
                 es: 'Terminales de AppHost',
                 fr: "Terminaux appartenant à l'AppHost",
                 hi: 'AppHost के स्वामित्व वाले टर्मिनल',

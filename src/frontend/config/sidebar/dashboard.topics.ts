@@ -254,11 +254,11 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
           link: '/app-host/with-terminal/',
         },
         {
-          label: 'AppHost terminals',
+          label: 'Ephemeral terminals',
           translations: {
             da: 'AppHost-terminaler',
             de: 'AppHost-Terminals',
-            en: 'AppHost terminals',
+            en: 'Ephemeral terminals',
             es: 'Terminales de AppHost',
             fr: 'Terminaux AppHost',
             hi: 'AppHost टर्मिनल',
