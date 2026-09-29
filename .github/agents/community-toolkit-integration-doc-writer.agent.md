@@ -184,6 +184,7 @@ prerequisites. Do not present the add-on as a standalone service.
 - Include explanations of what code does, especially for non-obvious patterns
 - For required parameters, list them with bullet points and descriptions
 - Reference NuGet packages with the 📦 emoji and link format: `[📦 PackageName](https://nuget.org/packages/PackageName)`
+- Follow the "Prose patterns to avoid" list in the `doc-writer` skill (`.agents/skills/doc-writer/SKILL.md`).
 
 ### Common patterns
 

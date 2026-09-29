@@ -21,6 +21,7 @@ actionable, severity-ranked findings report. **Makes no edits** — {polish} act
 - Sections and bullets lead with developer impact, ordered by customer DX.
 - Positives first; caveats/breaking changes appropriately placed.
 - KISS — no walls of text, no filler, no marketing superlatives.
+- No patterns from doc-writer's "Prose patterns to avoid" list.
 
 **What's-new style adherence**
 - "This release introduces" bullets map **1:1** to the `##` sections, same order.
