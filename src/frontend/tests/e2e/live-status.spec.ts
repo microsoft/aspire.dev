@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@tests/e2e/fixtures';
 
 import { dismissCookieConsentIfVisible, isNarrowViewport } from '@tests/e2e/helpers';
 

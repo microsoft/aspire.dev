@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '@tests/e2e/fixtures';
 
 test('Hub directory titles align with their page content', async ({ page }) => {
   for (const width of [320, 390, 834, 1440]) {

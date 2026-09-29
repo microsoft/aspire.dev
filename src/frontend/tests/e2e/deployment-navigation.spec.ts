@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@tests/e2e/fixtures';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 // This suite exercises native Document PiP, which needs the full browser rather than headless shell.

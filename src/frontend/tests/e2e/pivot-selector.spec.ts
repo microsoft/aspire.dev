@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '@tests/e2e/fixtures';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 test('Dev Hub TypeScript quickstart overrides a saved C# preference', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@tests/e2e/fixtures';
 
 async function navigate(page: Page, href: string) {
   await page.evaluate((destination) => {

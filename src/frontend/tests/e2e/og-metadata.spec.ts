@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '@tests/e2e/fixtures';
 import { select, selectAll } from 'hast-util-select';
 import rehypeParse from 'rehype-parse';
 import { unified } from 'unified';

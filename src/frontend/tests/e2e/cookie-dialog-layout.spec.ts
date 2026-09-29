@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test } from '@tests/e2e/fixtures';
 
 const consentStyles = ['aspire-brand.css', 'wcp-consent.css']
   .map((file) => readFileSync(new URL(`../../src/styles/${file}`, import.meta.url), 'utf8'))

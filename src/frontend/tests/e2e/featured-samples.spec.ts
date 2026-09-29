@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '@tests/e2e/fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 test('resource directory exposes keyboard-accessible discovery shortcuts', async ({ page, request }) => {

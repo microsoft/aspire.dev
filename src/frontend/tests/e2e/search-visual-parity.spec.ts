@@ -1,4 +1,4 @@
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test, type Locator } from '@tests/e2e/fixtures';
 
 async function expectBotLayout(empty: Locator) {
   const content = empty.locator('.search-empty-content');

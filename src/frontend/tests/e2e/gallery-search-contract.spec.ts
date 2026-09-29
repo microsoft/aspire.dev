@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@tests/e2e/fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 

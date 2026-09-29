@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@tests/e2e/fixtures';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 const modulePath = '/reference/api/typescript/aspire.hosting.azure.provisioning.network/';

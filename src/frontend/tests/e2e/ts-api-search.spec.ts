@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '@tests/e2e/fixtures';
 import { dismissCookieConsentIfVisible, isNarrowViewport } from '@tests/e2e/helpers';
 
 test('TypeScript API search keeps result names visible on narrow viewports', async ({ page }) => {

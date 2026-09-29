@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@tests/e2e/fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
@@ -246,7 +246,8 @@ test('API clear remains available when text is entered before controller mountin
   const controllerGate = new Promise<void>(resolve => { releaseController = resolve; });
   await page.route('**/*', async route => {
     if (route.request().resourceType() === 'script') await controllerGate;
-    await route.continue();
+    // Fall back (rather than continue) so the fixture's WCP consent stub still applies.
+    await route.fallback();
   });
   await page.goto('/reference/api/typescript/?versions=&keep=1', { waitUntil: 'commit' });
   const input = page.locator('#ts-api-search-input');

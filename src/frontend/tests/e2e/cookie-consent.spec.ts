@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@tests/e2e/fixtures';
 
 // The analytics scripts ship inert (`type="text/plain"`) and are promoted to
 // executable at runtime once WCP reports Analytics consent. These selectors let

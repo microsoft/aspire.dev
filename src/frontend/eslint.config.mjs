@@ -54,6 +54,23 @@ export default [
     ...tseslint.configs.disableTypeChecked,
   },
   {
+    files: ['tests/e2e/**/*.spec.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              message:
+                "Import from '@tests/e2e/fixtures' so specs never load the geo-gated WCP consent runtime.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['tests/unit/**/*.ts', 'tests/typecheck/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',

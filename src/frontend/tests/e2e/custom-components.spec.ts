@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, stubWcpConsent, test } from '@tests/e2e/fixtures';
 
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 import { deferAppHostExamples } from '../../config/apphost-examples.mjs';
@@ -383,6 +383,7 @@ test('homepage environment story exposes a keyboard-operable selected state', as
 
 test('os aware tabs default first-time Windows visitors to PowerShell', async ({ browser }) => {
   const context = await browser.newContext();
+  await stubWcpConsent(context);
 
   await context.addInitScript(() => {
     localStorage.clear();
