@@ -861,6 +861,9 @@ Write-Host "Preparing packages..." -ForegroundColor Cyan
 $manifestEntries = @()
 $hostingInfo = $packageInfos | Where-Object { $_.PackageId -eq "Aspire.Hosting" } | Select-Object -First 1
 $hostingVersion = if ($hostingInfo) { $hostingInfo.Version } else { $null }
+if (-not $hostingVersion -and $catalogVersions.ContainsKey("Aspire.Hosting")) {
+    $hostingVersion = $catalogVersions["Aspire.Hosting"]
+}
 if (-not $hostingVersion) {
     $overlay = $packageInfos | Where-Object {
         $_.PackageId.StartsWith("Aspire.Hosting.Azure.Provisioning.", [System.StringComparison]::OrdinalIgnoreCase)
