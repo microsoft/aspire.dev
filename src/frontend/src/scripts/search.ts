@@ -79,10 +79,13 @@ export async function searchAspireDocs(query: string, limit: number): Promise<Se
   const results: SearchResult[] = await Promise.all(
     top.map(async (hit) => {
       const data = await hit.data();
+      // Template contents stay inert and detached; the WebMCP result remains JSON text.
+      const template = document.createElement('template');
+      template.innerHTML = data.excerpt ?? '';
       return {
         title: data.meta?.title ?? data.url,
         url: data.url,
-        excerpt: (data.excerpt ?? '').replace(/<[^>]+>/g, '').trim(),
+        excerpt: (template.content.textContent ?? '').trim(),
       };
     })
   );

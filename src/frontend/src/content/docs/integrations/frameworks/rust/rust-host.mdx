@@ -1,10 +1,13 @@
 ---
-title: Configure Rust apps in the AppHost
-description: Configure Cargo and Bacon applications, arguments, endpoints, health checks, telemetry, environment settings, and publishing in Aspire.
+title: Set up Rust apps in the AppHost
+seoTitle: 'Set up Rust apps in the Aspire AppHost: hosting integration'
+description: Learn how to use the Aspire Rust hosting integration to run Cargo apps in your AppHost, configure Cargo options, debug Rust apps, and publish them as container images.
 ---
 
-import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
+import LearnMore from '@components/LearnMore.astro';
 import rustIcon from '@assets/icons/rust-icon.png';
 
 <Image
@@ -17,194 +20,545 @@ import rustIcon from '@assets/icons/rust-icon.png';
   data-zoom-off
 />
 
-<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+This article is the reference for the Aspire Rust hosting integration. It enumerates the AppHost APIs — with examples for both `apphost.mts` and `AppHost.cs` — that you use to model Rust apps in your [AppHost](/get-started/app-host/): Cargo packages that Aspire runs with `cargo run`, the Cargo options that select features, binaries, examples, workspace members, profiles, and target triples, and the arguments that Aspire passes to your program. It also describes how Aspire configures certificate trust for Rust apps, debugs them, and builds them into container images when you publish.
 
-This reference describes the Community Toolkit Rust hosting integration. If you are new to it, begin with [Get started with the Rust integration](/integrations/frameworks/rust/rust-get-started/).
+If you're new to the Rust integration, start with [Get started with the Rust integration](/integrations/frameworks/rust/rust-get-started/). For how other resources call your Rust apps — and how your Rust apps read the configuration that Aspire injects and send telemetry to the dashboard — see [Connect to Rust apps](/integrations/frameworks/rust/rust-connect/). If you're moving from the Community Toolkit package, see [Migrate from the Community Toolkit](#migrate-from-the-community-toolkit).
 
 :::note[Prerequisites]
-Install [Rust and Cargo](https://www.rust-lang.org/tools/install). Install [Bacon](https://dystroy.org/bacon/) too when you use the Bacon resource API.
+Each Rust app that the AppHost runs on your machine needs the Rust toolchain, with Cargo 1.71 or later on your `PATH`. Install it with [rustup](https://www.rust-lang.org/tools/install). If Aspire can't find `cargo`, it logs a warning that links to the installation instructions. To debug Rust apps in VS Code, install the [C/C++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) extension on Windows, or the [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb) extension on Linux and macOS.
 :::
 
-## Install the package
+## Installation
+
+To start modeling Rust apps in your AppHost, install the [📦 Aspire.Hosting.Rust](https://www.nuget.org/packages/Aspire.Hosting.Rust) NuGet package:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```bash title="Terminal"
-aspire add communitytoolkit-rust
-```
-
-Or add [📦 CommunityToolkit.Aspire.Hosting.Rust](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Rust) to the AppHost project.
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```bash title="Terminal"
-aspire add communitytoolkit-rust
+aspire add rust
 ```
 
-This adds the package to `aspire.config.json` and generates the TypeScript AppHost module.
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Rust hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Rust": "%ASPIRE_VERSION_PREVIEW%"
+  }
+}
+```
 
 </TabItem>
-</Tabs>
-
-## Add a Cargo app
-
-`AddRustApp` / `addRustApp` starts `cargo run` in the supplied working directory. The path is resolved relative to the AppHost directory, so it normally contains the Rust project's `Cargo.toml`.
-
-<Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var api = builder.AddRustApp("rust-api", "../rust-api");
-
-builder.Build().Run();
+```bash title="Terminal"
+aspire add rust
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
 
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const api = await builder.addRustApp('rust-api', '../rust-api');
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
-
-## Pass Cargo arguments and choose a working directory
-
-The optional `args` are appended after `cargo run`. For example, `--release` produces `cargo run --release`; use `--` before arguments intended for your Rust application. The working directory is normalized to the current platform after Aspire combines it with the AppHost directory.
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+Or, choose a manual installation approach:
 
 ```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var api = builder.AddRustApp(
-    name: "rust-api",
-    workingDirectory: "../rust-api",
-    args: ["--release", "--", "--environment", "development"]);
-
-builder.Build().Run();
+#:package Aspire.Hosting.Rust@%ASPIRE_VERSION_PREVIEW%
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const api = await builder.addRustApp('rust-api', '../rust-api', [
-  '--release',
-  '--',
-  '--environment',
-  'development',
-]);
-
-await builder.build().run();
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Rust" Version="%ASPIRE_VERSION_PREVIEW%" />
 ```
 
 </TabItem>
 </Tabs>
 
-## Add a Bacon app
+## Add a Rust app
 
-`AddBaconApp` / `addBaconApp` runs the [Bacon](https://dystroy.org/bacon/) CLI from the working directory. Without arguments it runs `bacon run`; supply `args` to use another Bacon command.
+Use <ApiReference name="Aspire.Hosting.RustHostingExtensions.AddRustApp" /> to add a Rust app. The app directory is resolved relative to the AppHost directory. It's Cargo's working directory and, when you publish, the build context of the app's container image. Cargo finds the app's `Cargo.toml` by searching from that directory, as it does when you run `cargo` in a terminal.
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var checks = builder.AddBaconApp(
-    name: "rust-checks",
-    workingDirectory: "../rust-api",
-    args: ["check"]);
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const checks = await builder.addBaconApp('rust-checks', '../rust-api', [
-  'check',
-]);
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
-
-## Configure endpoints, environment, and health checks
-
-Rust app resources support standard executable-resource configuration. Use `WithHttpEndpoint` / `withHttpEndpoint` to allocate a port and put it in an environment variable that the application reads. Use `WithHttpHealthCheck` / `withHttpHealthCheck` when the application exposes an HTTP health endpoint. `WithExternalHttpEndpoints` / `withExternalHttpEndpoints` makes an HTTP endpoint externally accessible.
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var api = builder.AddRustApp("rust-api", "../rust-api")
-    .WithEnvironment("RUST_LOG", "info")
-    .WithHttpEndpoint(port: 8080, env: "PORT")
-    .WithExternalHttpEndpoints()
-    .WithHttpHealthCheck("/health");
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const api = await builder.addRustApp('rust-api', '../rust-api');
-await api.withEnvironment('RUST_LOG', 'info');
-await api.withHttpEndpoint({ port: 8080, env: 'PORT' });
-await api.withExternalHttpEndpoints();
+const api = await builder.addRustApp('api', '../api');
+await api.withHttpEndpoint({ env: 'PORT' });
 await api.withHttpHealthCheck({ path: '/health' });
 
+const frontend = await builder.addNodeApp('frontend', '../frontend', 'server.js');
+await frontend.withReference(api);
+await frontend.waitFor(api);
+
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddRustApp("api", "../api")
+    .WithHttpEndpoint(env: "PORT")
+    .WithHttpHealthCheck("/health");
+
+builder.AddNodeApp("frontend", "../frontend", "server.js")
+    .WithReference(api)
+    .WaitFor(api);
+
+builder.Build().Run();
 ```
 
 </TabItem>
 </Tabs>
 
-The integration configures the Rust app with the OpenTelemetry Protocol exporter. Add OpenTelemetry instrumentation to the Rust application to emit telemetry to Aspire. You can also use standard resource references to model dependencies and provide their configuration to the Rust process.
+In the preceding example, <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpEndpoint" /> adds an HTTP endpoint to the `api` app and passes its port to the app in the `PORT` environment variable, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> makes Aspire poll the app's `/health` endpoint. The `frontend` app uses <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> to receive the `api` app's URL, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> to start only after `api` is healthy.
 
-The dashboard exposes the standard executable-resource lifecycle actions and process logs. The integration doesn't add Rust-specific dashboard commands.
+When a Rust app starts, Aspire:
+
+- Runs `cargo run` in the app directory, with the Cargo options and program arguments that you configure. Cargo builds the app before it runs it, and the build output appears in the app's console logs in the dashboard.
+- Keeps Cargo's defaults for a local run: a `dev` profile build, and a `Cargo.lock` file that Cargo can update. Publishing uses different defaults, as described in [Publish Rust apps](#publish-rust-apps).
+- Sets the standard OpenTelemetry environment variables, which point at the dashboard. The app sends telemetry only when it uses the OpenTelemetry SDK for Rust. For details, see [Send telemetry to the dashboard](/integrations/frameworks/rust/rust-connect/#send-telemetry-to-the-dashboard).
+- Configures the app to trust the development certificate, as described in [Configure certificate trust](#configure-certificate-trust).
+
+`AddRustApp` doesn't add an endpoint, because a Rust program doesn't read its port from the environment on its own. Add an endpoint with `WithHttpEndpoint`, name the environment variable that carries the port with its `env` parameter, and make the app listen on that port. Listen on all interfaces rather than on `127.0.0.1`, so the app is also reachable when it runs in a container after you publish. For example, with [axum](https://docs.rs/axum):
+
+```rust title="src/main.rs"
+use std::net::SocketAddr;
+
+use axum::{routing::get, Router};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let port = std::env::var("PORT")
+        .ok()
+        .and_then(|value| value.parse::<u16>().ok())
+        .unwrap_or(8080);
+
+    let app = Router::new().route("/health", get(|| async { "healthy" }));
+
+    let listener = tokio::net::TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], port))).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
+}
+```
+
+## Configure Cargo and program arguments
+
+Cargo separates its own options from the arguments of the program that it runs with `--`, so Aspire configures the two kinds of arguments separately. Use the `WithCargo*` methods for Cargo, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithArgs" /> for your program. Aspire adds the `--` separator.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addRustApp('api', '../api');
+await api.withCargoFeatures(['postgres', 'metrics']);
+await api.withCargoArgs(['--no-default-features']);
+await api.withArgs(['--log-format', 'json']);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRustApp("api", "../api")
+    .WithCargoFeatures("postgres", "metrics")
+    .WithCargoArgs("--no-default-features")
+    .WithArgs("--log-format", "json");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+When you run the AppHost, the preceding example starts the app with the following command:
+
+```bash title="Command"
+cargo run --features postgres,metrics --no-default-features -- --log-format json
+```
+
+Each of the following methods adds a Cargo option. Aspire places the options in the order of the table, before the arguments that you add with <ApiReference name="Aspire.Hosting.RustHostingExtensions.WithCargoArgs" parameterTypes={['Aspire.Hosting.ApplicationModel.IResourceBuilder<T>', 'string[]']} />:
+
+| Method                                                                             | Cargo option      | Description                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| <ApiReference name="Aspire.Hosting.RustHostingExtensions.WithCargoFeatures" />     | `--features`      | Enables features. Repeated calls add features in call order.                                                                                                                                                 |
+| <ApiReference name="Aspire.Hosting.RustHostingExtensions.WithCargoBinTarget" />    | `--bin`           | Selects one of the package's binary targets.                                                                                                                                                                 |
+| <ApiReference name="Aspire.Hosting.RustHostingExtensions.WithCargoExample" />      | `--example`       | Runs an example instead of a binary.                                                                                                                                                                         |
+| <ApiReference name="Aspire.Hosting.RustHostingExtensions.WithCargoPackage" />      | `--package`       | Selects a workspace member.                                                                                                                                                                                  |
+| <ApiReference name="Aspire.Hosting.RustHostingExtensions.WithCargoManifestPath" /> | `--manifest-path` | Builds from a `Cargo.toml` file other than the one that Cargo finds from the app directory, such as a workspace member's manifest. To publish, the path must be relative to the app directory and inside it. |
+| <ApiReference name="Aspire.Hosting.RustHostingExtensions.WithCargoTarget" />       | `--target`        | Builds for a target triple, such as `x86_64-unknown-linux-musl`.                                                                                                                                             |
+| <ApiReference name="Aspire.Hosting.RustHostingExtensions.WithCargoLocked" />       | `--locked`        | Fails the build rather than updating `Cargo.lock`. Pass `false` to turn off the publishing default.                                                                                                          |
+| <ApiReference name="Aspire.Hosting.RustHostingExtensions.WithCargoProfile" />      | `--profile`       | Builds with a named profile. It takes precedence over `WithCargoReleaseBuild`, because Cargo rejects `--profile` together with `--release`.                                                                  |
+| <ApiReference name="Aspire.Hosting.RustHostingExtensions.WithCargoReleaseBuild" /> | `--release`       | Builds with the `release` profile. Pass `false` to turn off the publishing default.                                                                                                                          |
+
+Aspire passes the values of `WithCargoArgs` to Cargo without interpreting them. Debugging and publishing work out which binary Cargo produces from the methods in the preceding table alone, so select the package, binary, example, manifest, profile, and target triple with those methods rather than with `WithCargoArgs`. In C#, [another overload of `WithCargoArgs`](/reference/api/csharp/aspire.hosting.rust/rusthostingextensions/methods/#withcargoargs-iresourcebuilder-t-action-rustcargoargscallbackcontext) takes a callback that computes Cargo arguments when the app starts.
+
+### Select the binary to run
+
+A Cargo package can contain several binaries and examples, and a Cargo workspace can contain several packages. Aspire reads the layout with `cargo metadata` to find the binary that the app runs, which the debugger launches and the published image copies. It selects:
+
+1. The example that you select with `WithCargoExample`.
+1. The binary that you select with `WithCargoBinTarget`.
+1. The package's `default-run` binary, when its `Cargo.toml` file sets one.
+1. The package's only binary.
+
+When a package has more than one binary and no `default-run` setting, select one with `WithCargoBinTarget`. When the app directory is a workspace whose default members include more than one package with a binary, select the package with `WithCargoPackage`. Library-only members don't count, so an app crate beside library crates needs no extra configuration.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const worker = await builder.addRustApp('worker', '../services');
+await worker.withCargoPackage('jobs');
+await worker.withCargoBinTarget('worker');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRustApp("worker", "../services")
+    .WithCargoPackage("jobs")
+    .WithCargoBinTarget("worker");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+## Set environment variables
+
+Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> to set environment variables on a Rust app, such as `RUST_LOG`, which the `env_logger` crate and the `EnvFilter` of the `tracing-subscriber` crate read, and `RUST_BACKTRACE`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addRustApp('api', '../api');
+await api.withEnvironment('RUST_LOG', 'info');
+await api.withEnvironment('RUST_BACKTRACE', '1');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRustApp("api", "../api")
+    .WithEnvironment("RUST_LOG", "info")
+    .WithEnvironment("RUST_BACKTRACE", "1");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Cargo runs in the same environment, so build settings such as `RUSTFLAGS` and `CARGO_*` variables that you set this way apply to the build as well as to the program. When VS Code debugs the app, Aspire builds it with the same environment.
+
+## Configure certificate trust
+
+Aspire configures Rust apps to trust the development certificate with the default [Append](/app-host/certificate-configuration/#append-mode) trust scope. It sets the `SSL_CERT_DIR` environment variable to a directory that contains the development certificate. OpenSSL — which the `native-tls` crate uses on Linux — reads that variable, and so does the `rustls-native-certs` crate, which clients such as tonic with its `tls-native-roots` feature use to load their trusted certificates. When `SSL_CERT_DIR` or `SSL_CERT_FILE` is set, `rustls-native-certs` loads certificates only from those locations, instead of from the operating system's certificate store.
+
+On Linux, Aspire also adds the system's certificate directories — or the directories in the AppHost's own `SSL_CERT_DIR` — to the variable, so these clients trust both the development certificate and public certificate authorities. On Windows and macOS, unless the AppHost's environment sets `SSL_CERT_DIR`, the variable contains only Aspire's certificate directory, so clients that use `rustls-native-certs` trust the development certificate but reject certificates from public certificate authorities. If a Rust app also calls public HTTPS endpoints, set its [trust scope](/app-host/certificate-configuration/#certificate-trust-scopes) to [System](/app-host/certificate-configuration/#system-mode) with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithCertificateTrustScope" />. Aspire then also sets `SSL_CERT_FILE` to a bundle that contains the system's root certificates together with the development certificate:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder, CertificateTrustScope } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addRustApp('api', '../api');
+await api.withCertificateTrustScope(CertificateTrustScope.System);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRustApp("api", "../api")
+    .WithCertificateTrustScope(CertificateTrustScope.System);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Clients that use the operating system's certificate store instead, such as `native-tls` on Windows and macOS, ignore these variables and trust the development certificate when it's [trusted on your machine](/app-host/certificate-configuration/#trusting-the-development-certificate). Clients that use the built-in certificates of the `webpki-roots` crate never trust the development certificate.
+
+<LearnMore>
+  For more information, see [Certificate trust configuration](/app-host/certificate-configuration/#certificate-trust-configuration).
+</LearnMore>
+
+## Debug Rust apps
+
+To debug Rust apps, use the standard debugging flow of the [Aspire VS Code extension](/get-started/aspire-vscode-extension/). Debugging is enabled for every app that you add with `AddRustApp`.
+
+When the debugger launches a Rust app, VS Code first builds it with `cargo build`, using the Cargo options that `cargo run` would use and the app's environment variables. It then launches the binary that the build produces under a native debugger, with the arguments that you add with `WithArgs` and the app's environment variables. Aspire finds the binary with `cargo metadata`, as described in [Select the binary to run](#select-the-binary-to-run), so the debugged binary is the same one that `cargo run` would run and that a published image contains.
+
+The debugger depends on your platform:
+
+| Platform        | Debugger                                | VS Code extension                                                                   |
+| --------------- | --------------------------------------- | ----------------------------------------------------------------------------------- |
+| Windows         | The Visual Studio debugger (`cppvsdbg`) | [C/C++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools)     |
+| Linux and macOS | LLDB                                    | [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb) |
+
+On Windows, if the C/C++ extension isn't installed but CodeLLDB is, VS Code uses CodeLLDB. Apps that target a Windows GNU toolchain, such as `x86_64-pc-windows-gnu`, produce debug information that the Visual Studio debugger can't read, so they need CodeLLDB.
+
+When you build for a target triple, select it with `WithCargoTarget`, or with a `CARGO_BUILD_TARGET` environment variable that you set on the app, so that Aspire finds the binary under the target's directory. A `[build] target` setting in a `.cargo/config.toml` file isn't taken into account.
+
+### Allow debugging on macOS
+
+On macOS, CodeLLDB can debug a Rust process only when the macOS developer tools security policy permits it. This policy is separate from the Developer Mode setting for iOS devices. To check the policy, run:
+
+```bash title="Terminal"
+/usr/sbin/DevToolsSecurity -status
+```
+
+If the command reports `Developer mode is currently disabled`, enable it:
+
+```bash title="Terminal"
+sudo /usr/sbin/DevToolsSecurity -enable
+```
+
+macOS prompts you to authenticate as an administrator. Run `/usr/sbin/DevToolsSecurity -status` again to confirm that developer mode is enabled. Enabling developer mode addresses this prerequisite only; it doesn't resolve every debugger failure.
 
 ## Publish Rust apps
 
-Both Cargo and Bacon app resources are configured as Dockerfile-published resources when they are added. During `aspire publish`, Aspire converts the executable resource to a container resource and uses the Rust app's working directory as the Docker build context. Include a suitable `Dockerfile` there. The local Cargo or Bacon arguments are cleared for the containerized resource, so configure the Dockerfile with the command and arguments it needs.
+When you run `aspire publish` or `aspire deploy`, Aspire packages each Rust app as a container image. If the app directory contains a `Dockerfile`, Aspire uses it as-is. Otherwise, Aspire generates a multi-stage Dockerfile that:
+
+- Builds the app inside the image with `cargo build` and the app's Cargo options, so the app is never compiled on your machine. Aspire still runs `cargo metadata` on your machine to find the app's binary, so publishing needs Cargo too. If the app pins a toolchain with a `rust-toolchain.toml` file, rustup installs it in the build stage. BuildKit cache mounts keep Cargo's registry and the build's target directory between builds.
+- Adds `--release`, unless you pass `false` to `WithCargoReleaseBuild` or select a profile with `WithCargoProfile`. It also adds `--locked` when the app directory contains a `Cargo.lock` file, unless you pass `false` to `WithCargoLocked`, so the image builds only the dependency versions that you committed.
+- Runs the binary on an Alpine image as an unprivileged `app` user, with the binary at `/app/<binary name>` as the container's entry point.
+- Excludes `target` directories, `.git`, `.env` files, and other files that the build doesn't need from the build context, unless the app directory has its own `.dockerignore` file.
+
+The app directory is the build context, so everything that the build needs must be inside it, including a manifest that you select with `WithCargoManifestPath`. A Cargo `--config` argument that appears to contain credentials, such as a registry token, makes publishing fail, because a generated Dockerfile would store it in the image. To build with private registry credentials, author a `Dockerfile` that passes them with a BuildKit secret mount.
+
+<LearnMore>
+  For more information about publishing, see [Aspire deployment](/deployment/).
+</LearnMore>
+
+### Publish a workspace member
+
+A crate that inherits settings from its workspace, such as `version.workspace = true`, or that depends on sibling crates by path, needs the whole workspace in the build context. Use the workspace root as the app directory, and select the crate with `WithCargoPackage`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addRustApp('api', '../services');
+await api.withCargoPackage('api');
+await api.withHttpEndpoint({ env: 'PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRustApp("api", "../services")
+    .WithCargoPackage("api")
+    .WithHttpEndpoint(env: "PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+### Customize the base images
+
+The generated Dockerfile builds on `docker.io/library/rust:1.97-alpine3.24` and runs on `docker.io/library/alpine:3.24`. Both images use musl. To use other images, such as mirrors in your own registry or images for another target, set both in a single call to <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithDockerfileBaseImage" />, because each call replaces the images that earlier calls set:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addRustApp('api', '../api');
+await api.withDockerfileBaseImage({
+  buildImage: 'myregistry.azurecr.io/rust-armv7-build:1.97',
+  runtimeImage: 'myregistry.azurecr.io/armv7-runtime:latest',
+});
+
+if (await builder.executionContext.isPublishMode()) {
+  await api.withCargoTarget('armv7-unknown-linux-gnueabihf');
+}
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddRustApp("api", "../api")
+    .WithDockerfileBaseImage(
+        buildImage: "myregistry.azurecr.io/rust-armv7-build:1.97",
+        runtimeImage: "myregistry.azurecr.io/armv7-runtime:latest");
+
+if (builder.ExecutionContext.IsPublishMode)
+{
+    api.WithCargoTarget("armv7-unknown-linux-gnueabihf");
+}
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+`WithDockerfileBaseImage` affects only the published image, but `WithCargoTarget` also applies when you run the AppHost. Cargo then builds the app for the selected target on your machine and runs the result, which works only when your machine can build for that target and run its binaries. For that reason, the preceding example selects the target only in publish mode.
+
+When you select a target triple with `WithCargoTarget`, the generated Dockerfile installs the target's standard library with `rustup target add`, and builds the image for the matching platform: `linux/amd64` for `x86_64` targets, `linux/arm64` for `aarch64` targets, `linux/386` for 32-bit x86 targets, and `linux/arm` for 32-bit ARM targets. The default images support only `x86_64` and `aarch64` musl targets:
+
+- A 32-bit musl target, such as `armv7-unknown-linux-musleabihf`, needs a custom build image, but can keep the default runtime image.
+- A target for another ABI, such as a `gnu` target, needs both a custom build image and a custom runtime image.
+- A non-Linux target, or a Linux target for another architecture, needs an authored `Dockerfile`.
+
+Aspire doesn't install a linker or other cross-compilation tools, so a custom build image must already support the target. Keep the target, the build image, and the runtime image compatible with each other.
+
+### Include files from other resources
+
+The generated Dockerfile can copy files that another resource produces, such as a frontend's build output, into the Rust app's image. Call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.PublishWithContainerFiles" /> on the Rust app with the source resource and a destination path. A relative destination path is resolved against the image's `/app` working directory, so the following example places the `frontend` app's build output in `/app/static`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addRustApp('api', '../api');
+await api.withHttpEndpoint({ env: 'PORT' });
+await api.withExternalHttpEndpoints();
+
+const frontend = await builder.addViteApp('frontend', '../frontend');
+await frontend.withReference(api);
+await frontend.waitFor(api);
+
+await api.publishWithContainerFiles(frontend, './static');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddRustApp("api", "../api")
+    .WithHttpEndpoint(env: "PORT")
+    .WithExternalHttpEndpoints();
+
+var frontend = builder.AddViteApp("frontend", "../frontend")
+    .WithReference(api)
+    .WaitFor(api);
+
+api.PublishWithContainerFiles(frontend, "./static");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Aspire builds the source resource before it builds the Rust app's image. Copying the files doesn't make the app serve them, so serve them from the app — for example, with the `ServeDir` service of the `tower-http` crate, pointed at the `static` directory. Aspire adds the files only to the Dockerfile that it generates, so an authored `Dockerfile` in the app directory doesn't receive them.
+
+<LearnMore>
+  For more information, see [Inject files at publish time](/app-host/container-files/#inject-files-at-publish-time) and [Deploy JavaScript apps](/deployment/javascript-apps/).
+</LearnMore>
+
+## Connection properties
+
+For the environment variables that a Rust app receives — and how other apps discover a Rust app's endpoints — see [Connect to Rust apps](/integrations/frameworks/rust/rust-connect/).
+
+## Hosting integration health checks
+
+The Rust hosting integration doesn't add health checks to Rust resources. When your app exposes a health endpoint, add a check with `WithHttpHealthCheck`, as shown in [Add a Rust app](#add-a-rust-app). Without a health check, Aspire considers a Rust app ready as soon as its `cargo run` process starts — before Cargo finishes building the app and the app starts listening — so resources that wait for it can start too early.
+
+<span id="deprecated-c-compatibility-apis"></span>
+
+## Migrate from the Community Toolkit
+
+For Aspire 13.6 and later, `Aspire.Hosting.Rust` replaces [📦 CommunityToolkit.Aspire.Hosting.Rust](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Rust) for Cargo apps. To migrate an AppHost:
+
+1. Remove `CommunityToolkit.Aspire.Hosting.Rust` from the AppHost's package references, `#:package` directives, or `aspire.config.json`, unless you use Bacon, as described in [Toolkit-only Bacon support](#toolkit-only-bacon-support).
+1. Add `Aspire.Hosting.Rust`, as described in [Installation](#installation).
+1. Update your AppHost code with the replacements in the following table. The table uses C# names; TypeScript AppHosts use the same names in camel case.
+1. Review how your Rust apps are published. The Community Toolkit integration requires a `Dockerfile` in the app directory. The first-party integration uses that `Dockerfile` when it exists, and generates one otherwise.
+
+| Community Toolkit API                                 | First-party replacement                                                                                                                                          |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The `workingDirectory` parameter of `AddRustApp`      | The `appDirectory` parameter.                                                                                                                                    |
+| Cargo options in the `args` parameter of `AddRustApp` | `WithCargoFeatures`, `WithCargoBinTarget`, `WithCargoReleaseBuild`, and the other `WithCargo*` methods, or `WithCargoArgs` for options that don't have a method. |
+| Program arguments after `--` in the `args` parameter  | `WithArgs`, without the `--` separator, which Aspire adds.                                                                                                       |
+| `RustAppExecutableResource`                           | `RustAppResource`.                                                                                                                                               |
+| `AddBaconApp`                                         | No first-party replacement. See [Toolkit-only Bacon support](#toolkit-only-bacon-support).                                                                       |
+
+### Toolkit-only Bacon support
+
+`AddBaconApp` runs an app with [Bacon](https://dystroy.org/bacon/), a background code checker for Rust that rebuilds and reruns the app when its source changes. It remains a Community Toolkit API, and the first-party integration has no replacement for it. To keep using it, keep `CommunityToolkit.Aspire.Hosting.Rust` alongside `Aspire.Hosting.Rust`, and install Bacon. In that AppHost, add Cargo apps with the first-party form of `AddRustApp` — a name and an `appDirectory`, with Cargo options set through the `WithCargo*` methods — rather than with the Toolkit's `workingDirectory` and `args` parameters. Bacon apps keep the Toolkit's behavior, including its requirement for an authored `Dockerfile` when you publish.
 
 ## See also
 
-- [Rust documentation](https://www.rust-lang.org/learn)
-- [Cargo documentation](https://doc.rust-lang.org/cargo/)
-- [Bacon documentation](https://dystroy.org/bacon/)
 - [Get started with the Rust integration](/integrations/frameworks/rust/rust-get-started/)
-- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Connect to Rust apps](/integrations/frameworks/rust/rust-connect/)
+- [📦 Aspire.Hosting.Rust](https://www.nuget.org/packages/Aspire.Hosting.Rust)
+- [The Cargo Book](https://doc.rust-lang.org/cargo/)
+- [Aspire Rust playground](https://github.com/microsoft/aspire/tree/main/playground/rust)
