@@ -274,7 +274,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-`AddSpringBootApp` / `addSpringBootApp` detects Maven or Gradle from the build file, builds the app, and declares an HTTP endpoint through `SERVER_PORT`. Use `AddJavaApp`, `AddQuarkusApp`, or `AddJavaContainer` for other application shapes.
+`AddSpringBootApp` / `addSpringBootApp` detect Maven or Gradle from the build file, build the app, and declare an HTTP endpoint through `SERVER_PORT`. Use `AddJavaApp`, `AddQuarkusApp`, or `AddJavaContainer` for other application shapes.
 
 <LearnMore>
   See [Java hosting and Toolkit
@@ -574,7 +574,7 @@ aspire sdk export --language typescript
 
 `aspire update` can update repository-local Aspire CLI references in npm and .NET tool manifests alongside AppHost packages, rather than replacing a globally installed CLI. For a lightweight C# AppHost, `aspire init --language csharp --file-based` creates `apphost.cs` in the current directory without discovering or modifying a solution.
 
-A C# AppHost can also pin the CLI it launches with. Set `AspireCliInvocationMode` to `Dnx` or `DnxPinned` so that starting the AppHost with `dotnet run` resolves `Aspire.Cli` from an in-scope `.config/dotnet-tools.json` manifest instead of a globally installed CLI.
+A C# AppHost that enables the CLI bundle (`AspireUseCliBundle=true`) can also control which CLI `dotnet run` launches through `AspireCliInvocationMode`. With `Dnx`, the AppHost runs `Aspire.Cli` through DNX without a version, so DNX honors an in-scope `.config/dotnet-tools.json` manifest or selects the latest package when no manifest applies. With `DnxPinned`, it runs the `Aspire.Cli` version paired with the AppHost's `Aspire.AppHost.Sdk`, ignoring any tool manifest.
 
 The `aspire new` and `aspire init` agent setup also changed. Both now preselect the recommended repository-local skills, including `aspireify`, while leaving the Aspire MCP server unselected. MCP configuration is strictly opt-in.
 
@@ -712,7 +712,6 @@ Existing integrations add new workflows and safer defaults:
 - **AI Inference client health.** Chat-completions and embeddings health checks now call `GetModelInfoAsync` against `/info`. Endpoints without this route may need `DisableHealthChecks`; this doesn't add Azure OpenAI health checks. See [AI Inference health checks](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/#client-integration-health-checks).
 - **Cosmos DB emulator telemetry.** The vNext emulator exports its own traces and metrics to the dashboard automatically, separately from consuming application instrumentation.
 - **Cosmos DB emulator defaults.** `RunAsEmulator` / `runAsEmulator` now uses the Linux-based vNext emulator. Use `RunAsClassicEmulator` / `runAsClassicEmulator` to retain the classic emulator, or configure the vNext Data Explorer without suppressing `ASPIRECOSMOSDB001`. See the [Cosmos DB emulator guide](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-host/#run-as-emulator) and [migration guidance](#breaking-changes).
-- **Cosmos DB emulator telemetry.** The Linux-based vNext Cosmos DB emulator now emits OpenTelemetry data, so its requests appear in the dashboard alongside the rest of your app's traces and metrics during local runs.
 - **Foundry model refreshes.** Generated Foundry model constants were refreshed throughout the release cycle without changing the hosting API shape.
 - **Typed guest callbacks.** Callbacks with `Action<IResourceBuilder<T>>` arguments retain the concrete resource identity, fixing Python callback methods that previously received an unwrapped handle. See [multi-language integration authoring](/extensibility/multi-language-integration-authoring/).
 - **Front Door origin identity.** Generated origin names now include the origin's backend hostname, so switching backends creates a distinct origin instead of reusing the previous origin's Azure identity. Review the [breaking-change guidance](#breaking-changes) before upgrading.
