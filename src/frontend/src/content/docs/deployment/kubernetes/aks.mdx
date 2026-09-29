@@ -506,6 +506,22 @@ aspire publish -o aks-artifacts
 
 This generates Helm charts and Bicep infrastructure templates that you can review, customize, and deploy using your own CI/CD pipeline or GitOps workflow.
 
+## Clean up a deployment
+
+Run `aspire destroy` for the deployed AppHost and environment to remove its resources:
+
+```bash title="Destroy the selected AKS deployment"
+aspire destroy --environment my-environment
+```
+
+Aspire acquires credentials for the target AKS cluster before running Kubernetes cleanup; it doesn't rely on a preselected ambient `kubectl` context. Helm cleanup, including external charts opted into uninstall and cert-manager cleanup, runs before deletion of the Azure provisioning resources.
+
+:::danger[Destructive operation]
+Destroy removes the deployment's Azure resources, including the cluster. Review the selected environment and confirmation prompt before continuing, and back up data you need to retain.
+:::
+
+See the [`aspire destroy` reference](/reference/cli/commands/aspire-destroy/) for AppHost selection and automation options.
+
 ## Azure-specific considerations
 
 ### Authentication
@@ -568,11 +584,15 @@ See [Install external Helm charts](/deployment/kubernetes/helm-charts/) for a fu
 
 ### AKS cluster not reachable after deploy
 
-After `aspire deploy` provisions the AKS cluster, your local `kubectl` context is configured automatically. If you can't reach the cluster, ensure your Azure CLI session is active and fetch credentials:
+After `aspire deploy` provisions the AKS cluster, your local `kubectl` context is configured automatically. If you can't reach the cluster, ensure your Azure CLI session is active and then manually fetch the right credentials, pinning the request to the subscription you deployed to:
 
 ```bash title="Get AKS credentials"
-az aks get-credentials --resource-group <resource-group> --name <cluster-name>
+az aks get-credentials --resource-group <resource-group> --name <cluster-name> --subscription <subscription-id>
 ```
+
+<Aside type="tip">
+Always pass `--subscription` explicitly when fetching credentials manually. In multi-subscription tenants or CI agents, your Azure CLI's default subscription often differs from the one Aspire deployed to. For this reason, running `az aks get-credentials` without `--subscription` can fail with a confusing "cluster not found" error. Alternatively, it can silently fetch credentials for a same-named cluster in a different subscription, which can be even more difficult to troubleshoot. You can check your default subscription by running `az account show`. The exact reconnect command, including the `--subscription` option, is printed in the deploy summary output under **🔑 Connect to cluster**.
+</Aside>
 
 ### Image pull failures
 

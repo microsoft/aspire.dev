@@ -131,6 +131,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/docker-compose',
     },
     {
+      label: 'Radius',
+      slug: 'deployment/radius',
+    },
+    {
       label: 'Kubernetes',
       collapsed: false,
       items: [
@@ -149,6 +153,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
         {
           label: 'External Helm charts',
           slug: 'deployment/kubernetes/helm-charts',
+        },
+        {
+          label: 'Persistent volumes',
+          slug: 'deployment/kubernetes/persistent-volumes',
         },
         {
           label: 'Ingress & Gateway API',
@@ -188,6 +196,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
               label: 'Azure App Service',
               slug: 'deployment/azure/app-service',
             },
+            {
+              label: 'Azure Container Apps Sandboxes',
+              slug: 'deployment/azure/sandboxes',
+            },
           ],
         },
         {
@@ -197,6 +209,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Customize Azure resources',
               slug: 'integrations/cloud/azure/customize-resources',
+            },
+            {
+              label: 'Bicep helpers',
+              slug: 'integrations/cloud/azure/bicep-helpers',
             },
             {
               label: 'Azure security best practices',

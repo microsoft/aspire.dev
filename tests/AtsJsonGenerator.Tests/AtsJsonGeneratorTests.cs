@@ -231,7 +231,7 @@ public sealed class AtsJsonGeneratorTests
             version: null,
             sourceRepo: "https://github.com/microsoft/aspire",
             sourceCommit: "abc123",
-            basePath: basePath);
+            basePaths: [basePath]);
 
         Assert.Equal(0, exitCode);
 
@@ -274,6 +274,86 @@ public sealed class AtsJsonGeneratorTests
 
         var enumType = Assert.Single(result.EnumTypes);
         Assert.Equal("Contoso.UniqueMode", enumType.FullName);
+    }
+
+    [Fact]
+    public async Task TransformFile_RemovesSupportingContextWithoutDroppingIntegrationExports()
+    {
+        using var tempDirectory = new TempDirectory();
+        var inputPath = Path.Combine(tempDirectory.Path, "input.json");
+        var outputPath = Path.Combine(tempDirectory.Path, "output.json");
+        var dump = new AtsDumpRoot
+        {
+            Capabilities = new[] { "Core/create", "Dotnet/create", "Radius/legacy", "Radius/generic" }
+                .Select(id => new AtsDumpCapability
+                {
+                    CapabilityId = id,
+                    MethodName = "withContainerImage",
+                    QualifiedMethodName = "withContainerImage",
+                    CapabilityKind = "Method",
+                    TargetTypeId = "Dotnet/Dotnet.ProjectResource",
+                    ExpandedTargetTypes =
+                    [
+                        new AtsDumpTypeRef
+                        {
+                            TypeId = "Dotnet/Dotnet.ProjectResource",
+                            Category = "Handle",
+                        },
+                    ],
+                }).ToList(),
+            HandleTypes =
+            [
+                new AtsDumpHandleType { AtsTypeId = "Dotnet/Dotnet.ProjectResource" },
+                new AtsDumpHandleType { AtsTypeId = "Radius/Radius.EnvironmentResource" },
+            ],
+        };
+        File.WriteAllText(inputPath, JsonSerializer.Serialize(dump));
+        var fullModel = AtsTransformer.Transform(dump, "Radius", "13.6.0");
+        var basePaths = new List<string>();
+        foreach (var name in new[] { "Core", "Dotnet" })
+        {
+            var basePath = Path.Combine(tempDirectory.Path, $"{name}.json");
+            File.WriteAllText(basePath, JsonSerializer.Serialize(new TsPackageModel
+            {
+                Package = new TsPackageInfo { Name = name },
+                Functions = fullModel.Functions.Where(f => f.CapabilityId.StartsWith($"{name}/", StringComparison.Ordinal)).ToList(),
+                HandleTypes = fullModel.HandleTypes.Where(h => h.FullName.StartsWith($"{name}.", StringComparison.Ordinal)).ToList(),
+            }));
+            basePaths.Add(basePath);
+        }
+
+        var exitCode = await GenerateCommand.GetCommand().Parse(
+        [
+            "--input", inputPath, "--output", outputPath, "--package-name", "Radius",
+            "--base", basePaths[0], "--base", basePaths[1],
+        ]).InvokeAsync();
+
+        Assert.Equal(0, exitCode);
+        var result = JsonSerializer.Deserialize<TsPackageModel>(File.ReadAllText(outputPath));
+        Assert.NotNull(result);
+        Assert.Equal(["Radius/generic", "Radius/legacy"], result.Functions.Select(f => f.CapabilityId).Order());
+        Assert.All(result.Functions, f => Assert.Equal(["Dotnet.ProjectResource"], f.ExpandedTargetTypes));
+        Assert.Equal("Radius.EnvironmentResource", Assert.Single(result.HandleTypes).FullName);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TransformFile_RejectsMissingOrNullSupportingContext(bool writeNull)
+    {
+        using var tempDirectory = new TempDirectory();
+        var inputPath = Path.Combine(tempDirectory.Path, "input.json");
+        var outputPath = Path.Combine(tempDirectory.Path, "output.json");
+        var basePath = Path.Combine(tempDirectory.Path, "context.json");
+        File.WriteAllText(inputPath, JsonSerializer.Serialize(new AtsDumpRoot()));
+        if (writeNull)
+        {
+            File.WriteAllText(basePath, "null");
+        }
+
+        Assert.Equal(1, GenerateCommand.TransformFile(
+            inputPath, outputPath, "Radius", null, null, null, [basePath]));
+        Assert.False(File.Exists(outputPath));
     }
 
     [Fact]

@@ -80,7 +80,7 @@ Pick the language your consuming app is written in. Each example assumes your Ap
 
 For C# apps, the recommended approach is the Aspire RabbitMQ client integration. It registers an [`IConnection`](https://rabbitmq.github.io/rabbitmq-dotnet-client/api/RabbitMQ.Client.IConnection.html) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
 
-#### Install the client integration
+### Install the client integration
 
 Install the [📦 Aspire.RabbitMQ.Client](https://www.nuget.org/packages/Aspire.RabbitMQ.Client) NuGet package in the client-consuming project:
 
@@ -96,7 +96,7 @@ Install the [📦 Aspire.RabbitMQ.Client](https://www.nuget.org/packages/Aspire.
   7.x](https://github.com/rabbitmq/rabbitmq-dotnet-client/blob/main/v7-MIGRATION.md).
 </Aside>
 
-#### Add the RabbitMQ client
+### Add the RabbitMQ client
 
 In _Program.cs_, call `AddRabbitMQClient` on your `IHostApplicationBuilder` to register an `IConnection`:
 
@@ -119,7 +119,7 @@ public class ExampleService(IConnection connection)
 }
 ```
 
-#### Add keyed RabbitMQ clients
+### Add keyed RabbitMQ clients
 
 To register multiple `IConnection` instances with different connection names, use `AddKeyedRabbitMQClient`:
 
@@ -141,7 +141,7 @@ public class ExampleService(
 
 For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
 
-#### Configuration
+### Configuration
 
 The Aspire RabbitMQ client integration offers multiple ways to provide configuration.
 
@@ -199,7 +199,7 @@ builder.AddRabbitMQClient(
         static factory => factory.ClientProvidedName = "MyApp");
 ```
 
-#### Auto activation
+### Auto activation
 
 Auto activation opens the RabbitMQ connection during startup rather than lazily on first use, ensuring that any connectivity issues are detected early.
 
@@ -215,14 +215,14 @@ builder.AddRabbitMQClient("messaging", o => o.DisableAutoActivation = false);
   explicitly to keep the lazy initialization behavior.
 </Aside>
 
-#### Client integration health checks
+### Client integration health checks
 
 Aspire client integrations enable health checks by default. The RabbitMQ client integration:
 
 - Adds a health check that attempts to connect to and create a channel on the RabbitMQ server when `DisableHealthChecks` is `false`.
 - Integrates with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
 
-#### Observability and telemetry
+### Observability and telemetry
 
 The Aspire RabbitMQ client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
 
@@ -236,7 +236,7 @@ The Aspire RabbitMQ client integration automatically configures logging, tracing
 
 **Metrics**: The RabbitMQ client integration doesn't currently support metrics by default.
 
-#### Use MassTransit
+### Use MassTransit
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -272,7 +272,7 @@ public sealed class OrderSubmittedConsumer : IConsumer<OrderSubmitted>
 
 The optional `configureOptions` delegate configures `MassTransitRabbitMqSettings`; set `DisableTelemetry` to `true` only when you don't want the integration to register its OpenTelemetry instrumentation. Use `AddMassTransitRabbitMq<TBus>` for an additional MassTransit bus type.
 
-#### Read environment variables in C\#
+### Read environment variables in C\#
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it directly to the [📦 RabbitMQ.Client](https://www.nuget.org/packages/RabbitMQ.Client/) library:
 

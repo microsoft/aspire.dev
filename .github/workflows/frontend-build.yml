@@ -13,6 +13,11 @@ on:
         required: false
         default: ""
         type: string
+      profile_build:
+        description: Capture opt-in CPU, timing, and output diagnostics
+        required: false
+        default: false
+        type: boolean
     secrets:
       ASPIRE_BOT_APP_ID:
         required: false
@@ -30,9 +35,10 @@ jobs:
       run:
         working-directory: src/frontend
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Ensure full git history for Lunaria
         env:
@@ -57,9 +63,9 @@ jobs:
             git fetch --unshallow
           fi
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ inputs.node_version }}
           cache: pnpm
@@ -72,23 +78,55 @@ jobs:
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Cache Astro content layer
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: astro_cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: src/frontend/node_modules/.astro
           key: astro-content-${{ runner.os }}-${{ hashFiles('src/frontend/src/content/**', 'src/frontend/src/content.config.*', 'src/frontend/astro.config.mjs') }}
           restore-keys: |
             astro-content-${{ runner.os }}-
 
-      # Build BEFORE lint+unit so that Lunaria (i18n status) runs against a
-      # pristine working tree.  The lint step calls `astro sync` which can
-      # leave generated artifacts on disk; when the build ran second,
-      # Lunaria would see those as uncommitted changes and fail with a
-      # doubled rootDir path (src/frontend/src/frontend/…).
+      # Validation has its own checkout so astro sync cannot dirty Lunaria's tree.
       - name: Build frontend
         env:
           MODE: production
           ASTRO_TELEMETRY_DISABLED: 1
-        run: pnpm build:production
+          # The complete provisioning API catalog exceeds Node's default 4 GiB heap.
+          NODE_OPTIONS: --max-old-space-size=8192
+          BUILD_TIMING: ${{ inputs.profile_build && '1' || '0' }}
+          BUILD_TIMING_OUT: ${{ runner.temp }}/frontend-performance/timing.jsonl
+          BUILD_TIMING_LABEL: ${{ github.sha }}
+          PROFILE_BUILD: ${{ inputs.profile_build }}
+        run: |
+          set -euo pipefail
+          if [[ "$PROFILE_BUILD" == "true" ]]; then
+            mkdir -p "$RUNNER_TEMP/frontend-performance"
+            pnpm git-env
+            pnpm compute-skill-digests
+            /usr/bin/time -v node --cpu-prof \
+              --cpu-prof-dir="$RUNNER_TEMP/frontend-performance" \
+              ./node_modules/astro/bin/astro.mjs build --mode production \
+              2>&1 | tee "$RUNNER_TEMP/frontend-performance/build.log"
+          else
+            pnpm build:production
+          fi
+
+      - name: Measure frontend output
+        if: ${{ inputs.profile_build }}
+        env:
+          BUILD_METRICS_DIR: ${{ runner.temp }}/frontend-performance
+          ASTRO_CACHE_HIT: ${{ steps.astro_cache.outputs.cache-hit }}
+          PROFILE_BUILD: ${{ inputs.profile_build }}
+        run: node scripts/measure-build-output.mjs
+
+      - name: Upload build diagnostics
+        if: ${{ always() && inputs.profile_build }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frontend-performance
+          path: ${{ runner.temp }}/frontend-performance
+          if-no-files-found: warn
+          retention-days: 7
 
       # Upload before the dist sanity-check so the artifact is always
       # available for debugging, even when the check step fails.
@@ -97,12 +135,13 @@ jobs:
       - name: Upload build artifact
         id: upload_build_artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-dist
           path: src/frontend/dist
           if-no-files-found: warn
           retention-days: 7
+          compression-level: 1
 
       - name: Check PR comment prerequisites
         id: pr_comment_prerequisites
@@ -129,7 +168,7 @@ jobs:
       - name: Create GitHub App token for PR comment
         id: pr_comment_app_token
         if: ${{ always() && steps.pr_comment_prerequisites.outputs.can_comment == 'true' }}
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
           private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
@@ -207,6 +246,24 @@ jobs:
 
           ls -la dist
 
+  validation:
+    name: Frontend validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+      - name: Install deps
+        run: pnpm install --frozen-lockfile --prefer-offline
       - name: Lint
         env:
           ASTRO_TELEMETRY_DISABLED: 1
@@ -218,7 +275,7 @@ jobs:
         run: pnpm test:unit
 
   e2e:
-    name: E2E (${{ matrix.project }})
+    name: E2E (${{ matrix.project }}, shard ${{ matrix.shard }}/2)
     needs: build
     runs-on: ubuntu-latest
     defaults:
@@ -229,16 +286,19 @@ jobs:
       # shard's report so we can see the whole picture in the merged HTML.
       fail-fast: false
       matrix:
+        shard: [1, 2]
         project:
           - desktop-chromium
           - tablet-chromium
           - mobile-chromium
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ inputs.node_version }}
           cache: pnpm
@@ -263,16 +323,16 @@ jobs:
       - name: Run Playwright (${{ matrix.project }})
         env:
           ASTRO_TELEMETRY_DISABLED: 1
-        run: pnpm exec playwright test --project=${{ matrix.project }}
+        run: pnpm exec playwright test --project=${{ matrix.project }} --shard=${{ matrix.shard }}/2
 
       # Each shard publishes its blob report under a unique name so the
       # merge job below can stitch them back together into a single HTML
       # report identical to the unsharded output.
       - name: Upload Playwright blob report
         if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: frontend-blob-report-${{ matrix.project }}
+          name: frontend-blob-report-${{ matrix.project }}-${{ matrix.shard }}
           path: src/frontend/blob-report
           if-no-files-found: warn
           retention-days: 7
@@ -282,9 +342,9 @@ jobs:
 
       - name: Upload Playwright raw results
         if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: frontend-test-results-${{ matrix.project }}
+          name: frontend-test-results-${{ matrix.project }}-${{ matrix.shard }}
           path: src/frontend/test-results
           if-no-files-found: warn
           retention-days: 7
@@ -301,11 +361,13 @@ jobs:
       run:
         working-directory: src/frontend
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ inputs.node_version }}
           cache: pnpm
@@ -317,7 +379,7 @@ jobs:
       - name: Download blob reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          # Each shard uploads under `frontend-blob-report-<project>`;
+          # Each shard uploads under `frontend-blob-report-<project>-<shard>`;
           # the pattern collects all of them into one tree under
           # `all-blob-reports/`.
           path: src/frontend/all-blob-reports
@@ -330,7 +392,7 @@ jobs:
 
       - name: Upload Playwright HTML report
         if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-playwright-report
           path: src/frontend/playwright-report
@@ -344,9 +406,9 @@ jobs:
           {
             echo '## Frontend quality reports'
             echo ''
-            echo '- Lint gate: ESLint runs before browser and unit coverage.'
+            echo '- Lint and unit validation run in a separate checkout alongside the build.'
             echo '- Unit contracts: static analytics delivery and route regressions.'
-            echo '- Browser coverage: Playwright runs on desktop, tablet, and mobile Chromium profiles (sharded in parallel).'
+            echo '- Browser coverage: two shards each for desktop, tablet, and mobile Chromium, starting as soon as the build is ready.'
             echo '- Accessibility gate: WCAG 2.0 A/AA audit, including color-contrast.'
             echo '- Responsive gate: viewport-specific UI behavior is asserted in Playwright.'
             echo '- GitHub diagnostics: Playwright github reporter emits workflow annotations.'
@@ -354,5 +416,25 @@ jobs:
             echo ''
             echo 'Artifacts:'
             echo '- `frontend-playwright-report` (merged across all viewports)'
-            echo '- `frontend-test-results-<project>` (per shard)'
+            echo '- `frontend-test-results-<project>-<shard>` (per shard)'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  frontend-gate:
+    name: Frontend gate
+    if: ${{ always() }}
+    needs: [build, validation, e2e, report]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all frontend checks
+        env:
+          BUILD: ${{ needs.build.result }}
+          VALIDATION: ${{ needs.validation.result }}
+          E2E: ${{ needs.e2e.result }}
+          REPORT: ${{ needs.report.result }}
+        run: |
+          for result in "$BUILD" "$VALIDATION" "$E2E" "$REPORT"; do
+            if [[ "$result" != "success" ]]; then
+              echo "::error::Every frontend job must succeed (build=$BUILD validation=$VALIDATION e2e=$E2E report=$REPORT)."
+              exit 1
+            fi
+          done

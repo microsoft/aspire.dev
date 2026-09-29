@@ -175,9 +175,15 @@ const channelOptions: CustomSelectOption[] = [
     return 'release';
   }
 
+  let modalListeners: AbortController | undefined;
+
   function initializeModal() {
+    modalListeners?.abort();
+    modalListeners = undefined;
     const modal = document.getElementById('install-cli-modal') as HTMLDialogElement;
     if (!modal) return;
+    modalListeners = new AbortController();
+    const { signal } = modalListeners;
 
     const versionSelect = modal.querySelector('#version-select') as HTMLSelectElement;
     const openBtns = document.querySelectorAll<HTMLElement>('[data-open-install-modal]');
@@ -227,53 +233,44 @@ const channelOptions: CustomSelectOption[] = [
       versionSelect.addEventListener('change', (e) => {
         const quality = (e.target as HTMLSelectElement).value as 'release' | 'staging' | 'dev';
         updateVersionDisplay(quality);
-      });
+      }, { signal });
     }
 
     // Open modal and position it
     openBtns.forEach((openBtn) => {
-      if (openBtn.dataset.installModalBound === 'true') {
-        return;
-      }
-
-      openBtn.dataset.installModalBound = 'true';
       openBtn.addEventListener('click', (e) => {
         e.preventDefault();
         openModal(openBtn);
-      });
+      }, { signal });
     });
 
     // Close modal handlers
-    closeBtn?.addEventListener('click', () => modal.close());
+    closeBtn?.addEventListener('click', () => modal.close(), { signal });
 
     // Close on backdrop click
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.close();
-    });
+    }, { signal });
 
     // Close on Escape key
     modal.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') modal.close();
-    });
+    }, { signal });
 
     // Close modal if window is resized below mobile breakpoint
     window.addEventListener('resize', () => {
       if (window.innerWidth < 800 && modal.open) modal.close();
-    });
+    }, { signal });
   }
 
-  // Handle install button clicks via event delegation (works across page navigations)
-  document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    const openBtn = target.closest('[data-open-install-modal]');
-    if (!openBtn) return;
-
-    e.preventDefault();
+  document.addEventListener('astro:before-swap', () => {
+    modalListeners?.abort();
+    modalListeners = undefined;
   });
 
   // Initialize on page load
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeModal);
+    document.addEventListener('DOMContentLoaded', initializeModal, { once: true });
   } else {
     initializeModal();
   }

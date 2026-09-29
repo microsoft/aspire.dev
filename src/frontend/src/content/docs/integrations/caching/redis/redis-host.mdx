@@ -6,6 +6,7 @@ description: Learn how to use the Aspire Redis Hosting integration to orchestrat
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import redisIcon from '@assets/icons/redis-icon.png';
 
@@ -63,7 +64,7 @@ This updates your `aspire.config.json` with the Redis hosting integration packag
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.Redis": "13.3.0"
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -117,6 +118,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 <Aside type="note">
     When you reference a Redis resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, port numbers, and the password. For a complete list of these properties and per-language connection examples, see [Connect to Redis](../redis-connect/).
 </Aside>
+
+<ContainerImages package="Aspire.Hosting.Redis" only="Redis" />
 
 ## Add Redis resource with data volume
 
@@ -318,6 +321,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 The preceding code adds a container based on the `docker.io/redis/redisinsight` image. The Redis Insight UI is available from the Aspire dashboard and connects automatically to the Redis resource.
 
+<ContainerImages package="Aspire.Hosting.Redis" only="RedisInsight" />
+
 ### Configure Redis Insight host port
 
 To configure the host port for the Redis Insight container, use the `configureContainer` callback as shown in the following examples:
@@ -394,7 +399,9 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-The preceding code adds a container based on the `docker.io/rediscommander/redis-commander` image. The Redis Commander UI is available from the Aspire dashboard and connects automatically to the Redis resource.
+The preceding code adds a container based on the `ghcr.io/joeferner/redis-commander` image. The Redis Commander UI connects automatically to the Redis resource. Open **Manage (Commander)** on a Redis resource in the dashboard; the management container is hidden from the main resource list. Redis Insight follows the same pattern with **Manage (Insights)**.
+
+<ContainerImages package="Aspire.Hosting.Redis" only="Redis Commander" />
 
 ### Configure Redis Commander host port
 
@@ -456,6 +463,42 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 <Aside type="note">
     The TypeScript AppHost doesn't currently expose a `withClearCommand()` API for Redis. This feature is only available in the C# AppHost.
 </Aside>
+
+## Add Redis resource with a REPL command
+
+The `WithRepl` method adds an opt-in **REPL** command to the Redis resource in the Aspire dashboard. Selecting the command while the container is running opens an authenticated `redis-cli` session in the dashboard's terminal dock—no local Redis client installation is required:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+await cache.withRepl();
+
+await builder.build().run();
+```
+</TabItem>
+
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache")
+    .WithRepl();
+
+builder.Build().Run();
+```
+</TabItem>
+</Tabs>
+
+The REPL command is disabled by default and is only registered in run mode—it isn't available in published applications. Use `quit` to exit `redis-cli` cleanly before closing the terminal tab; closing the tab alone can leave `redis-cli` running inside the container, and stopping the container ends any remaining REPL processes. The session runs inside the container using Docker (or the configured Podman runtime), and passwords are passed through environment variables rather than command-line arguments. When TLS is enabled, the in-container REPL uses the non-TLS port over loopback.
+
+:::caution
+Only enable `WithRepl()` for resources whose authenticated client access is appropriate for everyone who can access the dashboard. The shell uses the resource's configured credentials and isn't read-only. Sharing the dashboard through a tunnel, Codespaces, or VS Code remote development also exposes this capability to anyone who can execute resource commands.
+:::
 
 ## Pass custom environment variables
 

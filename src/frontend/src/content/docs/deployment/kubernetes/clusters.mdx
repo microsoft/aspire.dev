@@ -323,6 +323,46 @@ Resource names in Kubernetes must follow DNS naming conventions. The integration
 
 Use [external parameters](/fundamentals/external-parameters/) to configure values that differ between development and production environments.
 
+### Parameters inside environment expressions
+
+Parameters embedded inside environment expressions are emitted as their own Helm values. For example, when a URL contains a host parameter, you can override that parameter at deployment time without reconstructing the entire URL. The publisher declares both the composed environment value and the nested parameter in `values.yaml`; deployment resolves the expression using the parameter's effective value.
+
+Use an Aspire reference expression for composition, not a TypeScript string interpolation of a resource handle:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addKubernetesEnvironment('k8s');
+const host = await builder.addParameter('host', { value: 'localhost' });
+const app = await builder.addContainer('app', 'nginx');
+await app.withEnvironment('SOME_URL', refExpr`http://${host}/test`);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddKubernetesEnvironment("k8s");
+var host = builder.AddParameter("host", "localhost");
+
+builder.AddContainer("app", "nginx")
+    .WithEnvironment("SOME_URL", $"http://{host}/test");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Conflicting Helm value paths, including names that collide after normalization, fail publishing rather than overwriting another entry.
+
 ### Service discovery
 
 In Kubernetes, services discover each other using the cluster's built-in DNS. A service named `api` is reachable at `api.<namespace>.svc.cluster.local`. The generated Helm charts configure service references automatically using Kubernetes-native DNS resolution.
@@ -350,6 +390,7 @@ See [Install external Helm charts](/deployment/kubernetes/helm-charts/) for a fu
 - [Kubernetes integration](/integrations/compute/kubernetes/)
 - [Deploy to AKS](/deployment/kubernetes/aks/)
 - [Install external Helm charts](/deployment/kubernetes/helm-charts/)
+- [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/)
 - [Pipelines and app topology](/deployment/pipelines/)
 - [Publishing and deployment overview](/deployment/deploy-with-aspire/)
 - [Kubernetes documentation](https://kubernetes.io/docs/)

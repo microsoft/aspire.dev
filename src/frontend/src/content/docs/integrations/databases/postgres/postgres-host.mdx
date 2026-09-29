@@ -6,6 +6,7 @@ description: Learn how to use the Aspire PostgreSQL Hosting integration to orche
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import postgresIcon from '@assets/icons/postgresql-icon.png';
 
@@ -63,7 +64,7 @@ This updates your `aspire.config.json` with the PostgreSQL hosting integration p
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.PostgreSQL": "13.3.0"
+    "Aspire.Hosting.PostgreSQL": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -121,6 +122,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 <Aside type="note">
     When you reference a PostgreSQL resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, and port numbers. For a complete list of these properties and per-language connection examples, see [Connect to PostgreSQL](../postgres-connect/).
 </Aside>
+
+<ContainerImages package="Aspire.Hosting.PostgreSQL" only="PostgreSQL" />
 
 ## Add PostgreSQL resource with database scripts
 
@@ -229,6 +232,10 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 The preceding code adds a container based on the `docker.io/dpage/pgadmin4` image. The container is used to manage the PostgreSQL server and database resources and serves a web-based admin dashboard for PostgreSQL databases.
 
+The dashboard hides the pgAdmin management container from the main resource list. Open its **Manage** link from the PostgreSQL resource instead.
+
+<ContainerImages package="Aspire.Hosting.PostgreSQL" only="pgAdmin" />
+
 ### Configure the pgAdmin host port
 
 To configure the host port for the pgAdmin container, configure the pgAdmin resource inside the callback as shown in the following examples:
@@ -314,6 +321,8 @@ await builder.addNodeApp("api", "./api", "index.js")
 </Tabs>
 
 The preceding code adds a container based on the `docker.io/sosedoff/pgweb` image. All registered `PostgresDatabaseResource` instances are used to create a configuration file per instance, and each config is bound to the **pgweb** container bookmark directory. For more information, see [PgWeb docs: Server connection bookmarks](https://github.com/sosedoff/pgweb/wiki/Server-Connection-Bookmarks).
+
+<ContainerImages package="Aspire.Hosting.PostgreSQL" only="pgweb" />
 
 ### Configure the pgWeb host port
 
@@ -541,6 +550,42 @@ await builder.addNodeApp("api", "./api", "index.js")
 ```
 </TabItem>
 </Tabs>
+
+## Add PostgreSQL resource with a REPL command
+
+The `WithRepl` method adds an opt-in **REPL** command to the PostgreSQL server resource in the Aspire dashboard. Selecting the command while the container is running opens `psql` in the dashboard's terminal dock, already connected to the `postgres` database with the resource's configured credentials—no local PostgreSQL client installation is required:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres");
+await postgres.withRepl();
+
+await builder.build().run();
+```
+</TabItem>
+
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithRepl();
+
+builder.Build().Run();
+```
+</TabItem>
+</Tabs>
+
+The REPL command is disabled by default and is only registered in run mode—it isn't available in published applications. Use `\connect` to switch databases and `\q` to exit `psql` cleanly before closing the terminal tab; closing the tab alone can leave `psql` running inside the container, and stopping the container ends any remaining REPL processes. The session runs inside the container using Docker (or the configured Podman runtime), and passwords are passed through environment variables rather than command-line arguments.
+
+:::caution
+Only enable `WithRepl()` for resources whose authenticated client access is appropriate for everyone who can access the dashboard. The shell uses the resource's configured credentials and isn't read-only. Sharing the dashboard through a tunnel, Codespaces, or VS Code remote development also exposes this capability to anyone who can execute resource commands.
+:::
 
 ## Pass custom environment variables
 

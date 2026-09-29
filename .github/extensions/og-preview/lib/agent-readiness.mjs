@@ -44,8 +44,8 @@ async function probe(url, opts = {}) {
             bytes: r.body ? r.body.length : 0,
             finalUrl: r.url,
         };
-    } catch (err) {
-        return { ok: false, status: 0, error: String((err && err.message) || err) };
+    } catch {
+        return { ok: false, status: 0, error: "Probe unavailable or outside the authorized preview origin." };
     }
 }
 
@@ -94,33 +94,34 @@ async function dnsAid(host) {
     return { ok: false };
 }
 
-export async function checkAgentReadiness(rawUrl) {
+export async function checkAgentReadiness(rawUrl, policy = {}) {
     const u = new URL(rawUrl);
     const origin = u.origin;
     const host = u.hostname;
     const W = (p) => origin + p;
+    const check = (url, opts) => probe(url, { ...policy, ...opts });
 
     const [
         robots, sitemapXml, llms, llmsFull, mdNeg, page,
         mcp1, mcp2, a2a1, a2a2, aiPlugin, skills1, skills2,
         oauthPr, oauthAs, apiCatalog, aid,
     ] = await Promise.all([
-        probe(W("/robots.txt"), { accept: "text/plain,*/*;q=0.8" }),
-        probe(W("/sitemap.xml"), { accept: "application/xml,text/xml,*/*;q=0.8" }),
-        probe(W("/llms.txt"), { accept: "text/markdown,text/plain,*/*;q=0.8" }),
-        probe(W("/llms-full.txt"), { accept: "text/markdown,text/plain,*/*;q=0.8" }),
-        probe(rawUrl, { accept: "text/markdown; q=1.0, text/x-markdown; q=0.9, text/plain; q=0.5" }),
-        probe(rawUrl, { accept: "text/html,application/xhtml+xml" }),
-        probe(W("/.well-known/mcp"), { accept: "application/json,*/*;q=0.8" }),
-        probe(W("/.well-known/mcp.json"), { accept: "application/json,*/*;q=0.8" }),
-        probe(W("/.well-known/agent.json"), { accept: "application/json,*/*;q=0.8" }),
-        probe(W("/.well-known/agent-card.json"), { accept: "application/json,*/*;q=0.8" }),
-        probe(W("/.well-known/ai-plugin.json"), { accept: "application/json,*/*;q=0.8" }),
-        probe(W("/.well-known/agent-skills.json"), { accept: "application/json,*/*;q=0.8" }),
-        probe(W("/.well-known/skills.json"), { accept: "application/json,*/*;q=0.8" }),
-        probe(W("/.well-known/oauth-protected-resource"), { accept: "application/json,*/*;q=0.8" }),
-        probe(W("/.well-known/oauth-authorization-server"), { accept: "application/json,*/*;q=0.8" }),
-        probe(W("/.well-known/api-catalog"), { accept: "application/linkset+json,application/json,*/*;q=0.8" }),
+        check(W("/robots.txt"), { accept: "text/plain,*/*;q=0.8" }),
+        check(W("/sitemap.xml"), { accept: "application/xml,text/xml,*/*;q=0.8" }),
+        check(W("/llms.txt"), { accept: "text/markdown,text/plain,*/*;q=0.8" }),
+        check(W("/llms-full.txt"), { accept: "text/markdown,text/plain,*/*;q=0.8" }),
+        check(rawUrl, { accept: "text/markdown; q=1.0, text/x-markdown; q=0.9, text/plain; q=0.5" }),
+        check(rawUrl, { accept: "text/html,application/xhtml+xml" }),
+        check(W("/.well-known/mcp"), { accept: "application/json,*/*;q=0.8" }),
+        check(W("/.well-known/mcp.json"), { accept: "application/json,*/*;q=0.8" }),
+        check(W("/.well-known/agent.json"), { accept: "application/json,*/*;q=0.8" }),
+        check(W("/.well-known/agent-card.json"), { accept: "application/json,*/*;q=0.8" }),
+        check(W("/.well-known/ai-plugin.json"), { accept: "application/json,*/*;q=0.8" }),
+        check(W("/.well-known/agent-skills.json"), { accept: "application/json,*/*;q=0.8" }),
+        check(W("/.well-known/skills.json"), { accept: "application/json,*/*;q=0.8" }),
+        check(W("/.well-known/oauth-protected-resource"), { accept: "application/json,*/*;q=0.8" }),
+        check(W("/.well-known/oauth-authorization-server"), { accept: "application/json,*/*;q=0.8" }),
+        check(W("/.well-known/api-catalog"), { accept: "application/linkset+json,application/json,*/*;q=0.8" }),
         dnsAid(host),
     ]);
 

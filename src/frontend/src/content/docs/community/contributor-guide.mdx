@@ -247,9 +247,9 @@ Third-party links are appropriate when they help readers complete a task or unde
 - **Disclose affiliations** - In the **Third-party links and affiliations** section of the pull request description, disclose any material affiliation with a linked organization, such as employment, sponsorship, or ownership. An affiliation doesn't automatically disqualify a link, but the link and surrounding content must meet the same editorial standards as any other contribution.
 - **Review generated content** - Automated updates and generated catalogs aren't exempt. They may reproduce upstream metadata when that's the catalog's explicit purpose, but the reviewing maintainer must apply the same editorial standards to the surrounding content and linked destinations.
 
-### AppHost-specific C# and TypeScript content
+### AppHost-specific TypeScript and C# content
 
-When you are documenting AppHost-specific content that changes between C# and TypeScript, use synced `Tabs` and `TabItem` blocks with `syncKey='aspire-lang'`. Each code snippet should have its own C# and TypeScript selector, and the shared sync key keeps the selected language consistent across the page.
+When you are documenting AppHost-specific content that changes between TypeScript and C#, use synced `Tabs` and `TabItem` blocks with `syncKey='aspire-lang'`. Put TypeScript first so `apphost.mts` is the default for readers without a saved preference. Each code snippet should have its own TypeScript and C# selector, and the shared sync key keeps the selected language consistent across the page.
 
 Use `Tabs` for other choices such as package managers, deployment targets, IDEs, or CLI variants.
 
@@ -799,7 +799,7 @@ Here's an example of using the `LearnMore` component:
 
 ### Aspire language selectors
 
-Use synced `Tabs` and `TabItem` blocks for AppHost content that switches between C# and TypeScript. Each AppHost code snippet should have its own selector, and every AppHost language selector on the page should share `syncKey='aspire-lang'` so a reader's language choice applies to the whole page.
+Use synced `Tabs` and `TabItem` blocks for AppHost content that switches between TypeScript and C#. Put TypeScript first so the `apphost.mts` tab appears on the left and is selected by default. Each AppHost code snippet should have its own selector, and every AppHost language selector on the page should share `syncKey='aspire-lang'` so a reader's language choice applies to the whole page.
 
 Keep shared section headings outside the tabs. For example, write `## Add a Redis resource` before the `Tabs` block, then place the language-specific code inside the `csharp` and `typescript` tab items. This helps the **On this page** navigation stay accurate.
 
@@ -811,20 +811,6 @@ title: Example MDX Page
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var cache = builder.AddRedis("cache");
-
-builder.AddProject<Projects.Api>("api")
-    .WithReference(cache);
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts" twoslash
@@ -838,6 +824,20 @@ const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.withReference(cache);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
 ```
 
 </TabItem>
@@ -855,6 +855,26 @@ Here's an example of using the `LearnMore` component:
 <LearnMore>
   Please give our [repository a star on GitHub! ⭐](https://github.com/microsoft/aspire.dev)
 </LearnMore>
+
+## Dev Hub content
+
+[Dev Hub](/hub/) highlights live in `src/data/dev-hub.ts`, relative to `src/frontend`. Reuse existing documentation, sample IDs, and shared data rather than maintaining a separate resource catalog.
+
+Glossary definitions and examples live in `src/content/glossary/`. Follow an existing term as a template, keep filenames (term IDs) stable, and preserve `legacyAnchors` so existing links continue to work.
+
+To refresh the official blog archive used by Browse, run `pnpm update:blogs` from `src/frontend`. The Hub's featured posts remain curated separately in `src/data/dev-hub.ts`.
+
+When changing interactive search components, reuse `SearchField` and the shared search styles rather than overriding input heights, typography, colors, or clear icons per page. Keep contextual layouts, but use the same full-size input treatment; compact navigation controls can use the shared small variant.
+
+In-page `.search-empty` panels keep their dashed border, align with the search area's left edge, and cap their width so the copy and decorative Aspire bot stay together without oversized side gutters. Group the content in a `.search-empty-content` wrapper. Use a short heading, put any query in `.search-empty-query`, and keep the guidance, active filters, and single subtly outlined recovery button inside the wrapper. Leave breathing room between the heading, supporting text, and recovery action. Shared styles reserve space for the bot on the right and reduce its size on mobile. The artwork is excluded from screen-reader announcements and compact sidebar filters.
+
+Pagefind's native clear action does not emit an `input` event. Keep the dialog's API shortcut URLs synchronized during result refreshes too.
+
+Empty-state recovery should preserve useful search intent: clear filters when that restores matches for the query, otherwise clear the query when the selected filters still have results. Reset both only when neither change alone restores results. Use the existing matching rules and facet defaults, preserve sorting, and keep unavailable data distinct from zero matches.
+
+Show one recovery action in the empty state, without competing toolbar reset links. When results exist, show one toolbar action: **Clear filters** for filters alone, or **Reset all** for a query combined with filters. A query alone only needs the input's clear icon. Keep individual filter controls editable in every state.
+
+Test hub controls through client navigation as well as direct page loads. Selecting a different resource-results page smoothly scrolls to the breadcrumb after navigation settles, using the site's fixed-header scroll offset while preserving pagination focus. Respect reduced-motion preferences with instant scrolling. Selecting the current page is a no-op; search, filter, and browser-history scroll behavior remain unchanged. Astro removes `noscript` elements from incoming pages, so deferred resource images use inert templates with separate no-JavaScript markup. Preserve router-owned history state and dispose listeners when leaving a page.
 
 ## 🆘 Getting help
 

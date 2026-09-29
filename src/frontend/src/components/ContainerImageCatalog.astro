@@ -1,0 +1,482 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import {
+  getContainerImageCatalog,
+  getRegistryUrl,
+  getRegistryLabel,
+  getIntegrationHref,
+  containerImages,
+} from '@utils/container-images';
+import dockerLogo from '@assets/icons/docker.svg';
+import microsoftMark from '@assets/icons/microsoft-icon.svg?raw';
+
+const catalog = getContainerImageCatalog();
+
+// Headline stats for the intro row.
+const totalImages = containerImages.length;
+const totalIntegrations = new Set(containerImages.map((img) => img.aspirePackage)).size;
+const totalRegistries = new Set(containerImages.map((img) => img.registry)).size;
+
+// Split a fully-qualified reference into its repository part and its tag so the
+// tag can be visually emphasized (the detail readers most often compare).
+function splitReference(fullImage: string) {
+  const index = fullImage.lastIndexOf(':');
+  if (index === -1) return { repo: fullImage, tag: '' };
+  return { repo: fullImage.slice(0, index + 1), tag: fullImage.slice(index + 1) };
+}
+
+// Split a string after each of the given separators, keeping the separator on
+// the preceding piece. The template renders a <wbr> after every piece so a long
+// reference wraps at readable boundaries (whole path segments, tag components)
+// instead of mid-token.
+function breakParts(value: string, separators: RegExp) {
+  return value.split(separators).filter(Boolean);
+}
+
+// Drop the shared `Aspire.Hosting.` prefix for a compact integration label; the
+// full package name is preserved in the link's `title`.
+function shortPackage(aspirePackage: string) {
+  return aspirePackage.replace(/^Aspire\.Hosting\./, '');
+}
+
+// Registry-specific brand glyph, only for registries with a recognizable mark:
+// Docker Hub (brand-blue logo), the Microsoft Artifact Registry (Microsoft mark,
+// inlined so its `currentColor` fill follows the theme), and GHCR (GitHub mark).
+// Others (Quay, Oracle, unknown) render no glyph so we never imply a
+// Docker/Microsoft origin for an image that isn't from there.
+function registryGlyph(registry: string) {
+  switch (registry) {
+    case 'docker.io':
+      return { kind: 'image' as const, src: dockerLogo };
+    case 'mcr.microsoft.com':
+      return { kind: 'raw' as const, raw: microsoftMark };
+    case 'ghcr.io':
+      return { kind: 'icon' as const, name: 'github' as const };
+    default:
+      return null;
+  }
+}
+---
+
+<div class="ci-catalog not-content">
+  <p class="cic-summary">
+    <strong>{totalImages}</strong> container images across <strong>{totalIntegrations}</strong> hosting
+    integrations and <strong>{totalRegistries}</strong> registries.
+  </p>
+
+  {
+    catalog.map((category) => (
+      <section class="cic-section" aria-labelledby={`cat-${category.key}`}>
+        <h2 id={`cat-${category.key}`} class="cic-heading">
+          {category.label}
+          <span class="cic-count">{category.images.length}</span>
+        </h2>
+
+        <ul class="cic-grid">
+          {category.images.map((img) => {
+            const registryUrl = getRegistryUrl(img);
+            const registryLabel = getRegistryLabel(img.registry);
+            const glyph = registryGlyph(img.registry);
+            const href = getIntegrationHref(img.aspirePackage);
+            const { repo, tag } = splitReference(img.fullImage);
+            return (
+              <li class="cic-card" class:list={[img.isCompanion && 'is-companion']}>
+                <div class="cic-card-head">
+                  <span class="cic-name">{img.name}</span>
+                  {img.isCompanion && img.companionOf && (
+                    <span class="cic-companion" title={`Companion image for ${img.companionOf}`}>
+                      Companion · {img.companionOf}
+                    </span>
+                  )}
+                </div>
+
+                <code class="cic-code">
+                  {breakParts(repo, /(?<=\/)/).map((seg) => (
+                    <Fragment><span class="cic-seg">{seg}</span><wbr /></Fragment>
+                  ))}
+                  {tag && (
+                    <span class="cic-tag">
+                      {breakParts(tag, /(?<=[._-])/).map((seg) => (
+                        <Fragment>{seg}<wbr /></Fragment>
+                      ))}
+                    </span>
+                  )}
+                </code>
+
+                <div class="cic-card-meta">
+                  {registryUrl ? (
+                    <a
+                      class="cic-reg-link"
+                      href={registryUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`View the ${img.name} image on ${registryLabel}`}
+                    >
+                      {glyph && (
+                        <span class="cic-glyph" aria-hidden="true">
+                          {glyph.kind === 'image' ? (
+                            <Image src={glyph.src} alt="" width={16} height={16} />
+                          ) : glyph.kind === 'raw' ? (
+                            <span class="cic-glyph-svg" set:html={glyph.raw} />
+                          ) : (
+                            <Icon name={glyph.name} size="0.9rem" />
+                          )}
+                        </span>
+                      )}
+                      {registryLabel}
+                      <Icon name="external" size="0.7rem" />
+                    </a>
+                  ) : (
+                    <span class="cic-reg-plain">{registryLabel}</span>
+                  )}
+
+                  <a
+                    class="cic-src"
+                    href={img.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`View the ${img.name} container image tag definition on GitHub`}
+                  >
+                    <Icon name="github" size="0.85rem" />
+                    Source
+                    <Icon name="external" size="0.7rem" />
+                  </a>
+                </div>
+
+                {img.alternateTags.length > 0 && (
+                  <div class="cic-alt">
+                    <span class="cic-alt-label">Also:</span>
+                    {img.alternateTags.map((t) => (
+                      <code class="cic-alt-tag">{t}</code>
+                    ))}
+                  </div>
+                )}
+
+                {href && (
+                  <div class="cic-foot">
+                    <a
+                      class="cic-docs"
+                      href={href}
+                      aria-label={`Learn more about the ${shortPackage(img.aspirePackage)} integration`}
+                    >
+                      <Icon name="open-book" size="0.9rem" />
+                      Integration docs
+                    </a>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    ))
+  }
+
+  <p class="ci-provenance">
+    <Icon name="information" size="0.85rem" />
+    <span>
+      Tags reflect the latest defaults on the microsoft/aspire <strong>main</strong> branch, and may be
+      newer than the version pinned by the package you install. Companion images (management UIs, emulator
+      dependencies) are listed under the integration that ships them.
+    </span>
+  </p>
+</div>
+
+<style>
+  .ci-catalog {
+    margin: 1rem 0 0;
+    /* Establish a container so the card grid can respond to the catalog's own
+       width. The Starlight sidebar carves ~17rem out of the viewport, so a
+       viewport media query would over-count the available room; a container
+       query resolves against the actual content width instead. Mirrors the
+       integration gallery's strategy. */
+    container-type: inline-size;
+    container-name: ci-catalog-grid;
+  }
+
+  .cic-summary {
+    margin: 0 0 1.5rem;
+    font-size: var(--sl-text-body);
+    color: var(--sl-color-gray-2);
+  }
+
+  .cic-summary strong {
+    color: var(--sl-color-white);
+  }
+
+  .cic-section {
+    margin: 2rem 0;
+  }
+
+  /* `.not-content` opts the subtree out of Starlight's content styles, so the
+     category heading is styled here to read like an in-page section header. */
+  .cic-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 1rem;
+    padding-bottom: 0.4rem;
+    font-size: var(--sl-text-xl);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--sl-color-white);
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .cic-count {
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    color: var(--sl-color-accent-high);
+    background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+  }
+
+  /* Card grid capped at two columns, matching the integration gallery. One
+     column until the catalog is wide enough for two comfortable ~22rem cards
+     (2 × 22rem + 1rem gap ≈ 45rem), then exactly two — never three, so the
+     container reference and tag stay readable and never scroll horizontally. */
+  .cic-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  /* Let long monospace references shrink and wrap within a column instead of
+     widening the track. */
+  .cic-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  @container ci-catalog-grid (min-width: 45rem) {
+    .cic-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* Defensive fallback for browsers without container-query support: a viewport
+     media query tuned for desktop where the Starlight sidebar is visible. */
+  @supports not (container-type: inline-size) {
+    @media (min-width: 80rem) {
+      .cic-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  }
+
+  .cic-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    height: 100%;
+    margin: 0;
+    padding: 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background-color: var(--sl-color-gray-6);
+    box-shadow: var(--sl-shadow-sm);
+  }
+
+  .cic-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.5rem;
+  }
+
+  .cic-name {
+    font-size: var(--sl-text-base);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--sl-color-white);
+  }
+
+  .cic-companion {
+    font-size: var(--sl-text-xs);
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+    color: var(--sl-color-accent-high);
+    background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+    padding: 0.02rem 0.4rem;
+    border-radius: 999px;
+  }
+
+  /* The hero data: the full container reference. Wraps inside the card (no
+     horizontal scroll) with the tag emphasized. */
+  .cic-code {
+    display: block;
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: var(--sl-text-sm);
+    line-height: 1.7;
+    color: var(--aspire-inline-code-text);
+    background-color: var(--aspire-inline-code-bg);
+    border: 1px solid var(--aspire-inline-code-border);
+    padding: 0.35rem 0.5rem;
+    border-radius: 0.3rem;
+    /* Long references break only at the <wbr> hints we emit: between path
+       segments and inside the tag. Each path segment is wrapped in a nowrap
+       .cic-seg so it never breaks mid-token (e.g. at an internal hyphen);
+       overflow-wrap keeps an emergency fallback so an over-long segment on a
+       very narrow screen can still break rather than overflow. */
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* A single path segment (e.g. "azure-app-configuration/"). Kept on one line
+     so a wrapped reference breaks at `/` boundaries, not at internal hyphens. */
+  .cic-seg {
+    white-space: nowrap;
+  }
+
+  /* On very narrow viewports, allow segments to wrap internally so an unusually
+     long host/image segment can never force horizontal scroll. */
+  @media (max-width: 21rem) {
+    .cic-seg {
+      white-space: normal;
+    }
+  }
+
+  .cic-tag {
+    font-weight: 700;
+    color: var(--sl-color-white);
+    background: color-mix(in srgb, var(--sl-color-accent) 22%, transparent);
+    border-radius: 0.2rem;
+    padding: 0 0.2rem;
+  }
+
+  /* Meta row: registry link (with brand glyph) on the left, source link on the
+     right; wraps to stack on narrow cards. */
+  .cic-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.9rem;
+  }
+
+  .cic-reg-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-accent-high);
+    text-decoration: none;
+  }
+
+  .cic-reg-link:hover {
+    text-decoration: underline;
+  }
+
+  .cic-reg-plain {
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-2);
+  }
+
+  .cic-glyph {
+    display: inline-flex;
+    align-items: center;
+    color: inherit;
+  }
+
+  .cic-glyph :global(img),
+  .cic-glyph :global(svg) {
+    display: block;
+    width: 14px;
+    height: 14px;
+  }
+
+  .cic-src {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+    text-decoration: none;
+  }
+
+  .cic-src:hover {
+    color: var(--sl-color-text-accent);
+    text-decoration: underline;
+  }
+
+  .cic-alt {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+
+  .cic-alt-label {
+    font-weight: 500;
+  }
+
+  .cic-alt-tag {
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: var(--sl-text-xs);
+    background: var(--sl-color-gray-5);
+    color: var(--sl-color-white);
+    padding: 0.02rem 0.3rem;
+    border-radius: 0.2rem;
+  }
+
+  /* Footer docs link — pinned to the bottom of the card (so footers align
+     across a row) with a separator, mirroring the gallery card footer. Points
+     at the integration's documentation for deeper detail. */
+  .cic-foot {
+    margin-top: auto;
+    padding-top: 0.7rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .cic-docs {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: var(--sl-text-sm);
+    font-weight: 500;
+    color: var(--sl-color-accent-high);
+    text-decoration: none;
+  }
+
+  .cic-docs:hover {
+    text-decoration: underline;
+  }
+
+  .cic-docs :global(svg) {
+    flex-shrink: 0;
+  }
+
+  /* Group-level provenance note, mirroring the ContainerImages card component. */
+  .ci-provenance {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin: 1.75rem 0 0;
+    font-size: var(--sl-text-sm);
+    line-height: 1.5;
+    color: var(--sl-color-gray-2);
+  }
+
+  .ci-provenance svg {
+    flex-shrink: 0;
+    margin-top: 0.15em;
+    color: var(--sl-color-gray-3);
+  }
+
+  /* Suppress any auto-appended external-link icon on our links; each renders its
+     own iconography where needed. */
+  .ci-catalog a::after {
+    content: none !important;
+  }
+</style>

@@ -53,7 +53,7 @@ The `aspire.config.json` file is the central configuration for your AppHost. It 
     "language": "typescript/nodejs"
   },
   "packages": {
-    "Aspire.Hosting.JavaScript": "13.3.0"
+    "Aspire.Hosting.JavaScript": "%ASPIRE_VERSION%"
   },
   "profiles": {
     "https": {
@@ -89,8 +89,8 @@ This updates `aspire.config.json` so the package is restored the next time the A
 ```json title="aspire.config.json" ins={4}
 {
   "packages": {
-    "Aspire.Hosting.JavaScript": "13.3.0",
-    "Aspire.Hosting.Redis": "13.3.0"
+    "Aspire.Hosting.JavaScript": "%ASPIRE_VERSION%",
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -167,6 +167,121 @@ Projects created with Aspire CLI versions earlier than 13.4 used `apphost.ts` an
 For compatibility details and optional migration steps, see [Legacy `apphost.ts` projects in the Aspire 13.4 release notes](/whats-new/aspire-13-4/#legacy-apphostts-projects-pre-134).
 </Aside>
 
+## Configuration with appsettings.json
+
+TypeScript AppHosts read configuration from JSON files that live next to `apphost.mts`. Add an `appsettings.json` file to your AppHost and Aspire loads it into the AppHost's configuration at startup. You read the effective values in `apphost.mts` through the builder's configuration accessor.
+
+<FileTree>
+
+- example-app/
+  - .aspire/modules/
+  - apphost.mts
+  - aspire.config.json
+  - appsettings.json  Base configuration
+  - appsettings.Development.json  Environment-specific overrides
+  - appsettings.Production.json  Environment-specific overrides
+  - package.json
+
+</FileTree>
+
+Start with base settings as plain JSON. Settings can be flat, like `message`, or grouped in nested objects, like `deployment.region`. Keys are matched case-insensitively, so camelCase fits naturally in a TypeScript project:
+
+```json title="appsettings.json"
+{
+  "message": "From appsettings.json",
+  "deployment": {
+    "region": "westus"
+  }
+}
+```
+
+With only `appsettings.json` present, read a flat value by its key. For a nested value, use `:` to separate each level of the JSON path. The `getConfigValue()` method returns `null` if the key isn't found:
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const configuration = await builder.getConfiguration();
+
+const message = await configuration.getConfigValue('message');
+// message === 'From appsettings.json';
+
+const region = await configuration.getConfigValue('deployment:region');
+// region === 'westus';
+```
+
+### Environment-specific settings
+
+Aspire always loads `appsettings.json` first, then layers `appsettings.{Environment}.json` on top. The value passed to `--environment` replaces `{Environment}` in the filename. For example, `--environment Development` loads `appsettings.Development.json`, while `--environment Production` loads `appsettings.Production.json`.
+
+The environment-specific file overrides matching values from `appsettings.json`. The merged configuration is available through `getConfiguration()` when the AppHost starts.
+
+#### Development
+
+Add the Development overrides:
+
+```json title="appsettings.Development.json"
+{
+  "message": "From appsettings.Development.json",
+  "deployment": {
+    "region": "westus2"
+  }
+}
+```
+
+Start the AppHost with the `Development` environment:
+
+```bash title="Start with Development settings"
+aspire start --environment Development
+```
+
+The lookups in `apphost.mts` now return the Development values:
+
+```typescript title="apphost.mts — Development values"
+const message = await configuration.getConfigValue('message');
+// message === 'From appsettings.Development.json';
+
+const region = await configuration.getConfigValue('deployment:region');
+// region === 'westus2';
+```
+
+#### Production
+
+Add the Production overrides:
+
+```json title="appsettings.Production.json"
+{
+  "message": "From appsettings.Production.json",
+  "deployment": {
+    "region": "eastus2"
+  }
+}
+```
+
+Start the AppHost with the `Production` environment:
+
+```bash title="Start with Production settings"
+aspire start --environment Production
+```
+
+The same lookups now return the Production values:
+
+```typescript title="apphost.mts — Production values"
+const message = await configuration.getConfigValue('message');
+// message === 'From appsettings.Production.json';
+
+const region = await configuration.getConfigValue('deployment:region');
+// region === 'eastus2';
+```
+
+<LearnMore>
+  For the full list of run options, see the [`aspire start` CLI reference](/reference/cli/commands/aspire-start/).
+</LearnMore>
+
+<Aside type="note">
+Aspire looks for `appsettings.json` and `appsettings.{Environment}.json` in the same directory as `apphost.mts`. If more than one mechanism sets the active environment, `--environment` takes precedence over `DOTNET_ENVIRONMENT` and `ASPIRE_ENVIRONMENT`. Environment variables and command-line arguments take precedence over both JSON files, so you can override settings at run time without editing JSON.
+</Aside>
+
 ## Package managers
 
 The Aspire CLI supports the following package managers at the **AppHost root** — the directory that contains your `apphost.mts` and `aspire.config.json`. The CLI selects between them by inspecting package manager signals, including the `packageManager` field in `package.json`, lock files, and package manager configuration in the AppHost root.
@@ -177,6 +292,7 @@ The Aspire CLI supports the following package managers at the **AppHost root** �
 | pnpm | `packageManager` or `pnpm-lock.yaml` | pnpm 10 or later |
 | Yarn | `packageManager`, `yarn.lock`, `.yarnrc.yml`, or `.yarn/` | Yarn 4 or later (Berry) |
 | Bun | `packageManager`, `bun.lock`, or `bun.lockb` | Bun 1.2 or later |
+| Deno | `packageManager`, `deno.lock`, `deno.json`, or `deno.jsonc` | Deno 2 or later |
 | Yarn Classic (v1) | `yarn.lock` with `# yarn lockfile v1` or `packageManager` with `yarn@1.x` | Not supported |
 
 This policy governs the **AppHost root only**. Apps the AppHost orchestrates — for example, a Node.js service added with `addNodeApp`, a Bun guest app, or a workspace package — can use any package manager their own tooling requires; they are independent of the AppHost-root toolchain.
@@ -184,7 +300,7 @@ This policy governs the **AppHost root only**. Apps the AppHost orchestrates —
 Aspire end-to-end tests cover TypeScript AppHosts with representative `packageManager` pins such as `npm@10.0.0`, `pnpm@10.0.0`, `yarn@4.14.1`, and `bun@1.2.0`. These tested versions are representative points within the supported ranges, not the only versions you can use.
 
 <Aside type="caution">
-**Yarn Classic (v1) is not supported.** If the Aspire CLI detects a Yarn Classic lock file (`# yarn lockfile v1`) or a `packageManager` field such as `"yarn@1.x"` in `package.json`, it throws an error and stops. Upgrade to Yarn 4 or later, or switch to npm, pnpm, or Bun.
+**Yarn Classic (v1) is not supported.** If the Aspire CLI detects a Yarn Classic lock file (`# yarn lockfile v1`) or a `packageManager` field such as `"yarn@1.x"` in `package.json`, it throws an error and stops. Upgrade to Yarn 4 or later, or switch to npm, pnpm, Bun, or Deno.
 
 To upgrade to Yarn 4, run:
 
@@ -223,7 +339,7 @@ The `dev` script means you can also start your AppHost with `npm run dev` (or th
 
 ### Supported Node.js engine
 
-TypeScript AppHosts target the Node.js engine range that `aspire init` writes into the scaffolded AppHost `package.json`:
+When using Node.js, TypeScript AppHosts target the engine range that `aspire init` writes into the scaffolded AppHost `package.json`. Deno and Bun run the AppHost with their own runtimes:
 
 ```json title="package.json — supported engines.node"
 {
@@ -247,7 +363,7 @@ If you widen `engines.node` beyond the scaffolded constraint, you take on respon
 
 ## Package manager toolchain
 
-The Aspire CLI automatically detects which Node-compatible package manager your project uses and adjusts install and run commands accordingly. The following toolchains are supported: **npm** (default), **Bun**, **Yarn**, and **pnpm**.
+The Aspire CLI automatically detects your TypeScript AppHost toolchain and adjusts install and run commands accordingly. The following toolchains are supported: **npm** (default), **Bun**, **Yarn**, **pnpm**, and **Deno**.
 
 ### Toolchain detection
 
@@ -256,7 +372,7 @@ Detection follows the [supported AppHost-root package managers](#package-manager
 <Steps>
 
 1. The `packageManager` field in `package.json` — for example, `"packageManager": "pnpm@10.0.0"`.
-2. Lockfiles: `bun.lock` or `bun.lockb` → Bun; `pnpm-lock.yaml` → pnpm; `yarn.lock`, `.yarnrc.yml`, or a `.yarn/` directory → Yarn.
+2. Toolchain markers: `bun.lock` or `bun.lockb` → Bun; `pnpm-lock.yaml` → pnpm; `yarn.lock`, `.yarnrc.yml`, or a `.yarn/` directory → Yarn; `deno.lock`, `deno.json`, or `deno.jsonc` → Deno.
 3. If nothing is found, npm is used as the default.
 
 </Steps>
@@ -332,14 +448,25 @@ When a non-npm toolchain is detected, the CLI substitutes the matching commands:
 | pnpm | `pnpm install` | `pnpm exec tsx ...` | `pnpm exec nodemon ...` |
 | Yarn | `yarn install` | `yarn exec tsx ...` | `yarn exec nodemon ...` |
 | Bun | `bun install` | `bun run {appHostFile}` | `bun --watch run {appHostFile}` |
+| Deno | `deno install` | `deno run -A --unstable-sloppy-imports {appHostFile}` | `deno run -A --unstable-sloppy-imports --check --watch {appHostFile}` |
 
 :::note
 Bun has built-in TypeScript support, so it runs `apphost.mts` directly without `tsx`.
 :::
 
+### Use Deno as the AppHost runtime
+
+Install Deno 2 or later and select it with a Deno configuration file, lockfile, or a `packageManager` entry such as `"deno@2.0.0"`. The generated AppHost module and resource APIs stay the same. This is distinct from [hosting a Deno application](/integrations/frameworks/deno/deno-host/): `addDenoApp` models a guest resource and doesn't choose the AppHost runtime.
+
+Aspire restores dependencies with `deno install` and validates the AppHost with `deno check`. Deno uses its own configuration rather than `tsconfig.apphost.json`. Watch mode uses Deno's native watcher and checks types on every restart, without `tsx` or `nodemon`. The CLI rejects Deno 1.x.
+
+:::caution[AppHost permissions]
+Aspire starts a Deno AppHost with `--allow-all` because the AppHost needs environment, filesystem, network, and process access to orchestrate resources. This isn't a Deno sandbox: run only AppHost code and integrations you trust.
+:::
+
 ### aspire doctor checks
 
-The `aspire doctor` command checks that the required JavaScript toolchain executable is available. If Bun, Yarn, or pnpm is detected but not installed, the command reports an error with install guidance.
+The `aspire doctor` command checks that the selected toolchain executable is available. If Bun, Yarn, pnpm, or Deno is detected but not installed, the command reports an error with install guidance. For Deno, it also checks the Deno 2 minimum version.
 
 ```bash title="Aspire CLI"
 aspire doctor
@@ -373,7 +500,7 @@ The thenable wrappers are generated automatically — you do not need to change 
 
 ## TypeScript validation before startup
 
-Before starting a TypeScript AppHost, the Aspire CLI runs `tsc --noEmit` to check for type errors to prevent the dashboard and resources from starting in a partially broken state. If your AppHost has TypeScript compile errors, `aspire run` and `aspire publish` stop before the AppHost launches and display the diagnostic output:
+Before starting a TypeScript AppHost, the Aspire CLI runs `tsc --noEmit`, or `deno check` for Deno, to check for type errors to prevent the dashboard and resources from starting in a partially broken state. If your AppHost has TypeScript compile errors, `aspire run` and `aspire publish` stop before the AppHost launches and display the diagnostic output:
 
 ```text
 apphost.mts(22,7): error TS2322: Type 'string' is not assignable to type 'number'.
@@ -381,7 +508,7 @@ apphost.mts(22,7): error TS2322: Type 'string' is not assignable to type 'number
 
 ### Watch mode behavior
 
-When you use `aspire run` in watch mode, the TypeScript validation is embedded in the nodemon restart command. The watcher **can still start** even if there are initial type errors — it will recover automatically as you edit and save files that fix the errors.
+When you use `aspire run` in watch mode with a nodemon-based toolchain, TypeScript validation is embedded in the restart command. The watcher **can still start** even if there are initial type errors — it will recover automatically as you edit and save files that fix the errors. Deno instead uses its native `--watch --check` flow.
 
 ## HTTPS development certificates
 
@@ -415,6 +542,14 @@ aspire certs trust
   aspire certs trust
   ```
 </Aside>
+
+### Trusting the certificate for outbound TLS connections
+
+When your AppHost code opens TLS connections to Aspire-managed resources at runtime (for example, connecting directly to the dashboard's OTLP endpoint from custom AppHost logic), the Aspire CLI ensures Node.js trusts the same development certificate that the Developer Control Plane (DCP) uses. The CLI exports the trusted development certificate into a content-addressed PEM cache under the Aspire home directory (`ASPIRE_HOME`), and Node.js is configured to trust that bundle through the `NODE_EXTRA_CA_CERTS` environment variable.
+
+If you've already set `NODE_EXTRA_CA_CERTS` for your own certificates, the CLI preserves your value by generating a combined bundle that includes both your certificates and the Aspire development certificate, rather than overwriting your setting.
+
+For a Deno AppHost, Aspire uses `DENO_CERT` for the trusted PEM bundle, preserving an existing bundle by combining it with Aspire's development certificate. This works across Deno 2 releases; `NODE_EXTRA_CA_CERTS` support in Deno starts only with Deno 2.8.
 
 <LearnMore>
   See [Certificate configuration](/app-host/certificate-configuration/) for details
