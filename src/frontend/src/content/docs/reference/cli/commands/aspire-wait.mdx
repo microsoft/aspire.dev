@@ -22,7 +22,7 @@ The `aspire wait` command blocks until a named resource within a running AppHost
 
 The `--timeout` option here controls how long to wait for a *resource* to reach its target status. It's separate from the `ASPIRE_CLI_START_TIMEOUT` environment variable, which controls how long `aspire run` and `aspire start` wait for the *AppHost itself* to finish starting up. See [aspire run](/reference/cli/commands/aspire-run/#configuring-the-startup-timeout) for details.
 
-The command connects to a running AppHost via the backchannel and streams resource state changes in real-time. It validates that the specified resource exists before entering the wait loop, so typos in resource names are caught immediately rather than causing a silent timeout.
+The command connects to a running AppHost via the backchannel and streams resource state changes in real-time. It validates that the specified resource exists before entering the wait loop, so typos in resource names are caught immediately rather than causing a silent timeout. If the resource enters the `FailedToStart` state, the wait fails immediately with exit code 18, even when the target status is `down` — a resource that failed to start is never treated as a successful "down" outcome.
 
 When executed without the `--apphost` option, the command:
 
@@ -80,7 +80,7 @@ The following options are available:
 | 0    | Resource reached the target status                                              |
 | 7    | No running AppHost found                                                        |
 | 17   | Timeout exceeded before the resource reached the target status                  |
-| 18   | Resource entered a failed or terminal state while waiting for `up` or `healthy` |
+| 18   | Resource entered the `FailedToStart` state, regardless of the target status    |
 
 ## Examples
 

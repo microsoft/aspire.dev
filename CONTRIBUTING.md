@@ -26,6 +26,38 @@ We welcome translation contributions! Please see our [Translation guide](https:/
    └───📂 public                  # Static assets served as-is
 ```
 
+## Environment badge
+
+Set `PUBLIC_ENVIRONMENT_BADGE` to display a small text badge beside the header logo
+and wordmark, for example `staging`, `test`, or `release/13.6`. The value is public
+and rendered as text when Astro builds the site.
+
+Local development (`pnpm dev`, including the frontend started by Aspire) defaults
+to `localhost` when the variable is unset. An explicitly empty or whitespace-only
+value hides the badge. Production builds have no badge by default; leave the
+variable unset or empty for live deployments.
+
+To override the badge locally, set the variable in your shell or in
+`src/frontend/.env.local` and restart the dev server:
+
+```dotenv
+PUBLIC_ENVIRONMENT_BADGE=release/13.6
+```
+
+For the Azure DevOps vnext build, set this environment variable on the **frontend
+build step**, not only on the deployed host. Use the full release branch name:
+
+```yaml
+env:
+  PUBLIC_ENVIRONMENT_BADGE: $[replace(variables['Build.SourceBranch'], 'refs/heads/', '')]
+```
+
+For `refs/heads/release/13.6`, this renders `release/13.6`. Do not use
+`Build.SourceBranchName`, which keeps only the final path segment. Apply this
+setting only to the vnext build, not the live build. If vnext builds a different
+source branch, set the intended label explicitly instead. Changing the badge on
+a deployed static site requires rebuilding its frontend assets.
+
 ## 🆘 Getting help
 
 - **Issues**: Report bugs or request features via [GitHub Issues](https://github.com/microsoft/aspire.dev/issues)

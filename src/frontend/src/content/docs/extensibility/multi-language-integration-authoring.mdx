@@ -119,7 +119,7 @@ XML doc comments are the primary source for generated SDK API documentation. The
 
 Use `ats-*` override tags when the standard C# XML documentation doesn't translate well to generated SDK docs — for example, when a `<summary>` references C#-specific types or language constructs that have no direct equivalent in TypeScript. The supported overrides are:
 
-- `<ats-summary>` — overrides `<summary>` in polyglot docs
+- `<ats-summary>` — overrides `<summary>` in [polyglot](/get-started/glossary/#polyglot) docs
 - `<ats-param name="...">` — overrides `<param>` for a specific parameter
 - `<ats-returns>` — overrides `<returns>`
 - `<ats-remarks>` — overrides `<remarks>`
@@ -743,6 +743,8 @@ await myResource.withMyCallback(async (context) => {
 :::note
 The `Action<T>` delegate type is ATS-compatible. The TypeScript side receives an async function. If your exported method invokes that synchronous delegate inline, use `RunSyncOnBackgroundThread = true` on `[AspireExport]` so the runtime can process nested async callback responses without blocking the RPC dispatcher.
 :::
+
+Callback parameters typed as `Action<IResourceBuilder<T>>` (a builder for a concrete exported resource type, rather than a plain callback context) are marshalled using that concrete resource type's identity, so generated guest-language wrappers resolve to the correct typed handle at runtime — for example, a Python callback that receives a `RedisCommanderResource` builder can call `with_host_port` on it directly.
 
 ## Services available from callback service providers
 

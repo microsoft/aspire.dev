@@ -290,16 +290,16 @@ When a page shows the **On this page** table of contents (the default behavior u
 
 If your opening section is truly introductory, keep it as body copy without an `Overview` heading. If that section has a more specific purpose, use a descriptive heading such as `Key concepts`, `Prerequisites`, or another topic-specific label.
 
-For Aspire AppHost code examples, use synced `Tabs` / `TabItem` blocks with `syncKey='aspire-lang'` at each code snippet. Do **not** add a page-level `PivotSelector` just to switch AppHost code samples between C# and TypeScript. Readers should be able to switch the language at the specific snippet they are reading.
+For Aspire AppHost code examples, use synced `Tabs` / `TabItem` blocks with `syncKey='aspire-lang'` at each code snippet. List TypeScript first so `apphost.mts` is the default experience for readers without a saved preference. Do **not** add a page-level `PivotSelector` just to switch AppHost code samples between TypeScript and C#. Readers should be able to switch the language at the specific snippet they are reading.
 
 ```mdx
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-C# example content here.
-</TabItem>
-
 <TabItem id='typescript' label='TypeScript'>
 TypeScript example content here.
+</TabItem>
+
+<TabItem id='csharp' label='C#'>
+C# example content here.
 </TabItem>
 </Tabs>
 ```
@@ -445,40 +445,26 @@ For client/library packages:
 <InstallDotNetPackage package="Aspire.StackExchange.Redis" />
 ```
 
-## AppHost Language Parity (C# and TypeScript)
+## AppHost Language Parity (TypeScript and C#)
 
-Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** (`apphost.mts`). Documentation must treat both languages as first-class citizens. **Always show both C# and TypeScript code samples for AppHost code unless the feature is genuinely language-specific or TypeScript support does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
+Aspire supports both **TypeScript AppHosts** (`apphost.mts`) and **C# AppHosts** (`AppHost.cs`). Documentation must treat both languages as first-class citizens. **Always show both TypeScript and C# code samples for AppHost code unless the feature is genuinely language-specific or TypeScript support does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
 
 ### Core Principles
 
-1. **Always show both languages**: Every AppHost-focused example, walkthrough, and AppHost code sample must include both C# and TypeScript variants unless the feature is genuinely language-specific.
+1. **Always show both languages**: Every AppHost-focused example, walkthrough, and AppHost code sample must include both TypeScript and C# variants unless the feature is genuinely language-specific.
 2. **Show implementations, not availability notes**: When a TypeScript AppHost API exists, demonstrate it in a complete TypeScript tab beside the C# example. A note or callout that only names the available TypeScript methods does not satisfy language parity.
 3. **Use neutral framing**: Write prose that applies to both languages. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
-4. **Neither language is the default**: Don't present C# first as the "real" example and TypeScript as an afterthought. Both tabs are equal peers.
+4. **Default to TypeScript**: Put the TypeScript tab first so `apphost.mts` is on the left and selected for readers without a saved preference. Keep C# as an equal peer and preserve the reader's explicit language selection.
 5. **Verify TypeScript APIs exist**: Before writing a TypeScript example, confirm the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples — if you are unsure whether an API is available, flag it for review.
 
 ### AppHost tabs pattern for AppHost content
 
-Use synced `Tabs` for AppHost-specific content that changes between C# and TypeScript. Each AppHost code snippet should provide its own language tabs and use `syncKey='aspire-lang'` so the user's language choice stays synchronized across snippets on the page.
+Use synced `Tabs` for AppHost-specific content that changes between TypeScript and C#. Each AppHost code snippet should provide its own language tabs, list TypeScript first, and use `syncKey='aspire-lang'` so the user's language choice stays synchronized across snippets on the page.
 
 ````mdx
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var cache = builder.AddRedis("cache");
-
-builder.AddProject<Projects.Api>("api")
-    .WithReference(cache);
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
@@ -495,6 +481,20 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+</TabItem>
 </Tabs>
 ````
 
@@ -506,15 +506,15 @@ If a section heading should appear in the **On this page** table of contents, ke
 
 ### Conventions
 
-| Aspect           | C#                                              | TypeScript                                                                                                          |
-| ---------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| File title       | `title="AppHost.cs"`                            | `title="apphost.mts"`                                                                                                |
-| Tab wrapper      | Shared `<Tabs syncKey='aspire-lang'>` container | Shared `<Tabs syncKey='aspire-lang'>` container                                                                     |
-| Tab item         | `<TabItem id='csharp' label='C#'>`              | `<TabItem id='typescript' label='TypeScript'>`                                                                      |
-| Builder creation | `DistributedApplication.CreateBuilder(args)`    | `import { createBuilder } from './.aspire/modules/aspire.mjs';` then newline for space followed by `await createBuilder();` |
-| Method casing    | PascalCase (`AddRedis`)                         | camelCase (`addRedis`)                                                                                              |
-| Async pattern    | Synchronous fluent calls                        | `await` each builder call                                                                                           |
-| Build & run      | `builder.Build().Run()`                         | `await builder.build().run()`                                                                                       |
+| Aspect           | TypeScript                                                                                                          | C#                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| File title       | `title="apphost.mts"`                                                                                                | `title="AppHost.cs"`                            |
+| Tab wrapper      | Shared `<Tabs syncKey='aspire-lang'>` container                                                                     | Shared `<Tabs syncKey='aspire-lang'>` container |
+| Tab item         | `<TabItem id='typescript' label='TypeScript'>`                                                                      | `<TabItem id='csharp' label='C#'>`              |
+| Builder creation | `import { createBuilder } from './.aspire/modules/aspire.mjs';` then newline for space followed by `await createBuilder();` | `DistributedApplication.CreateBuilder(args)`    |
+| Method casing    | camelCase (`addRedis`)                                                                                              | PascalCase (`AddRedis`)                         |
+| Async pattern    | `await` each builder call                                                                                           | Synchronous fluent calls                        |
+| Build & run      | `await builder.build().run()`                                                                                       | `builder.Build().Run()`                         |
 
 ### Prose Guidelines
 
@@ -595,18 +595,6 @@ Brief description of the technology and what the integration enables.
 ### Add [Technology] resource
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var tech = builder.AddTechnology("tech");
-
-// After adding all resources, run the app...
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
@@ -617,6 +605,18 @@ const builder = await createBuilder();
 const tech = await builder.addTechnology("tech");
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var tech = builder.AddTechnology("tech");
+
+// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
 </TabItem>
@@ -644,20 +644,6 @@ Include both hosting and client sections:
 ### Add [Technology] resource
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var tech = builder.AddTechnology("tech");
-
-builder.AddProject<Projects.Api>("api")
-    .WithReference(tech);
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
@@ -671,6 +657,20 @@ const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.withReference(tech);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var tech = builder.AddTechnology("tech");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(tech);
+
+builder.Build().Run();
 ```
 
 </TabItem>
@@ -1003,6 +1003,59 @@ Use standard Markdown links with absolute paths from the docs root:
 For more information, see [Service Defaults](/fundamentals/service-defaults/).
 ```
 
+### Inline API references
+
+Use `ApiReference` selectively to connect an explanation to API reference documentation, not to turn every API mention into a link.
+
+- In ordinary prose, use `<ApiReference />` only on the **first named mention of a given API in an article**, when naming that API helps explain the behavior or accompanying example. Do not introduce an API name just to add a reference link.
+- After that first mention, do **not** repeat the component or API reference link in ordinary prose, including prose in callouts and later sections. Prefer descriptive prose such as "this method" or "the dependency configuration." If repeating the name is necessary for clarity, use unlinked inline code appropriate to the AppHost language being discussed.
+- Apply the ordinary-prose limit **per API, per article**, not per section or language tab. A different API can have its own first reference.
+- In **bulleted or numbered lists**, including language-specific API explanation lists, repeated `<ApiReference />` components are allowed. Treat equivalent API entries consistently, regardless of earlier mentions, rather than mixing linked components and unlinked API names.
+- An optional API reference link in **See also** is also allowed.
+- Keep API names in code samples as code; do not add reference markup inside code fences.
+- Match the reference to the API actually used in the example. A PostgreSQL example calling `withPostgresMcp()` / `WithPostgresMcp()` must be introduced with `Aspire.Hosting.PostgresBuilderExtensions.WithPostgresMcp`, not the generic `WithMcpServer` API.
+
+For example, introduce an API once:
+
+```mdx
+import ApiReference from '@components/ApiReference.astro';
+
+For PostgreSQL, use <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithPostgresMcp" /> to expose MCP tools for a database.
+```
+
+Later in the same article's ordinary prose, refer to "the PostgreSQL MCP helper" rather than repeating the linked API name. In an API explanation list, repeat the component for consistent entries:
+
+```mdx
+- <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithPostgresMcp" /> exposes MCP tools for a database.
+- <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> connects resources.
+```
+
+#### Selecting an overload
+
+Author `name`, `package`, and `parameterTypes` as explicit static props. The authoring validator does not evaluate spread objects: it reports `unsupported-spread` when a spread could supply or override any of these props, including optional ones. Remove the spread, or explicitly set all three props after the last spread so their values are known.
+
+By default, `ApiReference` shows the method name **without `()`** and links to the method group. To discuss a specific overload, supply `parameterTypes` as a static array of its **complete declared C# parameter types**, in declaration order. Copy the types from the generated C# catalog, preserving namespaces, generic arguments, and nullability. Include the `this` receiver's type for an extension method, but not the `this` keyword. Use `[]` only for a declaration with no parameters.
+
+```mdx
+<ApiReference
+  name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment"
+  parameterTypes={[
+    'Aspire.Hosting.ApplicationModel.IResourceBuilder<T>',
+    'string',
+    'string?',
+  ]}
+/>
+```
+
+This links to the exact C# overload and displays `WithEnvironment(string name, string? value)`. The extension receiver is used for selection but omitted from the visible call signature. In TypeScript mode, the component uses the generated TypeScript export's own name and parameters; several C# overloads may share one TypeScript dispatcher. Do not copy C# parameter types into a TypeScript signature or select overloads by ordinal position. A missing or ambiguous match is an authoring error, not permission to link to the first overload. Use `package` when the same API is declared in multiple packages.
+
+Linked references reuse the code-block headers' C# and TypeScript icons from `material-icon-theme`, centered inside the code background. Do not add a separate icon or empty parentheses manually. `()` is shown only when an explicitly selected API genuinely has no call parameters.
+
+The component derives its top-positioned tooltip from the resolved API's generated summary or description, including the selected overload when specified. Do not duplicate that description in an authored `title` prop. When no description exists, the tooltip identifies the API and language instead. Tooltip titles are capped at 160 characters, including an ASCII `...` suffix when shortened, preferably at a word boundary. This presentation limit also applies to diagnostic titles; full source descriptions, diagnostics, and visible API labels remain unchanged.
+
+Title-based tooltips use the shared `src/frontend/src/scripts/tooltips.ts` lifecycle on initial load and after ClientRouter navigation. Keep API descriptions text-only with `data-tippy-allowhtml="false"`; do not add a competing per-component initializer.
+The lifecycle is installed once per document; HMR disposal removes its listeners, restores titles, and destroys tooltip instances before the replacement module initializes.
+
 ### Reference NuGet Packages
 
 Use the 📦 emoji with links:
@@ -1041,6 +1094,23 @@ The aspire.dev site supports multiple languages. When creating new content:
 ```
 
 ### Version-Specific Information
+
+Use the shared build-time placeholders whenever current guidance needs to show
+the active Aspire release:
+
+| Placeholder | Use for |
+| ----------- | ------- |
+| `%ASPIRE_VERSION%` | Full current stable version, including patch |
+| `%ASPIRE_VERSION_MAJOR_MINOR%` | Current major/minor display or installer version |
+
+Use these placeholders in package references, `Aspire.AppHost.Sdk`
+declarations, file-based app directives, CLI/AppHost output, and generic
+installation examples that should advance with the release branch. This
+applies to localized documentation as well as English documentation.
+
+Keep a literal version when the exact version is part of the information being
+documented, such as a what's-new page, upgrade comparison, minimum-version
+requirement, compatibility note, historical package pin, or issue reproduction.
 
 ```mdx
 <Aside type="caution">This feature requires Aspire version 9.0 or later.</Aside>

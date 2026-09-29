@@ -340,13 +340,14 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
 
   {/* Type-scoped search */}
   {hasSearchableMembers && (
-    <div class="type-search-section not-content">
+    <div class="type-search-section not-content" data-api-search-language="csharp" data-api-search-kind="type" data-member-count={typeMemberCount}>
+      <script is:inline type="application/json" data-api-search-index set:html={typeIndexJson.replace(/</g, '\\u003c')} />
       <InpageSearch
         id="type"
         placeholder={`Search members of ${type.name}...`}
         kinds={typeSearchKinds}
         defaultStatsText={`${typeMemberCount.toLocaleString()} member${typeMemberCount !== 1 ? 's' : ''}`}
-        size="sm"
+        size="lg"
       />
     </div>
   )}
@@ -529,18 +530,10 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
   </div>{/* /.type-page */}
 </StarlightPage>
 
-{/* Type search index + controller */}
-{hasSearchableMembers && (
-  <script is:inline define:vars={{ typeIndexJson, base, typeName: type.name, typeMemberCount }}>
-    window.__typeSearchIndex = JSON.parse(typeIndexJson);
-    window.__typeBase = base;
-    window.__typeName = typeName;
-    window.__typeMemberCount = typeMemberCount;
-  </script>
-)}
-
 <script>
-  import '@components/api-reference/inpage-search-sync';
+  import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
+  import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+  import { ApiSearchPresentation, withApiSearchFallback } from '../../../_search-presentation';
 
   interface TypeIndexEntry {
     n: string;
@@ -576,34 +569,40 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
     private memberCount: number;
     private activeKinds = new Set<string>();
     private debounceTimer: number | null = null;
+    private highlightTimers = new Set<number>();
     private lastScored: { entry: TypeIndexEntry; score: number }[] = [];
     private lastTokens: string[] = [];
     private visibleCount = 0;
-    private sync: any;
+    private sync: InpageSearchSync;
+    private presentation: ApiSearchPresentation;
 
-    constructor() {
-      this.input = document.getElementById('type-search-input') as HTMLInputElement;
-      this.resultsEl = document.getElementById('type-search-results') as HTMLElement;
-      this.status = document.getElementById('type-search-status') as HTMLElement;
-      this.countEl = document.getElementById('type-search-count') as HTMLElement;
-      this.filtersEl = document.getElementById('type-kind-filters') as HTMLElement;
-      this.clearFiltersBtn = document.getElementById('type-clear-filters') as HTMLElement;
-      this.index = (window as any).__typeSearchIndex ?? [];
-      this.memberCount = (window as any).__typeMemberCount ?? 0;
+    constructor(root: HTMLElement, private signal: AbortSignal) {
+      this.input = root.querySelector<HTMLInputElement>('#type-search-input')!;
+      this.resultsEl = root.querySelector<HTMLElement>('#type-search-results')!;
+      this.status = root.querySelector<HTMLElement>('#type-search-status')!;
+      this.countEl = root.querySelector<HTMLElement>('#type-search-count')!;
+      this.filtersEl = root.querySelector<HTMLElement>('#type-kind-filters')!;
+      this.clearFiltersBtn = root.querySelector<HTMLElement>('#type-clear-filters')!;
+      this.index = readApiSearchIndex<TypeIndexEntry>(root);
+      this.memberCount = Number(root.dataset.memberCount ?? 0);
 
-      if (!this.input || !this.resultsEl) return;
-
-      this.sync = new (window as any).InpageSearchSync('type', () => this.clear());
+      this.sync = new InpageSearchSync('type', () => this.clear(), root, signal);
+      this.presentation = new ApiSearchPresentation(root, this.input, () => this.clear(), signal);
+      signal.addEventListener('abort', () => {
+        if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+        this.highlightTimers.forEach(timer => clearTimeout(timer));
+        this.highlightTimers.clear();
+      }, { once: true });
 
       this.init();
       this.restoreFromUrl();
     }
 
     private init(): void {
-      this.input.addEventListener('input', () => this.handleInput());
+      this.input.addEventListener('input', () => this.handleInput(), { signal: this.signal });
       this.input.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') this.clear();
-      });
+      }, { signal: this.signal });
 
       this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(chip => {
         chip.addEventListener('click', () => {
@@ -620,7 +619,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
           this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
           this.syncUrl();
           this.applySearch();
-        });
+        }, { signal: this.signal });
       });
 
       this.clearFiltersBtn?.addEventListener('click', () => {
@@ -632,7 +631,8 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
         this.clearFiltersBtn.style.display = 'none';
         this.syncUrl();
         this.applySearch();
-      });
+        this.input.focus();
+      }, { signal: this.signal });
 
       // When clicking a search result, scroll to the anchor in the content below
       this.resultsEl.addEventListener('click', (e) => {
@@ -646,27 +646,33 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
           target.scrollIntoView({ behavior: 'smooth', block: 'start' });
           // Brief highlight flash on the target
           target.classList.add('search-highlight');
-          setTimeout(() => target.classList.remove('search-highlight'), 1500);
-          history.replaceState(null, '', href);
+          const timer = window.setTimeout(() => {
+            target.classList.remove('search-highlight');
+            this.highlightTimers.delete(timer);
+          }, 1500);
+          this.highlightTimers.add(timer);
+          history.replaceState(history.state, '', href);
         }
-      });
+      }, { signal: this.signal });
     }
 
     private clear(): void {
       this.input.value = '';
       this.sync.updateClearButton();
       this.syncUrl();
-      this.showContent();
+      this.applySearch();
+      this.input.focus();
     }
 
     private showContent(): void {
-      if (this.activeKinds.size > 0) {
+      if (this.activeKinds.size > 0 || this.index.length === 0) {
         this.search('');
         return;
       }
       this.resultsEl.style.display = 'none';
       this.resultsEl.innerHTML = '';
       this.countEl.textContent = `${fmtNum(this.memberCount)} member${this.memberCount !== 1 ? 's' : ''}`;
+      this.status.textContent = this.countEl.textContent;
     }
 
     private handleInput(): void {
@@ -706,12 +712,12 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
         this.clearFiltersBtn.style.display = '';
       }
 
-      if (q || kinds.size > 0) {
-        this.applySearch();
-      }
+      this.applySearch();
     }
 
     private applySearch(): void {
+      if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      this.presentation.update(this.activeKinds.size > 0);
       const q = this.input.value.trim();
       if (!q && this.activeKinds.size === 0) {
         this.showContent();
@@ -720,15 +726,15 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
       this.search(q);
     }
 
-    private search(query: string): void {
+    private findMatches(query: string, kinds = this.activeKinds) {
       const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-      const hasKindFilter = this.activeKinds.size > 0;
+      const hasKindFilter = kinds.size > 0;
 
       type Scored = { entry: TypeIndexEntry; score: number };
       const scored: Scored[] = [];
 
       for (const entry of this.index) {
-        if (hasKindFilter && !this.activeKinds.has(entry.k)) continue;
+        if (hasKindFilter && !kinds.has(entry.k)) continue;
 
         if (tokens.length === 0) {
           scored.push({ entry, score: 50 });
@@ -762,6 +768,13 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
         if (score > 0) scored.push({ entry, score });
       }
 
+      return scored;
+    }
+
+    private search(query: string): void {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = this.activeKinds.size > 0;
+      const scored = this.findMatches(query);
       scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
 
       this.lastScored = scored;
@@ -773,14 +786,10 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
       this.resultsEl.style.display = '';
 
       if (total === 0) {
-        const hint = query
-          ? `No results for "<strong>${this.esc(query)}</strong>"`
-          : 'No results match the selected filters';
-        this.resultsEl.innerHTML = `
-          <div class="api-search-empty">
-            <p>${hint}</p>
-            <p class="api-search-empty-hint">Try a different name or keyword.</p>
-          </div>`;
+        this.presentation.renderEmpty(this.resultsEl, hasKindFilter, this.index.length === 0, {
+          withoutQuery: this.findMatches('').length,
+          withoutFilters: this.findMatches(query, new Set()).length,
+        }, this.activeKinds);
         this.countEl.textContent = '0 results';
         this.status.textContent = 'No results';
         return;
@@ -818,7 +827,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
         btn.type = 'button';
         const nextCount = Math.min(remaining, PAGE_SIZE);
         btn.textContent = `Show ${fmtNum(nextCount)} more of ${fmtNum(remaining)} remaining`;
-        btn.addEventListener('click', () => this.loadMore());
+        btn.addEventListener('click', () => this.loadMore(), { signal: this.signal });
         this.resultsEl.appendChild(btn);
       }
     }
@@ -874,9 +883,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    new TypeSearchController();
-  });
+  registerApiSearch('csharp', 'type', withApiSearchFallback((root, signal) => new TypeSearchController(root, signal)));
 </script>
 
 <style>

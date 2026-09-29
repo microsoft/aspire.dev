@@ -10,7 +10,7 @@ lands *after* the `{validate}` gate and must not ship unchecked.
 - Tighten to **KISS**; smooth flow and voice per the `doc-writer` skill; dedupe.
 - Confirm the "This release introduces" bullets map **1:1** to sections (same order).
 - Right-size `<Aside>` usage (judicious — don't burn the reader's eyes).
-- C#/TypeScript **tab parity** (`syncKey='aspire-lang'`) complete and correct.
+- TypeScript/C# **tab parity** (`syncKey='aspire-lang'`, TypeScript first) complete and correct.
 - Reconcile **"✨ New integrations"**, **"📦 Integration updates"**, and **"🐳 Default
   container image updates"** against the freshly regenerated data (below).
 - Finalize **contributor thanks** (`@handle` + one-line note per merged community PR).
