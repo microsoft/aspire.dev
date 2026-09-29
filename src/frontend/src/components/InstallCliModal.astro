@@ -3,6 +3,7 @@ import { Code, Icon, Aside } from '@astrojs/starlight/components';
 import CustomSelect, { type CustomSelectOption } from '@components/CustomSelect.astro';
 import {
   currentAspireMajorMinorVersion,
+  currentAspireReleaseDate,
   currentAspireVersion,
 } from '../../config/aspire-versions.mjs';
 
@@ -15,6 +16,10 @@ const { id = 'install-cli-modal' } = Astro.props;
 // Major releases omit the minor suffix (for example, /whats-new/aspire-13/).
 const [major, minor] = currentAspireMajorMinorVersion.split('.');
 const releaseNotesHref = `/whats-new/aspire-${major}${minor === '0' ? '' : `-${minor}`}/`;
+const releaseDateLabel = new Date(`${currentAspireReleaseDate}T00:00:00Z`).toLocaleDateString(
+  'en-US',
+  { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }
+);
 const channelOptions: CustomSelectOption[] = [
   {
     value: 'release',
@@ -48,6 +53,9 @@ const channelOptions: CustomSelectOption[] = [
       <div class="release-info" data-quality="release">
         <span class="release-version">
           Installs Aspire <strong data-testid="install-cli-version">{currentAspireVersion}</strong>
+          <span class="release-date">
+            · Released <time datetime={currentAspireReleaseDate}>{releaseDateLabel}</time>
+          </span>
         </span>
         <a href={releaseNotesHref} class="release-notes-link">
           Release notes

@@ -76,6 +76,7 @@ import zhCnTranslations from '../../src/content/i18n/zh-CN.json';
 import { normalizeHtml, renderComponent, type StarlightRoute } from './astro-test-utils';
 import {
   currentAspireMajorMinorVersion,
+  currentAspireReleaseDate,
   currentAspireVersion,
 } from '../../config/aspire-versions.mjs';
 
@@ -636,6 +637,7 @@ const basicRenderCases: BasicRenderCase[] = [
       'More installation options',
       'data-quality="release"',
       `>${currentAspireVersion}</strong>`,
+      `datetime="${currentAspireReleaseDate}"`,
       `href="/whats-new/aspire-${currentAspireMajorMinorVersion.replace('.', '-').replace(/-0$/, '')}/"`,
     ],
   },
