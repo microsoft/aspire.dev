@@ -256,6 +256,50 @@ await pg.withKubernetesPersistentVolume(pgData);
   For the full configuration surface, binding overloads, access modes, and generated output, see [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/).
 </LearnMore>
 
+## Inline ephemeral CSI volumes
+
+Use `CsiVolumeSourceV1` and the `VolumeV1.Csi` property to model inline CSI volumes in C#. Unlike a persistent volume claim, an inline CSI volume is declared directly in a pod and has that pod's lifetime. Drivers can use it to project external secrets, certificates, or storage at mount time.
+
+Install the CSI driver in the cluster first and create any driver-specific configuration. For the Secrets Store CSI driver, the following example assumes a `SecretProviderClass` named `app-secrets` exists in the workload namespace:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddKubernetesEnvironment("k8s");
+
+builder.AddContainer("web", "nginx")
+    .PublishAsKubernetesService(resource =>
+    {
+        if (resource.Workload is Deployment deployment)
+        {
+            var pod = deployment.Spec.Template.Spec;
+            pod.Volumes.Add(new VolumeV1
+            {
+                Name = "secrets-store",
+                Csi = new CsiVolumeSourceV1
+                {
+                    Driver = "secrets-store.csi.k8s.io",
+                    ReadOnly = true,
+                    VolumeAttributes = { ["secretProviderClass"] = "app-secrets" }
+                }
+            });
+            pod.Containers.Single().VolumeMounts.Add(new VolumeMountV1
+            {
+                Name = "secrets-store",
+                MountPath = "/mnt/secrets",
+                ReadOnly = true
+            });
+        }
+    });
+
+builder.Build().Run();
+```
+
+`Driver` identifies the installed driver. `VolumeAttributes` carries driver-specific values, `FsType` selects a filesystem when the driver supports it, and `NodePublishSecretRef` can reference mount credentials in a Kubernetes Secret in the same namespace. `ReadOnly` defaults to Kubernetes' read/write behavior when omitted; set it explicitly for secret projections.
+
+This C# resource-model type isn't exported as a typed TypeScript AppHost API. For custom manifests from either language, see [Add custom Kubernetes manifests](#add-custom-kubernetes-manifests). Declaring the volume doesn't install a driver, create a `SecretProviderClass`, or grant the workload permission to read an external secret store.
+
 ## Customize individual resources
 
 Use `PublishAsKubernetesService` to modify the generated Kubernetes resources for individual services:

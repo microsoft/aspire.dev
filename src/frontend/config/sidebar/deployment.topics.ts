@@ -131,6 +131,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/docker-compose',
     },
     {
+      label: 'Radius',
+      slug: 'deployment/radius',
+    },
+    {
       label: 'Kubernetes',
       collapsed: false,
       items: [
@@ -205,6 +209,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Customize Azure resources',
               slug: 'integrations/cloud/azure/customize-resources',
+            },
+            {
+              label: 'Bicep helpers',
+              slug: 'integrations/cloud/azure/bicep-helpers',
             },
             {
               label: 'Azure security best practices',

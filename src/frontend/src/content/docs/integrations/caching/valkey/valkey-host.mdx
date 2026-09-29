@@ -365,6 +365,46 @@ await builder.build().run();
 
 With `AddConnectionString` and `addConnectionString`, Aspire resolves `cache` from `ConnectionStrings:cache` (or environment variable `ConnectionStrings__cache`) in the AppHost configuration. Consuming apps receive that value as a single connection string, not deconstructed Valkey resource-specific connection-property variables such as `CACHE_HOST`, `CACHE_PORT`, or `CACHE_URI`.
 
+<span id="add-valkey-resource-with-a-repl-command"></span>
+
+## Open an interactive REPL
+
+In Aspire 13.6 or later, add `WithRepl()` to the Valkey resource to enable a **REPL** command that opens `valkey-cli` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addValkey('cache').withRepl();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddValkey("cache").WithRepl();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The command is opt-in and available only in run mode while the container is running. It uses the container's bundled client through Docker or Podman, so no local Valkey client is needed. Credentials are passed through environment variables rather than command-line arguments.
+
+Use `quit` before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client uses the resource's configured credentials and can modify or delete data. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
+:::
+
 ## Connection properties
 
 For the full reference of Valkey resource connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Valkey](../valkey-connect/).

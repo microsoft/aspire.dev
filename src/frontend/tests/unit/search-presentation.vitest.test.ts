@@ -72,6 +72,19 @@ describe('neutral search presentation', () => {
     expect(selectAll('.api-filter-chip[aria-pressed="false"]', tree)).toHaveLength(2);
   });
 
+  it.each([
+    [undefined, []],
+    [{ method: '#3b82f6' }, ['method']],
+  ])('colors only chips with an explicit kind color (kindColors: %o)', async (kindColors, coloredKinds) => {
+    const tree = parse(await renderComponent(InpageSearch, {
+      props: { id: 'pkg', placeholder: 'Search', kinds: ['class', 'constructor', 'method'], kindColors, defaultStatsText: '3 entries' },
+    }));
+    expect(selectAll('.api-filter-chip[data-colored]', tree).map(chip => chip.properties.dataKind)).toEqual(coloredKinds);
+    // Inherited object keys (e.g. Object.prototype.constructor) must not be treated as colors.
+    expect(select('.api-filter-chip[data-kind="constructor"]', tree)?.properties.style).toBeUndefined();
+    expect(select('.api-filter-chip[data-kind="constructor"] .api-filter-dot.kind-constructor', tree)).toBeDefined();
+  });
+
   it('preserves contextual in-page layout hooks after extracting the search field', async () => {
     const tree = parse(await renderComponent(InpageSearch, {
       props: { id: 'glossary', label: 'Find a term', placeholder: 'Try AppHost', kinds: [], defaultStatsText: '32 terms' },
