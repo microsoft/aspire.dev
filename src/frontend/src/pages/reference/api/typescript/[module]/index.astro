@@ -14,7 +14,7 @@ import {
   getTsFunctionDisplayKind,
   getTsFunctionDisplayLabel,
 } from '@utils/ts-api-function-kind';
-import { getTsItemSlug, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import { getTsItemSlug, getTsMethods, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 
@@ -28,7 +28,6 @@ export async function getStaticPaths() {
 
 const { pkg } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const tsSidebar = await getTsApiReferenceSidebar({ packageName: pkg.package.name });
 const pkgSlug = tsModuleSlug(pkg.package.name);
 const isOfficial = pkg.package.name.startsWith('Aspire.');
 const topLevelItems = getTsTopLevelRouteItems(pkg);
@@ -42,7 +41,7 @@ const allTypes = [
 
 const allEnums = [...(pkg.enumTypes ?? [])].sort((a: any, b: any) => a.name.localeCompare(b.name));
 
-const standaloneFunctions = getTsStandaloneFunctions(pkg)
+const standaloneFunctions = [...getTsStandaloneFunctions(pkg)]
   .sort((a: any, b: any) => a.name.localeCompare(b.name));
 
 /* ── Stats ───────────────────────────────────────────────────── */
@@ -54,6 +53,7 @@ const headings: { depth: 2; slug: string; text: string }[] = [];
 if (allTypes.length > 0) headings.push({ depth: 2, slug: 'types', text: 'Types' });
 if (standaloneFunctions.length > 0) headings.push({ depth: 2, slug: 'functions', text: 'Functions' });
 if (allEnums.length > 0) headings.push({ depth: 2, slug: 'enums', text: 'Enums' });
+const tsSidebar = await getTsApiReferenceSidebar({ packageName: pkg.package.name, headings });
 
 /* ── Build package-scoped search index ───────────────────────── */
 
@@ -107,9 +107,7 @@ function capabilityKindToSearchKind(capKind: string): string {
 for (const h of ((pkg.handleTypes ?? []) as any[])) {
   const kind = h.isInterface ? 'interface' : 'handle';
   const typeHref = `${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(h, topLevelItems)}/`;
-  const methods = (h.capabilities ?? []).filter(
-    (cap: any) => cap.kind === 'Method' || cap.kind === 'InstanceMethod'
-  );
+  const methods = getTsMethods(h);
 
   pkgIndex.push({
     n: h.name,

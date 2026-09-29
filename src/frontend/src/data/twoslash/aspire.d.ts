@@ -191669,6 +191669,11 @@ export interface MongoDBServerResource extends ContainerResource, IComputeResour
 
   withMongoExpress(configureContainer?: (obj: MongoExpressContainerResource) => Promise<void>, containerName?: string): this;
   /**
+   * Adds a REPL command that opens an authenticated MongoDB shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
+  /**
    * Configures and initializes the MongoDB server as a single-member replica set for local development.
    */
 
@@ -191844,6 +191849,11 @@ export interface MySqlServerResource extends ContainerResource, IComputeResource
    */
 
   withPhpMyAdmin(configureContainer?: (obj: PhpMyAdminContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds a REPL command that opens an authenticated MySQL shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
 }
 
 /**
@@ -192350,6 +192360,11 @@ export interface PostgresServerResource extends ContainerResource, IComputeResou
 
   withPgWeb(configureContainer?: (obj: PgWebContainerResource) => Promise<void>, containerName?: string): this;
   /**
+   * Adds a REPL command that opens an authenticated PostgreSQL shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
+  /**
    * Configures the user name that the PostgreSQL resource is used.
    */
 
@@ -192737,6 +192752,11 @@ export interface RedisResource extends ContainerResource, IComputeResource, IExp
    */
 
   withRedisInsight(configureContainer?: (obj: RedisInsightResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds a REPL command that opens an authenticated Redis shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
 }
 
 /**
@@ -193029,6 +193049,11 @@ export interface SqlServerServerResource extends ContainerResource, IComputeReso
    */
 
   withPassword(password: string | ParameterResource): this;
+  /**
+   * Adds a REPL command that opens an authenticated SQL Server shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
 }
 
 /**
@@ -193096,6 +193121,11 @@ export interface ValkeyResource extends ContainerResource, IComputeResource, IEx
    */
 
   withPersistence(interval?: timespan, keysChangedThreshold?: number): this;
+  /**
+   * Adds a REPL command that opens an authenticated Valkey shell in the dashboard terminal dock.
+   */
+
+  withRepl(): this;
 }
 
 /**

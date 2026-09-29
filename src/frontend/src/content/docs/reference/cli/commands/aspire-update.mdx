@@ -20,7 +20,7 @@ aspire update [options]
 
 ## Description
 
-The `aspire update` command helps you keep your Aspire projects current by automatically detecting and updating outdated packages and templates. It finds outdated Aspire NuGet packages while respecting channel configurations and intelligently handles complex dependency graphs.
+The `aspire update` command helps you keep your Aspire projects current by automatically detecting and updating outdated packages, templates, and repository CLI references. It finds outdated Aspire NuGet packages while respecting channel configurations and intelligently handles complex dependency graphs.
 
 <Include relativePath="reference/cli/includes/project-search-logic-description.md" />
 
@@ -46,24 +46,29 @@ If you specify `--non-interactive` without `--yes`, the command exits with an er
 The update command requires --yes when the --non-interactive option is specified.
 ```
 
+### Updating repository Aspire CLI references
+
+A repository can pin the Aspire CLI independently of the executable you're currently running, using an `Aspire.Cli` entry in `.config/dotnet-tools.json` or `dotnet-tools.json`, or an `@microsoft/aspire-cli` entry in `package.json` (`dependencies`, `devDependencies`, or `optionalDependencies`). `aspire update` updates these existing pins alongside AppHost integrations, or without an AppHost.
+
+Discovery starts in the selected AppHost's directory, or the current directory without an AppHost, and searches ancestor directories for the nearest CLI references. At each level, it checks `.config/dotnet-tools.json` before `dotnet-tools.json`. The .NET search stops after finding an Aspire entry or checking a manifest marked `isRoot: true`; npm independently searches for the nearest `package.json` with a CLI reference.
+
+Updates preserve unrelated manifest entries and npm version-specifier forms: exact versions or full-version `^`/`~` ranges. Unsupported specifiers, such as file, workspace, or alias references and compound ranges, are skipped with a warning.
+
+.NET pins resolve through the selected package channel, the same as project package updates. npm uses the `latest` dist-tag for the stable/default channel; requesting an explicit non-stable channel (for example, `daily`) requires that exact CLI version to already be published on npm.
+
+Updating repository CLI references changes only the manifests; this step does not install the updated CLI, replace the running executable, or refresh lockfiles. Guest AppHost dependency installation can still change lockfiles during a project update. Follow the printed restore or install instructions afterward: run `dotnet tool restore` with the selected channel's NuGet feed available, or your package manager's install command, such as `npm install`.
+
 ### Updating guest AppHost projects
 
-When updating a guest AppHost project, such as a TypeScript AppHost, `aspire update` checks the selected Aspire SDK version before modifying files. If the selected SDK is newer than the running Aspire CLI, the command prompts you to update the CLI first:
+When updating a guest AppHost project, such as a TypeScript AppHost, `aspire update` checks the selected Aspire SDK version before modifying files. If the selected SDK is newer than the running Aspire CLI:
 
-```text title="Output"
-The selected Aspire SDK is newer than this Aspire CLI. Update the Aspire CLI now and re-run `aspire update` to update this project?
-```
-
-If you confirm, the CLI updates itself and skips the project update. When the CLI is installed from npm or as a .NET tool, the command prints the matching package-manager update command to run manually instead:
-
-```text title="Output"
-Project update skipped. Update the Aspire CLI, then re-run `aspire update`.
-```
+- **With repository CLI references**: The command offers to update the pins instead of replacing the running executable. After updating the pins, or if they're already current, it skips the project update and asks you to restore or install the CLI, then re-run `aspire update`.
+- **Without repository CLI references**: The command offers to update the CLI itself. If you confirm, it skips the project update and follows the [installation-specific update behavior](#updating-the-cli-based-on-how-it-was-installed), either downloading the binary or printing package-manager commands to run manually.
 
 After updating the CLI, re-run `aspire update` to complete the project update. This check helps prevent a guest AppHost project from being left in a broken state when the CLI's bundled code generator doesn't support the selected SDK version.
 
 :::tip
-To update the CLI without being prompted, run `aspire update --self` before running `aspire update` on a guest AppHost project.
+If your repository doesn't pin the CLI, you can run `aspire update --self` before updating a guest AppHost project. Follow any package-manager instructions it prints to complete the CLI update. For repositories with CLI pins, use plain `aspire update` and follow the restore or install guidance instead; `--self` doesn't update those pins.
 :::
 
 ### Updating the CLI based on how it was installed

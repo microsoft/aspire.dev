@@ -27,7 +27,7 @@ export function createFilterHistory(
   signal: AbortSignal,
 ) {
   const path = root.dataset.filterPath!;
-  let localSwap: { traverse: boolean; x: number; y: number } | undefined;
+  let localSwap: { traverse: boolean; x: number; y: number; focused: HTMLElement | null } | undefined;
   let restoredAfterSwap = false;
   let pending = false;
   let revision = 0;
@@ -46,7 +46,10 @@ export function createFilterHistory(
     const owned = event.info === root
       || (event.navigationType === 'traverse' && isOwnedEntry(path));
     if (!owned || event.to.pathname !== path || !isFilterNavigation(event.from, event.to, parameters)) return;
-    localSwap = { traverse: event.navigationType === 'traverse', x: scrollX, y: scrollY };
+    localSwap = {
+      traverse: event.navigationType === 'traverse', x: scrollX, y: scrollY,
+      focused: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+    };
     event.viewTransition.skipTransition();
     // The loader (including deployment checks) still runs; only these local results stay mounted.
     event.swap = () => {};
@@ -56,6 +59,10 @@ export function createFilterHistory(
     if (localSwap && !localSwap.traverse) {
       markEntry();
       window.scrollTo({ left: localSwap.x, top: localSwap.y, behavior: 'instant' });
+      // Astro's fragment navigation can blur a control even when its DOM was kept.
+      if (document.activeElement === document.body && localSwap.focused?.isConnected) {
+        localSwap.focused.focus({ preventScroll: true });
+      }
     } else {
       restoreCurrent();
     }

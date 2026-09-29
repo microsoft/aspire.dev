@@ -167,11 +167,11 @@ describe('resource browser rendering', () => {
     expect(cardContent).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
   });
 
-  it('renders custom menus without option search for provider and sorting too', async () => {
+  it('renders sort menus without a provider dropdown even when provider metadata is available', async () => {
     const html = await renderComponent(ResourceBrowser, { props: { resources: [{ ...base, providers: ['azure', 'aws'] }] } });
     expect(html).not.toContain('<select');
-    expect(html).toContain('type="radio" name="provider" value="azure"');
-    expect(html).toMatch(/type="radio" name="provider" value(?:=""|\s)/);
+    expect(html).not.toContain('name="provider"');
+    expect(html).not.toContain('data-filter-group="provider"');
     expect(html).toContain('type="radio" name="sort-date" value="newest"');
     expect(html).not.toContain('data-sort-direction');
     expect(html).toContain('type="radio" name="sort-date" value="oldest"');
@@ -197,7 +197,7 @@ describe('resource browser rendering', () => {
     expect(html).not.toContain('Best match');
     expect(html).not.toContain('browse-option-search');
     expect(html).not.toContain('Filter options...');
-    expect(html).toContain('data-option-label="AWS"');
+    expect(html).not.toContain('data-option-label="AWS"');
     expect(html).not.toContain('No matching options');
   });
 
