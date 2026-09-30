@@ -1,0 +1,386 @@
+---
+title: Connect to Rust apps
+seoTitle: 'Connect to Rust apps in Aspire: URLs and configuration'
+description: Learn how other apps call your Rust apps through Aspire, and how Rust apps read the URLs and connection details that Aspire injects and send telemetry to the dashboard.
+next: false
+---
+
+import { Image } from 'astro:assets';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
+import rustIcon from '@assets/icons/rust-icon.png';
+
+<Image
+  src={rustIcon}
+  alt="Rust logo"
+  width={100}
+  height={100}
+  fit="contain"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article describes how the Rust apps in your Aspire solution connect to other resources, in both directions. When another resource references a Rust app, Aspire injects the Rust app's URL into that resource, so apps written in C#, Go, Python, TypeScript, or Rust can call it without hard-coded addresses. When a Rust app references other resources — such as a database, a cache, or another service — Aspire injects their URLs and connection details into the app's environment, where your code reads them with `std::env::var`. It also describes how Rust apps send telemetry to the Aspire dashboard and trust the development certificate.
+
+For the AppHost APIs that add and configure Rust apps, see [Set up Rust apps in the AppHost](/integrations/frameworks/rust/rust-host/). If you're new to the Rust integration, start with [Get started with the Rust integration](/integrations/frameworks/rust/rust-get-started/).
+
+## Connect from your AppHost
+
+The examples in this article use the following AppHost. The `orders` Rust app references a PostgreSQL database and the `catalog` Rust app, and a Node.js `storefront` app references `orders`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const ordersDb = await postgres.addDatabase('ordersdb');
+
+const catalog = await builder.addRustApp('catalog', '../catalog');
+await catalog.withHttpEndpoint({ env: 'PORT' });
+await catalog.withHttpHealthCheck({ path: '/health' });
+
+const orders = await builder.addRustApp('orders', '../orders');
+await orders.withHttpEndpoint({ env: 'PORT' });
+await orders.withHttpHealthCheck({ path: '/health' });
+await orders.withReference(ordersDb);
+await orders.withReference(catalog);
+await orders.waitFor(ordersDb);
+await orders.waitFor(catalog);
+
+const storefront = await builder.addNodeApp('storefront', '../storefront', 'server.js');
+await storefront.withReference(orders);
+await storefront.waitFor(orders);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var ordersDb = postgres.AddDatabase("ordersdb");
+
+var catalog = builder.AddRustApp("catalog", "../catalog")
+    .WithHttpEndpoint(env: "PORT")
+    .WithHttpHealthCheck("/health");
+
+var orders = builder.AddRustApp("orders", "../orders")
+    .WithHttpEndpoint(env: "PORT")
+    .WithHttpHealthCheck("/health")
+    .WithReference(ordersDb)
+    .WithReference(catalog)
+    .WaitFor(ordersDb)
+    .WaitFor(catalog);
+
+builder.AddNodeApp("storefront", "../storefront", "server.js")
+    .WithReference(orders)
+    .WaitFor(orders);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> injects the referenced resource's connection information into the referencing resource, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> delays the referencing resource until the referenced one is running — or healthy, when it has a health check. A Rust app can be on either side of a reference, and the environment variables are the same whatever language the other app uses.
+
+<ApiReference name="Aspire.Hosting.RustHostingExtensions.AddRustApp" /> doesn't add an endpoint, so each Rust app in the preceding AppHost gets one from <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpEndpoint" />, which passes the app its port in the `PORT` environment variable. Each app also gets a health check from <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" />. Without it, `orders` would start as soon as Cargo starts building `catalog`, rather than when `catalog` is ready for requests.
+
+## Connection properties
+
+Aspire passes connection information to apps as environment variables. A Rust app is on both sides of that exchange: it exposes endpoints that other apps call, and it receives variables of its own.
+
+### Variables for apps that reference a Rust app
+
+When a resource references a Rust app, Aspire injects the URL of each of the Rust app's endpoints. In the preceding AppHost, `storefront` receives the following variables for the `orders` app:
+
+| Environment variable        | Description                                                                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ORDERS_HTTP`               | The URL of the `orders` app's `http` endpoint, named `{RESOURCE}_{ENDPOINT}`. Read this variable from apps that don't use .NET service discovery. |
+| `services__orders__http__0` | The same URL, in the format that [.NET service discovery](/fundamentals/service-discovery/) reads.                                                |
+
+`WithHttpEndpoint` names its endpoint `http` unless you pass a name. When you add an endpoint with a different name to a Rust app, the variables use that name instead — for example, an endpoint named `admin` produces `ORDERS_ADMIN`. For the naming rules, see [Endpoint URLs](/fundamentals/environment-variables/#endpoint-urls) and [Service discovery variables](/fundamentals/environment-variables/#service-discovery-variables).
+
+### Variables that a Rust app receives
+
+A Rust app receives the variables of every resource that it references. In the preceding AppHost, `orders` receives `CATALOG_HTTP` and `services__catalog__http__0` for the `catalog` app, and the connection properties of the `ordersdb` database, which include:
+
+| Environment variable    | Description                                                                                                                                               |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ORDERSDB_URI`          | The connection URI, in the format `postgresql://{Username}:{Password}@{Host}:{Port}/{DatabaseName}`. Rust database crates such as `sqlx` accept it as-is. |
+| `ORDERSDB_USERNAME`     | The user name for authentication.                                                                                                                         |
+| `ORDERSDB_PASSWORD`     | The password for authentication.                                                                                                                          |
+| `ORDERSDB_HOST`         | The host name of the PostgreSQL server.                                                                                                                   |
+| `ORDERSDB_PORT`         | The port of the PostgreSQL server.                                                                                                                        |
+| `ORDERSDB_DATABASENAME` | The name of the database.                                                                                                                                 |
+
+Each resource type documents its own connection properties, such as those in [Connect to PostgreSQL](/integrations/databases/postgres/postgres-connect/#connection-properties). For the naming rules, see [Resource properties](/fundamentals/environment-variables/#resource-properties).
+
+Aspire also sets the following variables on the Rust app itself:
+
+| Environment variable                                                                                                | Set on                                     | Description                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`, or the variable that you name with the `env` parameter of `WithHttpEndpoint`                                | Rust apps with an endpoint that sets `env` | The port that the app must listen on.                                                                                                                                                   |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_SERVICE_NAME`, and the other `OTEL_*` variables | All Rust resources                         | Where and how to export telemetry. For details, see [OpenTelemetry environment variables](/fundamentals/telemetry/#opentelemetry-environment-variables).                                |
+| `SSL_CERT_DIR`, and `SSL_CERT_FILE` with the System trust scope                                                     | Rust apps, when you run the AppHost        | The locations of the certificates that the app trusts, including the development certificate. For details, see [Trust the development certificate](#trust-the-development-certificate). |
+
+## Call a Rust app from other apps
+
+Apps call a Rust app at the URL that Aspire injects. Each example calls the `orders` app from the `storefront` app in the preceding AppHost. Only the language differs.
+
+<Tabs syncKey="rust-consuming-lang">
+<TabItem label="C#">
+
+In a project that uses the Aspire service defaults, .NET service discovery resolves the `orders` name from the `services__orders__http__0` variable:
+
+```csharp title="Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
+
+builder.Services.AddHttpClient("orders", client =>
+{
+    client.BaseAddress = new Uri("https+http://orders");
+});
+
+var app = builder.Build();
+
+app.MapGet("/orders", async (IHttpClientFactory factory) =>
+{
+    var client = factory.CreateClient("orders");
+
+    return await client.GetStringAsync("/orders");
+});
+
+app.Run();
+```
+
+The `https+http` scheme prefers an HTTPS endpoint and falls back to HTTP. Without service discovery, read the URL from the `ORDERS_HTTP` configuration value instead.
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="main.go"
+package main
+
+import (
+    "fmt"
+    "io"
+    "net/http"
+    "os"
+)
+
+func main() {
+    ordersURL := os.Getenv("ORDERS_HTTP")
+
+    response, err := http.Get(ordersURL + "/orders")
+    if err != nil {
+        panic(err)
+    }
+    defer response.Body.Close()
+
+    body, err := io.ReadAll(response.Body)
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(string(body))
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="app.py"
+import os
+from urllib.request import urlopen
+
+orders_url = os.environ["ORDERS_HTTP"]
+
+with urlopen(f"{orders_url}/orders") as response:
+    print(response.read().decode())
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="server.ts"
+const ordersUrl = process.env.ORDERS_HTTP;
+
+const response = await fetch(`${ordersUrl}/orders`);
+
+console.log(await response.text());
+```
+
+</TabItem>
+</Tabs>
+
+## Read Aspire configuration in your Rust app
+
+There's no Aspire client crate for Rust. A Rust app reads the variables that Aspire injects with [`std::env::var`](https://doc.rust-lang.org/std/env/fn.var.html), and passes them to the crates that it already uses. The following example configures the `orders` app from the preceding AppHost to listen on its port, call the `catalog` app, and use the `ordersdb` database. It uses [axum](https://docs.rs/axum) for the web server, [reqwest](https://docs.rs/reqwest) for the HTTP client, and [sqlx](https://docs.rs/sqlx) for the database. Add them to the app:
+
+```bash title="Terminal"
+cargo add axum reqwest
+cargo add tokio --features macros,rt-multi-thread
+cargo add sqlx --features postgres,runtime-tokio
+```
+
+Then read the variables when the app starts:
+
+```rust title="src/main.rs"
+use std::{env, net::SocketAddr};
+
+use axum::{extract::State, http::StatusCode, routing::get, Router};
+use sqlx::PgPool;
+
+#[derive(Clone)]
+struct AppState {
+    catalog_url: String,
+    http: reqwest::Client,
+    db: PgPool,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let catalog_url =
+        env::var("CATALOG_HTTP").unwrap_or_else(|_| "http://localhost:8080".to_string());
+    let database_url = env::var("ORDERSDB_URI")?;
+
+    let state = AppState {
+        catalog_url,
+        http: reqwest::Client::new(),
+        db: PgPool::connect(&database_url).await?,
+    };
+
+    let app = Router::new()
+        .route("/health", get(|| async { "healthy" }))
+        .route("/orders", get(order_count))
+        .route("/products", get(products))
+        .with_state(state);
+
+    let port = env::var("PORT")
+        .ok()
+        .and_then(|value| value.parse::<u16>().ok())
+        .unwrap_or(8081);
+
+    let listener = tokio::net::TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], port))).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
+}
+
+async fn order_count(State(state): State<AppState>) -> Result<String, StatusCode> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM orders")
+        .fetch_one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(format!("{count} orders"))
+}
+
+async fn products(State(state): State<AppState>) -> Result<String, StatusCode> {
+    let response = state
+        .http
+        .get(format!("{}/products", state.catalog_url))
+        .send()
+        .await
+        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+
+    response.text().await.map_err(|_| StatusCode::BAD_GATEWAY)
+}
+```
+
+The defaults for `CATALOG_HTTP` and `PORT` keep the app runnable outside Aspire, alongside a `catalog` app that listens on port 8080. Reading `ORDERSDB_URI` with the `?` operator makes the app exit with an error when the variable isn't set.
+
+## Send telemetry to the dashboard
+
+Every Rust resource receives the standard OpenTelemetry environment variables, but a Rust app doesn't export telemetry by itself, and Rust has no automatic instrumentation agent. To send telemetry to the dashboard, configure the [OpenTelemetry SDK for Rust](https://opentelemetry.io/docs/languages/rust/) with the OTLP exporter from the [opentelemetry-otlp](https://docs.rs/opentelemetry-otlp) crate. The exporter reads the dashboard's endpoint and the headers that authenticate with it from the `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` variables, and the SDK reads the app's name from `OTEL_SERVICE_NAME`. Configure the exporter as follows:
+
+- **Use the gRPC transport.** Aspire points `OTEL_EXPORTER_OTLP_ENDPOINT` at the dashboard's gRPC endpoint whenever the dashboard has one, and sets `OTEL_EXPORTER_OTLP_PROTOCOL` to `grpc`. Select the gRPC transport explicitly with `with_tonic()`, because only the gRPC exporter builder accepts the TLS configuration that the next item describes. If the dashboard has only an OTLP/HTTP endpoint, Aspire sets `OTEL_EXPORTER_OTLP_PROTOCOL` to `http/protobuf` instead. In that case, build the exporter with `with_http()`, and configure certificate trust on the HTTP client that it uses. For the dashboard's endpoint settings, see [Dashboard configuration](/app-host/configuration/#dashboard).
+- **Trust the native certificate roots.** When you run the AppHost, the dashboard's endpoint typically uses HTTPS with the development certificate. Configure the exporter's TLS with `ClientTlsConfig::new().with_native_roots()`, which loads certificates from the `SSL_CERT_DIR` directory that Aspire sets.
+- **Select one TLS provider for both crates.** Enable the same rustls crypto provider — `tls-aws-lc` or `tls-ring` — on `opentelemetry-otlp` and on `tonic`. Cargo features are additive, so selecting different providers compiles both of them, rather than replacing one with the other.
+
+The following dependencies export traces over gRPC with AWS-LC as the TLS provider, as the [Aspire Rust playground](https://github.com/microsoft/aspire/tree/main/playground/rust) does. Building AWS-LC requires native build tools, such as a C compiler. To use ring instead, replace `tls-aws-lc` with `tls-ring` for both crates. Keep the `tonic` version in step with the one that `opentelemetry-otlp` uses, because the exporter's `with_tls_config` method takes tonic's `ClientTlsConfig` type.
+
+```toml title="Cargo.toml"
+[dependencies]
+opentelemetry = "0.33"
+opentelemetry_sdk = { version = "0.33", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.33", features = ["grpc-tonic", "tls-roots", "tls-aws-lc"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tonic = { version = "0.14", default-features = false, features = ["transport", "tls-native-roots", "tls-aws-lc"] }
+```
+
+Create the exporter and a tracer provider when the app starts:
+
+```rust title="src/telemetry.rs"
+use opentelemetry::global;
+use opentelemetry_otlp::{SpanExporter, WithTonicConfig};
+use opentelemetry_sdk::trace::SdkTracerProvider;
+use tonic::transport::ClientTlsConfig;
+
+pub fn init_tracing() -> Result<SdkTracerProvider, Box<dyn std::error::Error>> {
+    let exporter = SpanExporter::builder()
+        .with_tonic()
+        .with_tls_config(ClientTlsConfig::new().with_native_roots())
+        .build()?;
+
+    let provider = SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .build();
+    global::set_tracer_provider(provider.clone());
+
+    Ok(provider)
+}
+```
+
+Call it from inside the Tokio runtime, and shut down the provider before the app exits, so that the exporter sends the spans that it has buffered:
+
+```rust title="src/main.rs"
+mod telemetry;
+
+use opentelemetry::{global, trace::Tracer};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let tracer_provider = telemetry::init_tracing()?;
+
+    let result = run().await;
+
+    if let Err(error) = tracer_provider.shutdown() {
+        eprintln!("failed to shut down the tracer provider: {error}");
+    }
+
+    result
+}
+
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    global::tracer("orders").in_span("load-orders", |_cx| {
+        // Work that the span measures.
+    });
+
+    Ok(())
+}
+```
+
+The dashboard shows the spans under the app's resource name, which Aspire passes to the SDK in `OTEL_SERVICE_NAME`. To export metrics and logs as well, and to connect the spans and events of the `tracing` crate to OpenTelemetry, see the `telemetry.rs` file of the [Aspire Rust playground](https://github.com/microsoft/aspire/tree/main/playground/rust). An app that doesn't configure the SDK doesn't send telemetry to the dashboard, but its console output still appears in the dashboard's console logs.
+
+## Trust the development certificate
+
+When you run the AppHost, Aspire sets `SSL_CERT_DIR` on each Rust app to a directory that contains the development certificate. OpenSSL, and clients that load their trusted certificates with the `rustls-native-certs` crate — such as tonic with `with_native_roots()` — read that variable, so they trust HTTPS endpoints that use the development certificate without any code changes. On Windows and macOS, those clients then typically trust only the development certificate, rather than public certificate authorities, unless you set the app's trust scope to System. Clients that use the operating system's certificate store, and clients that use the built-in certificates of the `webpki-roots` crate, behave differently. For details, see [Configure certificate trust](/integrations/frameworks/rust/rust-host/#configure-certificate-trust).
+
+## See also
+
+- [Set up Rust apps in the AppHost](/integrations/frameworks/rust/rust-host/)
+- [Get started with the Rust integration](/integrations/frameworks/rust/rust-get-started/)
+- [Environment variables in Aspire](/fundamentals/environment-variables/)
+- [Service discovery](/fundamentals/service-discovery/)
+- [OpenTelemetry Rust](https://opentelemetry.io/docs/languages/rust/)
+- [Aspire Rust playground](https://github.com/microsoft/aspire/tree/main/playground/rust)

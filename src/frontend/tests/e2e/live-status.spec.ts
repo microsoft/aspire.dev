@@ -58,6 +58,50 @@ test.describe('live status', () => {
     });
   }
 
+  test('a missing live API stays disabled across navigation and visibility changes until reload', async ({ page }) => {
+    let snapshotRequests = 0;
+    let streamRequests = 0;
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.clock.install();
+    await page.route(snapshotEndpoint, (route) => {
+      snapshotRequests++;
+      return route.fulfill({ status: 404 });
+    });
+    await page.route(streamEndpoint, (route) => {
+      streamRequests++;
+      return route.fulfill({ status: 404 });
+    });
+    const disabled = page.waitForEvent('console', {
+      predicate: (message) => message.text().includes('live updates disabled until reload'),
+    });
+    await page.goto('/reference/samples/?q=asdf');
+    await disabled;
+    await dismissCookieConsentIfVisible(page);
+    await page.clock.fastForward(120_000);
+    expect(snapshotRequests).toBe(1);
+    expect(streamRequests).toBeLessThanOrEqual(1);
+    const initialStreamRequests = streamRequests;
+
+    const videos = visibleLiveButton(page);
+    await expect(videos).toHaveAttribute('href', '/community/videos/');
+    await videos.click();
+    await expect(page).toHaveURL(/\/community\/videos\/$/);
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await page.clock.fastForward(120_000);
+    expect(snapshotRequests).toBe(1);
+    expect(streamRequests).toBe(initialStreamRequests);
+
+    const disabledAgain = page.waitForEvent('console', {
+      predicate: (message) => message.text().includes('live updates disabled until reload'),
+    });
+    await page.reload();
+    await disabledAgain;
+    expect(snapshotRequests).toBe(2);
+    expect(streamRequests).toBeLessThanOrEqual(initialStreamRequests + 1);
+    expect(errors).toEqual([]);
+  });
+
   test('touch-first live action prioritizes provider handoff', async ({ page }) => {
     test.skip(
       !(await prefersProviderHandoff(page)),

@@ -31,6 +31,56 @@ beforeAll(() => {
 }, 60_000);
 
 describe('generate-twoslash-types', () => {
+  test('keeps enum literals from independent packages sharing an exported short name', () => {
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'aspire-enum-collision-'));
+    const modulesDir = path.join(fixtureRoot, 'ts-modules');
+    const packagesDir = path.join(fixtureRoot, 'pkgs');
+    const fixtureOutput = path.join(fixtureRoot, 'aspire.d.ts');
+    mkdirSync(modulesDir);
+    mkdirSync(packagesDir);
+    try {
+      for (const [name, members] of [
+        ['Cdn', ['EqualsAny']],
+        ['Network', ['EqualsValue', 'EqualsAny']],
+      ] as const) {
+        writeFileSync(
+          path.join(modulesDir, `${name}.json`),
+          JSON.stringify({
+            package: { name, version: '13.6.0' },
+            enumTypes: [
+              {
+                name: 'MatchOperator',
+                fullName: `${name}.MatchOperator`,
+                kind: 'enum',
+                members,
+              },
+            ],
+          })
+        );
+      }
+      execFileSync(
+        process.execPath,
+        [path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs'), generatorScript],
+        {
+          cwd: frontendRoot,
+          env: {
+            ...process.env,
+            ASPIRE_API_PKGS_DIR: packagesDir,
+            ASPIRE_API_TS_MODULES_DIR: modulesDir,
+            ASPIRE_API_TWOSLASH_FILE: fixtureOutput,
+          },
+        }
+      );
+      const generated = readFileSync(fixtureOutput, 'utf8');
+      expect(generated).toContain('readonly EqualsAny: "EqualsAny";');
+      expect(generated).toContain('readonly EqualsValue: "EqualsValue";');
+      expect(generated.match(/export declare const MatchOperator:/g)).toHaveLength(1);
+      expect(generated).toContain('Cdn.MatchOperator | Network.MatchOperator');
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
   test('writes aspire.d.ts to disk', () => {
     expect(existsSync(outputFile)).toBe(true);
     expect(statSync(outputFile).size).toBeGreaterThan(10_000);

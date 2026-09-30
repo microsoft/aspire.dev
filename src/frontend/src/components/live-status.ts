@@ -4,7 +4,8 @@
  * Wires the header `.live-btn` icon and dispatches a typed
  * `aspire:live-change` CustomEvent on `document` whenever the snapshot
  * actually changes. Reconnects on errors with exponential backoff and
- * forces a reconnect when the tab becomes visible again.
+ * forces a reconnect when the tab becomes visible again. A missing snapshot
+ * endpoint disables live updates until a full page reload.
  */
 
 export interface LiveSnapshot {
@@ -38,6 +39,7 @@ const EMPTY: LiveSnapshot = {
 const BACKOFF_MS = [1_000, 2_000, 5_000, 15_000, 30_000];
 
 let started = false;
+let unavailable = false;
 let current: LiveSnapshot = EMPTY;
 let source: EventSource | null = null;
 let backoffIndex = 0;
@@ -117,6 +119,16 @@ function onLivePipChange(evt: CustomEvent<{ open: boolean }>): void {
 async function seed(): Promise<void> {
   try {
     const res = await fetch('/api/live/', { headers: { Accept: 'application/json' } });
+    if (res.status === 404) {
+      unavailable = true;
+      closeSource();
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      console.warn('[live-status] Live API not found (404); live updates disabled until reload.');
+      return;
+    }
     if (res.ok) {
       const json = (await res.json()) as LiveSnapshot;
       // A `state` SSE event can arrive while this request is in flight. Only apply
@@ -132,7 +144,7 @@ async function seed(): Promise<void> {
 }
 
 function scheduleReconnect(): void {
-  if (reconnectTimer) return;
+  if (unavailable || reconnectTimer) return;
   const delay = BACKOFF_MS[Math.min(backoffIndex, BACKOFF_MS.length - 1)];
   backoffIndex = Math.min(backoffIndex + 1, BACKOFF_MS.length - 1);
   reconnectTimer = setTimeout(() => {
@@ -142,6 +154,7 @@ function scheduleReconnect(): void {
 }
 
 function connect(): void {
+  if (unavailable) return;
   closeSource();
   try {
     source = new EventSource('/api/live/stream/');

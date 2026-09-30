@@ -527,6 +527,46 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+<span id="add-mysql-resource-with-a-repl-command"></span>
+
+## Open an interactive REPL
+
+In Aspire 13.6 or later, add `WithRepl()` to the MySQL server resource to enable a **REPL** command that opens `mysql` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addMySql('mysql').withRepl();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddMySql("mysql").WithRepl();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The command is opt-in and available only in run mode while the container is running. It uses the container's bundled client through Docker or Podman, so no local MySQL client is needed. The client authenticates as `root`, with the configured password passed through an environment variable rather than command-line arguments or SQL history.
+
+Use `quit` before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client uses the resource's configured credentials and can modify or delete data. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
+:::
+
 ## Connection properties
 
 For the full reference of MySQL connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to MySQL](../mysql-connect/).

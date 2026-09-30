@@ -469,3 +469,74 @@ test('samples grid hydrates filters from the URL and syncs them back on change',
   await expect(clearAll).toBeHidden();
   await expect.poll(() => page.url()).not.toMatch(/[?&](q|tags)=/);
 });
+
+test('ApiReference renders as valid phrasing content and is never reparented out of its containing paragraph or list item', async ({
+  page,
+}) => {
+  // Regression test: ApiReference used to render Starlight's `<Code>`
+  // component, which emits block-level Expressive Code markup
+  // (`<div><figure><pre>...`). This page embeds ApiReference both inside a
+  // literal `<p>` (the Python/Node.js pivot panels) and inside a Markdown
+  // list item ("Best practices"), which is exactly the phrasing-content
+  // position that triggered the bug: the browser's HTML parser can't nest
+  // block content inside a `<p>`, so it implicitly closes the paragraph and
+  // promotes the block markup out as a sibling — leaving the `.api-reference`
+  // element empty in place and a detached code block (with its own copy
+  // button) floating elsewhere on the page.
+  await page.goto('/get-started/app-host/');
+  await dismissCookieConsentIfVisible(page);
+
+  const references = page.locator('.api-reference');
+  const count = await references.count();
+  expect(count).toBeGreaterThan(0);
+
+  for (const reference of await references.all()) {
+    // The symptom of the reparenting bug: an ApiReference instance left
+    // empty at its authored position because its only content got hoisted
+    // out by the parser.
+    await expect(reference).not.toBeEmpty();
+
+    // Still a real descendant of the paragraph/list item it was authored
+    // inside, not promoted elsewhere in the tree by implied tag closing.
+    const containingParent = await reference.evaluate(
+      (element) => element.closest('p, li')?.tagName.toLowerCase() ?? null
+    );
+    expect(containingParent).toMatch(/^(p|li)$/);
+
+    // A correctly rendered ApiReference is just `<a><code>`, so a copy
+    // affordance anywhere inside one means a code frame crept back in.
+    await expect(reference.locator('.copy, .copy button, button.copy')).toHaveCount(0);
+  }
+
+  // No ApiReference instance should ever emit block-level code markup —
+  // that's the root cause a browser has to reparent out of a `<p>`/`<li>`
+  // in the first place.
+  await expect(
+    page.locator('.api-reference pre, .api-reference figure, .api-reference .expressive-code')
+  ).toHaveCount(0);
+
+  // A hoisted frame lands as a *sibling* of the paragraph, out of reach of the
+  // `.api-reference`-scoped selectors above, so also check the whole page for a
+  // copy button belonging to one of these references. Expressive Code
+  // SSR-attaches the copied text to the button as `data-code` (see
+  // integrations-gallery.spec.ts), and matching it exactly keeps the page's real
+  // code samples - whose `data-code` is a full statement that may well mention
+  // the same API - from tripping this. Labels are read with `evaluateAll` rather
+  // than `allInnerTexts` so the chips hidden by the language pivot still count.
+  const referenceLabels = await page
+    .locator('.api-reference .ar-lang code')
+    .evaluateAll((elements) =>
+      elements.flatMap((element) => {
+        const label = element.textContent?.trim() ?? '';
+        return label ? [label, label.replace(/\(\)$/, '')] : [];
+      })
+    );
+  expect(referenceLabels.length).toBeGreaterThan(0);
+
+  for (const label of new Set(referenceLabels)) {
+    const selector = JSON.stringify(label);
+    await expect(
+      page.locator(`.copy button[data-code=${selector}], button.copy[data-code=${selector}]`)
+    ).toHaveCount(0);
+  }
+});

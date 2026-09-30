@@ -147,7 +147,7 @@ test('sample search, tags and reset survive repeated navigation', async ({ page 
     await chip.click();
     await expect(chip).toHaveAttribute('aria-pressed', 'true');
     await expect(page).toHaveURL(/tags=/);
-    await page.locator('[data-clear-all]').click();
+    await page.locator('[data-clear-filters]').click();
     await expect(chip).toHaveAttribute('aria-pressed', 'false');
     await expect(page).not.toHaveURL(/tags=/);
   }

@@ -13,6 +13,7 @@ import {
   Tabs,
 } from '@astrojs/starlight/components';
 import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
+import ApiReference from '@components/ApiReference.astro';
 import LearnMore from '@components/LearnMore.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
 import PivotSelector from '@components/PivotSelector.astro';
@@ -137,7 +138,7 @@ architecture-beta
 This architecture demonstrates a **Java API** (using Spring Boot) connecting to a **PostgreSQL database**, with a **React frontend** consuming the API. The Java API uses Spring Boot with Spring Data JPA and connects to PostgreSQL using JDBC or Spring Data. The React frontend is built with Vite and communicates with the API over HTTP.
 
 <Aside type="tip">
-The Java integration is provided by the [CommunityToolkit.Aspire.Hosting.Java](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Java) NuGet package. Learn more in the [Java integration](/integrations/frameworks/java/java-get-started/) documentation.
+The Java integration is provided by the [Aspire.Hosting.Java](https://www.nuget.org/packages/Aspire.Hosting.Java) NuGet package. Learn more in the [Java integration](/integrations/frameworks/java/java-get-started/) documentation.
 </Aside>
 
 </Pivot>
@@ -156,22 +157,12 @@ You can represent that architecture in an AppHost like this:
 </Pivot>
 <Pivot id="python">
 <SimpleAppHostCode lang="python">
-  <div slot="csharp-content">
-    <p>Uses <code>AddUvicornApp()</code> with <code>WithUv()</code> for ASGI apps like FastAPI.</p>
-  </div>
-  <div slot="typescript-content">
-    <p>Uses <code>addUvicornApp()</code> with <code>withUv()</code> for ASGI apps like FastAPI.</p>
-  </div>
+  <p>Uses <ApiReference name="Aspire.Hosting.PythonAppResourceBuilderExtensions.AddUvicornApp" /> with <ApiReference name="Aspire.Hosting.PythonAppResourceBuilderExtensions.WithUv" /> for ASGI apps like FastAPI.</p>
 </SimpleAppHostCode>
 </Pivot>
 <Pivot id="nodejs">
 <SimpleAppHostCode lang="nodejs">
-  <div slot="csharp-content">
-    <p>Uses <code>AddNodeApp()</code> with <code>WithNpm()</code> for Node.js applications.</p>
-  </div>
-  <div slot="typescript-content">
-    <p>Uses <code>addNodeApp()</code> with <code>withNpm()</code> for Node.js applications.</p>
-  </div>
+  <p>Uses <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddNodeApp" /> with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithNpm" package="Aspire.Hosting.JavaScript" /> for Node.js applications.</p>
 </SimpleAppHostCode>
 </Pivot>
 <Pivot id="go">
@@ -181,7 +172,7 @@ You can represent that architecture in an AppHost like this:
 </Pivot>
 <Pivot id="java">
 <SimpleAppHostCode lang="java">
-  <p>Uses <code>AddSpringApp()</code> for Spring Boot applications.</p>
+  <p>Uses <code>AddSpringBootApp()</code> for Spring Boot applications.</p>
 </SimpleAppHostCode>
 </Pivot>
 
@@ -355,7 +346,7 @@ With the builder ready, define resources and services. The snippet below shows h
 </SimpleAppHostCode>
 </Pivot>
 <Pivot id="java">
-<SimpleAppHostCode lang="java" mark={{ range: '4-6' }} collapse={['8-18']}>
+<SimpleAppHostCode lang="java" mark={{ range: '4-6' }} collapse={['8-17']}>
   <div>
     <p><strong>How this works:</strong></p>
     <ul>
@@ -368,7 +359,7 @@ With the builder ready, define resources and services. The snippet below shows h
 </Pivot>
 
 <Aside type="tip">
-  To also keep the container running between AppHost restarts (avoiding slow startup), add `.WithPersistentLifetime()`. See [resource lifetimes](/app-host/resource-lifetimes/) for details.
+  To also keep the container running between AppHost restarts (avoiding slow startup), add <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithPersistentLifetime" />. See [resource lifetimes](/app-host/resource-lifetimes/) for details.
 </Aside>
 
 <LearnMore>
@@ -377,7 +368,7 @@ With the builder ready, define resources and services. The snippet below shows h
 
 #### Adding an API resource and declaring a dependency
 
-Next, register the API service and wire it to the PostgreSQL resource:
+Next, register the API service and wire it to the PostgreSQL resource with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" />:
 
 <Pivot id="csharp">
 <SimpleAppHostCode lang="csharp" mark={{ range: '9-11' }} collapse={['1-6', '13-17']}>
@@ -457,12 +448,11 @@ Next, register the API service and wire it to the PostgreSQL resource:
 </SimpleAppHostCode>
 </Pivot>
 <Pivot id="java">
-<SimpleAppHostCode lang="java" mark={{ range: '9-12' }} collapse={['1-6', '14-18']}>
+<SimpleAppHostCode lang="java" mark={{ range: '9-11' }} collapse={['1-6', '13-17']}>
   <div>
     <p><strong>What this does:</strong></p>
     <ul>
-      <li><code>AddSpringApp("api", "../api", "otel.jar")</code> registers a Spring Boot app named <code>api</code>.</li>
-      <li><code>WithHttpEndpoint(port: 8080)</code> exposes the Spring Boot app on port <code>8080</code>.</li>
+      <li><code>AddSpringBootApp("api", "../api")</code> registers a Spring Boot app named <code>api</code> and declares an HTTP endpoint whose port Aspire passes to the app through the <code>SERVER_PORT</code> environment variable.</li>
       <li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
       <li><code>WaitFor(postgres)</code> delays the API startup until PostgreSQL is healthy.</li>
     </ul>
@@ -553,7 +543,7 @@ This example uses a Node.js (React) frontend, but Aspire treats frontends as exe
 </SimpleAppHostCode>
 </Pivot>
 <Pivot id="java">
-<SimpleAppHostCode lang="java" mark={{ range: '15-17' }} collapse={['1-12']}>
+<SimpleAppHostCode lang="java" mark={{ range: '14-16' }} collapse={['1-11']}>
   <div>
     <p><strong>Key points:</strong></p>
     <ul>
@@ -758,6 +748,6 @@ You can hook into lifecycle events to run custom logic during startup and resour
 ## Best practices
 
 - Keep the AppHost minimal to start; add complexity only as required.
-- Define explicit dependencies with `.WithReference(...)` to make wiring obvious.
+- Define explicit resource references to make dependency wiring obvious.
 - Use separate configurations for development, testing, and production.
 - Pick clear, descriptive names for resources to make debugging and logging easier.
