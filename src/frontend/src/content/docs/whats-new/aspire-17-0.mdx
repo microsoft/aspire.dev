@@ -1,0 +1,78 @@
+---
+title: "What's new in Aspire 17.0"
+seoTitle: 'Aspire 17.0: New features, updates, and upgrade guidance'
+description: 'Explore new features and improvements in Aspire 17.0, with upgrade guidance and breaking changes to review before updating your apps.'
+sidebar:
+  label: Aspire 17.0
+  order: 0
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import { Icon, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+This page tracks changes for the upcoming Aspire 17.0 release.
+
+We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and the community, or file feedback and issues on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues).
+
+## 🆙 Upgrade to Aspire 17.0
+
+<span id="upgrade-to-aspire-17-0"></span>
+<br />
+
+:::caution
+Review the [Breaking changes](#breaking-changes) before upgrading.
+:::
+
+For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
+
+Once Aspire 17.0 is available on the stable channel, use the [`aspire update` command](/reference/cli/commands/aspire-update/):
+
+<Steps>
+
+1. Update the Aspire CLI itself:
+
+   ```bash title="Aspire CLI — Update the CLI"
+   aspire update --self
+   ```
+
+1. Update your projects from the repository root:
+
+   ```bash title="Aspire CLI — Update all Aspire packages"
+   aspire update
+   ```
+
+</Steps>
+
+<LearnMore>
+  For more details on installing the Aspire CLI, see [Install the
+  CLI](/get-started/install-cli/).
+</LearnMore>
+
+## ⚠️ Breaking changes
+
+<span id="breaking-changes"></span>
+
+#### Legacy RabbitMQ and MongoDB client packages removed
+
+Starting in Aspire 17.0, new releases no longer include `Aspire.RabbitMQ.Client.v6` or `Aspire.MongoDB.Driver.v2`. Previously published versions of these packages remain available on NuGet.
+
+If your app references either legacy package, replace it with the corresponding current integration:
+
+| Removed package             | Replacement package      | Client library version |
+| --------------------------- | ------------------------ | ---------------------- |
+| `Aspire.RabbitMQ.Client.v6` | `Aspire.RabbitMQ.Client` | `RabbitMQ.Client` 7.x  |
+| `Aspire.MongoDB.Driver.v2`  | `Aspire.MongoDB.Driver`  | `MongoDB.Driver` 3.x   |
+
+Update any direct client-library package references and migrate code that uses the older driver APIs. Follow the [RabbitMQ .NET Client 7.x migration guide](https://github.com/rabbitmq/rabbitmq-dotnet-client/blob/main/v7-MIGRATION.md) and the [MongoDB .NET/C# Driver 3.0 upgrade guide](https://www.mongodb.com/docs/drivers/csharp/v3.0/upgrade/v3/).
+
+The service registration calls, `AddRabbitMQClient` and `AddMongoDBClient`, remain the same. This removal doesn't change the behavior of the current `Aspire.RabbitMQ.Client` and `Aspire.MongoDB.Driver` packages or the AppHost hosting integrations.
+
+<LearnMore>
+  See [Connect to RabbitMQ](/integrations/messaging/rabbitmq/rabbitmq-connect/)
+  and [Connect to MongoDB](/integrations/databases/mongodb/mongodb-connect/) for
+  current client setup guidance. For the removal details, see
+  [microsoft/aspire#20608](https://github.com/microsoft/aspire/pull/20608).
+</LearnMore>
