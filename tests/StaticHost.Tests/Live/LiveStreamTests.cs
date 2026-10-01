@@ -56,8 +56,39 @@ public sealed class LiveStreamTests
         }
         Assert.False(streaming.IsCompleted);
 
-        time.Advance(TimeSpan.FromSeconds(120));
+        // Advance to the full 600-second maximum.
+        time.Advance(TimeSpan.FromSeconds(600 - 465));
         await streaming.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task StreamSse_MaxLifetimeInterruptsBlockedWrites()
+    {
+        var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        using var broadcaster = LiveTestHelpers.CreateBroadcaster(timeProvider: time);
+        using var body = new StalledStream();
+        var context = new DefaultHttpContext();
+        context.Response.Body = body;
+
+        var streaming = LiveStatusEndpointRouteBuilderExtensions.StreamSse(
+            context, broadcaster, Options.Create(new LiveStatusOptions { StreamMaxLifetimeSeconds = 60 }),
+            time, CancellationToken.None);
+        await body.Stalled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(streaming.IsCompleted);
+
+        time.Advance(TimeSpan.FromSeconds(60));
+        await streaming.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    private sealed class StalledStream : MemoryStream
+    {
+        public TaskCompletionSource Stalled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            Stalled.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
     }
 
     private sealed class RecordingStream : MemoryStream

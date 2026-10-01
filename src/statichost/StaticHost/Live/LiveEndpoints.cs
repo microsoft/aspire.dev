@@ -131,16 +131,16 @@ public static class LiveStatusEndpointRouteBuilderExtensions
                     if (!await dataReady.ConfigureAwait(false)) break;
                     while (reader.TryRead(out var next))
                     {
-                        await context.Response.Body.WriteAsync(next.Frame, cancellationToken).ConfigureAwait(false);
+                        await context.Response.Body.WriteAsync(next.Frame, pending.Token).ConfigureAwait(false);
                     }
-                    await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    await context.Response.Body.FlushAsync(pending.Token).ConfigureAwait(false);
                     dataReady = reader.WaitToReadAsync(pending.Token).AsTask();
                 }
                 else
                 {
                     if (!await heartbeatReady.ConfigureAwait(false)) break;
-                    await context.Response.WriteAsync(":hb\n\n", cancellationToken).ConfigureAwait(false);
-                    await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    await context.Response.WriteAsync(":hb\n\n", pending.Token).ConfigureAwait(false);
+                    await context.Response.Body.FlushAsync(pending.Token).ConfigureAwait(false);
                     heartbeatReady = heartbeat.WaitForNextTickAsync(pending.Token).AsTask();
                 }
             }
