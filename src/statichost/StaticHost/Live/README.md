@@ -528,6 +528,10 @@ project or `Aspire.Dev.slnx` trigger that job.
 - Reconciliation timers are the safety net for missed individual webhooks.
 - SSE heartbeats every 15 s defeat proxy idle-timeouts; the client uses
   exponential backoff with a `visibilitychange`-aware reconnect.
+- A `404` from the initial `/api/live/` snapshot request closes the event stream
+  and cancels reconnects until a full page reload. Tab visibility changes and
+  Astro navigation do not restart it. This avoids repeated missing-endpoint
+  errors in frontend-only previews; transient failures still use backoff.
 - Frontend client is re-entrant, idempotent, and survives Astro view
   transitions.
 - Missing secrets ⇒ degraded but functional state — never a crash.

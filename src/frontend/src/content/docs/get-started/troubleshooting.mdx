@@ -5,6 +5,7 @@ description: Solutions to common problems when getting started with Aspire — D
 
 import { Aside, Code, Steps } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
+import ApiReference from '@components/ApiReference.astro';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 
@@ -72,7 +73,7 @@ Having issues getting started with Aspire? This page covers solutions to the mos
 
 **Symptoms**: Your frontend can't connect to the API, showing connection refused errors.
 
-**Solution**: Make sure you're using `WaitFor()` in your AppHost:
+**Solution**: Make sure you're using <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> in your AppHost:
 
 ```csharp title="AppHost.cs"
 builder.AddProject<Projects.WebFrontend>("frontend")
@@ -84,7 +85,7 @@ builder.AddProject<Projects.WebFrontend>("frontend")
 
 **Symptoms**: Your service can't find connection strings or configuration that should be injected.
 
-**Solution**: Verify you're using `WithReference()` to connect resources.
+**Solution**: Verify you're using <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> to connect resources.
 
 ### Example: Connecting a database to your service
 
@@ -179,6 +180,14 @@ Also verify:
 aspire update --self
 ```
 
+### Authenticated feeds return 401
+
+Bundled NuGet search and restore run in-process and initialize NuGet's credential service so installed credential-provider plugins can authenticate to feeds such as Azure Artifacts.
+
+If an authenticated feed still returns `401`, check the configured feed URL, package source mapping, and credential provider installation. Authenticate using the provider's documented workflow, and verify a restore from that same feed outside Aspire, for example with `dotnet restore --interactive` on a project that actually references a package from it. `dotnet nuget locals` only inspects or clears caches; it doesn't verify feed authentication.
+
+Bundled NuGet operations initialize credentials non-interactively. Complete any required interactive sign-in first rather than expecting the Aspire operation to display a credential prompt. Non-bundled search still uses `dotnet package search`.
+
 ## TypeScript AppHost issues
 
 ### "Command not found" errors
@@ -201,15 +210,15 @@ TypeScript (Node.js) SDK code generation failed because the installed Aspire CLI
 You may also see a warning before the failure:
 
 ```
-The installed Aspire CLI version (X.Y.Z) differs from the configured Aspire SDK version (A.B.C). If you run into errors, run 'aspire update' to align them.
+The installed Aspire CLI version (X.Y.Z) differs from the Aspire SDK version (A.B.C) used for code generation. If you run into errors, update the Aspire CLI to match or exceed the SDK version.
 ```
 
-This version skew can happen when you install a newer CLI (for example, upgrading to 13.4) while your project still references an older SDK version (such as 13.3), or vice versa.
+The warning appears only when the CLI is older than the SDK. A newer CLI running an AppHost pinned to an older SDK doesn't produce the warning, and build metadata (the part after `+`) is ignored. During `aspire update`, the warning compares the CLI against the target SDK version rather than the version currently in `aspire.config.json`.
 
-**Solution**: Run `aspire update` to align the CLI and SDK versions:
+**Solution**: Update the Aspire CLI so its version matches or exceeds the SDK version:
 
-```bash title="Update Aspire versions"
-aspire update
+```bash title="Update the Aspire CLI"
+aspire update --self
 ```
 
 If the selected Aspire SDK is newer than the running CLI, `aspire update` prompts you to update the CLI first and skips the project update. Update the CLI, then run `aspire update` again to finish aligning the project. For standalone CLI installations, accept the prompt or run:
@@ -244,11 +253,11 @@ aspire run --log-level Debug
 
 ### CLI logs
 
-Aspire CLI logs are stored at:
+Persisted Aspire CLI logs are stored in the Aspire home directory's `logs` folder. The default locations are:
 
 <OsAwareTabs syncKey="terminal">
-  <Code slot="unix" lang="bash" code="$HOME/.aspire/cli/logs/" />
-  <Code slot="windows" lang="powershell" code="$HOME\.aspire\cli\logs\" />
+  <Code slot="unix" lang="bash" code="$HOME/.aspire/logs/" />
+  <Code slot="windows" lang="powershell" code="$HOME\.aspire\logs\" />
 </OsAwareTabs>
 
 ## Building from source

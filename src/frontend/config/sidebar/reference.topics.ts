@@ -575,6 +575,14 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                   label: 'aspire terminal ps',
                   slug: 'reference/cli/commands/aspire-terminal-ps',
                 },
+                {
+                  label: 'aspire terminal tape',
+                  slug: 'reference/cli/commands/aspire-terminal-tape',
+                },
+                {
+                  label: 'aspire terminal tape play',
+                  slug: 'reference/cli/commands/aspire-terminal-tape-play',
+                },
               ],
             },
             {
@@ -782,6 +790,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREACADOMAIN001',
               link: '/diagnostics/aspireacadomains001',
+            },
+            {
+              label: 'ASPIREACAEXPRESS001',
+              link: '/diagnostics/aspireacaexpress001',
             },
             { label: 'ASPIRECOMPUTE001', link: '/diagnostics/aspirecompute001' },
             {

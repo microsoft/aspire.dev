@@ -4,14 +4,20 @@ seoTitle: Aspire interaction service for AppHost authors
 description: Use the Aspire interaction service to prompt users for input, request confirmation, and display messages from AppHost extensions, integrations, and custom resources.
 ---
 
+import ThemeImage from '@components/ThemeImage.astro';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-import { Image } from 'astro:assets';
 import messageDialog from '@assets/extensibility/interaction-service-message-dialog.png';
+import messageDialogLight from '@assets/extensibility/interaction-service-message-dialog-light.png';
 import messageBar from '@assets/extensibility/interaction-service-message-bar.png';
+import messageBarLight from '@assets/extensibility/interaction-service-message-bar-light.png';
 import confirmation from '@assets/extensibility/interaction-service-confirmation.png';
+import confirmationLight from '@assets/extensibility/interaction-service-confirmation-light.png';
 import multipleInput from '@assets/extensibility/interaction-service-multiple-input.png';
+import multipleInputLight from '@assets/extensibility/interaction-service-multiple-input-light.png';
 import multipleInputFilled from '@assets/extensibility/interaction-service-multiple-input-filled.png';
+import multipleInputFilledLight from '@assets/extensibility/interaction-service-multiple-input-filled-light.png';
 import multipleInputLogs from '@assets/extensibility/interaction-service-multiple-input-logs.png';
+import multipleInputLogsLight from '@assets/extensibility/interaction-service-multiple-input-logs-light.png';
 
 The interaction service (`Aspire.Hosting.IInteractionService`) allows you to prompt users for input, request confirmation, and display messages. It works in two different contexts:
 
@@ -85,13 +91,16 @@ The following sections describe how to use these APIs effectively in both contex
 | `PromptInputAsync`        | Prompts the user for a single input value, such as text or secret.                                  | Dashboard, CLI     |
 | `PromptInputsAsync`       | Prompts the user for multiple input values in a single dialog (dashboard) or sequentially (CLI).    | Dashboard, CLI     |
 | `PromptProgressAsync`     | Displays a progress dialog with an indeterminate progress indicator during long-running operations. | Dashboard only     |
+| `PromptTerminalAsync`     | Borrows a caller-owned terminal for a dialog while optional work runs.                              | Dashboard only     |
 
 <Aside type="caution">
   During `aspire publish` and `aspire deploy` operations, only
   `PromptInputAsync` and `PromptInputsAsync` are available. Other interaction
   methods (`PromptMessageBoxAsync`, `PromptNotificationAsync`,
-  `PromptConfirmationAsync`, and `PromptProgressAsync`) will throw an exception
+  `PromptConfirmationAsync` and `PromptProgressAsync`) will throw an exception
   if called in CLI contexts.
+  `PromptTerminalAsync` is intended for dashboard workflows and isn't rendered
+  as a CLI prompt.
 </Aside>
 
 ## Where to use the interaction service
@@ -229,8 +238,8 @@ if (!result.canceled) {
 
 **Dashboard view:**
 
-<Image
-  src={messageDialog}
+<ThemeImage
+  dark={messageDialog} light={messageDialogLight}
   alt="Aspire dashboard interface showing a message dialog with a title, message, and buttons."
 />
 
@@ -313,8 +322,8 @@ The previous example demonstrates how to use the notification API with different
 
 **Dashboard view:**
 
-<Image
-  src={messageBar}
+<ThemeImage
+  dark={messageBar} light={messageBarLight}
   alt="Aspire dashboard interface showing multiple notification messages stacked near the top of the page. There are five notifications displayed, each with a different type of notification."
 />
 
@@ -382,8 +391,8 @@ if (!resetConfirmation.canceled) {
 
 **Dashboard view:**
 
-<Image
-  src={confirmation}
+<ThemeImage
+  dark={confirmation} light={confirmationLight}
   alt="Aspire dashboard interface showing a confirmation dialog with a title, message, and buttons for confirming or canceling the operation."
 />
 
@@ -553,22 +562,22 @@ if (!(await result.canceled())) {
 
 This renders on the dashboard as shown in the following image:
 
-<Image
-  src={multipleInput}
+<ThemeImage
+  dark={multipleInput} light={multipleInputLight}
   alt="Aspire dashboard interface showing a multiple input dialog with labels, input fields, and buttons for confirming or canceling the input."
 />
 
 Imagine you fill out the dialog with the following values:
 
-<Image
-  src={multipleInputFilled}
+<ThemeImage
+  dark={multipleInputFilled} light={multipleInputFilledLight}
   alt="Aspire dashboard interface showing a multiple input dialog with filled input fields and buttons for confirming or canceling the input."
 />
 
 After you select the **Ok** button, the resource logs display the following output:
 
-<Image
-  src={multipleInputLogs}
+<ThemeImage
+  dark={multipleInputLogs} light={multipleInputLogsLight}
   alt="Aspire dashboard interface showing logs with the input values entered in the multiple input dialog."
 />
 
@@ -901,11 +910,13 @@ if (result.Canceled)
     return CommandResults.Failure("Canceled");
 }
 
-var file = result.Data.Files?[0];
-if (file is null)
+using var files = result.Data.GetFiles();
+if (files.Count == 0)
 {
     return CommandResults.Failure("No file uploaded");
 }
+
+var file = files[0];
 
 // Read all file content as bytes
 var content = await file.ReadAllBytesAsync(cancellationToken);
@@ -913,6 +924,8 @@ var content = await file.ReadAllBytesAsync(cancellationToken);
 // Or open as a stream for large files
 await using var stream = file.OpenRead();
 ```
+
+The uploaded files are temporary files on the AppHost. `GetFiles()` returns a disposable `InteractionFileCollection`, and the caller owns it: dispose the collection when the files are no longer needed to delete them from disk before AppHost shutdown. Files that are never disposed are deleted when the AppHost shuts down. After disposal, `InteractionFile.OpenRead()` and `ReadAllBytesAsync()` throw `ObjectDisposedException`, but any stream already opened before disposal remains usable until that stream is disposed.
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
@@ -943,10 +956,17 @@ if (files.length === 0) {
   return { success: false, message: 'No file uploaded' };
 }
 
-const file = files[0];
-// file.name - original filename
-// file.filePath - path to uploaded file on disk
+try {
+  const file = files[0];
+  // file.name - original filename
+  // file.filePath - path to uploaded file on disk
+} finally {
+  // Delete the uploaded temporary files from the AppHost.
+  await fileInput.releaseFiles();
+}
 ```
+
+Call `releaseFiles()` after the uploaded files have been processed to delete the temporary files on the AppHost. The call is idempotent, so a `finally` block is a good place for it. Files that are never released are deleted when the AppHost shuts down.
 
 </TabItem>
 </Tabs>
@@ -1071,6 +1091,10 @@ await progressTask;
 
 Because no `PrimaryButtonText` is set, the dialog has no cancel button and the user cannot dismiss it.
 
+## Terminal interactions
+
+Use `PromptTerminalAsync` to display an interactive terminal in a dashboard dialog. For terminal creation, cancellation, ownership, and examples, see [Display interactive terminals in dialogs](/dashboard/terminal-interactions/).
+
 ## Interaction contexts
 
 The interaction service behaves differently depending on how your Aspire solution is launched:
@@ -1082,6 +1106,7 @@ When you run your application using `aspire run` or by directly launching the Ap
 - **Modal dialogs**: Message boxes and input prompts appear as overlay dialogs that require user interaction.
 - **Notification messages**: Informational messages appear as dismissible banners at the top of the dashboard.
 - **Progress dialogs**: Long-running operations display a non-dismissable progress indicator with an optional cancel button.
+- **Terminal dialogs**: Caller-owned terminals appear while optional work runs, with an optional cancel button.
 - **Rich UI**: Full support for interactive form elements, validation, and visual feedback.
 - **All methods available**: All interaction service methods are supported in dashboard contexts.
 
@@ -1091,7 +1116,7 @@ When you run `aspire publish` or `aspire deploy`, interactions are prompted thro
 
 - **Text prompts**: Only input prompts (`PromptInputAsync` and `PromptInputsAsync`) are available and appear as text-based prompts in the terminal.
 - **Sequential input**: Multiple inputs are requested one at a time rather than in a single dialog.
-- **Limited functionality**: Message boxes, notifications, confirmation dialogs, and progress dialogs aren't available and throw exceptions if called.
+- **Limited functionality**: Message boxes, notifications, confirmation dialogs, and progress dialogs aren't available and throw exceptions if called. Terminal dialogs aren't rendered by the CLI; use them only in dashboard workflows.
 
 <Aside type="caution">
   The interaction service adapts automatically to dashboard and CLI contexts. In
@@ -1099,11 +1124,14 @@ When you run `aspire publish` or `aspire deploy`, interactions are prompted thro
   `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`,
   `PromptNotificationAsync`, `PromptConfirmationAsync`, or `PromptProgressAsync`
   in CLI operations like `aspire publish` or `aspire deploy` results in an
-  exception.
+  exception. `PromptTerminalAsync` isn't rendered by the CLI, but those operation
+  modes alone don't guarantee that it throws.
 </Aside>
 
 ## See also
 
+- [AppHost terminal service](/dashboard/ephemeral-terminals/) — Create, own, and automate terminals
+- [Dashboard terminals](/dashboard/terminals/) — Use terminal views and the terminal dock
 - [Custom resource commands](/fundamentals/custom-resource-commands/) — Add commands with arguments to resources in the dashboard and CLI
 - [AppHost eventing](/app-host/eventing/) — Subscribe to resource lifecycle events
 - [Custom resources](/extensibility/custom-resources/) — Build custom resource types for the AppHost

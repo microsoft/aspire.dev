@@ -4,6 +4,8 @@
 
 export const TAG_LABELS: Record<string, string> = {
   'csharp': 'C#',
+  'fsharp': 'F#',
+  'cpp': 'C++',
   'python': 'Python',
   'javascript': 'JavaScript',
   'typescript': 'TypeScript',
@@ -38,4 +40,15 @@ export const TAG_LABELS: Record<string, string> = {
 
 export function tagLabel(tag: string): string {
   return TAG_LABELS[tag] || tag.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+export const languageTags = new Set(['csharp', 'typescript', 'javascript', 'python', 'go', 'java', 'rust']);
+
+/** Keep sample discovery consistent with the resource catalog, including AppHost languages. */
+export function sampleLanguages(sample: { tags: readonly string[]; appHost?: string | null }): string[] {
+  return [...new Set([
+    ...sample.tags.filter((tag) => languageTags.has(tag)),
+    ...(sample.appHost === 'typescript' ? ['typescript'] : []),
+    ...(['csproj', 'file-based'].includes(sample.appHost ?? '') ? ['csharp'] : []),
+  ])].sort((a, b) => a.localeCompare(b, 'en'));
 }
