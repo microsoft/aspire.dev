@@ -46,7 +46,8 @@ duplicating.
    reads its image and `publishDate`; no separate catalog entry is needed.
 3. **Version constants.** Update `src/frontend/config/aspire-versions.mjs`:
    `currentAspireMajorMinorVersion = 'N.N'`, `currentAspireVersion` to the latest
-   stable `N.N.PATCH`, and `currentAspirePreviewVersion` to the matching full
+   stable `N.N.PATCH`, `currentAspireReleaseDate` to that patch's NuGet publish
+   date (`YYYY-MM-DD`, shown in the Install CLI dialog), and `currentAspirePreviewVersion` to the matching full
    `N.N.PATCH-preview.*` package version. Set both package versions to the initial
    release patch when N.N becomes current, then keep them aligned with the site
    AppHost during servicing updates. These drive the Aspire version remark
