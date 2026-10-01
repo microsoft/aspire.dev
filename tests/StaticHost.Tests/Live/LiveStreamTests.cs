@@ -13,7 +13,8 @@ public sealed class LiveStreamTests
         context.Response.Body = body;
 
         var streaming = LiveStatusEndpointRouteBuilderExtensions.StreamSse(
-            context, broadcaster, time, cancellation.Token);
+            context, broadcaster, Options.Create(new LiveStatusOptions { StreamMaxLifetimeSeconds = 24 * 60 * 60 }),
+            time, cancellation.Token);
         Assert.StartsWith("event: state\n", await body.ReadWriteAsync());
 
         for (var i = 0; i < 100; i++)
@@ -31,6 +32,63 @@ public sealed class LiveStreamTests
         await streaming.WaitAsync(TimeSpan.FromSeconds(5));
         time.Advance(TimeSpan.FromMinutes(1));
         Assert.False(body.Writes.Reader.TryRead(out _));
+    }
+
+    [Fact]
+    public async Task StreamSse_EndsWithinJitteredMaxLifetime()
+    {
+        var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        using var broadcaster = LiveTestHelpers.CreateBroadcaster(timeProvider: time);
+        using var body = new RecordingStream();
+        var context = new DefaultHttpContext();
+        context.Response.Body = body;
+
+        var streaming = LiveStatusEndpointRouteBuilderExtensions.StreamSse(
+            context, broadcaster, Options.Create(new LiveStatusOptions { StreamMaxLifetimeSeconds = 600 }),
+            time, CancellationToken.None);
+        Assert.StartsWith("event: state\n", await body.ReadWriteAsync());
+
+        // The jittered lifetime is never shorter than 80% of the maximum.
+        for (var elapsed = 15; elapsed < 480; elapsed += 15)
+        {
+            time.Advance(TimeSpan.FromSeconds(15));
+            Assert.Equal(":hb\n\n", await body.ReadWriteAsync());
+        }
+        Assert.False(streaming.IsCompleted);
+
+        // Advance to the full 600-second maximum.
+        time.Advance(TimeSpan.FromSeconds(600 - 465));
+        await streaming.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task StreamSse_MaxLifetimeInterruptsBlockedWrites()
+    {
+        var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        using var broadcaster = LiveTestHelpers.CreateBroadcaster(timeProvider: time);
+        using var body = new StalledStream();
+        var context = new DefaultHttpContext();
+        context.Response.Body = body;
+
+        var streaming = LiveStatusEndpointRouteBuilderExtensions.StreamSse(
+            context, broadcaster, Options.Create(new LiveStatusOptions { StreamMaxLifetimeSeconds = 60 }),
+            time, CancellationToken.None);
+        await body.Stalled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(streaming.IsCompleted);
+
+        time.Advance(TimeSpan.FromSeconds(60));
+        await streaming.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    private sealed class StalledStream : MemoryStream
+    {
+        public TaskCompletionSource Stalled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            Stalled.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
     }
 
     private sealed class RecordingStream : MemoryStream

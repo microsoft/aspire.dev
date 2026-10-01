@@ -215,6 +215,7 @@ The SSE endpoint reports offline unless a local simulation sets live state.
 "Live": {
   "PublicBaseUrl": "https://aspire.dev",
   "CoalesceWindowMs": 750,
+  "StreamMaxLifetimeSeconds": 600,
   "EnableDevEndpoint": false,
   "DevCommandSecret": "",
   "Twitch": {
@@ -527,7 +528,17 @@ project or `Aspire.Dev.slnx` trigger that job.
   described above.
 - Reconciliation timers are the safety net for missed individual webhooks.
 - SSE heartbeats every 15 s defeat proxy idle-timeouts; the client uses
-  exponential backoff with a `visibilitychange`-aware reconnect.
+  jittered exponential backoff (50–150% of each step) with a
+  `visibilitychange`-aware reconnect.
+- Each SSE stream ends after a random 80–100% of `StreamMaxLifetimeSeconds`
+  (default 10 minutes), and the client reconnects. Without this cap, one
+  request could stay open for days and inflate request-duration telemetry
+  until the next restart.
+- A tab that stays hidden for 60 s closes its stream; the stream reconnects
+  when the tab becomes visible and receives the current snapshot.
+- `/api/live/stream` is excluded from ASP.NET Core request traces, so App
+  Insights server response time reflects page and API latency, not stream
+  lifetimes.
 - A `404` from the initial `/api/live/` snapshot request closes the event stream
   and cancels reconnects until a full page reload. Tab visibility changes and
   Astro navigation do not restart it. This avoids repeated missing-endpoint

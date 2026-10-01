@@ -111,6 +111,8 @@ describe('live-status module', () => {
       const seed = Promise.withResolvers<Response>();
       const fetch = vi.fn(() => seed.promise);
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // Center the reconnect jitter so delays equal the base backoff.
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
       vi.stubGlobal('document', document);
       vi.stubGlobal('window', { location: { pathname: '/docs/' } });
       vi.stubGlobal('EventSource', MockEventSource);
@@ -167,6 +169,46 @@ describe('live-status module', () => {
       await vi.advanceTimersByTimeAsync(1_000);
       expect(sources).toHaveLength(4);
       expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('jitters reconnect delays around the base backoff', async () => {
+      const { sources } = await setup();
+      vi.mocked(Math.random).mockReturnValue(0);
+      sources[0].onerror?.();
+      await vi.advanceTimersByTimeAsync(499);
+      expect(sources).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(sources).toHaveLength(2);
+    });
+
+    it('closes the stream in hidden tabs and reconnects when visible', async () => {
+      const { document, sources } = await setup();
+      document.visibilityState = 'hidden';
+      document.dispatchEvent(new Event('visibilitychange'));
+      sources[0].onerror?.();
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(sources).toHaveLength(2);
+      expect(sources[1].close).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(sources[1].close).toHaveBeenCalledOnce();
+      await vi.advanceTimersByTimeAsync(300_000);
+      expect(sources).toHaveLength(2);
+
+      document.visibilityState = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(sources).toHaveLength(3);
+    });
+
+    it('keeps the stream when a tab becomes visible within the grace period', async () => {
+      const { document, sources } = await setup();
+      document.visibilityState = 'hidden';
+      document.dispatchEvent(new Event('visibilitychange'));
+      await vi.advanceTimersByTimeAsync(30_000);
+      document.visibilityState = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(sources).toHaveLength(1);
+      expect(sources[0].close).not.toHaveBeenCalled();
     });
   });
 
