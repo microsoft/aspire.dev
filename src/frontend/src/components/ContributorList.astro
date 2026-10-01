@@ -1,5 +1,5 @@
 ---
-import { getContributors } from '@utils/contributors';
+import contributorData from '@data/github-contributors.json';
 
 export interface Props {
   githubRepo: string;
@@ -8,41 +8,35 @@ export interface Props {
 }
 
 const { githubRepo, ignore = [], focusColor } = Astro.props;
-const result = await getContributors(githubRepo);
-const contributors = result.status === 'available'
-  ? result.contributors.filter(({ login }) => !ignore.includes(login))
-  : [];
+const repoContributors = (contributorData as Record<string, { id: number; login: string }[]>)[
+  githubRepo.trim().toLowerCase()
+];
+if (!repoContributors) {
+  throw new Error(
+    `No contributor data for "${githubRepo}". Add it to scripts/update-contributors.ts and run \`pnpm update:contributors\`.`,
+  );
+}
+const contributors = repoContributors.filter(({ login }) => !ignore.includes(login));
 ---
 
-{
-  result.status === 'unavailable' ? (
-    <p class="contributors-unavailable">
-      {Astro.locals.t('contributors.unavailable')}{' '}
-      <a href={`https://github.com/${githubRepo.trim()}/graphs/contributors`}>
-        {Astro.locals.t('contributors.viewOnGitHub')}
-      </a>
-    </p>
-  ) : (
-    <div style={focusColor ? { '--avatar-focus-color': focusColor } : {}}>
-      <ul class="avatar-list">
-        {contributors.map(({ id, login }) => (
-          <li>
-            <a href={`https://github.com/${login}`}>
-              <img
-                alt={login}
-                title={login}
-                width="48"
-                height="48"
-                src={`https://avatars.githubusercontent.com/u/${id}?s=64`}
-                loading="lazy"
-              />
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
+<div style={focusColor ? { '--avatar-focus-color': focusColor } : {}}>
+  <ul class="avatar-list">
+    {contributors.map(({ id, login }) => (
+      <li>
+        <a href={`https://github.com/${login}`}>
+          <img
+            alt={login}
+            title={login}
+            width="48"
+            height="48"
+            src={`https://avatars.githubusercontent.com/u/${id}?s=64`}
+            loading="lazy"
+          />
+        </a>
+      </li>
+    ))}
+  </ul>
+</div>
 
 <style>
   .avatar-list {

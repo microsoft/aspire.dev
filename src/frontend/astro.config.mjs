@@ -22,7 +22,6 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import buildTiming from './config/build-timing.mjs';
-import { contributorCacheIntegration } from './src/utils/contributors.ts';
 import UnoCSS from 'unocss/astro';
 import Icons from 'starlight-plugin-icons';
 
@@ -87,7 +86,6 @@ export default defineConfig({
   },
   redirects: redirects,
   integrations: [
-    contributorCacheIntegration(),
     UnoCSS(),
     Icons({
       extractSafelist: true,
