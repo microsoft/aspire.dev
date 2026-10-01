@@ -92,10 +92,16 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     internal static async Task StreamSse(
         HttpContext context,
         LiveStatusBroadcaster broadcaster,
+        IOptions<LiveStatusOptions> options,
         TimeProvider time,
         CancellationToken cancellationToken)
     {
         await broadcaster.RefreshAsync(cancellationToken).ConfigureAwait(false);
+
+        // End every stream within a jittered bound so request durations stay finite
+        // and clients that reconnect after a deployment don't stay synchronized.
+        var maxLifetime = TimeSpan.FromSeconds(options.Value.StreamMaxLifetimeSeconds);
+        var lifetimeDuration = maxLifetime * (1 - (Random.Shared.NextDouble() * 0.2));
 
         context.Response.StatusCode = StatusCodes.Status200OK;
         context.Response.Headers.ContentType = "text/event-stream";
@@ -109,14 +115,15 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
         var (reader, unsubscribe) = broadcaster.Subscribe();
         using var _ = unsubscribe;
-        using var pending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var lifetime = new CancellationTokenSource(lifetimeDuration, time);
+        using var pending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
         using var heartbeat = new PeriodicTimer(TimeSpan.FromSeconds(15), time);
         var dataReady = reader.WaitToReadAsync(pending.Token).AsTask();
         var heartbeatReady = heartbeat.WaitForNextTickAsync(pending.Token).AsTask();
 
         try
         {
-            while (!cancellationToken.IsCancellationRequested)
+            while (!pending.IsCancellationRequested)
             {
                 await Task.WhenAny(dataReady, heartbeatReady).ConfigureAwait(false);
                 if (dataReady.IsCompleted)
@@ -139,6 +146,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { /* client disconnected */ }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { /* max lifetime reached; client reconnects */ }
         finally
         {
             await pending.CancelAsync().ConfigureAwait(false);
