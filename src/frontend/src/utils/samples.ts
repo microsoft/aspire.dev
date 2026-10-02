@@ -159,6 +159,7 @@ export function sampleDescriptionText(description: string | null): string | null
   }
 
   const text = description
+    .replace(/^\s*\|.*\|\s*$/gm, '')
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
