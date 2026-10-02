@@ -187,7 +187,7 @@ pageActions: false    # disable AI/share actions
   var builder = DistributedApplication.CreateBuilder(args);
   ```
   ````
-- Follow the "Prose patterns to avoid" list in the `doc-writer` skill (`.agents/skills/doc-writer/SKILL.md`).
+- Follow the "Prose patterns to avoid" list in the `doc-writer` skill prose pattern reference (`.agents/skills/doc-writer/prose-patterns.md`).
 
 ### Bulleted List Grammar
 
