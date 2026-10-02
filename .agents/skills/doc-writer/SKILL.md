@@ -7,6 +7,8 @@ description: Guidelines for producing accurate and maintainable documentation fo
 
 This skill provides guidelines for AI coding agents to help maintainers produce accurate and easy-to-maintain documentation for the Aspire project. The aspire.dev repository is the official documentation site for Aspire, and this skill helps ensure consistent, high-quality documentation.
 
+Before finishing any draft, check it against the [Prose Patterns skill reference](./references/prose-patterns.md).
+
 ## Documentation Overview
 
 ### Site Structure
