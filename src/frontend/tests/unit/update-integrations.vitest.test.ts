@@ -329,6 +329,50 @@ describe('integration update automation', () => {
       /test:unit:structured-data\s+if \(\$LASTEXITCODE -ne 0\) \{[^}]*exit 1/
     );
   });
+
+  test('syncs, validates, allows, and stages Aspire CLI config schemas', () => {
+    const packageJson = JSON.parse(
+      readFileSync(path.join(frontendRoot, 'package.json'), 'utf8')
+    ) as { scripts: Record<string, string> };
+    const structuredDataConfig = readFileSync(
+      path.join(frontendRoot, 'vitest.structured-data.config.ts'),
+      'utf8'
+    );
+    const allowedPaths = script.match(/\$AllowedPaths = @\(([\s\S]*?)\)/)?.[1];
+    const stagedPaths = workflow.match(/git add -- \\[\s\S]*?\r?\n\r?\n/)?.[0];
+
+    expect(packageJson.scripts['update:all']).toContain('pnpm update:schemas');
+    expect(structuredDataConfig).toContain("'tests/unit/cli-config-schema.vitest.test.ts'");
+    expect(allowedPaths).toContain("'src/frontend/src/data/schemas/'");
+    expect(stagedPaths).toContain('src/frontend/src/data/schemas');
+  });
+
+  test('rejects changes to published Aspire CLI config schemas', () => {
+    const scopeCheck = script.slice(script.indexOf("Write-Section 'Phase 5"));
+
+    expect(scopeCheck).toContain(
+      "$publishedSchemaPattern = '^src/frontend/src/data/schemas/aspire-config\\..+\\.schema\\.json$'"
+    );
+    expect(scopeCheck).toContain("$isNewFile = $statusCode -eq '??' -or $statusCode[0] -eq 'A'");
+    expect(scopeCheck).toMatch(
+      /if \(\$changedPublishedSchemas\.Count -gt 0\) \{[^}]*exit 1/
+    );
+    expect(scopeCheck.indexOf('$changedPublishedSchemas.Count -gt 0')).toBeLessThan(
+      scopeCheck.indexOf('All changes are within the allowed data paths.')
+    );
+  });
+
+  test('generates Aspire CLI config schemas from each released CLI', () => {
+    const schemaScript = readFileSync(
+      path.join(frontendRoot, 'scripts', 'update-schemas.ts'),
+      'utf-8'
+    );
+
+    expect(schemaScript).toContain("'tool', 'install', CLI_PACKAGE_ID, '--version', version");
+    expect(schemaScript).toContain("['config', 'info', '--json']");
+    expect(schemaScript).not.toContain('extension/schemas/aspire-config.schema.json');
+    expect(workflow).toContain('actions/setup-dotnet');
+  });
 });
 
 describe('Community Toolkit documentation mappings', () => {

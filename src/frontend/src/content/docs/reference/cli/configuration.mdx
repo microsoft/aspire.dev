@@ -1,6 +1,6 @@
 ---
 title: Configuration settings
-description: Learn about Aspire CLI configuration, the rooted aspire.config.json file, and the settings surfaced by aspire config list --all.
+description: Learn about Aspire CLI configuration, the aspire.config.json settings and their default values, and the JSON Schema for editor completions and validation.
 ---
 
 import Include from '@components/Include.astro';
@@ -16,9 +16,10 @@ the feature flags surfaced by your installed CLI.
 
 <Include relativePath="reference/cli/includes/config-file-description.md" />
 
-The consolidated `aspire.config.json` file can also contain other rooted Aspire
-configuration such as SDK version, launch profiles, and package pins. This page
-focuses on the settings surfaced through `aspire config`.
+The consolidated `aspire.config.json` file also stores other rooted Aspire
+configuration, such as the SDK version, launch profiles, and integration
+packages. The [settings table](#settings-surfaced-by-aspire-config) lists the
+settings you can configure in the file and their default values.
 
 ## Example `aspire.config.json`
 
@@ -48,7 +49,7 @@ completions, validation, and hover documentation while you edit the file.
 
 Two URLs are available:
 
-- **Latest** — always points to the newest published schema:
+- The **latest** URL always points to the newest published schema:
 
   ```text title="Latest schema URL"
   https://aspire.dev/reference/cli/configuration/schema.json
@@ -56,13 +57,13 @@ Two URLs are available:
 
   [`schema.json`](/reference/cli/configuration/schema.json)
 
-- **Versioned** — pins to a specific Aspire release (for example, `13.2.3`):
+- A **versioned** URL pins to a specific Aspire release, such as `%ASPIRE_VERSION%`:
 
   ```text title="Versioned schema URL"
-  https://aspire.dev/reference/cli/configuration/schema/13.2.3.json
+  https://aspire.dev/reference/cli/configuration/schema/%ASPIRE_VERSION%.json
   ```
 
-  [`schema/13.2.3.json`](/reference/cli/configuration/schema/13.2.3.json)
+  Every stable Aspire release starting with 13.2.0 has a versioned schema, and that schema never changes after the release ships.
 
 ### Reference the schema from `aspire.config.json`
 
@@ -79,10 +80,10 @@ top-level `$schema` property:
 ```
 
 :::note
-Use the versioned URL (for example, `.../schema/13.2.3.json`) when you want
-schema behavior to stay stable alongside a pinned Aspire CLI version, and use
-the unversioned `schema.json` when you want to always validate against the
-latest release.
+Use a versioned URL, such as `.../schema/%ASPIRE_VERSION%.json`, when you want
+schema behavior to stay stable alongside a pinned Aspire CLI version. Use the
+unversioned `schema.json` when you want to always validate against the latest
+release.
 :::
 
 ### Associate the schema in Visual Studio Code
@@ -91,7 +92,7 @@ With the [Aspire VS Code extension](/get-started/aspire-vscode-extension/) insta
 
 ### Other editors
 
-Any editor or tool that understands JSON Schema Draft 2020-12 can consume the
+Any editor or tool that understands JSON Schema draft-07 can consume the
 hosted schema — including JetBrains IDEs (**Settings → Languages & Frameworks →
 Schemas and DTDs → JSON Schema Mappings**), Neovim with
 [`jsonls`](https://github.com/microsoft/vscode-json-languageservice), and
@@ -103,7 +104,8 @@ Point the tool at either the latest or versioned URL above.
 
 Use `aspire config list` to see the values that are currently set, and use
 `aspire config list --all` to enumerate the feature flags your installed CLI
-can configure.
+can configure. The following table lists the settings, their default values, and
+what they control.
 
 <Include relativePath="reference/cli/includes/config-settings-table.md" />
 
@@ -150,16 +152,16 @@ platform path separator.
 
 If `certificates.nssDbPaths` is unset, `aspire certs trust` will also honor the `DOTNET_DEV_CERTS_NSSDB_PATHS` environment variable, but Aspire configuration will take precedence when present. When no specific configuration is supplied, Aspire applies certificate trust to NSS databases in well-known browser specific paths for Firefox and Chrome/Chromium. Run [`aspire certs trust`](../commands/aspire-certs-trust/) to apply the configured trust settings.
 
-:::tip
-Some feature flags shown by `aspire config list --all` may correspond to
-preview, migration, or hidden functionality. Treat the output of your
-installed CLI as the authoritative source for what can be configured.
-:::
-
 ## Toggle preview feature experiences
 
 Use feature flags to opt in to preview experiences that your installed Aspire
 CLI supports.
+
+:::tip
+The available feature flags depend on your installed CLI version. Treat the
+output of `aspire config list --all` as the authoritative list of feature flags
+and their default values.
+:::
 
 <Steps>
 
@@ -182,8 +184,12 @@ CLI supports.
    For example, consider the following that enables global support for Go:
 
    ```bash title="Enable global Go support"
-   aspire config set features:experimentalPolyglot:go true --global
+   aspire config set features.experimentalPolyglot:go true --global
    ```
+
+   Always set `experimentalPolyglot:<language>` flags with `--global`, or add
+   them to the local `aspire.config.json` file by hand. For details, see the
+   caution under [Settings surfaced by `aspire config`](#settings-surfaced-by-aspire-config).
 
 4. Turn a feature off by setting it to `false`, or remove the override with
    `aspire config delete <key>`.
