@@ -150,6 +150,29 @@ platform path separator.
 
 If `certificates.nssDbPaths` is unset, `aspire certs trust` will also honor the `DOTNET_DEV_CERTS_NSSDB_PATHS` environment variable, but Aspire configuration will take precedence when present. When no specific configuration is supplied, Aspire applies certificate trust to NSS databases in well-known browser specific paths for Firefox and Chrome/Chromium. Run [`aspire certs trust`](../commands/aspire-certs-trust/) to apply the configured trust settings.
 
+### Configure the container tunnel base image
+
+Use `containerTunnel.baseImage` to override the base image used by the
+[container network tunnel](/fundamentals/container-networking/) that routes
+traffic from containers to host-based services. This is useful in
+environments that require a customized or mirrored base image:
+
+```bash title="Set the container tunnel base image"
+aspire config set containerTunnel.baseImage example.com/aspire-tunnel:configured
+```
+
+The CLI projects this value to the AppHost process as the
+`ASPIRE_CONTAINER_TUNNEL_BASE_IMAGE` environment variable. .NET AppHosts
+receive it in their existing process environment, while polyglot AppHosts
+receive it through the existing AppHost server-session environment so the
+value reaches Aspire Hosting and DCP rather than the guest client process.
+
+The AppHost also supports setting this value directly through the
+`DcpPublisher:ContainerTunnelBaseImage` configuration key or the
+`--dcp-container-tunnel-base-image` command-line argument. Explicit AppHost
+configuration and any existing `ASPIRE_CONTAINER_TUNNEL_BASE_IMAGE`
+environment value take precedence over the Aspire CLI configuration value.
+
 :::tip
 Some feature flags shown by `aspire config list --all` may correspond to
 preview, migration, or hidden functionality. Treat the output of your
