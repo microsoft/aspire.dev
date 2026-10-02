@@ -486,6 +486,47 @@ public sealed class AtsJsonGeneratorTests
         Assert.Equal(unchangedWriteTime, File.GetLastWriteTimeUtc(outputPath));
     }
 
+    [Fact]
+    public void TransformFile_ReportsToleratedKnownScannerDiagnostics()
+    {
+        using var tempDirectory = new TempDirectory();
+        var inputPath = Path.Combine(tempDirectory.Path, "input.json");
+        var outputPath = Path.Combine(tempDirectory.Path, "output.json");
+        File.WriteAllText(inputPath, JsonSerializer.Serialize(new AtsDumpRoot
+        {
+            HandleTypes = AtsTransformerHelperTests.KnownProxyHandleTypes,
+            Diagnostics =
+            [
+                new() { Severity = "Error", Message = AtsTransformerHelperTests.KustoInheritedDuplicate },
+                new() { Severity = "Error", Message = AtsTransformerHelperTests.NetworkInheritedDuplicate },
+            ],
+        }));
+
+        Assert.Throws<InvalidOperationException>(() => GenerateCommand.TransformFile(
+            inputPath, outputPath, "Contoso.Tools", null, null, null));
+        Assert.False(File.Exists(outputPath));
+
+        var originalOut = Console.Out;
+        using var capturedOut = new StringWriter();
+        int exitCode;
+        try
+        {
+            Console.SetOut(capturedOut);
+            exitCode = GenerateCommand.TransformFile(
+                inputPath, outputPath, "Contoso.Tools", null, null, null, tolerateKnownScannerDiagnostics: true);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        Assert.Equal(0, exitCode);
+        Assert.True(File.Exists(outputPath));
+        var lines = capturedOut.ToString().Split(Environment.NewLine);
+        Assert.Contains($"Tolerated known ATS scanner diagnostic: {AtsTransformerHelperTests.KustoInheritedDuplicate}", lines);
+        Assert.Contains($"Tolerated known ATS scanner diagnostic: {AtsTransformerHelperTests.NetworkInheritedDuplicate}", lines);
+    }
+
     private sealed class TempDirectory : IDisposable
     {
         public TempDirectory()
