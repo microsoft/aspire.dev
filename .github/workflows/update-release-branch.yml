@@ -81,11 +81,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          git fetch origin main
-          MAIN_SHA="$(git rev-parse origin/main)"
+          for attempt in {1..3}; do
+            git fetch origin main "$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+            MAIN_SHA="$(git rev-parse origin/main)"
 
-          # Checkout is on release; always run the helper from the pinned main
-          # commit, including when release has not received the helper yet.
-          git show "$MAIN_SHA:.github/scripts/merge-main-into-release.sh" > "$RUNNER_TEMP/merge-main-into-release.sh"
-          bash "$RUNNER_TEMP/merge-main-into-release.sh" "$MAIN_SHA" "$BRANCH"
-          git push origin "HEAD:refs/heads/$BRANCH"
+            # Always run the helper from the pinned main commit, including when
+            # release has not received the helper yet.
+            git show "$MAIN_SHA:.github/scripts/merge-main-into-release.sh" > "$RUNNER_TEMP/merge-main-into-release.sh"
+            bash "$RUNNER_TEMP/merge-main-into-release.sh" "$MAIN_SHA" "$BRANCH"
+            if git push origin "HEAD:refs/heads/$BRANCH"; then
+              exit 0
+            fi
+
+            echo "::warning::Release branch changed while syncing; retrying ($attempt/3)."
+          done
+
+          echo "::error::Unable to push release sync after 3 attempts."
+          exit 1

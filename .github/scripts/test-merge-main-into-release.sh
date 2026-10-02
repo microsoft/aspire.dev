@@ -7,6 +7,7 @@ unset GITHUB_STEP_SUMMARY
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 HELPER="$SCRIPT_DIR/merge-main-into-release.sh"
+WORKFLOW="$SCRIPT_DIR/../workflows/update-release-branch.yml"
 TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/release-sync-tests.XXXXXX")"
 trap 'cd "$SCRIPT_DIR"; rm -rf -- "$TEST_ROOT"' EXIT
 
@@ -14,6 +15,11 @@ fail() {
   echo "FAIL: $*" >&2
   exit 1
 }
+
+grep -Fq 'for attempt in {1..3}; do' "$WORKFLOW" || fail "Release workflow does not retry rejected pushes."
+grep -Fq 'git checkout -B "$BRANCH" "origin/$BRANCH"' "$WORKFLOW" || fail "Release workflow does not refresh the release branch before retrying."
+grep -Fq 'if git push origin "HEAD:refs/heads/$BRANCH"; then' "$WORKFLOW" || fail "Release workflow does not handle rejected pushes."
+echo "PASS: workflow retries release branch push races"
 
 write_file() {
   mkdir -p -- "$(dirname -- "$1")"
