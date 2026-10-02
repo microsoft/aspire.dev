@@ -1,0 +1,82 @@
+---
+title: aspire tray command
+seoTitle: aspire tray command reference for the Aspire CLI
+description: Learn about the aspire tray command, which manages the experimental native macOS menu-bar and Windows notification-area companion for Aspire AppHosts.
+sidebar:
+  badge: Experimental
+---
+
+import Include from '@components/Include.astro';
+
+## Name
+
+`aspire tray` - Manage the experimental Windows or macOS tray companion.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire tray [command] [options]
+```
+
+## Description
+
+The `aspire tray` command manages an experimental native tray companion that keeps track of your running Aspire AppHosts without requiring you to repeatedly run `aspire ps`. The companion runs as a macOS menu-bar icon or a Windows notification-area icon, backed by the invoking Aspire CLI rather than a separate CLI installation.
+
+The companion is a native AOT application built with AppKit on macOS and Win32 on Windows. It doesn't use a WebView, the macOS .NET workload, Windows Forms, or a third-party UI framework.
+
+Both the macOS and Windows frontends expose:
+
+- AppHost health for each discovered AppHost.
+- **Open Dashboard** for a running AppHost.
+- Exact-instance **Stop**, with a native confirmation dialog that defaults to **Cancel**.
+- Recent AppHost history and pinning. History stores source paths and preferences, not process identities or dashboard login URLs. Clearing recent history requires confirmation and preserves pinned entries; missing pins are pruned automatically.
+- Explicit **Start** for offline (not currently running) projects, plus folder and editor shortcuts, **Documentation**, and **About**.
+
+Opening a submenu never starts an AppHost on its own — an AppHost only starts when you choose **Start** explicitly.
+
+:::caution[Experimental]
+`aspire tray` is experimental. Linux isn't supported. Before this feature ships as stable, Windows ARM64 native UI smoke, Windows installed-bundle lifecycle coverage, real monitor/DPI testing, official signing/notarization/Authenticode validation, and a formal security review all remain outstanding. Don't treat this command as production-ready.
+:::
+
+The tray companion requires an installed native Aspire CLI executable with a leased, versioned CLI bundle that includes the tray payload for your platform. Managed development builds and running `dotnet aspire.dll` directly aren't supported.
+
+### State and log locations
+
+- **macOS**: the control socket and instance lock live under `~/.aspire/tray/runtime`. `~/Library/Application Support/Aspire/Tray/` is a legacy state and log location from earlier previews, not the active control endpoint.
+- **Windows**: state and diagnostics live under `%LocalAppData%\Aspire\Tray`.
+
+### Upgrading from an earlier preview
+
+Before starting a new build of the tray, quit an earlier preview using its original CLI's `aspire tray stop` command, or **Quit Aspire** from the tray menu. An older preview might use a different control endpoint than the one described above.
+
+## Options
+
+The following options are available:
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
+
+- <Include relativePath="reference/cli/includes/option-wait.md" />
+
+## Commands
+
+The following commands are available:
+
+| Command                                    | Status       | Function                                      |
+| ------------------------------------------- | ------------ | ---------------------------------------------- |
+| [`aspire tray start`](../aspire-tray-start/) | Experimental | Start or restore the tray icon.                |
+| [`aspire tray stop`](../aspire-tray-stop/)   | Experimental | Stop the tray companion without stopping AppHosts. |
+
+## See also
+
+- [aspire tray start command](../aspire-tray-start/)
+- [aspire tray stop command](../aspire-tray-stop/)
+- [aspire ps command](../aspire-ps/)
+- [aspire stop command](../aspire-stop/)
