@@ -1450,6 +1450,16 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Zoom image: Aspire dashboard');
   });
 
+  it('drops markdown tables from plain-text sample descriptions', async () => {
+    const { sampleDescriptionText } = await import('@utils/samples');
+
+    expect(
+      sampleDescriptionText(
+        'Intro paragraph.\n\n| Sample | AppHost |\n| --- | --- |\n| [C# basics](./basics/) | C# |\n\nClosing paragraph.'
+      )
+    ).toBe('Intro paragraph.\n\nClosing paragraph.');
+  });
+
   it('builds sample markdown payload with absolute image URLs and metadata preamble', async () => {
     const { appHostLabel, buildSampleMarkdown } = await import('@utils/samples');
 
