@@ -148,6 +148,10 @@ const TAG_RULES: TagRule[] = [
   },
   { tag: 'node', patterns: [/\bNode\.?js\b/i, /\bnpm\b/i] },
   {
+    tag: 'java',
+    patterns: [/\bJava\b/i, /\bSpring\s+Boot\b/i, /\bQuarkus\b/i, /\bMaven\b/i, /\bGradle\b/i, /\bmvnw\b/i],
+  },
+  {
     tag: 'go',
     patterns: [
       /\bGolang\b/i,
