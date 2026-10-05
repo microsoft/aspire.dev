@@ -153,13 +153,41 @@ export function sampleDetailHref(base: string, name: string): string {
   return `${normalizedBase}/reference/samples/${sampleSlug(name)}/`;
 }
 
+/** Matches a Markdown table separator row, with or without leading/trailing pipes (e.g. `| --- | --- |`, `--- | ---`, `:--|--:`). */
+const TABLE_SEPARATOR_ROW = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/;
+
+/** Strips whole Markdown table blocks (header, separator, and body rows), tolerating missing leading/trailing pipes. */
+function stripMarkdownTables(text: string): string {
+  const lines = text.split('\n');
+  const result: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    if (TABLE_SEPARATOR_ROW.test(lines[i])) {
+      // Drop the header row that precedes the separator, if one was just pushed.
+      if (result.length > 0 && result[result.length - 1].includes('|')) {
+        result.pop();
+      }
+      // Skip the separator and any following body rows that still look like table rows.
+      i++;
+      while (i < lines.length && lines[i].includes('|')) {
+        i++;
+      }
+      i--;
+      continue;
+    }
+
+    result.push(lines[i]);
+  }
+
+  return result.join('\n');
+}
+
 export function sampleDescriptionText(description: string | null): string | null {
   if (!description) {
     return null;
   }
 
-  const text = description
-    .replace(/^\s*\|.*\|\s*$/gm, '')
+  const text = stripMarkdownTables(description)
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/`([^`]+)`/g, '$1')

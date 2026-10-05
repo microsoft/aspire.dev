@@ -1460,6 +1460,24 @@ describe('custom Astro component render coverage', () => {
     ).toBe('Intro paragraph.\n\nClosing paragraph.');
   });
 
+  it('drops markdown tables missing leading/trailing pipes', async () => {
+    const { sampleDescriptionText } = await import('@utils/samples');
+
+    expect(
+      sampleDescriptionText('Intro paragraph.\n\nSample | AppHost\n--- | ---\nC# basics | C#\n\nClosing paragraph.')
+    ).toBe('Intro paragraph.\n\nClosing paragraph.');
+  });
+
+  it('drops markdown tables with alignment markers', async () => {
+    const { sampleDescriptionText } = await import('@utils/samples');
+
+    expect(
+      sampleDescriptionText(
+        'Intro paragraph.\n\n| Sample | AppHost |\n|:---|---:|\n| C# basics | C# |\n\nClosing paragraph.'
+      )
+    ).toBe('Intro paragraph.\n\nClosing paragraph.');
+  });
+
   it('builds sample markdown payload with absolute image URLs and metadata preamble', async () => {
     const { appHostLabel, buildSampleMarkdown } = await import('@utils/samples');
 
