@@ -13,14 +13,16 @@ export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
   const rejectAllButton = page
     .locator('#wcp-cookie-banner')
     .getByRole('button', { name: /^reject(?: all)?$/i });
-  if (await rejectAllButton.isVisible()) {
+  if (await rejectAllButton.isVisible().catch(() => false)) {
     await rejectAllButton.click();
-    await expect(rejectAllButton).toBeHidden();
+    await expect(rejectAllButton).toBeHidden().catch(() => {});
   }
   // WCP can finish loading after the initial page render.
-  await page.addLocatorHandler(rejectAllButton, async (button) => {
-    await button.click();
-  });
+  await page
+    .addLocatorHandler(rejectAllButton, async (button) => {
+      await button.click();
+    })
+    .catch(() => {});
 }
 
 export async function waitForAccessibilityEnhancements(page: Page): Promise<void> {
