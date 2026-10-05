@@ -25,7 +25,7 @@ test('featured samples filter real metadata and retain language when browsing al
   const languages = samples.getByRole('group', { name: 'Sample languages' });
   const visible = samples.locator('[data-sample-languages]:visible h3');
   await expect(samples).toHaveAttribute('data-ready', '');
-  await expect(languages.getByRole('checkbox')).toHaveCount(5);
+  await expect(languages.getByRole('checkbox')).toHaveCount(6);
   await expect(languages.getByRole('checkbox', { checked: true })).toHaveCount(0);
   await expect(visible).toHaveCount(6);
   await expect(samples.getByRole('status')).toHaveText('6 featured samples: All languages');
