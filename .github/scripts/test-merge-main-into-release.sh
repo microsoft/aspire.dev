@@ -16,10 +16,14 @@ fail() {
   exit 1
 }
 
-grep -Fq 'for attempt in {1..3}; do' "$WORKFLOW" || fail "Release workflow does not retry rejected pushes."
-grep -Fq 'git checkout -B "$BRANCH" "origin/$BRANCH"' "$WORKFLOW" || fail "Release workflow does not refresh the release branch before retrying."
-grep -Fq 'if git push origin "HEAD:refs/heads/$BRANCH"; then' "$WORKFLOW" || fail "Release workflow does not handle rejected pushes."
-echo "PASS: workflow retries release branch push races"
+awk '
+  /^      - name: Merge main into release branch$/ { step = 1 }
+  step && /^        run: \|$/ { body = 1; next }
+  body && /^      - / { exit }
+  body { sub(/^          /, ""); print }
+' "$WORKFLOW" > "$TEST_ROOT/workflow.sh"
+[[ -s "$TEST_ROOT/workflow.sh" ]] || fail "Release sync workflow step was not found."
+bash -n "$TEST_ROOT/workflow.sh"
 
 write_file() {
   mkdir -p -- "$(dirname -- "$1")"
@@ -214,3 +218,91 @@ run_helper
 assert_parents
 [[ "$(cat shared.txt)" == reconciled && -f next.txt ]] || fail "Next sync revisited repaired content."
 echo "PASS: real repair avoids repeating squash-era conflicts"
+
+new_workflow_repo() {
+  new_repo "$1"
+  git switch -q main
+  mkdir -p .github/scripts
+  cp "$HELPER" .github/scripts/merge-main-into-release.sh
+  commit_all helper
+  git switch -q release/test
+  write_file release.txt release
+  commit_all release
+  git switch -q main
+  write_file main.txt main
+  commit_all main
+  main_sha="$(git rev-parse HEAD)"
+  git clone -q --bare . "$TEST_ROOT/$1-remote.git"
+  git remote add origin "$TEST_ROOT/$1-remote.git"
+  git clone -q "$TEST_ROOT/$1-remote.git" "$TEST_ROOT/$1-concurrent"
+  concurrent_repo="$TEST_ROOT/$1-concurrent"
+  git -C "$concurrent_repo" config user.name "Release sync test"
+  git -C "$concurrent_repo" config user.email "release-sync@example.invalid"
+  git -C "$concurrent_repo" config commit.gpgsign false
+  mkdir "$TEST_ROOT/$1-runner"
+  runner_temp="$TEST_ROOT/$1-runner"
+}
+
+run_workflow() (
+  export PUSH_MODE="$1" CONCURRENT_REPO="$concurrent_repo"
+  export PUSH_COUNT="$runner_temp/push-count"
+  export RUNNER_TEMP="$runner_temp" BRANCH=release/test
+  printf '0\n' > "$PUSH_COUNT"
+
+  # Simulate another writer immediately before the workflow's real push.
+  git() {
+    if [[ "$1" == push && "$2" == origin ]]; then
+      local attempt
+      attempt="$(cat "$PUSH_COUNT")"
+      attempt=$((attempt + 1))
+      printf '%s\n' "$attempt" > "$PUSH_COUNT"
+      if [[ "$PUSH_MODE" == reject ]]; then
+        echo "Simulated push permission failure." >&2
+        return 1
+      fi
+      if [[ "$PUSH_MODE" == exhaust || "$attempt" -eq 1 ]]; then
+        command git -C "$CONCURRENT_REPO" checkout -q -B release/test origin/release/test
+        printf 'concurrent\n' > "$CONCURRENT_REPO/concurrent-$attempt.txt"
+        command git -C "$CONCURRENT_REPO" add -A
+        command git -C "$CONCURRENT_REPO" commit -qm concurrent-release
+        command git -C "$CONCURRENT_REPO" push -q origin release/test
+        if [[ "$attempt" -eq 1 ]]; then
+          command git -C "$CONCURRENT_REPO" checkout -q main
+          printf 'advanced\n' > "$CONCURRENT_REPO/advanced-main.txt"
+          command git -C "$CONCURRENT_REPO" add -A
+          command git -C "$CONCURRENT_REPO" commit -qm advanced-main
+          command git -C "$CONCURRENT_REPO" push -q origin main
+        fi
+      fi
+    fi
+    command git "$@"
+  }
+  export -f git
+  bash "$TEST_ROOT/workflow.sh" > "$TEST_ROOT/output" 2>&1
+)
+
+new_workflow_repo workflow-race
+run_workflow race || { cat "$TEST_ROOT/output"; fail "Workflow did not recover from a push race."; }
+[[ "$(cat "$runner_temp/push-count")" == 2 ]] || fail "Push race did not use exactly two attempts."
+[[ "$(git rev-parse origin/release/test)" == "$(git rev-parse HEAD)" ]] || fail "Retry merge was not pushed."
+[[ "$(git rev-parse HEAD^2)" == "$main_sha" ]] || fail "Retry changed the pinned main commit."
+[[ -f concurrent-1.txt && -f main.txt && -f release.txt ]] || fail "Retry lost concurrent or merged files."
+[[ ! -e advanced-main.txt ]] || fail "Retry merged an unpinned main commit."
+echo "PASS: workflow retries races, preserves concurrent work, and keeps main pinned"
+
+new_workflow_repo workflow-rejection
+if run_workflow reject; then
+  fail "Workflow ignored a non-race push failure."
+fi
+[[ "$(cat "$runner_temp/push-count")" == 1 ]] || fail "Workflow retried a non-race push failure."
+grep -q 'not retrying' "$TEST_ROOT/output" || fail "Missing non-race failure diagnostic."
+echo "PASS: workflow fails immediately when a rejected push leaves the release tip unchanged"
+
+new_workflow_repo workflow-exhaustion
+if run_workflow exhaust; then
+  fail "Workflow ignored exhausted push races."
+fi
+[[ "$(cat "$runner_temp/push-count")" == 3 ]] || fail "Workflow did not stop after three push attempts."
+grep -q 'Unable to push release sync after 3 attempts' "$TEST_ROOT/output" || fail "Missing retry exhaustion diagnostic."
+[[ "$(grep -c '::warning::.*retrying' "$TEST_ROOT/output")" == 2 ]] || fail "Workflow announced a retry after the last attempt."
+echo "PASS: workflow fails after three push races without announcing another retry"
