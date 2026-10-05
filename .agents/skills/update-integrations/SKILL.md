@@ -161,6 +161,9 @@ The script performs the following for every package listed in `aspire-integratio
    Provisioning SDK overlays restore with the same-version `Aspire.Hosting`
    reference to model their AppHost context; other packages retain standalone
    per-package restore graphs. Dependency errors remain fatal.
+   Restores run in parallel, up to 8 at a time by default (`-Parallelism` changes
+   the limit; `-Sequential` restores one package at a time). A failed `dotnet restore`
+   is attempted up to three times before the package counts as failed.
 4. Selects the best-matching target framework folder (prefers `net10.0`, then `net9.0`, etc.).
 5. Uses Roslyn to analyze the assembly and extract all public types, members, XML docs, and attributes.
 6. Writes a `{Package}.{Version}.json` file to `src/frontend/src/data/pkgs/`.
@@ -222,6 +225,7 @@ The script reports a summary of successes, failures, and skipped packages. Commo
 - NuGet API resolution failure
 
 Packages that fail should be investigated individually — they may need a different framework target or may not ship a public API surface.
+Because restores are retried, a restore failure in the summary usually has a persistent cause, such as a pinned version that's no longer published on the package's feed.
 
 If an official release feed is required but not yet publicly reachable, rerun with one of the release feed override environment variables set.
 
@@ -257,6 +261,26 @@ combines their literals; each package's API JSON retains its exact enum surface.
 Use the package-specific SDK to validate behavior that depends on those differences.
 The generator rejects nonzero SDK dump exits and error diagnostics even when a JSON
 file was produced. An incomplete dump isn't a successful API-generation result.
+The one exception is a known scanner defect: a method inherited by several proxy
+types is exported once per derived type under the base type's capability ID, and the
+scanner reports each collision as a `Duplicate capability` error. When a dump exits
+nonzero after writing its JSON, the script passes `--tolerate-known-scanner-diagnostics`
+to the transformer, which accepts only that diagnostic shape, and only when the dump's
+`HandleTypes` show that each defining type is, or derives from, the type that owns the
+capability ID. Any other error diagnostic, or a nonzero exit without one, still fails the
+package. The script lists tolerated diagnostics in its summary, and
+`update-integration-data.ps1` raises a CI warning and lists the affected packages in the
+pull request body. Remove the tolerance
+once the shipped Aspire CLI includes [microsoft/aspire#20443](https://github.com/microsoft/aspire/pull/20443).
+
+Packages are generated in waves: `Aspire.Hosting` first, then packages that don't need
+supporting scan context, then packages that do. Packages in a wave run concurrently,
+up to 8 at a time by default; set `ASPIRE_TS_API_PARALLELISM` to change the limit (`1`
+processes one package at a time). `-AspireRepoPath` runs always process one package at
+a time because they build shared repo projects. Each `aspire` CLI call is limited to 10
+minutes and each helper tool call to 5 minutes. A dump or export that fails without
+producing a result, for example after a timeout or a transient restore failure, is
+attempted up to three times.
 
 When a TypeScript module is regenerated for a new package version, stale `ts-modules` JSON files for older versions of that same package are deleted automatically. Regenerated modules with no functions or types are omitted from `src/frontend/src/data/ts-modules/`.
 

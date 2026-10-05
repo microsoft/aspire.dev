@@ -10,16 +10,20 @@ internal static class AtsTransformer
     /// <summary>
     /// Transform the deserialized dump output into a <see cref="TsPackageModel"/>.
     /// </summary>
+    /// <param name="tolerateKnownScannerDiagnostics">
+    /// Accept error diagnostics that <see cref="KnownScannerDiagnostics"/> attributes to known scanner defects.
+    /// Any other error diagnostic still fails the transform.
+    /// </param>
     public static TsPackageModel Transform(
         AtsDumpRoot dump,
         string packageName,
         string? version = null,
         string? sourceRepository = null,
-        string? sourceCommit = null)
+        string? sourceCommit = null,
+        bool tolerateKnownScannerDiagnostics = false)
     {
-        var errors = dump.Diagnostics
-            .Where(diagnostic => diagnostic.Severity.Equals("Error", StringComparison.OrdinalIgnoreCase))
-            .Select(diagnostic => diagnostic.Message)
+        var errors = GetErrorDiagnostics(dump)
+            .Where(message => !tolerateKnownScannerDiagnostics || !KnownScannerDiagnostics.IsInheritedDuplicateCapability(message, dump))
             .ToArray();
         if (errors.Length > 0)
         {
@@ -91,6 +95,11 @@ internal static class AtsTransformer
             EnumTypes = enumModels,
         };
     }
+
+    internal static IEnumerable<string> GetErrorDiagnostics(AtsDumpRoot dump) =>
+        dump.Diagnostics
+            .Where(diagnostic => diagnostic.Severity.Equals("Error", StringComparison.OrdinalIgnoreCase))
+            .Select(diagnostic => diagnostic.Message);
 
     private static string? NormalizeSourceRepository(string? sourceRepository)
     {

@@ -49,6 +49,11 @@ internal static class GenerateCommand
         Description = "Paths to core and supporting-context docs-site JSON files. Capabilities and types already present in these packages are excluded from the output.",
     };
 
+    private static readonly Option<bool> s_tolerateKnownScannerDiagnosticsOption = new("--tolerate-known-scanner-diagnostics")
+    {
+        Description = "Accept error diagnostics caused by known ATS scanner defects and report each one. Any other error diagnostic still fails.",
+    };
+
     public static RootCommand GetCommand()
     {
         var command = new RootCommand("Transforms 'aspire sdk dump --format json' output into docs-site JSON.")
@@ -60,6 +65,7 @@ internal static class GenerateCommand
             s_sourceRepoOption,
             s_sourceCommitOption,
             s_baseOption,
+            s_tolerateKnownScannerDiagnosticsOption,
         };
 
         command.SetAction(static parseResult =>
@@ -71,8 +77,10 @@ internal static class GenerateCommand
             var sourceRepo = parseResult.GetValue(s_sourceRepoOption);
             var sourceCommit = parseResult.GetValue(s_sourceCommitOption);
             var basePaths = parseResult.GetValue(s_baseOption);
+            var tolerateKnownScannerDiagnostics = parseResult.GetValue(s_tolerateKnownScannerDiagnosticsOption);
 
-            return TransformFile(input, output, packageName, version, sourceRepo, sourceCommit, basePaths);
+            return TransformFile(
+                input, output, packageName, version, sourceRepo, sourceCommit, basePaths, tolerateKnownScannerDiagnostics);
         });
 
         return command;
@@ -85,7 +93,8 @@ internal static class GenerateCommand
         string? version,
         string? sourceRepo,
         string? sourceCommit,
-        string[]? basePaths = null)
+        string[]? basePaths = null,
+        bool tolerateKnownScannerDiagnostics = false)
     {
         if (!File.Exists(inputPath))
         {
@@ -104,7 +113,8 @@ internal static class GenerateCommand
             return 1;
         }
 
-        var result = AtsTransformer.Transform(dump, packageName, version, sourceRepo, sourceCommit);
+        var result = AtsTransformer.Transform(
+            dump, packageName, version, sourceRepo, sourceCommit, tolerateKnownScannerDiagnostics);
 
         // Supporting packages contribute scan targets, not APIs owned by this package.
         foreach (var basePath in basePaths ?? [])
@@ -159,6 +169,15 @@ internal static class GenerateCommand
         var wroteFile = StableFileWriter.WriteIfChanged(outputPath, JsonSerializer.Serialize(result, options));
 
         Console.WriteLine($"{(wroteFile ? "Generated" : "Unchanged")}: {outputPath} ({result.Functions.Count} functions, {result.HandleTypes.Count} handles, {result.DtoTypes.Count} DTOs, {result.EnumTypes.Count} enums)");
+
+        if (tolerateKnownScannerDiagnostics)
+        {
+            foreach (var message in KnownScannerDiagnostics.GetToleratedErrors(dump))
+            {
+                Console.WriteLine($"{KnownScannerDiagnostics.ToleratedOutputPrefix} {message}");
+            }
+        }
+
         return 0;
     }
 }

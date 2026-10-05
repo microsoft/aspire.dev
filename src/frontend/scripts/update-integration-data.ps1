@@ -370,6 +370,8 @@ $pkgSummary = ''
 $pkgSkippedPackages = ''
 $tsApiSummary = ''
 $tsSkippedPackages = ''
+$tsToleratedPackages = ''
+$tsToleratedDiagnostics = [System.Collections.Generic.List[string]]::new()
 $twoslashSummary = ''
 $semanticSummary = ''
 
@@ -479,6 +481,34 @@ if ($versionsChanged -and -not $SkipRegen) {
         ($tsSkippedLine -replace '^\s*Skipped packages:\s*', '').Trim()
     }
     else { '' }
+
+    # The generator tolerates only the known duplicate inherited-capability scanner
+    # defect (fixed by microsoft/aspire#20443) and lists each tolerated diagnostic
+    # under this line as "  [Package] message". Surface them loudly for review.
+    $inToleratedSection = $false
+    foreach ($line in $tsLog -split "`r?`n") {
+        if ($line -match '^\s*Packages with tolerated ATS diagnostics:\s*(?<Packages>.+?)\s*$') {
+            $tsToleratedPackages = $Matches.Packages
+            $inToleratedSection = $true
+        }
+        elseif ($inToleratedSection -and $line -match '^\s+\[(?<Package>[^\]]+)\]\s+(?<Message>.+?)\s*$') {
+            $tsToleratedDiagnostics.Add("$($Matches.Package): $($Matches.Message)")
+        }
+        else {
+            $inToleratedSection = $false
+        }
+    }
+    if ($tsToleratedPackages) {
+        $toleratedWarning = "TypeScript modules were generated despite known ATS scanner diagnostics for: $tsToleratedPackages. " +
+            "Their APIs may be incomplete until the Aspire CLI includes microsoft/aspire#20443; review them before merging."
+        Write-Warning $toleratedWarning
+        foreach ($diagnostic in $tsToleratedDiagnostics) {
+            Write-Warning "  $diagnostic"
+        }
+        if ($IsCI) {
+            Write-Host "::warning title=Tolerated ATS scanner diagnostics::$toleratedWarning"
+        }
+    }
 
     $twoslashSummary = 'succeeded'
 
@@ -625,6 +655,27 @@ if ($regenRan) {
     if ($tsSkippedPackages) {
         [void]$sb.AppendLine("- TypeScript packages skipped because they export no ATS functions: ``$tsSkippedPackages``")
     }
+    if ($tsToleratedPackages) {
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("### :warning: Tolerated ATS scanner diagnostics")
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("The Aspire CLI reported known duplicate inherited-capability diagnostics for the packages below. Their TypeScript modules were generated anyway, so the APIs named in these diagnostics may be incomplete until the CLI includes the scanner fix from microsoft/aspire#20443. **Review these modules before merging.**")
+        [void]$sb.AppendLine("")
+        foreach ($packageName in $tsToleratedPackages -split ',\s*') {
+            [void]$sb.AppendLine("- ``$packageName``")
+        }
+        if ($tsToleratedDiagnostics.Count -gt 0) {
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine("<details>")
+            [void]$sb.AppendLine("<summary>Tolerated diagnostics</summary>")
+            [void]$sb.AppendLine("")
+            foreach ($diagnostic in $tsToleratedDiagnostics) {
+                [void]$sb.AppendLine("- ``$diagnostic``")
+            }
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine("</details>")
+        }
+    }
 }
 else {
     [void]$sb.AppendLine("_No integration package versions changed in this run — API reference regeneration was skipped._")
@@ -646,6 +697,9 @@ if ($iconWarnings) {
 if ($regenRan) {
     [void]$sb.AppendLine("- [ ] New/removed ``pkgs/`` and ``ts-modules/`` files match the version changes")
     [void]$sb.AppendLine("- [ ] ``src/frontend/src/data/twoslash/aspire.d.ts`` is included in the diff")
+    if ($tsToleratedPackages) {
+        [void]$sb.AppendLine("- [ ] TypeScript modules generated with tolerated ATS scanner diagnostics were reviewed")
+    }
 }
 $prBody = $sb.ToString()
 
