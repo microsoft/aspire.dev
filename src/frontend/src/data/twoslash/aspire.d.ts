@@ -12587,6 +12587,17 @@ export declare const StableDiffusionCppImageVariant: {
   readonly Musa: "Musa";
 };
 
+/**
+ * Enum CommunityToolkit.Aspire.Hosting.k6.K6SummaryMode
+ */
+
+export type K6SummaryMode = "Compact" | "Full" | "Disabled";
+export declare const K6SummaryMode: {
+  readonly Compact: "Compact";
+  readonly Full: "Full";
+  readonly Disabled: "Disabled";
+};
+
 // ---- DTOs ----
 /**
  * DTO Aspire.Hosting.ApplicationModel.CertificateTrustExecutionConfigurationContext
@@ -57380,6 +57391,16 @@ export interface CdnManagedHttpsContentProxy extends CustomDomainHttpsContentPro
 
   certificateSourceParameters: PropertyAccessor<CdnCertificateSourceProxy>;
   /**
+   * Clears the MinimumTlsVersion provisioning property.
+   */
+
+  clearMinimumTlsVersion(): void;
+  /**
+   * Clears the ProtocolType provisioning property.
+   */
+
+  clearProtocolType(): void;
+  /**
    * Gets or sets the CertificateSourceParameters provisioning property.
    */
 
@@ -58357,16 +58378,6 @@ export interface CookiesMatchConditionProxy {
  */
 
 export interface CustomDomainHttpsContentProxy {
-  /**
-   * Clears the MinimumTlsVersion provisioning property.
-   */
-
-  clearMinimumTlsVersion(): void;
-  /**
-   * Clears the ProtocolType provisioning property.
-   */
-
-  clearProtocolType(): void;
   /**
    * Gets or sets the MinimumTlsVersion provisioning property.
    */
@@ -63348,6 +63359,46 @@ export interface WafPolicySettingsProxy {
  */
 
 export interface AadAuthTypeConnectionPropertiesProxy extends CognitiveServicesConnectionPropertiesProxy {
+  /**
+   * Clears the Category provisioning property.
+   */
+
+  clearCategory(): void;
+  /**
+   * Clears the Error provisioning property.
+   */
+
+  clearError(): void;
+  /**
+   * Clears the ExpiryOn provisioning property.
+   */
+
+  clearExpiryOn(): void;
+  /**
+   * Clears the IsSharedToAll provisioning property.
+   */
+
+  clearIsSharedToAll(): void;
+  /**
+   * Clears the PeRequirement provisioning property.
+   */
+
+  clearPeRequirement(): void;
+  /**
+   * Clears the PeStatus provisioning property.
+   */
+
+  clearPeStatus(): void;
+  /**
+   * Clears the Target provisioning property.
+   */
+
+  clearTarget(): void;
+  /**
+   * Clears the UseWorkspaceManagedIdentity provisioning property.
+   */
+
+  clearUseWorkspaceManagedIdentity(): void;
 }
 
 /**
@@ -65808,46 +65859,6 @@ export interface CognitiveServicesConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -66120,6 +66131,11 @@ export interface CognitiveServicesConnectionUsernamePasswordProxy {
  */
 
 export interface CognitiveServicesEncryptionScopePropertiesProxy extends ServiceAccountEncryptionPropertiesProxy {
+  /**
+   * Clears the KeySource provisioning property.
+   */
+
+  clearKeySource(): void;
   /**
    * Clears the State provisioning property.
    */
@@ -68816,11 +68832,6 @@ export interface ServiceAccountCallRateLimitProxy {
 
 export interface ServiceAccountEncryptionPropertiesProxy {
   /**
-   * Clears the KeySource provisioning property.
-   */
-
-  clearKeySource(): void;
-  /**
    * Gets or sets the KeySource provisioning property.
    */
 
@@ -70794,15 +70805,30 @@ export interface ContainerRegistryDockerBuildContentProxy extends ContainerRegis
 
   clearAgentCpu(): void;
   /**
+   * Clears the AgentPoolName provisioning property.
+   */
+
+  clearAgentPoolName(): void;
+  /**
    * Clears the DockerFilePath provisioning property.
    */
 
   clearDockerFilePath(): void;
   /**
+   * Clears the IsArchiveEnabled provisioning property.
+   */
+
+  clearIsArchiveEnabled(): void;
+  /**
    * Clears the IsPushEnabled provisioning property.
    */
 
   clearIsPushEnabled(): void;
+  /**
+   * Clears the LogTemplate provisioning property.
+   */
+
+  clearLogTemplate(): void;
   /**
    * Clears the NoCache provisioning property.
    */
@@ -70935,6 +70961,16 @@ export interface ContainerRegistryDockerBuildStepProxy extends ContainerRegistry
    */
 
   arguments: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerRegistry_Generated_ListOfContainerRegistryRunArgumentProxy>;
+  /**
+   * Clears the ContextAccessToken provisioning property.
+   */
+
+  clearContextAccessToken(): void;
+  /**
+   * Clears the ContextPath provisioning property.
+   */
+
+  clearContextPath(): void;
   /**
    * Clears the DockerFilePath provisioning property.
    */
@@ -72531,21 +72567,6 @@ export interface ContainerRegistryRunContentProxy {
 
   agentPoolName: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Clears the AgentPoolName provisioning property.
-   */
-
-  clearAgentPoolName(): void;
-  /**
-   * Clears the IsArchiveEnabled provisioning property.
-   */
-
-  clearIsArchiveEnabled(): void;
-  /**
-   * Clears the LogTemplate provisioning property.
-   */
-
-  clearLogTemplate(): void;
-  /**
    * Gets or sets the IsArchiveEnabled provisioning property.
    */
 
@@ -73804,16 +73825,6 @@ export interface ContainerRegistryTaskStepPropertiesProxy {
    */
 
   baseImageDependencies: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerRegistry_Generated_ListOfContainerRegistryBaseImageDependencyProxy>;
-  /**
-   * Clears the ContextAccessToken provisioning property.
-   */
-
-  clearContextAccessToken(): void;
-  /**
-   * Clears the ContextPath provisioning property.
-   */
-
-  clearContextPath(): void;
   /**
    * Gets or sets the ContextAccessToken provisioning property.
    */
@@ -87822,6 +87833,16 @@ export interface CassandraViewGetPropertiesOptionsProxy {
 
 export interface CassandraViewGetPropertiesResourceProxy extends CassandraViewResourceProxy {
   /**
+   * Clears the Id provisioning property.
+   */
+
+  clearId(): void;
+  /**
+   * Clears the ViewDefinition provisioning property.
+   */
+
+  clearViewDefinition(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -87945,16 +87966,6 @@ export interface CassandraViewGetResultProxy extends ProvisionableResourceProxy 
  */
 
 export interface CassandraViewResourceProxy {
-  /**
-   * Clears the Id provisioning property.
-   */
-
-  clearId(): void;
-  /**
-   * Clears the ViewDefinition provisioning property.
-   */
-
-  clearViewDefinition(): void;
   /**
    * Gets or sets the Id provisioning property.
    */
@@ -90537,6 +90548,21 @@ export interface CosmosDBServiceProxy extends ProvisionableResourceProxy {
 
 export interface CosmosDBSqlClientEncryptionKeyPropertiesProxy extends CosmosDBSqlClientEncryptionKeyResourceInfoProxy {
   /**
+   * Clears the EncryptionAlgorithm provisioning property.
+   */
+
+  clearEncryptionAlgorithm(): void;
+  /**
+   * Clears the Id provisioning property.
+   */
+
+  clearId(): void;
+  /**
+   * Clears the WrappedDataEncryptionKey provisioning property.
+   */
+
+  clearWrappedDataEncryptionKey(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -90615,21 +90641,6 @@ export interface CosmosDBSqlClientEncryptionKeyProxy extends ProvisionableResour
  */
 
 export interface CosmosDBSqlClientEncryptionKeyResourceInfoProxy {
-  /**
-   * Clears the EncryptionAlgorithm provisioning property.
-   */
-
-  clearEncryptionAlgorithm(): void;
-  /**
-   * Clears the Id provisioning property.
-   */
-
-  clearId(): void;
-  /**
-   * Clears the WrappedDataEncryptionKey provisioning property.
-   */
-
-  clearWrappedDataEncryptionKey(): void;
   /**
    * Gets or sets the EncryptionAlgorithm provisioning property.
    */
@@ -92031,6 +92042,16 @@ export interface CosmosDBTablePropertiesOptionsProxy {
 
 export interface CosmosDBTablePropertiesResourceProxy extends CosmosDBTableResourceInfoProxy {
   /**
+   * Clears the CreateMode provisioning property.
+   */
+
+  clearCreateMode(): void;
+  /**
+   * Clears the TableName provisioning property.
+   */
+
+  clearTableName(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -92154,16 +92175,6 @@ export interface CosmosDBTableProxy extends ProvisionableResourceProxy {
  */
 
 export interface CosmosDBTableResourceInfoProxy {
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the TableName provisioning property.
-   */
-
-  clearTableName(): void;
   /**
    * Gets or sets the CreateMode provisioning property.
    */
@@ -93230,6 +93241,16 @@ export interface ExtendedCosmosDBSqlUserDefinedFunctionResourceInfoProxy extends
 
 export interface ExtendedGremlinDatabaseResourceInfoProxy extends GremlinDatabaseResourceInfoProxy {
   /**
+   * Clears the CreateMode provisioning property.
+   */
+
+  clearCreateMode(): void;
+  /**
+   * Clears the DatabaseName provisioning property.
+   */
+
+  clearDatabaseName(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -93251,6 +93272,26 @@ export interface ExtendedGremlinDatabaseResourceInfoProxy extends GremlinDatabas
  */
 
 export interface ExtendedGremlinGraphResourceInfoProxy extends GremlinGraphResourceInfoProxy {
+  /**
+   * Clears the AnalyticalStorageTtl provisioning property.
+   */
+
+  clearAnalyticalStorageTtl(): void;
+  /**
+   * Clears the CreateMode provisioning property.
+   */
+
+  clearCreateMode(): void;
+  /**
+   * Clears the DefaultTtl provisioning property.
+   */
+
+  clearDefaultTtl(): void;
+  /**
+   * Clears the GraphName provisioning property.
+   */
+
+  clearGraphName(): void;
   /**
    * Gets the ETag provisioning property.
    */
@@ -93274,6 +93315,21 @@ export interface ExtendedGremlinGraphResourceInfoProxy extends GremlinGraphResou
 
 export interface ExtendedMongoDBCollectionResourceInfoProxy extends MongoDBCollectionResourceInfoProxy {
   /**
+   * Clears the AnalyticalStorageTtl provisioning property.
+   */
+
+  clearAnalyticalStorageTtl(): void;
+  /**
+   * Clears the CollectionName provisioning property.
+   */
+
+  clearCollectionName(): void;
+  /**
+   * Clears the CreateMode provisioning property.
+   */
+
+  clearCreateMode(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -93296,6 +93352,16 @@ export interface ExtendedMongoDBCollectionResourceInfoProxy extends MongoDBColle
 
 export interface ExtendedMongoDBDatabaseResourceInfoProxy extends MongoDBDatabaseResourceInfoProxy {
   /**
+   * Clears the CreateMode provisioning property.
+   */
+
+  clearCreateMode(): void;
+  /**
+   * Clears the DatabaseName provisioning property.
+   */
+
+  clearDatabaseName(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -93317,6 +93383,11 @@ export interface ExtendedMongoDBDatabaseResourceInfoProxy extends MongoDBDatabas
  */
 
 export interface ExtendedThroughputSettingsResourceInfoProxy extends ThroughputSettingsResourceInfoProxy {
+  /**
+   * Clears the Throughput provisioning property.
+   */
+
+  clearThroughput(): void;
   /**
    * Gets the ETag provisioning property.
    */
@@ -93677,16 +93748,6 @@ export interface GremlinDatabaseProxy extends ProvisionableResourceProxy {
 
 export interface GremlinDatabaseResourceInfoProxy {
   /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DatabaseName provisioning property.
-   */
-
-  clearDatabaseName(): void;
-  /**
    * Gets or sets the CreateMode provisioning property.
    */
 
@@ -93981,26 +94042,6 @@ export interface GremlinGraphResourceInfoProxy {
    */
 
   analyticalStorageTtl: PropertyAccessor<BicepValueProxy | number>;
-  /**
-   * Clears the AnalyticalStorageTtl provisioning property.
-   */
-
-  clearAnalyticalStorageTtl(): void;
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DefaultTtl provisioning property.
-   */
-
-  clearDefaultTtl(): void;
-  /**
-   * Clears the GraphName provisioning property.
-   */
-
-  clearGraphName(): void;
   /**
    * Gets or sets the ConflictResolutionPolicy provisioning property.
    */
@@ -94595,21 +94636,6 @@ export interface MongoDBCollectionResourceInfoProxy {
 
   analyticalStorageTtl: PropertyAccessor<BicepValueProxy | number>;
   /**
-   * Clears the AnalyticalStorageTtl provisioning property.
-   */
-
-  clearAnalyticalStorageTtl(): void;
-  /**
-   * Clears the CollectionName provisioning property.
-   */
-
-  clearCollectionName(): void;
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
    * Gets or sets the CollectionName provisioning property.
    */
 
@@ -94892,16 +94918,6 @@ export interface MongoDBDatabaseProxy extends ProvisionableResourceProxy {
  */
 
 export interface MongoDBDatabaseResourceInfoProxy {
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DatabaseName provisioning property.
-   */
-
-  clearDatabaseName(): void;
   /**
    * Gets or sets the CreateMode provisioning property.
    */
@@ -95805,11 +95821,6 @@ export interface ThroughputSettingsResourceInfoProxy {
    */
 
   autoscaleSettings: PropertyAccessor<AutoscaleSettingsResourceInfoProxy>;
-  /**
-   * Clears the Throughput provisioning property.
-   */
-
-  clearThroughput(): void;
   /**
    * Gets the InstantMaximumThroughput provisioning property.
    */
@@ -102707,6 +102718,11 @@ export interface KustoCosmosDBDataConnectionProxy extends ProvisionableResourceP
 
   clearCosmosDBDatabase(): void;
   /**
+   * Clears the Location provisioning property.
+   */
+
+  clearLocation(): void;
+  /**
    * Clears the ManagedIdentityResourceId provisioning property.
    */
 
@@ -102716,6 +102732,11 @@ export interface KustoCosmosDBDataConnectionProxy extends ProvisionableResourceP
    */
 
   clearMappingRuleName(): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
   /**
    * Clears the RetrievalStartOn provisioning property.
    */
@@ -103089,21 +103110,6 @@ export interface KustoDatabaseTableLevelSharingPropertiesProxy {
  */
 
 export interface KustoDataConnectionProxy extends ProvisionableResourceProxy {
-  /**
-   * Adds this provisioning resource to the Azure resource infrastructure.
-   */
-
-  addTo(infrastructure: AzureResourceInfrastructure): void;
-  /**
-   * Clears the Location provisioning property.
-   */
-
-  clearLocation(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets the Id provisioning property.
    */
@@ -109439,6 +109445,16 @@ export interface ApplicationGatewayWebApplicationFirewallConfigurationProxy {
  */
 
 export interface ApplicationRuleProxy extends FirewallPolicyRuleProxy {
+  /**
+   * Clears the Description provisioning property.
+   */
+
+  clearDescription(): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
   /**
    * Clears the TerminateTLS provisioning property.
    */
@@ -125088,6 +125104,16 @@ export interface FirewallPolicyFilterRuleCollectionInfoProxy extends FirewallPol
 
   clearActionType(): void;
   /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Clears the Priority provisioning property.
+   */
+
+  clearPriority(): void;
+  /**
    * Gets or sets the Rules provisioning property.
    */
 
@@ -125946,16 +125972,6 @@ export interface FirewallPolicyRuleCollectionGroupProxy extends ProvisionableRes
 
 export interface FirewallPolicyRuleCollectionInfoProxy {
   /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Clears the Priority provisioning property.
-   */
-
-  clearPriority(): void;
-  /**
    * Gets or sets the Name provisioning property.
    */
 
@@ -125982,16 +125998,6 @@ export interface FirewallPolicyRuleCollectionInfoProxy {
  */
 
 export interface FirewallPolicyRuleProxy {
-  /**
-   * Clears the Description provisioning property.
-   */
-
-  clearDescription(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets or sets the Description provisioning property.
    */
@@ -193985,6 +193991,16 @@ export interface FlociAzureContainerResource extends ContainerResource, ICompute
 
   scheme: PropertyAccessor<EndpointReferenceExpression>;
   /**
+   * Adds a Cosmos DB child resource to the Floci Azure emulator
+   */
+
+  withCosmos(options?: { name?: string; accountName?: string }): this;
+  /**
+   * Adds a Cosmos DB child resource to the Floci Azure emulator
+   */
+
+  withCosmos(name?: string, accountName?: string): this;
+  /**
    * Configures a bind mount for persistent Floci Azure state.
    */
 
@@ -194024,6 +194040,70 @@ export interface FlociAzureContainerResource extends ContainerResource, ICompute
    */
 
   withFlociUI(configureContainer?: (obj: FlociUIContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds a Service Bus child resource to the Floci Azure emulator
+   */
+
+  withServiceBus(options?: { name?: string; amqpPort?: number; amqpTlsPort?: number }): this;
+  /**
+   * Adds a Service Bus child resource to the Floci Azure emulator
+   */
+
+  withServiceBus(name?: string, amqpPort?: number, amqpTlsPort?: number): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlociAzureCosmosResource
+ */
+
+export interface FlociAzureCosmosResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the Cosmos DB account endpoint.
+   */
+
+  accountEndpoint: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the Cosmos DB account name.
+   */
+
+  accountName: PropertyAccessor<string>;
+  /**
+   * Gets the Cosmos DB connection string expression.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the parent Floci Azure emulator resource.
+   */
+
+  parent: PropertyAccessor<FlociAzureContainerResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlociAzureServiceBusResource
+ */
+
+export interface FlociAzureServiceBusResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the Service Bus plain AMQP endpoint.
+   */
+
+  amqpEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the Service Bus AMQPS/TLS endpoint.
+   */
+
+  amqpTlsEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the Service Bus connection string expression. `UseDevelopmentEmulator=true` makes the Azure SDKs use plain AMQP (no TLS), matching the official Service Bus emulator's connection-string shape.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the parent Floci Azure emulator resource.
+   */
+
+  parent: PropertyAccessor<FlociAzureContainerResource>;
 }
 
 /**
@@ -194561,6 +194641,11 @@ export interface KindClusterResource extends IKindResource, IResource, IResource
 
 export interface KindDeployedResource extends IResource, IResourceWithParent, IResourceWithWaitSupport {
   /**
+   * Configures how the post-apply check waits for CRDs to reach the `Established` condition before the resource becomes running.
+   */
+
+  withCrdWait(configure: (obj: CrdWaitOptions) => Promise<void>): this;
+  /**
    * Sets the Kubernetes namespace for the deployment.
    */
 
@@ -194585,16 +194670,6 @@ export interface KindHelmChartResource extends KindDeployedResource, IResource, 
 
   withChartVersion(version: string): this;
   /**
-   * Retries Helm installs that race newly-created CRDs which have not reached the `Established` condition yet.
-   */
-
-  withCrdWaitRetry(options?: { maxAttempts?: number; backoff?: timespan; crdWaitTimeout?: timespan }): this;
-  /**
-   * Retries Helm installs that race newly-created CRDs which have not reached the `Established` condition yet.
-   */
-
-  withCrdWaitRetry(maxAttempts?: number, backoff?: timespan, crdWaitTimeout?: timespan): this;
-  /**
    * Sets a Helm value while preserving it as a string (maps to `helm install --set-string key=value`).
    */
 
@@ -194616,6 +194691,33 @@ export interface KindHelmChartResource extends KindDeployedResource, IResource, 
  */
 
 export interface CrdWaitBehavior extends IComparable, IConvertible, IFormattable, ISpanFormattable {
+}
+
+/**
+ * Handle Aspire.Hosting.CrdWaitOptions
+ */
+
+export interface CrdWaitOptions {
+  /**
+   * Gets or sets how CRD wait failures are handled.
+   */
+
+  failureBehavior: PropertyAccessor<CrdWaitBehavior>;
+  /**
+   * Gets or sets how CRD wait failures are handled.
+   */
+
+  setFailureBehavior(value: CrdWaitBehavior): CrdWaitOptions;
+  /**
+   * Gets or sets the maximum time to wait for discovered CRDs to reach the `Established` condition.
+   */
+
+  setTimeout(value: timespan): CrdWaitOptions;
+  /**
+   * Gets or sets the maximum time to wait for discovered CRDs to reach the `Established` condition.
+   */
+
+  timeout: PropertyAccessor<timespan>;
 }
 
 /**
@@ -196690,12 +196792,12 @@ export interface K6Resource extends ContainerResource, IComputeResource, IResour
    * Runs a k6 JS script when starting the Grafana k6 container resource.
    */
 
-  withScript(scriptPath: string, options?: { virtualUsers?: number; duration?: string }): this;
+  withScript(scriptPath: string, options?: { virtualUsers?: number; duration?: string; summaryMode?: K6SummaryMode }): this;
   /**
    * Runs a k6 JS script when starting the Grafana k6 container resource.
    */
 
-  withScript(scriptPath: string, virtualUsers?: number, duration?: string): this;
+  withScript(scriptPath: string, virtualUsers?: number, duration?: string, summaryMode?: K6SummaryMode): this;
 }
 
 // ---- target-type interfaces (resource/builder APIs) ----
@@ -197817,46 +197919,6 @@ export interface AadAuthTypeConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -197971,46 +198033,6 @@ export interface AccessKeyAuthTypeConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -198124,46 +198146,6 @@ export interface AccountKeyAuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -198445,46 +198427,6 @@ export interface ApiKeyAuthConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -198593,16 +198535,6 @@ export interface ApiKeyAuthConnectionPropertiesProxy {
 
 // augments handle type ApplicationRuleProxy with extension methods
 export interface ApplicationRuleProxy {
-  /**
-   * Clears the Description provisioning property.
-   */
-
-  clearDescription(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets or sets the Description provisioning property.
    */
@@ -218681,16 +218613,6 @@ export interface BunAppResource {
 // augments handle type CassandraViewGetPropertiesResourceProxy with extension methods
 export interface CassandraViewGetPropertiesResourceProxy {
   /**
-   * Clears the Id provisioning property.
-   */
-
-  clearId(): void;
-  /**
-   * Clears the ViewDefinition provisioning property.
-   */
-
-  clearViewDefinition(): void;
-  /**
    * Gets or sets the Id provisioning property.
    */
 
@@ -218714,16 +218636,6 @@ export interface CassandraViewGetPropertiesResourceProxy {
 
 // augments handle type CdnManagedHttpsContentProxy with extension methods
 export interface CdnManagedHttpsContentProxy {
-  /**
-   * Clears the MinimumTlsVersion provisioning property.
-   */
-
-  clearMinimumTlsVersion(): void;
-  /**
-   * Clears the ProtocolType provisioning property.
-   */
-
-  clearProtocolType(): void;
   /**
    * Gets or sets the MinimumTlsVersion provisioning property.
    */
@@ -218875,11 +218787,6 @@ export interface CognitiveServicesAccountModelProxy {
 // augments handle type CognitiveServicesEncryptionScopePropertiesProxy with extension methods
 export interface CognitiveServicesEncryptionScopePropertiesProxy {
   /**
-   * Clears the KeySource provisioning property.
-   */
-
-  clearKeySource(): void;
-  /**
    * Gets or sets the KeySource provisioning property.
    */
 
@@ -218931,21 +218838,6 @@ export interface ContainerRegistryDockerBuildContentProxy {
 
   agentPoolName: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Clears the AgentPoolName provisioning property.
-   */
-
-  clearAgentPoolName(): void;
-  /**
-   * Clears the IsArchiveEnabled provisioning property.
-   */
-
-  clearIsArchiveEnabled(): void;
-  /**
-   * Clears the LogTemplate provisioning property.
-   */
-
-  clearLogTemplate(): void;
-  /**
    * Gets or sets the IsArchiveEnabled provisioning property.
    */
 
@@ -218980,16 +218872,6 @@ export interface ContainerRegistryDockerBuildStepProxy {
 
   baseImageDependencies: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerRegistry_Generated_ListOfContainerRegistryBaseImageDependencyProxy>;
   /**
-   * Clears the ContextAccessToken provisioning property.
-   */
-
-  clearContextAccessToken(): void;
-  /**
-   * Clears the ContextPath provisioning property.
-   */
-
-  clearContextPath(): void;
-  /**
    * Gets or sets the ContextAccessToken provisioning property.
    */
 
@@ -219018,21 +218900,6 @@ export interface ContainerRegistryEncodedTaskRunContentProxy {
    */
 
   agentPoolName: PropertyAccessor<BicepValueProxy | string>;
-  /**
-   * Clears the AgentPoolName provisioning property.
-   */
-
-  clearAgentPoolName(): void;
-  /**
-   * Clears the IsArchiveEnabled provisioning property.
-   */
-
-  clearIsArchiveEnabled(): void;
-  /**
-   * Clears the LogTemplate provisioning property.
-   */
-
-  clearLogTemplate(): void;
   /**
    * Gets or sets the IsArchiveEnabled provisioning property.
    */
@@ -219068,16 +218935,6 @@ export interface ContainerRegistryEncodedTaskStepProxy {
 
   baseImageDependencies: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerRegistry_Generated_ListOfContainerRegistryBaseImageDependencyProxy>;
   /**
-   * Clears the ContextAccessToken provisioning property.
-   */
-
-  clearContextAccessToken(): void;
-  /**
-   * Clears the ContextPath provisioning property.
-   */
-
-  clearContextPath(): void;
-  /**
    * Gets or sets the ContextAccessToken provisioning property.
    */
 
@@ -219106,21 +218963,6 @@ export interface ContainerRegistryFileTaskRunContentProxy {
    */
 
   agentPoolName: PropertyAccessor<BicepValueProxy | string>;
-  /**
-   * Clears the AgentPoolName provisioning property.
-   */
-
-  clearAgentPoolName(): void;
-  /**
-   * Clears the IsArchiveEnabled provisioning property.
-   */
-
-  clearIsArchiveEnabled(): void;
-  /**
-   * Clears the LogTemplate provisioning property.
-   */
-
-  clearLogTemplate(): void;
   /**
    * Gets or sets the IsArchiveEnabled provisioning property.
    */
@@ -219155,16 +218997,6 @@ export interface ContainerRegistryFileTaskStepProxy {
    */
 
   baseImageDependencies: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerRegistry_Generated_ListOfContainerRegistryBaseImageDependencyProxy>;
-  /**
-   * Clears the ContextAccessToken provisioning property.
-   */
-
-  clearContextAccessToken(): void;
-  /**
-   * Clears the ContextPath provisioning property.
-   */
-
-  clearContextPath(): void;
   /**
    * Gets or sets the ContextAccessToken provisioning property.
    */
@@ -219493,21 +219325,6 @@ export interface ContainerRegistryTaskRunContentProxy {
    */
 
   agentPoolName: PropertyAccessor<BicepValueProxy | string>;
-  /**
-   * Clears the AgentPoolName provisioning property.
-   */
-
-  clearAgentPoolName(): void;
-  /**
-   * Clears the IsArchiveEnabled provisioning property.
-   */
-
-  clearIsArchiveEnabled(): void;
-  /**
-   * Clears the LogTemplate provisioning property.
-   */
-
-  clearLogTemplate(): void;
   /**
    * Gets or sets the IsArchiveEnabled provisioning property.
    */
@@ -220217,6 +220034,16 @@ export interface ContainerResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -220304,21 +220131,6 @@ export interface CosmosCassandraDataTransferDataSourceSinkProxy {
 // augments handle type CosmosDBSqlClientEncryptionKeyPropertiesProxy with extension methods
 export interface CosmosDBSqlClientEncryptionKeyPropertiesProxy {
   /**
-   * Clears the EncryptionAlgorithm provisioning property.
-   */
-
-  clearEncryptionAlgorithm(): void;
-  /**
-   * Clears the Id provisioning property.
-   */
-
-  clearId(): void;
-  /**
-   * Clears the WrappedDataEncryptionKey provisioning property.
-   */
-
-  clearWrappedDataEncryptionKey(): void;
-  /**
    * Gets or sets the EncryptionAlgorithm provisioning property.
    */
 
@@ -220362,16 +220174,6 @@ export interface CosmosDBSqlClientEncryptionKeyPropertiesProxy {
 
 // augments handle type CosmosDBTablePropertiesResourceProxy with extension methods
 export interface CosmosDBTablePropertiesResourceProxy {
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the TableName provisioning property.
-   */
-
-  clearTableName(): void;
   /**
    * Gets or sets the CreateMode provisioning property.
    */
@@ -221189,6 +220991,16 @@ export interface CSharpAppResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -221237,46 +221049,6 @@ export interface CustomKeysConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -221545,6 +221317,16 @@ export interface DenoAppResource {
    */
 
   withDenoPackageInstallation(): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(options?: { endpointName?: string }): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(endpointName?: string): this;
 }
 
 // augments handle type DockerComposeAspireDashboardResource with extension methods
@@ -221568,11 +221350,6 @@ export interface DotnetProjectResource {
    */
 
   withBlazorClientApp(wasmApp: BlazorWasmAppResource, apiPrefix?: string, otlpPrefix?: string, proxyTelemetry?: boolean): this;
-  /**
-   * Associates a pre-built container image reference with a .NET program resource.
-   */
-
-  withContainerImage(image: string): this;
 }
 
 // augments handle type DotnetToolResource with extension methods
@@ -222281,6 +222058,16 @@ export interface DotnetToolResource {
    */
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
   /**
    * Adds a reference to a Floci GCP emulator resource
    */
@@ -223045,6 +222832,16 @@ export interface ExecutableResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -223468,16 +223265,6 @@ export interface ExtendedCosmosDBSqlUserDefinedFunctionResourceInfoProxy {
 // augments handle type ExtendedGremlinDatabaseResourceInfoProxy with extension methods
 export interface ExtendedGremlinDatabaseResourceInfoProxy {
   /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DatabaseName provisioning property.
-   */
-
-  clearDatabaseName(): void;
-  /**
    * Gets or sets the CreateMode provisioning property.
    */
 
@@ -223516,26 +223303,6 @@ export interface ExtendedGremlinGraphResourceInfoProxy {
    */
 
   analyticalStorageTtl: PropertyAccessor<BicepValueProxy | number>;
-  /**
-   * Clears the AnalyticalStorageTtl provisioning property.
-   */
-
-  clearAnalyticalStorageTtl(): void;
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DefaultTtl provisioning property.
-   */
-
-  clearDefaultTtl(): void;
-  /**
-   * Clears the GraphName provisioning property.
-   */
-
-  clearGraphName(): void;
   /**
    * Gets or sets the ConflictResolutionPolicy provisioning property.
    */
@@ -223631,21 +223398,6 @@ export interface ExtendedMongoDBCollectionResourceInfoProxy {
 
   analyticalStorageTtl: PropertyAccessor<BicepValueProxy | number>;
   /**
-   * Clears the AnalyticalStorageTtl provisioning property.
-   */
-
-  clearAnalyticalStorageTtl(): void;
-  /**
-   * Clears the CollectionName provisioning property.
-   */
-
-  clearCollectionName(): void;
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
    * Gets or sets the CollectionName provisioning property.
    */
 
@@ -223705,16 +223457,6 @@ export interface ExtendedMongoDBCollectionResourceInfoProxy {
 // augments handle type ExtendedMongoDBDatabaseResourceInfoProxy with extension methods
 export interface ExtendedMongoDBDatabaseResourceInfoProxy {
   /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DatabaseName provisioning property.
-   */
-
-  clearDatabaseName(): void;
-  /**
    * Gets or sets the CreateMode provisioning property.
    */
 
@@ -223753,11 +223495,6 @@ export interface ExtendedThroughputSettingsResourceInfoProxy {
    */
 
   autoscaleSettings: PropertyAccessor<AutoscaleSettingsResourceInfoProxy>;
-  /**
-   * Clears the Throughput provisioning property.
-   */
-
-  clearThroughput(): void;
   /**
    * Gets the InstantMaximumThroughput provisioning property.
    */
@@ -224115,16 +223852,6 @@ export interface FileSearchToolResource {
 // augments handle type FirewallPolicyFilterRuleCollectionInfoProxy with extension methods
 export interface FirewallPolicyFilterRuleCollectionInfoProxy {
   /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Clears the Priority provisioning property.
-   */
-
-  clearPriority(): void;
-  /**
    * Gets or sets the Name provisioning property.
    */
 
@@ -224148,16 +223875,6 @@ export interface FirewallPolicyFilterRuleCollectionInfoProxy {
 
 // augments handle type FirewallPolicyNatRuleCollectionInfoProxy with extension methods
 export interface FirewallPolicyNatRuleCollectionInfoProxy {
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Clears the Priority provisioning property.
-   */
-
-  clearPriority(): void;
   /**
    * Gets or sets the Name provisioning property.
    */
@@ -224193,6 +223910,16 @@ export interface FlociAwsContainerResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -224211,6 +223938,16 @@ export interface FlociAzureContainerResource {
    */
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
   /**
    * Adds a reference to a Floci GCP emulator resource
    */
@@ -224231,6 +223968,16 @@ export interface FlociGcpContainerResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -224249,6 +223996,16 @@ export interface FlociUIContainerResource {
    */
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
   /**
    * Adds a reference to a Floci GCP emulator resource
    */
@@ -224504,11 +224261,6 @@ export interface IDotnetProgramResource {
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
-  /**
-   * Associates a pre-built container image reference with a .NET program resource.
-   */
-
-  withContainerImage(image: string): this;
 }
 
 export interface IHostEnvironment {
@@ -224722,6 +224474,16 @@ export interface IResourceWithEnvironment {
    */
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
   /**
    * Adds a reference to a Floci GCP emulator resource
    */
@@ -225010,7 +224772,12 @@ export interface K8sManifestResource {
 
   withClusterReadyTimeout(timeout: timespan): this;
   /**
-   * Sets whether CRD wait failures fail the manifest resource or are logged as best-effort warnings.
+   * Configures how the post-apply check waits for CRDs to reach the `Established` condition before the resource becomes running.
+   */
+
+  withCrdWait(configure: (obj: CrdWaitOptions) => Promise<void>): this;
+  /**
+   * Sets whether CRD wait failures prevent the manifest from running.
    */
 
   withCrdWaitBehavior(behavior: CrdWaitBehavior): this;
@@ -225124,6 +224891,11 @@ export interface KindEnvironmentResource {
 
 // augments handle type KindHelmChartResource with extension methods
 export interface KindHelmChartResource {
+  /**
+   * Configures how the post-apply check waits for CRDs to reach the `Established` condition before the resource becomes running.
+   */
+
+  withCrdWait(configure: (obj: CrdWaitOptions) => Promise<void>): this;
   /**
    * Sets the Kubernetes namespace for the deployment.
    */
@@ -225256,16 +225028,6 @@ export interface KubernetesResource {
 // augments handle type KustoCosmosDBDataConnectionProxy with extension methods
 export interface KustoCosmosDBDataConnectionProxy {
   /**
-   * Clears the Location provisioning property.
-   */
-
-  clearLocation(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
    * Gets the Id provisioning property.
    */
 
@@ -225309,16 +225071,6 @@ export interface KustoCosmosDBDataConnectionProxy {
 
 // augments handle type KustoEventGridDataConnectionProxy with extension methods
 export interface KustoEventGridDataConnectionProxy {
-  /**
-   * Clears the Location provisioning property.
-   */
-
-  clearLocation(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets the Id provisioning property.
    */
@@ -225364,16 +225116,6 @@ export interface KustoEventGridDataConnectionProxy {
 // augments handle type KustoEventHubDataConnectionProxy with extension methods
 export interface KustoEventHubDataConnectionProxy {
   /**
-   * Clears the Location provisioning property.
-   */
-
-  clearLocation(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
    * Gets the Id provisioning property.
    */
 
@@ -225417,16 +225159,6 @@ export interface KustoEventHubDataConnectionProxy {
 
 // augments handle type KustoIotHubDataConnectionProxy with extension methods
 export interface KustoIotHubDataConnectionProxy {
-  /**
-   * Clears the Location provisioning property.
-   */
-
-  clearLocation(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets the Id provisioning property.
    */
@@ -225614,46 +225346,6 @@ export interface ManagedIdentityAuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -225920,16 +225612,6 @@ export interface MySqlServerResource {
 // augments handle type NatRuleProxy with extension methods
 export interface NatRuleProxy {
   /**
-   * Clears the Description provisioning property.
-   */
-
-  clearDescription(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
    * Gets or sets the Description provisioning property.
    */
 
@@ -226041,16 +225723,6 @@ export interface NetworkDefaultAdminRuleProxy {
 
 // augments handle type NetworkRuleProxy with extension methods
 export interface NetworkRuleProxy {
-  /**
-   * Clears the Description provisioning property.
-   */
-
-  clearDescription(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets or sets the Description provisioning property.
    */
@@ -226329,46 +226001,6 @@ export interface NoneAuthTypeConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -226496,46 +226128,6 @@ export interface OAuth2AuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -227021,46 +226613,6 @@ export interface PatAuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -228304,6 +227856,16 @@ export interface ProjectResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -228659,46 +228221,6 @@ export interface SASAuthTypeConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -228812,46 +228334,6 @@ export interface ServicePrincipalAuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -229218,16 +228700,6 @@ export interface TurborepoAppResource {
 // augments handle type UserManagedHttpsContentProxy with extension methods
 export interface UserManagedHttpsContentProxy {
   /**
-   * Clears the MinimumTlsVersion provisioning property.
-   */
-
-  clearMinimumTlsVersion(): void;
-  /**
-   * Clears the ProtocolType provisioning property.
-   */
-
-  clearProtocolType(): void;
-  /**
    * Gets or sets the MinimumTlsVersion provisioning property.
    */
 
@@ -229256,46 +228728,6 @@ export interface UsernamePasswordAuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
