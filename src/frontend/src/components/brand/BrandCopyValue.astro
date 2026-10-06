@@ -33,11 +33,11 @@ const { value, label } = Astro.props;
       delete status.dataset.state;
       status.textContent = '';
 
-      const code = document.querySelector('main .expressive-code');
-      if (!code) {
-        throw new Error('The brand palette is missing its code-copy feedback theme.');
-      }
       const syncFeedbackTheme = () => {
+        const code = document.querySelector('main .expressive-code');
+        if (!code) {
+          throw new Error('The brand palette is missing its code-copy feedback theme.');
+        }
         const theme = getComputedStyle(code);
         this.style.setProperty(
           '--copy-success-bg',
@@ -66,6 +66,7 @@ const { value, label } = Astro.props;
         try {
           await navigator.clipboard.writeText(button.value);
           if (!this.isConnected) return;
+          syncFeedbackTheme();
           button.dataset.state = 'copied';
           status.textContent = 'Copied.';
           this.resetTimer = window.setTimeout(() => {

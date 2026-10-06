@@ -57,6 +57,7 @@ test('footer leads to the local overview with focused navigation and an external
 test('the PowerPoint link requires agreement and preserves its external destination', async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript((deckUrl) => {
     window.brandApprovedLinks = [];
     document.addEventListener(
