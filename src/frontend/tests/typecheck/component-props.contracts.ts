@@ -692,6 +692,7 @@ const validTerminalShowcaseProps = {
   description: 'Watch the Aspire CLI in action.',
   cast: '/casts/aspire-help.cast',
   rows: 12,
+  speed: 0.5,
   cta: { label: 'Get started', href: '/get-started/' },
 } satisfies PropsOf<typeof TerminalShowcase>;
 // @ts-expect-error TerminalShowcase should reject unknown props.
