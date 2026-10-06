@@ -1,0 +1,121 @@
+---
+import FluidGrid from '@components/FluidGrid.astro';
+import BrandWordmark from '@components/brand/BrandWordmark.astro';
+import BrandDownloadButton from '@components/brand/BrandDownloadButton.astro';
+import type { BrandAsset } from '@data/brand';
+
+interface Props {
+  assets: readonly BrandAsset[];
+}
+
+const { assets } = Astro.props;
+---
+
+<div class="brand-gallery not-content">
+  <FluidGrid as="ul" minColumnWidth="15rem" gap="1.25rem">
+    {
+      assets.map((asset) => (
+        <li class="brand-asset">
+          <div class:list={['preview', asset.surface]} aria-hidden="true">
+            {asset.kind === 'logo' ? (
+              <BrandWordmark asset={asset} />
+            ) : (
+              <img
+                src={`/brand/${asset.file}`}
+                alt=""
+                width={asset.width}
+                height={asset.height}
+                loading="lazy"
+                decoding="async"
+                data-zoom-off
+                class="compact"
+              />
+            )}
+          </div>
+          <div class="asset-details">
+            <h3>{asset.name}</h3>
+            <p>{asset.description}</p>
+            <BrandDownloadButton href={`/brand/${asset.file}`} name={asset.name} kind="svg" />
+          </div>
+        </li>
+      ))
+    }
+  </FluidGrid>
+</div>
+
+<style>
+  .brand-gallery {
+    margin-block: 1.25rem;
+  }
+
+  .brand-asset {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--aspire-color-dark-surface);
+    font-weight: 400;
+  }
+
+  :global([data-theme='light']) .brand-asset {
+    background: var(--sl-color-bg);
+  }
+
+  .preview {
+    display: grid;
+    place-items: center;
+    height: 10rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .preview.light {
+    background: #f9f8ff;
+  }
+
+  .preview.dark {
+    background: #141322;
+  }
+
+  .preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    min-height: 0;
+  }
+
+  .preview img.compact {
+    width: 5rem;
+    height: 5rem;
+  }
+
+  .asset-details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.625rem;
+    padding: 1rem 1rem 0.75rem;
+    flex: 1;
+  }
+
+  .asset-details h3,
+  .asset-details p {
+    margin: 0;
+  }
+
+  .asset-details h3 {
+    font-size: var(--sl-text-lg);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .asset-details p {
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-sm);
+  }
+
+  .asset-details :global(.brand-download) {
+    margin-top: auto;
+  }
+</style>

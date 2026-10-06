@@ -1,0 +1,89 @@
+---
+import BrandDownloadButton from '@components/brand/BrandDownloadButton.astro';
+import { brandAssets } from '@data/brand';
+
+const icons = brandAssets.filter((asset) => asset.kind === 'icon');
+const preview = icons.find((asset) => asset.width === 256);
+if (!preview) throw new Error('The standalone Aspire icon preview is missing.');
+---
+
+<div class="icon-downloads not-content">
+  <div class="preview" aria-hidden="true">
+    <img src={`/brand/${preview.file}`} width={256} height={256} alt="" data-zoom-off />
+  </div>
+  <div class="details">
+    <h3>Standalone Aspire icon</h3>
+    <p>Both files are scalable SVGs. The sizes refer to their native artboards.</p>
+    <div class="downloads">
+      {
+        icons.map((icon) => (
+          <BrandDownloadButton
+            href={`/brand/${icon.file}`}
+            name={icon.name}
+            kind="svg"
+            label={`Download ${icon.width}px SVG`}
+          />
+        ))
+      }
+    </div>
+  </div>
+</div>
+
+<style>
+  .icon-downloads {
+    display: grid;
+    gap: 1.25rem;
+    margin-block: 1.25rem;
+    padding: 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-gray-6);
+  }
+
+  .preview {
+    display: grid;
+    place-items: center;
+  }
+
+  img {
+    width: 5rem;
+    height: 5rem;
+    margin: 0;
+    object-fit: contain;
+  }
+
+  .details {
+    display: grid;
+    gap: 0.75rem;
+    align-content: center;
+  }
+
+  h3,
+  p {
+    margin: 0;
+  }
+
+  h3 {
+    font-size: var(--sl-text-lg);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  p {
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-sm);
+    line-height: 1.6;
+  }
+
+  .downloads {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 50em) {
+    .icon-downloads {
+      grid-template-columns: 7rem minmax(0, 1fr);
+    }
+  }
+</style>

@@ -1,0 +1,168 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import licenseText from '/public/brand/LICENSE.txt?raw';
+---
+
+<brand-license-modal data-pagefind-ignore>
+  <dialog
+    class="not-content"
+    id="brand-artwork-license"
+    aria-labelledby="brand-artwork-license-title"
+  >
+    <div class="license-header">
+      <h2 id="brand-artwork-license-title">Artwork license</h2>
+      <button type="button" aria-label="Close artwork license">
+        <Icon name="close" size="1.25rem" />
+      </button>
+    </div>
+    <textarea aria-label="CC0 1.0 Universal license text" readonly wrap="off" spellcheck="false"
+      >{licenseText}</textarea
+    >
+  </dialog>
+</brand-license-modal>
+
+<script>
+  class BrandLicenseModal extends HTMLElement {
+    private listeners?: AbortController;
+
+    connectedCallback() {
+      const dialog = this.querySelector('dialog');
+      const closeButton = this.querySelector('button');
+      if (!dialog || !closeButton) {
+        throw new Error('The artwork license dialog is missing its controls.');
+      }
+
+      this.listeners?.abort();
+      this.listeners = new AbortController();
+      const { signal } = this.listeners;
+      let opener: HTMLAnchorElement | undefined;
+
+      document
+        .querySelectorAll<HTMLAnchorElement>('a[href="/brand/LICENSE.txt"]')
+        .forEach((link) => {
+          link.setAttribute('aria-haspopup', 'dialog');
+          link.setAttribute('aria-controls', dialog.id);
+          link.addEventListener(
+            'click',
+            (event) => {
+              if (
+                event.button !== 0 ||
+                event.ctrlKey ||
+                event.metaKey ||
+                event.shiftKey ||
+                event.altKey
+              ) {
+                return;
+              }
+              event.preventDefault();
+              opener = link;
+              dialog.showModal();
+            },
+            { signal }
+          );
+        });
+      closeButton.addEventListener('click', () => dialog.close(), { signal });
+      dialog.addEventListener(
+        'close',
+        () => {
+          opener?.focus();
+          opener = undefined;
+        },
+        { signal }
+      );
+    }
+
+    disconnectedCallback() {
+      this.listeners?.abort();
+      this.listeners = undefined;
+    }
+  }
+
+  if (!customElements.get('brand-license-modal')) {
+    customElements.define('brand-license-modal', BrandLicenseModal);
+  }
+</script>
+
+<style>
+  dialog {
+    width: min(56rem, calc(100% - 2rem));
+    max-height: calc(100dvh - 2rem);
+    margin: auto;
+    padding: 1.5rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    overflow: auto;
+  }
+
+  dialog::backdrop {
+    background: rgb(31 30 51 / 50%);
+  }
+
+  .license-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: var(--sl-text-xl);
+  }
+
+  button {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    cursor: pointer;
+  }
+
+  textarea {
+    display: block;
+    width: 100%;
+    height: min(60dvh, 32rem);
+    padding: 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-gray-7);
+    color: var(--sl-color-text);
+    font-family: var(--aspire-font-mono);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    overflow: auto;
+    scrollbar-width: auto;
+    scrollbar-gutter: stable;
+    resize: none;
+  }
+
+  textarea::-webkit-scrollbar {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+
+  textarea::-webkit-scrollbar-track {
+    background: var(--sl-color-gray-7);
+  }
+
+  textarea::-webkit-scrollbar-thumb {
+    background: var(--sl-color-gray-3);
+    border: 2px solid var(--sl-color-gray-7);
+    border-radius: 0.75rem;
+  }
+
+  button:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 3px;
+  }
+</style>
