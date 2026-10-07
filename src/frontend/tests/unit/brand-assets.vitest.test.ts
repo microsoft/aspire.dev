@@ -111,6 +111,18 @@ describe('brand reference values', () => {
 });
 
 describe('brand section integration', () => {
+  it('uses a 1200 by 630 overview image while other brand pages keep generated cards', () => {
+    const overview = readFileSync(new URL('index.mdx', docsRoot), 'utf8');
+    expect(overview).toContain('ogImage: /og/aspire-brand-assets.png');
+    const png = readFileSync(new URL('public/og/aspire-brand-assets.png', frontendRoot));
+    expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    expect(png.readUInt32BE(16)).toBe(1200);
+    expect(png.readUInt32BE(20)).toBe(630);
+    for (const page of pages.filter((page) => page !== 'index.mdx')) {
+      expect(readFileSync(new URL(page, docsRoot), 'utf8')).not.toMatch(/^og(?:Image)?:/m);
+    }
+  });
+
   it('exposes all five pages through Community navigation', () => {
     const sidebar = JSON.stringify(communityTopics);
     for (const file of pages) {

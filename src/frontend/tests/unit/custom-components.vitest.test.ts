@@ -74,7 +74,7 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 import samplesData from '@data/samples.json';
-import { brandAssets, brandColors, brandGradients } from '@data/brand';
+import { brandAssets, brandColors, brandGradients, brandAccents } from '@data/brand';
 import daTranslations from '../../src/content/i18n/da.json';
 import deTranslations from '../../src/content/i18n/de.json';
 import enTranslations from '../../src/content/i18n/en.json';
@@ -154,6 +154,18 @@ describe('community brand components', () => {
     }
   });
 
+  it('omits filler descriptions from supporting accent cards', async () => {
+    const html = await renderComponent(BrandPalette, {
+      props: { colors: brandAccents, variant: 'accents' },
+    });
+    expect(html).not.toMatch(/<p(?:\s|>)/);
+    expect(html).not.toContain('Supporting accent.');
+    for (const { name, value } of brandAccents) {
+      expect(html).toContain(name);
+      expect(html).toContain(value);
+    }
+  });
+
   it('renders four local Poppins specimens', async () => {
     const type = await renderComponent(BrandTypography);
     for (const weight of [400, 500, 600, 700]) {
@@ -198,6 +210,7 @@ describe('community brand components', () => {
     }));
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).toContain('resource-link not-content');
     expect(html).toContain('opens in a new tab');
     expect(html).toContain('<svg');
   });

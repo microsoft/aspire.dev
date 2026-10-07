@@ -5,27 +5,25 @@ import type { BrandColor } from '@data/brand';
 
 interface Props {
   colors: readonly BrandColor[];
-  variant?: 'colors' | 'gradients';
+  variant?: 'colors' | 'gradients' | 'accents';
 }
 
 const { colors, variant = 'colors' } = Astro.props;
 
 function copyValue(value: string): string {
-  return variant === 'gradients'
-    ? value.replace('(', '(\n  ').replaceAll(', ', ',\n  ').replace(/\)$/, '\n)')
-    : value;
+  return variant === 'gradients' ? value.replace('(', '(\n  ').replace(/\)$/, '\n)') : value;
 }
 ---
 
-<div class:list={['brand-palette', 'not-content', { gradients: variant === 'gradients' }]}>
-  <FluidGrid as="ul" minColumnWidth="17rem" gap="1.25rem">
+<div class:list={['brand-palette', 'not-content', variant]}>
+  <FluidGrid as="ul" minColumnWidth={variant === 'accents' ? '13rem' : '17rem'} gap="1.25rem">
     {
       colors.map((color) => (
         <li class="brand-color">
           <div class="swatch" style={{ background: color.value }} aria-hidden="true" />
           <div class="details">
             <h3>{color.name}</h3>
-            <p>{color.description}</p>
+            {color.description && <p>{color.description}</p>}
             <code class="token">{color.token}</code>
           </div>
           <div class="footer">
@@ -39,7 +37,7 @@ function copyValue(value: string): string {
 
 <style>
   .brand-palette {
-    margin-block: 1.25rem;
+    margin-block: 1.5rem;
     container-type: inline-size;
   }
 
@@ -59,15 +57,27 @@ function copyValue(value: string): string {
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.75rem;
-    background: var(--sl-color-bg);
+    border-radius: 0.5rem;
+    background: var(--aspire-color-dark-surface);
     font-weight: 400;
+  }
+
+  :global([data-theme='light']) .brand-color {
+    background: var(--aspire-color-surface-subtle);
   }
 
   .swatch {
     height: 7rem;
     flex-shrink: 0;
     border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .accents .swatch {
+    height: 3rem;
+  }
+
+  .accents h3 {
+    font-size: var(--sl-text-base);
   }
 
   .details {
@@ -90,12 +100,13 @@ function copyValue(value: string): string {
     color: var(--sl-color-gray-2);
     font-size: var(--sl-text-sm);
     flex: 1;
+    line-height: 1.6;
   }
 
   .token {
     display: block;
     margin-top: auto;
-    font-size: var(--sl-text-sm);
+    font-size: var(--sl-text-base);
     overflow-wrap: anywhere;
     padding: 0.2rem 0.35rem;
     border-radius: 0.25rem;
@@ -108,9 +119,18 @@ function copyValue(value: string): string {
   .footer {
     padding: 0.75rem 1rem;
     border-top: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-bg);
   }
 
   .footer :global(brand-copy-value) {
     margin-top: 0;
+  }
+
+  .gradients .footer :global(brand-copy-value button) {
+    align-self: end;
+  }
+
+  .gradients .footer :global(brand-copy-value code) {
+    justify-self: stretch;
   }
 </style>

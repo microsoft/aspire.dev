@@ -1,10 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 
-import {
-  isDefaultLocaleEntry,
-  shouldSkipDynamicOgImage,
-} from '@utils/page-metadata';
+import { isDefaultLocaleEntry, shouldSkipDynamicOgImage } from '@utils/page-metadata';
 import { renderOgImagePng } from '@utils/og-image-renderer';
 import { getTopicForEntry } from '@utils/topic-resolver';
 
@@ -58,7 +55,7 @@ export async function getStaticPaths() {
     const topic = getTopicForEntry(contentBasePath);
 
     paths.push({
-      params: { slug: `${contentBasePath}.png` },
+      params: { slug: contentBasePath },
       props: {
         title: entry.data.title,
         description: entry.data.description,

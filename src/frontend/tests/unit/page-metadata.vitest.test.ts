@@ -538,6 +538,70 @@ describe('getOgMetadata', () => {
     expect(meta.imageType).toBe('image/png');
   });
 
+  it('uses the preview origin for generated images without changing the canonical page URL', () => {
+    const meta = getOgMetadata(
+      createRoute(),
+      new URL('https://release-preview.azurewebsites.net/dashboard/enable-browser-telemetry/'),
+      site,
+      'https://release-preview.azurewebsites.net/'
+    );
+    expect(meta.url).toBe('https://aspire.dev/dashboard/enable-browser-telemetry/');
+    expect(meta.image).toBe(
+      'https://release-preview.azurewebsites.net/og/dashboard/enable-browser-telemetry.png'
+    );
+  });
+
+  it('uses the preview origin for relative custom artwork and static fallbacks', () => {
+    const origin = 'https://release-preview.azurewebsites.net';
+    const custom = getOgMetadata(
+      createRoute({ ogImage: '/og/aspire-brand-assets.png' }),
+      new URL(`${origin}/community/brand/`),
+      site,
+      origin
+    );
+    expect(custom.image).toBe(`${origin}/og/aspire-brand-assets.png`);
+    const fallback = getOgMetadata(
+      createRoute({ og: false }),
+      new URL(`${origin}/guide/`),
+      site,
+      origin
+    );
+    expect(fallback.image).toBe(`${origin}/og-image.png`);
+  });
+
+  it('preserves absolute third-party images when a preview origin is configured', () => {
+    const meta = getOgMetadata(
+      createRoute({ ogImage: 'https://images.example.net/custom.png' }),
+      new URL('https://release-preview.azurewebsites.net/guide/'),
+      site,
+      'https://release-preview.azurewebsites.net'
+    );
+    expect(meta.image).toBe('https://images.example.net/custom.png');
+  });
+
+  it('accepts loopback HTTP image origins for local previews', () => {
+    const meta = getOgMetadata(
+      createRoute(),
+      new URL('http://127.0.0.1:4321/guide/'),
+      site,
+      'http://127.0.0.1:4321'
+    );
+    expect(meta.image).toBe('http://127.0.0.1:4321/og/dashboard/enable-browser-telemetry.png');
+  });
+
+  it.each([
+    'http://release-preview.azurewebsites.net',
+    'https://preview.example.net/path',
+    'https://preview.example.net/?query=1',
+    'https://preview.example.net/#fragment',
+    'https://name:password@preview.example.net',
+    'javascript:alert(1)',
+  ])('rejects invalid preview image origins: %s', (origin) => {
+    expect(() =>
+      getOgMetadata(createRoute(), new URL('https://aspire.dev/guide/'), site, origin)
+    ).toThrow('PUBLIC_OG_IMAGE_ORIGIN');
+  });
+
   it('infers the image MIME type from a non-PNG ogImage override', () => {
     const route = createRoute({ ogImage: '/custom-image.jpg' });
     const meta = getOgMetadata(

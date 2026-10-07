@@ -25,6 +25,67 @@ const routes = [
   '/community/brand/usage/',
 ];
 
+test('brand social cards are served at their advertised image paths', async ({ page, request }) => {
+  for (const route of routes) {
+    await page.goto(route);
+    const ogImage = await page.locator('meta[property="og:image"]').getAttribute('content');
+    const twitterImage = await page.locator('meta[name="twitter:image"]').getAttribute('content');
+    if (!ogImage) throw new Error(`No OG image advertised for ${route}`);
+    expect(twitterImage).toBe(ogImage);
+    const response = await request.get(new URL(ogImage).pathname);
+    expect(response.ok(), ogImage).toBe(true);
+    expect(response.headers()['content-type']).toContain('image/png');
+    const png = await response.body();
+    expect(png.readUInt32BE(16)).toBe(1200);
+    expect(png.readUInt32BE(20)).toBe(630);
+  }
+});
+
+test('multiline external links keep a single inline suffix in lists and prose', async ({
+  page,
+}) => {
+  await page.goto('/community/brand/logos/');
+  await dismissCookieConsentIfVisible(page);
+  const link = page.locator('.sl-markdown-content li a.resource-link');
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(link.locator('p')).toHaveCSS('display', 'inline');
+  await expect(link.locator('svg')).toHaveCount(1);
+  await expect(link.locator('svg')).toHaveCSS('margin-top', '0px');
+
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset.theme = value), theme);
+    await link.scrollIntoViewIfNeeded();
+    const layout = await link.evaluate((anchor) => {
+      const label = anchor.querySelector('p');
+      const icon = anchor.querySelector('svg');
+      if (!label || !icon) throw new Error('Missing external-link label or icon.');
+      const labelLines = [...label.getClientRects()];
+      const lastLine = labelLines.at(-1);
+      if (!lastLine) throw new Error('The external-link label has no rendered line.');
+      const suffix = icon.getBoundingClientRect();
+      return {
+        suffixOnLastLine: suffix.top < lastLine.bottom && suffix.bottom > lastLine.top,
+        suffixAfterText: suffix.left >= lastLine.right,
+        duplicateSuffix: getComputedStyle(anchor, '::after').content,
+        horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+      };
+    });
+    expect(layout).toEqual({
+      suffixOnLastLine: true,
+      suffixAfterText: true,
+      duplicateSuffix: 'none',
+      horizontalOverflow: false,
+    });
+  }
+
+  await page.goto('/community/brand/typography/');
+  const proseLink = page.locator('.sl-markdown-content p > a.resource-link').first();
+  await expect(proseLink.locator('svg')).toHaveCount(1);
+  await expect(proseLink.locator('svg')).toHaveCSS('display', 'inline-block');
+  await expect(proseLink.locator('svg')).toHaveCSS('margin-top', '0px');
+});
+
 test('footer leads to the local overview with focused navigation and an external deck link', async ({
   page,
 }) => {
@@ -189,7 +250,7 @@ test('copies exact color, gradient, and CSS values after repeated navigation', a
       }
       await expect(button.locator('..').getByRole('status')).toHaveText('Copied.');
       const expectedValue = value.startsWith('linear-gradient(')
-        ? value.replace('(', '(\n  ').replaceAll(', ', ',\n  ').replace(/\)$/, '\n)')
+        ? value.replace('(', '(\n  ').replace(/\)$/, '\n)')
         : value;
       expect(await page.evaluate(() => window.brandCopiedValues.at(-1))).toBe(expectedValue);
     }

@@ -11,7 +11,13 @@ interface Props {
 const { assets } = Astro.props;
 ---
 
-<div class="brand-gallery not-content">
+<div
+  class:list={[
+    'brand-gallery',
+    'not-content',
+    { wordmarks: assets.every((asset) => asset.kind === 'logo') },
+  ]}
+>
   <FluidGrid as="ul" minColumnWidth="15rem" gap="1.25rem">
     {
       assets.map((asset) => (
@@ -45,7 +51,18 @@ const { assets } = Astro.props;
 
 <style>
   .brand-gallery {
-    margin-block: 1.25rem;
+    margin-block: 1.5rem;
+    container-type: inline-size;
+  }
+
+  .wordmarks :global(.fluid-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @container (min-width: 38rem) {
+    .wordmarks :global(.fluid-grid) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   .brand-asset {
@@ -59,7 +76,7 @@ const { assets } = Astro.props;
   }
 
   :global([data-theme='light']) .brand-asset {
-    background: var(--sl-color-bg);
+    background: var(--aspire-color-surface-subtle);
   }
 
   .preview {
@@ -76,6 +93,11 @@ const { assets } = Astro.props;
 
   .preview.dark {
     background: #141322;
+  }
+
+  .wordmarks .preview {
+    height: 12rem;
+    padding: 1.5rem;
   }
 
   .preview img {
@@ -113,6 +135,7 @@ const { assets } = Astro.props;
   .asset-details p {
     color: var(--sl-color-gray-2);
     font-size: var(--sl-text-sm);
+    line-height: 1.6;
   }
 
   .asset-details :global(.brand-download) {
