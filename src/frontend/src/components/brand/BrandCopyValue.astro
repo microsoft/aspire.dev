@@ -1,0 +1,224 @@
+---
+interface Props {
+  value: string;
+  label: string;
+}
+
+const { value, label } = Astro.props;
+---
+
+<brand-copy-value class="not-content">
+  <code>{value}</code>
+  <button type="button" value={value} aria-label={`Copy ${label}`} hidden>
+    <span class="copy-label" aria-hidden="true">Copy</span>
+    <span class="copied-label" aria-hidden="true">Copied</span>
+  </button>
+  <span class="copy-status" role="status" aria-live="polite"></span>
+</brand-copy-value>
+
+<script>
+  class BrandCopyValue extends HTMLElement {
+    private resetTimer?: number;
+    private themeObserver?: MutationObserver;
+
+    connectedCallback() {
+      const button = this.querySelector('button');
+      const status = this.querySelector<HTMLElement>('[role="status"]');
+      if (!button || !status) {
+        throw new Error('The brand copy control is missing its button or status.');
+      }
+      window.clearTimeout(this.resetTimer);
+      this.resetTimer = undefined;
+      delete button.dataset.state;
+      delete status.dataset.state;
+      status.textContent = '';
+
+      const syncFeedbackTheme = () => {
+        const code = document.querySelector('main .expressive-code');
+        if (!code) {
+          throw new Error('The brand palette is missing its code-copy feedback theme.');
+        }
+        const theme = getComputedStyle(code);
+        this.style.setProperty(
+          '--copy-success-bg',
+          theme.getPropertyValue('--ec-frm-tooltipSuccessBg')
+        );
+        this.style.setProperty(
+          '--copy-success-fg',
+          theme.getPropertyValue('--ec-frm-tooltipSuccessFg')
+        );
+      };
+      syncFeedbackTheme();
+      this.themeObserver?.disconnect();
+      this.themeObserver = new MutationObserver(syncFeedbackTheme);
+      this.themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme'],
+      });
+
+      button.hidden = false;
+      button.onclick = async () => {
+        window.clearTimeout(this.resetTimer);
+        delete button.dataset.state;
+        delete status.dataset.state;
+        button.disabled = true;
+        status.textContent = '';
+        try {
+          await navigator.clipboard.writeText(button.value);
+          if (!this.isConnected) return;
+          syncFeedbackTheme();
+          button.dataset.state = 'copied';
+          status.textContent = 'Copied.';
+          this.resetTimer = window.setTimeout(() => {
+            delete button.dataset.state;
+            status.textContent = '';
+            this.resetTimer = undefined;
+          }, 3000);
+        } catch {
+          if (!this.isConnected) return;
+          status.dataset.state = 'error';
+          status.textContent = 'Could not copy. Select the value and copy it manually.';
+        } finally {
+          button.disabled = false;
+        }
+      };
+    }
+
+    disconnectedCallback() {
+      window.clearTimeout(this.resetTimer);
+      this.resetTimer = undefined;
+      this.themeObserver?.disconnect();
+      this.themeObserver = undefined;
+      const button = this.querySelector('button');
+      if (button) button.onclick = null;
+    }
+  }
+
+  if (!customElements.get('brand-copy-value')) {
+    customElements.define('brand-copy-value', BrandCopyValue);
+  }
+</script>
+
+<style>
+  brand-copy-value {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  code {
+    justify-self: start;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.2rem 0.35rem;
+    border-radius: 0.25rem;
+    background: var(--sl-color-gray-6);
+    font-family: var(--aspire-font-mono);
+    font-size: var(--sl-text-sm);
+    font-weight: 400;
+  }
+
+  button {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    min-width: 5rem;
+    min-height: 2.5rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.25rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    font: inherit;
+    font-size: var(--sl-text-sm);
+    cursor: pointer;
+  }
+
+  button[hidden] {
+    display: none;
+  }
+
+  button:hover {
+    border-color: var(--sl-color-text);
+  }
+
+  button[data-state='copied'] {
+    background: var(--copy-success-bg);
+    border-color: var(--copy-success-bg);
+    color: var(--copy-success-fg);
+  }
+
+  button span {
+    grid-area: 1 / 1;
+  }
+
+  .copied-label {
+    opacity: 0;
+  }
+
+  button[data-state='copied'] .copy-label {
+    opacity: 0;
+  }
+
+  button[data-state='copied'] .copied-label {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    button {
+      transition:
+        background-color 160ms ease,
+        border-color 160ms ease,
+        color 160ms ease;
+    }
+
+    button span {
+      transition:
+        opacity 160ms ease,
+        transform 160ms ease;
+    }
+
+    .copied-label {
+      transform: translateY(0.2rem);
+    }
+
+    button[data-state='copied'] .copy-label {
+      transform: translateY(-0.2rem);
+    }
+
+    button[data-state='copied'] .copied-label {
+      transform: translateY(0);
+    }
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 3px;
+  }
+
+  button:disabled {
+    cursor: wait;
+  }
+
+  .copy-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    font-size: var(--sl-text-sm);
+  }
+
+  .copy-status[data-state='error'] {
+    position: static;
+    grid-column: 1 / -1;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+  }
+</style>

@@ -1,0 +1,116 @@
+---
+import FluidGrid from '@components/FluidGrid.astro';
+import BrandCopyValue from '@components/brand/BrandCopyValue.astro';
+import type { BrandColor } from '@data/brand';
+
+interface Props {
+  colors: readonly BrandColor[];
+  variant?: 'colors' | 'gradients';
+}
+
+const { colors, variant = 'colors' } = Astro.props;
+
+function copyValue(value: string): string {
+  return variant === 'gradients'
+    ? value.replace('(', '(\n  ').replaceAll(', ', ',\n  ').replace(/\)$/, '\n)')
+    : value;
+}
+---
+
+<div class:list={['brand-palette', 'not-content', { gradients: variant === 'gradients' }]}>
+  <FluidGrid as="ul" minColumnWidth="17rem" gap="1.25rem">
+    {
+      colors.map((color) => (
+        <li class="brand-color">
+          <div class="swatch" style={{ background: color.value }} aria-hidden="true" />
+          <div class="details">
+            <h3>{color.name}</h3>
+            <p>{color.description}</p>
+            <code class="token">{color.token}</code>
+          </div>
+          <div class="footer">
+            <BrandCopyValue value={copyValue(color.value)} label={color.name} />
+          </div>
+        </li>
+      ))
+    }
+  </FluidGrid>
+</div>
+
+<style>
+  .brand-palette {
+    margin-block: 1.25rem;
+    container-type: inline-size;
+  }
+
+  .gradients :global(.fluid-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @container (min-width: 42rem) {
+    .gradients :global(.fluid-grid) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .brand-color {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    background: var(--sl-color-bg);
+    font-weight: 400;
+  }
+
+  .swatch {
+    height: 7rem;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 1rem;
+    flex: 1;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: var(--sl-text-lg);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  p {
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-sm);
+    flex: 1;
+  }
+
+  .token {
+    display: block;
+    margin-top: auto;
+    font-size: var(--sl-text-sm);
+    overflow-wrap: anywhere;
+    padding: 0.2rem 0.35rem;
+    border-radius: 0.25rem;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-text);
+    font-family: var(--aspire-font-mono);
+    font-weight: 400;
+  }
+
+  .footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .footer :global(brand-copy-value) {
+    margin-top: 0;
+  }
+</style>

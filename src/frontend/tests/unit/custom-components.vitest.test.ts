@@ -16,7 +16,19 @@ import CustomSelect from '@components/CustomSelect.astro';
 import Expand from '@components/Expand.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
+import BrandAssetGallery from '@components/brand/BrandAssetGallery.astro';
+import BrandCopyValue from '@components/brand/BrandCopyValue.astro';
+import BrandPalette from '@components/brand/BrandPalette.astro';
+import BrandTypography from '@components/brand/BrandTypography.astro';
+import BrandDownloadButton from '@components/brand/BrandDownloadButton.astro';
+import BrandDownloadGate from '@components/brand/BrandDownloadGate.astro';
+import BrandIconDownloads from '@components/brand/BrandIconDownloads.astro';
+import BrandExternalLink from '@components/brand/BrandExternalLink.astro';
+import BrandUsageGuidance from '@components/brand/BrandUsageGuidance.astro';
+import BrandLicenseModal from '@components/brand/BrandLicenseModal.astro';
+import BrandCodeTypography from '@components/brand/BrandCodeTypography.astro';
 import FooterLegal from '@components/FooterLegal.astro';
+import FooterResources from '@components/FooterResources.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
 import FooterSocials from '@components/FooterSocials.astro';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
@@ -62,6 +74,7 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 import samplesData from '@data/samples.json';
+import { brandAssets, brandColors, brandGradients } from '@data/brand';
 import daTranslations from '../../src/content/i18n/da.json';
 import deTranslations from '../../src/content/i18n/de.json';
 import enTranslations from '../../src/content/i18n/en.json';
@@ -93,6 +106,129 @@ type BasicRenderCase = {
   excludes?: string[];
   requestUrl?: string;
 };
+
+describe('community brand components', () => {
+  it('renders local SVGs with explicit dimensions and named downloads', async () => {
+    const html = normalizeHtml(await renderComponent(BrandAssetGallery, {
+      props: { assets: brandAssets },
+    }));
+    for (const asset of brandAssets) {
+      expect(html).toContain(
+        asset.kind === 'logo'
+          ? `data-brand-wordmark="${asset.file}"`
+          : `src="/brand/${asset.file}"`
+      );
+      expect(html).toContain(`width="${asset.width}"`);
+      expect(html).toContain(`height="${asset.height}"`);
+      expect(html).toContain(`aria-label="Download ${asset.name} SVG"`);
+    }
+    expect(html.match(/data-brand-download="svg"/g)).toHaveLength(9);
+    expect(html).toContain('brand-gallery not-content');
+    expect(html).toContain('<ul');
+    expect(html.match(/<li\b/g)).toHaveLength(9);
+    expect(html).not.toContain('https://microsoft.github.io/aspire-brand/logo');
+  });
+
+  it('renders visible copyable values and progressive enhancement controls', async () => {
+    const html = normalizeHtml(await renderComponent(BrandCopyValue, {
+      props: { value: '#7455DD', label: 'Aspire primary' },
+    }));
+    expect(html).toContain('<code');
+    expect(html).toContain('#7455DD');
+    expect(html).toContain('aria-label="Copy Aspire primary"');
+    expect(html).toMatch(/<button[^>]* hidden/);
+    expect(html).toContain('role="status"');
+  });
+
+  it('renders core and gradient samples with values and token names', async () => {
+    for (const [colors, variant] of [[brandColors, 'colors'], [brandGradients, 'gradients']] as const) {
+      const html = normalizeHtml(await renderComponent(BrandPalette, { props: { colors, variant } }));
+      for (const { name, token, value } of colors) {
+        expect(html).toContain(name);
+        expect(html).toContain(token);
+        expect(html).toContain(variant === 'gradients'
+          ? value.replace('(', '( ').replaceAll(', ', ', ').replace(/\)$/, ' )')
+          : value);
+        expect(html).toContain(`aria-label="Copy ${name}"`);
+      }
+    }
+  });
+
+  it('renders four local Poppins specimens', async () => {
+    const type = await renderComponent(BrandTypography);
+    for (const weight of [400, 500, 600, 700]) {
+      expect(type).toContain(`font-weight:${weight}`);
+    }
+  });
+
+  it('points the translated footer brand link at the local page in the same tab', async () => {
+    const html = normalizeHtml(await renderComponent(FooterResources, {
+      locals: { t: createTestTranslator(enTranslations) },
+    }));
+    const brandLink = html.match(/<a href="\/community\/brand\/"[^>]*>[^<]+<\/a>/)?.[0];
+    expect(brandLink).toContain('Aspire brand');
+    expect(brandLink).not.toContain('target=');
+    expect(html).not.toContain('https://microsoft.github.io/aspire-brand/');
+    expect(html).toContain('href="https://devblogs.microsoft.com/aspire/"');
+    expect(html).toContain('>Blog</a>');
+  });
+
+  it('groups both standalone icon downloads beside a single preview', async () => {
+    const html = normalizeHtml(await renderComponent(BrandIconDownloads));
+    expect(html.match(/<img\b/g)).toHaveLength(1);
+    expect(html).toContain('Download 256px SVG');
+    expect(html).toContain('Download 32px SVG');
+    expect(html.match(/data-brand-download="svg"/g)).toHaveLength(2);
+  });
+
+  it('renders original guidance in labelled Do and Do not cards', async () => {
+    const html = normalizeHtml(await renderComponent(BrandUsageGuidance));
+    expect(html).toContain('aria-labelledby="do"');
+    expect(html).toContain('aria-labelledby="do-not"');
+    expect(html.match(/<li\b/g)).toHaveLength(10);
+    expect(html).toContain('Call the product Aspire in brand, editorial, and marketing copy.');
+    expect(html).toContain('Do not rely on internal shorthand');
+    expect(html).toContain('except as permitted for the provided developer-icon variants below.');
+    expect(html).toContain('Recoloring is permitted only under the narrow developer-icon usage permission below.');
+  });
+
+  it('adds a new-tab suffix to external resource links', async () => {
+    const html = normalizeHtml(await renderComponent(BrandExternalLink, {
+      props: { href: 'https://fontsource.org/fonts/poppins' }, slots: { default: 'Poppins' },
+    }));
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).toContain('opens in a new tab');
+    expect(html).toContain('<svg');
+  });
+
+  it('renders the full read-only artwork license and Fira Code specimen', async () => {
+    const html = normalizeHtml(await renderComponent(BrandLicenseModal));
+    expect(html).toContain('aria-labelledby="brand-artwork-license-title"');
+    expect(html).toMatch(/<textarea[^>]* readonly/);
+    expect(html).toContain('CC0 1.0 Universal');
+    expect(html).toContain('No trademark or patent rights held by Affirmer');
+    const code = await renderComponent(BrandCodeTypography);
+    expect(code).toContain('Fira Code Variable');
+    expect(code).toContain('expressive-code');
+  });
+
+  it('renders disabled download triggers and a required, unchecked agreement', async () => {
+    const trigger = await renderComponent(BrandDownloadButton, {
+      props: { href: '/brand/aspire-icon-32.svg', name: 'Aspire icon, 32', kind: 'svg' },
+    });
+    expect(trigger).toContain('data-brand-download="svg"');
+    expect(trigger).toContain('value="/brand/aspire-icon-32.svg"');
+    expect(trigger).toMatch(/<button[^>]* disabled/);
+    const dialog = normalizeHtml(await renderComponent(BrandDownloadGate));
+    expect(dialog).toContain('aria-labelledby="brand-download-title"');
+    expect(dialog).toMatch(/<input[^>]*type="checkbox"[^>]*required/);
+    expect(dialog).not.toMatch(/<input[^>]* checked/);
+    expect(dialog).toContain('Continue to download');
+    expect(dialog).toContain('/community/brand/usage/');
+    expect(dialog).toContain('/brand/LICENSE.txt');
+  });
+});
 
 it.each([
   ['en', 'Scroll to top'], ['fr', 'Retour en haut'], ['pt-BR', 'Voltar ao topo'],

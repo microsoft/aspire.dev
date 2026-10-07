@@ -11,6 +11,11 @@ import ContainerImages from '@components/ContainerImages.astro';
 import Expand from '@components/Expand.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
+import BrandAssetGallery from '@components/brand/BrandAssetGallery.astro';
+import BrandCopyValue from '@components/brand/BrandCopyValue.astro';
+import BrandPalette from '@components/brand/BrandPalette.astro';
+import BrandWordmark from '@components/brand/BrandWordmark.astro';
+import BrandDownloadButton from '@components/brand/BrandDownloadButton.astro';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
 import HeroSection from '@components/HeroSection.astro';
 import IconAside from '@components/IconAside.astro';
@@ -53,8 +58,24 @@ import VimeoGrid from '@components/VimeoGrid.astro';
 import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
+import { brandAssets, brandColors } from '@data/brand';
 
 type PropsOf<T extends (...args: never[]) => unknown> = ComponentProps<T>;
+
+const validBrandAssetProps = { assets: brandAssets } satisfies PropsOf<typeof BrandAssetGallery>;
+const validBrandPaletteProps = { colors: brandColors } satisfies PropsOf<typeof BrandPalette>;
+const validBrandWordmarkProps = { asset: brandAssets[0] } satisfies PropsOf<typeof BrandWordmark>;
+const validBrandDownloadProps = {
+  href: '/brand/aspire-icon-32.svg', name: 'Aspire icon, 32', kind: 'svg',
+} satisfies PropsOf<typeof BrandDownloadButton>;
+const validBrandCopyProps = {
+  value: '#7455DD', label: 'Aspire primary',
+} satisfies PropsOf<typeof BrandCopyValue>;
+void validBrandAssetProps;
+void validBrandPaletteProps;
+void validBrandWordmarkProps;
+void validBrandDownloadProps;
+void validBrandCopyProps;
 
 const validSearchFieldProps = {
   id: 'api-query', label: 'Search API entries', placeholder: 'Try Redis',

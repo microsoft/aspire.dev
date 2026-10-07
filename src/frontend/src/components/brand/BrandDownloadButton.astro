@@ -1,0 +1,83 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+// thesvg-color:microsoft-powerpoint; the SVG includes its MIT notice.
+import PowerPointIcon from '@assets/icons/microsoft-powerpoint.svg';
+
+interface Props {
+  href: string;
+  name: string;
+  kind: 'svg' | 'deck';
+  label?: string;
+}
+
+const { href, name, kind, label } = Astro.props;
+const buttonLabel = label ?? (kind === 'deck' ? 'Download PowerPoint' : 'Download SVG');
+---
+
+<button
+  type="button"
+  class="brand-download not-content"
+  data-brand-download={kind}
+  data-asset-name={name}
+  value={href}
+  aria-label={label ? `${label}: ${name}` : kind === 'svg' ? `Download ${name} SVG` : buttonLabel}
+  aria-haspopup="dialog"
+  disabled
+>
+  {
+    kind === 'deck' ? (
+      <PowerPointIcon width="1.5em" height="1.5em" aria-hidden="true" focusable="false" />
+    ) : (
+      <Icon name="download" size="1rem" />
+    )
+  }
+  <span>{buttonLabel}</span>
+  {kind === 'deck' && <Icon name="external" size="0.875rem" />}
+</button>
+
+<style>
+  .brand-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text-accent);
+    font: inherit;
+    font-size: var(--sl-text-sm);
+    cursor: pointer;
+  }
+
+  .brand-download:hover:not(:disabled) {
+    border-color: var(--sl-color-text-accent);
+  }
+
+  .brand-download[data-brand-download='deck'] {
+    min-height: 3rem;
+    padding: 0.75rem 1rem;
+    background: var(--aspire-action-primary);
+    border-color: var(--aspire-action-primary);
+    color: var(--aspire-action-primary-text);
+    font-size: var(--sl-text-base);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .brand-download[data-brand-download='deck']:hover:not(:disabled) {
+    background: var(--aspire-action-primary-hover);
+    border-color: var(--aspire-action-primary-hover);
+  }
+
+  .brand-download:focus-visible {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 3px;
+  }
+
+  .brand-download:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+</style>
