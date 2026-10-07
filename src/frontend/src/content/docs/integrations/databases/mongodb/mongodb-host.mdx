@@ -619,13 +619,17 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 When you run the Aspire solution, you'll see a MongoDB Express container listed in the resources. Select the resource's endpoint to open the GUI.
 
-The MongoDB Express resource is configured to connect to the MongoDB server resource. The default credentials are:
+The MongoDB Express resource waits for the MongoDB server to report healthy before starting, and is configured to connect to the MongoDB server resource. The default credentials are:
 
 - `ME_CONFIG_MONGODB_SERVER`: The name assigned to the parent `MongoDBServerResource`
 - `ME_CONFIG_BASICAUTH`: A value of `false`
 - `ME_CONFIG_MONGODB_PORT`: Assigned from the primary endpoint's target port
 - `ME_CONFIG_MONGODB_ADMINUSERNAME`: The same username as configured in the parent
 - `ME_CONFIG_MONGODB_ADMINPASSWORD`: The same password as configured in the parent
+
+<Aside type="note">
+When `WithMongoExpress()` is called on a server configured with the [simple single-member replica set](#enable-transactions-and-change-streams-with-a-single-member-replica-set) (`WithReplicaSet()`), Mongo Express is configured differently: it's given the server's full connection string via `ME_CONFIG_MONGODB_URL` instead of the individual `ME_CONFIG_MONGODB_SERVER` / `_PORT` / `_ADMINUSERNAME` / `_ADMINPASSWORD` variables. This is required because the single-member replica set advertises a `localhost`-based member address that assumes `directConnection=true`, which only the full connection string sets. Members of an advanced `AddMongoDBReplicaSet(...).WithMember(...)` configuration are unaffected and keep using the individual variables.
+</Aside>
 
 <ContainerImages package="Aspire.Hosting.MongoDB" only="Mongo Express" />
 
