@@ -188,6 +188,8 @@ describe('community brand components', () => {
     expect(html.match(/<li\b/g)).toHaveLength(10);
     expect(html).toContain('Call the product Aspire in brand, editorial, and marketing copy.');
     expect(html).toContain('Do not rely on internal shorthand');
+    expect(html).toContain('except as permitted for the provided developer-icon variants below.');
+    expect(html).toContain('Recoloring is permitted only under the narrow developer-icon usage permission below.');
   });
 
   it('adds a new-tab suffix to external resource links', async () => {

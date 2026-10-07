@@ -140,7 +140,11 @@ describe('brand section integration', () => {
       new URL('src/components/brand/BrandUsageGuidance.astro', frontendRoot),
       'utf8'
     );
-    expect(cards).toContain('Do not stretch, rotate, recolor, or crowd the logo');
+    expect(cards).toContain('except as permitted for the provided developer-icon variants below.');
+    expect(cards).toContain('Do not stretch, rotate, or crowd the logo');
+    expect(cards).toContain(
+      'Recoloring is permitted only under the narrow developer-icon usage permission below.'
+    );
     expect(guidance).toContain('Permission is granted to use, reproduce, and redistribute');
     expect(guidance).toContain('does not permit arbitrary redesigns');
     expect(guidance).toContain('CC0 does not waive or license trademark rights');
