@@ -123,7 +123,7 @@ export interface BrandColor {
   name: string;
   token: string;
   value: string;
-  description: string;
+  description?: string;
 }
 
 export const brandColors = [
@@ -176,31 +176,26 @@ export const brandAccents = [
     name: 'Magenta',
     token: '--aspire-accent-magenta',
     value: '#B30F87',
-    description: 'Supporting accent.',
   },
   {
     name: 'Flamingo',
     token: '--aspire-accent-flamingo',
     value: '#F65163',
-    description: 'Supporting accent.',
   },
   {
     name: 'Blue',
     token: '--aspire-accent-blue',
     value: '#0078D7',
-    description: 'Supporting accent.',
   },
   {
     name: 'Cyan',
     token: '--aspire-accent-cyan',
     value: '#0B7E84',
-    description: 'Supporting accent.',
   },
   {
     name: 'Yellow',
     token: '--aspire-accent-yellow',
     value: '#9B8308',
-    description: 'Supporting accent.',
   },
 ] as const satisfies readonly BrandColor[];
 
