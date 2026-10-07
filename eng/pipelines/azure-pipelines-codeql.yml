@@ -31,6 +31,7 @@ jobs:
 
   steps:
   - checkout: self
+    clean: true
     persistCredentials: false
 
   - task: UseDotNet@2
@@ -43,10 +44,31 @@ jobs:
     inputs:
       version: '24.x'
 
+  - task: PowerShell@2
+    displayName: Install frontend's pinned pnpm version
+    inputs:
+      targetType: inline
+      pwsh: true
+      workingDirectory: $(Build.SourcesDirectory)/src/frontend
+      script: |
+        $packageManager = (Get-Content package.json -Raw | ConvertFrom-Json).packageManager
+        npm install --global (($packageManager -split '\+')[0])
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $npmPrefix = npm config get prefix
+        Write-Host "##vso[task.prependpath]$npmPrefix"
+
+  - script: pnpm install --frozen-lockfile --prefer-offline
+    displayName: Install frontend dependencies
+    workingDirectory: $(Build.SourcesDirectory)/src/frontend
+
   - task: CodeQL3000Init@0
     displayName: CodeQL Initialize
+    inputs:
+      # javascript includes TypeScript; scan frontend, tooling, and scripts.
+      Language: javascript,powershell,csharp
+      SourceRoot: $(Build.SourcesDirectory)
 
-  # CodeQL needs compiler extraction, not the Aspire orchestration bundle.
+  # Compile the site's StaticHost, AppHost, and generators for C# extraction.
   - script: dotnet build Aspire.Dev.slnx --configuration Release -p:AspireUseCliBundle=false
     displayName: Build C# for CodeQL extraction
 
