@@ -1,0 +1,55 @@
+variables:
+- name: DncEngInternalBuildPool
+  value: NetCore1ESPool-Internal
+- name: Codeql.Enabled
+  value: true
+# Run every scheduled or manually queued scan, without cadence gating.
+- name: Codeql.Cadence
+  value: 0
+# The explicit tasks below replace the extension's automatic injection.
+- name: Codeql.SkipTaskAutoInjection
+  value: true
+
+trigger: none
+pr: none
+
+schedules:
+- cron: '0 12 * * 1'
+  displayName: Weekly Monday CodeQL run
+  branches:
+    include:
+    - main
+  always: true
+
+jobs:
+- job: codeql
+  displayName: CodeQL
+  pool:
+    name: $(DncEngInternalBuildPool)
+    demands: ImageOverride -equals 1es-windows-2022
+  timeoutInMinutes: 90
+
+  steps:
+  - checkout: self
+    persistCredentials: false
+
+  - task: UseDotNet@2
+    displayName: Install .NET SDK
+    inputs:
+      useGlobalJson: true
+
+  - task: UseNode@1
+    displayName: Install Node.js
+    inputs:
+      version: '24.x'
+
+  - task: CodeQL3000Init@0
+    displayName: CodeQL Initialize
+
+  # CodeQL needs compiler extraction, not the Aspire orchestration bundle.
+  - script: dotnet build Aspire.Dev.slnx --configuration Release -p:AspireUseCliBundle=false
+    displayName: Build C# for CodeQL extraction
+
+  - task: CodeQL3000Finalize@0
+    displayName: CodeQL Finalize
+    condition: always()
