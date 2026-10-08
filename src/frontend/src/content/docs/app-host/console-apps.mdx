@@ -21,13 +21,26 @@ Choose the resource type that matches how your app runs. Use an executable resou
   integration](/integrations/frameworks/javascript/).
 </LearnMore>
 
-The following examples show how to add a .NET console app and configure service discovery and background workers with the .NET Generic Host.
+The following examples show how to add a .NET or Node.js console app, connect it to other resources, and run it as a background worker. The examples use two sets of tabs, which you choose independently:
 
-These examples assume an existing AppHost and a shared service defaults project. Create the named console, worker, and API projects before referencing them. In a C# AppHost, add project references so the corresponding `Projects.*` types are generated; in a TypeScript AppHost, use each project's actual path.
+- **.NET** and **Node.js** tabs select the language of the console app or executable that the AppHost orchestrates.
+- **C#** and **TypeScript** tabs select the language of the AppHost itself.
+
+For example, to orchestrate a Node.js console app from a C# AppHost, choose **Node.js** and then **C#**. Your selections stay the same as you move through the page.
+
+These examples assume an existing AppHost.
+
+- **.NET:** The examples also assume a shared service defaults project. Create the named console, worker, and API projects before referencing them. In a C# AppHost, add project references so the corresponding `Projects.*` types are generated; in a TypeScript AppHost, use each project's actual path.
+- **Node.js:** Create each app folder with a _package.json_ file before referencing it. The AppHost resolves the app folder path relative to the AppHost directory, and the script path relative to the app folder.
 
 For the Redis examples, install the hosting integration in your AppHost. Running Redis also requires a supported [container runtime](/get-started/prerequisites/).
 
 <InstallPackage packageName="Aspire.Hosting.Redis" />
+
+<Tabs syncKey='console-app-lang'>
+<TabItem id='dotnet' label='.NET'>
+
+Add the console app project to your AppHost:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -74,9 +87,95 @@ The `processor` project receives the `ConnectionStrings__cache` environment vari
   defaults](/get-started/csharp-service-defaults/).
 </Aside>
 
+</TabItem>
+<TabItem id='nodejs' label='Node.js'>
+
+Install the JavaScript hosting integration in your AppHost. It provides `AddNodeApp` / `addNodeApp`, which runs a JavaScript file with Node.js:
+
+<InstallPackage packageName="Aspire.Hosting.JavaScript" />
+
+Then add the console app to your AppHost:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+// Add a Node.js console app to the AppHost
+var processor = builder.AddNodeApp("processor", "../processor", "index.js")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis('cache');
+
+// Add a Node.js console app to the AppHost
+await builder
+  .addNodeApp('processor', '../processor', 'index.js')
+  .withReference(cache);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The console app uses the [ioredis](https://github.com/redis/ioredis) client. Aspire installs the dependencies listed in _package.json_ before starting the app:
+
+```json title="processor/package.json"
+{
+  "name": "processor",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ioredis": "^5.4.0"
+  }
+}
+```
+
+```javascript title="processor/index.js"
+import Redis from 'ioredis';
+
+const redis = new Redis(process.env.CACHE_URI);
+
+await redis.set('processor:last-run', new Date().toISOString());
+console.log('Last run:', await redis.get('processor:last-run'));
+
+await redis.quit();
+```
+
+The `processor` app receives the `CACHE_URI`, `CACHE_HOST`, `CACHE_PORT`, and `CACHE_PASSWORD` environment variables at runtime, along with `ConnectionStrings__cache`. For more information, see [Connect to Redis](/integrations/caching/redis/redis-connect/).
+
+<Aside type="tip">
+  To start a Node.js app with a _package.json_ script (for example, `npm run
+  start`) instead of a specific file, use `AddJavaScriptApp` /
+  `addJavaScriptApp`. For more information, see [Add JavaScript
+  application](/integrations/frameworks/javascript/#add-javascript-application).
+</Aside>
+
+</TabItem>
+</Tabs>
+
 ## Service discovery in console apps
 
-Console apps using the .NET Generic Host can use the same service discovery infrastructure as web apps. The following walkthrough assumes a `MyConsoleApp` console project and a `CatalogService` API project that exposes an HTTP endpoint at `/`.
+Console apps can call HTTP services that the AppHost manages. The following walkthrough assumes a `CatalogService` API project that exposes an HTTP endpoint at `/`, and a console app named `processor` that calls it.
+
+<Tabs syncKey='console-app-lang'>
+<TabItem id='dotnet' label='.NET'>
+
+Console apps using the .NET Generic Host can use the same service discovery infrastructure as web apps. This walkthrough uses a `MyConsoleApp` console project.
 
 <Steps>
 
@@ -130,8 +229,7 @@ Console apps using the .NET Generic Host can use the same service discovery infr
 
 4.  In the AppHost, reference the services this app depends on:
 
-          <Tabs syncKey='aspire-lang'>
-
+    <Tabs syncKey='aspire-lang'>
     <TabItem id='csharp' label='C#'>
 
     ```csharp title="AppHost.cs"
@@ -146,8 +244,7 @@ Console apps using the .NET Generic Host can use the same service discovery infr
     builder.Build().Run();
     ```
 
-          </TabItem>
-
+    </TabItem>
     <TabItem id='typescript' label='TypeScript'>
 
     ```typescript title="apphost.mts"
@@ -170,19 +267,108 @@ Console apps using the .NET Generic Host can use the same service discovery infr
     await builder.build().run();
     ```
 
-          </TabItem>
-
+    </TabItem>
     </Tabs>
 
 </Steps>
 
 The `WithReference(catalog)` call injects service discovery configuration so `processor` can resolve `https+http://catalog` to the running catalog service endpoint.
 
+</TabItem>
+<TabItem id='nodejs' label='Node.js'>
+
+Node.js apps don't use the .NET service discovery resolver. Instead, they read the catalog service's endpoint URLs from environment variables that Aspire injects.
+
+<Steps>
+
+1.  Create a _processor_ folder next to your AppHost with a _package.json_ file. This example uses the built-in `fetch` API, so it has no dependencies:
+
+    ```json title="processor/package.json"
+    {
+      "name": "processor",
+      "private": true,
+      "type": "module"
+    }
+    ```
+
+2.  Add an _index.js_ file that calls the catalog API and then exits. It prefers the HTTPS endpoint and falls back to HTTP:
+
+    ```javascript title="processor/index.js"
+    const catalogUrl = process.env.CATALOG_HTTPS ?? process.env.CATALOG_HTTP;
+
+    if (!catalogUrl) {
+      throw new Error(
+        'The catalog endpoint is not configured. Run the app through Aspire.'
+      );
+    }
+
+    const response = await fetch(new URL('/', catalogUrl));
+    console.log(await response.text());
+    ```
+
+3.  In the AppHost, reference the services this app depends on:
+
+    <Tabs syncKey='aspire-lang'>
+    <TabItem id='csharp' label='C#'>
+
+    ```csharp title="AppHost.cs"
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var catalog = builder.AddProject<Projects.CatalogService>("catalog");
+
+    var processor = builder.AddNodeApp("processor", "../processor", "index.js")
+        .WithReference(catalog)
+        .WaitFor(catalog);
+
+    builder.Build().Run();
+    ```
+
+    </TabItem>
+    <TabItem id='typescript' label='TypeScript'>
+
+    ```typescript title="apphost.mts"
+    import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+    const builder = await createBuilder();
+
+    const catalog = await builder.addProject(
+      'catalog',
+      '../CatalogService/CatalogService.csproj'
+    );
+
+    const processor = await builder.addNodeApp(
+      'processor',
+      '../processor',
+      'index.js'
+    );
+    await processor.withReference(catalog);
+    await processor.waitFor(catalog);
+
+    await builder.build().run();
+    ```
+
+    </TabItem>
+    </Tabs>
+
+</Steps>
+
+The `withReference(catalog)` call injects the catalog service's endpoint URLs into `processor` as `CATALOG_HTTPS` and `CATALOG_HTTP`. Aspire also injects the same URLs in the `services__catalog__https__0` format. For more information, see [Service discovery](/fundamentals/service-discovery/).
+
+To send traces, metrics, and logs from a Node.js app to the dashboard, configure the OpenTelemetry Node.js SDK in the app. For more information, see [Add telemetry configuration](/get-started/add-aspire-existing-app/#add-telemetry-configuration-optional).
+
+</TabItem>
+</Tabs>
+
 ## Background worker services
 
-Worker Service projects are the recommended pattern for long-running background tasks with Aspire. They use `IHostedService` (or `BackgroundService`) and integrate naturally with the .NET Generic Host.
+Background workers run for as long as the AppHost runs and stop when it shuts down. In .NET, Worker Service projects are the recommended pattern for long-running background tasks with Aspire. In Node.js, use a script that loops until it receives a shutdown signal.
 
-### Creating a Worker Service
+### Creating a worker
+
+<Tabs syncKey='console-app-lang'>
+<TabItem id='dotnet' label='.NET'>
+
+Worker Service projects use `IHostedService` (or `BackgroundService`) and integrate naturally with the .NET Generic Host.
 
 Create a `DataWorker` project with the Worker Service template, then add a reference to your shared service defaults project as shown in the console walkthrough:
 
@@ -247,6 +433,60 @@ var app = builder.Build();
 await app.RunAsync();
 ```
 
+</TabItem>
+<TabItem id='nodejs' label='Node.js'>
+
+Create a _data-worker_ folder next to your AppHost with a _package.json_ file that includes the [ioredis](https://github.com/redis/ioredis) client:
+
+```json title="data-worker/package.json"
+{
+  "name": "data-worker",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ioredis": "^5.4.0"
+  }
+}
+```
+
+Add a _worker.js_ file. The worker runs every 10 seconds until Aspire stops the process, then closes its Redis connection. Its `doWork` function is a placeholder for your application's processing logic.
+
+```javascript title="data-worker/worker.js"
+import { setTimeout as delay } from 'node:timers/promises';
+import Redis from 'ioredis';
+
+const redis = new Redis(process.env.CACHE_URI);
+
+// Stop the loop when Aspire stops the process
+const controller = new AbortController();
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, () => controller.abort());
+}
+
+async function doWork(redis, signal) {
+  // Replace with your background work.
+}
+
+try {
+  while (!controller.signal.aborted) {
+    console.log(`Processing data at: ${new Date().toISOString()}`);
+
+    await doWork(redis, controller.signal);
+
+    await delay(10_000, undefined, { signal: controller.signal });
+  }
+} catch (error) {
+  if (error.name !== 'AbortError') {
+    throw error;
+  }
+} finally {
+  await redis.quit();
+}
+```
+
+</TabItem>
+</Tabs>
+
 ### Adding to the AppHost
 
 The following model also provides a PostgreSQL database. Install its hosting integration in the AppHost before using this example:
@@ -254,6 +494,11 @@ The following model also provides a PostgreSQL database. Install its hosting int
 <InstallPackage packageName="Aspire.Hosting.PostgreSQL" />
 
 The database reference supplies connection information, but the worker above doesn't yet use it. To add database operations, configure a client as described in [Connect to PostgreSQL](/integrations/databases/postgres/postgres-connect/).
+
+<Tabs syncKey='console-app-lang'>
+<TabItem id='dotnet' label='.NET'>
+
+Add the Worker Service project to your AppHost:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -298,6 +543,60 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+</TabItem>
+<TabItem id='nodejs' label='Node.js'>
+
+Add the Node.js worker to your AppHost:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+var db = builder.AddPostgres("postgres").AddDatabase("app-db");
+
+var worker = builder.AddNodeApp("data-worker", "../data-worker", "worker.js")
+    .WithReference(cache)
+    .WithReference(db)
+    .WaitFor(db);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis('cache');
+const postgres = await builder.addPostgres('postgres');
+const db = await postgres.addDatabase('app-db');
+
+const worker = await builder.addNodeApp(
+  'data-worker',
+  '../data-worker',
+  'worker.js'
+);
+await worker.withReference(cache);
+await worker.withReference(db);
+await worker.waitFor(db);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The worker receives the database connection properties with an `APP_DB_` prefix, such as `APP_DB_URI`. Aspire replaces the dash in the resource name with an underscore in these variable names. For more information, see [Resource naming conventions](/app-host/resource-naming/).
+
+</TabItem>
+</Tabs>
+
 <LearnMore>
   For more information on the Redis and PostgreSQL hosting integrations, see
   [Redis integration](/integrations/caching/redis/redis-get-started/) and
@@ -308,6 +607,11 @@ await builder.build().run();
 ## Explicit start and console interaction
 
 By default, all resources start automatically when the AppHost runs. For console apps that should only run on demand, use `WithExplicitStart`.
+
+<Tabs syncKey='console-app-lang'>
+<TabItem id='dotnet' label='.NET'>
+
+In your AppHost, add the console app project with `WithExplicitStart`:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -341,13 +645,51 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+</TabItem>
+<TabItem id='nodejs' label='Node.js'>
+
+In your AppHost, add the Node.js app with `WithExplicitStart`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var tool = builder.AddNodeApp("tool", "../tool", "index.js")
+    .WithExplicitStart();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const tool = await builder.addNodeApp('tool', '../tool', 'index.js');
+await tool.withExplicitStart();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+</TabItem>
+</Tabs>
+
 With `WithExplicitStart`, the resource appears in the Aspire dashboard but doesn't start automatically. You can start it manually from the dashboard or programmatically.
 
 <Aside type="caution">
   Interactive console apps that read from stdin (for example,
-  `Console.ReadLine()`) aren't fully supported in the Aspire dashboard's
-  **Console logs** view. The dashboard captures and displays stdout/stderr, but
-  the console logs page doesn't forward user input to the process's stdin.
+  `Console.ReadLine()` in .NET or the `node:readline` module in Node.js) aren't
+  fully supported in the Aspire dashboard's **Console logs** view. The dashboard
+  captures and displays stdout/stderr, but the console logs page doesn't forward
+  user input to the process's stdin.
 </Aside>
 
 Aspire builds that include the experimental `WithTerminal` API support interactive terminal user interfaces (TUIs) and shell-based experiences that need a live, bidirectional session, separately from the dashboard's console log viewer.
@@ -365,6 +707,9 @@ Aspire captures stdout and stderr from all managed resources and displays them i
   page](/dashboard/explore/#console-logs-page).
 </LearnMore>
 
+<Tabs syncKey='console-app-lang'>
+<TabItem id='dotnet' label='.NET'>
+
 For structured logging in console apps, use `ILogger` instead of `Console.Write`. The following fragment assumes an existing logger and item identifier:
 
 ```csharp title="Program.cs"
@@ -377,9 +722,39 @@ Console.WriteLine($"Processing item {itemId}");
 
 With console logging and OpenTelemetry logging/export configured, such as through the service defaults setup above, logs appear in both the **Console logs** and **Structured logs** views of the dashboard. Calling `ILogger` alone doesn't export structured logs to the dashboard.
 
+</TabItem>
+<TabItem id='nodejs' label='Node.js'>
+
+Output from `console.log` and `console.error` appears in the **Console logs** view. To also see logs in the **Structured logs** view, emit them through the OpenTelemetry Logs API. The following fragment assumes the OpenTelemetry Node.js SDK is configured with an OTLP log exporter, and an existing item identifier:
+
+```javascript title="index.js"
+import { logs, SeverityNumber } from '@opentelemetry/api-logs';
+
+const logger = logs.getLogger('processor');
+
+// Prefer structured logging
+logger.emit({
+  severityNumber: SeverityNumber.INFO,
+  severityText: 'Information',
+  body: 'Processing item',
+  attributes: { itemId },
+});
+
+// Instead of
+console.log(`Processing item ${itemId}`);
+```
+
+Logs emitted without a configured log exporter aren't sent to the dashboard. For more information on setting up the SDK, see [Add telemetry configuration](/get-started/add-aspire-existing-app/#add-telemetry-configuration-optional).
+
+</TabItem>
+</Tabs>
+
 ## Using connection strings without service defaults
 
-If you can't use the service defaults project (for example, in a minimal console app without a host), you can access connection strings directly from environment variables:
+Apps that don't use the service defaults project, such as a minimal .NET console app without a host or any Node.js app, can read connection information directly from environment variables.
+
+<Tabs syncKey='console-app-lang'>
+<TabItem id='dotnet' label='.NET'>
 
 For the configuration API example, install the environment variables configuration provider in your console project:
 
@@ -407,10 +782,29 @@ var redisConnection2 = Environment.GetEnvironmentVariable("ConnectionStrings__ca
   naming conventions](/app-host/resource-naming/).
 </Aside>
 
+</TabItem>
+<TabItem id='nodejs' label='Node.js'>
+
+Read the values from `process.env`. Node.js doesn't map the `:` and `__` separators, so use the exact environment variable name:
+
+```javascript title="index.js"
+// Prefer the connection properties for the resource
+const redisUri = process.env.CACHE_URI;
+
+// The full connection string is also available:
+const redisConnection = process.env.ConnectionStrings__cache;
+```
+
+For Redis, `ConnectionStrings__cache` uses the StackExchange.Redis connection string format rather than a URI, so pass `CACHE_URI` to Node.js clients such as ioredis. For the properties each resource provides, see that integration's connect page, such as [Connect to Redis](/integrations/caching/redis/redis-connect/).
+
+</TabItem>
+</Tabs>
+
 ## See also
 
 - [Service defaults](/get-started/csharp-service-defaults/)
 - [Service discovery](/fundamentals/service-discovery/)
 - [Resource naming conventions](/app-host/resource-naming/)
 - [Executable resources](/app-host/executable-resources/)
+- [JavaScript integration](/integrations/frameworks/javascript/)
 - [.NET Worker Service](https://learn.microsoft.com/dotnet/core/extensions/workers)
