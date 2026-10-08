@@ -92,7 +92,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'Aspire 17.0',
-          slug: 'whats-new/aspire-17-0',
+          slug: 'whats-new/aspire-17',
         },
         {
           label: 'Aspire 13.6',
