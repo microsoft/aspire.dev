@@ -13,6 +13,22 @@ export interface Props {
 
 import { Image, getImage } from 'astro:assets';
 import { Zoom } from 'starlight-image-zoom/components';
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { normalize } from 'node:path';
+
+async function versionDevelopmentImage(image: ImageMetadata): Promise<ImageMetadata> {
+  if (!import.meta.env.DEV || !image.src.startsWith('/@fs/')) return image;
+
+  const source = new URL(image.src, Astro.url);
+  const path = normalize(decodeURIComponent(source.pathname.slice('/@fs/'.length)));
+  const revision = createHash('sha256')
+    .update(await readFile(path))
+    .digest('hex')
+    .slice(0, 16);
+  source.searchParams.set('v', revision);
+  return { ...image, src: `${source.pathname}${source.search}` };
+}
 
 const {
   light,
@@ -30,10 +46,14 @@ const imageWidth = width ?? dark.width;
 const imageHeight = height ?? dark.height;
 const imageClass = [classOverride, 'theme-image'].filter(Boolean).join(' ');
 const imageOptions = { width: imageWidth, height: imageHeight, fit: 'contain' as const };
-const optimizedLight = await getImage({ src: light, ...imageOptions });
-const optimizedDark = await getImage({ src: dark, ...imageOptions });
+const [lightSource, darkSource] = await Promise.all([
+  versionDevelopmentImage(light),
+  versionDevelopmentImage(dark),
+]);
+const optimizedLight = await getImage({ src: lightSource, ...imageOptions });
+const optimizedDark = await getImage({ src: darkSource, ...imageOptions });
 const themedImageProps = {
-  src: dark,
+  src: darkSource,
   alt,
   'data-light': optimizedLight.src,
   'data-dark': optimizedDark.src,

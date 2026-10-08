@@ -8,8 +8,13 @@ import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
 import { Image } from 'astro:assets';
 import keycloakIcon from '@assets/icons/keycloak-icon.svg';
+import authFlowDiagram from '@assets/integrations/security/keycloak/auth-flow-diagram.png';
+import authFlowDiagramLight from '@assets/integrations/security/keycloak/auth-flow-diagram-light.png';
+import simpleAuthFlowDiagram from '@assets/integrations/security/keycloak/simple-auth-flow-diagram.png';
+import simpleAuthFlowDiagramLight from '@assets/integrations/security/keycloak/simple-auth-flow-diagram-light.png';
 
 <Badge text="🧪 Preview" variant="note" size="large" />
 
@@ -531,6 +536,24 @@ builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
             options.Scope.Add("store:all");
         });
 ```
+
+### Authentication flows
+
+When the backend also serves the API, the browser signs in through Keycloak and uses an authentication cookie for subsequent requests to the backend:
+
+<ThemeImage
+  dark={simpleAuthFlowDiagram}
+  light={simpleAuthFlowDiagramLight}
+  alt="Authentication sequence with a combined backend and API: the browser is redirected to Keycloak to sign in, receives an authentication cookie from the backend, and uses that cookie to request API data."
+/>
+
+When the backend calls a separate API, it also obtains an access token from Keycloak and forwards that token to the API. The API validates the JWT bearer token before returning data:
+
+<ThemeImage
+  dark={authFlowDiagram}
+  light={authFlowDiagramLight}
+  alt="Authentication sequence with a separate API: the browser signs in through Keycloak, the backend obtains an access token and sets an authentication cookie, and the backend forwards the JWT bearer token to the API for validation."
+/>
 
 ## Production considerations
 
