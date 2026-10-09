@@ -1,7 +1,7 @@
 ---
 title: Compiler Warning ASPIREDOCKERFILEBUILDER001
-seoTitle: "ASPIREDOCKERFILEBUILDER001: Dockerfile builder types and"
-description: Learn what causes the Aspire compiler warning ASPIREDOCKERFILEBUILDER001 and how to fix it so your AppHost builds cleanly.
+seoTitle: "ASPIREDOCKERFILEBUILDER001: Dockerfile builder APIs"
+description: Learn why Aspire 17.0 removed ASPIREDOCKERFILEBUILDER001 from the Dockerfile builder APIs, which are now generally available.
 ---
 
 import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -13,38 +13,20 @@ import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
   class:list={'mb-1'}
 />
 
+:::note[Removed in Aspire 17.0]
+The Dockerfile builder APIs — `AddDockerfileBuilder`, `WithDockerfileBuilder`, `DockerfileBuilderCallbackContext`, and related programmatic Dockerfile generation types — have graduated from experimental. Starting with Aspire 17.0, these APIs no longer emit `ASPIREDOCKERFILEBUILDER001`, and you can remove any existing suppressions for them. The API shape, signatures, and behavior are unchanged by this graduation.
+:::
+
 > Dockerfile builder types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-This diagnostic warning is reported when using experimental Dockerfile builder APIs in Aspire, specifically the `DockerfileBuilderCallbackContext` class and related programmatic Dockerfile generation functionality.
+Before Aspire 17.0, this diagnostic warning was reported when using experimental Dockerfile builder APIs in Aspire, specifically the `DockerfileBuilderCallbackContext` class and related programmatic Dockerfile generation functionality.
 
 These APIs enable programmatic creation of Dockerfiles at build time, allowing dynamic generation of container images based on application configuration and requirements.
 
-## Example
+## Example before Aspire 17.0
 
-The following code generates `ASPIREDOCKERFILEBUILDER001` in a C# AppHost:
+Before Aspire 17.0, the following code generated `ASPIREDOCKERFILEBUILDER001` in a C# AppHost:
 
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-builder.AddDockerfileBuilder("my-service", "./service", context =>
-{
-    var stage = context.Builder.From("node:22-alpine", "runtime");
-    stage.WorkDir("/app")
-        .Copy("package*.json", "./")
-        .Run("npm ci --omit=dev")
-        .Copy(".", ".")
-        .Cmd(["node", "index.js"]);
-
-    return Task.CompletedTask;
-}, stage: "runtime");
-```
-
-## AppHost examples
-
-TypeScript AppHosts can use the same Dockerfile builder callback surface. The warning suppression options below apply to C# compiler diagnostics; TypeScript code doesn't use `#pragma` or `.editorconfig` to suppress `ASPIREDOCKERFILEBUILDER001`.
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -61,6 +43,28 @@ builder.AddDockerfileBuilder("my-service", "./service", context =>
     return Task.CompletedTask;
 }, stage: "runtime");
 #pragma warning restore ASPIREDOCKERFILEBUILDER001
+```
+
+## AppHost examples
+
+With Aspire 17.0 or later, the same code no longer requires a suppression. TypeScript AppHosts can use the same Dockerfile builder callback surface.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerfileBuilder("my-service", "./service", context =>
+{
+    var stage = context.Builder.From("node:22-alpine", "runtime");
+    stage.WorkDir("/app")
+        .Copy("package*.json", "./")
+        .Run("npm ci --omit=dev")
+        .Copy(".", ".")
+        .Cmd(["node", "index.js"]);
+
+    return Task.CompletedTask;
+}, stage: "runtime");
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
@@ -95,7 +99,6 @@ The callback can also be applied to an existing container resource with `WithDoc
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-#pragma warning disable ASPIREDOCKERFILEBUILDER001
 builder.AddContainer("my-service", "node:22-alpine")
     .WithDockerfileBuilder("./service", context =>
     {
@@ -108,7 +111,6 @@ builder.AddContainer("my-service", "node:22-alpine")
 
         return Task.CompletedTask;
     }, stage: "runtime");
-#pragma warning restore ASPIREDOCKERFILEBUILDER001
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
@@ -170,9 +172,11 @@ The `DockerfileBuilderCallbackContext` provides context information for Dockerfi
 
 In TypeScript AppHosts, callback context values use camelCase names and asynchronous methods. For example, use `await context.builder()` to get the `DockerfileBuilder` instance.
 
-## To suppress this warning
+## To correct this warning
 
-Suppress the warning with either of the following methods:
+Upgrade to Aspire 17.0 or later. After upgrading, remove `ASPIREDOCKERFILEBUILDER001` suppressions from _.editorconfig_ files, project `NoWarn` properties, and `#pragma warning` directives.
+
+For earlier versions, suppress the warning with one of the following methods:
 
 - Set the severity of the rule in the _.editorconfig_ file.
 
