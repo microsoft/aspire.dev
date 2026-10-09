@@ -244,7 +244,6 @@ const localizedPrinciples = principles.map((principle) => ({
                       class="model-tab-lang-icon model-tab-lang-typescript"
                       width="18"
                       height="18"
-                      loading="eager"
                     />
                     <Image
                       src={csharpIcon}
@@ -252,7 +251,6 @@ const localizedPrinciples = principles.map((principle) => ({
                       class="model-tab-lang-icon model-tab-lang-csharp"
                       width="18"
                       height="18"
-                      loading="eager"
                     />
                   </span>
                   <span class="model-tab-text">AppHost</span>
@@ -344,7 +342,6 @@ const localizedPrinciples = principles.map((principle) => ({
                                   class="graph-resource-icon"
                                   width="28"
                                   height="28"
-                                  loading="eager"
                                   style={`--resource-icon-delay: ${getModelResourceDelay('frontend', frontendResourceIcons.length, index)}s`}
                                 />
                               ))
@@ -369,7 +366,6 @@ const localizedPrinciples = principles.map((principle) => ({
                                   class="graph-resource-icon"
                                   width="28"
                                   height="28"
-                                  loading="eager"
                                   style={`--resource-icon-delay: ${getModelResourceDelay('api', apiResourceIcons.length, index)}s`}
                                 />
                               ))
@@ -393,7 +389,6 @@ const localizedPrinciples = principles.map((principle) => ({
                                   class="graph-resource-icon"
                                   width="28"
                                   height="28"
-                                  loading="eager"
                                   style={`--resource-icon-delay: ${getModelResourceDelay('database', databaseResourceIcons.length, index)}s`}
                                 />
                               ))
@@ -417,7 +412,6 @@ const localizedPrinciples = principles.map((principle) => ({
                                   class={`graph-resource-icon${index === 0 ? ' cache-icon' : ''}`}
                                   width="28"
                                   height="28"
-                                  loading="eager"
                                   style={`--resource-icon-delay: ${getModelResourceDelay('cache', cacheResourceIcons.length, index)}s`}
                                 />
                               ))
@@ -700,6 +694,7 @@ const localizedPrinciples = principles.map((principle) => ({
 </div>
 
 <script>
+  import { loadLazyImagesNearViewport } from '@utils/lazy-images';
   import { createViewportActivationObserver } from '@utils/viewport-activation';
 
   type AppHostLanguage = 'csharp' | 'typescript';
@@ -1232,6 +1227,9 @@ const localizedPrinciples = principles.map((principle) => ({
     const modelStory = modelStoryRoot
       ? createModelStory(modelStoryRoot, reducedMotion.matches)
       : null;
+    // The icon of the language that isn't selected is `display: none`, which never starts native
+    // lazy loading, so load it as the section nears the viewport instead of on the first toggle.
+    const stopModelIconLoading = modelStoryRoot ? loadLazyImagesNearViewport(modelStoryRoot) : null;
     const selectedLanguage = page.querySelector<HTMLButtonElement>(
       '.home-hero-product .lang-toggle[aria-pressed="true"]'
     )?.dataset.lang;
@@ -1318,6 +1316,7 @@ const localizedPrinciples = principles.map((principle) => ({
         revealObserver?.disconnect();
         entryRevealObserver?.disconnect();
         storyObserver?.disconnect();
+        stopModelIconLoading?.();
         modelStory?.destroy();
         document.removeEventListener('visibilitychange', updateModelStoryPlayback);
         document.removeEventListener('aspire:apphost-language-change', handleAppHostLanguageChange);

@@ -51,7 +51,6 @@ const firstSeenKey = bannerHash
         data-auto-dismiss-days={autoDismissAfterDays ?? ''}
         data-banner-state="open"
         data-pagefind-ignore
-        hidden
       >
         <div class="sl-banner__content" set:html={bannerContent} />
         <button
@@ -66,9 +65,41 @@ const firstSeenKey = bannerHash
         </button>
       </div>
 
-      <noscript>
-        <style>{`#${bannerId}[hidden] { display: block !important; }`}</style>
-      </noscript>
+      {
+        /*
+         * Rendered visible so the first paint already includes the banner's height. Revealing it
+         * from the bundled controller below shifted the whole page down after first paint (the
+         * largest layout shift on the landing page). Hiding is the exception, so this runs before
+         * the next paint and only hides banners the reader has dismissed, that have passed their
+         * sunset, or whose auto-dismiss window has elapsed. It mirrors `resolveBannerVisibility`
+         * in `@utils/banner-expiry`; `banner-render.vitest.test.ts` asserts the two agree.
+         * `data-astro-rerun` re-applies it to the incoming page on client-side navigation.
+         */
+      }
+      <script is:inline data-astro-rerun data-banner-prepaint>
+        (function () {
+          var banner = document.querySelector('[data-aspire-banner]');
+          if (!banner) return;
+          var data = banner.dataset;
+          var now = Date.now();
+          var hide = data.expiresOn ? now >= Number(data.expiresOn) : false;
+          try {
+            if (!hide) hide = window.localStorage.getItem(data.dismissKey) === 'true';
+            if (!hide && data.autoDismissDays) {
+              var raw = window.localStorage.getItem(data.firstSeenKey);
+              var firstSeen = raw !== null && /^\d+$/.test(raw.trim()) ? Number(raw) : 0;
+              hide =
+                firstSeen > 0 &&
+                firstSeen <= now &&
+                now >= firstSeen + Number(data.autoDismissDays) * 86400000;
+            }
+          } catch (e) {}
+          if (hide) {
+            banner.hidden = true;
+            banner.dataset.bannerState = 'closed';
+          }
+        })();
+      </script>
     </>
   )
 }
@@ -79,6 +110,7 @@ const firstSeenKey = bannerHash
   // so shipped behavior can't diverge from the tests. This bundled module reads
   // its per-banner config from `data-*` attributes on the element (a bundled
   // script can't use `define:vars`), leaving only DOM/localStorage plumbing here.
+  // The pre-paint script above applies the same decision before first paint.
   import { parseFirstSeen, resolveBannerVisibility } from '@utils/banner-expiry';
 
   const initializeBanner = () => {

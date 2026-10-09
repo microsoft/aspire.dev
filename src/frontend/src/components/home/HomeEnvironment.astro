@@ -306,7 +306,6 @@ const localizedEnvironments = environments.map((environment) => {
                       class="topology-core-icon"
                       width="32"
                       height="32"
-                      loading="eager"
                     />
                     <span>AppHost</span>
                   </div>
@@ -325,7 +324,6 @@ const localizedEnvironments = environments.map((environment) => {
                                 class={`topology-node-icon${icon === redisIcon ? ' cache-icon' : ''}${icon === awsIcon ? ' topology-node-icon-aws' : ''}`}
                                 width="30"
                                 height="30"
-                                loading={iconIndex === 0 || icon === awsIcon ? 'eager' : 'lazy'}
                                 style={`--topology-cycle-delay: ${getCycleDelay(resource.icons.length, iconIndex, resourceIndex)}s`}
                               />
                             ))}
@@ -375,6 +373,7 @@ const localizedEnvironments = environments.map((environment) => {
 </section>
 
 <script>
+  import { loadLazyImagesNearViewport } from '@utils/lazy-images';
   import { createViewportActivationObserver } from '@utils/viewport-activation';
 
   function initializeHomeEnvironments() {
@@ -529,6 +528,10 @@ const localizedEnvironments = environments.map((environment) => {
     document.addEventListener('visibilitychange', handleVisibility);
     selectEnvironment(activeId, false);
 
+    // Panels that aren't displayed never start native lazy loading, so load their icons as the
+    // section nears the viewport instead of when a visitor first selects a panel.
+    const stopIconLoading = loadLazyImagesNearViewport(root);
+
     const motionObserver = createViewportActivationObserver((_, active) => {
       stageVisible = active;
       if (!stageVisible) settlePanels();
@@ -569,6 +572,7 @@ const localizedEnvironments = environments.map((environment) => {
         });
         motionObserver?.disconnect();
         scrollObserver?.disconnect();
+        stopIconLoading();
         motionControl.removeEventListener('click', toggleMotion);
         reducedMotion.removeEventListener('change', handleMotionPreference);
         document.removeEventListener('visibilitychange', handleVisibility);

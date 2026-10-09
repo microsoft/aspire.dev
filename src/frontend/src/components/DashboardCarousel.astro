@@ -189,23 +189,32 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
   </div>
 </section>
 
-<script is:inline>
+{
+  /*
+   * Bundled on purpose (not `is:inline`): inlined, these ~23 KB were re-sent in every homepage
+   * response and pushed the document past what a cold connection delivers in two round trips.
+   */
+}
+<script>
   (() => {
     function init() {
-      const root = document.querySelector('[data-dashboard-carousel]');
+      const root = document.querySelector<HTMLElement>('[data-dashboard-carousel]');
       if (!root || root.dataset.initialized === 'true') return;
       root.dataset.initialized = 'true';
 
-      const stage = root.querySelector('[data-stage]');
-      const slides = Array.from(root.querySelectorAll('[data-slide]'));
-      const dots = Array.from(root.querySelectorAll('[data-dot]'));
-      const prevBtn = root.querySelector('[data-prev]');
-      const nextBtn = root.querySelector('[data-next]');
+      const stage = root.querySelector<HTMLElement>('[data-stage]');
+      const slides = Array.from(root.querySelectorAll<HTMLElement>('[data-slide]'));
+      const dots = Array.from(root.querySelectorAll<HTMLElement>('[data-dot]'));
+      const prevBtn = root.querySelector<HTMLElement>('[data-prev]');
+      const nextBtn = root.querySelector<HTMLElement>('[data-next]');
       const n = slides.length;
       if (!stage || n === 0) {
         delete root.dataset.initialized;
         return;
       }
+
+      // TypeScript doesn't carry the narrowing of `root` and `stage` into the hoisted function
+      // declarations below, so those assert it (`root!`, `stage!`).
 
       const reduce =
         window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -217,9 +226,9 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       let active = 0;
       let zoomOpen = false;
       let zoomIndex = 0;
-      let zoomObserver = null;
+      let zoomObserver: MutationObserver | null = null;
       let cleaned = false;
-      const cleanupTasks = [];
+      const cleanupTasks: Array<() => void> = [];
 
       const focusableSelector = [
         'a[href]',
@@ -230,12 +239,25 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         '[tabindex]',
       ].join(',');
 
-      function addListener(target, type, handler, options) {
-        target.addEventListener(type, handler, options);
-        cleanupTasks.push(() => target.removeEventListener(type, handler, options));
+      type EventMapFor<T> = T extends Window
+        ? WindowEventMap
+        : T extends Document
+          ? DocumentEventMap
+          : HTMLElementEventMap;
+
+      function addListener<T extends EventTarget, K extends keyof EventMapFor<T> & string>(
+        target: T,
+        type: K,
+        handler: (event: EventMapFor<T>[K]) => void,
+        options?: boolean | AddEventListenerOptions
+      ) {
+        target.addEventListener(type, handler as EventListener, options);
+        cleanupTasks.push(() =>
+          target.removeEventListener(type, handler as EventListener, options)
+        );
       }
 
-      function setSlideTabbable(slide, tabbable) {
+      function setSlideTabbable(slide: HTMLElement, tabbable: boolean) {
         if (tabbable) {
           slide.removeAttribute('aria-hidden');
         } else {
@@ -269,8 +291,8 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         clearViewportFailSafe();
         if (zoomObserver) zoomObserver.disconnect();
         cleanupTasks.splice(0).forEach((dispose) => dispose());
-        root.removeAttribute('data-viewport-active');
-        delete root.dataset.initialized;
+        root!.removeAttribute('data-viewport-active');
+        delete root!.dataset.initialized;
       }
 
       addListener(document, 'astro:before-swap', cleanup, { once: true });
@@ -283,7 +305,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       });
 
       // Shortest signed distance on the ring of slides (enables infinite coverflow).
-      function ringOffset(i) {
+      function ringOffset(i: number) {
         let o = i - active;
         if (o > n / 2) o -= n;
         if (o < -n / 2) o += n;
@@ -353,7 +375,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         dots.forEach((d, i) => d.setAttribute('aria-pressed', i === active ? 'true' : 'false'));
       }
 
-      function setActive(i) {
+      function setActive(i: number) {
         active = ((i % n) + n) % n;
         render();
       }
@@ -369,7 +391,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         // Round up so fractional responsive heights never clip the screenshot.
         const centered = slides[active];
         const h = centered.getBoundingClientRect().height;
-        if (h) stage.style.height = `${Math.ceil(h)}px`;
+        if (h) stage!.style.height = `${Math.ceil(h)}px`;
       }
 
       // --- Controls ---
@@ -404,8 +426,8 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       // finger scrolling still pans the page normally.
       const SWIPE_THRESHOLD = 40; // px of travel required to change slides
       const INTENT_SLOP = 8; // px before we decide swipe vs. scroll
-      let startX = null;
-      let startY = null;
+      let startX: number | null = null;
+      let startY: number | null = null;
       let swiping = false; // horizontal gesture claimed
       let dragged = false; // moved enough to suppress the trailing click
 
@@ -428,7 +450,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         (e) => {
           if (startX === null) return;
           const dx = e.clientX - startX;
-          const dy = e.clientY - startY;
+          const dy = e.clientY - startY!;
           if (!swiping) {
             if (Math.abs(dx) < INTENT_SLOP && Math.abs(dy) < INTENT_SLOP) return;
             if (Math.abs(dx) > Math.abs(dy)) {
@@ -444,7 +466,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         { passive: false }
       );
 
-      function endSwipe(e) {
+      function endSwipe(e: PointerEvent) {
         if (startX === null) {
           swiping = false;
           return;
@@ -487,8 +509,8 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       // the stage presentation; the coverflow presentation keeps the classic
       // silent hover-to-pause autoplay with no chrome.
       const DURATION = 7000; // ms spent on each slide while playing
-      const toggleBtn = root.querySelector('[data-playback-toggle]');
-      const progressFill = root.querySelector('[data-progress-fill]');
+      const toggleBtn = root.querySelector<HTMLElement>('[data-playback-toggle]');
+      const progressFill = root.querySelector<HTMLElement>('[data-progress-fill]');
       const PLAY_LABEL = (toggleBtn && toggleBtn.dataset.labelPlay) || 'Play';
       const PAUSE_LABEL = (toggleBtn && toggleBtn.dataset.labelPause) || 'Pause';
       const controlsEnabled = stagePresentation && !reduce;
@@ -496,14 +518,14 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
 
       let isPlaying = autoplay && !reduce;
       let progress = 0; // 0..1 through the current slide
-      let rafId = null;
+      let rafId: number | null = null;
       let lastTs = 0;
       let hovered = false;
       let focusWithin = false;
       let viewportActivated = !stagePresentation;
       let viewportActive = !stagePresentation;
-      let viewportRafId = null;
-      let viewportFailSafeTimer = null;
+      let viewportRafId: number | null = null;
+      let viewportFailSafeTimer: number | null = null;
       let viewportFailSafeReady = false;
 
       function clearViewportFailSafe() {
@@ -513,7 +535,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       }
 
       function revealHasSettled() {
-        const reveal = root.closest('[data-home-reveal]');
+        const reveal = root!.closest('[data-home-reveal]');
         if (!reveal) return true;
         if (!reveal.classList.contains('home-visible')) return false;
 
@@ -541,7 +563,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
             : 0;
         const viewportBottom = window.innerHeight;
         const availableHeight = Math.max(0, viewportBottom - viewportTop);
-        const bounds = stage.getBoundingClientRect();
+        const bounds = stage!.getBoundingClientRect();
         const visibleTop = Math.max(bounds.top, viewportTop);
         const visibleBottom = Math.min(bounds.bottom, viewportBottom);
         const visibleHeight = Math.max(0, visibleBottom - visibleTop);
@@ -576,7 +598,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         const nextActive = viewportActivated && intersects;
         if (nextActive === viewportActive) return;
         viewportActive = nextActive;
-        root.toggleAttribute('data-viewport-active', viewportActive);
+        root!.toggleAttribute('data-viewport-active', viewportActive);
         refreshPlayback();
       }
 
@@ -620,7 +642,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         lastTs = 0;
       }
 
-      function tick(ts) {
+      function tick(ts: number) {
         rafId = null;
         if (!isPlaying || suspended()) return; // resume() restarts the loop
         if (lastTs === 0) lastTs = ts;
@@ -651,7 +673,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         }
       }
 
-      function setPlaying(next) {
+      function setPlaying(next: boolean) {
         if (isPlaying === next) return;
         isPlaying = next;
         updateToggleUI();
@@ -666,7 +688,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       // Manual navigation resets the current slide's progress. In stage mode it
       // also drops into manual mode (paused); pressing play then resumes from
       // the start of whatever slide is now centered. Coverflow keeps playing.
-      function manualNav(navFn) {
+      function manualNav(navFn: () => void) {
         navFn();
         progress = 0;
         if (controlsEnabled) {
@@ -692,7 +714,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         refreshPlayback();
       });
       addListener(root, 'focusout', (e) => {
-        if (root.contains(e.relatedTarget)) return;
+        if (root.contains(e.relatedTarget as Node | null)) return;
         focusWithin = false;
         refreshPlayback();
       });
@@ -720,7 +742,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
       const zoomPrevLabel = (prevBtn && prevBtn.getAttribute('aria-label')) || 'Previous';
       const zoomNextLabel = (nextBtn && nextBtn.getAttribute('aria-label')) || 'Next';
 
-      function fitZoomClone(clone, natW, natH) {
+      function fitZoomClone(clone: HTMLImageElement, natW: number, natH: number) {
         if (!natW || !natH) return;
         const maxW = Math.min(window.innerWidth, natW);
         const maxH = Math.min(window.innerHeight, natH);
@@ -734,16 +756,16 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         clone.style.transform = '';
       }
 
-      function zoomStep(dir) {
+      function zoomStep(dir: number) {
         if (n < 2) return;
         const dialog = document.querySelector('.starlight-image-zoom-dialog');
         if (!dialog) return;
-        const clone = dialog.querySelector('figure img');
+        const clone = dialog.querySelector<HTMLImageElement>('figure img');
         if (!clone) return;
         zoomIndex = (((zoomIndex + dir) % n) + n) % n;
         const srcImg =
-          slides[zoomIndex].querySelector('img.dashboard-shot') ||
-          slides[zoomIndex].querySelector('img');
+          slides[zoomIndex].querySelector<HTMLImageElement>('img.dashboard-shot') ||
+          slides[zoomIndex].querySelector<HTMLImageElement>('img');
         if (!srcImg) return;
         const settle = () => {
           fitZoomClone(clone, srcImg.naturalWidth, srcImg.naturalHeight);
@@ -764,7 +786,7 @@ const formatSlideLabel = (index: number, count: number, label: string) =>
         if (n < 2) return;
         const dialog = document.querySelector('.starlight-image-zoom-dialog');
         if (!dialog || dialog.querySelector('.carousel-zoom-nav')) return;
-        const make = (dir, aria, path) => {
+        const make = (dir: number, aria: string, path: string) => {
           const b = document.createElement('button');
           b.type = 'button';
           b.className = `carousel-zoom-nav ${dir < 0 ? 'is-prev' : 'is-next'}`;
