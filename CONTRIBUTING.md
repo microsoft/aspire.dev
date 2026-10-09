@@ -97,11 +97,10 @@ RSS fallback publication times generated during the recorded build window
 (protecting authored dates), and Pagefind JSON object-key ordering (preserving
 every value and array order). No files are excluded. API links, anchors, rendered
 content, scripts, styles, and search-index data remain part of the comparison.
-The optional `max_semi_space` input benchmarks Node's documented
-`--max-semi-space-size` setting for allocation-heavy builds. Baseline measurements
-retain Node's standard young-generation size; only the candidate receives the
-selected size. The 8 GiB old-generation limit remains unchanged. Inspect peak
-memory as well as garbage-collection time before changing production defaults.
+Node's standard young-generation size and the 8 GiB old-generation limit remain
+unchanged. A controlled 64 MiB semi-space experiment regressed build time and
+increased peak memory; it was not adopted. Inspect total wall time and peak
+memory, not just a single CPU hotspot, before changing runtime defaults.
 
 Compare runs with the same runner class, dependency lockfile, build concurrency,
 and catalog data. Distinguish cold and restored Astro content caches, and measure
