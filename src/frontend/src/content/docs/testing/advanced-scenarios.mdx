@@ -185,6 +185,26 @@ var appHost = await DistributedApplicationTestingBuilder
 
 The `Projects` namespace entries are only generated for `<ProjectReference>` entries in your test project. A file-based `apphost.cs` produces no such entry.
 
+## Avoid building test projects with `Aspire.AppHost.Sdk`
+
+Test projects should use `Microsoft.NET.Sdk` and reference the AppHost project with a `<ProjectReference>`. Don't build the test project itself with `Aspire.AppHost.Sdk`.
+
+<Aside type="caution">
+If a Microsoft.Testing.Platform test project (such as an `aspire-xunit` project) is built with `Aspire.AppHost.Sdk`, the generated `Projects.*` type can belong to the test application instead of the AppHost. Passing that type to `CreateAsync<T>()` invokes the test application's own entry point, which recursively starts the test runner, reruns the entire test suite without the original filter, and can leave many AppHost and DCP processes running.
+</Aside>
+
+`DistributedApplicationTestingBuilder.CreateAsync` detects this condition before invoking the entry point and throws `InvalidOperationException` with a message that explains the problem and the fix:
+
+```text
+The assembly 'MyTests' is a Microsoft.Testing.Platform test application. Invoking its entry point from DistributedApplicationFactory would recursively run the test application. Test projects should use Microsoft.NET.Sdk instead of Aspire.AppHost.Sdk and reference the AppHost project so the entry point type belongs to the AppHost executable assembly. Alternatively, use DistributedApplicationTestingBuilder.Create to construct the application without invoking an entry point.
+```
+
+To resolve this:
+
+- Make sure the test project's SDK is `Microsoft.NET.Sdk`, and that it has a `<ProjectReference>` to the AppHost project so `Projects.MyAppHost` resolves to the AppHost's assembly, not the test assembly.
+- If the AppHost is discovered dynamically at runtime, load its assembly directly and pass a type from that assembly to `CreateAsync(Type)` instead of relying on the generated `Projects` type.
+- If you don't need the entry point invoked at all, use [`DistributedApplicationTestingBuilder.Create()`](/testing/manage-app-host/#use-the-distributedapplicationfactory-class) to construct the application without invoking an entry point.
+
 ## See also
 
 - [Manage the AppHost in tests](/testing/manage-app-host/)
