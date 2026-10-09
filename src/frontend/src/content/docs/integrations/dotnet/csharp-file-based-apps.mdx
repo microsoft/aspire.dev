@@ -9,10 +9,11 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import csharpIcon from '@assets/icons/csharp.svg';
 
-<Aside type="danger" title="Experimental">
-  The `AddCSharpApp` API is experimental and may change or be removed in future
-  releases. You must suppress the
-  [ASPIRECSHARPAPPS001](/diagnostics/aspirecsharpapps001/) diagnostic to use it.
+<Aside type="danger" title="Obsolete">
+  `AddCSharpApp` (and the polyglot `addCSharpApp` export) is obsolete starting
+  in Aspire 17.0. Add the [`Aspire.Hosting.Dotnet`](/integrations/frameworks/dotnet/dotnet-host/)
+  integration and use `AddDotnetProject` / `addDotnetProject` instead. See
+  [Migrating to AddDotnetProject](#migrating-to-adddotnetproject) below.
 </Aside>
 
 <Image
@@ -47,7 +48,7 @@ Call `AddCSharpApp` with a resource name and the relative path to a `.cs` file. 
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRECSHARPAPPS001
+#pragma warning disable CS0618
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -78,7 +79,7 @@ You can also point to a `.csproj` file or a directory that contains one:
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRECSHARPAPPS001
+#pragma warning disable CS0618
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -127,7 +128,7 @@ File-based apps integrate fully with Aspire's resource model. You can reference 
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRECSHARPAPPS001
+#pragma warning disable CS0618
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -175,7 +176,7 @@ The C# `AddCSharpApp` method accepts an optional `Action<ProjectResourceOptions>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRECSHARPAPPS001
+#pragma warning disable CS0618
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -215,7 +216,7 @@ You can also write the AppHost itself as a file-based C# app using the `#:sdk` d
 #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
 #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
 
-#pragma warning disable ASPIRECSHARPAPPS001
+#pragma warning disable CS0618
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -249,52 +250,61 @@ The Visual Studio Code extension explicitly advertises support for launching fil
 
 ## Limitations
 
-Since this feature is experimental, be aware of the following limitations:
+Be aware of the following limitations:
 
-- **Experimental status** &mdash; the API is marked with `[Experimental("ASPIRECSHARPAPPS001")]` and may change in future releases.
+- **Obsolete** &mdash; the API is marked `[Obsolete]` starting in Aspire 17.0. See [Migrating to AddDotnetProject](#migrating-to-adddotnetproject).
 - **Single-file only** &mdash; file-based apps are limited to a single `.cs` file per resource.
 - **.NET 10 SDK required** &mdash; file-based app execution requires the .NET 10 SDK or later.
 - **No deployment support** &mdash; file-based apps are designed for local development scenarios.
 
-## Suppress the diagnostic
+## Migrating to AddDotnetProject
 
-To use `AddCSharpApp` in a C# AppHost, suppress the `ASPIRECSHARPAPPS001` diagnostic using one of these methods:
+Starting in Aspire 17.0, `AddCSharpApp` and the polyglot `addCSharpApp` export are obsolete. Existing C# calls now produce the `CS0618` compiler warning instead of the `ASPIRECSHARPAPPS001` experimental error, and the TypeScript API surface emits `@deprecated` instead of `@experimental`. Signatures, defaults, validation, callbacks, path handling, and launch/publish behavior are unchanged for existing `AddCSharpApp` calls &mdash; only the diagnostic metadata changed.
 
-**In code** with a pragma directive:
+Add the [📦 Aspire.Hosting.Dotnet](https://www.nuget.org/packages/Aspire.Hosting.Dotnet) integration and replace `AddCSharpApp` / `addCSharpApp` calls with `AddDotnetProject` / `addDotnetProject`:
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Dotnet
+```
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRECSHARPAPPS001
+builder.AddDotnetProject("worker", "../worker/Program.cs");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await builder.addDotnetProject("worker", "../worker/Program.cs");
+```
+
+</TabItem>
+</Tabs>
+
+`AddDotnetProject` accepts the same kinds of paths &mdash; a `.cs` file, a `.csproj` file, or a directory containing a single `.csproj` &mdash; but returns a `DotnetProjectResource` instead of a `ProjectResource` / `CSharpAppResource`. Explicitly typed resource builders and project-specific customizations might need updating. Unlike `AddDotnetProject`, `AddCSharpApp` still supports automatic publishing, so keep using `AddCSharpApp` if you rely on `aspire publish` / `aspire deploy` for the resource until `DotnetProjectResource` gains publishing support.
+
+If you keep using `AddCSharpApp` and treat warnings as errors, suppress `CS0618` for the retained calls:
+
+```csharp title="AppHost.cs"
+#pragma warning disable CS0618
 builder.AddCSharpApp("worker", "../worker/Program.cs");
-#pragma warning restore ASPIRECSHARPAPPS001
+#pragma warning restore CS0618
 ```
-
-**In your project file** with `NoWarn`:
-
-```xml title="C# project file"
-<PropertyGroup>
-    <NoWarn>$(NoWarn);ASPIRECSHARPAPPS001</NoWarn>
-</PropertyGroup>
-```
-
-**In an _.editorconfig_ file**:
-
-```ini title=".editorconfig"
-[*.{cs,vb}]
-dotnet_diagnostic.ASPIRECSHARPAPPS001.severity = none
-```
-
-:::note
-`ASPIRECSHARPAPPS001` is a C# compiler diagnostic. TypeScript AppHosts call `addCSharpApp` without any diagnostic suppression needed.
-:::
 
 <LearnMore>
-  Learn more about [ASPIRECSHARPAPPS001](/diagnostics/aspirecsharpapps001/).
+  See [Set up .NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/)
+  for the full `AddDotnetProject` reference, and
+  [What's new in Aspire 17.0](/whats-new/aspire-17/#breaking-changes) for the
+  obsoletion announcement.
 </LearnMore>
 
 ## See also
 
 - [What is the AppHost?](/get-started/app-host/)
-- [Compiler Error ASPIRECSHARPAPPS001](/diagnostics/aspirecsharpapps001/)
+- [Set up .NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/)
 - [Project resources](/integrations/dotnet/project-resources/)
 - [Aspire SDK](/get-started/aspire-sdk/)
 - [Executable resources](/app-host/executable-resources/)
