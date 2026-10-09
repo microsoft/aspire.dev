@@ -590,7 +590,7 @@ builder.Build().Run();
 
 The command is opt-in and available only in run mode while the container is running. The client runs inside the container as `sa`, connected to the `master` database, so no local SQL client is needed. It uses the configured password without putting it in command-line arguments and trusts the local server's self-signed certificate, matching the integration's local development connection string.
 
-The command supports `/opt/mssql-tools18/bin/sqlcmd` in newer SQL Server images and `/opt/mssql-tools/bin/sqlcmd` in older images. Custom images must include one of these clients.
+The command invokes `/opt/mssql-tools18/bin/sqlcmd` directly, matching the tools version included in the integration's default `2022-latest` image. It doesn't probe for another client or invoke a shell, so no override is needed when using the default image.
 
 Enter SQL statements followed by `GO` on its own line to execute a batch:
 
@@ -604,6 +604,119 @@ Use `USE [db];` followed by `GO` to switch databases, and `QUIT` to exit before 
 :::caution
 The client runs as `sa`, can modify or delete data, and can execute server-side operating system commands when enabled. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
 :::
+
+### Select the client executable
+
+:::note[Breaking change]
+Older SQL Server images that only contain `/opt/mssql-tools/bin/sqlcmd` no longer get automatic client-path discovery. AppHosts pinned to one of those images must select `SqlServerReplCommand.Version17` explicitly, as shown below. The default image and the parameterless `WithRepl()` overload are unaffected.
+:::
+
+When pinning an older image that includes `/opt/mssql-tools/bin/sqlcmd`, pass an `options` callback to `WithRepl()` and select the version 17 command:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { SqlServerReplCommand } from './.aspire/modules/aspire.mjs';
+
+await builder.addSqlServer('sql')
+    .withImageTag('<your-pinned-image-tag>')
+    .withRepl({
+        configure: async options => {
+            await options.command.set(SqlServerReplCommand.Version17);
+        }
+    });
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+builder.AddSqlServer("sql")
+    .WithImageTag("<your-pinned-image-tag>")
+    .WithRepl(options => options.Command = SqlServerReplCommand.Version17);
+```
+
+</TabItem>
+</Tabs>
+
+`SqlServerReplCommand.Version17` and `SqlServerReplCommand.Version18` are string constants for the well-known `sqlcmd` executable paths. Choose based on the client tools installed in the image, not the SQL Server version — setting `Command` doesn't install tools or change the container image.
+
+`Command` also accepts a custom executable path, for an image that installs `sqlcmd` somewhere else:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript
+await sqlServer.withRepl({
+    configure: async options => {
+        await options.command.set('/usr/local/bin/sqlcmd');
+    }
+});
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp
+sqlServer.WithRepl(options => options.Command = "/usr/local/bin/sqlcmd");
+```
+
+</TabItem>
+</Tabs>
+
+### Run a wrapper script
+
+Set `Command` to an executable script inside the container to run work before and after the interactive SQL session. For example, place these two files in a `sql` directory under the AppHost directory:
+
+```dockerfile title="sql/Dockerfile"
+FROM mcr.microsoft.com/mssql/server:2022-latest
+COPY --chmod=755 sqlcmd-wrapper.sh /usr/local/bin/sqlcmd-wrapper
+```
+
+```sh title="sql/sqlcmd-wrapper.sh"
+#!/bin/sh
+
+echo "Running pre-session work"
+
+/opt/mssql-tools18/bin/sqlcmd "$@"
+status=$?
+
+echo "Running post-session work"
+
+exit "$status"
+```
+
+Replace the echoed messages with the work you want to run, then configure Aspire to build the image and launch the wrapper:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await builder.addSqlServer('sql')
+    .withDockerfile('sql')
+    .withRepl({
+        configure: async options => {
+            await options.command.set('/usr/local/bin/sqlcmd-wrapper');
+        }
+    });
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+builder.AddSqlServer("sql")
+    .WithDockerfile("sql")
+    .WithRepl(options => options.Command = "/usr/local/bin/sqlcmd-wrapper");
+```
+
+</TabItem>
+</Tabs>
+
+The wrapper receives Aspire's usual `sqlcmd` arguments and the `SQLCMDPASSWORD` environment variable. Forward `"$@"` to preserve argument boundaries, and don't put the password in arguments or log it. The example above preserves `sqlcmd`'s exit code.
+
+Save the script with **LF line endings** and make it executable; the Dockerfile's `COPY --chmod=755` sets the permissions, and its `#!/bin/sh` line selects the interpreter when the script runs. Don't use `exec` to invoke `sqlcmd` if you need work to run afterward, because it replaces the wrapper process — post-session work runs only when `sqlcmd` returns, so forcibly stopping the container can prevent it.
 
 ## Connection properties
 
