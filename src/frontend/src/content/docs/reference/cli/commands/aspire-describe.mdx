@@ -59,11 +59,13 @@ The following options are available:
 
   The path to the Aspire AppHost project file. When specified, the command connects to the AppHost running from that project file without prompting for selection.
 
-- **`--format <Json|Table>`**
+- **`--format <Json|Mermaid|Table>`**
 
-  Output format. Use `Json` for machine-readable output suitable for scripting and automation. Defaults to `Table`. Values are case-insensitive.
+  Output format. Use `Json` for machine-readable output suitable for scripting and automation, or `Mermaid` to export a resource graph snapshot. Defaults to `Table`. Values are case-insensitive.
 
   In snapshot mode (without `--follow`), JSON output wraps resources in a `{ "resources": [...] }` object. In follow mode, JSON output uses [Newline Delimited JSON (NDJSON)](https://github.com/ndjson/ndjson-spec) for streaming, emitting one JSON object per line.
+
+  `Mermaid` output is an unfenced `flowchart LR` diagram with deterministic node identifiers, escaped resource labels, and directed relationships based on resource references. Parameters, endpoints, configuration values, and resource state are not exported, and references outside the selected resource set are omitted. Progress and informational messages are written to stderr, so redirecting stdout captures only the diagram source. `--follow` isn't supported with `Mermaid` output—each invocation captures one snapshot.
 
 - <Include relativePath="reference/cli/includes/option-include-hidden.md" />
 
@@ -125,6 +127,14 @@ The following options are available:
   ```bash title="Aspire CLI"
   aspire describe --follow --format Json
   ```
+
+- Export a resource graph as Mermaid diagram source:
+
+  ```bash title="Aspire CLI"
+  aspire describe --format Mermaid > resources.mmd
+  ```
+
+  Each invocation exports one diagram. Appending repeated invocations with `>>` produces multiple diagrams in the file, not a merged diagram.
 
 - Target a specific AppHost project:
 
