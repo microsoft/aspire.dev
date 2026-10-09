@@ -242,6 +242,10 @@ describe('community brand components', () => {
     expect(dialog).toContain('Continue to download');
     expect(dialog).toContain('/community/brand/usage/');
     expect(dialog).toContain(brandLicenseUrl);
+    expect(dialog).toContain('When local storage is available');
+    const licenseLink = dialog.match(/<a[^>]*data-brand-license[^>]*>artwork license<\/a>/)?.[0];
+    expect(licenseLink).toContain(brandLicenseUrl);
+    expect(licenseLink).not.toContain('target=');
   });
 });
 

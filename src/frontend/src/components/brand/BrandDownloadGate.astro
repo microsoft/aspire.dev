@@ -13,7 +13,7 @@ import { brandLicenseUrl } from '@data/brand';
       <h2 id="brand-download-title">Review the brand guidelines</h2>
       <p id="brand-download-description">
         Before downloading <strong data-asset-name></strong>, review the{' '}
-        <a href={brandLicenseUrl} target="_blank" rel="noopener noreferrer">artwork license</a>
+        <a href={brandLicenseUrl} data-brand-license>artwork license</a>
         {' '}and{' '}
         <a href="/community/brand/usage/" target="_blank" rel="noopener noreferrer"
           >usage guidelines</a
@@ -27,7 +27,7 @@ import { brandLicenseUrl } from '@data/brand';
         <input type="checkbox" required />
         <span>I agree to the licensing terms and Aspire brand usage guidelines.</span>
       </label>
-      <p>Your agreement is remembered in this browser for future brand asset downloads.</p>
+      <p>When local storage is available, this browser remembers your agreement for future brand downloads.</p>
       <div class="actions">
         <button type="button" data-cancel>Cancel</button>
         <button type="submit" class="continue" disabled>Continue to download</button>
@@ -63,6 +63,28 @@ import { brandLicenseUrl } from '@data/brand';
       this.listeners = new AbortController();
       const { signal } = this.listeners;
       let opener: HTMLButtonElement | undefined;
+      const downloadButtons = document.querySelectorAll<HTMLButtonElement>('[data-brand-download]');
+
+      const updateDownloadButtons = () => {
+        const accepted = getStoredPreference(agreementKey) === 'true';
+        downloadButtons.forEach((button) => {
+          button.disabled = false;
+          if (accepted) {
+            button.removeAttribute('aria-haspopup');
+          } else {
+            button.setAttribute('aria-haspopup', 'dialog');
+          }
+        });
+        return accepted;
+      };
+      updateDownloadButtons();
+      window.addEventListener(
+        'storage',
+        (event) => {
+          if (event.key === agreementKey || event.key === null) updateDownloadButtons();
+        },
+        { signal }
+      );
 
       const download = (button: HTMLButtonElement) => {
         const link = document.createElement('a');
@@ -78,12 +100,11 @@ import { brandLicenseUrl } from '@data/brand';
         link.remove();
       };
 
-      document.querySelectorAll<HTMLButtonElement>('[data-brand-download]').forEach((button) => {
-        button.disabled = false;
+      downloadButtons.forEach((button) => {
         button.addEventListener(
           'click',
           () => {
-            if (getStoredPreference(agreementKey) === 'true') {
+            if (updateDownloadButtons()) {
               download(button);
               return;
             }
@@ -131,6 +152,7 @@ import { brandLicenseUrl } from '@data/brand';
             throw new Error('No brand asset was selected for download.');
           }
           setStoredPreference(agreementKey, 'true');
+          updateDownloadButtons();
           download(opener);
           dialog.close();
         },

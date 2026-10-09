@@ -180,6 +180,9 @@ test('brand agreement persists across assets, navigation, reloads, and tabs', as
   await dismissCookieConsentIfVisible(page);
   await page.getByRole('button', { name: 'Download PowerPoint' }).click();
   const dialog = page.getByRole('dialog', { name: 'Review the brand guidelines' });
+  await expect(page.getByRole('button', { name: 'Download PowerPoint' })).toHaveAttribute(
+    'aria-haspopup', 'dialog'
+  );
   await dialog.locator('form').evaluate((form: HTMLFormElement) => form.requestSubmit());
   await expect(dialog).toBeVisible();
   expect(await page.evaluate(() => window.brandApprovedLinks)).toEqual([]);
@@ -208,6 +211,9 @@ test('brand agreement persists across assets, navigation, reloads, and tabs', as
   await dialog.getByRole('button', { name: 'Continue to download' }).click();
   await expect(dialog).not.toBeVisible();
   expect(await page.evaluate((key) => localStorage.getItem(key), agreementKey)).toBe('true');
+  await expect(page.getByRole('button', { name: 'Download PowerPoint' })).not.toHaveAttribute(
+    'aria-haspopup'
+  );
   expect(await page.evaluate(() => window.brandApprovedLinks)).toEqual([
     { href: brandDeckUrl, target: '_blank' },
   ]);
@@ -238,10 +244,21 @@ test('brand agreement persists across assets, navigation, reloads, and tabs', as
   await otherTab.getByRole('button', { name: 'Download Horizontal logo, light SVG' }).click();
   expect((await tabDownload).suggestedFilename()).toBe('aspire-logo-light-horizontal.svg');
   await expect(otherTab.getByRole('dialog', { name: 'Review the brand guidelines' })).not.toBeVisible();
+  await otherTab.evaluate((key) => localStorage.removeItem(key), agreementKey);
+  await expect(page.getByRole('button', { name: 'Download PowerPoint' })).toHaveAttribute(
+    'aria-haspopup', 'dialog'
+  );
+  await otherTab.evaluate((key) => localStorage.setItem(key, 'true'), agreementKey);
+  await expect(page.getByRole('button', { name: 'Download PowerPoint' })).not.toHaveAttribute(
+    'aria-haspopup'
+  );
   await otherTab.close();
 
   await page.evaluate((key) => localStorage.removeItem(key), agreementKey);
   await page.getByRole('button', { name: 'Download PowerPoint' }).click();
+  await expect(page.getByRole('button', { name: 'Download PowerPoint' })).toHaveAttribute(
+    'aria-haspopup', 'dialog'
+  );
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('checkbox')).not.toBeChecked();
   await page.keyboard.press('Escape');
@@ -261,7 +278,9 @@ test('remote artwork license reports loading errors and retries without a local 
   await page.goto('/community/brand/usage/');
   await dismissCookieConsentIfVisible(page);
   const link = page.locator(`main a[href="${brandLicenseUrl}"]:not([data-license-source])`);
-  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).not.toHaveAttribute('target');
+  await expect(link).toHaveAttribute('aria-haspopup', 'dialog');
+  await expect(link).toHaveAccessibleName('CC0 1.0 Universal');
   await link.click();
   const dialog = page.getByRole('dialog', { name: 'Artwork license', exact: true });
   await expect(dialog.getByRole('status')).toContainText('Could not load the artwork license.');
@@ -319,6 +338,8 @@ test('all nine official SVGs render and are available as local downloads', async
   const download = await pendingDownload;
   expect(download.suggestedFilename()).toBe('aspire-logo-dark-horizontal.svg');
   expect(await download.failure()).toBeNull();
+  await expect(page.getByRole('button', { name: 'Download Horizontal logo, dark SVG' }))
+    .not.toHaveAttribute('aria-haspopup');
   const repeatDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download Horizontal logo, dark SVG' }).click();
   expect((await repeatDownload).suggestedFilename()).toBe('aspire-logo-dark-horizontal.svg');
@@ -344,11 +365,14 @@ test('brand downloads remain usable and require agreement when storage is blocke
   const dialog = page.getByRole('dialog', { name: 'Review the brand guidelines' });
   await button.click();
   await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('When local storage is available');
+  await expect(button).toHaveAttribute('aria-haspopup', 'dialog');
   await dialog.getByRole('checkbox').check();
   const pendingDownload = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Continue to download' }).click();
   expect((await pendingDownload).suggestedFilename()).toBe('aspire-logo-dark-horizontal.svg');
   await expect(dialog).not.toBeVisible();
+  await expect(button).toHaveAttribute('aria-haspopup', 'dialog');
   await button.click();
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('checkbox')).not.toBeChecked();
