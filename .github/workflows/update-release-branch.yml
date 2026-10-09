@@ -84,8 +84,30 @@ jobs:
           git fetch origin main
           MAIN_SHA="$(git rev-parse origin/main)"
 
-          # Checkout is on release; always run the helper from the pinned main
-          # commit, including when release has not received the helper yet.
+          # Always run the helper from the pinned main commit, including when
+          # release has not received the helper yet.
           git show "$MAIN_SHA:.github/scripts/merge-main-into-release.sh" > "$RUNNER_TEMP/merge-main-into-release.sh"
-          bash "$RUNNER_TEMP/merge-main-into-release.sh" "$MAIN_SHA" "$BRANCH"
-          git push origin "HEAD:refs/heads/$BRANCH"
+
+          for attempt in {1..3}; do
+            git fetch origin "$BRANCH"
+            RELEASE_SHA="$(git rev-parse "origin/$BRANCH")"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+
+            bash "$RUNNER_TEMP/merge-main-into-release.sh" "$MAIN_SHA" "$BRANCH"
+            if git push origin "HEAD:refs/heads/$BRANCH"; then
+              exit 0
+            fi
+
+            git fetch origin "$BRANCH"
+            if [[ "$(git rev-parse "origin/$BRANCH")" == "$RELEASE_SHA" ]]; then
+              echo "::error::Release sync push failed without a change to the remote release branch; not retrying."
+              exit 1
+            fi
+
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "::warning::Release branch changed while syncing; retrying ($attempt/3)."
+            fi
+          done
+
+          echo "::error::Unable to push release sync after 3 attempts."
+          exit 1
