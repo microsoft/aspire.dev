@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { appendFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -12,15 +13,24 @@ export function outputGroup(path) {
   return path.includes('/') ? path.split('/')[0] : '(root)';
 }
 
-export async function measureOutput(directory) {
-  /** @type {{ path: string, bytes: number }[]} */
+export async function measureOutput(directory, { hashContents = false } = {}) {
+  /** @type {{ path: string, bytes: number, sha256?: string }[]} */
   const files = [];
   async function walk(relative = '') {
     const entries = await readdir(join(directory, relative), { withFileTypes: true });
     for (const entry of entries) {
       const path = relative ? `${relative}/${entry.name}` : entry.name;
       if (entry.isDirectory()) await walk(path);
-      else if (entry.isFile()) files.push({ path, bytes: (await stat(join(directory, path))).size });
+      else if (entry.isFile()) {
+        const file = { path, bytes: (await stat(join(directory, path))).size };
+        if (hashContents) {
+          const hash = createHash('sha256');
+          for await (const chunk of createReadStream(join(directory, path))) hash.update(chunk);
+          files.push({ ...file, sha256: hash.digest('hex') });
+        } else {
+          files.push(file);
+        }
+      }
     }
   }
   await walk();
@@ -75,7 +85,9 @@ async function main() {
   const out = process.env.BUILD_METRICS_DIR;
   if (!out) throw new Error('BUILD_METRICS_DIR is required.');
   await mkdir(out, { recursive: true });
-  const output = await measureOutput(resolve('dist'));
+  const output = await measureOutput(resolve('dist'), {
+    hashContents: process.env.BUILD_METRICS_HASH_CONTENTS === '1',
+  });
   const summary = {
     commit: process.env.GITHUB_SHA,
     run: process.env.GITHUB_RUN_ID,

@@ -81,6 +81,16 @@ The manual `build_concurrency` input benchmarks Astro's documented page-generati
 setting without changing its production default. Compare memory and output
 contracts as well as wall time before selecting a different default.
 
+For acceptance measurements, set `comparison_ref` to the exact baseline commit
+SHA and enable `profile_build`. An additional job runs baseline, candidate, then
+baseline again on one runner, at the same checkout path with fresh build
+processes and cleared Astro content caches. It records CPU models and hashes every output file; any path,
+size, or content difference fails the comparison and is reported in
+`frontend-comparison/comparison.json`. Complete generated site copies are not
+retained by this diagnostic job. The usual build and browser gates still run.
+Compare the candidate with both baseline measurements to expose runner drift
+and warm filesystem effects.
+
 Compare runs with the same runner class, dependency lockfile, build concurrency,
 and catalog data. Distinguish cold and restored Astro content caches, and measure
 build time separately from artifact upload and browser tests. Content-layer

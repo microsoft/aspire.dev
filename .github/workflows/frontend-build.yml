@@ -33,6 +33,11 @@ on:
         required: false
         default: "4"
         type: string
+      comparison_ref:
+        description: Exact baseline SHA for a same-runner before/head/after comparison
+        required: false
+        default: ""
+        type: string
     secrets:
       ASPIRE_BOT_APP_ID:
         required: false
@@ -66,11 +71,92 @@ on:
         default: "4"
         type: choice
         options: ["1", "2", "4", "8"]
+      comparison_ref:
+        description: Exact baseline SHA for a same-runner before/head/after comparison
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+  benchmark:
+    name: Same-runner output and performance comparison
+    if: ${{ inputs.profile_build && inputs.comparison_ref != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+
+      - name: Profile controlled source revisions
+        env:
+          BASELINE_REF: ${{ inputs.comparison_ref }}
+          CANDIDATE_REF: ${{ inputs.build_ref || github.sha }}
+          MODE: production
+          ASTRO_TELEMETRY_DISABLED: 1
+          NODE_OPTIONS: --max-old-space-size=8192
+          ASPIRE_BUILD_CONCURRENCY: ${{ inputs.build_concurrency }}
+          BUILD_TIMING: '1'
+          BUILD_METRICS_HASH_CONTENTS: '1'
+          PROFILE_BUILD: 'true'
+          ASTRO_CACHE_HIT: 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BASELINE_REF" =~ ^[a-fA-F0-9]{40}$ ]] || { echo "Baseline must be an exact commit SHA." >&2; exit 1; }
+          output="$RUNNER_TEMP/frontend-comparison"
+          mkdir -p "$output"
+          node -e 'require("node:fs").writeFileSync(process.argv[1], JSON.stringify({node:process.version,cpus:require("node:os").cpus().map(cpu=>cpu.model),concurrency:process.env.ASPIRE_BUILD_CONCURRENCY},null,2))' "$output/runner.json"
+          cp src/frontend/scripts/measure-build-output.mjs src/frontend/scripts/compare-build-output.mjs "$output/"
+          harness="$output/measure-build-output.mjs"
+          candidate=$(git rev-parse --verify --end-of-options "${CANDIDATE_REF}^{commit}")
+          baseline=$(git rev-parse --verify --end-of-options "${BASELINE_REF}^{commit}")
+          for label in baseline-before candidate baseline-after; do
+            ref="$baseline"
+            if [[ "$label" == "candidate" ]]; then ref="$candidate"; fi
+            # Only build-generated tracked changes exist in this dedicated checkout.
+            git restore --worktree -- .
+            git checkout --detach "$ref"
+            (
+              cd src/frontend
+              pnpm install --frozen-lockfile --prefer-offline
+              rm -rf -- "$GITHUB_WORKSPACE/src/frontend/node_modules/.astro"
+              mkdir -p "$output/$label"
+              git rev-parse HEAD > "$output/$label/commit.txt"
+              pnpm git-env
+              pnpm compute-skill-digests
+              export BUILD_TIMING_OUT="$output/$label/timing.jsonl"
+              export BUILD_TIMING_LABEL="$label"
+              /usr/bin/time -v node --cpu-prof --cpu-prof-dir="$output/$label" \
+                ./node_modules/astro/bin/astro.mjs build --mode production \
+                2>&1 | tee "$output/$label/build.log"
+              BUILD_METRICS_DIR="$output/$label" GITHUB_SHA="$ref" node "$harness"
+              # Retain diagnostics, not three complete 8 GiB site copies.
+              rm -rf -- "$GITHUB_WORKSPACE/src/frontend/dist"
+            )
+          done
+          BUILD_COMPARISON_DIR="$output" node "$output/compare-build-output.mjs"
+
+      - name: Upload same-runner comparison
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frontend-comparison
+          path: ${{ runner.temp }}/frontend-comparison
+          if-no-files-found: error
+          retention-days: 7
+
   build:
     name: Frontend Build
     runs-on: ubuntu-latest
@@ -471,7 +557,7 @@ jobs:
   frontend-gate:
     name: Frontend gate
     if: ${{ always() }}
-    needs: [build, validation, e2e, report]
+    needs: [build, validation, e2e, report, benchmark]
     runs-on: ubuntu-latest
     steps:
       - name: Require all frontend checks
@@ -480,6 +566,7 @@ jobs:
           VALIDATION: ${{ needs.validation.result }}
           E2E: ${{ needs.e2e.result }}
           REPORT: ${{ needs.report.result }}
+          BENCHMARK: ${{ needs.benchmark.result }}
         run: |
           for result in "$BUILD" "$VALIDATION" "$E2E" "$REPORT"; do
             if [[ "$result" != "success" ]]; then
@@ -487,3 +574,7 @@ jobs:
               exit 1
             fi
           done
+          if [[ "$BENCHMARK" != "success" && "$BENCHMARK" != "skipped" ]]; then
+            echo "::error::Requested performance comparison must succeed (benchmark=$BENCHMARK)."
+            exit 1
+          fi

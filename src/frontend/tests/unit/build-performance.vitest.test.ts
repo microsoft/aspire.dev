@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { measureOutput, sampleCompression } from '../../scripts/measure-build-output.mjs';
 import buildTiming from '../../config/build-timing.mjs';
+import { compareManifests } from '../../scripts/compare-build-output.mjs';
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -61,7 +62,7 @@ test('frontend workflow keeps validation parallel and every shard required', asy
   expect(job('e2e')).toContain('--shard=${{ matrix.shard }}/2');
   expect(job('e2e')).toContain('frontend-blob-report-${{ matrix.project }}-${{ matrix.shard }}');
   expect(job('e2e')).toContain('frontend-test-results-${{ matrix.project }}-${{ matrix.shard }}');
-  expect(job('frontend-gate')).toContain('needs: [build, validation, e2e, report]');
+  expect(job('frontend-gate')).toContain('needs: [build, validation, e2e, report, benchmark]');
   expect(job('frontend-gate')).toContain('for result in "$BUILD" "$VALIDATION" "$E2E" "$REPORT"');
   expect(job('frontend-gate')).toContain('if [[ "$result" != "success" ]]');
   expect(job('frontend-gate')).toContain('exit 1');
@@ -112,11 +113,11 @@ test('comparison profiles exact base and head with equivalent cold-cache setting
 test('all frontend workflow checkouts disable persisted credentials', async () => {
   const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-build.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
   const checkouts = workflow.split(/\n {6}- /).filter((step) => step.startsWith('uses: actions/checkout@'));
-  expect(checkouts).toHaveLength(4);
+  expect(checkouts).toHaveLength(5);
   for (const checkout of checkouts) {
     expect(checkout).toContain('\n          persist-credentials: false');
-    expect(checkout).toContain('ref: ${{ inputs.build_ref || github.sha }}');
   }
+  expect(checkouts.filter((checkout) => checkout.includes('ref: ${{ inputs.build_ref || github.sha }}'))).toHaveLength(4);
 });
 
 test('manual profiling keeps complete validation and uses the actual source commit', async () => {
@@ -128,7 +129,35 @@ test('manual profiling keeps complete validation and uses the actual source comm
   expect(workflow).toContain('ASPIRE_BUILD_CONCURRENCY: ${{ inputs.build_concurrency }}');
   expect(workflow).toContain('options: ["1", "2", "4", "8"]');
   expect(workflow).toContain('GITHUB_SHA="$(git rev-parse HEAD)" node scripts/measure-build-output.mjs');
-  expect(workflow).toContain('needs: [build, validation, e2e, report]');
+  expect(workflow).toContain('needs: [build, validation, e2e, report, benchmark]');
+});
+
+test('requested same-runner comparison uses exact commits, fresh content caches, and gates failures', async () => {
+  const workflow = await readFile(new URL('../../../../.github/workflows/frontend-build.yml', import.meta.url), 'utf8');
+  expect(workflow).toContain("inputs.profile_build && inputs.comparison_ref != ''");
+  expect(workflow).toContain('for label in baseline-before candidate baseline-after; do');
+  expect(workflow).toContain('git checkout --detach "$ref"');
+  expect(workflow).toContain('rm -rf -- "$GITHUB_WORKSPACE/src/frontend/node_modules/.astro"');
+  expect(workflow).toContain("BUILD_METRICS_HASH_CONTENTS: '1'");
+  expect(workflow).toContain('node "$output/compare-build-output.mjs"');
+  expect(workflow).toContain('BENCHMARK: ${{ needs.benchmark.result }}');
+  expect(workflow).toContain('"$BENCHMARK" != "success" && "$BENCHMARK" != "skipped"');
+});
+
+test('content hashes detect equal-length differences instead of accepting inventories alone', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'aspire-output-hashes-'));
+  directories.push(directory);
+  await writeFile(join(directory, 'index.html'), 'aaaa');
+  const before = await measureOutput(directory, { hashContents: true });
+  await writeFile(join(directory, 'index.html'), 'bbbb');
+  const after = await measureOutput(directory, { hashContents: true });
+  expect(before.files[0].bytes).toBe(after.files[0].bytes);
+  expect(compareManifests(before.files, before.files)).toEqual({ removed: [], added: [], changed: [] });
+  expect(compareManifests(before.files, after.files)).toEqual({ removed: [], added: [], changed: ['index.html'] });
+  expect(compareManifests(before.files, [])).toEqual({ removed: ['index.html'], added: [], changed: [] });
+  expect(compareManifests([], after.files)).toEqual({ removed: [], added: ['index.html'], changed: [] });
+  expect(() => compareManifests([{ path: 'index.html', bytes: 4 }], after.files)).toThrow('SHA-256');
+  expect(() => compareManifests([...before.files, ...before.files], after.files)).toThrow('Duplicate output path');
 });
 
 test('timing reports distinguish generated pages from asset URLs', async () => {

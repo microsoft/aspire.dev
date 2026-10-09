@@ -3,12 +3,7 @@ interface StaticTranslator {
   all(): object | undefined;
 }
 
-interface CachedTranslation {
-  source: string;
-  result: string;
-}
-
-const dictionaries = new WeakMap<object, Map<string, CachedTranslation>>();
+const dictionaries = new WeakMap<object, Map<string, string>>();
 
 /** Reuse plain UI labels, not interpolation, fallback, or option-dependent translations. */
 export function cacheStaticTranslations<T extends StaticTranslator>(translate: T): T {
@@ -27,13 +22,13 @@ export function cacheStaticTranslations<T extends StaticTranslator>(translate: T
         return Reflect.apply(target, thisArg, args);
       }
 
-      const cache = dictionaries.get(dictionary) ?? new Map<string, CachedTranslation>();
+      const cache = dictionaries.get(dictionary) ?? new Map<string, string>();
       dictionaries.set(dictionary, cache);
       const cached = cache.get(key);
-      if (cached?.source === source) return cached.result;
+      if (cached === source) return cached;
 
       const result: unknown = Reflect.apply(target, thisArg, args);
-      if (result === source) cache.set(key, { source, result });
+      if (result === source) cache.set(key, source);
       return result;
     },
   });
