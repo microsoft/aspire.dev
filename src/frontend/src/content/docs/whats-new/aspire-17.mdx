@@ -51,6 +51,26 @@ Once Aspire 17.0 is available on the stable channel, use the [`aspire update` co
   CLI](/get-started/install-cli/).
 </LearnMore>
 
+## 🧩 App model and AppHost
+
+#### `AzureRoleAssignmentResource` is no longer experimental
+
+`AzureRoleAssignmentResource` no longer requires suppressing [`ASPIREAZURE003`](/diagnostics/aspireazure003/). Azure role assignments aren't an Azure Virtual Network feature, so the networking experimental diagnostic no longer applies to this type. You can now enumerate `AzureRoleAssignmentResource` instances — for example, in a [pipeline step](/integrations/cloud/azure/role-assignments/#inspect-role-assignments-programmatically) — without a `#pragma warning disable ASPIREAZURE003` directive:
+
+```csharp title="AppHost.cs"
+var roleAssignments = model.Resources.OfType<AzureRoleAssignmentResource>();
+foreach (var assignment in roleAssignments)
+{
+    Console.WriteLine(assignment.TargetAzureResource.Name);
+}
+```
+
+Runtime provisioning and authorization behavior are unchanged. `ReferenceRoleAssignmentAnnotation`, which declares the roles required by callers of a resource rather than the roles granted to the resource itself, remains experimental under `ASPIREAZURE003` for now.
+
+<LearnMore>
+  For more information, see [Manage Azure role assignments — Inspect role assignments programmatically](/integrations/cloud/azure/role-assignments/#inspect-role-assignments-programmatically).
+</LearnMore>
+
 ## ⚠️ Breaking changes
 
 <span id="breaking-changes"></span>
