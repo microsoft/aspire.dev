@@ -1,3 +1,5 @@
+import { freezeApiData } from './api-data';
+
 export interface ApiMemberAnchor {
   name: string;
   kind?: string;
@@ -9,6 +11,15 @@ export interface ApiMemberAnchor {
 export interface ResolvedMemberAnchor {
   exact: string;
   aliases: string[];
+}
+
+const stableMembers = new WeakSet<ApiMemberAnchor[]>();
+const anchorCache = new WeakMap<ApiMemberAnchor[], ResolvedMemberAnchor[]>();
+const anchorMapCache = new WeakMap<ApiMemberAnchor[], ReadonlyMap<ApiMemberAnchor, ResolvedMemberAnchor>>();
+
+export function prepareMemberAnchors(members: ApiMemberAnchor[]): void {
+  freezeApiData(members);
+  stableMembers.add(members);
 }
 
 export function memberNameSlug(member: Pick<ApiMemberAnchor, 'name'>): string {
@@ -56,6 +67,8 @@ function signatureDiscriminator(member: ApiMemberAnchor): string {
 export function resolveMemberAnchors(
   members: ApiMemberAnchor[]
 ): ResolvedMemberAnchor[] {
+  const cached = anchorCache.get(members);
+  if (cached) return cached;
   const baseAnchors = members.map(memberSlug);
   const baseCounts = new Map<string, number>();
   for (const anchor of baseAnchors) {
@@ -81,7 +94,7 @@ export function resolveMemberAnchors(
   const reservedExactAnchors = new Set(exactAnchors);
   const claimedAliases = new Set<string>();
 
-  return members.map((member, index) => {
+  const resolved = members.map((member, index) => {
     const nameAnchor = memberNameSlug(member);
     const baseAnchor = baseAnchors[index];
     const exactAnchor = exactAnchors[index];
@@ -108,13 +121,22 @@ export function resolveMemberAnchors(
 
     return { exact: exactAnchor, aliases };
   });
+  if (stableMembers.has(members)) {
+    freezeApiData(resolved);
+    anchorCache.set(members, resolved);
+  }
+  return resolved;
 }
 
-export function resolveMemberAnchorMap<T extends ApiMemberAnchor>(
-  members: T[]
-): Map<T, ResolvedMemberAnchor> {
+export function resolveMemberAnchorMap(
+  members: ApiMemberAnchor[]
+): ReadonlyMap<ApiMemberAnchor, ResolvedMemberAnchor> {
+  const cached = anchorMapCache.get(members);
+  if (cached) return cached;
   const resolved = resolveMemberAnchors(members);
-  return new Map(members.map((member, index) => [member, resolved[index]] as const));
+  const map = new Map(members.map((member, index) => [member, resolved[index]] as const));
+  if (stableMembers.has(members)) anchorMapCache.set(members, map);
+  return map;
 }
 
 export function memberAnchorAliases(

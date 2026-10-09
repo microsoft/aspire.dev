@@ -58,6 +58,39 @@ setting only to the vnext build, not the live build. If vnext builds a different
 source branch, set the intended label explicitly instead. Changing the badge on
 a deployed static site requires rebuilding its frontend assets.
 
+## Build performance diagnostics
+
+Production builds retain the complete documentation and API catalogs. To collect
+CI diagnostics, add the `build-profile` label to a pull request before pushing a
+commit. The next pull-request CI run uploads a `frontend-performance` artifact
+containing the Node CPU profile, phase timings, build log, output inventory, and
+compression samples. The separate performance-comparison workflow also profiles
+the PR base and head on fresh runners with no restored Astro content cache. Its
+`frontend-performance-baseline` and `frontend-performance-candidate` artifacts
+record the actual checkout commit in `commit.txt`. Adding the label starts that
+comparison; pushing a commit also enables profiling in the regular frontend CI
+job. Profiling is opt-in; ordinary builds do not pay its overhead.
+
+Compare runs with the same runner class, dependency lockfile, build concurrency,
+and catalog data. Distinguish cold and restored Astro content caches, and measure
+build time separately from artifact upload and browser tests. Content-layer
+caching does not eliminate static page rendering. CPU profiling affects runtime,
+so compare profiled runs with profiled runs, and confirm production gains with
+ordinary CI builds.
+
+C# type lookups and member anchors reuse indexes only for explicitly prepared,
+immutable production catalogs. Their inputs are frozen recursively and caches
+use weak keys scoped to the loaded data. Development and caller-owned mutable
+documents continue to resolve against current data without those caches. Keep
+source-order matching, overload anchors, and HTML/Markdown links equivalent
+when changing these helpers.
+
+The installed Starlight Pagefind integration scans the complete HTML output,
+including API pages marked `pagefind: false`. That flag excludes page content
+from search, not the filesystem scan. Starlight's public Pagefind configuration
+does not expose crawler file selection; do not patch private integration hooks
+or remove published pages to reduce indexing time.
+
 ## 🆘 Getting help
 
 - **Issues**: Report bugs or request features via [GitHub Issues](https://github.com/microsoft/aspire.dev/issues)

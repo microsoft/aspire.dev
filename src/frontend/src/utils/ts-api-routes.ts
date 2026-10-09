@@ -1,3 +1,5 @@
+import { freezeApiData } from './api-data';
+
 export interface TsRouteParameterLike {
   name?: string;
   type?: string;
@@ -45,18 +47,9 @@ const methodIndexes = new WeakMap<TsRouteCallableLike[], Map<string | undefined,
  */
 export function prepareTsApiRoutes(doc: TsApiDocumentRouteLike): void {
   if (stableDocuments.has(doc)) return;
-  freezeRouteData(doc);
+  freezeApiData(doc);
   stableDocuments.add(doc);
   getTsTopLevelRouteItems(doc);
-}
-
-function freezeRouteData(value: object, seen = new WeakSet<object>()): void {
-  if (seen.has(value)) return;
-  seen.add(value);
-  for (const child of Object.values(value) as unknown[]) {
-    if (child && typeof child === 'object') freezeRouteData(child, seen);
-  }
-  Object.freeze(value);
 }
 
 function stableCollection<T extends TsRouteCallableLike>(items: T[]): T[] {
