@@ -7,6 +7,7 @@ import {
   brandCssVariables,
   brandDeckUrl,
   brandGradients,
+  brandLicenseUrl,
 } from '../../src/data/brand';
 import { dismissCookieConsentIfVisible } from './helpers';
 
@@ -25,13 +26,29 @@ const routes = [
   '/community/brand/usage/',
 ];
 
+const agreementKey = 'aspire:brand-guidelines-accepted';
+const licenseFixture = `CC0 1.0 Universal\n\n${'Test license text for dialog behavior.\n'.repeat(100)}`;
+
+const brandTitles: Record<string, string> = {
+  '/community/brand/': 'Aspire brand assets',
+  '/community/brand/logos/': 'Brand logos and icons',
+  '/community/brand/colors/': 'Brand colors and gradients',
+  '/community/brand/typography/': 'Brand typography',
+  '/community/brand/usage/': 'Brand usage guidance',
+};
+
 test('brand social cards are served at their advertised image paths', async ({ page, request }) => {
   for (const route of routes) {
     await page.goto(route);
+    await expect(page.locator('main h1')).toHaveText(brandTitles[route]);
     const ogImage = await page.locator('meta[property="og:image"]').getAttribute('content');
     const twitterImage = await page.locator('meta[name="twitter:image"]').getAttribute('content');
     if (!ogImage) throw new Error(`No OG image advertised for ${route}`);
     expect(twitterImage).toBe(ogImage);
+    const imagePath = route === '/community/brand/'
+      ? '/og/aspire-brand-assets.png'
+      : `/og${route.replace(/\/$/, '')}.png`;
+    expect(ogImage).toBe(new URL(imagePath, 'https://aspire.dev').href);
     const response = await request.get(new URL(ogImage).pathname);
     expect(response.ok(), ogImage).toBe(true);
     expect(response.headers()['content-type']).toContain('image/png');
@@ -80,6 +97,11 @@ test('multiline external links keep a single inline suffix in lists and prose', 
   }
 
   await page.goto('/community/brand/typography/');
+  const fontSources = page.locator('.sl-markdown-content p').filter({
+    has: page.getByRole('link', { name: /^Google Fonts/ }),
+  });
+  await expect(fontSources).toHaveCount(1);
+  await expect(fontSources.getByRole('link', { name: /^Fontsource/ })).toBeVisible();
   const proseLink = page.locator('.sl-markdown-content p > a.resource-link').first();
   await expect(proseLink.locator('svg')).toHaveCount(1);
   await expect(proseLink.locator('svg')).toHaveCSS('display', 'inline-block');
@@ -110,15 +132,36 @@ test('footer leads to the local overview with focused navigation and an external
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Continue to download' })).toBeDisabled();
   await expect(dialog.getByRole('checkbox')).not.toBeChecked();
+  await dialog.getByRole('checkbox').check();
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(deck).toBeFocused();
+  expect(await page.evaluate((key) => localStorage.getItem(key), agreementKey)).toBeNull();
+  await deck.click();
+  await expect(dialog.getByRole('checkbox')).not.toBeChecked();
+  await expect(dialog.getByRole('button', { name: 'Continue to download' })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  expect(await page.evaluate((key) => localStorage.getItem(key), agreementKey)).toBeNull();
   await expect(page.locator('main iframe, main object, main embed')).toHaveCount(0);
 });
 
-test('the PowerPoint link requires agreement and preserves its external destination', async ({
+test('brand agreement persists across assets, navigation, reloads, and tabs', async ({
   page,
+  isMobile,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.route(brandLicenseUrl, (route) => route.fulfill({
+    contentType: 'text/plain',
+    headers: { 'access-control-allow-origin': '*' },
+    body: licenseFixture,
+  }));
+  if (isMobile) {
+    await page.addInitScript(() => {
+      Object.defineProperty(document, 'startViewTransition', {
+        configurable: true,
+        value: undefined,
+      });
+    });
+  }
   await page.addInitScript((deckUrl) => {
     window.brandApprovedLinks = [];
     document.addEventListener(
@@ -149,6 +192,7 @@ test('the PowerPoint link requires agreement and preserves its external destinat
     expect(scan.violations.map(({ id }) => id)).toEqual([]);
   }
   await dialog.getByRole('checkbox').check();
+  expect(await page.evaluate((key) => localStorage.getItem(key), agreementKey)).toBeNull();
   await dialog.getByRole('link', { name: 'artwork license' }).click();
   const licenseDialog = page.getByRole('dialog', { name: 'Artwork license', exact: true });
   await expect(licenseDialog).toBeVisible();
@@ -163,6 +207,7 @@ test('the PowerPoint link requires agreement and preserves its external destinat
   await expect(dialog.getByRole('checkbox')).toBeChecked();
   await dialog.getByRole('button', { name: 'Continue to download' }).click();
   await expect(dialog).not.toBeVisible();
+  expect(await page.evaluate((key) => localStorage.getItem(key), agreementKey)).toBe('true');
   expect(await page.evaluate(() => window.brandApprovedLinks)).toEqual([
     { href: brandDeckUrl, target: '_blank' },
   ]);
@@ -170,12 +215,70 @@ test('the PowerPoint link requires agreement and preserves its external destinat
     .getByRole('navigation', { name: 'Brand kit sections' })
     .getByRole('link', { name: 'Logos and icons', exact: true })
     .click();
+  const svgDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download Horizontal logo, dark SVG' }).click();
+  expect((await svgDownload).suggestedFilename()).toBe('aspire-logo-dark-horizontal.svg');
+  await expect(dialog).not.toBeVisible();
   await page.locator('main a[href="/community/brand/usage/"]').first().click();
   await page.locator('main a[href="/community/brand/#presentation-materials"]').click();
   await page.getByRole('button', { name: 'Download PowerPoint' }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(await page.evaluate(() => window.brandApprovedLinks)).toHaveLength(2);
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Download PowerPoint' }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(await page.evaluate(() => window.brandApprovedLinks)).toEqual([
+    { href: brandDeckUrl, target: '_blank' },
+  ]);
+
+  const otherTab = await page.context().newPage();
+  await otherTab.goto('/community/brand/logos/');
+  const tabDownload = otherTab.waitForEvent('download');
+  await otherTab.getByRole('button', { name: 'Download Horizontal logo, light SVG' }).click();
+  expect((await tabDownload).suggestedFilename()).toBe('aspire-logo-light-horizontal.svg');
+  await expect(otherTab.getByRole('dialog', { name: 'Review the brand guidelines' })).not.toBeVisible();
+  await otherTab.close();
+
+  await page.evaluate((key) => localStorage.removeItem(key), agreementKey);
+  await page.getByRole('button', { name: 'Download PowerPoint' }).click();
+  await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('checkbox')).not.toBeChecked();
-  await expect(dialog.getByRole('button', { name: 'Continue to download' })).toBeDisabled();
   await page.keyboard.press('Escape');
+});
+
+test('remote artwork license reports loading errors and retries without a local copy', async ({ page }) => {
+  let requests = 0;
+  await page.route(brandLicenseUrl, (route) => {
+    requests++;
+    return route.fulfill({
+      status: requests === 1 ? 503 : 200,
+      contentType: 'text/plain',
+      headers: { 'access-control-allow-origin': '*' },
+      body: requests === 1 ? 'Unavailable' : licenseFixture,
+    });
+  });
+  await page.goto('/community/brand/usage/');
+  await dismissCookieConsentIfVisible(page);
+  const link = page.locator(`main a[href="${brandLicenseUrl}"]:not([data-license-source])`);
+  await expect(link).toHaveAttribute('target', '_blank');
+  await link.click();
+  const dialog = page.getByRole('dialog', { name: 'Artwork license', exact: true });
+  await expect(dialog.getByRole('status')).toContainText('Could not load the artwork license.');
+  await expect(dialog.getByRole('textbox')).toHaveValue('');
+  const source = dialog.getByRole('link', { name: 'Open the original artwork license' });
+  await expect(source).toBeVisible();
+  await expect(source).toHaveAttribute('href', brandLicenseUrl);
+  await dialog.getByRole('button', { name: 'Close artwork license' }).click();
+  await expect(link).toBeFocused();
+  await link.click();
+  await expect(dialog.getByRole('textbox')).toHaveValue(licenseFixture);
+  await expect(dialog.getByRole('status')).toBeHidden();
+  await expect(source).toBeHidden();
+  await dialog.getByRole('button', { name: 'Close artwork license' }).click();
+  await link.click();
+  await expect(dialog.getByRole('textbox')).toHaveValue(licenseFixture);
+  expect(requests).toBe(2);
 });
 
 test('all nine official SVGs render and are available as local downloads', async ({
@@ -216,10 +319,39 @@ test('all nine official SVGs render and are available as local downloads', async
   const download = await pendingDownload;
   expect(download.suggestedFilename()).toBe('aspire-logo-dark-horizontal.svg');
   expect(await download.failure()).toBeNull();
+  const repeatDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download Horizontal logo, dark SVG' }).click();
+  expect((await repeatDownload).suggestedFilename()).toBe('aspire-logo-dark-horizontal.svg');
+  await expect(dialog).not.toBeVisible();
+});
+
+test('brand downloads remain usable and require agreement when storage is blocked', async ({ page }) => {
+  await page.addInitScript((agreementKey) => {
+    const getItem = Storage.prototype.getItem;
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.getItem = function (key) {
+      if (key === agreementKey) throw new DOMException('Storage blocked', 'SecurityError');
+      return getItem.call(this, key);
+    };
+    Storage.prototype.setItem = function (key, value) {
+      if (key === agreementKey) throw new DOMException('Storage blocked', 'SecurityError');
+      setItem.call(this, key, value);
+    };
+  }, agreementKey);
+  await page.goto('/community/brand/logos/');
+  await dismissCookieConsentIfVisible(page);
+  const button = page.getByRole('button', { name: 'Download Horizontal logo, dark SVG' });
+  const dialog = page.getByRole('dialog', { name: 'Review the brand guidelines' });
+  await button.click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('checkbox').check();
+  const pendingDownload = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Continue to download' }).click();
+  expect((await pendingDownload).suggestedFilename()).toBe('aspire-logo-dark-horizontal.svg');
+  await expect(dialog).not.toBeVisible();
+  await button.click();
+  await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('checkbox')).not.toBeChecked();
-  await expect(proceed).toBeDisabled();
-  await page.keyboard.press('Escape');
 });
 
 test('copies exact color, gradient, and CSS values after repeated navigation', async ({ page }) => {

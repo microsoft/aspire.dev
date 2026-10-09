@@ -303,8 +303,7 @@ export function isDefaultLocaleEntry(entryId: string): boolean {
 export function getOgMetadata(
   route: MinimalRoute,
   currentUrl: URL,
-  site?: URL | string,
-  imageOrigin: string | undefined = import.meta.env.PUBLIC_OG_IMAGE_ORIGIN
+  site?: URL | string
 ): OgMetadata {
   const siteUrl = resolveSiteUrl(site, currentUrl);
   const contentBasePath = getContentBasePath(route);
@@ -314,12 +313,7 @@ export function getOgMetadata(
   const ogTitle = resolveOgTitle(route, contentBasePath);
   const description = resolveOgDescription(route);
   const type = resolveOgType(route, contentBasePath);
-  const image = resolveOgImage(
-    route,
-    contentBasePath,
-    resolveOgImageOrigin(imageOrigin, siteUrl),
-    isDefaultLocale
-  );
+  const image = resolveOgImage(route, contentBasePath, siteUrl, isDefaultLocale);
   const imageType = resolveOgImageType(image);
   const imageAlt = title;
 
@@ -342,27 +336,6 @@ export function getOgMetadata(
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-function resolveOgImageOrigin(value: string | undefined, siteUrl: string): string {
-  if (!value?.trim()) return siteUrl;
-
-  const url = new URL(value.trim());
-  const isLocalHttp =
-    url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-  if (
-    (url.protocol !== 'https:' && !isLocalHttp) ||
-    url.username ||
-    url.password ||
-    url.pathname !== '/' ||
-    url.search ||
-    url.hash
-  ) {
-    throw new Error(
-      'PUBLIC_OG_IMAGE_ORIGIN must be an HTTPS origin or a loopback HTTP origin, without credentials, a path, query, or fragment.'
-    );
-  }
-  return url.origin;
-}
 
 export function resolveSiteUrl(site: URL | string | undefined, currentUrl: URL): string {
   if (site instanceof URL) {

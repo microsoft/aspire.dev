@@ -1,5 +1,6 @@
 ---
 import BrandLicenseModal from '@components/brand/BrandLicenseModal.astro';
+import { brandLicenseUrl } from '@data/brand';
 ---
 
 <brand-download-gate>
@@ -12,7 +13,7 @@ import BrandLicenseModal from '@components/brand/BrandLicenseModal.astro';
       <h2 id="brand-download-title">Review the brand guidelines</h2>
       <p id="brand-download-description">
         Before downloading <strong data-asset-name></strong>, review the{' '}
-        <a href="/brand/LICENSE.txt" target="_blank" rel="noopener noreferrer">artwork license</a>
+        <a href={brandLicenseUrl} target="_blank" rel="noopener noreferrer">artwork license</a>
         {' '}and{' '}
         <a href="/community/brand/usage/" target="_blank" rel="noopener noreferrer"
           >usage guidelines</a
@@ -26,6 +27,7 @@ import BrandLicenseModal from '@components/brand/BrandLicenseModal.astro';
         <input type="checkbox" required />
         <span>I agree to the licensing terms and Aspire brand usage guidelines.</span>
       </label>
+      <p>Your agreement is remembered in this browser for future brand asset downloads.</p>
       <div class="actions">
         <button type="button" data-cancel>Cancel</button>
         <button type="submit" class="continue" disabled>Continue to download</button>
@@ -39,6 +41,10 @@ import BrandLicenseModal from '@components/brand/BrandLicenseModal.astro';
 </brand-download-gate>
 
 <script>
+  import { getStoredPreference, setStoredPreference } from '@utils/browser-storage';
+
+  const agreementKey = 'aspire:brand-guidelines-accepted';
+
   class BrandDownloadGate extends HTMLElement {
     private listeners?: AbortController;
 
@@ -58,11 +64,29 @@ import BrandLicenseModal from '@components/brand/BrandLicenseModal.astro';
       const { signal } = this.listeners;
       let opener: HTMLButtonElement | undefined;
 
+      const download = (button: HTMLButtonElement) => {
+        const link = document.createElement('a');
+        link.href = button.value;
+        if (button.dataset.brandDownload === 'svg') {
+          link.download = '';
+        } else {
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+        }
+        document.body.append(link);
+        link.click();
+        link.remove();
+      };
+
       document.querySelectorAll<HTMLButtonElement>('[data-brand-download]').forEach((button) => {
         button.disabled = false;
         button.addEventListener(
           'click',
           () => {
+            if (getStoredPreference(agreementKey) === 'true') {
+              download(button);
+              return;
+            }
             opener = button;
             const name = button.dataset.assetName;
             if (!name) {
@@ -106,17 +130,8 @@ import BrandLicenseModal from '@components/brand/BrandLicenseModal.astro';
           if (!opener) {
             throw new Error('No brand asset was selected for download.');
           }
-          const link = document.createElement('a');
-          link.href = opener.value;
-          if (opener.dataset.brandDownload === 'svg') {
-            link.download = '';
-          } else {
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-          }
-          document.body.append(link);
-          link.click();
-          link.remove();
+          setStoredPreference(agreementKey, 'true');
+          download(opener);
           dialog.close();
         },
         { signal }

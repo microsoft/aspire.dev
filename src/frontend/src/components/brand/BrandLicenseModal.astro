@@ -1,9 +1,9 @@
 ---
 import { Icon } from '@astrojs/starlight/components';
-import licenseText from '/public/brand/LICENSE.txt?raw';
+import { brandLicenseUrl } from '@data/brand';
 ---
 
-<brand-license-modal data-pagefind-ignore>
+<brand-license-modal data-license-url={brandLicenseUrl} data-pagefind-ignore>
   <dialog
     class="not-content"
     id="brand-artwork-license"
@@ -15,9 +15,12 @@ import licenseText from '/public/brand/LICENSE.txt?raw';
         <Icon name="close" size="1.25rem" />
       </button>
     </div>
+    <p role="status" data-license-status hidden></p>
+    <a href={brandLicenseUrl} target="_blank" rel="noopener noreferrer" data-license-source hidden>
+      Open the original artwork license
+    </a>
     <textarea aria-label="CC0 1.0 Universal license text" readonly wrap="off" spellcheck="false"
-      >{licenseText}</textarea
-    >
+    ></textarea>
   </dialog>
 </brand-license-modal>
 
@@ -28,7 +31,11 @@ import licenseText from '/public/brand/LICENSE.txt?raw';
     connectedCallback() {
       const dialog = this.querySelector('dialog');
       const closeButton = this.querySelector('button');
-      if (!dialog || !closeButton) {
+      const text = this.querySelector('textarea');
+      const status = this.querySelector<HTMLElement>('[data-license-status]');
+      const sourceLink = this.querySelector<HTMLAnchorElement>('[data-license-source]');
+      const licenseUrl = this.dataset.licenseUrl;
+      if (!dialog || !closeButton || !text || !status || !sourceLink || !licenseUrl) {
         throw new Error('The artwork license dialog is missing its controls.');
       }
 
@@ -36,10 +43,42 @@ import licenseText from '/public/brand/LICENSE.txt?raw';
       this.listeners = new AbortController();
       const { signal } = this.listeners;
       let opener: HTMLAnchorElement | undefined;
+      let loading = false;
+
+      const loadLicense = async () => {
+        if (loading || text.value) return;
+        loading = true;
+        text.setAttribute('aria-busy', 'true');
+        status.hidden = false;
+        status.textContent = 'Loading the artwork license...';
+        sourceLink.hidden = true;
+        try {
+          const response = await fetch(licenseUrl, { signal });
+          if (!response.ok) {
+            throw new Error(`The artwork license request failed with HTTP ${response.status}.`);
+          }
+          const license = await response.text();
+          if (!license.trim()) {
+            throw new Error('The artwork license response is empty.');
+          }
+          text.value = license;
+          status.hidden = true;
+        } catch (error) {
+          if (signal.aborted) return;
+          console.error('Could not load the Aspire artwork license.', error);
+          status.textContent =
+            'Could not load the artwork license. Open the original below, or close and reopen this dialog to retry.';
+          sourceLink.hidden = false;
+        } finally {
+          loading = false;
+          text.removeAttribute('aria-busy');
+        }
+      };
 
       document
-        .querySelectorAll<HTMLAnchorElement>('a[href="/brand/LICENSE.txt"]')
+        .querySelectorAll<HTMLAnchorElement>(`a[href="${licenseUrl}"]`)
         .forEach((link) => {
+          if (link === sourceLink) return;
           link.setAttribute('aria-haspopup', 'dialog');
           link.setAttribute('aria-controls', dialog.id);
           link.addEventListener(
@@ -57,6 +96,7 @@ import licenseText from '/public/brand/LICENSE.txt?raw';
               event.preventDefault();
               opener = link;
               dialog.showModal();
+              void loadLicense();
             },
             { signal }
           );
@@ -111,6 +151,15 @@ import licenseText from '/public/brand/LICENSE.txt?raw';
   h2 {
     margin: 0;
     font-size: var(--sl-text-xl);
+  }
+
+  [data-license-status],
+  [data-license-source] {
+    margin-block: 0 1rem;
+  }
+
+  [data-license-source] {
+    color: var(--sl-color-text-accent);
   }
 
   button {
