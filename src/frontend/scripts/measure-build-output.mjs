@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { gzip } from 'node:zlib';
+import { createOutputNormalizer, readAuthoredPublicationDates } from './normalize-build-output.mjs';
 
 const compress = promisify(gzip);
 
@@ -13,8 +14,9 @@ export function outputGroup(path) {
   return path.includes('/') ? path.split('/')[0] : '(root)';
 }
 
-export async function measureOutput(directory, { hashContents = false } = {}) {
-  /** @type {{ path: string, bytes: number, sha256?: string }[]} */
+/** @param {{ hashContents?: boolean, normalizer?: { isCandidate(path: string): boolean, normalize(path: string, content: string): { content: string, rules: string[] } } }} [options] */
+export async function measureOutput(directory, { hashContents = false, normalizer = undefined } = {}) {
+  /** @type {{ path: string, bytes: number, sha256?: string, semanticSha256?: string, semanticBytes?: number, normalizations?: string[] }[]} */
   const files = [];
   async function walk(relative = '') {
     const entries = await readdir(join(directory, relative), { withFileTypes: true });
@@ -25,8 +27,21 @@ export async function measureOutput(directory, { hashContents = false } = {}) {
         const file = { path, bytes: (await stat(join(directory, path))).size };
         if (hashContents) {
           const hash = createHash('sha256');
-          for await (const chunk of createReadStream(join(directory, path))) hash.update(chunk);
-          files.push({ ...file, sha256: hash.digest('hex') });
+          const chunks = normalizer?.isCandidate(path) ? [] : undefined;
+          for await (const chunk of createReadStream(join(directory, path))) {
+            hash.update(chunk);
+            chunks?.push(chunk);
+          }
+          const sha256 = hash.digest('hex');
+          const normalized = chunks && normalizer.normalize(path, Buffer.concat(chunks).toString('utf8'));
+          files.push(normalized?.rules.length
+            ? {
+                ...file, sha256,
+                semanticSha256: createHash('sha256').update(normalized.content).digest('hex'),
+                semanticBytes: Buffer.byteLength(normalized.content),
+                normalizations: normalized.rules,
+              }
+            : { ...file, sha256 });
         } else {
           files.push(file);
         }
@@ -85,9 +100,21 @@ async function main() {
   const out = process.env.BUILD_METRICS_DIR;
   if (!out) throw new Error('BUILD_METRICS_DIR is required.');
   await mkdir(out, { recursive: true });
-  const output = await measureOutput(resolve('dist'), {
-    hashContents: process.env.BUILD_METRICS_HASH_CONTENTS === '1',
-  });
+  const hashContents = process.env.BUILD_METRICS_HASH_CONTENTS === '1';
+  let normalizer;
+  if (hashContents) {
+    const timingPath = process.env.BUILD_TIMING_OUT;
+    if (!timingPath) throw new Error('BUILD_TIMING_OUT is required for content normalization.');
+    const reports = (await readFile(timingPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+    const report = reports.findLast((value) => value.kind === 'final');
+    if (!report) throw new Error('A final build timing is required for content normalization.');
+    const end = Date.parse(report.ts);
+    normalizer = await createOutputNormalizer(resolve('.'), {
+      buildWindow: { start: end - report.totalWallMs, end },
+      authoredDates: await readAuthoredPublicationDates(resolve('.')),
+    });
+  }
+  const output = await measureOutput(resolve('dist'), { hashContents, normalizer });
   const summary = {
     commit: process.env.GITHUB_SHA,
     run: process.env.GITHUB_RUN_ID,
@@ -101,6 +128,7 @@ async function main() {
     totalBytes: output.totalBytes,
     directories: output.groups,
     largestFiles: [...output.files].sort((a, b) => b.bytes - a.bytes).slice(0, 20),
+    normalizationAudit: output.files.filter((file) => file.normalizations).map(({ path, normalizations }) => ({ path, normalizations })),
   };
   await writeFile(join(out, 'output.json'), JSON.stringify(summary, null, 2));
   await writeFile(join(out, 'file-manifest.json'), JSON.stringify(output.files));

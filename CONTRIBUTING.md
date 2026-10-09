@@ -85,11 +85,18 @@ For acceptance measurements, set `comparison_ref` to the exact baseline commit
 SHA and enable `profile_build`. An additional job runs baseline, candidate, then
 baseline again on one runner, at the same checkout path with fresh build
 processes and cleared Astro content caches. It records CPU models and hashes every output file; any path,
-size, or content difference fails the comparison and is reported in
+size, or meaningful content difference fails the comparison and is reported in
 `frontend-comparison/comparison.json`. Complete generated site copies are not
 retained by this diagnostic job. The usual build and browser gates still run.
 Compare the candidate with both baseline measurements to expose runner drift
 and warm filesystem effects.
+
+The comparison preserves raw hashes and audits three existing sources of
+non-determinism: animation-instance UUIDs (keeping their DOM grouping intact),
+RSS fallback publication times generated during the recorded build window
+(protecting authored dates), and Pagefind JSON object-key ordering (preserving
+every value and array order). No files are excluded. API links, anchors, rendered
+content, scripts, styles, and search-index data remain part of the comparison.
 The optional `max_semi_space` input benchmarks Node's documented
 `--max-semi-space-size` setting for allocation-heavy builds. Baseline measurements
 retain Node's standard young-generation size; only the candidate receives the

@@ -1,10 +1,12 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, expect, test, vi } from 'vitest';
 import { measureOutput, sampleCompression } from '../../scripts/measure-build-output.mjs';
 import buildTiming from '../../config/build-timing.mjs';
 import { compareManifests } from '../../scripts/compare-build-output.mjs';
+import { createOutputNormalizer } from '../../scripts/normalize-build-output.mjs';
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -161,6 +163,47 @@ test('content hashes detect equal-length differences instead of accepting invent
   expect(compareManifests([], after.files)).toEqual({ removed: [], added: ['index.html'], changed: [] });
   expect(() => compareManifests([{ path: 'index.html', bytes: 4 }], after.files)).toThrow('SHA-256');
   expect(() => compareManifests([...before.files, ...before.files], after.files)).toThrow('Duplicate output path');
+});
+
+test('media normalization preserves group identity and all unrelated content', async () => {
+  const normalizer = await createOutputNormalizer(fileURLToPath(new URL('../..', import.meta.url)));
+  const first = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const second = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const render = (id: string, text = 'Keep', buttonId = id) =>
+    `<html><body><div data-looping-image-id="${id}"><img data-looping-image-id="${id}"><button data-looping-image-id="${buttonId}">${text}</button></div></body></html>`;
+  const before = normalizer.normalize('example.html', render(first));
+  expect(normalizer.normalize('example.html', render(second))).toEqual(before);
+  expect(normalizer.normalize('example.html', render(second, 'Changed')).content).not.toBe(before.content);
+  expect(normalizer.normalize('example.html', render(second, 'Keep', first)).content).not.toBe(before.content);
+  const script = `<html><body><script>const id="${first}";</script></body></html>`;
+  expect(normalizer.normalize('example.html', script)).toEqual({ content: script, rules: [] });
+});
+
+test('Pagefind normalization retains values and array ordering', async () => {
+  const normalizer = await createOutputNormalizer(fileURLToPath(new URL('../..', import.meta.url)));
+  const normalize = (value: unknown) => normalizer.normalize('pagefind/pagefind-entry.json', JSON.stringify(value)).content;
+  const languages = { en: { hash: 'en-a', page_count: 1 }, fr: { hash: 'fr-b', page_count: 1 } };
+  expect(normalize({ version: '1.5.2', languages })).toBe(normalize({ languages: { fr: languages.fr, en: languages.en }, version: '1.5.2' }));
+  expect(normalize({ languages })).not.toBe(normalize({ languages: { ...languages, en: { hash: 'en-a', page_count: 2 } } }));
+  expect(normalize({ include_characters: ['_', '-'] })).not.toBe(normalize({ include_characters: ['-', '_'] }));
+});
+
+test('RSS normalization changes only generated times and protects authored dates and text', async () => {
+  const start = Date.parse('2026-10-09T10:00:00Z');
+  const end = Date.parse('2026-10-09T11:00:00Z');
+  const authored = Date.parse('2026-10-09T10:40:00Z');
+  const normalizer = await createOutputNormalizer(fileURLToPath(new URL('../..', import.meta.url)), {
+    buildWindow: { start, end }, authoredDates: new Set([authored]),
+  });
+  const render = (generated: string, author = new Date(authored).toUTCString(), title = 'Keep') =>
+    `<rss><channel><item><title>${title}</title><pubDate>${generated}</pubDate><description><![CDATA[<pubDate>${generated}</pubDate>]]></description></item><item><pubDate>${author}</pubDate></item></channel></rss>`;
+  const time = new Date(start + 60_000).toUTCString();
+  const first = normalizer.normalize('rss.xml', render(time));
+  expect(first.content).toContain('GENERATED_PUBLICATION_TIME');
+  expect(first.content).toContain(new Date(authored).toUTCString());
+  expect(first.content).toContain(`<pubDate>${time}</pubDate>`);
+  expect(normalizer.normalize('rss.xml', render(time, new Date(authored + 60_000).toUTCString())).content).not.toBe(first.content);
+  expect(normalizer.normalize('rss.xml', render(time, undefined, 'Changed')).content).not.toBe(first.content);
 });
 
 test('timing reports distinguish generated pages from asset URLs', async () => {
