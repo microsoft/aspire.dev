@@ -77,6 +77,9 @@ for the build, validation, and browser tests; leave it empty to build the
 workflow's commit. This permits baseline profiling independently of a PR.
 Set `cold_cache: true` on both runs to prevent Astro content-cache restoration.
 Use the same Node version and cache conditions for both comparisons.
+The manual `build_concurrency` input benchmarks Astro's documented page-generation
+setting without changing its production default. Compare memory and output
+contracts as well as wall time before selecting a different default.
 
 Compare runs with the same runner class, dependency lockfile, build concurrency,
 and catalog data. Distinguish cold and restored Astro content caches, and measure

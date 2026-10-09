@@ -125,6 +125,8 @@ test('manual profiling keeps complete validation and uses the actual source comm
   expect(workflow).toContain('Exact source ref for an independent baseline build');
   expect(workflow).toContain('BUILD_TIMING_LABEL: ${{ inputs.build_ref || github.sha }}');
   expect(workflow).toMatch(/name: Cache Astro content layer\r?\n\s+if: \$\{\{ !inputs\.cold_cache \}\}/);
+  expect(workflow).toContain('ASPIRE_BUILD_CONCURRENCY: ${{ inputs.build_concurrency }}');
+  expect(workflow).toContain('options: ["1", "2", "4", "8"]');
   expect(workflow).toContain('GITHUB_SHA="$(git rev-parse HEAD)" node scripts/measure-build-output.mjs');
   expect(workflow).toContain('needs: [build, validation, e2e, report]');
 });

@@ -28,6 +28,11 @@ on:
         required: false
         default: false
         type: boolean
+      build_concurrency:
+        description: Astro's supported concurrent page generation setting
+        required: false
+        default: "4"
+        type: string
     secrets:
       ASPIRE_BOT_APP_ID:
         required: false
@@ -55,6 +60,12 @@ on:
         required: false
         default: false
         type: boolean
+      build_concurrency:
+        description: Astro's supported concurrent page generation setting
+        required: false
+        default: "4"
+        type: choice
+        options: ["1", "2", "4", "8"]
 
 permissions:
   contents: read
@@ -127,6 +138,7 @@ jobs:
           ASTRO_TELEMETRY_DISABLED: 1
           # The complete provisioning API catalog exceeds Node's default 4 GiB heap.
           NODE_OPTIONS: --max-old-space-size=8192
+          ASPIRE_BUILD_CONCURRENCY: ${{ inputs.build_concurrency }}
           BUILD_TIMING: ${{ inputs.profile_build && '1' || '0' }}
           BUILD_TIMING_OUT: ${{ runner.temp }}/frontend-performance/timing.jsonl
           BUILD_TIMING_LABEL: ${{ inputs.build_ref || github.sha }}
