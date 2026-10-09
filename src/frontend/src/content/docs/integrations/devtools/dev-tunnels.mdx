@@ -299,6 +299,21 @@ Dev tunnels automatically:
 
 Tunnels will expire after not being hosted for 30 days by default, so they won't be forcibly deleted when the resource or AppHost is stopped.
 
+### Connection status and readiness
+
+Aspire observes the `devtunnel host` console output to publish public endpoints as soon as the local host reports that it's ready, instead of waiting for the next health check. Connection loss (a stop, disconnect, or another host taking over the tunnel) updates the tunnel and port resources immediately as well. A running `devtunnel host` process doesn't necessarily mean its tunnel connection is active.
+
+<Aside type="note">
+  A remote host count alone can't establish local readiness, since another
+  machine might be hosting the same tunnel. If no local connection message is
+  recognized, the tunnel remains unready rather than exposing another host's
+  endpoints.
+</Aside>
+
+Health checks also reconcile tunnel ports and access settings with the dev tunnels service. If port or readiness output isn't recognized, Aspire logs a warning (once per resource start) and falls back to service-based reconciliation to discover the endpoints once this local host has reported a connection. The original console output remains available in the tunnel resource's logs for diagnosis.
+
+Starting a tunnel checks its remote configuration and reuses matching tunnels and ports instead of recreating them. Ports are only recreated when their protocol, description, or labels differ from the application model, and unchanged access policies are left intact. This reduces the time between starting the AppHost and the tunnel's ports becoming ready, especially for warm starts of an already-configured tunnel.
+
 ## Troubleshooting
 
 ### Authentication required
