@@ -1,7 +1,6 @@
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
 import { normalizeApiReferenceSidebarHref } from './utils/api-reference-routes';
 import { getOgMetadata } from './utils/page-metadata';
-import { cacheStaticTranslations } from './utils/translation-cache';
 
 /**
  * Custom route middleware that applies implicit pagination rules:
@@ -22,7 +21,6 @@ import { cacheStaticTranslations } from './utils/translation-cache';
 export const onRequest = defineRouteMiddleware((context) => {
   const routeData = context.locals.starlightRoute;
   if (!routeData) return;
-  if (import.meta.env.PROD) context.locals.t = cacheStaticTranslations(context.locals.t);
 
   const { entry, pagination, sidebar } = routeData;
 

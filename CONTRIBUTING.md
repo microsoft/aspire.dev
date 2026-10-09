@@ -116,12 +116,6 @@ documents continue to resolve against current data without those caches. Keep
 source-order matching, overload anchors, and HTML/Markdown links equivalent
 when changing these helpers.
 
-Production route middleware also reuses plain UI-label translations by resource
-dictionary and current source value. Parameterized, interpolated, nested,
-namespace-qualified, transformed, and fallback translations still use the
-original translator. Development does not enable this cache, and the public
-translation methods remain available.
-
 The installed Starlight Pagefind integration scans the complete HTML output,
 including API pages marked `pagefind: false`. That flag excludes page content
 from search, not the filesystem scan. Starlight's public Pagefind configuration
