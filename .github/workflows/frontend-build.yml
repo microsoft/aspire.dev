@@ -18,11 +18,43 @@ on:
         required: false
         default: false
         type: boolean
+      build_ref:
+        description: Exact source ref for an independent baseline build
+        required: false
+        default: ""
+        type: string
+      cold_cache:
+        description: Profile without restoring the Astro content cache
+        required: false
+        default: false
+        type: boolean
     secrets:
       ASPIRE_BOT_APP_ID:
         required: false
       ASPIRE_BOT_PRIVATE_KEY:
         required: false
+  workflow_dispatch:
+    inputs:
+      node_version:
+        description: Node.js version
+        required: true
+        default: "24.x"
+        type: string
+      profile_build:
+        description: Capture CPU, timing, and output diagnostics
+        required: false
+        default: false
+        type: boolean
+      build_ref:
+        description: Exact source ref (empty builds this workflow's commit)
+        required: false
+        default: ""
+        type: string
+      cold_cache:
+        description: Profile without restoring the Astro content cache
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -37,6 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.build_ref || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -78,6 +111,7 @@ jobs:
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Cache Astro content layer
+        if: ${{ !inputs.cold_cache }}
         id: astro_cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -95,7 +129,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
           BUILD_TIMING: ${{ inputs.profile_build && '1' || '0' }}
           BUILD_TIMING_OUT: ${{ runner.temp }}/frontend-performance/timing.jsonl
-          BUILD_TIMING_LABEL: ${{ github.sha }}
+          BUILD_TIMING_LABEL: ${{ inputs.build_ref || github.sha }}
           PROFILE_BUILD: ${{ inputs.profile_build }}
         run: |
           set -euo pipefail
@@ -117,7 +151,7 @@ jobs:
           BUILD_METRICS_DIR: ${{ runner.temp }}/frontend-performance
           ASTRO_CACHE_HIT: ${{ steps.astro_cache.outputs.cache-hit }}
           PROFILE_BUILD: ${{ inputs.profile_build }}
-        run: node scripts/measure-build-output.mjs
+        run: GITHUB_SHA="$(git rev-parse HEAD)" node scripts/measure-build-output.mjs
 
       - name: Upload build diagnostics
         if: ${{ always() && inputs.profile_build }}
@@ -255,6 +289,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.build_ref || github.sha }}
           persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -294,6 +329,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.build_ref || github.sha }}
           persist-credentials: false
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -363,6 +399,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.build_ref || github.sha }}
           persist-credentials: false
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10

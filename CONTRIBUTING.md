@@ -71,6 +71,13 @@ record the actual checkout commit in `commit.txt`. Adding the label starts that
 comparison; pushing a commit also enables profiling in the regular frontend CI
 job. Profiling is opt-in; ordinary builds do not pay its overhead.
 
+The existing `Frontend Build` workflow also supports manual dispatch with
+`profile_build: true`. Its optional `build_ref` selects an exact source commit
+for the build, validation, and browser tests; leave it empty to build the
+workflow's commit. This permits baseline profiling independently of a PR.
+Set `cold_cache: true` on both runs to prevent Astro content-cache restoration.
+Use the same Node version and cache conditions for both comparisons.
+
 Compare runs with the same runner class, dependency lockfile, build concurrency,
 and catalog data. Distinguish cold and restored Astro content caches, and measure
 build time separately from artifact upload and browser tests. Content-layer
