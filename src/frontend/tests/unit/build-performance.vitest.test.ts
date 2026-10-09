@@ -142,6 +142,9 @@ test('requested same-runner comparison uses exact commits, fresh content caches,
   expect(workflow).toContain('node "$output/compare-build-output.mjs"');
   expect(workflow).toContain('BENCHMARK: ${{ needs.benchmark.result }}');
   expect(workflow).toContain('"$BENCHMARK" != "success" && "$BENCHMARK" != "skipped"');
+  expect(workflow).toContain('export NODE_OPTIONS="--max-old-space-size=8192"');
+  expect(workflow).toContain('--max-semi-space-size=$CANDIDATE_SEMI_SPACE');
+  expect(workflow).toContain('options: ["default", "32", "64"]');
 });
 
 test('content hashes detect equal-length differences instead of accepting inventories alone', async () => {

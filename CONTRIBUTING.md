@@ -90,6 +90,11 @@ size, or content difference fails the comparison and is reported in
 retained by this diagnostic job. The usual build and browser gates still run.
 Compare the candidate with both baseline measurements to expose runner drift
 and warm filesystem effects.
+The optional `max_semi_space` input benchmarks Node's documented
+`--max-semi-space-size` setting for allocation-heavy builds. Baseline measurements
+retain Node's standard young-generation size; only the candidate receives the
+selected size. The 8 GiB old-generation limit remains unchanged. Inspect peak
+memory as well as garbage-collection time before changing production defaults.
 
 Compare runs with the same runner class, dependency lockfile, build concurrency,
 and catalog data. Distinguish cold and restored Astro content caches, and measure

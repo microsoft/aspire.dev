@@ -38,6 +38,11 @@ on:
         required: false
         default: ""
         type: string
+      max_semi_space:
+        description: Optional V8 young-generation semi-space in MiB (default, 32, or 64)
+        required: false
+        default: ""
+        type: string
     secrets:
       ASPIRE_BOT_APP_ID:
         required: false
@@ -76,6 +81,12 @@ on:
         required: false
         default: ""
         type: string
+      max_semi_space:
+        description: Optional V8 young-generation semi-space in MiB
+        required: false
+        default: "default"
+        type: choice
+        options: ["default", "32", "64"]
 
 permissions:
   contents: read
@@ -103,6 +114,7 @@ jobs:
         env:
           BASELINE_REF: ${{ inputs.comparison_ref }}
           CANDIDATE_REF: ${{ inputs.build_ref || github.sha }}
+          CANDIDATE_SEMI_SPACE: ${{ inputs.max_semi_space }}
           MODE: production
           ASTRO_TELEMETRY_DISABLED: 1
           NODE_OPTIONS: --max-old-space-size=8192
@@ -115,9 +127,13 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$BASELINE_REF" =~ ^[a-fA-F0-9]{40}$ ]] || { echo "Baseline must be an exact commit SHA." >&2; exit 1; }
+          case "$CANDIDATE_SEMI_SPACE" in
+            ""|default|32|64) ;;
+            *) echo "Unsupported semi-space size." >&2; exit 1 ;;
+          esac
           output="$RUNNER_TEMP/frontend-comparison"
           mkdir -p "$output"
-          node -e 'require("node:fs").writeFileSync(process.argv[1], JSON.stringify({node:process.version,cpus:require("node:os").cpus().map(cpu=>cpu.model),concurrency:process.env.ASPIRE_BUILD_CONCURRENCY},null,2))' "$output/runner.json"
+          node -e 'require("node:fs").writeFileSync(process.argv[1], JSON.stringify({node:process.version,cpus:require("node:os").cpus().map(cpu=>cpu.model),concurrency:process.env.ASPIRE_BUILD_CONCURRENCY,candidateSemiSpace:process.env.CANDIDATE_SEMI_SPACE},null,2))' "$output/runner.json"
           cp src/frontend/scripts/measure-build-output.mjs src/frontend/scripts/compare-build-output.mjs "$output/"
           harness="$output/measure-build-output.mjs"
           candidate=$(git rev-parse --verify --end-of-options "${CANDIDATE_REF}^{commit}")
@@ -130,6 +146,10 @@ jobs:
             git checkout --detach "$ref"
             (
               cd src/frontend
+              export NODE_OPTIONS="--max-old-space-size=8192"
+              if [[ "$label" == "candidate" && "$CANDIDATE_SEMI_SPACE" != "" && "$CANDIDATE_SEMI_SPACE" != "default" ]]; then
+                export NODE_OPTIONS="$NODE_OPTIONS --max-semi-space-size=$CANDIDATE_SEMI_SPACE"
+              fi
               pnpm install --frozen-lockfile --prefer-offline
               rm -rf -- "$GITHUB_WORKSPACE/src/frontend/node_modules/.astro"
               mkdir -p "$output/$label"
@@ -223,7 +243,7 @@ jobs:
           MODE: production
           ASTRO_TELEMETRY_DISABLED: 1
           # The complete provisioning API catalog exceeds Node's default 4 GiB heap.
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: ${{ inputs.max_semi_space != '' && inputs.max_semi_space != 'default' && format('--max-old-space-size=8192 --max-semi-space-size={0}', inputs.max_semi_space) || '--max-old-space-size=8192' }}
           ASPIRE_BUILD_CONCURRENCY: ${{ inputs.build_concurrency }}
           BUILD_TIMING: ${{ inputs.profile_build && '1' || '0' }}
           BUILD_TIMING_OUT: ${{ runner.temp }}/frontend-performance/timing.jsonl
