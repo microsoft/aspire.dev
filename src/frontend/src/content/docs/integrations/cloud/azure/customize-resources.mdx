@@ -421,6 +421,30 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
+#### Assign a deployment-time expression to an enum-valued property
+
+An enum-valued property such as `sku.name` normally takes a value from its generated enum, for example `StorageSkuName.StandardGrs`. To choose the value at deployment time instead, assign a Bicep parameter or expression. Aspire 17.0 and later let you assign a string-backed Bicep expression to these properties directly; the parameter itself stays typed as a Bicep string, while the target property keeps its enum type:
+
+```typescript title="apphost.mts" "await bicep.parameter(storageSku)"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const storageSku = await builder.addParameter('storageSku');
+const storage = await builder.addAzureStorage('storage');
+
+await storage.configureInfrastructure(async (infrastructure) => {
+  const bicep = await infrastructure.bicep();
+  const account = await infrastructure.getStorageAccount();
+  const sku = await infrastructure.createStorageSku();
+  await sku.name.set(await bicep.parameter(storageSku));
+  await account.sku.set(sku);
+});
+
+await builder.build().run();
+```
+
+A JavaScript string literal still has to match one of the enum's values, such as `await sku.name.set(StorageSkuName.StandardGrs)`. Only a Bicep expression, such as the parameter reference above, can supply a value the enum's type checking can't validate ahead of deployment.
+
 ### Configure networking
 
 This example restricts public access to an IP range while allowing trusted Azure services. Replace the documentation-only range with your application's approved network range before deploying.
