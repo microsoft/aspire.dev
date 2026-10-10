@@ -42,6 +42,19 @@ $env:ASPIRE_CLI_TELEMETRY_OPTOUT="true"
 
 The first time you run an Aspire CLI command, you'll see a disclosure message informing you that telemetry is being collected and how to opt out.
 
+## Delivery and shutdown behavior
+
+The CLI applies different telemetry delivery policies depending on how the command is run, so short-lived local commands aren't slowed down while disposable CI runners get a bounded opportunity to deliver data before their storage disappears:
+
+| Scenario | Behavior |
+|----------|----------|
+| Successful local CLI command, or user cancellation | Finishes writing queued telemetry to local storage without waiting for ingestion. |
+| Failed local CLI command | Uses an initial 300 ms persistence-and-delivery budget. Persistence consumes part of this window; it isn't a delivery guarantee. |
+| Running in a CI environment | Attempts delivery with five-second provider and network budgets, rather than relying on a later invocation to deliver the data. |
+| Agent telemetry hook (including CI hooks) | Persists data before starting the uploader and doesn't add an ingestion wait to every tool call. |
+
+These policies apply automatically to existing commands. There are no new commands, flags, or setup required, and telemetry data, opt-out behavior, and the data points collected are unchanged.
+
 ## Data points
 
 Aspire CLI telemetry doesn't collect personal data, such as usernames or email addresses. It doesn't scan your code and doesn't extract source code, paths containing usernames, or environment-specific information. The data is sent securely to Microsoft.
