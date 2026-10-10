@@ -51,6 +51,30 @@ Once Aspire 17.0 is available on the stable channel, use the [`aspire update` co
   CLI](/get-started/install-cli/).
 </LearnMore>
 
+## 🖥️ TerminalHost ships as a standalone Native AOT executable
+
+The process backing [resource terminals](/app-host/with-terminal/) now publishes
+and runs as its own self-contained **Native AOT** executable (`terminalhost/Aspire.TerminalHost[.exe]`)
+in CLI bundles, instead of running inside the managed `aspire-managed` process.
+The existing `WithTerminal()` API is unchanged:
+
+```csharp
+builder.AddExecutable("shell", "/bin/sh", ".")
+    .WithTerminal();
+```
+
+Current AppHost and CLI builds launch the standalone executable directly.
+Older or unrecognized Hosting versions keep working through
+`aspire-managed terminalhost`, which is now a thin compatibility shim that
+forwards to the native executable instead of hosting the terminal itself.
+
+<LearnMore>
+  See the [TerminalHost architecture notes](https://github.com/microsoft/aspire/blob/main/docs/specs/with-terminal.md#repository-development)
+  for repository development details, including how to rebuild the
+  framework-dependent relay locally without a Native AOT publish. For the
+  full change, see [microsoft/aspire#20775](https://github.com/microsoft/aspire/pull/20775).
+</LearnMore>
+
 ## ⚠️ Breaking changes
 
 <span id="breaking-changes"></span>
