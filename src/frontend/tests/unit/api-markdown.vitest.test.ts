@@ -19,7 +19,6 @@ import {
   renderCSharpTypeMarkdown,
 } from '@utils/csharp-api-markdown';
 import { memberKindSlugs, resolveMemberAnchors } from '@utils/packages';
-import { prepareCSharpApiTypes } from '@utils/csharp-api-catalog';
 import { tsSlugify } from '@utils/ts-modules';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
@@ -91,26 +90,6 @@ const typeScriptItemRoute = getRouteModule('../../src/pages/reference/api/typesc
 const typeScriptMemberRoute = getRouteModule('../../src/pages/reference/api/typescript/[module]/[item]/[member].md.ts');
 
 describe('API markdown routes', () => {
-  it('keeps real package Markdown byte-identical after preparing lookup and anchor caches', async () => {
-    const route = await findStaticRoute(
-      csharpTypeRoute.getStaticPaths,
-      (candidate) => (candidate.props.type.members?.length ?? 0) > 0,
-      'C# cached package fixture',
-    );
-    const pkg = structuredClone(route.props.pkg);
-    const type = pkg.types.find((candidate: any) => candidate.fullName === route.props.type.fullName);
-    const render = () => [
-      renderCSharpTypeMarkdown(pkg, type, pkg.types, '/'),
-      ...Object.keys(memberKindSlugs).map((kind) =>
-        renderCSharpMemberKindMarkdown(pkg, type, kind, pkg.types, '/'),
-      ),
-    ];
-    const expected = render();
-    prepareCSharpApiTypes(pkg.types);
-    expect(render()).toEqual(expected);
-    expect(render()).toEqual(expected);
-  });
-
   it('returns markdown for the C# API index route', async () => {
     const markdown = await readMarkdown(csharpIndexRoute.GET?.({} as any));
 

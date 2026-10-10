@@ -64,12 +64,7 @@ Production builds retain the complete documentation and API catalogs. To collect
 CI diagnostics, add the `build-profile` label to a pull request before pushing a
 commit. The next pull-request CI run uploads a `frontend-performance` artifact
 containing the Node CPU profile, phase timings, build log, output inventory, and
-compression samples. The separate performance-comparison workflow also profiles
-the PR base and head on fresh runners with no restored Astro content cache. Its
-`frontend-performance-baseline` and `frontend-performance-candidate` artifacts
-record the actual checkout commit in `commit.txt`. Adding the label starts that
-comparison; pushing a commit also enables profiling in the regular frontend CI
-job. Profiling is opt-in; ordinary builds do not pay its overhead.
+compression samples. Profiling is opt-in; ordinary builds do not pay its overhead.
 
 The existing `Frontend Build` workflow also supports manual dispatch with
 `profile_build: true`. Its optional `build_ref` selects an exact source commit
@@ -109,18 +104,44 @@ caching does not eliminate static page rendering. CPU profiling affects runtime,
 so compare profiled runs with profiled runs, and confirm production gains with
 ordinary CI builds.
 
-C# type lookups and member anchors reuse indexes only for explicitly prepared,
-immutable production catalogs. Their inputs are frozen recursively and caches
-use weak keys scoped to the loaded data. Development and caller-owned mutable
-documents continue to resolve against current data without those caches. Keep
-source-order matching, overload anchors, and HTML/Markdown links equivalent
-when changing these helpers.
-
 The installed Starlight Pagefind integration scans the complete HTML output,
 including API pages marked `pagefind: false`. That flag excludes page content
 from search, not the filesystem scan. Starlight's public Pagefind configuration
 does not expose crawler file selection; do not patch private integration hooks
 or remove published pages to reduce indexing time.
+
+### Measured optimization candidates
+
+The release baseline generated 32,441 pages and 69,030 output files, including
+19,293 TypeScript API HTML pages and 4,914 C# API HTML pages. Static rendering,
+not API Markdown serialization, was the principal cost. In one release CPU
+profile, Starlight tab-panel parsing accounted for approximately 132 seconds,
+syntax tokenization for 119 seconds, and garbage collection for 137 seconds.
+These are overlapping sampled costs, not additive wall-time savings.
+
+| Candidate | Controlled result | Decision |
+| --- | --- | --- |
+| Indexed C# type lookups and reused member anchors | Candidate 1,354.5s; baselines 1,355.2s and 1,409.8s | Essentially tied with the first baseline; removed because improvement was not demonstrated beyond drift |
+| Additional plain UI-label caching | One comparison improved, another regressed about 5% | Removed; no reliable end-to-end benefit |
+| V8 64 MiB semi-space | Candidate 1,392.9s; baselines 1,321.4s and 1,282.9s, with increased peak memory | Rejected |
+| Different Astro concurrency | Separate runners also changed unchanged Pagefind timings from 70s to 132s | Inconclusive; default remains 4 |
+
+The [API-only controlled run](https://github.com/microsoft/aspire.dev/actions/runs/37973002345)
+passed all quality gates and compared every output file successfully after the
+audited normalization above. The timings in this table come from the opt-in
+Astro lifecycle report, which ends before the last finalization integration;
+the accompanying `/usr/bin/time` results cover the entire Astro process.
+These experiments do **not** establish a production build-time reduction.
+Unproven runtime changes were removed rather than retained for their
+microbenchmark results.
+
+Further optimization should target the measured shared rendering work using
+supported upstream APIs. In particular, avoid repeatedly parsing large rendered
+tab panels or tokenizing identical signatures, but preserve panel accessibility,
+page-specific identifiers, code themes, copy buttons, and plugins. The installed
+library implementation owns these behaviors; private-hook overrides and
+cached whole-page HTML are not acceptable substitutes. Profile and prove a
+supported implementation before changing production rendering.
 
 ## 🆘 Getting help
 

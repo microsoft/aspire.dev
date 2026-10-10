@@ -11,7 +11,6 @@ import {
   buildClassBodySignature,
   cleanMemberSignature,
   formatSignature,
-  findCSharpType,
   genericArity,
   groupMembersByKind,
   groupTypesByNamespace,
@@ -571,7 +570,7 @@ function renderTypeMemberOverview(type: any, packageName: string, allTypes: any[
   if (nestedTypes.length > 0) {
     const nestedLines = nestedTypes
       .map((fullName: string) => {
-        const match = findCSharpType(allTypes, fullName);
+        const match = allTypes.find((candidate: any) => candidate.fullName === fullName);
         if (!match) {
           return null;
         }
@@ -711,7 +710,7 @@ function renderMemberExceptionsMarkdown(exceptions: any[], context: CSharpDocCon
   return bulletList(
     exceptions.map((exception: any) => {
       const { fullName, simpleName } = parseSeeAlso(exception.type);
-      const match = findCSharpType(context.allTypes, fullName);
+      const match = context.allTypes.find((type: any) => type.fullName === fullName);
       const typeMarkdown = match
         ? link(simpleName, csharpTypeMdHref(context.base, context.packageName, match.name, genericArity(match)))
         : inlineCode(simpleName);
@@ -785,7 +784,7 @@ function resolveTypeMarkdownLink(raw: string, context: CSharpDocContext): string
     .replace(/^System\.Threading\.Tasks\.Task<(.+)>$/, '$1')
     .replace(/^System\.Collections\.Generic\.\w+<(.+)>$/, '$1');
 
-  const match = findCSharpType(context.allTypes, cleaned, raw);
+  const match = context.allTypes.find((type: any) => type.fullName === cleaned || type.fullName === raw);
   if (!match) {
     return null;
   }
@@ -797,7 +796,7 @@ function resolveCrefMarkdown(cref: string, context: CSharpDocContext): { href: s
   const { prefix, fullName, simpleName } = parseSeeAlso(cref);
 
   if (prefix === 'T' || prefix === '') {
-    const match = findCSharpType(context.allTypes, fullName);
+    const match = context.allTypes.find((type: any) => type.fullName === fullName);
     if (!match) {
       return null;
     }
@@ -820,7 +819,7 @@ function resolveCrefMarkdown(cref: string, context: CSharpDocContext): { href: s
 
     const ownerFullName = fullNameWithoutArity.slice(0, lastDot);
     const memberName = fullNameWithoutArity.slice(lastDot + 1);
-    const ownerType = findCSharpType(context.allTypes, ownerFullName);
+    const ownerType = context.allTypes.find((type: any) => type.fullName === ownerFullName);
     if (!ownerType) {
       return null;
     }

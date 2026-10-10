@@ -5,9 +5,6 @@
 import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
 import { shortTypeName } from './api-member-anchors';
-import { findCSharpType, prepareCSharpApiTypes } from './csharp-api-catalog';
-
-export { findCSharpType } from './csharp-api-catalog';
 
 export {
   memberAnchorAliases,
@@ -83,10 +80,7 @@ export function getPackages(): Promise<PackageCollectionEntry[]> {
     return getCollection('packages', hasPublicTypes);
   }
 
-  packagesPromise ??= getCollection('packages', hasPublicTypes).then((entries: PackageCollectionEntry[]) => {
-    for (const entry of entries) prepareCSharpApiTypes(entry.data.types);
-    return entries;
-  });
+  packagesPromise ??= getCollection('packages', hasPublicTypes);
   return packagesPromise;
 }
 
@@ -280,7 +274,7 @@ export function resolveTypeLink(
     .replace(/^System\.Threading\.Tasks\.Task<(.+)>$/, '$1')
     .replace(/^System\.Collections\.Generic\.\w+<(.+)>$/, '$1');
 
-  const match = findCSharpType(types, clean, raw);
+  const match = types.find((t) => t.fullName === clean || t.fullName === raw);
   if (match) {
     return {
       href: typeHref(base, packageName, match.name, genericArity(match)),

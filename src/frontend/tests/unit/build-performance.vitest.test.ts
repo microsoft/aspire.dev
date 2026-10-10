@@ -94,24 +94,6 @@ test('Astro build source does not receive workflow credentials', async () => {
   expect(workflow).toMatch(/fetch-depth: 0\n\s+persist-credentials: false/);
 });
 
-test('comparison profiles exact base and head with equivalent cold-cache settings', async () => {
-  const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-performance.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
-  expect(workflow).toContain("contains(github.event.pull_request.labels.*.name, 'build-profile')");
-  expect(workflow).toContain('types: [opened, reopened, synchronize, labeled]');
-  expect(workflow).toContain('variant: [baseline, candidate]');
-  expect(workflow).toContain("matrix.variant == 'baseline' && github.event.pull_request.base.sha || github.event.pull_request.head.sha");
-  expect(workflow).toContain('fetch-depth: 0\n          persist-credentials: false');
-  expect(workflow).not.toContain('uses: actions/cache');
-  expect(workflow).toMatch(/ASPIRE_BUILD_CONCURRENCY: ['"]4['"]/);
-  expect(workflow).toContain('./node_modules/astro/bin/astro.mjs build --mode production');
-  expect(workflow).toContain('git rev-parse HEAD > "$RUNNER_TEMP/frontend-performance/commit.txt"');
-  expect(workflow).toContain('name: frontend-performance-${{ matrix.variant }}');
-  expect(workflow).toContain('if-no-files-found: error');
-  const buildStep = workflow.match(/- name: Profile production build\n([\s\S]*?)(?=\n {6}- name:)/)?.[1];
-  expect(buildStep).toBeDefined();
-  expect(buildStep).not.toMatch(/GITHUB_TOKEN|GH_TOKEN|github\.token|secrets\./);
-});
-
 test('all frontend workflow checkouts disable persisted credentials', async () => {
   const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-build.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
   const checkouts = workflow.split(/\n {6}- /).filter((step) => step.startsWith('uses: actions/checkout@'));

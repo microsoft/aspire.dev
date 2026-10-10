@@ -3,7 +3,7 @@
  * TypeSignature — renders a type's C# declaration.
  */
 import { Code } from '@astrojs/starlight/components';
-import { typeHref, shortTypeName, genericArity, findCSharpType } from '@utils/packages';
+import { typeHref, shortTypeName, genericArity } from '@utils/packages';
 
 interface Props {
   type: any;
@@ -93,7 +93,7 @@ signature = nsPrefix + signature;
           {gp.constraints?.length > 0 && (
             <span class="ts-gp-constraint">
               : {gp.constraints.map((c: string, ci: number) => {
-                const target = findCSharpType(allTypes, c);
+                const target = allTypes.find((t: any) => t.fullName === c);
                 const label = shortTypeName(c);
                 return (
                   <>{ci > 0 && ', '}{target ? (
@@ -113,7 +113,7 @@ signature = nsPrefix + signature;
   {bases.length > 0 && (
     <div class="ts-bases">
       {bases.map((b: string) => {
-        const target = findCSharpType(allTypes, b);
+        const target = allTypes.find((t: any) => t.fullName === b);
         const shortName = shortTypeName(b);
         return target ? (
           <a href={typeHref(base, packageName, target.name, genericArity(target))} class="api-chip">{shortName}</a>

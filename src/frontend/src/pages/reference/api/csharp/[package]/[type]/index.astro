@@ -29,7 +29,6 @@ import {
   groupMembersByKind,
   packageSlug,
   getPackages,
-  findCSharpType,
 } from '@utils/packages';
 
 export async function getStaticPaths() {
@@ -93,7 +92,7 @@ const hasFlags = !!findAttribute(type.attributes, 'Flags');
 // every partial source file (e.g. FoundryModel + FoundryModel.Generated.cs).
 const nestedTypeEntries: { type: any; href: string }[] = ((type.nestedTypes ?? []) as string[])
   .map((fullName) => {
-    const target = findCSharpType(allTypes, fullName);
+    const target = allTypes.find((t: any) => t.fullName === fullName);
     if (!target) return null;
     return {
       type: target,
@@ -168,7 +167,7 @@ const seeAlsoLinks = (type.docs?.seeAlso ?? []).map((ref: string) => {
 
   const isMemberRef = ['P', 'M', 'F', 'E'].includes(prefix);
 
-  let target = findCSharpType(allTypes, fullName);
+  let target = allTypes.find((t: any) => t.fullName === fullName);
   if (!target && /`\d+$/.test(fullName)) {
     const baseName = fullName.replace(/`\d+$/, '');
     target = allTypes.find((t: any) =>
@@ -182,7 +181,7 @@ const seeAlsoLinks = (type.docs?.seeAlso ?? []).map((ref: string) => {
     if (lastDot > 0) {
       const ownerFullName = fullName.slice(0, lastDot);
       const memberName = fullName.slice(lastDot + 1);
-      target = findCSharpType(allTypes, ownerFullName);
+      target = allTypes.find((t: any) => t.fullName === ownerFullName);
       if (target) {
         memberAnchor = '#' + memberName.toLowerCase().replace(/[^a-z0-9]/g, '-');
       }
@@ -214,7 +213,7 @@ const kindLabel: Record<string, string> = {
 
 const inheritChain: { name: string; href: string | null }[] = [];
 if (type.baseType && type.baseType !== 'System.Object') {
-  const baseTarget = findCSharpType(allTypes, type.baseType);
+  const baseTarget = allTypes.find((t: any) => t.fullName === type.baseType);
   inheritChain.push({
     name: shortTypeName(type.baseType),
     href: baseTarget ? typeHref(base, pkg.package.name, baseTarget.name, genericArity(baseTarget)) : null,
@@ -224,7 +223,7 @@ inheritChain.push({ name: displayName, href: null });
 
 // Resolve interface links for the hero card
 const resolvedInterfaces: { name: string; href: string | null }[] = (type.interfaces ?? []).map((iface: string) => {
-  const ifaceTarget = findCSharpType(allTypes, iface);
+  const ifaceTarget = allTypes.find((t: any) => t.fullName === iface);
   return {
     name: shortTypeName(iface),
     href: ifaceTarget ? typeHref(base, pkg.package.name, ifaceTarget.name, genericArity(ifaceTarget)) : null,

@@ -9,7 +9,7 @@
  * Also accepts a plain string for backward compatibility.
  */
 import { Code } from '@astrojs/starlight/components';
-import { parseSeeAlso, typeHref, genericArity, findCSharpType } from '@utils/packages';
+import { parseSeeAlso, typeHref, genericArity } from '@utils/packages';
 
 interface Props {
   content: any;
@@ -32,7 +32,7 @@ function resolveCref(cref: string): { href: string; label: string } | null {
 
   // Direct type reference
   if (prefix === 'T' || prefix === '') {
-    const match = findCSharpType(allTypes, fullName);
+    const match = allTypes.find((t: any) => t.fullName === fullName);
     if (match) {
       return {
         href: typeHref(base, packageName, match.name, genericArity(match)),
@@ -51,7 +51,7 @@ function resolveCref(cref: string): { href: string; label: string } | null {
     if (lastDot > 0) {
       const declaringTypeFull = withoutArity.slice(0, lastDot);
       const memberName = withoutArity.slice(lastDot + 1);
-      const match = findCSharpType(allTypes, declaringTypeFull);
+      const match = allTypes.find((t: any) => t.fullName === declaringTypeFull);
       if (match) {
         return {
           href: typeHref(base, packageName, match.name, genericArity(match)),
