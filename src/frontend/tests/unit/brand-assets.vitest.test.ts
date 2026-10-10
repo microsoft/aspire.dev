@@ -11,6 +11,7 @@ import {
   brandDeckUrl,
   brandFontWeights,
   brandGradients,
+  brandLicenseUrl,
   brandSource,
 } from '../../src/data/brand';
 import { communityTopics } from '../../config/sidebar/community.topics';
@@ -41,9 +42,6 @@ describe('official brand snapshot', () => {
       expect(asset.height).toBeGreaterThan(0);
     }
 
-    expect(gitBlobHash(readFileSync(new URL('LICENSE.txt', assetRoot)))).toBe(
-      brandSource.licenseBlob
-    );
   });
 
   it('publishes self-contained vector wordmarks with their upstream provenance', () => {
@@ -57,12 +55,24 @@ describe('official brand snapshot', () => {
     }
   });
 
-  it('includes exactly the approved SVGs and artwork license, not presentation files', () => {
+  it('includes exactly the approved SVGs, not duplicated license or presentation files', () => {
     const files = readdirSync(fileURLToPath(assetRoot), { recursive: true })
       .filter((file): file is string => typeof file === 'string')
       .map((file) => file.replaceAll('\\', '/'))
       .filter((file) => file.includes('.'));
-    expect(files.sort()).toEqual([...brandAssets.map(({ file }) => file), 'LICENSE.txt'].sort());
+    expect(files.sort()).toEqual(brandAssets.map(({ file }) => file).sort());
+  });
+
+  it('uses the current upstream raw license instead of a local snapshot', () => {
+    expect(brandLicenseUrl).toBe(
+      'https://raw.githubusercontent.com/microsoft/aspire-brand/main/LICENSE'
+    );
+    expect(existsSync(new URL('LICENSE.txt', assetRoot))).toBe(false);
+    for (const page of ['index.mdx', 'usage.mdx']) {
+      const content = readFileSync(new URL(page, docsRoot), 'utf8');
+      expect(content).toContain('href={brandLicenseUrl}');
+      expect(content).not.toContain('/brand/LICENSE.txt');
+    }
   });
 });
 
@@ -111,6 +121,38 @@ describe('brand reference values', () => {
 });
 
 describe('brand section integration', () => {
+  it.each(pages)('includes the brandkit search term in %s metadata and introductory text', (file) => {
+    const content = readFileSync(new URL(file, docsRoot), 'utf8');
+    const description = content.match(/^description: (.+)$/m)?.[1];
+    expect(description).toMatch(/\bbrandkit\b/i);
+    expect(description?.length).toBeGreaterThanOrEqual(110);
+    expect(description?.length).toBeLessThanOrEqual(160);
+    const introduction = content.split(/^---$/m)[2]?.split(/^## /m)[0];
+    expect(introduction).toMatch(/\bbrandkit\b/i);
+  });
+
+  it('keeps both typeface sources in one sentence on one source line', () => {
+    const content = readFileSync(new URL('typography.mdx', docsRoot), 'utf8');
+    const section = content.split('## Get the typeface')[1]?.split('## Code font')[0]?.trim();
+    expect(section).not.toContain('\n');
+    expect(section).toContain('href="https://fonts.google.com/specimen/Poppins"');
+    expect(section).toContain('href="https://fontsource.org/fonts/poppins"');
+    expect(section?.replace(/<[^>]+>/g, '')).toBe(
+      'Get Poppins from Google Fonts or use Fontsource for local hosting.'
+    );
+  });
+
+  it.each([
+    ['index.mdx', 'Aspire brand assets'],
+    ['logos.mdx', 'Brand logos and icons'],
+    ['colors.mdx', 'Brand colors and gradients'],
+    ['typography.mdx', 'Brand typography'],
+    ['usage.mdx', 'Brand usage guidance'],
+  ])('gives %s an explicit brand title', (file, title) => {
+    const content = readFileSync(new URL(file, docsRoot), 'utf8');
+    expect(content.match(/^title: (.+)$/m)?.[1]).toBe(title);
+  });
+
   it('uses a 1200 by 630 overview image while other brand pages keep generated cards', () => {
     const overview = readFileSync(new URL('index.mdx', docsRoot), 'utf8');
     expect(overview).toContain('ogImage: /og/aspire-brand-assets.png');

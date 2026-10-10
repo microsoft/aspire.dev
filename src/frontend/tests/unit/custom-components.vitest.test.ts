@@ -74,7 +74,7 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 import samplesData from '@data/samples.json';
-import { brandAssets, brandColors, brandGradients, brandAccents } from '@data/brand';
+import { brandAssets, brandColors, brandGradients, brandAccents, brandLicenseUrl } from '@data/brand';
 import daTranslations from '../../src/content/i18n/da.json';
 import deTranslations from '../../src/content/i18n/de.json';
 import enTranslations from '../../src/content/i18n/en.json';
@@ -215,12 +215,14 @@ describe('community brand components', () => {
     expect(html).toContain('<svg');
   });
 
-  it('renders the full read-only artwork license and Fira Code specimen', async () => {
+  it('renders an upstream license loader, direct-link fallback, and Fira Code specimen', async () => {
     const html = normalizeHtml(await renderComponent(BrandLicenseModal));
     expect(html).toContain('aria-labelledby="brand-artwork-license-title"');
     expect(html).toMatch(/<textarea[^>]* readonly/);
     expect(html).toContain('CC0 1.0 Universal');
-    expect(html).toContain('No trademark or patent rights held by Affirmer');
+    expect(html).toContain(`data-license-url="${brandLicenseUrl}"`);
+    expect(html).toContain('data-license-status');
+    expect(html).toContain('Open the original artwork license');
     const code = await renderComponent(BrandCodeTypography);
     expect(code).toContain('Fira Code Variable');
     expect(code).toContain('expressive-code');
@@ -239,7 +241,11 @@ describe('community brand components', () => {
     expect(dialog).not.toMatch(/<input[^>]* checked/);
     expect(dialog).toContain('Continue to download');
     expect(dialog).toContain('/community/brand/usage/');
-    expect(dialog).toContain('/brand/LICENSE.txt');
+    expect(dialog).toContain(brandLicenseUrl);
+    expect(dialog).toContain('When local storage is available');
+    const licenseLink = dialog.match(/<a[^>]*data-brand-license[^>]*>artwork license<\/a>/)?.[0];
+    expect(licenseLink).toContain(brandLicenseUrl);
+    expect(licenseLink).not.toContain('target=');
   });
 });
 
