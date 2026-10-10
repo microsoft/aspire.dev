@@ -7,6 +7,7 @@ import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import azureIcon from '@assets/icons/azure-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={azureIcon}
@@ -92,7 +93,7 @@ This updates your `aspire.config.json` with the Azure Network hosting integratio
 
 <Aside type="tip">
   When you call any of the Azure Virtual Network APIs, it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
+  <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" />—which adds support for generating Azure resources
   dynamically during app startup. The app must configure the appropriate
   subscription and location. For more information, see [Local provisioning:
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -100,7 +101,7 @@ This updates your `aspire.config.json` with the Azure Network hosting integratio
 
 ### Add a virtual network
 
-To add a virtual network, call `AddAzureVirtualNetwork` (or `addAzureVirtualNetwork`) on the `builder` instance:
+To add a virtual network, call <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AddAzureVirtualNetwork" /> on the `builder` instance:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -150,7 +151,7 @@ const vnet = await builder.addAzureVirtualNetwork('vnet', '10.1.0.0/16');
 
 ### Add subnets
 
-Call `AddSubnet` (or `addSubnet`) on the virtual network builder to add a subnet with a name and address prefix:
+Call <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AddSubnet" /> on the virtual network builder to add a subnet with a name and address prefix:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -175,7 +176,7 @@ You can add multiple subnets with different address ranges to a single virtual n
 
 ### Add NAT gateways
 
-A [NAT gateway](https://learn.microsoft.com/azure/nat-gateway/) provides deterministic outbound public IP addresses for subnet resources. Call `AddNatGateway` (or `addNatGateway`) to create a NAT gateway, then associate it with a subnet using `WithNatGateway` (or `withNatGateway`):
+A [NAT gateway](https://learn.microsoft.com/azure/nat-gateway/) provides deterministic outbound public IP addresses for subnet resources. Call <ApiReference name="Aspire.Hosting.AzureNatGatewayExtensions.AddNatGateway" /> to create a NAT gateway, then associate it with a subnet using <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.WithNatGateway" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -200,7 +201,7 @@ const subnet = vnet.addSubnet("aca-subnet", "10.0.0.0/23")
 </TabItem>
 </Tabs>
 
-By default, a public IP address is automatically created for the NAT gateway. To provide an explicit public IP address for full control, call `AddPublicIPAddress` (or `addPublicIPAddress`) and associate it with `WithPublicIPAddress` (or `withPublicIPAddress`):
+By default, a public IP address is automatically created for the NAT gateway. To provide an explicit public IP address for full control, call <ApiReference name="Aspire.Hosting.AzurePublicIPAddressExtensions.AddPublicIPAddress" /> and associate it with <ApiReference name="Aspire.Hosting.AzureNatGatewayExtensions.WithPublicIPAddress" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -260,10 +261,10 @@ const subnet = vnet.addSubnet("web", "10.0.1.0/24")
 
 The available shorthand methods are:
 
-- `AllowInbound` (or `allowInbound`) — Allow inbound traffic.
-- `DenyInbound` (or `denyInbound`) — Deny inbound traffic.
-- `AllowOutbound` (or `allowOutbound`) — Allow outbound traffic.
-- `DenyOutbound` (or `denyOutbound`) — Deny outbound traffic.
+- <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AllowInbound" /> — Allow inbound traffic.
+- <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.DenyInbound" /> — Deny inbound traffic.
+- <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AllowOutbound" /> — Allow outbound traffic.
+- <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.DenyOutbound" /> — Deny outbound traffic.
 
 Priority auto-increments by 100 (100, 200, 300...) and rule names are auto-generated from the access, direction, port, and source (for example, `allow-inbound-443-AzureLoadBalancer`).
 
@@ -276,7 +277,7 @@ Priority auto-increments by 100 (100, 200, 300...) and rule names are auto-gener
 
 #### Explicit API
 
-For full control over security rules, create a standalone NSG with `AddNetworkSecurityGroup` (or `addNetworkSecurityGroup`) on the `builder` and attach it to a subnet with `WithNetworkSecurityGroup` (or `withNetworkSecurityGroup`):
+For full control over security rules, create a standalone NSG with <ApiReference name="Aspire.Hosting.AzureNetworkSecurityGroupExtensions.AddNetworkSecurityGroup" /> on the `builder` and attach it to a subnet with <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.WithNetworkSecurityGroup" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -338,7 +339,7 @@ A single NSG can be shared across multiple subnets.
 
 ### Delegate subnets to compute environments
 
-Compute environment integrations that support regional virtual network integration expose a `WithDelegatedSubnet` (or `withDelegatedSubnet` in TypeScript) extension method that assigns a subnet to the environment, enabling subnet delegation so the environment can inject its infrastructure. For example, [Azure Container Apps](/integrations/cloud/azure/configure-container-apps/) and [Azure App Service](/integrations/cloud/azure/azure-app-service/azure-app-service-host/#regional-virtual-network-integration) both support `WithDelegatedSubnet`:
+Compute environment integrations that support regional virtual network integration expose a <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.WithDelegatedSubnet" /> extension method that assigns a subnet to the environment, enabling subnet delegation so the environment can inject its infrastructure. For example, [Azure Container Apps](/integrations/cloud/azure/configure-container-apps/) and [Azure App Service](/integrations/cloud/azure/azure-app-service/azure-app-service-host/#regional-virtual-network-integration) both support `WithDelegatedSubnet`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -380,7 +381,7 @@ Each compute environment delegates the subnet to its own Azure service (for exam
 
 ### Delegate a subnet to an Azure service
 
-For scenarios that aren't covered by a compute environment's `WithDelegatedSubnet` helper, call `WithServiceDelegation` (or `withServiceDelegation` in TypeScript) directly on the subnet builder to delegate it to a supported Azure service. The delegation `name` defaults to `serviceName` so you don't have to repeat the value:
+For scenarios that aren't covered by a compute environment's `WithDelegatedSubnet` helper, call <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.WithServiceDelegation" /> directly on the subnet builder to delegate it to a supported Azure service. The delegation `name` defaults to `serviceName` so you don't have to repeat the value:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -426,7 +427,7 @@ You can also pass another supported Azure resource provider path as `serviceName
 
 ### Add private endpoints
 
-[Private endpoints](https://learn.microsoft.com/azure/private-link/) enable secure connectivity to Azure services over a private network. Call `AddPrivateEndpoint` (or `addPrivateEndpoint`) on a subnet builder and pass the Azure resource to connect to:
+[Private endpoints](https://learn.microsoft.com/azure/private-link/) enable secure connectivity to Azure services over a private network. Call <ApiReference name="Aspire.Hosting.AzurePrivateEndpointExtensions.AddPrivateEndpoint" /> on a subnet builder and pass the Azure resource to connect to:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -462,7 +463,7 @@ When you add a private endpoint, the following resources are automatically creat
 3. A **DNS Zone Group** on the private endpoint for automatic DNS registration.
 4. The target resource is automatically configured to **deny public network access**.
 
-The private DNS zone ensures that services within the virtual network automatically resolve the target resource's hostname to its private IP address. Resources that reference the target (for example, via `WithReference`) use the same connection information—DNS resolution handles routing traffic over the private network.
+The private DNS zone ensures that services within the virtual network automatically resolve the target resource's hostname to its private IP address. Resources that reference the target (for example, via <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" />) use the same connection information—DNS resolution handles routing traffic over the private network.
 
 <Aside type="caution">
   Adding a private endpoint automatically disables public network access on the
@@ -474,7 +475,7 @@ The private DNS zone ensures that services within the virtual network automatica
 
 #### Override public network access
 
-To keep public access enabled on a resource that has a private endpoint, use `ConfigureInfrastructure` to override the automatic lockdown:
+To keep public access enabled on a resource that has a private endpoint, use <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> to override the automatic lockdown:
 
 ```csharp title="AppHost.cs"
 storage.ConfigureInfrastructure(infra =>
@@ -532,7 +533,7 @@ NSPs complement private endpoints with a higher-level grouping model. Instead of
 
 #### Create a perimeter
 
-Call `AddNetworkSecurityPerimeter` (or `addNetworkSecurityPerimeter`) on the `builder` instance to create an NSP with a default profile:
+Call <ApiReference name="Aspire.Hosting.AzureNetworkSecurityPerimeterExtensions.AddNetworkSecurityPerimeter" /> on the `builder` instance to create an NSP with a default profile:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -563,7 +564,7 @@ await builder.build().run();
 
 #### Add access rules
 
-Access rules control traffic flowing into and out of the perimeter. Call `WithAccessRule` (or `withAccessRule`) and pass an `AzureNspAccessRule` to define a rule:
+Access rules control traffic flowing into and out of the perimeter. Call <ApiReference name="Aspire.Hosting.AzureNetworkSecurityPerimeterExtensions.WithAccessRule" /> and pass an `AzureNspAccessRule` to define a rule:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -618,7 +619,7 @@ Each property also has a corresponding `*References` variant (for example, `Addr
 
 #### Associate resources with a perimeter
 
-Call `WithNetworkSecurityPerimeter` (or `withNetworkSecurityPerimeter`) on a PaaS resource builder to associate it with an NSP:
+Call <ApiReference name="Aspire.Hosting.AzureNetworkSecurityPerimeterExtensions.WithNetworkSecurityPerimeter" /> on a PaaS resource builder to associate it with an NSP:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">

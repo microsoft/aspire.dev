@@ -13,6 +13,7 @@ import proxyWithReplicas from '@assets/fundamentals/networking/proxy-with-replic
 import proxyHostPortAndRandomPort from '@assets/fundamentals/networking/proxy-host-port-and-random-port-1x.png';
 import proxyWithRandomPorts from '@assets/fundamentals/networking/proxy-with-random-ports-1x.png';
 import proxyWithDockerPortMapping from '@assets/fundamentals/networking/proxy-with-docker-port-mapping-1x.png';
+import ApiReference from '@components/ApiReference.astro';
 
 One of the advantages of developing with Aspire is that it enables you to develop, test, and debug cloud-native apps locally. Inner-loop networking is a key aspect of Aspire that allows your apps to communicate with each other in your development environment. In this article, you learn how Aspire handles various networking scenarios with proxies, endpoints, endpoint configurations, and container networking.
 
@@ -53,7 +54,7 @@ flowchart LR
 
 The inner loop is the process of developing and testing your app locally before deploying it to a target environment. Aspire provides several tools and features to simplify and enhance the networking experience in the inner loop, such as:
 
-- **Endpoints/Endpoint configurations**: Endpoints are the connections between your app and the services it depends on, such as databases, message queues, or APIs. Endpoints provide information such as the service name, host port, scheme, and environment variable. Aspire can create endpoints automatically from resource configuration, and you can also add them explicitly by calling `WithEndpoint`.
+- **Endpoints/Endpoint configurations**: Endpoints are the connections between your app and the services it depends on, such as databases, message queues, or APIs. Endpoints provide information such as the service name, host port, scheme, and environment variable. Aspire can create endpoints automatically from resource configuration, and you can also add them explicitly by calling <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEndpoint" />.
 - **Proxies**: Aspire automatically launches a proxy for each proxied service binding you add to your app, and assigns a port for the proxy to listen on. The proxy then forwards the requests to the port that your app listens on, which might be different from the proxy port. This way, you can avoid port conflicts and access your app and services using consistent and predictable URLs.
 - **Proxyless endpoints**: Endpoints with `IsProxied` set to `false` connect directly to the resource instead of routing through an Aspire-managed proxy. Starting in Aspire 13.4, endpoints on persistent executables and projects are proxyless by default. Persistent containers use proxied endpoints by default, the same as session containers.
 - **Container networks**: Aspire creates and manages dedicated networks for container resources so containers can discover and communicate with each other during local development.
@@ -104,7 +105,7 @@ Containers register themselves on the network using their resource name. Aspire 
 
 By default, containers are accessible on the container network using their **resource name** as a DNS alias. For example, a container added with `AddContainer("mydb", ...)` is reachable at `mydb:5432` from other containers.
 
-Sometimes you need additional aliases—for example, when a third-party tool expects a specific hostname, or when migrating from an existing Docker Compose setup. Use `WithContainerNetworkAlias` to add custom DNS names:
+Sometimes you need additional aliases—for example, when a third-party tool expects a specific hostname, or when migrating from an existing Docker Compose setup. Use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithContainerNetworkAlias" /> to add custom DNS names:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -156,7 +157,7 @@ Some endpoint behavior depends on the resource type. Keep those details with the
 
 ## Ports and proxies
 
-When defining a proxied service binding, the host port is given to the proxy that sits in front of the service. This allows single or multiple replicas of a service to behave similarly. Additionally, resource dependencies that use the `WithReference` API rely on the proxied endpoint from the environment variable unless the endpoint is configured as proxyless.
+When defining a proxied service binding, the host port is given to the proxy that sits in front of the service. This allows single or multiple replicas of a service to behave similarly. Additionally, resource dependencies that use the <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> API rely on the proxied endpoint from the environment variable unless the endpoint is configured as proxyless.
 
 The same proxy pattern applies when a service runs multiple replicas. The browser still connects to one stable host port while the proxy fans out traffic to whichever replica is available:
 
@@ -576,7 +577,7 @@ The following built-in Aspire integrations already apply this pattern to their a
 **Common causes**:
 
 - The container hasn't finished starting
-- Missing `WaitFor()` dependency
+- Missing <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> dependency
 - Container is on the container network but you're connecting from the host
 
 **Solutions**:

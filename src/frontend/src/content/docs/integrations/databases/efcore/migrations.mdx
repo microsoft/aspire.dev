@@ -11,6 +11,7 @@ import { Image } from 'astro:assets';
 import dotnetIcon from '@assets/icons/dotnet.svg';
 import dashboardPostMigrationDark from '@assets/integrations/efcore/dashboard-post-migration-dark.png';
 import dashboardPostMigrationLight from '@assets/integrations/efcore/dashboard-post-migration-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={dotnetIcon}
@@ -394,7 +395,7 @@ The migration service is created, but it needs to be added to the Aspire AppHost
     This code enlists the *`SupportTicketApi.MigrationService`* project as a service in the Aspire AppHost. It also ensures that the API resource doesn't run until the migrations are complete.
 
     :::note
-    In the preceding code, the call to `AddDatabase` adds a representation of a SQL Server database to the Aspire application model with a connection string. It *doesn't* create a database in the SQL Server container. To ensure that the database is created, the sample project calls the EF Core `IDatabaseCreator.EnsureCreated` method from the support ticket API's `Program.cs` file.
+    In the preceding code, the call to <ApiReference name="Aspire.Hosting.SqlServerBuilderExtensions.AddDatabase" /> adds a representation of a SQL Server database to the Aspire application model with a connection string. It *doesn't* create a database in the SQL Server container. To ensure that the database is created, the sample project calls the EF Core `IDatabaseCreator.EnsureCreated` method from the support ticket API's `Program.cs` file.
     :::
 
     :::tip
@@ -546,7 +547,7 @@ The [Aspire Shop](https://learn.microsoft.com/samples/microsoft/aspire-samples/a
 
 ## Automated EF migrations with `AddEFMigrations`
 
-In addition to creating a dedicated worker service as described above, Aspire provides a first-class AppHost API for managing EF Core migrations: `AddEFMigrations`. This API integrates migration execution directly into the AppHost orchestration and the Aspire publishing pipeline, without requiring a separate migration service project.
+In addition to creating a dedicated worker service as described above, Aspire provides a first-class AppHost API for managing EF Core migrations: <ApiReference name="Aspire.Hosting.EFResourceBuilderExtensions.AddEFMigrations" />. This API integrates migration execution directly into the AppHost orchestration and the Aspire publishing pipeline, without requiring a separate migration service project.
 
 ### Add the package
 
@@ -580,7 +581,7 @@ var apiMigrations = api.AddEFMigrations("api-migrations")
 
 ### Run migrations on startup
 
-To apply migrations automatically when running locally with [`aspire run`](/reference/cli/commands/aspire-run/), chain `RunDatabaseUpdateOnStart()`:
+To apply migrations automatically when running locally with [`aspire run`](/reference/cli/commands/aspire-run/), chain <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.RunDatabaseUpdateOnStart" />:
 
 ```csharp title="AppHost.cs"
 var apiMigrations = api.AddEFMigrations("api-migrations")
@@ -605,7 +606,7 @@ When `RunDatabaseUpdateOnStart()` is called, a health check is registered for th
 
 ### Publish migration artifacts
 
-To generate migration artifacts during [`aspire publish`](/reference/cli/commands/aspire-publish/), use `PublishAsMigrationScript` or `PublishAsMigrationBundle`:
+To generate migration artifacts during [`aspire publish`](/reference/cli/commands/aspire-publish/), use <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.PublishAsMigrationScript" /> or <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.PublishAsMigrationBundle" />:
 
 ```csharp title="AppHost.cs"
 // Generate both a SQL script and a self-contained bundle during publish

@@ -27,6 +27,7 @@ import colorTweaks from '@assets/whats-new/color-tweaks.png';
 import healthChecksLastRun from '@assets/whats-new/health-checks-last-run.png';
 import resourcesParametersView from '@assets/whats-new/resources-parameters-view.png';
 import genaiVisualizerTooldefinitions from '@assets/whats-new/genai-visualizer-tooldefinitions.png';
+import ApiReference from '@components/ApiReference.astro';
 
 📢 Aspire 13 represents a major milestone in the Aspire product line.
 
@@ -214,7 +215,7 @@ var api = builder.AddPythonExecutable("api", "../api", "gunicorn")
 
 #### Uvicorn integration for ASGI applications
 
-For Python web applications using ASGI frameworks like FastAPI, Starlette, or Quart, Aspire provides dedicated `AddUvicornApp` support:
+For Python web applications using ASGI frameworks like FastAPI, Starlette, or Quart, Aspire provides dedicated <ApiReference name="Aspire.Hosting.PythonAppResourceBuilderExtensions.AddUvicornApp" /> support:
 
 ```csharp title="Uvicorn integration"
 var api = builder.AddUvicornApp("api", "./api", "main:app")
@@ -243,7 +244,7 @@ var api = builder.AddUvicornApp("api", "./api", "main:app");
 
 In most cases, you don't need to configure package management explicitly because Aspire detects it automatically.
 
-For modern Python projects using [uv](https://github.com/astral-sh/uv), explicitly opt in with `WithUv()`:
+For modern Python projects using [uv](https://github.com/astral-sh/uv), explicitly opt in with <ApiReference name="Aspire.Hosting.PythonAppResourceBuilderExtensions.WithUv" />:
 
 ```csharp title="Using uv for package management"
 builder.AddUvicornApp("api", "./api", "main:app")
@@ -257,7 +258,7 @@ When using `WithUv()`, Aspire:
 - Leverages uv's performance benefits (10-100x faster than pip).
 - Auto-detects Python version from project configuration.
 
-To configure pip behavior explicitly, use `WithPip()`:
+To configure pip behavior explicitly, use <ApiReference name="Aspire.Hosting.PythonAppResourceBuilderExtensions.WithPip" />:
 
 ```csharp title="Using pip for package management"
 builder.AddUvicornApp("api", "./api", "main:app")
@@ -270,7 +271,7 @@ When using `WithPip()`, Aspire:
 - Detects virtual environments (`.venv`) by walking up parent directories.
 - Creates a virtual environment if one doesn't exist.
 
-By default, Aspire uses `.venv` in the app directory as the virtual environment path. Use `WithVirtualEnvironment()` to specify a custom path or control automatic creation:
+By default, Aspire uses `.venv` in the app directory as the virtual environment path. Use <ApiReference name="Aspire.Hosting.PythonAppResourceBuilderExtensions.WithVirtualEnvironment" /> to specify a custom path or control automatic creation:
 
 ```csharp title="Configuring virtual environment path"
 // Use a custom venv path
@@ -290,8 +291,8 @@ Python applications can be debugged directly in VS Code with full breakpoint sup
 
 Supported debugging scenarios include:
 
-- Debug Python scripts added with `AddPythonApp`, including breakpoints and variable inspection.
-- Debug Python modules added with `AddPythonModule`, including module resolution.
+- Debug Python scripts added with <ApiReference name="Aspire.Hosting.PythonAppResourceBuilderExtensions.AddPythonApp" />, including breakpoints and variable inspection.
+- Debug Python modules added with <ApiReference name="Aspire.Hosting.PythonAppResourceBuilderExtensions.AddPythonModule" />, including module resolution.
 - Debug Flask apps with auto-reload.
 - Debug Uvicorn and FastAPI ASGI applications with async and await support.
 
@@ -365,7 +366,7 @@ import pythonStarterLightPng from '@assets/get-started/python-starter-light.png'
 
 ### JavaScript as a first-class citizen
 
-Aspire 13.0 refactors and expands JavaScript support. In earlier versions, the `Aspire.Hosting.NodeJs` integration enabled JavaScript applications. In Aspire 13.0, the integration was renamed to `Aspire.Hosting.JavaScript` and it introduces `AddJavaScriptApp` as the foundational method for all JavaScript applications.
+Aspire 13.0 refactors and expands JavaScript support. In earlier versions, the `Aspire.Hosting.NodeJs` integration enabled JavaScript applications. In Aspire 13.0, the integration was renamed to `Aspire.Hosting.JavaScript` and it introduces <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddJavaScriptApp" /> as the foundational method for all JavaScript applications.
 
 #### Unified JavaScript application model
 
@@ -430,7 +431,7 @@ var app = builder.AddJavaScriptApp("app", "./app")
 
 Unlike the deprecated `AddNpmApp` API, `AddJavaScriptApp` does not support an `args` constructor parameter for passing command-line arguments directly to scripts. You have two options to pass arguments:
 
-Option 1 uses `WithArgs` to pass arguments directly:
+Option 1 uses <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithArgs" /> to pass arguments directly:
 
 ```csharp title="Pass arguments using WithArgs"
 // Before (Aspire 9.x with AddNpmApp)
@@ -470,7 +471,7 @@ Option 2 keeps all script configuration in `package.json`, making your scripts m
 
 #### Vite support
 
-`AddViteApp` is now a specialization of `AddJavaScriptApp` with Vite-specific optimizations:
+<ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" /> is now a specialization of `AddJavaScriptApp` with Vite-specific optimizations:
 
 ```csharp title="Vite support"
 var frontend = builder.AddViteApp("frontend", "./frontend")
@@ -504,7 +505,7 @@ For information about using JavaScript build artifacts in other containers, see 
 
 #### Node support
 
-`AddNodeApp` has now been refactored to align with other language integrations.
+<ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddNodeApp" /> has now been refactored to align with other language integrations.
 
 ```csharp title="Node support"
 var app = builder.AddNodeApp("frontend", "./frontend", "app.js")
@@ -541,7 +542,7 @@ var javaApp = builder.AddExecutable("java-app", "java", "./app", ["-jar", "app.j
     .WithEnvironment("DB_JDBC", postgres.Resource.JdbcConnectionStringExpression);
 ```
 
-When you reference a database resource with `WithReference`, Aspire automatically exposes multiple connection properties as environment variables. For example, a PostgreSQL resource named `db` exposes:
+When you reference a database resource with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" />, Aspire automatically exposes multiple connection properties as environment variables. For example, a PostgreSQL resource named `db` exposes:
 
 - `DB_URI` - PostgreSQL URI format: `postgresql://user:pass@host:port/dbname`.
 - `DB_JDBCCONNECTIONSTRING` - JDBC format: `jdbc:postgresql://host:port/dbname`.
@@ -630,7 +631,7 @@ When you run `aspire init`, the CLI will:
 The init command simplifies the initial project setup through an interactive workflow that ensures consistent configuration across team members.
 
 > [!NOTE]
-> The `aspire init` command sets up the Aspire project structure and configuration, but does not automatically add resources (databases, caches, message queues, etc.) to your AppHost. You'll need to manually add resource definitions to your AppHost code using methods like `AddPostgres`, `AddRedis`, `AddRabbitMQ`, etc.
+> The `aspire init` command sets up the Aspire project structure and configuration, but does not automatically add resources (databases, caches, message queues, etc.) to your AppHost. You'll need to manually add resource definitions to your AppHost code using methods like <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.AddPostgres" />, <ApiReference name="Aspire.Hosting.RedisBuilderExtensions.AddRedis" />, <ApiReference name="Aspire.Hosting.RabbitMQBuilderExtensions.AddRabbitMQ" />, etc.
 
 ### aspire new: Curated starter templates
 
@@ -829,7 +830,7 @@ Steps registered in the pipeline can be run via the CLI:
 aspire do validate
 ```
 
-The pipeline system supports global steps, resource-specific steps, dependency configuration, parallel execution, and built-in logging. Resources can contribute their own steps via `WithPipelineStepFactory` and control ordering with `WithPipelineConfiguration`.
+The pipeline system supports global steps, resource-specific steps, dependency configuration, parallel execution, and built-in logging. Resources can contribute their own steps via <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineStepFactory" /> and control ordering with <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineConfiguration" />.
 
 #### Running pipeline steps
 
@@ -1256,9 +1257,9 @@ This enables proper service-to-service communication whether the consumer is run
 
 ### Other app model improvements
 
-- The `WithComputeEnvironment` API is now **stable**, so you can deploy resources to specific compute environments without experimental warnings.
-- The `ExcludeFromMcp` extension controls which resources are visible to AI assistants and MCP clients.
-- `WithReferenceEnvironment` and `ReferenceEnvironmentInjectionFlags` provide fine-grained control over how references inject environment variables.
+- The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithComputeEnvironment" /> API is now **stable**, so you can deploy resources to specific compute environments without experimental warnings.
+- The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.ExcludeFromMcp" /> extension controls which resources are visible to AI assistants and MCP clients.
+- <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReferenceEnvironment" /> and `ReferenceEnvironmentInjectionFlags` provide fine-grained control over how references inject environment variables.
 - `TryCreateResourceBuilder` safely attempts resource builder creation and returns `false` instead of throwing when creation fails.
 
 ## 🚀 Deployment improvements
@@ -1547,7 +1548,7 @@ await resource.ProcessArgumentValuesAsync(
 
 The `containerHostName` parameter has been removed. Network context is now handled through `NetworkIdentifier`.
 
-`EndpointReference.GetValueAsync` behavior changed:
+<ApiReference name="Aspire.Hosting.ApplicationModel.EndpointReference.GetValueAsync" /> behavior changed:
 ```csharp
 // Before (9.x) - would throw immediately if not allocated
 var value = await endpointRef.GetValueAsync(cancellationToken);
@@ -1608,7 +1609,7 @@ Behavior also changed:
 
 1. If `package.json` exists in `appDirectory`, npm is configured automatically with auto-install enabled.
 2. Docker publishing support generates multi-stage builds by default.
-3. Use `WithNpm()`, `WithYarn()`, or `WithPnpm()` with `WithRunScript()` to execute `package.json` scripts.
+3. Use `WithNpm()`, <ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.WithYarn" />, or <ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.WithPnpm" /> with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithRunScript" /> to execute `package.json` scripts.
 
 </Steps>
 
@@ -1645,8 +1646,8 @@ This change ensures `DefaultAzureCredential` always uses `ManagedIdentityCredent
 
 The affected APIs are:
 
-- `AddAzureContainerAppEnvironment`
-- `AddAzureAppServiceEnvironment`
+- <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.AddAzureContainerAppEnvironment" />
+- <ApiReference name="Aspire.Hosting.AzureAppServiceEnvironmentExtensions.AddAzureAppServiceEnvironment" />
 
 If you were relying on `EnvironmentCredential` or `WorkloadIdentityCredential` in your application, choose one of the following options:
 
@@ -1752,8 +1753,8 @@ builder.Services.TryAddEventingSubscriber<MyEventSubscriber>();
 
 The following features are marked as `[Experimental]` and may change in future releases:
 
-- The Dockerfile builder APIs: `WithDockerfileBuilder`, `AddDockerfileBuilder`, and `WithDockerfileBaseImage`.
-- C# file-based app support through `AddCSharpApp`.
+- The Dockerfile builder APIs: <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithDockerfileBuilder" />, <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfileBuilder" />, and <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithDockerfileBaseImage" />.
+- C# file-based app support through <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddCSharpApp" />.
 - Dynamic inputs through `InputLoadOptions` and dynamic input loading.
 - Pipeline features through `IDistributedApplicationPipeline` and related APIs.
 

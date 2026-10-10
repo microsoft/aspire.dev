@@ -7,6 +7,7 @@ import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import azureIcon from '@assets/icons/azure-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={azureIcon}
@@ -29,7 +30,7 @@ When working with Azure integrations in Aspire, you often need to customize the 
 
 ### Use existing Azure resources
 
-Use `AsExisting`, `RunAsExisting`, and `PublishAsExisting` when you want Aspire to reference an Azure resource that already exists instead of provisioning a new one.
+Use <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" />, <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.RunAsExisting" />, and <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" /> when you want Aspire to reference an Azure resource that already exists instead of provisioning a new one.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="typescript" label="TypeScript">
@@ -74,7 +75,7 @@ Use `RunAsExisting` when only local run mode should use the existing resource, `
 
 ### Manage default role assignments
 
-Aspire automatically assigns Azure RBAC roles based on how resources reference one another. When you need to opt out of those defaults before applying different permissions, use `ClearDefaultRoleAssignments`.
+Aspire automatically assigns Azure RBAC roles based on how resources reference one another. When you need to opt out of those defaults before applying different permissions, use <ApiReference name="Aspire.Hosting.AzureResourceExtensions.ClearDefaultRoleAssignments" />.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="typescript" label="TypeScript">
@@ -146,7 +147,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-Use `GetBicepIdentifier()` inside `ConfigureInfrastructure` or infrastructure resolvers when you need a stable identifier for a provisioned Azure construct. Use output references such as `ClientId`, `NameOutputReference`, or `getOutput("...")` when you need Azure-assigned values like a client ID, endpoint, or resource name.
+Use <ApiReference name="Aspire.Hosting.AzureResourceExtensions.GetBicepIdentifier" /> inside <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> or infrastructure resolvers when you need a stable identifier for a provisioned Azure construct. Use output references such as `ClientId`, `NameOutputReference`, or `getOutput("...")` when you need Azure-assigned values like a client ID, endpoint, or resource name.
 
 ## Azure.Provisioning customization
 
@@ -625,7 +626,7 @@ The callback above applies the queue setting to every queue modeled under that n
 
 ### Add Azure resources to the infrastructure
 
-For common scenarios, prefer Aspire's higher-level resource builders. For example, to add a private endpoint to a storage account, use `AddPrivateEndpoint` from the `Aspire.Hosting.Azure.Network` package, which automatically wires up the Private DNS Zone, VNet link, and DNS Zone Group:
+For common scenarios, prefer Aspire's higher-level resource builders. For example, to add a private endpoint to a storage account, use <ApiReference name="Aspire.Hosting.AzurePrivateEndpointExtensions.AddPrivateEndpoint" /> from the `Aspire.Hosting.Azure.Network` package, which automatically wires up the Private DNS Zone, VNet link, and DNS Zone Group:
 
 Install `Aspire.Hosting.Azure.Network` for this example. These networking APIs are experimental under `ASPIREAZURE003`; the C# example explicitly acknowledges that diagnostic. This hosting API is separate from the opt-in SDK proxies.
 
@@ -765,7 +766,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
 output storageAccountName string = storageAccount.name
 ```
 
-Reference the file from the AppHost using `AddBicepTemplate` (C#) or `addBicepTemplate` (TypeScript). Use `WithParameter` / `withParameter` to supply input parameters, and `GetOutput` / `getOutput` to consume a named output by passing the resulting reference to another resource:
+Reference the file from the AppHost using <ApiReference name="Aspire.Hosting.AzureBicepResourceExtensions.AddBicepTemplate" />. Use <ApiReference name="Aspire.Hosting.AzureBicepResourceExtensions.WithParameter" /> to supply input parameters, and <ApiReference name="Aspire.Hosting.AzureBicepResourceExtensions.GetOutput" /> to consume a named output by passing the resulting reference to another resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="typescript" label="TypeScript">
@@ -812,7 +813,7 @@ builder.Build().Run();
 
 <Aside type="tip">
   For inline Bicep snippets, use `AddBicepTemplateString` (C#) or
-  `addBicepTemplateString` (TypeScript) instead of `AddBicepTemplate`. Both APIs
+  <ApiReference name="Aspire.Hosting.AzureBicepResourceExtensions.AddBicepTemplateString" /> (TypeScript) instead of `AddBicepTemplate`. Both APIs
   return the same `AzureBicepResource` and support the same `WithParameter` and
   `GetOutput` patterns.
 </Aside>
@@ -821,7 +822,7 @@ builder.Build().Run();
 
 `WithParameter` accepts several kinds of values beyond plain strings, so a custom Bicep template can take values that are computed at deployment time. Common sources include:
 
-- A `ParameterResource` declared with `AddParameter` (including secret parameters).
+- A `ParameterResource` declared with <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddParameter" /> (including secret parameters).
 - A `BicepOutputReference` from another Bicep resource — useful when one template's output feeds another template's input.
 - A `ReferenceExpression` that composes values from multiple resources.
 - A connection-string-bearing resource via `IResourceBuilder<IResourceWithConnectionString>`.

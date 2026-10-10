@@ -9,6 +9,7 @@ import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import goIcon from '@assets/icons/go-icon.png';
 import goLightIcon from '@assets/icons/go-light-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <ThemeImage
   light={goLightIcon}
@@ -25,7 +26,7 @@ This article is the reference for the Aspire Go hosting integration. It enumerat
 If you're new to the Go integration, start with the [Get started with the Go integration](/integrations/frameworks/go/go-get-started/) guide.
 
 :::caution[Community Toolkit package deprecated]
-As of Aspire 13.4, Go hosting support is available in the official `Aspire.Hosting.Go` package. The previous `CommunityToolkit.Aspire.Hosting.Golang` package is deprecated because Go support has graduated into core Aspire. Use `Aspire.Hosting.Go` and `AddGoApp` / `addGoApp` for new Aspire 13.4+ applications.
+As of Aspire 13.4, Go hosting support is available in the official `Aspire.Hosting.Go` package. The previous `CommunityToolkit.Aspire.Hosting.Golang` package is deprecated because Go support has graduated into core Aspire. Use `Aspire.Hosting.Go` and <ApiReference name="Aspire.Hosting.GoHostingExtensions.AddGoApp" /> for new Aspire 13.4+ applications.
 :::
 
 :::note[Prerequisites]
@@ -134,7 +135,7 @@ The method accepts the following common parameters:
 - **appDirectory**: The path to the Go module root. This directory usually contains `go.mod` and is also the Docker build context for deployment targets that emit container build artifacts.
 - **packagePath**: The Go package to run or build relative to `appDirectory`. Defaults to `"."`.
 
-Go applications commonly read the `PORT` environment variable set by `WithHttpEndpoint` / `withHttpEndpoint`:
+Go applications commonly read the `PORT` environment variable set by <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpEndpoint" />:
 
 ```go title="main.go"
 package main
@@ -267,7 +268,7 @@ The options map to Go command-line flags:
 
 ## Pass app arguments
 
-Use `WithAppArgs` / `withAppArgs` to pass arguments to the Go program after the package path.
+Use <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithAppArgs" /> to pass arguments to the Go program after the package path.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -345,10 +346,10 @@ await builder.build().run();
 
 The helper methods run these commands:
 
-- `WithModTidy` / `withModTidy`: Runs `go mod tidy -e`.
-- `WithModVendor` / `withModVendor`: Runs `go mod vendor`.
-- `WithModDownload` / `withModDownload`: Runs `go mod download`.
-- `WithVetTool` / `withVetTool`: Runs `go vet ./...`.
+- <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithModTidy" />: Runs `go mod tidy -e`.
+- <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithModVendor" />: Runs `go mod vendor`.
+- <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithModDownload" />: Runs `go mod download`.
+- <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithVetTool" />: Runs `go vet ./...`.
 
 When multiple module helpers are configured, Aspire orders them so dependency-changing steps complete before later module cache or vendor steps.
 
@@ -361,7 +362,7 @@ Go app resources automatically support VS Code debugging when the [Go extension 
 The Aspire VS Code extension detects the `golang.go` extension and, when you start your AppHost in debug mode, launches the Go debugger via `dlv-dap`. No additional configuration is required beyond `AddGoApp` / `addGoApp`. Any `buildTags`, `ldFlags`, or `gcFlags` configured on the resource are automatically forwarded to Delve as build flags, so the debugger compiles your program with the same flags used during normal development.
 
 :::note
-When `WithDelveServer` / `withDelveServer` is applied to a resource, VS Code debugging is disabled for that resource. The two modes are mutually exclusive: `WithDelveServer` starts a headless Delve server that an IDE attaches to manually, while VS Code debugging hands control of launch and build to the `golang.go` extension.
+When <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithDelveServer" /> is applied to a resource, VS Code debugging is disabled for that resource. The two modes are mutually exclusive: `WithDelveServer` starts a headless Delve server that an IDE attaches to manually, while VS Code debugging hands control of launch and build to the `golang.go` extension.
 :::
 
 ### Headless Delve server
@@ -473,7 +474,7 @@ When a publisher or deployment target emits container build artifacts for a Go a
 - The runtime stage uses a small runtime image, installs certificate and time zone data for Alpine-based images, creates a non-root `app` user, and starts the compiled binary.
 - The generated `go build` command uses the same `packagePath`, `buildTags`, `ldFlags`, and `gcFlags` configured on the Go app resource. It intentionally excludes `raceDetector` for publish builds.
 
-For private modules, use `WithGoPrivate` / `withGoPrivate` to configure the generated Dockerfile with `GOPRIVATE` and BuildKit secret-based authentication. This setting only affects generated Dockerfiles; local run mode continues to use the developer's local Go and Git credentials.
+For private modules, use <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithGoPrivate" /> to configure the generated Dockerfile with `GOPRIVATE` and BuildKit secret-based authentication. This setting only affects generated Dockerfiles; local run mode continues to use the developer's local Go and Git credentials.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>

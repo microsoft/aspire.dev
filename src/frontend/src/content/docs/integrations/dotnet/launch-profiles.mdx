@@ -7,6 +7,7 @@ description: Learn how Aspire integrates with .NET launch profiles for C# AppHos
 import { Image } from 'astro:assets';
 import { Aside, Steps } from '@astrojs/starlight/components';
 import dotnetIcon from '@assets/icons/dotnet.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={dotnetIcon}
@@ -107,13 +108,13 @@ The Aspire templates define a similar set of launch profiles to a regular ASP.NE
 
 The C# AppHost is responsible for coordinating the launch of multiple service projects. When you run the AppHost — from the command line, Visual Studio, or another development environment — a launch profile is selected for the AppHost. In turn, the AppHost attempts to find a matching launch profile in the service projects it launches, and uses those options to control the environment and default networking configuration for the service project.
 
-When the AppHost launches a service project, it doesn't use the `--launch-profile` option directly. Instead, Aspire resolves an effective launch profile, sets `DOTNET_LAUNCH_PROFILE` for consistency with `dotnet run` and `dotnet watch`, and adjusts the `ASPNETCORE_URLS` environment variable (derived from the `applicationUrl` field in the launch profile) to use a different port. By default, Aspire inserts a reverse proxy in front of the ASP.NET Core application to support multiple instances via `WithReplicas`.
+When the AppHost launches a service project, it doesn't use the `--launch-profile` option directly. Instead, Aspire resolves an effective launch profile, sets `DOTNET_LAUNCH_PROFILE` for consistency with `dotnet run` and `dotnet watch`, and adjusts the `ASPNETCORE_URLS` environment variable (derived from the `applicationUrl` field in the launch profile) to use a different port. By default, Aspire inserts a reverse proxy in front of the ASP.NET Core application to support multiple instances via <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.WithReplicas" />.
 
 Other settings, such as `environmentVariables`, are passed to the application without modification.
 
 ## Control launch profile selection
 
-Ideally, you can align the launch profile names between the AppHost and its service projects so that switching profiles in the AppHost switches them across all coordinated projects at once. However, you can also specify which profile a particular project uses by passing `launchProfileName` to `AddProject`:
+Ideally, you can align the launch profile names between the AppHost and its service projects so that switching profiles in the AppHost switches them across all coordinated projects at once. However, you can also specify which profile a particular project uses by passing `launchProfileName` to <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" />:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -140,7 +141,7 @@ To force a service project to launch without a launch profile, set the `launchPr
 
 ## Launch profiles and endpoints for ASP.NET Core projects
 
-When adding an ASP.NET Core project to the AppHost, Aspire parses the _launchSettings.json_ file, selects the appropriate launch profile, and automatically generates endpoints in the application model based on the URLs in the `applicationUrl` field. To modify the automatically injected endpoints, use `WithEndpoint`:
+When adding an ASP.NET Core project to the AppHost, Aspire parses the _launchSettings.json_ file, selects the appropriate launch profile, and automatically generates endpoints in the application model based on the URLs in the `applicationUrl` field. To modify the automatically injected endpoints, use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEndpoint" />:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);

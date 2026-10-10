@@ -9,6 +9,7 @@ import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import functionsIcon from '@assets/icons/azure-functionapps-icon.png';
 import vsAzureFunctionsOptions from '@assets/integrations/cloud/azure/functions/visual-studio-azure-functions-options.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={functionsIcon}
@@ -94,7 +95,7 @@ This updates your `aspire.config.json` with the Azure Functions hosting integrat
 
 ## Add Azure Functions resource
 
-The Azure Functions hosting integration models Azure Functions projects as the `AzureFunctionsProjectResource` type. Call `addAzureFunctionsProject` on the `builder` instance to add an Azure Functions project resource to the app model.
+The Azure Functions hosting integration models Azure Functions projects as the `AzureFunctionsProjectResource` type. Call <ApiReference name="Aspire.Hosting.AzureFunctionsProjectResourceExtensions.AddAzureFunctionsProject" /> on the `builder` instance to add an Azure Functions project resource to the app model.
 
 There are two ways to add an Azure Functions project in C#, depending on whether the Functions project is referenced by the AppHost project. The TypeScript AppHost always uses the file path approach.
 
@@ -165,9 +166,9 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 1. The path to the Functions project file is relative to the AppHost project directory. If the path is not absolute, it is resolved relative to the AppHost directory.
 
-1. The `functions` resource can be referenced by other project resources. The `WithReference` (or `withReference`) method configures a connection named `"functions"` in the consuming project.
+1. The `functions` resource can be referenced by other project resources. The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> method configures a connection named `"functions"` in the consuming project.
 
-1. If the Functions project exposes an HTTP trigger and you call `WithExternalHttpEndpoints` (or `withExternalHttpEndpoints`), the trigger endpoint is publicly accessible when deployed.
+1. If the Functions project exposes an HTTP trigger and you call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" />, the trigger endpoint is publicly accessible when deployed.
 
 </Steps>
 
@@ -177,7 +178,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 ## Add Azure Functions resource with host storage
 
-Azure Functions requires an Azure Storage account as host storage for checkpoints, leases, and other internal state. By default, Aspire creates an implicit host storage resource automatically. To use a specific storage account, call `WithHostStorage` (or `withHostStorage`) on the Azure Functions resource:
+Azure Functions requires an Azure Storage account as host storage for checkpoints, leases, and other internal state. By default, Aspire creates an implicit host storage resource automatically. To use a specific storage account, call <ApiReference name="Aspire.Hosting.AzureFunctionsProjectResourceExtensions.WithHostStorage" /> on the Azure Functions resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -341,7 +342,7 @@ The Durable Task scheduler and task hub APIs are experimental in this release. T
 To use these APIs without compiler warnings, suppress the `ASPIREDURABLETASK001` diagnostic. For suppression options, see [ASPIREDURABLETASK001](/diagnostics/aspiredurabletask001/).
 :::
 
-The `Aspire.Hosting.Azure.Functions` package includes support for [Azure Durable Task Scheduler](https://learn.microsoft.com/azure/azure-functions/durable/durable-task-scheduler/durable-task-scheduler), which provides a managed backend for Durable Functions orchestrations. Use `AddDurableTaskScheduler` to add a scheduler resource and `AddTaskHub` to associate a task hub with it.
+The `Aspire.Hosting.Azure.Functions` package includes support for [Azure Durable Task Scheduler](https://learn.microsoft.com/azure/azure-functions/durable/durable-task-scheduler/durable-task-scheduler), which provides a managed backend for Durable Functions orchestrations. Use <ApiReference name="Aspire.Hosting.DurableTaskResourceExtensions.AddDurableTaskScheduler" /> to add a scheduler resource and <ApiReference name="Aspire.Hosting.DurableTaskResourceExtensions.AddTaskHub" /> to associate a task hub with it.
 
 ### Add a Durable Task scheduler and task hub
 
@@ -404,7 +405,7 @@ await functions.withReference(taskHub);
 In the preceding example:
 
 - `AddDurableTaskScheduler` (or `addDurableTaskScheduler`) adds a `DurableTaskSchedulerResource` to the app model.
-- `RunAsEmulator` (or `runAsEmulator`) configures the scheduler to use the local Durable Task emulator for development and testing.
+- <ApiReference name="Aspire.Hosting.DurableTaskResourceExtensions.RunAsEmulator" /> configures the scheduler to use the local Durable Task emulator for development and testing.
 - `AddTaskHub` (or `addTaskHub`) creates a `DurableTaskHubResource` associated with the scheduler.
 - `WithReference(taskHub)` (or `withReference(taskHub)`) injects the task hub connection information into the Azure Functions project.
 
@@ -418,7 +419,7 @@ When using `RunAsEmulator()`, Aspire starts a local container running the DTS em
 
 ### Use an existing scheduler
 
-To connect to an already-deployed Durable Task Scheduler instance instead of provisioning a new one, use `RunAsExisting`. The overload accepts either a plain `string` connection string or an `IResourceBuilder<ParameterResource>` for securely supplying the value at runtime:
+To connect to an already-deployed Durable Task Scheduler instance instead of provisioning a new one, use <ApiReference name="Aspire.Hosting.DurableTaskResourceExtensions.RunAsExisting" />. The overload accepts either a plain `string` connection string or an `IResourceBuilder<ParameterResource>` for securely supplying the value at runtime:
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREDURABLETASK001

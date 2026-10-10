@@ -7,6 +7,7 @@ description: Deploy your Aspire application to Azure Kubernetes Service with ful
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 Deploy your Aspire application to Azure Kubernetes Service (AKS). Aspire provisions the AKS cluster, Azure Container Registry (ACR), and any Azure resources your app depends on — then deploys your application in a single command.
 
@@ -88,7 +89,7 @@ Aspire builds your container images, pushes them to ACR, generates Helm charts, 
 
 ### System node pool
 
-Customize the system node pool VM size and scaling using `WithSystemNodePool`:
+Customize the system node pool VM size and scaling using <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.WithSystemNodePool" />:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -107,7 +108,7 @@ await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
 
 ### Additional node pools
 
-Add additional node pools for workload isolation or specialized hardware, then use `WithNodePool` to schedule workloads on them:
+Add additional node pools for workload isolation or specialized hardware, then use <ApiReference name="Aspire.Hosting.KubernetesEnvironmentExtensions.WithNodePool" /> to schedule workloads on them:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -166,14 +167,14 @@ This walkthrough uses the integrated AGC + cert-manager APIs that ship with [�
 
 ### How AGC ingress fits together
 
-When you opt in via `AddLoadBalancer`, Aspire flips the AKS cluster's Bicep to enable the AKS-managed Gateway API and Application Load Balancer ingress profiles. After deploy, the cluster runs the Microsoft-managed AGC controller, which watches for Aspire's generated `Gateway` and `HTTPRoute` resources and programs an Azure-hosted HTTPS frontend automatically.
+When you opt in via <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.AddLoadBalancer" />, Aspire flips the AKS cluster's Bicep to enable the AKS-managed Gateway API and Application Load Balancer ingress profiles. After deploy, the cluster runs the Microsoft-managed AGC controller, which watches for Aspire's generated `Gateway` and `HTTPRoute` resources and programs an Azure-hosted HTTPS frontend automatically.
 
 The pieces fit together like this:
 
 | Aspire AppHost call | What it produces in Azure / Kubernetes |
 |---|---|
-| `AddAzureKubernetesEnvironment` | AKS cluster (with Gateway API + ALB ingress profile when an LB is added) and ACR |
-| `AddAzureVirtualNetwork` + `AddSubnet` | A VNet and subnets — one for AKS nodes, one (or more) delegated to AGC |
+| <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.AddAzureKubernetesEnvironment" /> | AKS cluster (with Gateway API + ALB ingress profile when an LB is added) and ACR |
+| <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AddAzureVirtualNetwork" /> + <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AddSubnet" /> | A VNet and subnets — one for AKS nodes, one (or more) delegated to AGC |
 | `AddLoadBalancer(name, subnet)` | An AGC `ApplicationLoadBalancer` CR plus role assignments on the subnet |
 | `AddGateway(name).WithLoadBalancer(lb)` | A Gateway API `Gateway` resource attached to the AGC frontend |
 | `WithRoute(path, endpoint)` | An `HTTPRoute` that points the path at your service |
@@ -285,7 +286,7 @@ Each AGC `ApplicationLoadBalancer` caps at five frontends (Gateways or Ingresses
 
 ### Add a Gateway with a route to your service
 
-`AddGateway` declares a Kubernetes Gateway API `Gateway`. `WithLoadBalancer` attaches it to the AGC ALB you just created and defaults the `gatewayClassName` to `azure-alb-external`. `WithRoute` adds an `HTTPRoute` that forwards a path to the named endpoint on one of your services.
+<ApiReference name="Aspire.Hosting.AzureKubernetesIngressExtensions.AddGateway" /> declares a Kubernetes Gateway API `Gateway`. `WithLoadBalancer` attaches it to the AGC ALB you just created and defaults the `gatewayClassName` to `azure-alb-external`. `WithRoute` adds an `HTTPRoute` that forwards a path to the named endpoint on one of your services.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -329,7 +330,7 @@ This first deploy serves plain HTTP only. Continue to the next step before expos
 
 ### Add automatic HTTPS with cert-manager
 
-`AddCertManager` installs the upstream cert-manager Helm chart with the CRDs and Gateway API watcher enabled and the `--force-conflicts` flag set so AKS's Azure Policy add-on doesn't break subsequent upgrades. `AddIssuer` adds a typed `ClusterIssuer` parented to that installation, and `WithTls(issuer)` on a gateway adds an HTTPS listener that cert-manager will populate with a real certificate.
+<ApiReference name="Aspire.Hosting.AzureCertManagerExtensions.AddCertManager" /> installs the upstream cert-manager Helm chart with the CRDs and Gateway API watcher enabled and the `--force-conflicts` flag set so AKS's Azure Policy add-on doesn't break subsequent upgrades. <ApiReference name="Aspire.Hosting.CertManagerExtensions.AddIssuer" /> adds a typed `ClusterIssuer` parented to that installation, and `WithTls(issuer)` on a gateway adds an HTTPS listener that cert-manager will populate with a real certificate.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -394,12 +395,12 @@ await storefront.withTls(letsencrypt, {
 </Tabs>
 
 <Aside type="tip">
-Let's Encrypt's production endpoint enforces strict rate limits. While iterating on your AppHost, swap `WithLetsEncryptProduction` for `WithLetsEncryptStaging` so failed attempts don't cost you your weekly quota. Browsers will warn on staging certificates — flip back to production once everything works end-to-end.
+Let's Encrypt's production endpoint enforces strict rate limits. While iterating on your AppHost, swap <ApiReference name="Aspire.Hosting.CertManagerExtensions.WithLetsEncryptProduction" /> for <ApiReference name="Aspire.Hosting.CertManagerExtensions.WithLetsEncryptStaging" /> so failed attempts don't cost you your weekly quota. Browsers will warn on staging certificates — flip back to production once everything works end-to-end.
 </Aside>
 
 #### How the certificate gets issued
 
-cert-manager validates domain ownership using the **HTTP-01** challenge configured by `WithHttp01Solver` — it asks the gateway to serve a token at `/.well-known/acme-challenge/<token>` and verifies the response. There is no DNS API access required, so this works for the auto-assigned `*.alb.azure.com` FQDN out of the box.
+cert-manager validates domain ownership using the **HTTP-01** challenge configured by <ApiReference name="Aspire.Hosting.CertManagerExtensions.WithHttp01Solver" /> — it asks the gateway to serve a token at `/.well-known/acme-challenge/<token>` and verifies the response. There is no DNS API access required, so this works for the auto-assigned `*.alb.azure.com` FQDN out of the box.
 
 To break the chicken-and-egg problem where AGC won't program a Gateway whose HTTPS listener references a missing secret, Aspire pre-creates a self-signed bootstrap secret on the first deploy. Once AGC publishes the gateway's FQDN, Aspire patches the listener with the real hostname and cert-manager swaps the bootstrap certificate for a Let's Encrypt one. You may briefly see a self-signed certificate during the first deploy — this is expected.
 
@@ -434,7 +435,7 @@ The `*.alb.azure.com` FQDN is fine for testing but real applications need a host
 
 ### Tell the gateway about your hostname
 
-`WithHostname` adds the hostname to the gateway's `HTTPRoute`s and to the HTTPS listener so cert-manager issues the certificate for the right name. Use the parameter overload when the hostname differs across deployment environments.
+<ApiReference name="Aspire.Hosting.KubernetesGatewayExtensions.WithHostname" /> adds the hostname to the gateway's `HTTPRoute`s and to the HTTPS listener so cert-manager issues the certificate for the right name. Use the parameter overload when the hostname differs across deployment environments.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -551,7 +552,7 @@ After authentication, `aspire deploy` needs a target subscription and location. 
 
 ### Customizing Azure resources
 
-Use `PublishAsKubernetesService` to customize the Kubernetes resources generated for individual services:
+Use <ApiReference name="Aspire.Hosting.KubernetesServiceExtensions.PublishAsKubernetesService" /> to customize the Kubernetes resources generated for individual services:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -584,7 +585,7 @@ await api.publishAsKubernetesService(async (resource) => {
 
 ## Install external Helm charts
 
-Use `AddHelmChart` on the AKS environment to install pre-existing Helm charts — such as cert-manager or NGINX ingress — as post-deploy pipeline steps alongside your application.
+Use <ApiReference name="Aspire.Hosting.AzureKubernetesIngressExtensions.AddHelmChart" /> on the AKS environment to install pre-existing Helm charts — such as cert-manager or NGINX ingress — as post-deploy pipeline steps alongside your application.
 
 <LearnMore>
 See [Install external Helm charts](/deployment/kubernetes/helm-charts/) for a full walkthrough of adding external charts, configuring Helm values, overriding namespaces and release names, and choosing destroy-time uninstall behavior.

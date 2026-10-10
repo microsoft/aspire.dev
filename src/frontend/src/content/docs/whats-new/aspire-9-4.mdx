@@ -17,6 +17,7 @@ import dashboardUpdateNotification from '@assets/whats-new/aspire-9.4/dashboard-
 import dashboardConnectionStrings from '@assets/whats-new/aspire-9.4/dashboard-connection-strings.png';
 import dashboardTracingPeers from '@assets/whats-new/aspire-9.4/dashboard-tracing-peers.png';
 import dashboardConsoleLogsWrapping from '@assets/whats-new/aspire-9.4/dashboard-console-logs-wrapping.gif';
+import ApiReference from '@components/ApiReference.astro';
 
 📢 Aspire 9.4 is the next minor version release of Aspire. It supports:
 
@@ -123,7 +124,7 @@ The `aspire deploy` command introduced extensible deployment workflows, enabling
 
 **Key capabilities:**
 
-- **Custom deployment steps** using `WithPipelineStepFactory` to execute custom logic during the `aspire deploy` command
+- **Custom deployment steps** using <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineStepFactory" /> to execute custom logic during the `aspire deploy` command
 - **Workflow activity reporting** through tasks created from `PipelineStepContext.ReportingStep`, with prompts provided by `IInteractionService`
 - **Pipeline ordering and dependencies** using `dependsOn`, `requiredBy`, and well-known pipeline steps
 
@@ -790,7 +791,7 @@ The [YARP integration](https://aspire.dev/integrations/reverse-proxies/yarp/) is
 
 Building sophisticated reverse proxy configurations has traditionally required deep knowledge of YARP's transform system and manual JSON configuration. Aspire 9.4 introduces a comprehensive set of fluent APIs that make advanced routing transformations accessible through strongly-typed C# code.
 
-**Breaking change in 9.4:** The `WithConfigFile()` method has been removed and replaced with a code-based configuration model. This new approach works seamlessly with deployment scenarios as the strongly-typed configuration methods translate directly into the appropriate environment variables.
+**Breaking change in 9.4:** The <ApiReference name="Aspire.Hosting.FlociHostingExtension.WithConfigFile" /> method has been removed and replaced with a code-based configuration model. This new approach works seamlessly with deployment scenarios as the strongly-typed configuration methods translate directly into the appropriate environment variables.
 
 You can now programmatically configure request/response transformations, header manipulation, path rewriting, and query string handling directly from your app model—no more wrestling with complex configuration files.
 
@@ -1078,7 +1079,7 @@ builder.Build().Run();
 
 <Aside type="note">
   These Aspire 9.4 examples intentionally use `AddAzureAIFoundry`, the hosting
-  API available in that release. Aspire 13.2 renamed it to `AddFoundry`; see the
+  API available in that release. Aspire 13.2 renamed it to <ApiReference name="Aspire.Hosting.FoundryExtensions.AddFoundry" />; see the
   [Foundry package and namespace
   transition](/whats-new/aspire-13-2/#foundry-package-and-namespace-transition).
 </Aside>
@@ -1133,7 +1134,7 @@ builder.AddOpenAIClient("chat")
 - **Azure AI Foundry** - Cloud-hosted models with enterprise-grade scaling, supports all Azure AI model deployments
 - **Foundry Local** - On-device inference with different model selection optimized for local hardware, no Azure subscription required
 
-The `RunAsFoundryLocal()` method enables local development scenarios using [Azure AI Foundry Local](https://learn.microsoft.com/azure/ai-foundry/foundry-local/), allowing you to test AI capabilities without requiring cloud resources during development. This supports automatic model downloading, loading, and management through the integrated Foundry Local runtime.
+The <ApiReference name="Aspire.Hosting.FoundryExtensions.RunAsFoundryLocal" /> method enables local development scenarios using [Azure AI Foundry Local](https://learn.microsoft.com/azure/ai-foundry/foundry-local/), allowing you to test AI capabilities without requiring cloud resources during development. This supports automatic model downloading, loading, and management through the integrated Foundry Local runtime.
 
 ### 🗄️ Database hosting improvements
 
@@ -1319,7 +1320,7 @@ var webApi = builder.AddProject<Projects.WebAPI>("webapi")
 
 - `Aspire.Hosting.AzureKeyVaultResourceExtensions.AddSecret*` method for adding new secrets to Key Vault from parameters or expressions
 - `Aspire.Hosting.Azure.AzureKeyVaultResource.GetSecret*` method for referencing existing secrets in Key Vault
-- **Strongly-typed secret references** that can be used with `WithEnvironment()` for environment variables
+- **Strongly-typed secret references** that can be used with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> for environment variables
 - **Custom secret naming** support with optional `secretName` parameter
 
 #### 📥Resource Deep Linking for Azure Storage Queues
@@ -1558,7 +1559,7 @@ builder.AddProject<Projects.Api>("api")
        .WithEnvironment("API_KEY", secretRef);  // Using IAzureKeyVaultSecretReference
 ```
 
-**Migration impact**: Replace `GetSecretOutput()` and `BicepSecretOutputReference` usage with the new `GetSecret()` method that returns `IAzureKeyVaultSecretReference`.
+**Migration impact**: Replace `GetSecretOutput()` and `BicepSecretOutputReference` usage with the new <ApiReference name="Aspire.Hosting.AzureKeyVaultResourceExtensions.GetSecret" /> method that returns `IAzureKeyVaultSecretReference`.
 
 ### 📦 Azure Storage blob container creation changes
 
@@ -1575,11 +1576,11 @@ var storage = builder.AddAzureStorage("storage");
 var container = storage.AddBlobContainer("images");   // Direct on storage resource
 ```
 
-**Migration impact**: Use `AddBlobContainer()` directly on `AzureStorageResource` instead of on specialized blob storage resources.
+**Migration impact**: Use <ApiReference name="Aspire.Hosting.AzureStorageExtensions.AddBlobContainer" /> directly on `AzureStorageResource` instead of on specialized blob storage resources.
 
 ### 🔐 Keycloak realm import simplification
 
-The `WithRealmImport` method signature has been **simplified by removing the confusing `isReadOnly` parameter**:
+The <ApiReference name="Aspire.Hosting.KeycloakResourceBuilderExtensions.WithRealmImport" /> method signature has been **simplified by removing the confusing `isReadOnly` parameter**:
 
 ```csharp
 // ❌ Before (deprecated):
@@ -1611,7 +1612,7 @@ var milvus = builder.AddMilvus("milvus")
     .WithConfigurationFile("./milvus.yaml");  // Method renamed for clarity
 ```
 
-**Migration impact**: Update method calls to use `WithConfigurationFile` instead of `WithConfigurationBindMount` for Milvus configuration.
+**Migration impact**: Update method calls to use <ApiReference name="Aspire.Hosting.MilvusBuilderExtensions.WithConfigurationFile" /> instead of `WithConfigurationBindMount` for Milvus configuration.
 
 ### 🔄 Azure Storage client registration updates
 
@@ -1702,7 +1703,7 @@ var api = builder.AddProject<Projects.Api>("api")
     });
 ```
 
-**Migration impact**: Replace usage of `AfterEndpointsAllocatedEvent` with resource-specific lifecycle events like `OnBeforeResourceStarted` or `OnResourceEndpointsAllocated` for better type safety and clarity.
+**Migration impact**: Replace usage of `AfterEndpointsAllocatedEvent` with resource-specific lifecycle events like <ApiReference name="Aspire.Hosting.DistributedApplicationEventingExtensions.OnBeforeResourceStarted" /> or <ApiReference name="Aspire.Hosting.DistributedApplicationEventingExtensions.OnResourceEndpointsAllocated" /> for better type safety and clarity.
 
 ### 🧊 Azure Container Apps hybrid mode removal
 

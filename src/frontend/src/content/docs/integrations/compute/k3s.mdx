@@ -8,6 +8,7 @@ import { Image } from 'astro:assets';
 import { Aside, Badge, FileTree, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import k3sIcon from '@assets/icons/k3s-icon.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -110,7 +111,7 @@ The examples below show how to use the k3s integration APIs. They assume you alr
     - AppHost.cs Add the k3s cluster here
   - MyOperator/ Existing project
     - MyOperator.csproj
-  - k8s/ Manifests used with `AddK8sManifest`
+  - k8s/ Manifests used with <ApiReference name="Aspire.Hosting.K3sManifestBuilderExtensions.AddK8sManifest" />
     - app-config.yaml Kubernetes manifests
 </FileTree>
 
@@ -203,14 +204,14 @@ The available options are:
 
 | Method | Parameter / Effect |
 |---|---|
-| `AddK3sCluster(agentCount:)` | Number of worker nodes (`0` = single-node). Equivalent to `WithAgentCount`. |
+| `AddK3sCluster(agentCount:)` | Number of worker nodes (`0` = single-node). Equivalent to <ApiReference name="Aspire.Hosting.K3sBuilderExtensions.WithAgentCount" />. |
 | `WithAgentCount(n)` | Same as above, fluent alternative. The health check waits for all `1 + n` nodes to be `Ready`. |
 | `WithK3sVersion(tag)` | Overrides the k3s image tag, for example `v1.32.3-k3s1`. Synced to agents automatically. |
 | `WithPodSubnet(cidr)` | Sets `--cluster-cidr`. Defaults to the k3s built-in `10.42.0.0/16`. |
 | `WithServiceSubnet(cidr)` | Sets `--service-cidr`. Defaults to the k3s built-in `10.43.0.0/16`. |
 | `WithDisabledComponent(c)` | Passes `--disable=<c>`. Call multiple times for multiple components. |
 | `WithExtraArg(arg)` | Appends a raw argument to `k3s server`. |
-| `WithHelmImage(tag?, image?, registry?)` | Overrides the `alpine/helm` image used by `AddHelmRelease`. |
+| `WithHelmImage(tag?, image?, registry?)` | Overrides the `alpine/helm` image used by <ApiReference name="Aspire.Hosting.K3sHelmBuilderExtensions.AddHelmRelease" />. |
 | `WithKubectlImage(tag?, image?, registry?)` | Overrides the `alpine/kubectl` image used by `AddK8sManifest`. |
 | `WithDataVolume(name?)` | Mounts a named Docker volume at `/var/lib/rancher/k3s`. |
 | `WithLifetime(lifetime)` | Sets `ContainerLifetime.Persistent` or `Session` for the cluster and its agents. |
@@ -238,7 +239,7 @@ const cluster = await builder.addK3sCluster('k8s')
 </TabItem>
 </Tabs>
 
-`WithDataVolume` persists the k3s database, certificates, and node tokens across AppHost restarts. `WithLifetime(Persistent)` tells DCP to keep the Docker container alive between runs, making subsequent starts much faster.
+<ApiReference name="Aspire.Hosting.K3sBuilderExtensions.WithDataVolume" /> persists the k3s database, certificates, and node tokens across AppHost restarts. `WithLifetime(Persistent)` tells DCP to keep the Docker container alive between runs, making subsequent starts much faster.
 
 <Aside type="caution">
 With persistent containers, `agentCount` must stay constant across runs. Decreasing it leaves orphaned agent containers that fail to rejoin the cluster; delete them manually with `docker rm -f`.
@@ -288,8 +289,8 @@ await operator.withReference(cluster);
 
 Values are applied in this order, with the last one winning:
 
-1. `WithHelmValuesFile` — in declaration order
-2. `WithHelmValue` (`--set` flags) — always override files
+1. <ApiReference name="Aspire.Hosting.K3sHelmBuilderExtensions.WithHelmValuesFile" /> — in declaration order
+2. <ApiReference name="Aspire.Hosting.K3sHelmBuilderExtensions.WithHelmValue" /> (`--set` flags) — always override files
 
 Use `WithHelmValuesFile` for structured overrides (values with commas, braces, or backslashes). `WithHelmValue` is convenient for individual scalar overrides.
 
@@ -336,7 +337,7 @@ await monitoring.waitForCompletion(appConfig);
 
 ## Expose Kubernetes services
 
-`AddServiceEndpoint` starts an in-process WebSocket port-forward bound to `0.0.0.0:{allocatedPort}` — no `NodePort` or `LoadBalancer` configuration is required. The endpoint transitions to `Running` only after the target service has a ready pod.
+<ApiReference name="Aspire.Hosting.K3sServiceEndpointExtensions.AddServiceEndpoint" /> starts an in-process WebSocket port-forward bound to `0.0.0.0:{allocatedPort}` — no `NodePort` or `LoadBalancer` configuration is required. The endpoint transitions to `Running` only after the target service has a ready pod.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -387,7 +388,7 @@ Scheme is inferred from the port: `443` and `8443` resolve to `https`, all other
 
 ## Kubeconfig injection
 
-Both `K3sClusterResource` and `K3sServiceEndpointResource` implement `IResourceWithConnectionString`, so the standard `WithReference` overload handles credential injection automatically:
+Both `K3sClusterResource` and `K3sServiceEndpointResource` implement `IResourceWithConnectionString`, so the standard <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> overload handles credential injection automatically:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">

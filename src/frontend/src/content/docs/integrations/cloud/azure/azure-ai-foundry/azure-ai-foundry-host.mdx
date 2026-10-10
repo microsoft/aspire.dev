@@ -12,6 +12,7 @@ import agentSendMessage from '@assets/integrations/cloud/azure/azure-ai-foundry/
 import agentSendMessageLight from '@assets/integrations/cloud/azure/azure-ai-foundry/agent-send-message-light.png';
 import agentResponsesResult from '@assets/integrations/cloud/azure/azure-ai-foundry/agent-responses-result.png';
 import agentResponsesResultLight from '@assets/integrations/cloud/azure/azure-ai-foundry/agent-responses-result-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={aiFoundryIcon}
@@ -56,7 +57,7 @@ Or, choose a manual installation approach:
   This integration was previously shipped as `Aspire.Hosting.Azure.AIFoundry`.
   When upgrading from Aspire 13.1 or earlier, replace that package with
   `Aspire.Hosting.Foundry` and rename `AddAzureAIFoundry(...)` to
-  `AddFoundry(...)`. Resource and model types moved from
+  <ApiReference name="Aspire.Hosting.FoundryExtensions.AddFoundry" />. Resource and model types moved from
   `Aspire.Hosting.Azure` to `Aspire.Hosting.Foundry`; add
   `using Aspire.Hosting.Foundry;` for direct type references and remove
   `using Aspire.Hosting.Azure;` only if your code no longer uses other types
@@ -129,10 +130,10 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-The preceding code adds an Azure AI Foundry resource named `foundry` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+The preceding code adds an Azure AI Foundry resource named `foundry` to the AppHost project. The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> method passes the connection information to the `ExampleProject` project.
 
 <Aside type="caution">
-  When you call `AddFoundry`, it implicitly calls `AddAzureProvisioning`—which
+  When you call `AddFoundry`, it implicitly calls <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" />—which
   adds support for generating Azure resources dynamically during app startup.
   The app must configure the appropriate subscription and location. For more
   information, see [Local provisioning:
@@ -141,7 +142,7 @@ The preceding code adds an Azure AI Foundry resource named `foundry` to the AppH
 
 ## Add a Foundry deployment resource
 
-To add a Foundry deployment resource, call the `AddDeployment` method with one of the generated `FoundryModel` entries:
+To add a Foundry deployment resource, call the <ApiReference name="Aspire.Hosting.FoundryExtensions.AddDeployment" /> method with one of the generated `FoundryModel` entries:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -240,7 +241,7 @@ await builder.build().run();
 
 ## Configure deployment properties
 
-You can customize deployment properties using the `WithProperties` method:
+You can customize deployment properties using the <ApiReference name="Aspire.Hosting.FoundryExtensions.WithProperties" /> method:
 
 ```csharp
 var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini)
@@ -255,7 +256,7 @@ The preceding code sets the SKU name to `Standard` and capacity to `10` for the 
 
 ## Add a Foundry project
 
-Use the `AddProject` method to create an Azure AI Foundry project for agents, project-scoped connections, and related Azure resources:
+Use the <ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.AddProject" /> method to create an Azure AI Foundry project for agents, project-scoped connections, and related Azure resources:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -305,7 +306,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-The preceding code creates a Foundry project and adds a deployment through `AddModelDeployment`. When you call `WithReference(project)`, Aspire injects the standard connection string and project-specific connection properties such as the project endpoint and Application Insights connection string into the consuming resource.
+The preceding code creates a Foundry project and adds a deployment through <ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.AddModelDeployment" />. When you call `WithReference(project)`, Aspire injects the standard connection string and project-specific connection properties such as the project endpoint and Application Insights connection string into the consuming resource.
 
 ### Configure a Foundry project
 
@@ -351,11 +352,11 @@ await foundry
 </TabItem>
 </Tabs>
 
-`AddProject` creates a default Azure Container Registry for hosted agents only in publish mode (when deploying to Azure). In local run mode, no default registry is created. Use `WithContainerRegistry` when you want to point the project at a specific registry.
+`AddProject` creates a default Azure Container Registry for hosted agents only in publish mode (when deploying to Azure). In local run mode, no default registry is created. Use <ApiReference name="Aspire.Hosting.ContainerRegistryResourceBuilderExtensions.WithContainerRegistry" /> when you want to point the project at a specific registry.
 
 ## Add a Toolbox
 
-A [Toolbox](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox) is a Foundry data-plane resource that bundles reusable tools behind a single MCP endpoint. Toolboxes don't have an ARM or Bicep representation — Aspire manages them directly through the Foundry data-plane API. Use `AddToolbox` on a Foundry project to declare one:
+A [Toolbox](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox) is a Foundry data-plane resource that bundles reusable tools behind a single MCP endpoint. Toolboxes don't have an ARM or Bicep representation — Aspire manages them directly through the Foundry data-plane API. Use <ApiReference name="Aspire.Hosting.FoundryToolboxBuilderExtensions.AddToolbox" /> on a Foundry project to declare one:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -432,14 +433,14 @@ builder.Build().Run();
 
 Parameter details:
 
-The identity running `aspire run` or `aspire deploy` needs the **Foundry User** role on the project to manage Toolbox versions. Deployed compute resources that reference the Toolbox receive this role on the project automatically. The Search index named `docs` must already exist and contain data: neither `AddAzureSearch` nor `WithAISearchTool` creates or populates it. Toolbox availability depends on the Foundry service preview and its supported regions.
+The identity running `aspire run` or `aspire deploy` needs the **Foundry User** role on the project to manage Toolbox versions. Deployed compute resources that reference the Toolbox receive this role on the project automatically. The Search index named `docs` must already exist and contain data: neither <ApiReference name="Aspire.Hosting.AzureSearchExtensions.AddAzureSearch" /> nor <ApiReference name="Aspire.Hosting.FoundryToolboxBuilderExtensions.WithAISearchTool" /> creates or populates it. Toolbox availability depends on the Foundry service preview and its supported regions.
 
 | API | Parameter | Description |
 | --- | --- | --- |
 | `AddToolbox(...)` | `name` | The Aspire resource name and the Toolbox name. |
-| `WithDescription(...)` | `description` | A description persisted with each Toolbox version. |
-| `WithWebSearchTool(...)` | `name`, `description` | Adds a web search tool definition to the Toolbox. |
-| `WithMcpTool(...)` | `name`, `endpoint`, `options` | Adds an MCP tool definition. `endpoint` accepts a string URI, an `EndpointReference`, or a `ReferenceExpression` for composed URLs. `options` configures the MCP server label, description, and approval policy. |
+| <ApiReference name="Aspire.Hosting.FoundryToolboxBuilderExtensions.WithDescription" /> | `description` | A description persisted with each Toolbox version. |
+| <ApiReference name="Aspire.Hosting.FoundryToolboxBuilderExtensions.WithWebSearchTool" /> | `name`, `description` | Adds a web search tool definition to the Toolbox. |
+| <ApiReference name="Aspire.Hosting.FoundryToolboxBuilderExtensions.WithMcpTool" /> | `name`, `endpoint`, `options` | Adds an MCP tool definition. `endpoint` accepts a string URI, an `EndpointReference`, or a `ReferenceExpression` for composed URLs. `options` configures the MCP server label, description, and approval policy. |
 | `WithAISearchTool(...)` | `name`, `search`, `indexName`, `description` | Adds an Azure AI Search tool backed by an `AddAzureSearch` resource and an existing search index. |
 
 <Aside type="caution">
@@ -460,15 +461,15 @@ Use the existing-resource methods to validate a remote Toolbox without resolving
 
 | Method | `aspire run` | `aspire deploy` |
 | --- | --- | --- |
-| `RunAsExisting()` | Validate existing | Reconcile managed |
-| `PublishAsExisting()` | Reconcile managed | Validate existing |
-| `AsExisting()` | Validate existing | Validate existing |
+| <ApiReference name="Aspire.Hosting.FoundryToolboxBuilderExtensions.RunAsExisting" /> | Validate existing | Reconcile managed |
+| <ApiReference name="Aspire.Hosting.FoundryToolboxBuilderExtensions.PublishAsExisting" /> | Reconcile managed | Validate existing |
+| <ApiReference name="Aspire.Hosting.FoundryToolboxBuilderExtensions.AsExisting" /> | Validate existing | Validate existing |
 
 These methods apply to the Toolbox resource itself. Existing mode validates the remote Toolbox, and a pinned version if supplied, without resolving local tools or promoting a version. See [Toolbox connection properties](../azure-ai-foundry-connect/#foundry-toolbox-resource) for the consumer's endpoint, authentication scope, and required request header.
 
 ## Add a hosted agent to Azure AI Foundry
 
-Use `AsHostedAgent` in C# or `asHostedAgent` in TypeScript to configure an executable or containerized app as a hosted agent in a Foundry project:
+Use <ApiReference name="Aspire.Hosting.HostedAgentResourceBuilderExtensions.AsHostedAgent" /> to configure an executable or containerized app as a hosted agent in a Foundry project:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -613,7 +614,7 @@ The defaulted `asHostedAgent` entry point and the explicit `asHostedAgentWithPro
 
 ### Add and publish a prompt agent
 
-For prompt-only scenarios, use `AddPromptAgent` on a Foundry project:
+For prompt-only scenarios, use <ApiReference name="Aspire.Hosting.PromptAgentBuilderExtensions.AddPromptAgent" /> on a Foundry project:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -680,7 +681,7 @@ Parameter details:
 | `AddPromptAgent(...)` | `model`        | The Foundry model deployment resource the prompt agent uses, such as `chat` from `project.AddModelDeployment(...)`.                                               |
 | `AddPromptAgent(...)` | `name`         | The Aspire resource name and Foundry agent name. This also drives generated environment variable prefixes, for example `web-researcher` becomes `WEB_RESEARCHER`. |
 | `AddPromptAgent(...)` | `instructions` | Optional system instructions for the prompt agent. Use this to define behavior, tool-use guidance, and response style.                                            |
-| `WithTool(...)`       | `tool`         | A Foundry tool resource created on the same Foundry project, such as `AddWebSearchTool(...)`, `AddCodeInterpreterTool(...)`, or `AddAISearchTool(...)`.           |
+| <ApiReference name="Aspire.Hosting.PromptAgentBuilderExtensions.WithTool" />       | `tool`         | A Foundry tool resource created on the same Foundry project, such as <ApiReference name="Aspire.Hosting.PromptAgentBuilderExtensions.AddWebSearchTool" />, <ApiReference name="Aspire.Hosting.PromptAgentBuilderExtensions.AddCodeInterpreterTool" />, or <ApiReference name="Aspire.Hosting.PromptAgentBuilderExtensions.AddAISearchTool" />.           |
 
 Prompt agents are deployed to Azure AI Foundry even during local development. Local apps call the cloud-provisioned agent through the injected project endpoint and agent name.
 
@@ -816,7 +817,7 @@ When the AppHost starts, Aspire automatically starts the Foundry Local service u
 
 This requires the `foundry` CLI to be installed and available on `PATH`. For installation instructions, see [Foundry Local get started](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started).
 
-The `RunAsFoundryLocal` method configures the resource to use the local service. It downloads and loads the specified models locally, provides health checks for the local service, and fully manages the Foundry Local lifecycle — including start and stop — through the `foundry` CLI.
+The <ApiReference name="Aspire.Hosting.FoundryExtensions.RunAsFoundryLocal" /> method configures the resource to use the local service. It downloads and loads the specified models locally, provides health checks for the local service, and fully manages the Foundry Local lifecycle — including start and stop — through the `foundry` CLI.
 
 <Aside type="caution">
   Foundry Projects aren't supported when the parent Foundry resource uses
@@ -1006,7 +1007,7 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 
 ### Customize provisioning infrastructure
 
-All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This enables customization of the generated Bicep by providing a fluent API to configure the Azure resources—using the `ConfigureInfrastructure` API:
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This enables customization of the generated Bicep by providing a fluent API to configure the Azure resources—using the <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> API:
 
 ```csharp title="AppHost.cs"
 builder.AddFoundry("foundry")

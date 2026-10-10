@@ -11,6 +11,7 @@ import dotnetIcon from '@assets/icons/dotnet.svg';
 import proxyWithReplicas from '@assets/fundamentals/networking/proxy-with-replicas-1x.png';
 import proxyHostPortAndRandomPort from '@assets/fundamentals/networking/proxy-host-port-and-random-port-1x.png';
 import proxyWithRandomPorts from '@assets/fundamentals/networking/proxy-with-random-ports-1x.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={dotnetIcon}
@@ -28,7 +29,7 @@ This article is the reference for modeling .NET projects as first-class Aspire r
 Use project resources when you need to:
 
 - Orchestrate an ASP.NET Core, worker, or console project from an AppHost.
-- Connect the project to other Aspire resources with `withReference`, service discovery, and generated connection strings.
+- Connect the project to other Aspire resources with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" />, service discovery, and generated connection strings.
 - Reuse launch profile settings and ASP.NET Core endpoint discovery from `launchSettings.json`.
 
 In a **C# AppHost**, `AddProject<T>` references the target project through a generated `Projects.*` type, created from a `ProjectReference` in the AppHost `.csproj`. In a **TypeScript AppHost**, `addProject(name, path)` takes the path to the `.csproj` file directly — no generated type or project file reference is needed.
@@ -48,7 +49,7 @@ Start by adding a `ProjectReference` from the AppHost to the target project:
 </ItemGroup>
 ```
 
-When the AppHost builds, Aspire generates a metadata type in the `Projects` namespace for that reference. Use the generated type with `AddProject`:
+When the AppHost builds, Aspire generates a metadata type in the `Projects` namespace for that reference. Use the generated type with <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" />:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -58,7 +59,7 @@ var api = builder.AddProject<Projects.ApiService>("api");
 builder.Build().Run();
 ```
 
-The path to the project comes from the `ProjectReference`, so `AddProject` doesn't need a `.csproj` path. This is the main difference from `AddCSharpApp`, which points directly to a file, project, or directory.
+The path to the project comes from the `ProjectReference`, so `AddProject` doesn't need a `.csproj` path. This is the main difference from <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddCSharpApp" />, which points directly to a file, project, or directory.
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
@@ -277,7 +278,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-For ASP.NET Core projects, Aspire reads the selected launch profile and can create endpoints from the `applicationUrl` field in _launchSettings.json_. You can then customize those endpoints with methods like `WithEndpoint`:
+For ASP.NET Core projects, Aspire reads the selected launch profile and can create endpoints from the `applicationUrl` field in _launchSettings.json_. You can then customize those endpoints with methods like <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEndpoint" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -343,7 +344,7 @@ With that configuration:
 - The project receives its internal binding through `ASPNETCORE_URLS`.
 - Browsers and dependent resources talk to the proxy endpoint, not directly to a replica.
 
-Without `WithReplicas`, the proxy still fronts the project resource. The host port stays stable, while the project itself listens on a random internal port.
+Without <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.WithReplicas" />, the proxy still fronts the project resource. The host port stays stable, while the project itself listens on a random internal port.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -397,7 +398,7 @@ In this configuration, Aspire assigns a random proxy port for the host-facing en
 
 ## Filter endpoints in environment variables
 
-Project resource endpoints follow default heuristics. Some endpoints are included in `ASPNETCORE_URLS`, some are published as `HTTP/HTTPS_PORTS`, and some are resolved from Kestrel configuration. Use `WithEndpointsInEnvironment` when you need to filter which endpoints are exposed through environment variables:
+Project resource endpoints follow default heuristics. Some endpoints are included in `ASPNETCORE_URLS`, some are published as `HTTP/HTTPS_PORTS`, and some are resolved from Kestrel configuration. Use <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.WithEndpointsInEnvironment" /> when you need to filter which endpoints are exposed through environment variables:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -554,7 +555,7 @@ In a **C# AppHost**, use `AddProject<T>` when you have a standard `.csproj`, can
 
 In a **TypeScript AppHost**, `addProject(name, path)` always takes a path, so the distinction between `AddProject<T>` and `AddCSharpApp` doesn't apply in the same way.
 
-Some .NET app types use specialized integrations instead of `AddProject`. For example, [.NET MAUI integration](/integrations/dotnet/maui/) uses `AddMauiProject` because MAUI apps aren't added to the AppHost through `ProjectReference` metadata.
+Some .NET app types use specialized integrations instead of `AddProject`. For example, [.NET MAUI integration](/integrations/dotnet/maui/) uses <ApiReference name="Aspire.Hosting.MauiProjectExtensions.AddMauiProject" /> because MAUI apps aren't added to the AppHost through `ProjectReference` metadata.
 
 ## Migrate from legacy project resources
 

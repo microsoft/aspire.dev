@@ -6,8 +6,9 @@ description: Model durable storage as first-class persistent volume resources in
 
 import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
-Stateful workloads — databases, message brokers, or any service that writes durable data — need storage that survives pod restarts and rescheduling. Call `AddPersistentVolume` on a Kubernetes environment to describe a durable disk once in your AppHost, configure its storage class, capacity, access modes, and annotations with fluent methods, then bind it to one or more workloads:
+Stateful workloads — databases, message brokers, or any service that writes durable data — need storage that survives pod restarts and rescheduling. Call <ApiReference name="Aspire.Hosting.KubernetesPersistentVolumeExtensions.AddPersistentVolume" /> on a Kubernetes environment to describe a durable disk once in your AppHost, configure its storage class, capacity, access modes, and annotations with fluent methods, then bind it to one or more workloads:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -100,7 +101,7 @@ The available configuration methods are:
 |---|---|---|
 | `WithStorageClass(string)` | `withStorageClass` / `withStorageClassParam` | Sets `spec.storageClassName` on the PVC. In C#, the single method accepts a literal string or an Aspire parameter; in TypeScript, use `withStorageClass` for a literal and `withStorageClassParam` for a parameter. |
 | `WithCapacity(string)` | `withCapacity` / `withCapacityParam` | Sets the requested storage on `spec.resources.requests.storage` (for example, `"20Gi"`). In TypeScript, use `withCapacity` for a literal and `withCapacityParam` for a parameter. |
-| `WithAccessMode(PersistentVolumeAccessMode)` | `withAccessMode` | Adds an entry to `spec.accessModes`. Call multiple times to declare more than one mode. |
+| `WithAccessMode(PersistentVolumeAccessMode)` | <ApiReference name="Aspire.Hosting.KubernetesPersistentVolumeExtensions.WithAccessMode" /> | Adds an entry to `spec.accessModes`. Call multiple times to declare more than one mode. |
 | `WithVolumeAnnotation(string, string)` | `withVolumeAnnotation` / `withVolumeAnnotationParam` | Adds a key-value pair to the PVC's `metadata.annotations`. Useful for CSI driver hints, dynamic provisioner parameters, or backup tooling tags. In TypeScript, use `withVolumeAnnotation` for a literal value and `withVolumeAnnotationParam` for a parameter. |
 
 The `PersistentVolumeAccessMode` values map directly to the Kubernetes access modes:
@@ -228,7 +229,7 @@ A Kubernetes access mode such as `ReadWriteOnce` controls how a volume can be at
   The automatic security context described in this section requires Aspire 13.6 or later.
 </Aside>
 
-To avoid that out-of-the-box failure, both `WithPersistentVolume(...)` overloads — and their TypeScript equivalents, `withKubernetesPersistentVolume` and `withKubernetesPersistentVolumeMount` — add the following pod security context to the workload automatically:
+To avoid that out-of-the-box failure, both `WithPersistentVolume(...)` overloads — and their TypeScript equivalents, <ApiReference name="Aspire.Hosting.KubernetesPersistentVolumeExtensions.WithPersistentVolume" /> and `withKubernetesPersistentVolumeMount` — add the following pod security context to the workload automatically:
 
 ```yaml
 securityContext:
@@ -242,7 +243,7 @@ This default only applies to workloads bound through `WithPersistentVolume(...)`
 
 ### Overriding or removing the default
 
-The default security context is applied before any `PublishAsKubernetesService` callback runs, so a workload or cluster that needs a different group can replace it:
+The default security context is applied before any <ApiReference name="Aspire.Hosting.KubernetesServiceExtensions.PublishAsKubernetesService" /> callback runs, so a workload or cluster that needs a different group can replace it:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">

@@ -8,6 +8,7 @@ import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import azureIcon from '@assets/icons/azure-front-door-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={azureIcon}
@@ -32,7 +33,7 @@ To access this type and APIs, add the [📦 Aspire.Hosting.Azure.FrontDoor](http
 
 ### Add an Azure Front Door resource
 
-In your AppHost, call `addAzureFrontDoor` to add a Front Door profile, then call `withOrigin` to attach a backend resource as an origin:
+In your AppHost, call <ApiReference name="Aspire.Hosting.AzureFrontDoorExtensions.AddAzureFrontDoor" /> to add a Front Door profile, then call <ApiReference name="Aspire.Hosting.AzureFrontDoorExtensions.WithOrigin" /> to attach a backend resource as an origin:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -78,14 +79,14 @@ await builder.build().run();
 The preceding code:
 
 - Adds an Azure App Service environment (a compute environment is required so Front Door can resolve the origin's hostname).
-- Adds an `api` project and exposes it externally with `withExternalHttpEndpoints`. Front Door requires an origin to expose an external HTTP or HTTPS endpoint.
+- Adds an `api` project and exposes it externally with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" />. Front Door requires an origin to expose an external HTTP or HTTPS endpoint.
 - Adds a Front Door profile named `frontdoor` and configures the `api` project as an origin.
 
 Each call to `withOrigin` creates a separate Front Door endpoint, origin group, origin, and route, so each backend is independently routable through its own `*.azurefd.net` hostname.
 
 <Aside type="caution">
   When you call `addAzureFrontDoor`, it implicitly calls
-  `addAzureProvisioning`—which adds support for generating Azure resources
+  <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" />—which adds support for generating Azure resources
   dynamically during app startup. The app must configure the appropriate
   subscription and location. For more information, see [Local provisioning:
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -146,14 +147,14 @@ Each origin must be added at most once per Front Door resource — adding the sa
 
 ### Health probes
 
-Front Door uses health probes to determine which origins are healthy. By default, the Aspire integration probes the origin's external endpoint at path `/` over HTTPS. If you have configured an HTTP probe on the origin (for example with `WithHttpProbe`), Front Door uses the path and protocol from the resource's liveness probe instead.
+Front Door uses health probes to determine which origins are healthy. By default, the Aspire integration probes the origin's external endpoint at path `/` over HTTPS. If you have configured an HTTP probe on the origin (for example with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpProbe" />), Front Door uses the path and protocol from the resource's liveness probe instead.
 
 ### Provisioning-generated Bicep
 
 When you publish your app, Aspire generates Bicep alongside the manifest. A Front Door resource with a single origin generates Bicep similar to the following:
 
 <Aside type="caution">
-  **Upgrading from Aspire 13.3.0-preview:** The resource names generated for Front Door profiles, endpoints, origin groups, origins, and routes changed in Aspire 13.4. This can result in duplicate Azure resources (profiles, endpoints, origin groups, routes, and origins) during an upgrade. To avoid duplicates, either remove the existing Azure resources before redeploying, or set resource names explicitly using `ConfigureInfrastructure`.
+  **Upgrading from Aspire 13.3.0-preview:** The resource names generated for Front Door profiles, endpoints, origin groups, origins, and routes changed in Aspire 13.4. This can result in duplicate Azure resources (profiles, endpoints, origin groups, routes, and origins) during an upgrade. To avoid duplicates, either remove the existing Azure resources before redeploying, or set resource names explicitly using <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" />.
 </Aside>
 
 <Aside type="caution">

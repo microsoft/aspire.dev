@@ -6,6 +6,7 @@ description: "Deploy Aspire compute resources to Azure Container Apps Sandboxes 
 
 import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="Preview" variant="caution" size="large" class="mb-1" />
 
@@ -85,7 +86,7 @@ builder.Build().Run();
 
 The sandbox group only affects publish and deploy. When you run the AppHost locally with `aspire run`, Aspire adds the sandbox group to the app model but doesn't provision Azure sandbox resources, so your resources run locally as usual.
 
-For a standard deployment, you only need the sandbox group and your compute resources. Use `PublishAsAzureSandbox` only when you want to customize the sandbox runtime options for a resource.
+For a standard deployment, you only need the sandbox group and your compute resources. Use <ApiReference name="Aspire.Hosting.AzureSandboxesExtensions.PublishAsAzureSandbox" /> only when you want to customize the sandbox runtime options for a resource.
 
 ## Customize sandbox runtime options
 
@@ -184,7 +185,7 @@ Durations must use whole-second precision. C# AppHosts use `TimeSpan` values, an
 
 ## Endpoints and access
 
-Aspire creates sandbox ports only for endpoints that are marked external, such as with `WithExternalHttpEndpoints`. Each exposed port gets a public HTTPS URL on the sandbox proxy, which terminates TLS and forwards traffic to the container's target port.
+Aspire creates sandbox ports only for endpoints that are marked external, such as with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" />. Each exposed port gets a public HTTPS URL on the sandbox proxy, which terminates TLS and forwards traffic to the container's target port.
 
 - **Authenticated by default.** External endpoints require Microsoft Entra ID authentication by default. The sandbox port doesn't use an allow-list, so any authenticated Entra ID user can access it.
 - **Anonymous access is opt-in.** To allow anonymous access, set `Anonymous` to `true` for the endpoint in `AzureSandboxOptions.Endpoints`, as shown in the preceding example.
@@ -204,7 +205,7 @@ Sandbox egress uses full traffic inspection with a deny-by-default policy. Aspir
 
 ## Deploy to multiple compute environments
 
-When an AppHost contains more than one compute environment, assign each compute resource explicitly with `WithComputeEnvironment`. `PublishAsAzureSandbox` uses that assignment and doesn't select an environment on its own:
+When an AppHost contains more than one compute environment, assign each compute resource explicitly with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithComputeEnvironment" />. `PublishAsAzureSandbox` uses that assignment and doesn't select an environment on its own:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -267,15 +268,15 @@ When you run `aspire deploy` directly, Aspire binds the role assignment to the a
 
 For a new sandbox group, Aspire creates a dedicated user-assigned managed identity, attaches it to the sandbox group, and grants it only the `AcrPull` role on the group's Azure Container Registry. The service uses this identity to import private images from the registry. Public registry images are imported without it, and registry credentials aren't sent to the service or stored in deployment state.
 
-Use `WithAcrPullIdentity` to supply a different user-assigned identity. For sandbox groups that Aspire creates, the identity is attached automatically, but you're responsible for granting it `AcrPull` on the registry.
+Use <ApiReference name="Aspire.Hosting.AzureSandboxesExtensions.WithAcrPullIdentity" /> to supply a different user-assigned identity. For sandbox groups that Aspire creates, the identity is attached automatically, but you're responsible for granting it `AcrPull` on the registry.
 
 ### Workload identities
 
 The image pull identity isn't exposed to sandbox workloads. To give workloads a managed identity, configure it on the sandbox group:
 
-- `WithSystemAssignedIdentity` adds a system-assigned managed identity for sandbox workloads.
-- `WithUserAssignedIdentity` adds a user-assigned managed identity for sandbox workloads.
-- `WithNoManagedIdentity` clears the workload identities configured on the sandbox group.
+- <ApiReference name="Aspire.Hosting.AzureSandboxesExtensions.WithSystemAssignedIdentity" /> adds a system-assigned managed identity for sandbox workloads.
+- <ApiReference name="Aspire.Hosting.AzureSandboxesExtensions.WithUserAssignedIdentity" /> adds a user-assigned managed identity for sandbox workloads.
+- <ApiReference name="Aspire.Hosting.AzureSandboxesExtensions.WithNoManagedIdentity" /> clears the workload identities configured on the sandbox group.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
