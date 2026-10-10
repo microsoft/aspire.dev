@@ -45,6 +45,19 @@ Alternatively, you can opt-out of telemetry collection by disabling telemetry co
 
 When dashboard usage telemetry is enabled, there's a disclosure statement at the bottom of the settings panel, informing you that telemetry is enabled. This disclosure statement appears when usage telemetry is enabled.
 
+## Startup telemetry
+
+Separately from the IDE-scoped usage telemetry described above, the dashboard always records an `aspire/dashboard/startup` event when it starts, regardless of how it's launched (AppHost, the `aspire dashboard run` CLI command, standalone, or a deployed container). This event records:
+
+- The startup result (success or failure).
+- The elapsed startup duration, in milliseconds.
+- The launch context: `apphost`, `cli`, `container`, or `unknown`.
+- For failed startups, an error type: `invalid_config` for options validation failures, `address_in_use` for address conflicts, `canceled` for token-driven startup cancellation, or the exception type for other failures.
+
+The launch context is read from the `Dashboard:LaunchContext` configuration option (`DASHBOARD__LAUNCHCONTEXT` environment variable). The AppHost and the `aspire dashboard run` CLI command set this automatically; container deployments can set it explicitly to `container`. Values are matched case-insensitively, and missing or unrecognized values are reported as `unknown`. See [dashboard configuration](/dashboard/configuration/#other).
+
+Startup telemetry is sent using the same Azure Monitor reporting path, and the same `ASPIRE_DASHBOARD_TELEMETRY_OPTOUT` opt-out described above, as other dashboard usage and error telemetry.
+
 ## Data points
 
 Aspire dashboard usage telemetry doesn't collect personal data, such as, IP addresses or use browser fingerprinting. It doesn't scan your code and doesn't extract source code, authorship, or deployment configuration. The data is sent securely to Microsoft using Azure Monitor through existing telemetry APIs in Visual Studio and Visual Studio Code.
