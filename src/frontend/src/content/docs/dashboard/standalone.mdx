@@ -253,9 +253,9 @@ docker run --rm -d --name aspire-dashboard \
   -p 18888:18888 \
   -p 4317:18889 \
   -p 4318:18890 \
-  --mount type=volume,source=aspire-dashboard-data,target=/dashboard-data \
+  --mount type=volume,source=aspire-dashboard-data,target=/home/app \
   -e ASPIRE_DASHBOARD_APPLICATION_NAME=my-app \
-  -e ASPIRE_DASHBOARD_DATA_DIRECTORY=/dashboard-data \
+  -e ASPIRE_DASHBOARD_DATA_DIRECTORY=/home/app/dashboard-data \
   -e ASPIRE_DASHBOARD_PERSISTENCE_MODE=run \
   mcr.microsoft.com/dotnet/aspire-dashboard:latest
 ```
@@ -270,15 +270,17 @@ docker run --rm -d --name aspire-dashboard `
   -p 18888:18888 `
   -p 4317:18889 `
   -p 4318:18890 `
-  --mount type=volume,source=aspire-dashboard-data,target=/dashboard-data `
+  --mount type=volume,source=aspire-dashboard-data,target=/home/app `
   -e ASPIRE_DASHBOARD_APPLICATION_NAME=my-app `
-  -e ASPIRE_DASHBOARD_DATA_DIRECTORY=/dashboard-data `
+  -e ASPIRE_DASHBOARD_DATA_DIRECTORY=/home/app/dashboard-data `
   -e ASPIRE_DASHBOARD_PERSISTENCE_MODE=run `
   mcr.microsoft.com/dotnet/aspire-dashboard:latest
 ```
 
 </div>
 </OsAwareTabs>
+
+The dashboard container runs as a non-root user, so the volume is mounted at that user's home directory, `/home/app`. Docker gives a new volume the ownership of the directory it's mounted over. A volume mounted at a path that doesn't exist in the image is owned by root, and the dashboard fails to start with an "Access to the path is denied" error.
 
 Stop the container and run the same `docker run` command again to access the retained data. Keep the volume, application name, and persistence mode unchanged between container runs.
 
