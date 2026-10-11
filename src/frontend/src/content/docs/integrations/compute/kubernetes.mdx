@@ -300,6 +300,51 @@ builder.Build().Run();
 
 This C# resource-model type isn't exported as a typed TypeScript AppHost API. For custom manifests from either language, see [Add custom Kubernetes manifests](#add-custom-kubernetes-manifests). Declaring the volume doesn't install a driver, create a `SecretProviderClass`, or grant the workload permission to read an external secret store.
 
+## Select environment variables from a generated file
+
+Use `EnvVarSourceV1.FileKeyRef` and `FileKeySelectorV1` to source an individual environment variable from a key in an env file, instead of mounting the file into the application container or overriding its entrypoint. An init container writes the file to an `emptyDir` volume before the application container starts.
+
+<Aside type="caution">
+  `FileKeyRef` requires Kubernetes 1.34 or later with the `EnvFiles` feature gate enabled. The feature is enabled by default from Kubernetes 1.35. Changes to the file after the container starts don't update its environment.
+</Aside>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+
+builder.AddContainer("service", "nginx")
+    .PublishAsKubernetesService(resource =>
+    {
+        var pod = resource.Workload!.PodTemplate.Spec;
+        pod.Volumes.Add(new VolumeV1 { Name = "generated-env", EmptyDir = new() });
+        pod.InitContainers.Add(new ContainerV1
+        {
+            Name = "prepare-env",
+            Image = "busybox:1.37",
+            Command = { "sh", "-ec" },
+            Args = { "printf \"SOURCE_KEY=generated-value\\n\" > /out/app.env" },
+            VolumeMounts = { new VolumeMountV1 { Name = "generated-env", MountPath = "/out" } }
+        });
+        pod.Containers[0].Env.Add(new EnvVarV1
+        {
+            Name = "APP_VALUE",
+            ValueFrom = new EnvVarSourceV1
+            {
+                FileKeyRef = new FileKeySelectorV1
+                {
+                    VolumeName = "generated-env",
+                    Path = "app.env",
+                    Key = "SOURCE_KEY",
+                    Optional = false
+                }
+            }
+        });
+    });
+```
+
+`VolumeName` identifies the `emptyDir` volume holding the file, `Path` is the file path relative to the volume root, and `Key` selects the value within the file. Set `Optional` to `true` so a missing file or key leaves the environment variable unset instead of blocking the container from starting; omitted or `false` requires the key to be present.
+
+This C# resource-model type isn't exported as a typed TypeScript AppHost API.
+
 ## Customize individual resources
 
 Use `PublishAsKubernetesService` to modify the generated Kubernetes resources for individual services:
