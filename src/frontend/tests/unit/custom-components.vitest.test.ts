@@ -95,6 +95,23 @@ type BasicRenderCase = {
 };
 
 it.each([
+  { Component: YouTubeEmbed, props: { videoId: 'test', title: null }, name: 'YouTube video player' },
+  { Component: TwitchEmbed, props: { channel: 'aspiredotdev', title: ' ' }, name: 'Twitch stream player' },
+])('media embeds retain an accessible name when the title is empty: $name', async ({ Component, props, name }) => {
+  expect(await renderComponent(Component, { props })).toContain(`aria-label="${name}"`);
+});
+
+it('breadcrumbs retain the nearest linked parent and semantic current page', async () => {
+  const html = await renderComponent(Breadcrumb, { props: { crumbs: [
+    { label: 'Docs', href: '/docs/' }, { label: 'Reference' }, { label: 'Current type' },
+  ] } });
+  expect(html).toMatch(/class="bc-parent\b[^"]*" href="\/docs\/"/);
+  expect(html).toMatch(/<ol class="bc-inline\b/);
+  expect(html).toMatch(/<ol class="bc-dropdown\b/);
+  expect(html).toContain('aria-current="page"');
+});
+
+it.each([
   ['en', 'Scroll to top'], ['fr', 'Retour en haut'], ['pt-BR', 'Voltar ao topo'],
   ['zh-CN', '回到顶部'], ['es-ES', 'Ir arriba'], ['unknown', 'Scroll to top'],
 ])('ScrollToTop renders the existing label for %s', async (lang, label) => {

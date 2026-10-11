@@ -474,12 +474,12 @@ for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/hub/browse/');
     await expect(page.locator('.dev-breadcrumbs .breadcrumb')).toHaveCount(1);
-    const hubMark = await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML();
+    const hubMark = await page.locator('header .right-group .dev-center-btn svg').innerHTML();
     await expect(page.locator('.dev-breadcrumbs a[href="/hub/"] svg')).toHaveCount(2);
-    for (const mark of await page.locator('.dev-breadcrumbs a[href="/hub/"] svg').all()) {
-      await expect(mark).toHaveAttribute('aria-hidden', 'true');
-      expect(await mark.innerHTML()).toBe(hubMark);
-    }
+    const desktopMark = page.locator('.bc-inline a[href="/hub/"] svg');
+    await expect(desktopMark).toHaveAttribute('aria-hidden', 'true');
+    expect(await desktopMark.innerHTML()).toBe(hubMark);
+    await expect(page.locator('.bc-parent svg')).toHaveAttribute('aria-hidden', 'true');
     await expect(page.locator('.browse-trail')).toHaveCount(0);
     if (width === 390) {
       await page.locator('.bc-collapse > summary').click();
@@ -645,8 +645,12 @@ test('every dropdown shows responsive options without a separate search input', 
     if (mobile) {
       expect(box!.height).toBeGreaterThanOrEqual(name === 'sort' ? 56 : 44);
     } else {
-      expect(box!.height).toBeLessThanOrEqual(36);
-      expect(box!.height).toBeGreaterThanOrEqual(24);
+      const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+      if (coarse) expect(box!.height).toBeGreaterThanOrEqual(44);
+      else {
+        expect(box!.height).toBeLessThanOrEqual(36);
+        expect(box!.height).toBeGreaterThanOrEqual(24);
+      }
     }
     expect(page.url()).toBe(initialUrl);
     expect(await results(page).locator('h3').allTextContents()).toEqual(initialResults);

@@ -93,3 +93,10 @@ export function isNarrowViewport(page: Page): boolean {
   const viewport = page.viewportSize();
   return Boolean(viewport && viewport.width < 800);
 }
+
+export async function revealMobileSiteMenu(page: Page): Promise<void> {
+  const button = page.locator('starlight-menu-button button');
+  if (await button.isVisible() && await button.getAttribute('aria-expanded') !== 'true') {
+    await button.click();
+  }
+}

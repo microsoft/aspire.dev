@@ -1,27 +1,13 @@
 ---
-/**
- * Reusable breadcrumb navigation component.
- *
- * Usage:
- * ```astro
- * <Breadcrumb crumbs={[
- *   { label: 'Docs', href: '/docs/', icon: 'docs' },
- *   { label: 'Reference', href: '/reference/overview/' },
- *   { label: 'C# APIs', href: '/reference/api/csharp/' },
- *   { label: 'Aspire.Hosting' },
- * ]} />
- * ```
- *
- * The last crumb is always rendered as the current page (no link).
- * Pass `icon: 'docs'` on any crumb to prefix it with a book icon.
- */
+import DevHubSvg from '@assets/icons/dev-hub.svg';
+import { Icon } from '@astrojs/starlight/components';
+import type { StarlightIcon } from '@astrojs/starlight/types';
+
+type BreadcrumbIcon = StarlightIcon | 'docs' | 'dev-hub';
 
 export interface BreadcrumbItem {
-  /** Display label */
   label: string;
-  /** Link target — omit for the current (last) crumb */
   href?: string;
-  /** Optional Starlight icon identifier, or 'dev-hub' for the shared hub logo. */
   icon?: BreadcrumbIcon;
 }
 
@@ -29,240 +15,226 @@ interface Props {
   crumbs: BreadcrumbItem[];
 }
 
-import cornerIconRaw from '@assets/icons/subdirectory-arrow.svg?raw';
-import DevHubSvg from '@assets/icons/dev-hub.svg';
-import { Icon } from '@astrojs/starlight/components';
-import type { StarlightIcon } from '@astrojs/starlight/types';
-
-type BreadcrumbIcon = StarlightIcon | 'docs' | 'dev-hub';
-
-const cornerIcon = cornerIconRaw.replace('<svg ', '<svg class="bc-corner" aria-hidden="true" ');
-const getIconName = (icon?: Exclude<BreadcrumbIcon, 'dev-hub'>): StarlightIcon | undefined =>
-  icon === 'docs' ? 'open-book' : icon;
-
 const { crumbs } = Astro.props;
-const allButLast = crumbs.slice(0, -1);
-const current = crumbs[crumbs.length - 1];
+const ancestors = crumbs.slice(0, -1);
+const current = crumbs.at(-1);
+const parent = ancestors.findLast((crumb) => crumb.href);
+const iconName = (icon: Exclude<BreadcrumbIcon, 'dev-hub'>): StarlightIcon =>
+  icon === 'docs' ? 'open-book' : icon;
 ---
 
-<nav class="breadcrumb not-content" aria-label="Breadcrumb">
-  {/* ── Desktop: inline crumb trail ────────────────────────────── */}
-  <div class="bc-inline">
-    {allButLast.map((crumb) => (
-      <>
-        {crumb.href ? (
-          <a href={crumb.href} class:list={[{ 'bc-icon': !!crumb.icon }]}>
-            {crumb.icon === 'dev-hub'
-              ? <DevHubSvg width="0.875em" height="0.875em" aria-hidden="true" focusable="false" />
-              : crumb.icon && <Icon name={getIconName(crumb.icon)!} size="0.875em" />}
-            {crumb.label}
+{
+  current && (
+    <nav class="breadcrumb not-content" aria-label="Breadcrumb">
+      <ol class="bc-inline">
+        {crumbs.map((crumb, index) => (
+          <li>
+            {index > 0 && (
+              <span class="sep" aria-hidden="true">
+                /
+              </span>
+            )}
+            {index === crumbs.length - 1 ? (
+              <span class="current" aria-current="page">
+                {crumb.label}
+              </span>
+            ) : crumb.href ? (
+              <a href={crumb.href}>
+                {crumb.icon === 'dev-hub' ? (
+                  <DevHubSvg aria-hidden="true" focusable="false" />
+                ) : (
+                  crumb.icon && <Icon name={iconName(crumb.icon)} />
+                )}
+                <span>{crumb.label}</span>
+              </a>
+            ) : (
+              <span>{crumb.label}</span>
+            )}
+          </li>
+        ))}
+      </ol>
+      <div class="bc-mobile">
+        {parent && (
+          <a class="bc-parent" href={parent.href}>
+            <Icon name="left-arrow" />
+            <span>{parent.label}</span>
           </a>
-        ) : (
-          <span>{crumb.label}</span>
         )}
-        <span class="sep" aria-hidden="true">/</span>
-      </>
-    ))}
-    {current && <span class="current">{current.label}</span>}
-  </div>
-
-  {/* ── Mobile: native collapsible (no JS required) ────────────── */}
-  <details class="bc-collapse">
-    <summary>
-      <span class="bc-toggle-label">{current?.label}</span>
-      <svg class="bc-chevron" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    </summary>
-    <div class="bc-dropdown">
-      {allButLast.map((crumb, i) => (
-        crumb.href ? (
-          <a href={crumb.href} class:list={[{ 'bc-icon': !!crumb.icon }]} style={`--bc-depth: ${i}`}>
-            {i > 0 && <Fragment set:html={cornerIcon} />}
-            {crumb.icon === 'dev-hub'
-              ? <DevHubSvg width="0.875em" height="0.875em" aria-hidden="true" focusable="false" />
-              : crumb.icon && <Icon name={getIconName(crumb.icon)!} size="0.875em" />}
-            {crumb.label}
-          </a>
+        {ancestors.length > 0 ? (
+          <details class="bc-collapse">
+            <summary aria-label={`Breadcrumb: ${current.label}`}>
+              <span class="bc-toggle-label">{current.label}</span>
+              <Icon name="down-caret" class="bc-chevron" />
+            </summary>
+            <ol class="bc-dropdown">
+              {crumbs.map((crumb, index) => (
+                <li>
+                  {index === crumbs.length - 1 ? (
+                    <span class="bc-current" aria-current="page">
+                      {crumb.label}
+                    </span>
+                  ) : crumb.href ? (
+                    <a href={crumb.href}>{crumb.label}</a>
+                  ) : (
+                    <span>{crumb.label}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </details>
         ) : (
-          <span style={`--bc-depth: ${i}`}>
-            {i > 0 && <Fragment set:html={cornerIcon} />}
-            {crumb.label}
+          <span class="bc-current" aria-current="page">
+            {current.label}
           </span>
-        )
-      ))}
-      {current && (
-        <span class="bc-current" style={`--bc-depth: ${allButLast.length}`}>
-          {allButLast.length > 0 && <Fragment set:html={cornerIcon} />}
-          {current.label}
-        </span>
-      )}
-    </div>
-  </details>
-</nav>
+        )}
+      </div>
+    </nav>
+  )
+}
 
 <style>
-  /* ── Base ─────────────────────────────────────────────────────── */
   .breadcrumb {
-    font-size: var(--api-text-base, 1rem);
+    position: relative;
     margin-bottom: 1.25rem;
     color: var(--sl-color-gray-3);
+    font-size: var(--aspire-text-small);
   }
-
-  /* ── Desktop: inline trail, collapse hidden ──────────────────── */
-  .bc-collapse {
-    display: none;
+  ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
-
   .bc-inline {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    flex-wrap: nowrap;
-    overflow: hidden;
-    min-width: 0;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
   }
-
-  .breadcrumb a {
-    color: var(--sl-color-gray-3);
-    text-decoration: none;
-    transition: color 0.15s;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex-shrink: 1;
-    min-width: 0;
-  }
-
-  .breadcrumb a.bc-icon {
+  .bc-inline li,
+  .bc-inline a {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    flex-shrink: 1;
+    gap: 0.5rem;
     min-width: 0;
   }
-
-  .breadcrumb a.bc-icon svg {
+  .bc-inline li {
+    max-width: 100%;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  a:hover {
+    color: var(--sl-color-text-accent);
+    text-decoration: underline;
+  }
+  a:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid var(--aspire-action-focus);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+  .bc-inline a :global(svg) {
+    width: 1rem;
+    height: 1rem;
     flex-shrink: 0;
+    --sl-icon-size: 1rem;
   }
-
-  .breadcrumb a:hover {
-    color: var(--api-accent-text, var(--sl-color-text-accent));
-  }
-
   .sep {
-    opacity: 0.35;
-    user-select: none;
     flex-shrink: 0;
+    color: var(--sl-color-gray-3);
   }
-
-  .current {
+  .current,
+  .bc-current {
     color: var(--sl-color-text);
     font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex-shrink: 1;
-    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .bc-mobile {
+    display: none;
   }
 
-  /* ── Tablet (≤768px) ─────────────────────────────────────────── */
-  @media (max-width: 768px) {
-    .bc-inline {
-      gap: 0.25rem;
-    }
-  }
-
-  /* ── Phone (≤480px) — swap to collapsible ────────────────────── */
-  @media (max-width: 480px) {
-    .breadcrumb {
-      font-size: var(--api-text-sm, 0.875rem);
-    }
-
+  @media (max-width: 49.999rem) {
     .bc-inline {
       display: none;
     }
-
-    .bc-collapse {
-      display: block;
+    .bc-mobile {
+      display: flex;
+      align-items: start;
+      gap: 0.5rem;
     }
-
-    /* Summary row (toggle) */
-    .bc-collapse summary {
+    .bc-parent {
       display: flex;
       align-items: center;
-      gap: 0.3rem;
-      list-style: none;
-      cursor: pointer;
-      border: 1px solid var(--sl-color-hairline-light);
-      border-radius: 0.5rem;
-      padding: 0.35rem 0.6rem;
-      color: var(--sl-color-text);
-      font-weight: 600;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    /* Hide default marker in WebKit/Blink */
-    .bc-collapse summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .bc-toggle-label {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      flex: 1 1 0;
+      gap: 0.375rem;
+      flex: 1;
       min-width: 0;
+      min-height: var(--aspire-touch-target);
     }
-
+    .bc-parent :global(svg),
     .bc-chevron {
       flex-shrink: 0;
-      margin-left: auto;
-      transition: transform 0.2s ease;
+      width: 1rem;
+      height: 1rem;
+      --sl-icon-size: 1rem;
     }
-
+    .bc-collapse {
+      flex: 1.5;
+      min-width: 0;
+    }
+    summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      min-height: var(--aspire-touch-target);
+      padding: 0.5rem 0.625rem;
+      list-style: none;
+      border: 1px solid var(--sl-color-gray-5);
+      border-radius: 0.5rem;
+      color: var(--sl-color-text);
+      line-height: 1.5;
+      cursor: pointer;
+    }
+    summary::-webkit-details-marker {
+      display: none;
+    }
+    .bc-toggle-label {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
     .bc-collapse[open] .bc-chevron {
       transform: rotate(180deg);
     }
-
-    /* Dropdown panel */
     .bc-dropdown {
-      display: flex;
-      flex-direction: column;
-      margin-top: 0.35rem;
-      padding: 0.35rem 0;
-      border: 1px solid var(--sl-color-hairline-light);
+      position: absolute;
+      inset-inline: 0;
+      top: calc(100% + 0.375rem);
+      z-index: 3;
+      max-height: 60dvh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 0.375rem;
+      border: 1px solid var(--sl-color-gray-5);
       border-radius: 0.5rem;
       background: var(--sl-color-bg);
+      box-shadow: var(--sl-shadow-sm);
     }
-
     .bc-dropdown a,
-    .bc-dropdown span,
-    .bc-current {
+    .bc-dropdown span {
       display: flex;
       align-items: center;
-      gap: 0.3rem;
-      padding: 0.4rem 0.75rem;
-      padding-left: calc(0.75rem + var(--bc-depth, 0) * 0.75rem);
-      color: var(--sl-color-gray-3);
-      text-decoration: none;
+      min-height: var(--aspire-touch-target);
+      padding: 0.5rem 0.625rem;
+      overflow-wrap: anywhere;
+      border-radius: 0.25rem;
     }
-
-    .bc-dropdown :global(.bc-corner) {
-      flex-shrink: 0;
-      width: 14px;
-      height: 14px;
-      opacity: 0.4;
-    }
-
     .bc-dropdown a:hover {
       background: var(--sl-color-gray-6);
-      color: var(--api-accent-text, var(--sl-color-text-accent));
     }
-
-    .bc-current {
-      color: var(--sl-color-text);
-      font-weight: 600;
-      background: color-mix(in srgb, var(--sl-color-text-accent) 10%, transparent);
+    .bc-dropdown .bc-current {
+      background: var(--sl-color-accent-low);
     }
   }
 </style>

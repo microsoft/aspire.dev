@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { LiveSnapshot } from '@components/live-status';
-import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { dismissCookieConsentIfVisible, revealMobileSiteMenu } from '@tests/e2e/helpers';
 
 const uploadsId = 'UUW_UJkc7RhM_NPcDXnOCfrQ';
 const youtubeSelector = '#aspire-live-tabs iframe[data-stream-provider="youtube"]';
@@ -178,6 +178,7 @@ test('Twitch uses the current hostname on its first request and after client nav
   await page.locator('.header .site-title').click();
   await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/);
   await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
+  await revealMobileSiteMenu(page);
   await page.locator('.live-btn:visible').first().click();
   await expect(page).toHaveURL(/\/community\/videos\/$/);
   await expect(page.locator('#aspire-live-tabs')).toHaveAttribute('data-bound', '1');
