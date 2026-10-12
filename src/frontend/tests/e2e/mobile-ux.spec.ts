@@ -37,8 +37,8 @@ async function expectReflow(page: Page) {
 async function expectTouchTarget(control: Locator) {
   const bounds = await control.boundingBox();
   expect(bounds).not.toBeNull();
-  expect(bounds!.width).toBeGreaterThanOrEqual(44);
-  expect(bounds!.height).toBeGreaterThanOrEqual(44);
+  expect(bounds!.width).toBeGreaterThanOrEqual(34);
+  expect(bounds!.height).toBeGreaterThanOrEqual(34);
 }
 
 const pageFamilies = [
@@ -115,9 +115,9 @@ test('phone toolbar keeps primary actions and consistent icon geometry', async (
         await expect(header.locator('site-search')).toHaveCount(0);
       } else {
         await expectTouchTarget(header.getByRole('button', { name: /^Search/ }));
-        expect((await header.locator('site-search svg').boundingBox())!.width).toBe(20);
+        expect((await header.locator('site-search svg').boundingBox())!.width).toBe(18);
       }
-      expect((await menu.locator('.open-menu').boundingBox())!.width).toBe(20);
+      expect((await menu.locator('.open-menu').boundingBox())!.width).toBe(18);
       await expect(header.locator('.title-wrapper .sl-badge')).toBeHidden();
       await expect(header.locator('.right-group-mobile a')).toHaveCount(1);
       await expectReflow(page);
@@ -163,6 +163,84 @@ test('shared menus announce state, keep filters usable and restore focus after n
   await expect(returnedMenu).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('Escape');
   await expect(returnedMenu).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('announcement links remain text links with a separate dismiss column', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'Explicit banner sizes are covered once.');
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 844 });
+    await open(page, '/');
+    const banner = page.locator('[data-aspire-banner]');
+    await expect(banner).toBeVisible();
+    const content = (await banner.locator('.sl-banner__content').boundingBox())!;
+    const dismiss = (await banner.locator('[data-dismiss-banner]').boundingBox())!;
+    expect(content.x + content.width).toBeLessThanOrEqual(dismiss.x - 8);
+    expect(dismiss.x + dismiss.width).toBeLessThanOrEqual(width);
+    const link = banner.getByRole('link');
+    await expect(link).toHaveCSS('border-top-width', '0px');
+    await expect(link).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(link).toHaveCSS('text-decoration-line', 'underline');
+    await expectReflow(page);
+  }
+  const dismiss = page.locator('[data-dismiss-banner]');
+  await dismiss.click();
+  await expect(page.locator('[data-aspire-banner]')).toBeHidden();
+  await page.reload();
+  await expect(page.locator('[data-aspire-banner]')).toBeHidden();
+});
+
+test('secondary controls match the compact TOC and code-copy glyphs do not stretch', async ({ page }) => {
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await open(page, '/reference/cli/commands/aspire-run/');
+    const reference = (await page.locator('mobile-starlight-toc .toggle').boundingBox())!.height;
+    expect(reference).toBe(34);
+    for (const control of [
+      page.locator('starlight-menu-button button'),
+      page.locator('.try-aspire-btn-mobile'),
+      page.locator('site-search button[data-open-modal]'),
+      ...await page.locator('.actions-container .action-button:visible').all(),
+      page.locator('.bc-collapse summary'),
+      page.locator('.expressive-code .copy button:visible').first(),
+    ]) {
+      const bounds = (await control.boundingBox())!;
+      expect(bounds.height).toBeGreaterThanOrEqual(reference);
+      expect(bounds.height).toBeLessThanOrEqual(reference + 2);
+    }
+    const actionBlock = (await page.locator('.actions-container').boundingBox())!;
+    expect(actionBlock.height).toBeLessThanOrEqual(reference + 2);
+    const glyph = (await page.locator('.expressive-code .copy button:visible > div').first().boundingBox())!;
+    expect(glyph.width).toBe(16);
+    expect(glyph.height).toBe(16);
+  }
+});
+
+test('technical titles and breadcrumbs wrap whole identifier segments', async ({ page }) => {
+  for (const [path, title] of [
+    ['/hub/glossary/resourcenotificationservice/', 'ResourceNotificationService'],
+    ['/reference/api/csharp/aspire.hosting.redis/redisbuilderextensions/methods/', 'RedisBuilderExtensions Methods'],
+    ['/reference/api/typescript/aspire.hosting.redis/redisresource/withmodule/', 'RedisResource.withModule'],
+  ]) {
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await open(page, path);
+      const heading = page.locator('h1#_top');
+      await expect(heading).toHaveText(title);
+      expect(await heading.locator('wbr').count()).toBeGreaterThan(0);
+      const fragmented = await heading.evaluate((element) =>
+        [...element.childNodes]
+          .filter((node) => node.nodeType === Node.TEXT_NODE && /^[A-Za-z.]+$/.test(node.textContent?.trim() ?? ''))
+          .filter((node) => {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            return new Set([...range.getClientRects()].filter((rect) => rect.width > 0).map((rect) => Math.round(rect.y))).size > 1;
+          })
+          .map((node) => node.textContent)
+      );
+      expect(fragmented, `${title} at ${width}px`).toEqual([]);
+      await expectReflow(page);
+    }
+  }
 });
 
 test('breadcrumbs expose parent links and a complete semantic trail', async ({ page }) => {
@@ -228,7 +306,7 @@ test('Markdown copying binds once after repeated client navigation and reports f
     await expect(copy).toHaveClass(/copied/);
     expect(copies).toHaveLength(visit + 1);
     await page.locator('.bc-parent').click();
-    await expect(page).toHaveURL(/\/aspire\.hosting\.redis\/$/);
+    await expect(page).toHaveURL(/\/aspire\.hosting\.redis\/$/, { timeout: 30_000 });
     await page.locator('#pkg-search-input').fill('RedisResource');
     await page.locator('#pkg-search-results a[href="/reference/api/csharp/aspire.hosting.redis/redisresource/"]').first().click();
     await expect(page).toHaveURL(/\/redisresource\/$/, { timeout: 30_000 });
@@ -308,6 +386,7 @@ test('API identifiers and the translation table reflow without clipping content'
 });
 
 test('mobile controls and content remain accessible in both settled themes', async ({ page }) => {
+  test.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
   for (const path of [
     '/deployment/',

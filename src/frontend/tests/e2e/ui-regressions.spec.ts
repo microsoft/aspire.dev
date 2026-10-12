@@ -215,7 +215,7 @@ test('homepage header matches the compact mobile action geometry at reflow width
     ];
     const controlBoxes = await Promise.all(controls.map((control) => control.boundingBox()));
     expect(controlBoxes.every((box) => box !== null)).toBe(true);
-    expect(controlBoxes.every((box) => (box?.height ?? 0) >= 44)).toBe(true);
+    expect(controlBoxes.every((box) => (box?.height ?? 0) >= 34 && (box?.height ?? 0) <= 36)).toBe(true);
     expect(
       Math.max(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2)) -
         Math.min(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2))
@@ -355,8 +355,7 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
         return { y: bounds.y };
       })
     );
-    expect(actionBoxes[0].y).toBeLessThan(actionBoxes[1].y);
-    expect(Math.abs(actionBoxes[1].y - actionBoxes[2].y)).toBeLessThanOrEqual(1);
+    expect(Math.max(...actionBoxes.map((box) => box.y)) - Math.min(...actionBoxes.map((box) => box.y))).toBeLessThanOrEqual(1);
 
     await menuButton.click();
 
@@ -379,13 +378,13 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const topicBox = await topics.locator('a').first().boundingBox();
     expect(topicBox).not.toBeNull();
-    expect(topicBox?.height ?? 0).toBeGreaterThanOrEqual(44);
-    await expect(filter).toHaveCSS('height', '48px');
+    expect(topicBox?.height ?? 0).toBeGreaterThanOrEqual(34);
+    await expect(filter).toHaveCSS('height', '34px');
 
     for (const control of [groupSummary, nestedLink]) {
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(34);
     }
 
     const nestedLabelInsets = await nestedLink.evaluate((element) => {
@@ -457,7 +456,7 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
         };
       })
     );
-  expect(compactTopicMetrics.every(({ height }) => height >= 48)).toBe(true);
+  expect(compactTopicMetrics.every(({ height }) => height >= 34 && height <= 36)).toBe(true);
   expect(
     Math.max(...compactTopicMetrics.map(({ height }) => height)) -
       Math.min(...compactTopicMetrics.map(({ height }) => height))

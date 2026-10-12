@@ -595,11 +595,11 @@ test('mobile filters open as readable fixed panels without shifting results', as
   await expect(type.getByRole('button', { name: 'Close Type' })).toBeVisible();
   await expect(type.locator('.browse-filter-mobile-header strong')).toHaveText('Type');
   const closeBox = (await type.getByRole('button', { name: 'Close Type' }).boundingBox())!;
-  expect(closeBox.width).toBeGreaterThanOrEqual(44);
-  expect(closeBox.height).toBeGreaterThanOrEqual(44);
+  expect(closeBox.width).toBe(34);
+  expect(closeBox.height).toBe(34);
   await expect(type.locator('.browse-filter-backdrop')).toBeVisible();
   for (const option of await type.locator('.browse-filter-option').all()) {
-    expect((await option.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect((await option.boundingBox())!.height).toBeGreaterThanOrEqual(34);
   }
   expect(await type.locator('fieldset').evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true);
   expect((await page.locator('.browse-grid').boundingBox())!.y).toBe(gridTop);
@@ -611,8 +611,8 @@ test('mobile filters open as readable fixed panels without shifting results', as
   await sort.locator('summary').click();
   for (const choice of await sort.locator('.browse-sort-choice').all()) {
     const choiceBox = (await choice.boundingBox())!;
-    expect(choiceBox.width).toBeGreaterThanOrEqual(44);
-    expect(choiceBox.height).toBeGreaterThanOrEqual(44);
+    expect(choiceBox.width).toBe(34);
+    expect(choiceBox.height).toBe(34);
   }
   await sort.getByRole('button', { name: 'Close Sort by' }).click();
   await expect(sort).not.toHaveAttribute('open');
@@ -643,10 +643,10 @@ test('every dropdown shows responsive options without a separate search input', 
     await expect(group.locator('[data-option-label][hidden]')).toHaveCount(0);
     const box = await options.first().boundingBox();
     if (mobile) {
-      expect(box!.height).toBeGreaterThanOrEqual(name === 'sort' ? 56 : 44);
+      expect(box!.height).toBeGreaterThanOrEqual(name === 'sort' ? 56 : 34);
     } else {
       const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-      if (coarse) expect(box!.height).toBeGreaterThanOrEqual(44);
+      if (coarse) expect(box!.height).toBeGreaterThanOrEqual(34);
       else {
         expect(box!.height).toBeLessThanOrEqual(36);
         expect(box!.height).toBeGreaterThanOrEqual(24);

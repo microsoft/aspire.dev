@@ -36,6 +36,7 @@ import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
+import ReadableText from '@components/ReadableText.astro';
 import SampleCard from '@components/SampleCard.astro';
 import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
@@ -55,6 +56,12 @@ import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 
 type PropsOf<T extends (...args: never[]) => unknown> = ComponentProps<T>;
+
+const validReadableTextProps = { text: 'RedisResource.withModule' } satisfies PropsOf<typeof ReadableText>;
+void validReadableTextProps;
+// @ts-expect-error Identifier content is required and must remain a string.
+const invalidReadableTextProps = { text: 123 } satisfies PropsOf<typeof ReadableText>;
+void invalidReadableTextProps;
 
 const validSearchFieldProps = {
   id: 'api-query', label: 'Search API entries', placeholder: 'Try Redis',

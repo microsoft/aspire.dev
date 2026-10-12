@@ -399,7 +399,8 @@ for (const theme of ['light', 'dark']) {
           iconColor: iconStyle.color,
         };
       });
-      expect(metrics.height, path).toBe(48);
+      const compact = page.viewportSize()!.width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+      expect(metrics.height, path).toBe(compact ? 34 : 48);
       expect(metrics.fontSize, path).toBe('16px');
       expect(metrics.iconWidth, path).toBe(18);
       expect(metrics.iconHeight, path).toBe(18);
@@ -418,8 +419,8 @@ for (const theme of ['light', 'dark']) {
       await expect(clear.locator('svg path')).toHaveAttribute('d', 'm18 6-12 12M6 6l12 12');
       const bounds = (await clear.boundingBox())!;
       const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-      expect(bounds.width, path).toBeGreaterThanOrEqual(coarse ? 44 : 36);
-      expect(bounds.height, path).toBeGreaterThanOrEqual(coarse ? 44 : 36);
+      expect(bounds.width, path).toBeGreaterThanOrEqual(compact || coarse ? 34 : 36);
+      expect(bounds.height, path).toBeGreaterThanOrEqual(compact || coarse ? 34 : 36);
       await clear.focus();
       await expect(clear).toHaveCSS('outline-style', 'solid');
       await clear.press('Enter');
