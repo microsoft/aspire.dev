@@ -347,7 +347,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
         placeholder={`Search members of ${type.name}...`}
         kinds={typeSearchKinds}
         defaultStatsText={`${typeMemberCount.toLocaleString()} member${typeMemberCount !== 1 ? 's' : ''}`}
-        size="sm"
+        size="lg"
       />
     </div>
   )}
@@ -533,6 +533,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
 <script>
   import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
   import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+  import { ApiSearchPresentation, withApiSearchFallback } from '../../../_search-presentation';
 
   interface TypeIndexEntry {
     n: string;
@@ -573,6 +574,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
     private lastTokens: string[] = [];
     private visibleCount = 0;
     private sync: InpageSearchSync;
+    private presentation: ApiSearchPresentation;
 
     constructor(root: HTMLElement, private signal: AbortSignal) {
       this.input = root.querySelector<HTMLInputElement>('#type-search-input')!;
@@ -585,6 +587,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
       this.memberCount = Number(root.dataset.memberCount ?? 0);
 
       this.sync = new InpageSearchSync('type', () => this.clear(), root, signal);
+      this.presentation = new ApiSearchPresentation(root, this.input, () => this.clear(), signal);
       signal.addEventListener('abort', () => {
         if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
         this.highlightTimers.forEach(timer => clearTimeout(timer));
@@ -628,6 +631,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
         this.clearFiltersBtn.style.display = 'none';
         this.syncUrl();
         this.applySearch();
+        this.input.focus();
       }, { signal: this.signal });
 
       // When clicking a search result, scroll to the anchor in the content below
@@ -647,7 +651,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
             this.highlightTimers.delete(timer);
           }, 1500);
           this.highlightTimers.add(timer);
-          history.replaceState(null, '', href);
+          history.replaceState(history.state, '', href);
         }
       }, { signal: this.signal });
     }
@@ -656,17 +660,19 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
       this.input.value = '';
       this.sync.updateClearButton();
       this.syncUrl();
-      this.showContent();
+      this.applySearch();
+      this.input.focus();
     }
 
     private showContent(): void {
-      if (this.activeKinds.size > 0) {
+      if (this.activeKinds.size > 0 || this.index.length === 0) {
         this.search('');
         return;
       }
       this.resultsEl.style.display = 'none';
       this.resultsEl.innerHTML = '';
       this.countEl.textContent = `${fmtNum(this.memberCount)} member${this.memberCount !== 1 ? 's' : ''}`;
+      this.status.textContent = this.countEl.textContent;
     }
 
     private handleInput(): void {
@@ -706,12 +712,12 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
         this.clearFiltersBtn.style.display = '';
       }
 
-      if (q || kinds.size > 0) {
-        this.applySearch();
-      }
+      this.applySearch();
     }
 
     private applySearch(): void {
+      if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      this.presentation.update(this.activeKinds.size > 0);
       const q = this.input.value.trim();
       if (!q && this.activeKinds.size === 0) {
         this.showContent();
@@ -720,15 +726,15 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
       this.search(q);
     }
 
-    private search(query: string): void {
+    private findMatches(query: string, kinds = this.activeKinds) {
       const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-      const hasKindFilter = this.activeKinds.size > 0;
+      const hasKindFilter = kinds.size > 0;
 
       type Scored = { entry: TypeIndexEntry; score: number };
       const scored: Scored[] = [];
 
       for (const entry of this.index) {
-        if (hasKindFilter && !this.activeKinds.has(entry.k)) continue;
+        if (hasKindFilter && !kinds.has(entry.k)) continue;
 
         if (tokens.length === 0) {
           scored.push({ entry, score: 50 });
@@ -762,6 +768,13 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
         if (score > 0) scored.push({ entry, score });
       }
 
+      return scored;
+    }
+
+    private search(query: string): void {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = this.activeKinds.size > 0;
+      const scored = this.findMatches(query);
       scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
 
       this.lastScored = scored;
@@ -773,14 +786,10 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
       this.resultsEl.style.display = '';
 
       if (total === 0) {
-        const hint = query
-          ? `No results for "<strong>${this.esc(query)}</strong>"`
-          : 'No results match the selected filters';
-        this.resultsEl.innerHTML = `
-          <div class="api-search-empty">
-            <p>${hint}</p>
-            <p class="api-search-empty-hint">Try a different name or keyword.</p>
-          </div>`;
+        this.presentation.renderEmpty(this.resultsEl, hasKindFilter, this.index.length === 0, {
+          withoutQuery: this.findMatches('').length,
+          withoutFilters: this.findMatches(query, new Set()).length,
+        }, this.activeKinds);
         this.countEl.textContent = '0 results';
         this.status.textContent = 'No results';
         return;
@@ -874,7 +883,7 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
     }
   }
 
-  registerApiSearch('csharp', 'type', (root, signal) => new TypeSearchController(root, signal));
+  registerApiSearch('csharp', 'type', withApiSearchFallback((root, signal) => new TypeSearchController(root, signal)));
 </script>
 
 <style>

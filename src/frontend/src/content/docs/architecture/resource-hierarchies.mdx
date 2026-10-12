@@ -495,15 +495,20 @@ Key members:
 
 ## Context-based endpoint resolution
 
-Aspire resolves endpoints differently based on the relationship between the source and target resources. This ensures proper communication across all environments.
+Aspire resolves endpoints differently based on the relationship between the source resource (the caller) and the target resource (the endpoint owner). This ensures that the resolved address is reachable from the caller's network context.
 
 ### Resolution Rules
 
-| **Source**           | **Target**           | **Resolution**                              | **Example URL**             |
-| -------------------- | -------------------- | ------------------------------------------- | --------------------------- |
-| Container            | Container            | Container network (`resource name:port`).   | `redis:6379`                |
-| Executable / Project | Container            | Host network (`localhost:port`).            | `localhost:6379`            |
-| Container            | Executable / Project | Host network (`host.docker.internal:port`). | `host.docker.internal:5000` |
+| **Source**           | **Target**           | **Tunnel state**  | **Resolution**                                                    | **Example URL**                                     |
+| -------------------- | -------------------- | ----------------- | ----------------------------------------------------------------- | --------------------------------------------------- |
+| Container            | Container            | Not applicable    | Container network (`resource name:target port`).                  | `redis:6379`                                        |
+| Executable / Project | Container            | Not applicable    | Host network (`localhost:host port`).                             | `localhost:6379`                                    |
+| Container            | Executable / Project | Enabled (default) | Container tunnel address and allocated port (TCP endpoints only). | `aspire.dev.internal:<tunnel-port>`                 |
+| Container            | Executable / Project | Disabled          | Container-runtime host address and host port.                     | `host.docker.internal:<host-port>` (Docker Desktop) |
+
+When the container tunnel is enabled, resolving a non-TCP executable or project endpoint for the default Aspire container network causes the consuming resource to fail.
+
+For details about how Aspire projects host-process endpoints into the container network, see [Container networking](/fundamentals/container-networking/).
 
 ### Advanced Scenario: Overriding default endpoint resolution
 
@@ -556,15 +561,24 @@ var url = await endpoint.GetValueAsync(new ValueProviderContext {
     Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
 });
 
-// The URL will be appropriate for the container network
-// e.g., "cache:6379" using the resource name as the hostname
+// Redis is a container target, so the URL uses its resource name and target port
+// e.g., "cache:6379"
 ```
 
 The `KnownNetworkIdentifiers` class provides predefined network identifiers:
 
-- `LocalhostNetwork`: Resolves to localhost-based URLs
-- `DefaultAspireContainerNetwork`: Resolves to container network URLs using resource names
-- `PublicInternet`: Resolves to externally accessible URLs
+- `LocalhostNetwork` resolves to localhost-based URLs.
+- `DefaultAspireContainerNetwork` resolves an endpoint as reachable from the default Aspire container network. Container targets use their resource name and target port. Executable and project targets use the container tunnel address and allocated tunnel port when the tunnel is enabled, or the container-host address and host port when it's disabled.
+- `PublicInternet` resolves to externally accessible URLs.
+
+<Aside type="caution">
+  Aspire creates the default container network only when the application model
+  contains at least one container resource. If an executable or project
+  explicitly resolves an executable or project endpoint for
+  `DefaultAspireContainerNetwork` without a container resource in the model, the
+  consuming resource fails with an error that identifies the invalid endpoint
+  reference.
+</Aside>
 
 <Aside type="note">
   These APIs existed in Aspire 13.1 but did not behave as expected. In Aspire

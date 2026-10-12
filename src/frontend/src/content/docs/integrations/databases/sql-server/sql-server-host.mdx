@@ -556,6 +556,55 @@ When the AppHost runs, the server's database resources can be accessed from exte
     </TabItem>
 </Tabs>
 
+<span id="add-sql-server-resource-with-a-repl-command"></span>
+
+## Open an interactive REPL
+
+In Aspire 13.6 or later, add `WithRepl()` to the SQL Server resource to enable a **REPL** command that opens `sqlcmd` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addSqlServer('sql').withRepl();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddSqlServer("sql").WithRepl();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The command is opt-in and available only in run mode while the container is running. The client runs inside the container as `sa`, connected to the `master` database, so no local SQL client is needed. It uses the configured password without putting it in command-line arguments and trusts the local server's self-signed certificate, matching the integration's local development connection string.
+
+The command supports `/opt/mssql-tools18/bin/sqlcmd` in newer SQL Server images and `/opt/mssql-tools/bin/sqlcmd` in older images. Custom images must include one of these clients.
+
+Enter SQL statements followed by `GO` on its own line to execute a batch:
+
+```sql title="Execute a SQL batch"
+SELECT DB_NAME();
+GO
+```
+
+Use `USE [db];` followed by `GO` to switch databases, and `QUIT` to exit before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client runs as `sa`, can modify or delete data, and can execute server-side operating system commands when enabled. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
+:::
+
 ## Connection properties
 
 For the full reference of SQL Server connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to SQL Server](../sql-server-connect/).

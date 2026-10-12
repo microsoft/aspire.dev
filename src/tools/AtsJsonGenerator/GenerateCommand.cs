@@ -43,9 +43,15 @@ internal static class GenerateCommand
         Description = "Source commit SHA.",
     };
 
-    private static readonly Option<string?> s_baseOption = new("--base")
+    private static readonly Option<string[]> s_baseOption = new("--base")
     {
-        Description = "Path to the core Aspire.Hosting docs-site JSON. When provided, capabilities and types already present in the base are excluded from the output.",
+        AllowMultipleArgumentsPerToken = true,
+        Description = "Paths to core and supporting-context docs-site JSON files. Capabilities and types already present in these packages are excluded from the output.",
+    };
+
+    private static readonly Option<bool> s_tolerateKnownScannerDiagnosticsOption = new("--tolerate-known-scanner-diagnostics")
+    {
+        Description = "Accept error diagnostics caused by known ATS scanner defects and report each one. Any other error diagnostic still fails.",
     };
 
     public static RootCommand GetCommand()
@@ -59,6 +65,7 @@ internal static class GenerateCommand
             s_sourceRepoOption,
             s_sourceCommitOption,
             s_baseOption,
+            s_tolerateKnownScannerDiagnosticsOption,
         };
 
         command.SetAction(static parseResult =>
@@ -69,9 +76,11 @@ internal static class GenerateCommand
             var version = parseResult.GetValue(s_versionOption);
             var sourceRepo = parseResult.GetValue(s_sourceRepoOption);
             var sourceCommit = parseResult.GetValue(s_sourceCommitOption);
-            var basePath = parseResult.GetValue(s_baseOption);
+            var basePaths = parseResult.GetValue(s_baseOption);
+            var tolerateKnownScannerDiagnostics = parseResult.GetValue(s_tolerateKnownScannerDiagnosticsOption);
 
-            return TransformFile(input, output, packageName, version, sourceRepo, sourceCommit, basePath);
+            return TransformFile(
+                input, output, packageName, version, sourceRepo, sourceCommit, basePaths, tolerateKnownScannerDiagnostics);
         });
 
         return command;
@@ -84,7 +93,8 @@ internal static class GenerateCommand
         string? version,
         string? sourceRepo,
         string? sourceCommit,
-        string? basePath = null)
+        string[]? basePaths = null,
+        bool tolerateKnownScannerDiagnostics = false)
     {
         if (!File.Exists(inputPath))
         {
@@ -103,10 +113,11 @@ internal static class GenerateCommand
             return 1;
         }
 
-        var result = AtsTransformer.Transform(dump, packageName, version, sourceRepo, sourceCommit);
+        var result = AtsTransformer.Transform(
+            dump, packageName, version, sourceRepo, sourceCommit, tolerateKnownScannerDiagnostics);
 
-        // Deduplicate against the base (core) package
-        if (basePath is not null)
+        // Supporting packages contribute scan targets, not APIs owned by this package.
+        foreach (var basePath in basePaths ?? [])
         {
             if (!File.Exists(basePath))
             {
@@ -116,23 +127,26 @@ internal static class GenerateCommand
 
             var baseJson = File.ReadAllText(basePath);
             var baseModel = JsonSerializer.Deserialize<TsPackageModel>(baseJson);
-            if (baseModel is not null)
+            if (baseModel is null)
             {
-                var baseFuncIds = new HashSet<string>(baseModel.Functions.Select(f => f.CapabilityId));
-                var baseHandleIds = new HashSet<string>(baseModel.HandleTypes.Select(h => h.FullName));
-                var baseDtoIds = new HashSet<string>(baseModel.DtoTypes.Select(d => d.FullName));
-                var baseEnumIds = new HashSet<string>(baseModel.EnumTypes.Select(e => e.FullName));
+                Console.Error.WriteLine($"Failed to deserialize base file: {basePath}");
+                return 1;
+            }
 
-                result.Functions.RemoveAll(f => baseFuncIds.Contains(f.CapabilityId));
-                result.HandleTypes.RemoveAll(h => baseHandleIds.Contains(h.FullName));
-                result.DtoTypes.RemoveAll(d => baseDtoIds.Contains(d.FullName));
-                result.EnumTypes.RemoveAll(e => baseEnumIds.Contains(e.FullName));
+            var baseFuncIds = new HashSet<string>(baseModel.Functions.Select(f => f.CapabilityId));
+            var baseHandleIds = new HashSet<string>(baseModel.HandleTypes.Select(h => h.FullName));
+            var baseDtoIds = new HashSet<string>(baseModel.DtoTypes.Select(d => d.FullName));
+            var baseEnumIds = new HashSet<string>(baseModel.EnumTypes.Select(e => e.FullName));
 
-                // Also strip base capabilities from handle type capabilities lists
-                foreach (var handle in result.HandleTypes)
-                {
-                    handle.Capabilities.RemoveAll(c => baseFuncIds.Contains(c.CapabilityId));
-                }
+            result.Functions.RemoveAll(f => baseFuncIds.Contains(f.CapabilityId));
+            result.HandleTypes.RemoveAll(h => baseHandleIds.Contains(h.FullName));
+            result.DtoTypes.RemoveAll(d => baseDtoIds.Contains(d.FullName));
+            result.EnumTypes.RemoveAll(e => baseEnumIds.Contains(e.FullName));
+
+            // Also strip base capabilities from handle type capabilities lists
+            foreach (var handle in result.HandleTypes)
+            {
+                handle.Capabilities.RemoveAll(c => baseFuncIds.Contains(c.CapabilityId));
             }
         }
 
@@ -155,6 +169,15 @@ internal static class GenerateCommand
         var wroteFile = StableFileWriter.WriteIfChanged(outputPath, JsonSerializer.Serialize(result, options));
 
         Console.WriteLine($"{(wroteFile ? "Generated" : "Unchanged")}: {outputPath} ({result.Functions.Count} functions, {result.HandleTypes.Count} handles, {result.DtoTypes.Count} DTOs, {result.EnumTypes.Count} enums)");
+
+        if (tolerateKnownScannerDiagnostics)
+        {
+            foreach (var message in KnownScannerDiagnostics.GetToleratedErrors(dump))
+            {
+                Console.WriteLine($"{KnownScannerDiagnostics.ToleratedOutputPrefix} {message}");
+            }
+        }
+
         return 0;
     }
 }

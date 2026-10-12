@@ -10,10 +10,19 @@ export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
     await siteTourDismissButton.click();
   }
 
-  const rejectAllButton = page.getByRole('button', { name: /reject all/i });
+  const rejectAllButton = page
+    .locator('#wcp-cookie-banner')
+    .getByRole('button', { name: /^reject(?: all)?$/i });
   if (await rejectAllButton.isVisible().catch(() => false)) {
     await rejectAllButton.click();
+    await expect(rejectAllButton).toBeHidden().catch(() => {});
   }
+  // WCP can finish loading after the initial page render.
+  await page
+    .addLocatorHandler(rejectAllButton, async (button) => {
+      await button.click();
+    })
+    .catch(() => {});
 }
 
 export async function waitForAccessibilityEnhancements(page: Page): Promise<void> {

@@ -10,6 +10,7 @@ import {
   TWOSLASH_LANGUAGES,
   ASPIRE_TYPES_PATH,
   getTwoslashOptions,
+  finishTwoslashRun,
   readAspireTypes,
 } from './config/twoslash.config.mjs';
 
@@ -36,6 +37,45 @@ if (TWOSLASH_ENABLED && !readAspireTypes().exists) {
   console.warn(`[ec] ${ASPIRE_TYPES_PATH} missing — run \`pnpm twoslash-types\``);
 }
 
+function cachedTwoslashPlugin() {
+  const options = getTwoslashOptions();
+  const plugin = ecTwoSlash({
+    instanceConfigs: {
+      twoslash: { explicitTrigger: true, languages: TWOSLASH_LANGUAGES },
+    },
+    includeJsDoc: true,
+    twoslashOptions: options,
+  });
+  let pending = Promise.resolve();
+  return {
+    ...plugin,
+    // Use the site's navigation-safe hover lifecycle, not the plugin's handlers.
+    jsModules: [],
+    hooks: {
+      ...plugin.hooks,
+      async preprocessCode(context) {
+        const enabled = TWOSLASH_LANGUAGES.includes(context.codeBlock.language) &&
+          /\btwoslash\b/.test(context.codeBlock.meta);
+        if (!enabled) return plugin.hooks.preprocessCode(context);
+        // The upstream hook awaits annotation rendering after compilation.
+        // Keep other snippets out until an override or crash has been cleaned up.
+        const current = pending.then(async () => {
+          let failed = true;
+          try {
+            await plugin.hooks.preprocessCode(context);
+            failed = false;
+          } finally {
+            finishTwoslashRun(options, failed);
+          }
+        });
+        // Recover the scheduling queue; the original rejection still reaches its caller.
+        pending = current.then(() => {}, () => {});
+        return current;
+      },
+    },
+  };
+}
+
 /** @type {import('@astrojs/starlight/expressive-code').StarlightExpressiveCodeOptions} */
 export default {
   // https://expressive-code.com/guides/themes/#using-bundled-themes
@@ -47,28 +87,7 @@ export default {
     pluginLineNumbers(),
     pluginIcon(),
     pluginDisableCopy(),
-    ...(TWOSLASH_ENABLED
-      ? [
-          {
-            ...ecTwoSlash({
-              // Only run on TS blocks that opt in via the `twoslash` meta flag.
-              instanceConfigs: {
-                // Docs samples use both `ts` and `typescript` fence languages; accept both.
-                twoslash: {
-                  explicitTrigger: true,
-                  languages: TWOSLASH_LANGUAGES,
-                },
-              },
-              includeJsDoc: true,
-              twoslashOptions: getTwoslashOptions(),
-            }),
-            // The plugin's observer and navigation handlers rebind our hovers
-            // using unstable index pairing. Use the site-owned lifecycle in
-            // src/scripts/twoslash-hover.ts, not its popup/Floating UI modules.
-            jsModules: [],
-          },
-        ]
-      : []),
+    ...(TWOSLASH_ENABLED ? [cachedTwoslashPlugin()] : []),
   ],
   defaultProps: {
     showLineNumbers: false,

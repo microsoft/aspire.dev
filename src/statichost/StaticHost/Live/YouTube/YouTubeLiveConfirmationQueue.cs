@@ -61,7 +61,8 @@ public sealed class YouTubeLiveConfirmationQueue(
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Confirming poll after YouTube webhook failed.");
+                    YouTubeDiagnostics.LogFailure(logger, ex, "NotificationConfirmation", "local coordination/state",
+                        skipIfLogged: true);
                 }
             }
         }

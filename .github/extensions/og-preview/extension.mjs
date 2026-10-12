@@ -15,7 +15,8 @@ import { extname } from "node:path";
 
 import { joinSession, createCanvas, CanvasError } from "@github/copilot-sdk/extension";
 
-import { fetchUrl, normalizeUrl } from "./lib/http-fetch.mjs";
+import { fetchUrl, normalizeUrl, authorizePreview } from "./lib/http-fetch.mjs";
+import { createAccess, requestAccess } from "./lib/request-access.mjs";
 import { parseMetadata } from "./lib/parse-og.mjs";
 import { checkAgentReadiness } from "./lib/agent-readiness.mjs";
 
@@ -74,9 +75,9 @@ async function serveAsset(res, name) {
 }
 
 /** Fetch a target URL and parse its OpenGraph metadata. */
-async function loadMetadata(rawUrl) {
+async function loadMetadata(rawUrl, policy) {
     const target = normalizeUrl(rawUrl);
-    const result = await fetchUrl(target);
+    const result = await fetchUrl(target, policy);
     if (result.status >= 400) {
         throw new Error(`Target responded with HTTP ${result.status}.`);
     }
@@ -88,6 +89,14 @@ async function loadMetadata(rawUrl) {
     data.requestedUrl = result.url;
     data.httpStatus = result.status;
     return data;
+}
+
+async function selectPreview(entry, url) {
+    const policy = await authorizePreview(url);
+    entry.policy = policy;
+    // Previously rendered content must not inherit a later local selection.
+    entry.browseToken = createAccess().browseToken;
+    return policy;
 }
 
 function sendJson(res, status, obj) {
@@ -353,7 +362,7 @@ function rewriteBrowseDoc(html, finalUrl, appOrigin) {
     );
 
     // Inline <script type="module">…</script> (no src) → rewrite import specifiers
-    out = out.replace(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi, (m, attrs, body) => {
+    out = out.replace(/<script(?=[\t\n\f\r />])((?:[^"'<>]|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/script(?=[\t\n\f\r />])(?:[^"'<>]|"[^"]*"|'[^']*')*>/gi, (m, attrs, body) => {
         if (/\ssrc\s*=/i.test(attrs)) return m; // external handled above
         if (!/type\s*=\s*["']?module/i.test(attrs)) return m; // classic scripts unaffected
         return `<script${attrs}>${rewriteJs(body, finalUrl, appOrigin)}</script>`;
@@ -439,7 +448,8 @@ function broadcast(entry, payload) {
 
 async function handleRequest(entry, req, res) {
     const reqUrl = new URL(req.url, "http://127.0.0.1");
-    const path = reqUrl.pathname;
+    let path = reqUrl.pathname;
+    res.setHeader("Referrer-Policy", "no-referrer");
 
     if (path === "/" || path === "/index.html") {
         return serveAsset(res, "index.html");
@@ -447,6 +457,17 @@ async function handleRequest(entry, req, res) {
     if (path === "/styles.css" || path === "/app.js") {
         return serveAsset(res, path.slice(1));
     }
+
+    const access = requestAccess(entry, req, reqUrl);
+    if (!access) return sendJson(res, 403, { error: "Preview access denied." });
+    path = access.path;
+    if (path !== "/api/open-session" && path !== "/api/create-issue" && req.method !== "GET") {
+        return sendJson(res, 405, { error: "Use GET." });
+    }
+    // A request keeps its authorization snapshot even when another selection
+    // replaces the active origin while a fetch/redirect is in flight.
+    let policy = entry.policy;
+    const proxyOrigin = new URL(entry.url).origin + `/browse/${entry.browseToken}`;
 
     if (path === "/events") {
         res.writeHead(200, {
@@ -469,15 +490,19 @@ async function handleRequest(entry, req, res) {
         // user out of the Browse tab on every in-page navigation.
         const silent = reqUrl.searchParams.get("silent") === "1";
         try {
-            const data = await loadMetadata(u);
+            if (reqUrl.searchParams.get("select") === "1") {
+                policy = await selectPreview(entry, u);
+            }
+            const data = await loadMetadata(u, policy);
             entry.currentUrl = data.requestedUrl;
             sendJson(res, 200, data);
             // Refresh the host panel title to the resolved URL (fire-and-forget;
             // guarded against loops by syncTitle).
             if (!silent) syncTitle(entry, data.requestedUrl).catch(() => {});
             return;
-        } catch (err) {
-            return sendJson(res, 200, { error: err.message });
+        } catch {
+            log("OG Viewer: metadata request failed.", "warning");
+            return sendJson(res, 200, { error: "Couldn't load metadata. Check the URL and selected-origin access." });
         }
     }
 
@@ -486,10 +511,11 @@ async function handleRequest(entry, req, res) {
         if (!u) return sendJson(res, 400, { error: "Missing 'u' query parameter." });
         try {
             const target = normalizeUrl(u);
-            const report = await checkAgentReadiness(target);
+            const report = await checkAgentReadiness(target, policy);
             return sendJson(res, 200, report);
-        } catch (err) {
-            return sendJson(res, 200, { error: err.message });
+        } catch {
+            log("OG Viewer: agent-readiness request failed.", "warning");
+            return sendJson(res, 200, { error: "Couldn't check agent readiness." });
         }
     }
 
@@ -500,7 +526,7 @@ async function handleRequest(entry, req, res) {
             return res.end("Missing 'u'");
         }
         try {
-            const img = await fetchUrl(u, { accept: "image/*,*/*;q=0.8", timeoutMs: 12000 });
+            const img = await fetchUrl(u, { ...policy, accept: "image/*,*/*;q=0.8", timeoutMs: 12000 });
             res.statusCode = img.status >= 400 ? img.status : 200;
             res.setHeader("Content-Type", img.contentType || "application/octet-stream");
             res.setHeader("Cache-Control", "public, max-age=300");
@@ -517,6 +543,7 @@ async function handleRequest(entry, req, res) {
         try {
             const target = githubBlobToRaw(u);
             const r = await fetchUrl(target, {
+                ...policy,
                 accept: "text/plain,text/markdown,application/json,text/*;q=0.9,*/*;q=0.5",
                 timeoutMs: 12000,
                 maxBytes: 1024 * 1024,
@@ -564,8 +591,9 @@ async function handleRequest(entry, req, res) {
                 truncated,
                 text,
             });
-        } catch (err) {
-            return sendJson(res, 200, { error: err.message || "Couldn't load file preview." });
+        } catch {
+            log("OG Viewer: file preview failed.", "warning");
+            return sendJson(res, 200, { error: "Couldn't load file preview." });
         }
     }
 
@@ -575,17 +603,19 @@ async function handleRequest(entry, req, res) {
     // them, and rewrites JS imports / CSS urls so the dependency graph stays inside
     // the proxy. The path layout makes relative module imports resolve correctly.
     if (path.startsWith("/api/proxy/")) {
-        const target = proxyDecodePath(path, reqUrl.search);
+        const search = new URLSearchParams(reqUrl.search);
+        if (access.privileged) search.delete("key");
+        const target = proxyDecodePath(path, search.size ? `?${search}` : "");
         if (!target) {
             res.statusCode = 400;
             return res.end("Bad proxy path");
         }
-        const appOrigin = "http://" + (req.headers.host || "127.0.0.1");
+        const appOrigin = proxyOrigin;
         try {
-            const r = await fetchUrl(target, { accept: "*/*", timeoutMs: 15000 });
+            const r = await fetchUrl(target, { ...policy, accept: "*/*", timeoutMs: 15000 });
             const ct = r.contentType || "";
             res.setHeader("Access-Control-Allow-Origin", "*");
-            res.setHeader("Cache-Control", "public, max-age=300");
+            res.setHeader("Cache-Control", "no-store");
             const realPath = (() => {
                 try {
                     return new URL(r.url).pathname;
@@ -617,10 +647,11 @@ async function handleRequest(entry, req, res) {
             res.statusCode = r.status >= 400 ? r.status : 200;
             res.setHeader("Content-Type", ct || "application/octet-stream");
             return res.end(r.body);
-        } catch (err) {
+        } catch {
+            log("OG Viewer: proxy resource request failed.", "warning");
             res.statusCode = 502;
             res.setHeader("Access-Control-Allow-Origin", "*");
-            return res.end(String(err && err.message ? err.message : err));
+            return res.end("Couldn't load preview resource.");
         }
     }
 
@@ -632,6 +663,7 @@ async function handleRequest(entry, req, res) {
         }
         try {
             const r = await fetchUrl(normalizeUrl(u), {
+                ...policy,
                 accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 timeoutMs: 15000,
             });
@@ -639,7 +671,7 @@ async function handleRequest(entry, req, res) {
             const isHtml = !ct || /text\/html|application\/xhtml\+xml|\/xml|text\/plain/i.test(ct);
             res.setHeader("Cache-Control", "no-store");
             res.setHeader("Access-Control-Allow-Origin", "*");
-            const appOrigin = "http://" + (req.headers.host || "127.0.0.1");
+            const appOrigin = proxyOrigin;
             if (!isHtml) {
                 // Serve non-HTML targets (images, PDFs, …) verbatim so links to
                 // them still render inside the browse frame.
@@ -652,11 +684,12 @@ async function handleRequest(entry, req, res) {
             res.statusCode = 200;
             res.setHeader("Content-Type", "text/html; charset=utf-8");
             return res.end(rewriteBrowseDoc(r.body.toString("utf8"), r.url, appOrigin));
-        } catch (err) {
+        } catch {
+            log("OG Viewer: browse request failed.", "warning");
             res.statusCode = 200;
             res.setHeader("Content-Type", "text/html; charset=utf-8");
             res.setHeader("Cache-Control", "no-store");
-            return res.end(browseErrorPage(u, err && err.message ? err.message : String(err)));
+            return res.end(browseErrorPage(u, "Check the URL and selected-origin access."));
         }
     }
 
@@ -667,8 +700,8 @@ async function handleRequest(entry, req, res) {
         let body;
         try {
             body = await readJsonBody(req);
-        } catch (err) {
-            return sendJson(res, 400, { error: err.message });
+        } catch {
+            return sendJson(res, 400, { error: "Invalid JSON request body." });
         }
         const repo = typeof body.repo === "string" ? body.repo.trim() : "";
         const pageUrl = typeof body.url === "string" ? body.url.trim() : "";
@@ -690,13 +723,14 @@ async function handleRequest(entry, req, res) {
                 return sendJson(res, 200, { ok: false, error: "Session bridge unavailable." });
             }
             // Fire the request into the host chat session; the agent acts on it.
-            sessionRef.send(message).catch(() => {});
+            await sessionRef.send(message);
             log(`OG Viewer: requested ${kind} for ${repo}.`);
             return sendJson(res, 200, { ok: true });
-        } catch (err) {
+        } catch {
+            log("OG Viewer: session action failed.", "warning");
             return sendJson(res, 200, {
                 ok: false,
-                error: err && err.message ? err.message : String(err),
+                error: "Couldn't send the session action.",
             });
         }
     }
@@ -707,6 +741,7 @@ async function handleRequest(entry, req, res) {
 
 async function startServer(instanceId, currentUrl) {
     const entry = {
+        ...createAccess(),
         instanceId,
         server: null,
         url: "",
@@ -714,10 +749,12 @@ async function startServer(instanceId, currentUrl) {
         titleKey: currentUrl ? titleKey(currentUrl) : "",
         clients: new Set(),
     };
+    if (currentUrl) entry.policy = await authorizePreview(currentUrl);
     const server = createServer((req, res) => {
-        Promise.resolve(handleRequest(entry, req, res)).catch((err) => {
+        Promise.resolve(handleRequest(entry, req, res)).catch(() => {
+            log("OG Viewer: request failed.", "warning");
             if (!res.headersSent) res.statusCode = 500;
-            res.end(String(err && err.message ? err.message : err));
+            res.end("Preview request failed.");
         });
     });
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -731,7 +768,8 @@ async function startServer(instanceId, currentUrl) {
 
 function instanceUrl(entry) {
     const base = entry.url;
-    return entry.currentUrl ? `${base}?u=${encodeURIComponent(entry.currentUrl)}` : base;
+    const url = entry.currentUrl ? `${base}?u=${encodeURIComponent(entry.currentUrl)}` : base;
+    return `${url}#key=${entry.uiToken}`;
 }
 
 const ogCanvas = createCanvas({
@@ -767,7 +805,8 @@ const ogCanvas = createCanvas({
                 }
                 const url = ctx.input?.url;
                 if (!url) throw new CanvasError("invalid_input", "An 'url' value is required.");
-                const data = await loadMetadata(url);
+                const policy = await selectPreview(entry, url);
+                const data = await loadMetadata(url, policy);
                 entry.currentUrl = data.requestedUrl;
                 broadcast(entry, { type: "load", url: data.requestedUrl });
                 syncTitle(entry, data.requestedUrl).catch(() => {});
@@ -787,7 +826,7 @@ const ogCanvas = createCanvas({
             handler: async (ctx) => {
                 const url = ctx.input?.url;
                 if (!url) throw new CanvasError("invalid_input", "An 'url' value is required.");
-                const data = await loadMetadata(url);
+                const data = await loadMetadata(url, await authorizePreview(url));
                 return {
                     requestedUrl: data.requestedUrl,
                     resolved: data.resolved,
@@ -803,6 +842,9 @@ const ogCanvas = createCanvas({
         if (!entry) {
             entry = await startServer(ctx.instanceId, inputUrl);
         } else if (inputUrl) {
+            // Title refreshes use currentUrl and must not grant permissions to
+            // a redirect or a route reported by the sandboxed page.
+            if (inputUrl !== entry.currentUrl) await selectPreview(entry, inputUrl);
             entry.currentUrl = inputUrl;
             broadcast(entry, { type: "load", url: inputUrl });
         }

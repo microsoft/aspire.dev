@@ -12,7 +12,7 @@
  *
  * We keep WCP's DOM (required: it is what writes the MSCC consent cookie and what
  * the compliance scan looks for) but replace its entire visual language with
- * Aspire's: Poppins type, the site's surface/text tokens, the lavender primary
+ * Aspire's: Poppins type, the site's surface/text tokens, the purple primary
  * CTA (mirrors the "Try Aspire" button), ghost secondary actions, and the brand
  * purple for links, focus, and form controls. All colors come from the
  * theme-aware custom properties in site.css, so the UI tracks light/dark itself.
@@ -21,9 +21,9 @@
 /* ==========================================================================
  * Manage-cookies buttons (site chrome)
  *
- * The four "Manage cookies" buttons (header desktop + mobile, footer tools, and
- * the social-icons row) are always server-rendered so they are available the
- * instant WCP decides consent is required. Where WCP reports consent is NOT
+ * The cookie controls (header icons, Legal text action, and social-icons row)
+ * are server-rendered so they are available the instant WCP decides consent is
+ * required. Where WCP reports consent is NOT
  * required (e.g. the US) there is nothing to manage, so we hide them. The
  * `data-consent-not-required` flag is set on <html> by the WCP runtime in
  * Head.astro once it knows the region (and primed from localStorage before
@@ -121,21 +121,21 @@ html:has(#wcpConsentBannerCtrl) .page {
 }
 
 /* The banner's three actions share one parent group, so :nth-of-type is a stable
-   way to distinguish them: 1 = Accept (primary), 2 = Reject, 3 = More info. */
+   way to distinguish them: 1 = Accept (primary), 2 = Reject, 3 = Manage cookies. */
 
-/* Primary "Accept" — mirrors the site's lavender "Try Aspire" CTA. */
+/* Primary "Accept" — shares the site's "Try Aspire" action tokens in both themes. */
 #wcpConsentBannerCtrl button:nth-of-type(1) {
-  background: var(--aspire-color-light) !important;
-  color: var(--aspire-color-black) !important;
-  border: 1px solid var(--aspire-color-light) !important;
+  background: var(--aspire-action-primary) !important;
+  color: var(--aspire-action-primary-text) !important;
+  border: 1px solid var(--aspire-action-primary) !important;
 }
 
 #wcpConsentBannerCtrl button:nth-of-type(1):hover {
-  background: color-mix(in srgb, var(--aspire-color-light) 82%, var(--aspire-color-purple)) !important;
-  border-color: color-mix(in srgb, var(--aspire-color-light) 82%, var(--aspire-color-purple)) !important;
+  background: var(--aspire-action-primary-hover) !important;
+  border-color: var(--aspire-action-primary-hover) !important;
 }
 
-/* Secondary "Reject" / "More info" — ghost buttons that fill toward brand
+/* Secondary "Reject" / "Manage cookies" — ghost buttons that fill toward brand
    purple on hover. The resting border uses --sl-color-text at 55% so the button
    boundary clears WCAG 1.4.11 non-text contrast (>=3:1) in both themes
    (3.73:1 light, 5.82:1 dark); 30% failed it (1.90:1 / 2.70:1). */
@@ -188,15 +188,92 @@ html:has(#wcpCookiePreferenceCtrl) {
    in dark mode. A neutral dark scrim reads correctly in both themes. */
 #wcpCookiePreferenceCtrl {
   background: color-mix(in srgb, var(--aspire-color-black) 60%, transparent) !important;
+  --wcp-dialog-padding: 1rem;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box !important;
+  padding: 1rem !important;
+  height: 100dvh !important;
+  overflow: hidden !important;
 }
 
 /* Modal panel — the branded Aspire card. */
 #wcpCookiePreferenceCtrl [role='dialog'] {
+  position: relative !important;
+  inset: auto !important;
+  display: flex !important;
+  flex-direction: column;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 40rem !important;
+  height: auto !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  overflow: hidden !important;
   background: var(--sl-color-bg) !important;
   color: var(--sl-color-text) !important;
-  border: 1px solid color-mix(in srgb, var(--sl-color-text) 12%, transparent) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--sl-color-gray-5) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: var(--sl-shadow-lg) !important;
+}
+
+#wcpCookiePreferenceCtrl [role='document'] {
+  display: flex !important;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+  height: auto !important;
+  margin: 0 !important;
+  padding: var(--wcp-dialog-padding) !important;
+  overflow: hidden;
+}
+
+#wcpCookiePreferenceCtrl [role='document'] > div:first-child {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-inline-end: 3.25rem;
+  flex-shrink: 0;
+}
+
+#wcpCookiePreferenceCtrl [role='document'] h1 {
+  margin: 0 !important;
+}
+
+/* Scroll only the choices so the title, close control, and actions stay reachable. */
+#wcpCookiePreferenceCtrl [role='document'] > form {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+#wcpCookiePreferenceCtrl [role='document'] > div:last-child {
+  display: flex !important;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  margin: 0 !important;
+}
+
+#wcpCookiePreferenceCtrl [role='document'] > div:last-child button {
+  flex: 1;
+  float: none !important;
+  min-width: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+
+@media (min-width: 50rem) {
+  #wcpCookiePreferenceCtrl {
+    --wcp-dialog-padding: 1.5rem;
+  }
+}
+
+@media (max-width: 30rem) {
+  #wcpCookiePreferenceCtrl [role='document'] > div:last-child {
+    flex-direction: column;
+  }
 }
 
 /* WCP hardcodes black on its text nodes, so recolor them to the theme text.
@@ -221,25 +298,38 @@ html:has(#wcpCookiePreferenceCtrl) {
 
 /* Close (✕) button — the direct child button of the dialog panel. */
 #wcpCookiePreferenceCtrl [role='dialog'] > button {
+  position: absolute !important;
+  inset-block-start: var(--wcp-dialog-padding) !important;
+  inset-inline-end: var(--wcp-dialog-padding) !important;
+  float: none !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  margin: 0 !important;
   background: transparent !important;
   color: var(--sl-color-text) !important;
   border: none !important;
-  padding: 0.35rem !important;
+  border-radius: 0.375rem !important;
+  padding: 0.5rem !important;
 }
 #wcpCookiePreferenceCtrl [role='dialog'] > button:hover {
+  background: var(--sl-color-gray-5) !important;
   color: var(--sl-color-text-accent) !important;
 }
 
 /* Footer actions live in the last child of the dialog body: the first button is
-   the primary "Save changes" (lavender CTA), the second is "Reset all" (ghost). */
+   the primary "Save changes" (purple CTA), the second is "Reset all" (ghost). */
 #wcpCookiePreferenceCtrl [role='document'] > div:last-child button:first-of-type {
-  background: var(--aspire-color-light) !important;
-  color: var(--aspire-color-black) !important;
-  border: 1px solid var(--aspire-color-light) !important;
+  background: var(--aspire-action-primary) !important;
+  color: var(--aspire-action-primary-text) !important;
+  border: 1px solid var(--aspire-action-primary) !important;
 }
 #wcpCookiePreferenceCtrl [role='document'] > div:last-child button:first-of-type:hover {
-  background: color-mix(in srgb, var(--aspire-color-light) 82%, var(--aspire-color-purple)) !important;
-  border-color: color-mix(in srgb, var(--aspire-color-light) 82%, var(--aspire-color-purple)) !important;
+  background: var(--aspire-action-primary-hover) !important;
+  border-color: var(--aspire-action-primary-hover) !important;
 }
 #wcpCookiePreferenceCtrl [role='document'] > div:last-child button:last-of-type {
   background: transparent !important;
@@ -260,6 +350,6 @@ html:has(#wcpCookiePreferenceCtrl) {
 #wcpCookiePreferenceCtrl button:focus-visible,
 #wcpCookiePreferenceCtrl a:focus-visible,
 #wcpCookiePreferenceCtrl input:focus-visible {
-  outline: 2px solid var(--aspire-color-primary) !important;
+  outline: 2px solid var(--aspire-action-focus) !important;
   outline-offset: 2px !important;
 }

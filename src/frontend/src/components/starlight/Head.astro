@@ -1,5 +1,5 @@
 ---
-import { Tooltips } from 'astro-tooltips';
+import 'tippy.js/dist/tippy.css';
 import DefaultHead from '@astrojs/starlight/components/Head.astro';
 import { ClientRouter } from 'astro:transitions';
 import AccessibleCodeButtons from '../AccessibleCodeButtons.astro';
@@ -40,6 +40,17 @@ function computeSourceUrl() {
 <meta name="git-source-url" content={computeSourceUrl()} />
 
 <DefaultHead {...Astro.props} />
+<script>
+  import '@scripts/deployment-guard';
+  import '@scripts/mermaid';
+
+  document.addEventListener('astro:before-swap', (event) => {
+    const theme = document.documentElement.dataset.theme;
+    if (theme === 'light' || theme === 'dark') {
+      event.newDocument.documentElement.dataset.theme = theme;
+    }
+  });
+</script>
 <ClientRouter fallback="swap" />
 
 {
@@ -100,14 +111,14 @@ function computeSourceUrl() {
 
       var url = new URL(window.location);
       url.searchParams.set('aspire-lang', normalized);
-      window.history.replaceState({}, '', url);
+      window.history.replaceState(window.history.state, '', url);
     }
 
-    function persistAppHostLang(value) {
+    function persistAppHostLang(value, root) {
       var normalized = normalizeAppHostLang(value);
       if (!normalized) return '';
 
-      document.documentElement.setAttribute('data-apphost-lang', normalized);
+      (root || document.documentElement).setAttribute('data-apphost-lang', normalized);
       try {
         localStorage.setItem('aspire-lang', normalized);
         localStorage.setItem(appHostLangStorageKey, appHostLangLabels[normalized]);
@@ -124,6 +135,10 @@ function computeSourceUrl() {
     function initAppHostLangSync() {
       if (window.__aspireAppHostLangSyncInitialized) return;
       window.__aspireAppHostLangSyncInitialized = true;
+
+      document.addEventListener('astro:before-swap', function (event) {
+        restorePreferences(event.newDocument.documentElement, event.to);
+      });
 
       document.addEventListener('click', function (event) {
         var target = event.target;
@@ -157,40 +172,37 @@ function computeSourceUrl() {
       });
     }
 
-    var qsAppHostLang = persistAppHostLang(
-      new URLSearchParams(window.location.search).get('aspire-lang')
-    );
-    var rawAppHostLang = qsAppHostLang || 'typescript';
+    function restorePreferences(root, url) {
+      var qsAppHostLang = persistAppHostLang(url.searchParams.get('aspire-lang'), root);
+      var rawAppHostLang = qsAppHostLang || 'typescript';
 
-    try {
-      rawAppHostLang =
-        qsAppHostLang ||
-        localStorage.getItem('aspire-lang') ||
-        localStorage.getItem('aspire-apphost-lang') ||
-        localStorage.getItem(appHostLangStorageKey) ||
-        localStorage.getItem('starlight-synced-tabs__apphost-lang') ||
-        localStorage.getItem('starlight-synced-tabs__apphost-implementation-lang') ||
-        'typescript';
-    } catch (e) {}
+      try {
+        rawAppHostLang =
+          qsAppHostLang ||
+          localStorage.getItem('aspire-lang') ||
+          localStorage.getItem('aspire-apphost-lang') ||
+          localStorage.getItem(appHostLangStorageKey) ||
+          localStorage.getItem('starlight-synced-tabs__apphost-lang') ||
+          localStorage.getItem('starlight-synced-tabs__apphost-implementation-lang') ||
+          'typescript';
+      } catch (e) {}
 
-    persistAppHostLang(normalizeAppHostLang(rawAppHostLang) || 'typescript');
+      persistAppHostLang(normalizeAppHostLang(rawAppHostLang) || 'typescript', root);
 
-    try {
-      var path = window.location.pathname.replace(/\/$/, '');
-      if (
-        localStorage.getItem('api-sidebar-collapsed') === '1' &&
-        path.indexOf('/reference/api') !== -1
-      ) {
-        document.documentElement.setAttribute('data-sidebar-collapsed', '');
-      }
+      try {
+        var isApi = url.pathname.indexOf('/reference/api') !== -1;
+        root.toggleAttribute(
+          'data-sidebar-collapsed',
+          isApi && localStorage.getItem('api-sidebar-collapsed') === '1'
+        );
+        root.toggleAttribute(
+          'data-topic-sidebar-collapsed',
+          !isApi && localStorage.getItem('topic-sidebar-collapsed') === '1'
+        );
+      } catch (e) {}
+    }
 
-      if (
-        localStorage.getItem('topic-sidebar-collapsed') === '1' &&
-        path.indexOf('/reference/api') === -1
-      ) {
-        document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
-      }
-    } catch (e) {}
+    restorePreferences(document.documentElement, new URL(window.location.href));
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initAppHostLangSync);
@@ -213,7 +225,7 @@ function computeSourceUrl() {
     if (window.__aspireWcpConsentInitialized) return;
     window.__aspireWcpConsentInitialized = true;
 
-    // The four "Manage cookies" buttons are always server-rendered. Once WCP
+    // Cookie controls, including the Legal text action, are server-rendered. Once WCP
     // tells us whether consent is required for this region, reflect it on <html>
     // so CSS can hide those buttons where there is nothing to manage (e.g. the
     // US). Persist the answer so a returning visitor doesn't see the button
@@ -562,34 +574,8 @@ function computeSourceUrl() {
   import '@scripts/webmcp';
 </script>
 
-<Tooltips
-  interactive={false}
-  allowHTML={true}
-  delay={[0, 0]}
-  duration={[0, 0]}
-  hideOnClick={true}
-  animation="scale"
-  onClickOutside={function (instance, event) {
-    if (instance) {
-      instance.hide();
-    }
-  }}
-/>
-
-<script is:inline>
-  (function () {
-    document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') {
-        const activeElement = document.activeElement;
-        if (activeElement && activeElement._tippy) {
-          activeElement._tippy.hide();
-        }
-      }
-    });
-  })();
-</script>
-
 <script>
+  import '@scripts/tooltips';
   import '@scripts/twoslash-hover';
 </script>
 

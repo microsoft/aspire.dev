@@ -1,6 +1,5 @@
 // Icon packs configuration for Mermaid diagrams.
-// astro-mermaid now serializes icon packs as name/url pairs, so custom packs
-// must be served from a static JSON endpoint instead of an inline loader.
+// Loaded lazily by src/scripts/mermaid.ts.
 
 export const iconPacks = [
   {

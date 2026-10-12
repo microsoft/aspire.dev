@@ -399,7 +399,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-The preceding code adds a container based on the `ghcr.io/joeferner/redis-commander` image. The Redis Commander UI is available from the Aspire dashboard and connects automatically to the Redis resource.
+The preceding code adds a container based on the `ghcr.io/joeferner/redis-commander` image. The Redis Commander UI connects automatically to the Redis resource. Open **Manage (Commander)** on a Redis resource in the dashboard; the management container is hidden from the main resource list. Redis Insight follows the same pattern with **Manage (Insights)**.
 
 <ContainerImages package="Aspire.Hosting.Redis" only="Redis Commander" />
 
@@ -544,6 +544,46 @@ await builder.build().run();
 </Tabs>
 
 With `AddConnectionString` and `addConnectionString`, Aspire resolves `cache` from `ConnectionStrings:cache` (or environment variable `ConnectionStrings__cache`) in the AppHost configuration. Consuming apps receive that value as a single connection string, not deconstructed Redis resource-specific connection-property variables such as `CACHE_HOST`, `CACHE_PORT`, or `CACHE_URI`.
+
+<span id="add-redis-resource-with-a-repl-command"></span>
+
+## Open an interactive REPL
+
+In Aspire 13.6 or later, add `WithRepl()` to the Redis resource to enable a **REPL** command that opens `redis-cli` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addRedis('cache').withRepl();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRedis("cache").WithRepl();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The command is opt-in and available only in run mode while the container is running. It uses the container's bundled client through Docker or Podman, so no local Redis client is needed. Credentials are passed through environment variables rather than command-line arguments. When TLS is enabled, the in-container REPL uses the non-TLS port over loopback.
+
+Use `quit` before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client uses the resource's configured credentials and can modify or delete data. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
+:::
 
 ## Connection properties
 

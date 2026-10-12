@@ -4,21 +4,31 @@ import type { ImageMetadata } from 'astro';
 import PauseIcon from '@assets/icons/pause.svg';
 import PlayIcon from '@assets/icons/play.svg';
 
-interface Props extends Omit<HTMLAttributes<'img'>, 'src'> {
-  src: ImageMetadata;
+interface BaseProps extends Omit<HTMLAttributes<'img'>, 'src'> {
   alt: string;
 }
 
-const { src, alt, ...rest } = Astro.props as Props;
+type Props = BaseProps &
+  (
+    | { src: ImageMetadata; light?: never; dark?: never }
+    | { src?: never; light: ImageMetadata; dark: ImageMetadata }
+  );
+
+const { src, light, dark, alt, ...rest } = Astro.props as Props;
+const image = src ?? dark;
 // A per-component unique id so multiple LoopingImage instances can coexist safely
 const uid = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
 // Get image dimensions for placeholder
-const width = src.width;
-const height = src.height;
+const width = image.width;
+const height = image.height;
 ---
 
-<div class="looping-image-wrapper not-content" data-looping-image-id={uid}>
+<div
+  class="looping-image-wrapper not-content"
+  data-looping-image-id={uid}
+  data-themed-animation={light ? '' : undefined}
+>
   <img
     class="looping-image-placeholder"
     data-looping-image-id={uid}
@@ -31,7 +41,9 @@ const height = src.height;
   />
   <img
     class="looping-image"
-    src={src.src}
+    src={src?.src}
+    data-light-src={light?.src}
+    data-dark-src={dark?.src}
     alt={alt}
     data-looping-image-id={uid}
     width={width}
@@ -56,9 +68,29 @@ const height = src.height;
   </button>
 </div>
 
+{
+  light && (
+    <noscript>
+      <style
+        is:inline
+        set:html=".looping-image-wrapper[data-themed-animation] { display: none; }"
+      />
+      <img
+        class="looping-image-fallback"
+        src={light.src}
+        alt={alt}
+        width={width}
+        height={height}
+        {...rest}
+      />
+    </noscript>
+  )
+}
+
 <script>
   // @ts-nocheck -- Client-side DOM manipulation with runtime casts; suppress to avoid implicit any noise.
   let themeObserver;
+  const themeUpdates = new WeakMap<Element, () => void>();
 
   function getCurrentTheme() {
     const html = document.documentElement;
@@ -120,18 +152,45 @@ const height = src.height;
       let isPlaying = true;
       let staticImageData = null;
       let isLoaded = false;
+      let placeholderTimer = null;
+      let resumeTimer = null;
+
+      function updateImageForTheme() {
+        const source = getCurrentTheme() === 'dark' ? img.dataset.darkSrc : img.dataset.lightSrc;
+        if (!source || img.getAttribute('src') === source) return;
+
+        if (placeholderTimer) clearTimeout(placeholderTimer);
+        if (resumeTimer) clearTimeout(resumeTimer);
+        staticImageData = null;
+        isLoaded = false;
+        canvas.style.display = 'none';
+        img.style.opacity = '0';
+        placeholder.style.display = 'block';
+        btn.style.display = 'none';
+        img.src = source;
+      }
+
+      themeUpdates.set(wrapper, updateImageForTheme);
 
       // Handle image load
       function onImageLoad() {
         if (isLoaded) return;
         isLoaded = true;
 
-        // Fade in the actual image
-        img.style.opacity = '1';
+        if (isPlaying) {
+          img.style.opacity = '1';
+        } else {
+          captureStaticFrame();
+          if (staticImageData) {
+            canvas.getContext('2d')?.putImageData(staticImageData, 0, 0);
+            canvas.style.display = 'block';
+            canvas.style.opacity = '1';
+          }
+        }
         btn.style.display = 'flex';
 
         // After fade completes, hide placeholder
-        setTimeout(() => {
+        placeholderTimer = setTimeout(() => {
           placeholder.style.display = 'none';
         }, 300);
       }
@@ -193,8 +252,9 @@ const height = src.height;
         } else {
           // Play: fade out canvas first, then restart GIF
           canvas.style.opacity = '0';
+          staticImageData = null;
 
-          setTimeout(() => {
+          resumeTimer = setTimeout(() => {
             canvas.style.display = 'none';
             img.style.opacity = '1';
             // Force browser to restart the GIF animation
@@ -222,18 +282,16 @@ const height = src.height;
         });
       }
 
-      // Wait for image to load before showing it
+      img.addEventListener('load', onImageLoad);
+      img.addEventListener('error', () => {
+        console.error('Failed to load image:', img.src);
+        placeholder.style.display = 'none';
+      });
+
+      // Choose one themed source before starting its request.
+      updateImageForTheme();
       if (img.complete && img.naturalWidth > 0) {
-        // Image already loaded
         onImageLoad();
-      } else {
-        img.addEventListener('load', onImageLoad);
-        // Handle load errors
-        img.addEventListener('error', () => {
-          console.error('Failed to load image:', img.src);
-          // Hide placeholder on error
-          placeholder.style.display = 'none';
-        });
       }
 
       syncButton();
@@ -260,6 +318,9 @@ const height = src.height;
             document
               .querySelectorAll('.looping-image-placeholder')
               .forEach((placeholder) => updatePlaceholderForTheme(placeholder));
+            document
+              .querySelectorAll('.looping-image-wrapper')
+              .forEach((wrapper) => themeUpdates.get(wrapper)?.());
           }
         }
       });
@@ -283,6 +344,7 @@ const height = src.height;
   }
 
   img.looping-image,
+  img.looping-image-fallback,
   img.looping-image-placeholder,
   canvas.looping-image-canvas {
     border-radius: 0.5rem;

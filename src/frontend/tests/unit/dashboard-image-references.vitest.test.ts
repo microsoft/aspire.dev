@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
@@ -8,20 +8,21 @@ const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(testsDir, '..', '..', 'src', 'content', 'docs');
 const stableImage = 'mcr.microsoft.com/aspire/dashboard:latest';
 const nightlyImage = 'mcr.microsoft.com/aspire/nightly/dashboard:latest';
+const sampleImage = 'mcr.microsoft.com/aspire/nightly/dashboard:13.6';
 
 function readDoc(file: string): string {
   return readFileSync(path.join(docsRoot, file), 'utf8');
 }
 
 function dockerCommands(source: string): string[] {
-  return [...source.matchAll(/```(?:bash|powershell)[^\n]*\n([\s\S]*?)```/g)]
-    .map((match) => match[1])
-    .filter((code) => code.startsWith('docker run '));
+  return [...source.matchAll(/```(?:bash|powershell)[^\n]*\n([\s\S]*?)```/g)].flatMap(
+    (match) => match[1].match(/^docker run[^\n]*(?:\n[ \t]+[^\n]*)*/gm) ?? []
+  );
 }
 
 describe('standalone dashboard container images', () => {
   test.each([
-    ['dashboard/standalone.mdx', 2],
+    ['dashboard/standalone.mdx', 4],
     ['dashboard/index.mdx', 2],
     ['dashboard/configuration.mdx', 2],
     ['dashboard/enable-browser-telemetry/index.mdx', 4],
@@ -64,6 +65,36 @@ describe('standalone dashboard container images', () => {
     expect(source).toContain('docker container logs aspire-dashboard');
     expect(source).toContain('aspire dashboard run');
   });
+
+  test('preserves the volume and persistence settings in both shell variants', () => {
+    const commands = dockerCommands(readDoc('dashboard/standalone.mdx')).filter((command) =>
+      command.includes('--mount')
+    );
+    expect(commands).toHaveLength(2);
+    for (const command of commands) {
+      expect(command).toContain(
+        '--mount type=volume,source=aspire-dashboard-data,target=/dashboard-data'
+      );
+      expect(command).toContain('-e ASPIRE_DASHBOARD_APPLICATION_NAME=my-app');
+      expect(command).toContain('-e ASPIRE_DASHBOARD_DATA_DIRECTORY=/dashboard-data');
+      expect(command).toContain('-e ASPIRE_DASHBOARD_PERSISTENCE_MODE=run');
+    }
+  });
+
+  test('uses canonical floating image references throughout active docs in all locales', () => {
+    const legacyImages: string[] = [];
+    for (const file of readdirSync(docsRoot, { recursive: true, encoding: 'utf8' })) {
+      if (!/\.mdx?$/.test(file) || /(?:^|[\\/])whats-new[\\/]aspire-\d/.test(file)) {
+        continue;
+      }
+      const images =
+        readDoc(file).match(
+          /mcr\.microsoft\.com\/dotnet\/(?:nightly\/)?aspire-dashboard:(?:latest|13|13\.6)(?=[\s`"'])/g
+        ) ?? [];
+      legacyImages.push(...images.map((image) => `${file}: ${image}`));
+    }
+    expect(legacyImages).toEqual([]);
+  });
 });
 
 describe('deployment example dashboard image references', () => {
@@ -80,14 +111,15 @@ describe('deployment example dashboard image references', () => {
 });
 
 describe('standalone dashboard sample image', () => {
-  test('uses the same stable image in the command and explanation in both README fields', () => {
+  test('preserves the upstream nightly version pin in both README fields', () => {
     const sample = samples.find((entry) => entry.name === 'standalone-dashboard');
     expect(sample).toBeDefined();
     for (const field of ['readme', 'readmeRaw'] as const) {
       const source = sample![field];
       const images = source.match(/mcr\.microsoft\.com\/[^\s`]+/g);
-      expect(images).toEqual([stableImage, stableImage]);
-      expect(source).toContain(`--name aspire-dashboard ${stableImage}`);
+      expect(images).toEqual([sampleImage, sampleImage]);
+      expect(source).toContain(`--name aspire-dashboard ${sampleImage}`);
+      expect(source).toContain(`\`${sampleImage}\` prerelease image.`);
     }
   });
 });

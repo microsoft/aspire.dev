@@ -11,6 +11,8 @@ public sealed class YouTubeClient(
     IOptionsMonitor<LiveStatusOptions> options,
     ILogger<YouTubeClient> logger) : IYouTubeClient
 {
+    internal const int ResponseBufferLimit = 1024 * 1024;
+
     /// <summary>Name of the registered <see cref="HttpClient"/> for the Data API.</summary>
     public const string HttpClientName = "youtube";
 
@@ -34,7 +36,8 @@ public sealed class YouTubeClient(
         var url = $"channels?part=id&forHandle={Uri.EscapeDataString(clean)}&key={Uri.EscapeDataString(apiKey)}";
 
         using var response = await ApiClient().GetAsync(url, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        await YouTubeDiagnostics.EnsureSuccessAsync(response, cancellationToken,
+            apiKey, options.CurrentValue.YouTube.WebhookSecret).ConfigureAwait(false);
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -56,7 +59,8 @@ public sealed class YouTubeClient(
 
         var url = $"search?part=id&channelId={Uri.EscapeDataString(channelId)}&eventType=live&type=video&key={Uri.EscapeDataString(apiKey)}";
         using var response = await ApiClient().GetAsync(url, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        await YouTubeDiagnostics.EnsureSuccessAsync(response, cancellationToken,
+            apiKey, options.CurrentValue.YouTube.WebhookSecret).ConfigureAwait(false);
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -80,7 +84,8 @@ public sealed class YouTubeClient(
 
         var url = $"videos?part=liveStreamingDetails&id={Uri.EscapeDataString(videoId)}&key={Uri.EscapeDataString(apiKey)}";
         using var response = await ApiClient().GetAsync(url, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        await YouTubeDiagnostics.EnsureSuccessAsync(response, cancellationToken,
+            apiKey, options.CurrentValue.YouTube.WebhookSecret).ConfigureAwait(false);
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -129,9 +134,9 @@ public sealed class YouTubeClient(
         using var response = await c.PostAsync("subscribe", form, cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogDebug("YouTube WebSub subscribe failed: {Status} {Body}", response.StatusCode, body);
-            response.EnsureSuccessStatusCode();
+            logger.LogDebug("YouTube WebSub hub returned HTTP {StatusCode}.", (int)response.StatusCode);
+            await YouTubeDiagnostics.EnsureSuccessAsync(response, cancellationToken,
+                options.CurrentValue.YouTube.ApiKey, secret, verifyToken).ConfigureAwait(false);
         }
     }
 }

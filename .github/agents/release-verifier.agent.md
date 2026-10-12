@@ -178,6 +178,7 @@ version constants match the release being verified:
 |--------|----------------|
 | `currentAspireMajorMinorVersion` | `{VERSION}` (for example, `13.2`) |
 | `currentAspireVersion` | Latest stable `{VERSION}.PATCH` package version |
+| `currentAspireReleaseDate` | Publish date (`YYYY-MM-DD`) of `currentAspireVersion` on NuGet |
 | `currentAspirePreviewVersion` | Matching full `{VERSION}.PATCH-preview.*` package version |
 
 These constants drive the `%ASPIRE_VERSION_MAJOR_MINOR%`, `%ASPIRE_VERSION%`,

@@ -1,12 +1,25 @@
 ---
 import { Code, Icon, Aside } from '@astrojs/starlight/components';
 import CustomSelect, { type CustomSelectOption } from '@components/CustomSelect.astro';
+import {
+  currentAspireMajorMinorVersion,
+  currentAspireReleaseDate,
+  currentAspireVersion,
+} from '../../config/aspire-versions.mjs';
 
 interface Props {
   id?: string;
 }
 
 const { id = 'install-cli-modal' } = Astro.props;
+
+// Major releases omit the minor suffix (for example, /whats-new/aspire-13/).
+const [major, minor] = currentAspireMajorMinorVersion.split('.');
+const releaseNotesHref = `/whats-new/aspire-${major}${minor === '0' ? '' : `-${minor}`}/`;
+const releaseDateLabel = new Date(`${currentAspireReleaseDate}T00:00:00Z`).toLocaleDateString(
+  'en-US',
+  { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }
+);
 const channelOptions: CustomSelectOption[] = [
   {
     value: 'release',
@@ -37,6 +50,18 @@ const channelOptions: CustomSelectOption[] = [
     </div>
 
     <div class="modal-body">
+      <div class="release-info" data-quality="release">
+        <span class="release-version">
+          Installs Aspire <strong data-testid="install-cli-version">{currentAspireVersion}</strong>{' '}
+          <span class="release-date">
+            ·{' '}Released <time datetime={currentAspireReleaseDate}>{releaseDateLabel}</time>
+          </span>
+        </span>
+        <a href={releaseNotesHref} class="release-notes-link">
+          Release notes
+          <Icon name="right-arrow" />
+        </a>
+      </div>
       <div class="install-option">
         <div class="option-header">
           <Icon name="apple" />
@@ -154,6 +179,9 @@ const channelOptions: CustomSelectOption[] = [
       const version = element.getAttribute('data-version') || element.getAttribute('data-quality');
       element.style.display = version === quality ? 'block' : 'none';
     });
+    modal.querySelectorAll<HTMLElement>('.release-info').forEach((element) => {
+      element.hidden = element.getAttribute('data-quality') !== quality;
+    });
 
     // Save to localStorage
     try {
@@ -175,9 +203,15 @@ const channelOptions: CustomSelectOption[] = [
     return 'release';
   }
 
+  let modalListeners: AbortController | undefined;
+
   function initializeModal() {
+    modalListeners?.abort();
+    modalListeners = undefined;
     const modal = document.getElementById('install-cli-modal') as HTMLDialogElement;
     if (!modal) return;
+    modalListeners = new AbortController();
+    const { signal } = modalListeners;
 
     const versionSelect = modal.querySelector('#version-select') as HTMLSelectElement;
     const openBtns = document.querySelectorAll<HTMLElement>('[data-open-install-modal]');
@@ -227,53 +261,44 @@ const channelOptions: CustomSelectOption[] = [
       versionSelect.addEventListener('change', (e) => {
         const quality = (e.target as HTMLSelectElement).value as 'release' | 'staging' | 'dev';
         updateVersionDisplay(quality);
-      });
+      }, { signal });
     }
 
     // Open modal and position it
     openBtns.forEach((openBtn) => {
-      if (openBtn.dataset.installModalBound === 'true') {
-        return;
-      }
-
-      openBtn.dataset.installModalBound = 'true';
       openBtn.addEventListener('click', (e) => {
         e.preventDefault();
         openModal(openBtn);
-      });
+      }, { signal });
     });
 
     // Close modal handlers
-    closeBtn?.addEventListener('click', () => modal.close());
+    closeBtn?.addEventListener('click', () => modal.close(), { signal });
 
     // Close on backdrop click
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.close();
-    });
+    }, { signal });
 
     // Close on Escape key
     modal.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') modal.close();
-    });
+    }, { signal });
 
     // Close modal if window is resized below mobile breakpoint
     window.addEventListener('resize', () => {
       if (window.innerWidth < 800 && modal.open) modal.close();
-    });
+    }, { signal });
   }
 
-  // Handle install button clicks via event delegation (works across page navigations)
-  document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    const openBtn = target.closest('[data-open-install-modal]');
-    if (!openBtn) return;
-
-    e.preventDefault();
+  document.addEventListener('astro:before-swap', () => {
+    modalListeners?.abort();
+    modalListeners = undefined;
   });
 
   // Initialize on page load
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeModal);
+    document.addEventListener('DOMContentLoaded', initializeModal, { once: true });
   } else {
     initializeModal();
   }
@@ -400,6 +425,38 @@ const channelOptions: CustomSelectOption[] = [
 
   .quality-aside {
     margin-top: 0.5rem;
+  }
+
+  .release-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+
+  .release-info[hidden] {
+    display: none;
+  }
+
+  .release-version strong {
+    color: var(--sl-color-text);
+    font-weight: 600;
+  }
+
+  .release-notes-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .release-notes-link:hover {
+    text-decoration: underline;
   }
 
   .modal-footer {

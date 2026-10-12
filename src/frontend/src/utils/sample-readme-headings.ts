@@ -9,7 +9,8 @@ export function stripReadmeTitle(readme: string): string {
 }
 
 /**
- * Lower-cases, strips punctuation, and collapses whitespace into a stable
+ * Accepts plain text from `headingPlainText`, not HTML. Lower-cases, strips
+ * punctuation, and collapses whitespace into a stable
  * `kebab-case` id, mirroring Starlight's heading-slugger so anchor links
  * resolve. Returns `'section'` as a fallback when the input collapses to
  * an empty string.
@@ -18,7 +19,6 @@ export function slugifyHeading(value: string): string {
   const slug = value
     .toLowerCase()
     .trim()
-    .replace(/<[^>]*>/g, '')
     .replace(/[^\p{Letter}\p{Number}\s-]/gu, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')

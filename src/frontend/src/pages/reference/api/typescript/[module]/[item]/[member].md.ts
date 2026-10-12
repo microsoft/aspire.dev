@@ -4,6 +4,7 @@ import { markdownResponse } from '@utils/api-markdown-shared';
 import { renderTypeScriptMemberMarkdownPage } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsFunction, TsHandleType } from '@utils/ts-modules';
 import { getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
+import { getTsItemSlug, getTsMethods, getTsMethodSlug, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 
 export const prerender = true;
 
@@ -25,17 +26,17 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   for (const entry of packages) {
     const pkg = entry.data;
     const pkgSlug = tsModuleSlug(pkg.package.name);
+    const items = getTsTopLevelRouteItems(pkg);
 
     for (const handle of pkg.handleTypes ?? []) {
-      const itemSlug = tsSlugify(handle.name);
+      const itemSlug = getTsItemSlug(handle, items);
       if (!itemSlug) {
         continue;
       }
 
-      for (const method of (handle.capabilities ?? []).filter(
-        (capability) => capability.kind === 'Method' || capability.kind === 'InstanceMethod'
-      )) {
-        const memberSlug = tsSlugify(method.name);
+      const methods = getTsMethods(handle);
+      for (const method of methods) {
+        const memberSlug = getTsMethodSlug(method, methods, handle.name);
         if (!memberSlug) {
           continue;
         }
@@ -56,7 +57,17 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
     }
   }
 
-  return paths;
+  const canonical = new Set(paths.map(({ params }) => `${params.module}/${params.item}/${params.member}`));
+  const legacy = new Map<string, StaticPath>();
+  for (const path of paths) {
+    const item = tsSlugify(path.props.parentType.name);
+    const member = tsSlugify(path.props.method.name);
+    const key = `${path.params.module}/${item}/${member}`;
+    if (item && member && !canonical.has(key)) {
+      legacy.set(key, { ...path, params: { ...path.params, item, member } });
+    }
+  }
+  return [...paths, ...legacy.values()];
 }
 
 export const GET: APIRoute = ({ props }) => {

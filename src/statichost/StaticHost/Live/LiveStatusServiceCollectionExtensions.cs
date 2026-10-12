@@ -47,11 +47,16 @@ public static class LiveStatusServiceCollectionExtensions
             .AddStandardResilienceHandler();
         builder.Services.AddHttpClient(TwitchAppTokenProvider.HttpClientName)
             .AddStandardResilienceHandler();
-        builder.Services.AddHttpClient(YouTubeClient.HttpClientName)
+        builder.Services.AddHttpClient(YouTubeClient.HttpClientName,
+            client => client.MaxResponseContentBufferSize = YouTubeClient.ResponseBufferLimit)
             .AddStandardResilienceHandler();
         // Subscription POST retries are scheduled in Redis, not inside the HTTP request.
         builder.Services.AddHttpClient(YouTubeClient.PubSubHttpClientName,
-            client => client.Timeout = TimeSpan.FromSeconds(30));
+            client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+                client.MaxResponseContentBufferSize = YouTubeClient.ResponseBufferLimit;
+            });
 
         builder.Services.AddSingleton<TwitchAppTokenProvider>();
         builder.Services.AddSingleton<ITwitchClient, TwitchClient>();

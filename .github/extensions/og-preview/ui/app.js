@@ -1,5 +1,13 @@
 "use strict";
 
+const previewKey = new URLSearchParams(location.hash.slice(1)).get("key") || "";
+function apiUrl(path) {
+    const url = new URL(path, location.origin);
+    if (url.origin !== location.origin) throw new Error("Invalid preview API origin.");
+    url.searchParams.set("key", previewKey);
+    return url.pathname + url.search;
+}
+
 const TRANSPARENT =
     "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
 
@@ -228,6 +236,9 @@ function withScheme(raw) {
     let v = (raw || "").trim();
     if (!v || v === "https://" || v === "http://") return "";
     if (/^https?:\/\//i.test(v)) return v;
+    // Preserve explicit schemes so the fetch/navigation boundary can reject
+    // them, rather than disguising file: or data: input as an HTTPS hostname.
+    if (/^[a-z][a-z\d+.-]*:/i.test(v) && !/^[^:/]+:\d+(?:[/?#]|$)/.test(v)) return v;
     v = v.replace(/^\/+/, "");
     const isLocal = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|[^/]+\.local)(:|\/|$)/i.test(v);
     return (isLocal ? "http://" : "https://") + v;
@@ -278,7 +289,7 @@ function makeImage(url, className) {
     img.addEventListener("error", () => {
         if (img.dataset.stage === "direct") {
             img.dataset.stage = "proxy";
-            img.src = "/api/img?u=" + encodeURIComponent(url);
+            img.src = apiUrl("/api/img?u=" + encodeURIComponent(url));
         } else if (img.dataset.stage === "proxy") {
             img.dataset.stage = "placeholder";
             img.src = TRANSPARENT;
@@ -330,7 +341,7 @@ function showImgTip(url, x, y) {
     imgTipImg.onerror = () => {
         if (imgTipImg.dataset.stage === "direct") {
             imgTipImg.dataset.stage = "proxy";
-            imgTipImg.src = "/api/img?u=" + encodeURIComponent(real);
+            imgTipImg.src = apiUrl("/api/img?u=" + encodeURIComponent(real));
         } else {
             imgTipMeta.textContent = "Preview unavailable";
         }
@@ -899,7 +910,7 @@ async function showCodeCard(url, node) {
     let payload = codeCache.get(raw);
     if (!payload) {
         try {
-            const res = await fetch("/api/raw?u=" + encodeURIComponent(raw));
+            const res = await fetch(apiUrl("/api/raw?u=" + encodeURIComponent(raw)));
             payload = await res.json();
         } catch {
             payload = { error: "Couldn't load file." };
@@ -1621,7 +1632,7 @@ async function postAction(path, payload, btn, busyLabel, doneLabel) {
     btn.classList.add("busy");
     if (labelEl && busyLabel) labelEl.textContent = busyLabel;
     try {
-        const res = await fetch(path, {
+        const res = await fetch(apiUrl(path), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -1995,7 +2006,7 @@ async function refreshAgentReadiness(data) {
         return;
     }
     try {
-        const res = await fetch("/api/agent-readiness?u=" + encodeURIComponent(targetUrl));
+        const res = await fetch(apiUrl("/api/agent-readiness?u=" + encodeURIComponent(targetUrl)));
         const ar = await res.json();
         if (seq !== arSeq) return; // a newer load superseded this probe
         if (!res.ok || ar.error) throw new Error(ar.error || `Request failed (${res.status})`);
@@ -2159,7 +2170,8 @@ async function load(rawUrl, opts) {
     renderSkeleton();
     try {
         const res = await fetch(
-            "/api/fetch?u=" + encodeURIComponent(url) + (silent ? "&silent=1" : ""),
+            apiUrl("/api/fetch?u=" + encodeURIComponent(url) +
+                (silent ? "&silent=1" : "") + (opts && opts.select ? "&select=1" : "")),
         );
         const data = await res.json();
         if (!res.ok || data.error) {
@@ -2170,6 +2182,7 @@ async function load(rawUrl, opts) {
             input.value = data.requestedUrl || url;
         }
         pendingBrowseUrl = data.requestedUrl || url;
+        if (opts && opts.select) browseFrameUrl = "";
         if (!(opts && opts.skipBrowse)) syncBrowseFrame(pendingBrowseUrl);
         document.title = data.requestedUrl
             ? `OG · ${(data.resolved && data.resolved.hostname) || data.requestedUrl}`
@@ -2195,7 +2208,7 @@ async function load(rawUrl, opts) {
 
 $("#url-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    load(input.value);
+    load(input.value, { select: true });
 });
 $("#refresh").addEventListener("click", () => {
     if (browseActive()) {
@@ -2266,7 +2279,7 @@ const luckyGo = $("#lucky-go");
 if (luckyGo) {
     luckyGo.addEventListener("click", () => {
         input.value = luckyTarget;
-        load(luckyTarget);
+        load(luckyTarget, { select: true });
     });
 }
 
@@ -2287,7 +2300,7 @@ if (luckyEmpty) {
     luckyEmpty.addEventListener("click", () => {
         const url = pickLuckySite();
         input.value = url;
-        load(url);
+        load(url, { select: true });
     });
 }
 
@@ -2430,7 +2443,7 @@ async function navBrowseFrame(rawUrl) {
     browsePanel.classList.add("has-browse");
     const token = ++browseNavToken;
     try {
-        const res = await fetch("/api/proxy?u=" + encodeURIComponent(u));
+        const res = await fetch(apiUrl("/api/proxy?u=" + encodeURIComponent(u)));
         const html = await res.text();
         if (token !== browseNavToken) return; // a newer navigation superseded us
         browseFrame.srcdoc = html;
@@ -2466,9 +2479,14 @@ $("#browse-open").addEventListener("click", () => {
     const u = withScheme(input.value || pendingBrowseUrl);
     if (!u) return;
     try {
-        window.open(u, "_blank", "noopener");
+        const target = new URL(u);
+        if (target.protocol !== "http:" && target.protocol !== "https:") {
+            setStatus("error", "Only HTTP and HTTPS pages can be opened.");
+            return;
+        }
+        window.open(target.href, "_blank", "noopener");
     } catch {
-        /* host may block popups */
+        setStatus("error", "Couldn't open this URL.");
     }
 });
 
@@ -2477,6 +2495,7 @@ $("#browse-open").addEventListener("click", () => {
 // top-level URL input, advance the embedded frame to the new page, and refresh
 // every preview from it.
 window.addEventListener("message", (e) => {
+    if (e.source !== browseFrame.contentWindow) return;
     const m = e && e.data;
     if (!m || m.source !== "og-browse" || m.type !== "nav" || !m.url) return;
     if (!/^https?:\/\//i.test(m.url)) return; // ignore non-http targets (e.g. about:srcdoc)
@@ -2542,12 +2561,13 @@ try {
 
 // Server-pushed loads (agent invoking the preview_url action).
 try {
-    const es = new EventSource("/events");
+    const es = new EventSource(apiUrl("/events"));
     es.addEventListener("message", (e) => {
         try {
             const msg = JSON.parse(e.data);
             if (msg && msg.type === "load" && msg.url) {
                 input.value = msg.url;
+                browseFrameUrl = "";
                 load(msg.url);
             }
         } catch {

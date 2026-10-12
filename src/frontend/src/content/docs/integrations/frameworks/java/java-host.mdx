@@ -1,15 +1,14 @@
 ---
 title: Set up Java apps in the AppHost
-description: Configure Java executable and container resources, Maven and Gradle commands, JVM settings, endpoints, health checks, and publishing behavior.
+seoTitle: 'Set up Java apps in the Aspire AppHost: hosting integration'
+description: Learn how to use the Aspire Java hosting integration to model Spring Boot, Quarkus, and other Java apps, prebuilt JARs, and container images in your AppHost.
 ---
 
-import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import LearnMore from '@components/LearnMore.astro';
 import { Image } from 'astro:assets';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
+import LearnMore from '@components/LearnMore.astro';
 import javaIcon from '@assets/icons/java-icon.png';
-
-<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
 <Image
   src={javaIcon}
@@ -21,161 +20,351 @@ import javaIcon from '@assets/icons/java-icon.png';
   data-zoom-off
 />
 
-This reference covers the Java AppHost API from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). For an introduction, see [Get started with the Java integration](/integrations/frameworks/java/java-get-started/).
+This article is the reference for the Aspire Java hosting integration. It enumerates the AppHost APIs — with examples for both `apphost.mts` and `AppHost.cs` — that you use to model Java apps in your [AppHost](/get-started/app-host/): Spring Boot and Quarkus apps with framework-aware defaults, apps that launch through a Maven goal or a Gradle task, prebuilt JARs, and container images that were built elsewhere. It also describes how Aspire builds those apps, passes them JVM options, attaches the OpenTelemetry Java agent, configures certificate trust, debugs them, and packages them into container images when you publish.
+
+If you're new to the Java integration, start with [Get started with the Java integration](/integrations/frameworks/java/java-get-started/). For how other resources call your Java apps — and how your Java apps read the configuration that Aspire injects — see [Connect to Java apps](/integrations/frameworks/java/java-connect/). If you're moving from the Community Toolkit package, see [Migrate from the Community Toolkit](#migrate-from-the-community-toolkit).
+
+:::note[Prerequisites]
+Each Java app that the AppHost runs on your machine needs a JDK for the Java version that the app targets, with `java` on your `PATH`. Apps that Aspire builds or launches with Maven or Gradle also need the project's [Maven Wrapper](https://maven.apache.org/tools/wrapper/) or [Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html). Apps that run a prebuilt JAR don't need a wrapper, and apps that run from a container image use the JDK inside the image. To debug Java apps in VS Code, install the [Language Support for Java](https://marketplace.visualstudio.com/items?itemName=redhat.java) and [Debugger for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-debug) extensions.
+:::
 
 ## Installation
 
-Install the hosting package in your AppHost:
-
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Java" />
-
-Executable Java resources require the Java command and, when used, the Maven or Gradle wrapper to be available from the resource's configured project directory.
-
-## Add an executable Java app
-
-`AddJavaApp` / `addJavaApp` creates a Java executable resource with a working directory relative to the AppHost directory. Configure it with a Maven or Gradle task, or add a JAR path.
-
-### Run a Maven or Gradle task
-
-`WithMavenGoal` / `withMavenGoal` and `WithGradleTask` / `withGradleTask` replace the executable command with the respective wrapper in run mode. Maven defaults to `mvnw` (`mvnw.cmd` on Windows), and Gradle defaults to `gradlew` (`gradlew.bat` on Windows).
+To start modeling Java apps in your AppHost, install the [📦 Aspire.Hosting.Java](https://www.nuget.org/packages/Aspire.Hosting.Java) NuGet package:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<TabItem id='typescript' label='TypeScript'>
 
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+```bash title="Terminal"
+aspire add java
+```
 
-var mavenApp = builder.AddJavaApp("maven-api", "../maven-api")
-    .WithMavenGoal("spring-boot:run", "-Dspring-boot.run.profiles=dev");
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
 
-var gradleApp = builder.AddJavaApp("gradle-api", "../gradle-api")
-    .WithGradleTask("bootRun", "--args=--spring.profiles.active=dev");
+This updates your `aspire.config.json` with the Java hosting integration package:
 
-builder.Build().Run();
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Java": "%ASPIRE_VERSION_PREVIEW%"
+  }
+}
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript'>
+<TabItem id='csharp' label='C#'>
 
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
+```bash title="Terminal"
+aspire add java
+```
 
-const builder = await createBuilder();
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
 
-const mavenApp = await builder
-  .addJavaApp('maven-api', '../maven-api')
-  .withMavenGoal('spring-boot:run', ['-Dspring-boot.run.profiles=dev']);
+Or, choose a manual installation approach:
 
-const gradleApp = await builder
-  .addJavaApp('gradle-api', '../gradle-api')
-  .withGradleTask('bootRun', ['--args=--spring.profiles.active=dev']);
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Java@%ASPIRE_VERSION_PREVIEW%
+```
 
-await builder.build().run();
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Java" Version="%ASPIRE_VERSION_PREVIEW%" />
 ```
 
 </TabItem>
 </Tabs>
 
-Do not combine a Maven goal or Gradle task with a JAR path; the integration rejects that configuration.
+## Add a Spring Boot app
 
-### Run a JAR
-
-Provide a JAR path relative to the resource working directory. The resource runs `java -jar <jarPath>` followed by the application arguments.
+Use <ApiReference name="Aspire.Hosting.JavaHostingExtensions.AddSpringBootApp" /> to add a [Spring Boot](https://spring.io/projects/spring-boot) app whose Maven or Gradle build file is in the app directory. The app directory is resolved relative to the AppHost directory. It's the app's working directory and, when you publish, the build context of its container image.
 
 <Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addSpringBootApp('catalog', '../catalog');
+await catalog.withHttpHealthCheck({ path: '/actuator/health' });
+
+const orders = await builder.addSpringBootApp('orders', '../orders');
+await orders.withReference(catalog);
+await orders.waitFor(catalog);
+
+await builder.build().run();
+```
+
+</TabItem>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var app = builder.AddJavaApp(
-    name: "java-api",
-    workingDirectory: "../java-api",
-    jarPath: "target/java-api.jar",
-    args: ["--spring.main.banner-mode=off"]);
+var catalog = builder.AddSpringBootApp("catalog", "../catalog")
+    .WithHttpHealthCheck("/actuator/health");
 
-var jarPath = app.Resource.JarPath;
-app.Resource.JarPath = "target/java-api-optimized.jar";
+builder.AddSpringBootApp("orders", "../orders")
+    .WithReference(catalog)
+    .WaitFor(catalog);
 
 builder.Build().Run();
 ```
 
 </TabItem>
+</Tabs>
+
+In the preceding example, <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> makes Aspire poll the `catalog` app's `/actuator/health` endpoint. The `orders` app uses <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> to receive the `catalog` app's URL, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> to start only after `catalog` is healthy.
+
+When a Spring Boot app starts, Aspire:
+
+- Detects the build tool from the app directory: `pom.xml` selects Maven, and `build.gradle`, `build.gradle.kts`, `settings.gradle`, or `settings.gradle.kts` selects Gradle. If the directory contains neither — or both — the app fails to start with an error. For apps that are laid out differently, see [Add a Java app](#add-a-java-app).
+- Launches the app through the project's wrapper with the Spring Boot plugin's run goal: `spring-boot:run` for Maven, or `bootRun` for Gradle.
+- Adds an HTTP endpoint named `http` and passes its port to the app in the `SERVER_PORT` environment variable, which Spring Boot uses as its `server.port` setting. No fixed port is set, so several Spring Boot apps can run side by side.
+
+The helper doesn't add a health check, because `/actuator/health` responds only when the app depends on `spring-boot-starter-actuator`. A health check against a missing endpoint would leave the app permanently unhealthy and block every resource that waits for it.
+
+When you publish, the app is packaged inside its container image with `-B -ntp -DskipTests package` for Maven or `build -x test` for Gradle. To change those arguments, see [Build before running](#build-before-running).
+
+## Add a Quarkus app
+
+Use <ApiReference name="Aspire.Hosting.JavaHostingExtensions.AddQuarkusApp" /> to add a [Quarkus](https://quarkus.io/) app. The build tool is detected the same way as for Spring Boot apps. The app runs in Quarkus dev mode — `quarkus:dev` for Maven or `quarkusDev` for Gradle — so live coding keeps working while the AppHost runs, and its HTTP endpoint's port reaches the app in the `QUARKUS_HTTP_PORT` environment variable.
+
+<Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const app = await builder.addJavaAppWithJar(
-  'java-api',
-  '../java-api',
-  'target/java-api.jar',
-  ['--spring.main.banner-mode=off']
+const pricing = await builder.addQuarkusApp('pricing', '../pricing');
+await pricing.withHttpHealthCheck({ path: '/q/health' });
+
+const inventory = await builder.addQuarkusApp('inventory', '../inventory');
+await inventory.withReference(pricing);
+await inventory.waitFor(pricing);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var pricing = builder.AddQuarkusApp("pricing", "../pricing")
+    .WithHttpHealthCheck("/q/health");
+
+builder.AddQuarkusApp("inventory", "../inventory")
+    .WithReference(pricing)
+    .WaitFor(pricing);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+When you run the AppHost, the helper also sets the following environment variables on the app:
+
+| Environment variable            | Value     | Purpose                                                                                                                                                                              |
+| ------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `QUARKUS_PROFILE`               | `dev`     | Selects the `dev` profile, including when a debugger launches the packaged app instead of dev mode.                                                                                  |
+| `QUARKUS_HTTP_HOST`             | `0.0.0.0` | Binds all interfaces. When Quarkus binds a localhost name, its `Host` header validation rejects requests to the endpoint URL that the Aspire dashboard shows with `400 Bad Request`. |
+| `QUARKUS_OBSERVABILITY_ENABLED` | `false`   | Turns off the observability Dev Service, which would otherwise pull and start a `grafana/otel-lgtm` container and send the app's telemetry there instead of to the Aspire dashboard. |
+
+The [Quarkus OpenTelemetry extension](https://quarkus.io/guides/opentelemetry) reads its own `quarkus.otel.*` configuration rather than the standard `OTEL_*` environment variables that Aspire sets. So that the app's telemetry reaches the dashboard, the helper copies Aspire's OpenTelemetry settings to the matching `QUARKUS_OTEL_*` variables, such as `QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT` and `QUARKUS_OTEL_SERVICE_NAME`. A Quarkus app that uses the extension doesn't need the [OpenTelemetry Java agent](#attach-the-opentelemetry-java-agent), so don't attach both.
+
+The helper copies these settings only when you run the AppHost. A published app receives the standard `OTEL_*` variables from its deployment environment, so map them in the app's `application.properties`:
+
+```properties title="application.properties"
+quarkus.otel.exporter.otlp.endpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+quarkus.otel.exporter.otlp.protocol=${OTEL_EXPORTER_OTLP_PROTOCOL:grpc}
+quarkus.otel.service.name=${OTEL_SERVICE_NAME:inventory}
+```
+
+Quarkus expands these expressions when the app starts. The endpoint and protocol defaults match the extension's own, and the service name falls back to the app's name, so the app also runs outside Aspire. Keep the expressions in `application.properties` rather than passing them as environment variables, because Docker Compose interprets `${...}` in environment variables itself and rejects this syntax.
+
+Other [Quarkus Dev Services](https://quarkus.io/guides/dev-services) stay enabled. A Dev Service starts its own container only when the configuration it provides is missing. When your app references an Aspire resource, such as a database, map the connection information that Aspire injects to the matching Quarkus property — for example, `quarkus.datasource.jdbc.url` — and Quarkus uses the Aspire resource instead. For examples, see [Connect to Java apps](/integrations/frameworks/java/java-connect/#read-aspire-configuration-in-your-java-app).
+
+As with Spring Boot, no health check is added, because `/q/health` responds only when the app depends on the `quarkus-smallrye-health` extension. When you publish, Quarkus apps are packaged with the same default arguments as Spring Boot apps.
+
+## Add a Java app
+
+Use <ApiReference name="Aspire.Hosting.JavaHostingExtensions.AddJavaApp" parameterTypes={['Aspire.Hosting.IDistributedApplicationBuilder', 'string', 'string']} /> for any other Java app — one that's built on another framework, one that needs a different launch goal, or one whose build files aren't in the app directory. Configure exactly one of the following launch modes:
+
+| Launch mode  | Configure it with                                                                                                                                                                                    | What Aspire runs                                      |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Maven goal   | <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithMavenGoal" />                                                                                                                           | The Maven wrapper with the goal and its arguments     |
+| Gradle task  | <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithGradleTask" />                                                                                                                          | The Gradle wrapper with the task and its arguments    |
+| Prebuilt JAR | <ApiReference name="Aspire.Hosting.JavaHostingExtensions.AddJavaApp" parameterTypes={['Aspire.Hosting.IDistributedApplicationBuilder', 'string', 'string', 'string', 'string[]']} /> with a JAR path | `java -jar` with the JAR path and the app's arguments |
+
+An app without a launch mode fails to start. Mixing launch modes — a JAR with a Maven goal or Gradle task, or Maven with Gradle — throws an exception when you configure it. Calling the same method again replaces the earlier goal or task.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addJavaApp('catalog', '../catalog');
+await catalog.withMavenGoal('spring-boot:run', ['-Dspring-boot.run.profiles=dev']);
+await catalog.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+const orders = await builder.addJavaApp('orders', '../orders');
+await orders.withGradleTask('bootRun', ['--args=--spring.profiles.active=dev']);
+await orders.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddJavaApp("catalog", "../catalog")
+    .WithMavenGoal("spring-boot:run", "-Dspring-boot.run.profiles=dev")
+    .WithHttpEndpoint(env: "SERVER_PORT");
+
+builder.AddJavaApp("orders", "../orders")
+    .WithGradleTask("bootRun", "--args=--spring.profiles.active=dev")
+    .WithHttpEndpoint(env: "SERVER_PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Arguments that you pass with the goal or task go to the build tool. In TypeScript, the arguments array is required, so pass `[]` when there are none. Arguments that you add with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithArgs" /> are also placed after the goal or task, so in these launch modes they reach the build tool rather than your app. To pass arguments to the app itself, use the build plugin's option for it, such as `-Dspring-boot.run.arguments=...` for the Spring Boot Maven plugin or `--args=...` for the Spring Boot Gradle plugin.
+
+Unlike the framework helpers, `AddJavaApp` doesn't declare an endpoint. Add one with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpEndpoint" />, and use its `env` parameter to pass the port that Aspire allocates in the environment variable that your app reads, as the preceding example does with `SERVER_PORT`. Leave the target port unset: Java apps run as processes on your machine, so two apps with the same fixed port would collide.
+
+### Run a prebuilt JAR
+
+Pass a JAR path to the JAR overload of `AddJavaApp` to run the app with `java -jar`. The JAR path is relative to the app directory, and the remaining arguments are the app's own arguments, which Aspire passes after the JAR path. In TypeScript, this overload is named `addJavaAppWithJar`, and its arguments array is required.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addJavaAppWithJar(
+  'worker',
+  '../worker',
+  'target/worker.jar',
+  ['--interval-seconds', '10']
 );
 
-const jarPath = await app.jarPath();
-await app.setJarPath('target/java-api-optimized.jar');
-
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddJavaApp(
+    "worker",
+    "../worker",
+    "target/worker.jar",
+    "--interval-seconds", "10");
+
+builder.Build().Run();
 ```
 
 </TabItem>
 </Tabs>
 
-The TypeScript export is named `addJavaAppWithJar`. The Java executable resource exposes `JarPath` in C# and the synchronized `jarPath()` getter and `setJarPath(value)` operation in TypeScript.
+The JAR must exist before the app starts. When the project's own build produces it, have Aspire run that build first, as described in [Build before running](#build-before-running). When you publish, the JAR path selects which of the build's JARs the image runs. For more information, see [Select the published JAR](#select-the-published-jar).
 
 ## Build before running
 
-`WithMavenBuild` / `withMavenBuild` and `WithGradleBuild` / `withGradleBuild` add a child setup resource in run mode. The Java app waits for it to finish. Maven runs `clean package` by default and Gradle runs `clean build` by default; passing arguments replaces those defaults.
+Use <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithMavenBuild" /> or <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithGradleBuild" /> to build an app with its wrapper before it starts — typically an app that runs a JAR its own build produces. When you run the AppHost, Aspire adds a child resource named `<name>-maven-build` or `<name>-gradle-build` that runs the build, and the app waits for that resource to finish successfully. When you publish, the same arguments build the app inside its generated container image, so they should produce the deployable JAR.
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var mavenApp = builder.AddJavaApp("maven-api", "../maven-api", "target/api.jar")
-    .WithMavenBuild("-DskipTests");
-
-var gradleApp = builder.AddJavaApp("gradle-api", "../gradle-api", "build/libs/api.jar")
-    .WithGradleBuild("-x", "test", "--parallel");
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const mavenApp = await builder
-  .addJavaAppWithJar('maven-api', '../maven-api', 'target/api.jar')
-  .withMavenBuild(['-DskipTests']);
+const worker = await builder.addJavaAppWithJar('worker', '../worker', 'target/worker.jar', []);
+await worker.withMavenBuild(['-B', '-ntp', '-DskipTests', 'package']);
 
-const gradleApp = await builder
-  .addJavaAppWithJar('gradle-api', '../gradle-api', 'build/libs/api.jar')
-  .withGradleBuild(['-x', 'test', '--parallel']);
+const reports = await builder.addJavaAppWithJar('reports', '../reports', 'build/libs/reports.jar', []);
+await reports.withGradleBuild(['build', '-x', 'test']);
 
 await builder.build().run();
 ```
 
 </TabItem>
-</Tabs>
-
-Use `WithWrapperPath` / `withWrapperPath` before a build or launch method to use a wrapper at a relative or absolute path instead of the platform default.
-
-<Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var app = builder.AddJavaApp("java-api", "../java-api")
+builder.AddJavaApp("worker", "../worker", "target/worker.jar")
+    .WithMavenBuild("-B", "-ntp", "-DskipTests", "package");
+
+builder.AddJavaApp("reports", "../reports", "build/libs/reports.jar")
+    .WithGradleBuild("build", "-x", "test");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+By default, Maven builds with `clean package` and Gradle builds with `clean build`. Arguments that you pass replace the defaults, so include the packaging goal or task. An app is built with one tool only: combining the Maven and Gradle methods on the same app throws an exception.
+
+A Maven goal or Gradle task compiles the app as it launches. For apps that use one — including apps added with `AddSpringBootApp` or `AddQuarkusApp` — Aspire keeps the build arguments for publishing without adding a build resource. Two cases still build first: an app whose [OpenTelemetry agent the build produces](#attach-the-opentelemetry-java-agent), and a Quarkus app that [VS Code launches for debugging](#debug-java-apps). On a Spring Boot or Quarkus app, calling `WithMavenBuild` or `WithGradleBuild` replaces the default packaging arguments and keeps the framework's launch goal.
+
+### Use a custom wrapper
+
+Aspire builds and launches apps only through the project's wrapper — `mvnw` or `gradlew`, or `mvnw.cmd` or `gradlew.bat` on Windows — so that the AppHost, your CI, and your published images all use the tool version that the repository pins. It doesn't fall back to a globally installed `mvn` or `gradle`.
+
+Aspire looks for the wrapper in the app directory first. If the wrapper isn't there, Aspire checks each parent directory up to the repository root, and uses a wrapper that sits next to the root build file of a multi-module build: a Maven `pom.xml`, or a Gradle `settings.gradle` or `settings.gradle.kts`. If there's no wrapper, the app fails to start with an error that suggests generating one with `mvn -N wrapper:wrapper` or `gradle wrapper`.
+
+To use a wrapper in another location or with another name, call <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithWrapperPath" />. The path is absolute, or relative to the app's working directory — the app directory, unless you change it. You can call the method before or after the one that selects the build tool.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addJavaApp('catalog', '../catalog');
+await catalog.withWrapperPath('tools/mvnw');
+await catalog.withMavenGoal('spring-boot:run', []);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddJavaApp("catalog", "../catalog")
     .WithWrapperPath("tools/mvnw")
     .WithMavenGoal("spring-boot:run");
 
@@ -183,172 +372,431 @@ builder.Build().Run();
 ```
 
 </TabItem>
+</Tabs>
+
+When Aspire generates the Dockerfile to publish the app, the wrapper must be inside the app directory, because that directory is the container build context. This applies even when a local run finds the wrapper in a parent directory. For more information, see [Publish Java apps](#publish-java-apps).
+
+## Configure JVM options
+
+Use <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithJvmArgs" /> to pass options to the JVM, such as heap sizes or system properties. Aspire appends them to the `JAVA_TOOL_OPTIONS` environment variable, and quotes values that contain spaces. Every JVM reads that variable when it starts — including the build tool's own JVM and the app JVM it starts in a Maven goal or Gradle task — so the options apply in every launch mode, and to [Java containers](#add-a-java-container) as well.
+
+<Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const app = await builder
-  .addJavaApp('java-api', '../java-api')
-  .withWrapperPath('tools/mvnw')
-  .withMavenGoal('spring-boot:run', []);
+const catalog = await builder.addSpringBootApp('catalog', '../catalog');
+await catalog.withJvmArgs(['-Xms256m', '-Xmx512m', '-Dfile.encoding=UTF-8']);
 
 await builder.build().run();
 ```
 
 </TabItem>
-</Tabs>
-
-## Configure JVM and OpenTelemetry options
-
-`WithJvmArgs` / `withJvmArgs` appends JVM options to `JAVA_TOOL_OPTIONS`, which works with JAR, Maven, Gradle, and container launches. `WithOtelAgent` / `withOtelAgent` configures the OTLP exporter; when you provide an agent JAR path, it also appends `-javaagent:<path>` to `JAVA_TOOL_OPTIONS`.
-
-<Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var app = builder.AddJavaApp("java-api", "../java-api")
-    .WithMavenGoal("spring-boot:run")
-    .WithJvmArgs(["-Xms256m", "-Xmx512m"])
-    .WithOtelAgent("../agents/opentelemetry-javaagent.jar");
+builder.AddSpringBootApp("catalog", "../catalog")
+    .WithJvmArgs("-Xms256m", "-Xmx512m", "-Dfile.encoding=UTF-8");
 
 builder.Build().Run();
 ```
 
 </TabItem>
+</Tabs>
+
+Aspire also uses `JAVA_TOOL_OPTIONS` for the OpenTelemetry Java agent and the development certificate trust store, and adds your options alongside those. When a JVM reads the variable, it prints a `Picked up JAVA_TOOL_OPTIONS:` line to standard error, so that line appears in the app's console logs.
+
+## Attach the OpenTelemetry Java agent
+
+Aspire sets the standard `OTEL_*` environment variables on every Java resource, such as `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_SERVICE_NAME`, so that telemetry can reach the Aspire dashboard. A JVM doesn't export telemetry by itself, though. To produce traces, metrics, and logs without changing your code, attach the [OpenTelemetry Java agent](https://opentelemetry.io/docs/zero-code/java/agent/), which instruments common libraries and frameworks automatically and reads those variables. Aspire doesn't download the agent — your build provides it, or you point Aspire at a copy that already exists:
+
+- Without an argument, <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithOtelAgent" parameterTypes={['Aspire.Hosting.ApplicationModel.IResourceBuilder<T>']} /> loads the agent from where the build writes it by convention: `target/agent/opentelemetry-javaagent.jar` for Maven, or `build/agent/opentelemetry-javaagent.jar` for Gradle. Aspire needs to know the build tool, so use it on an app added with `AddSpringBootApp`, or on one that calls `WithMavenBuild` or `WithGradleBuild`.
+- With a path, <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithOtelAgent" parameterTypes={['Aspire.Hosting.ApplicationModel.IResourceBuilder<T>', 'string']} /> loads the agent from that path. A relative path is resolved against the app directory and names a file that the build produces. An absolute path names a file that already exists, such as an agent installed on the machine, and doesn't need a build.
+
+<Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const app = await builder
-  .addJavaApp('java-api', '../java-api')
-  .withMavenGoal('spring-boot:run', [])
-  .withJvmArgs(['-Xms256m', '-Xmx512m'])
-  .withOtelAgent('../agents/opentelemetry-javaagent.jar');
+const catalog = await builder.addSpringBootApp('catalog', '../catalog');
+await catalog.withOtelAgentDefaultPath();
 
 await builder.build().run();
 ```
 
 </TabItem>
-</Tabs>
-
-Download the agent JAR before configuring its path. `WithOtelAgent` without a path configures the exporter but does not add a Java agent argument.
-
-## Add a Java container app
-
-`AddJavaContainerApp` / `addJavaContainerApp` models an existing container image and configures the OTLP exporter. Pass an optional image tag; configure endpoints and environment variables with standard container-resource APIs.
-
-<Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var app = builder.AddJavaContainerApp(
-    "java-api",
-    "ghcr.io/contoso/java-api",
-    imageTag: "1.0")
-    .WithJvmArgs(["-Djava.awt.headless=true"])
-    .WithHttpEndpoint(targetPort: 8080, env: "SERVER_PORT");
+builder.AddSpringBootApp("catalog", "../catalog")
+    .WithOtelAgent();
 
 builder.Build().Run();
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript'>
+</Tabs>
 
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
+When the build produces the agent, Aspire runs that build as a `<name>-maven-build` or `<name>-gradle-build` resource before the app starts — even for a Maven goal or Gradle task that would otherwise compile the app itself. The agent has to exist first, because `JAVA_TOOL_OPTIONS` loads it into the build tool's own JVM too. Calling the method again replaces the agent path.
 
-const builder = await createBuilder();
+The following build configuration copies the agent to the conventional location. Replace the version with the latest [agent release](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases):
 
-const app = await builder
-  .addJavaContainerApp('java-api', 'ghcr.io/contoso/java-api', '1.0')
-  .withJvmArgs(['-Djava.awt.headless=true'])
-  .withHttpEndpoint({ targetPort: 8080, env: 'SERVER_PORT' });
+<Tabs syncKey='java-build-tool'>
+<TabItem label='Maven'>
 
-await builder.build().run();
+Binding the copy to the `initialize` phase writes the agent at the start of every Maven build, including the build that Aspire runs before the app.
+
+```xml title="pom.xml"
+<properties>
+  <opentelemetry-javaagent.version>2.24.0</opentelemetry-javaagent.version>
+</properties>
+
+<build>
+  <plugins>
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-dependency-plugin</artifactId>
+      <executions>
+        <execution>
+          <id>copy-opentelemetry-javaagent</id>
+          <phase>initialize</phase>
+          <goals>
+            <goal>copy</goal>
+          </goals>
+          <configuration>
+            <artifactItems>
+              <artifactItem>
+                <groupId>io.opentelemetry.javaagent</groupId>
+                <artifactId>opentelemetry-javaagent</artifactId>
+                <version>${opentelemetry-javaagent.version}</version>
+                <outputDirectory>${project.build.directory}/agent</outputDirectory>
+                <destFileName>opentelemetry-javaagent.jar</destFileName>
+              </artifactItem>
+            </artifactItems>
+            <overWriteIfNewer>true</overWriteIfNewer>
+          </configuration>
+        </execution>
+      </executions>
+    </plugin>
+  </plugins>
+</build>
+```
+
+</TabItem>
+<TabItem label='Gradle'>
+
+A separate configuration keeps the agent off the app's classpath, and the `bootRun` and `classes` tasks depend on the copy so that the agent exists before the app starts.
+
+```groovy title="build.gradle"
+configurations {
+    opentelemetryAgent {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
+dependencies {
+    opentelemetryAgent 'io.opentelemetry.javaagent:opentelemetry-javaagent:2.24.0'
+}
+
+tasks.register('copyOpenTelemetryAgent', Copy) {
+    from configurations.opentelemetryAgent
+    into layout.buildDirectory.dir('agent')
+    rename '.*', 'opentelemetry-javaagent.jar'
+}
+
+tasks.named('bootRun') {
+    dependsOn 'copyOpenTelemetryAgent'
+}
+
+tasks.named('classes') {
+    dependsOn 'copyOpenTelemetryAgent'
+}
 ```
 
 </TabItem>
 </Tabs>
 
-## Configure endpoints, environment, health checks, and references
+When you publish with a generated Dockerfile, Aspire copies a build-produced agent into the image and points the JVM at that copy. An absolute agent path is used unchanged, so the agent must already exist at that path inside the image. If you author your own Dockerfile, copy the agent in that Dockerfile and pass its absolute path inside the image, because Aspire copies a build-produced agent only into Dockerfiles that it generates.
 
-Java executable and container resources support standard AppHost endpoints, environment variables, health checks, waits, and service discovery. Pass Spring Boot's listening port through an endpoint environment variable, add a health-check path, and reference the resource from consumers:
+## Add a Java container
+
+Use <ApiReference name="Aspire.Hosting.JavaHostingExtensions.AddJavaContainer" /> when a Java app ships as a container image that's built elsewhere, such as by a separate pipeline or another team. Aspire runs the image as-is and never rebuilds it, so the JAR, the JDK, and any agent all come from the image. The resource still receives the OpenTelemetry exporter settings and the development certificate trust store, and it supports `WithJvmArgs`.
 
 <Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addJavaContainer('catalog', 'mycompany/catalog', { tag: '1.4.0' });
+await catalog.withHttpEndpoint({ targetPort: 8080 });
+await catalog.withJvmArgs(['-Xmx512m']);
+
+await builder.build().run();
+```
+
+</TabItem>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddJavaApp("java-api", "../java-api")
-    .WithMavenGoal("spring-boot:run")
-    .WithHttpEndpoint(targetPort: 8080, env: "SERVER_PORT")
-    .WithEnvironment("SPRING_PROFILES_ACTIVE", "development")
-    .WithHttpHealthCheck("/actuator/health");
-
-builder.AddProject<Projects.Web>("web")
-    .WithReference(api);
+builder.AddJavaContainer("catalog", "mycompany/catalog", "1.4.0")
+    .WithHttpEndpoint(targetPort: 8080)
+    .WithJvmArgs("-Xmx512m");
 
 builder.Build().Run();
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const api = await builder
-  .addJavaApp('java-api', '../java-api')
-  .withMavenGoal('spring-boot:run', [])
-  .withHttpEndpoint({ targetPort: 8080, env: 'SERVER_PORT' })
-  .withEnvironment('SPRING_PROFILES_ACTIVE', 'development')
-  .withHttpHealthCheck({ path: '/actuator/health' });
-
-const web = await builder.addProject('web', '../Web/Web.csproj');
-await web.withReference(api);
-
-await builder.build().run();
-```
-
-</TabItem>
 </Tabs>
 
-The Java application is responsible for reading `SERVER_PORT` and listening on the endpoint target port. `WithHttpHealthCheck` / `withHttpHealthCheck` makes Aspire poll the configured path. Executable resources run `java` unless a Maven or Gradle task changes the command in run mode; build resources and application resources expose normal dashboard lifecycle controls.
+Aspire doesn't add an endpoint to a Java container, because the port that the app listens on is a property of the image. Declare it with `WithHttpEndpoint` and a target port — 8080 is the default for both Spring Boot and Quarkus.
 
-## Publishing behavior
+The OpenTelemetry agent methods aren't available on a Java container, because there's no build to take the agent from. If the image already includes the agent, enable it with a JVM option that points to its location inside the image, such as `-javaagent:/app/opentelemetry-javaagent.jar`.
 
-Maven and Gradle build helper resources are created only in run mode and are excluded from the application manifest. The integration does not generate a JAR, Dockerfile, or Java-specific publish artifact. For executable resources, arrange the JAR and runtime packaging in your deployment process. Container resources use the image you configured.
+## Configure certificate trust
+
+Aspire configures each Java resource to trust the development certificate, so HTTPS calls to other local resources succeed without turning off certificate validation. It creates a PKCS12 trust store that contains the development certificate together with the system's root certificates, and points the JVM at it by adding `-Djavax.net.ssl.trustStore` and `-Djavax.net.ssl.trustStoreType=PKCS12` to `JAVA_TOOL_OPTIONS`.
+
+A trust store that's passed to the JVM replaces the JVM's default trusted certificates rather than adding to them, so the default [trust scope](/app-host/certificate-configuration/#certificate-trust-scopes) for Java resources is [System](/app-host/certificate-configuration/#system-mode). If you change a Java resource's scope to Append with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithCertificateTrustScope" />, Aspire can't add the certificate without replacing the defaults, so it leaves the JVM's trust store unchanged and logs a message.
 
 <LearnMore>
-  For deployment guidance, see the [Aspire deployment overview](/deployment/).
+  For more information, see [Certificate trust configuration](/app-host/certificate-configuration/#certificate-trust-configuration).
 </LearnMore>
 
-## Deprecated C# compatibility APIs
+## Debug Java apps
 
-The package retains C#-only compatibility APIs that are not exported to TypeScript AppHosts:
+To debug Java apps, use the standard debugging flow of the [Aspire VS Code extension](/get-started/aspire-vscode-extension/) with the [Language Support for Java](https://marketplace.visualstudio.com/items?itemName=redhat.java) and [Debugger for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-debug) extensions installed. Debugging is enabled for every app that you add with `AddJavaApp`, `AddSpringBootApp`, or `AddQuarkusApp`.
 
-- `AddJavaApp` and `AddSpringApp` overloads that accept `JavaAppContainerResourceOptions`; use `AddJavaContainerApp` instead.
-- `AddJavaApp` and `AddSpringApp` overloads that accept `JavaAppExecutableResourceOptions`; use `AddJavaApp` with a JAR path, `WithJvmArgs`, `WithOtelAgent`, and explicit endpoints instead.
-- `WithMavenBuild(MavenOptions)`; use `WithMavenBuild(params string[] args)` instead.
+When the debugger launches a Java app, VS Code starts the app's JVM directly instead of going through the wrapper, because goals such as `spring-boot:run` and `bootRun` start a second JVM that a debugger attached to the wrapper would never see. Aspire drops the launch goal or task and its arguments for that launch, and passes the app's environment variables — including `JAVA_TOOL_OPTIONS` — and the arguments that you add with `WithArgs` to the debugger. Settings that you pass only through goal or task arguments, such as `-Dspring-boot.run.profiles=dev`, don't apply to a debug launch, so use an environment variable, such as `SPRING_PROFILES_ACTIVE`, for settings that should apply to both.
 
-Do not use these deprecated APIs in new applications.
+The debugger needs the app's main class. Aspire reads it from the JAR that the project's most recent build left in its output directory: the `Start-Class` that the Spring Boot plugins record, or a plain JAR's `Main-Class`. If there's no such JAR, the Java debugger looks for the main class in the project, and asks you to choose one when it finds more than one. To choose the main class in the AppHost instead, call <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithMainClass" />, which affects only launches from the IDE:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addSpringBootApp('catalog', '../catalog');
+await catalog.withMainClass('com.example.catalog.CatalogApplication');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddSpringBootApp("catalog", "../catalog")
+    .WithMainClass("com.example.catalog.CatalogApplication");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+For a prebuilt JAR, the debugger puts the JAR on the classpath and launches the `Main-Class` from its manifest, as `java -jar` does, unless you choose another class with `WithMainClass`. A Quarkus app is launched from the fast JAR that its build packages (`quarkus-app/quarkus-run.jar` in the build output), so when VS Code launches a Quarkus app, Aspire runs the app's build first. Breakpoints in your source still bind.
+
+## Publish Java apps
+
+When you run `aspire publish` or `aspire deploy`, Aspire packages each Java app as a container image. If the app directory contains a `Dockerfile`, Aspire uses it as-is. Otherwise, Aspire generates a multi-stage Dockerfile that:
+
+- Builds the project inside the image with the project's wrapper and the arguments from `WithMavenBuild` or `WithGradleBuild`. Without either method, it packages the app with `-B -ntp -DskipTests package` for Maven or `-x test build` for Gradle. Dependency caches are kept in a BuildKit cache mount rather than in an image layer.
+- Detects the Java version that the project targets from `pom.xml` or the Gradle build file, defaulting to Java 21, and runs the app on the matching `eclipse-temurin` JRE image. The build stage uses the matching JDK image, unless the Maven or Gradle version that the wrapper pins can't run on that JDK, in which case it uses the nearest JDK version that the tool supports.
+- Runs the app as an unprivileged user (`USER 999:999`) with the JVM as process ID 1, so the JVM receives `SIGTERM` directly and shutdown hooks run.
+- Copies a build-produced [OpenTelemetry agent](#attach-the-opentelemetry-java-agent) into the image.
+
+The app directory is the build context, so everything that the build needs must be inside it, including the wrapper when Aspire generates the Dockerfile. For the same reason, changing a Java app's working directory after you add it isn't supported when Aspire generates the Dockerfile. Java containers that you add with `AddJavaContainer` keep using the image that you supply.
+
+<LearnMore>
+  For more information about publishing, see [Aspire deployment](/deployment/).
+</LearnMore>
+
+### Select the published JAR
+
+A JAR path doesn't by itself mean that the image copies a prebuilt JAR. When the app directory contains a Maven or Gradle build file — or the app has a build step, Maven goal, or Gradle task — the image builds the project, and Aspire selects the JAR to run from the build output in this order:
+
+1. The JAR that you name with <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithJarArtifact" />.
+1. For a Quarkus app, the artifact that the build's `quarkus-artifact.properties` file names, together with the dependencies that it needs. All three Quarkus packaging types — `fast-jar`, `legacy-jar`, and `uber-jar` — work without extra configuration.
+1. The JAR path that you passed to `AddJavaApp`.
+1. The only JAR that the build produced, ignoring `-plain`, `-sources`, and `-javadoc` JARs.
+
+If the last step finds more than one candidate — such as the `original-*.jar` that a shade plugin leaves beside the shaded JAR — the image build fails and lists the candidates. Name the right one with `WithJarArtifact`. The method affects only publishing, so an app can run one JAR locally and publish another.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addSpringBootApp('catalog', '../catalog');
+await catalog.withJarArtifact('target/catalog-0.0.1-SNAPSHOT-exec.jar');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddSpringBootApp("catalog", "../catalog")
+    .WithJarArtifact("target/catalog-0.0.1-SNAPSHOT-exec.jar");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Only an app directory without a build file, for an app without a build step, Maven goal, or Gradle task, publishes by copying the prebuilt JAR into the image. Build output directories usually aren't in source control, so building inside the image avoids publishing a stale local JAR, and still works in a clean clone or on a CI agent.
+
+### Customize the base images
+
+The generated Dockerfile builds on `docker.io/library/eclipse-temurin:<version>-jdk` and runs on `docker.io/library/eclipse-temurin:<version>-jre`. The build stage needs only a JDK, because the project's wrapper downloads the Maven or Gradle version that it pins. To use other images, such as mirrors in your own registry, set both in a single call to <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithDockerfileBaseImage" />:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addSpringBootApp('catalog', '../catalog');
+await catalog.withDockerfileBaseImage({
+  buildImage: 'myregistry.azurecr.io/eclipse-temurin:21-jdk',
+  runtimeImage: 'myregistry.azurecr.io/eclipse-temurin:21-jre',
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddSpringBootApp("catalog", "../catalog")
+    .WithDockerfileBaseImage(
+        buildImage: "myregistry.azurecr.io/eclipse-temurin:21-jdk",
+        runtimeImage: "myregistry.azurecr.io/eclipse-temurin:21-jre");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+### Include files from other resources
+
+The generated Dockerfile can copy files that another resource produces, such as a frontend's build output, into the Java app's image. Call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.PublishWithContainerFiles" /> on the Java app with the source resource and a destination path. A relative destination path is resolved against the image's `/app` working directory, so the following example places the `frontend` app's build output in `/app/static`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addSpringBootApp('catalog', '../catalog');
+await catalog.withExternalHttpEndpoints();
+
+const frontend = await builder.addViteApp('frontend', '../frontend');
+await frontend.withReference(catalog);
+await frontend.waitFor(catalog);
+
+await catalog.publishWithContainerFiles(frontend, './static');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalog = builder.AddSpringBootApp("catalog", "../catalog")
+    .WithExternalHttpEndpoints();
+
+var frontend = builder.AddViteApp("frontend", "../frontend")
+    .WithReference(catalog)
+    .WaitFor(catalog);
+
+catalog.PublishWithContainerFiles(frontend, "./static");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Aspire builds the source resource before it builds the Java app's image. Copying the files doesn't make the app serve them, so configure the app to serve static files from that directory. Aspire adds the files only to the Dockerfile that it generates, so an authored `Dockerfile` in the app directory doesn't receive them.
+
+<LearnMore>
+  For more information, see [Inject files at publish time](/app-host/container-files/#inject-files-at-publish-time) and [Deploy JavaScript apps](/deployment/javascript-apps/).
+</LearnMore>
+
+## Connection properties
+
+For the environment variables that a Java app receives — and how other apps discover a Java app's endpoints — see [Connect to Java apps](/integrations/frameworks/java/java-connect/).
+
+## Hosting integration health checks
+
+The Java hosting integration doesn't add health checks to Java resources. When your app exposes a health endpoint, such as `/actuator/health` with Spring Boot Actuator or `/q/health` with SmallRye Health, add a check with `WithHttpHealthCheck`.
+
+<span id="deprecated-c-compatibility-apis"></span>
+
+## Migrate from the Community Toolkit
+
+For Aspire 13.6 and later, `Aspire.Hosting.Java` replaces [📦 CommunityToolkit.Aspire.Hosting.Java](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Java). To migrate an AppHost:
+
+1. Remove `CommunityToolkit.Aspire.Hosting.Java` from the AppHost's package references, `#:package` directives, or `aspire.config.json`. Don't keep both packages, because they define overlapping APIs.
+1. Add `Aspire.Hosting.Java`, as described in [Installation](#installation).
+1. Update your AppHost code with the replacements in the following table. The table uses C# names. TypeScript AppHosts use the same names in camel case, except that the JAR overload of `AddJavaApp` is `addJavaAppWithJar`, and the parameterless `WithOtelAgent` is `withOtelAgentDefaultPath`.
+1. Review how your Java apps are published. The first-party integration builds a container image for each app that you add with `AddJavaApp`, `AddSpringBootApp`, or `AddQuarkusApp`, from the app's own `Dockerfile` or from one that Aspire generates. For more information, see [Publish Java apps](#publish-java-apps).
+
+| Community Toolkit API                                                                                           | First-party replacement                                                                                                                         |
+| --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AddJavaContainerApp`                                                                                           | `AddJavaContainer`. In TypeScript, pass the image tag as `{ tag: '...' }`.                                                                      |
+| `AddSpringApp`, and overloads that take `JavaAppExecutableResourceOptions` or `JavaAppContainerResourceOptions` | `AddSpringBootApp`, `AddJavaApp`, or `AddJavaContainer`, configured with builder methods.                                                       |
+| The `workingDirectory` parameter of `AddJavaApp`                                                                | The `appDirectory` parameter.                                                                                                                   |
+| `JavaAppExecutableResource` and `JavaAppContainerResource`                                                      | `JavaAppResource` and `JavaContainerResource`.                                                                                                  |
+| The `JarPath` resource property                                                                                 | Pass the JAR path when you add the app, and use `WithJarArtifact` to choose the published JAR.                                                  |
+| `WithMavenBuild(MavenOptions)`                                                                                  | `WithMavenBuild` with the build arguments, including the packaging goal. For a custom `Command`, also call `WithWrapperPath`.                   |
+| `WithOtelAgent()`, called only to configure telemetry export                                                    | Remove the call, because every Java resource is configured for export. The parameterless method now attaches the agent that the build produces. |
 
 ## See also
 
-- [Java documentation](https://dev.java/learn/)
-- [OpenTelemetry Java instrumentation](https://opentelemetry.io/docs/zero-code/java/agent/)
-- [📦 CommunityToolkit.Aspire.Hosting.Java](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Java)
 - [Get started with the Java integration](/integrations/frameworks/java/java-get-started/)
+- [Connect to Java apps](/integrations/frameworks/java/java-connect/)
+- [📦 Aspire.Hosting.Java](https://www.nuget.org/packages/Aspire.Hosting.Java)
+- [OpenTelemetry Java agent](https://opentelemetry.io/docs/zero-code/java/agent/)
+- [Maven Wrapper](https://maven.apache.org/tools/wrapper/)
+- [Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html)

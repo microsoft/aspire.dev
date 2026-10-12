@@ -3,7 +3,7 @@
  *
  * Helper for `twoslash-blocks.vitest.test.ts`. Walks every `.mdx` file in
  * `src/content/docs/**`, extracts every TypeScript code block annotated with
- * the `twoslash` meta flag, and compiles each one with `@ec-ts/twoslash`
+ * the `twoslash` meta flag, and compiles each unique input with `@ec-ts/twoslash`
  * using the same options the live site renders with (sourced from
  * `config/twoslash.config.mjs` so render and audit can never disagree).
  *
@@ -18,11 +18,12 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, relative, resolve, sep, posix, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { twoslasher } from '@ec-ts/twoslash';
+import { createTwoslasher } from '@ec-ts/twoslash';
 import {
   TWOSLASH_ENABLED,
   TWOSLASH_LANGUAGES,
   getTwoslashOptions,
+  finishTwoslashRun,
   readAspireTypes,
 } from '../../config/twoslash.config.mjs';
 
@@ -85,6 +86,10 @@ export interface AuditReport {
   filesScanned: number;
   /** Number of twoslash blocks scanned. */
   blocksScanned: number;
+  /** Distinct source/normalized-language inputs under this run's options and declarations. */
+  uniqueInputs: number;
+  /** Calls to twoslasher, including calls that crashed. */
+  compilerCalls: number;
   /** Number of blocks with at least one diagnostic. */
   blocksWithErrors: number;
   /** Total diagnostics across all blocks. */
@@ -177,7 +182,7 @@ export function extractTwoslashBlocks(
 
 // ---------- compilation ----------
 
-const sharedOptions = getTwoslashOptions();
+type CompilationResult = Pick<BlockResult, 'diagnostics' | 'crashed' | 'crashMessage'>;
 
 function mapLangForTwoslash(lang: string): string {
   // `@ec-ts/twoslash` accepts `ts`/`tsx`; treat `typescript` as `ts`.
@@ -185,8 +190,13 @@ function mapLangForTwoslash(lang: string): string {
   return lang;
 }
 
-function compileBlock(source: string, lang: string): BlockDiagnostic[] {
-  const result = twoslasher(source, mapLangForTwoslash(lang), sharedOptions);
+function compileBlock(
+  source: string,
+  lang: string,
+  options: ReturnType<typeof getTwoslashOptions>,
+  compiler: ReturnType<typeof createTwoslasher>
+): BlockDiagnostic[] {
+  const result = compiler(source, lang, options);
   return result.errors
     .filter((e) => e && typeof e.line === 'number')
     .map<BlockDiagnostic>((e) => ({
@@ -217,6 +227,8 @@ export function runAudit(): AuditReport {
       twoslashEnabled: false,
       filesScanned: 0,
       blocksScanned: 0,
+      uniqueInputs: 0,
+      compilerCalls: 0,
       blocksWithErrors: 0,
       totalDiagnostics: 0,
       results: [],
@@ -227,6 +239,14 @@ export function runAudit(): AuditReport {
   if (!exists) {
     throw new Error('aspire.d.ts is missing — run `pnpm twoslash-types` before auditing.');
   }
+
+  // Options (including declaration extraFiles) are fixed for this invocation.
+  // Owning the cache here isolates changes to either on subsequent audits
+  // without serializing the large declaration bundle into every block's key.
+  const sharedOptions = getTwoslashOptions();
+  const compiler = createTwoslasher(sharedOptions);
+  const compilations = new Map<string, CompilationResult>();
+  let compilerCalls = 0;
 
   const filesAbs = walkMdx(DOCS_ROOT);
   filesAbs.sort();
@@ -240,24 +260,37 @@ export function runAudit(): AuditReport {
     const blocks = extractTwoslashBlocks(mdxSource, page, absPath);
     for (const { location, source } of blocks) {
       blocksScanned++;
-      let diagnostics: BlockDiagnostic[] = [];
-      let crashed = false;
-      let crashMessage: string | undefined;
-      try {
-        diagnostics = compileBlock(source, location.lang);
-      } catch (err) {
-        crashed = true;
-        crashMessage = err instanceof Error ? err.message : String(err);
+      const lang = mapLangForTwoslash(location.lang);
+      const key = JSON.stringify([lang, source]);
+      let compilation = compilations.get(key);
+      if (!compilation) {
+        compilation = { diagnostics: [], crashed: false, crashMessage: undefined };
+        try {
+          compilerCalls++;
+          compilation.diagnostics = compileBlock(source, lang, sharedOptions, compiler);
+        } catch (err) {
+          compilation.crashed = true;
+          compilation.crashMessage = err instanceof Error ? err.message : String(err);
+        } finally {
+          finishTwoslashRun(sharedOptions, compilation.crashed);
+        }
+        compilations.set(key, compilation);
       }
 
-      // Remap diagnostic positions from block-local lines to .mdx lines.
-      // Block body starts at fenceLine + 1 (the line after the fence).
-      const blockBodyStart = location.fenceLine + 1;
-      for (const d of diagnostics) {
-        d.mdxLine = blockBodyStart + (d.blockLine - 1);
-      }
+      // Never attach source locations to the cached objects: even the first
+      // occurrence needs its own diagnostics so later remapping cannot leak.
+      const diagnostics = compilation.diagnostics.map((diagnostic) => ({
+        ...diagnostic,
+        mdxLine: location.fenceLine + diagnostic.blockLine,
+      }));
 
-      results.push({ location, source, diagnostics, crashed, crashMessage });
+      results.push({
+        location,
+        source,
+        diagnostics,
+        crashed: compilation.crashed,
+        crashMessage: compilation.crashMessage,
+      });
     }
   }
 
@@ -269,6 +302,8 @@ export function runAudit(): AuditReport {
     twoslashEnabled: true,
     filesScanned: filesAbs.length,
     blocksScanned,
+    uniqueInputs: compilations.size,
+    compilerCalls,
     blocksWithErrors,
     totalDiagnostics,
     results,

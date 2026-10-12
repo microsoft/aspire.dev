@@ -323,6 +323,62 @@ Resource names in Kubernetes must follow DNS naming conventions. The integration
 
 Use [external parameters](/fundamentals/external-parameters/) to configure values that differ between development and production environments.
 
+### Parameters inside environment expressions
+
+When a parameter is embedded inside a larger environment variable expression — for example, a URL that contains a host parameter — the publisher declares the parameter as its own entry in `values.yaml`. The embedded parameter doesn't become an extra environment variable; instead, the generated ConfigMap or Secret references it directly, so you can override just that value at deployment time without reconstructing the entire URL.
+
+Use an Aspire reference expression for composition, not a TypeScript string interpolation of a resource handle:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddKubernetesEnvironment("k8s");
+var host = builder.AddParameter("host", "localhost");
+
+builder.AddContainer("myapp", "nginx")
+    .WithEnvironment("SOME_URL", $"http://{host}/test");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addKubernetesEnvironment('k8s');
+const host = await builder.addParameter('host', { value: 'localhost' });
+const myapp = await builder.addContainer('myapp', 'nginx');
+await myapp.withEnvironment('SOME_URL', refExpr`http://${host}/test`);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The generated `values.yaml` declares both the composed environment value and the nested `host` parameter under the resource's `config` section, and the ConfigMap template references the nested value:
+
+```yaml title="values.yaml"
+config:
+  myapp:
+    SOME_URL: ""
+    host: ""
+```
+
+```yaml title="templates/myapp/config.yaml"
+data:
+  SOME_URL: "http://{{ .Values.config.myapp.host }}/test"
+```
+
+When you deploy with `aspire deploy`, Aspire resolves each nested parameter and the composed expression using the parameter's effective value — for example, `SOME_URL` becomes `http://localhost/test`. If you install the chart yourself, override the nested entry, such as `--set config.myapp.host=example.com`. Secret parameters are declared under `secrets.<resource>` instead, and any environment variable that embeds a secret parameter is emitted in the resource's Secret rather than its ConfigMap.
+
+Conflicting Helm value paths, including names that collide after normalization, fail publishing rather than overwriting another entry.
+
 ### Service discovery
 
 In Kubernetes, services discover each other using the cluster's built-in DNS. A service named `api` is reachable at `api.<namespace>.svc.cluster.local`. The generated Helm charts configure service references automatically using Kubernetes-native DNS resolution.

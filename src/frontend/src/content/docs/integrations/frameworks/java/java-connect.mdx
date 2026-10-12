@@ -1,0 +1,357 @@
+---
+title: Connect to Java apps
+seoTitle: 'Connect to Java apps in Aspire: URLs and configuration'
+description: Learn how other apps call your Java apps through Aspire, and how Spring Boot, Quarkus, and plain Java apps read the URLs and connection details that Aspire injects.
+next: false
+---
+
+import { Image } from 'astro:assets';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
+import javaIcon from '@assets/icons/java-icon.png';
+
+<Image
+  src={javaIcon}
+  alt="Java logo"
+  width={100}
+  height={100}
+  fit="contain"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This article describes how the Java apps in your Aspire solution connect to other resources, in both directions. When another resource references a Java app, Aspire injects the Java app's URL into that resource, so apps written in C#, Go, Python, TypeScript, or Java can call it without hard-coded addresses. When a Java app references other resources — such as a database, a cache, or another service — Aspire injects their URLs and connection details into the JVM as environment variables, which Spring Boot, Quarkus, and plain Java apps read through their standard configuration mechanisms. It also describes how Java apps send telemetry to the Aspire dashboard and trust the development certificate.
+
+For the AppHost APIs that add and configure Java apps, see [Set up Java apps in the AppHost](/integrations/frameworks/java/java-host/). If you're new to the Java integration, start with [Get started with the Java integration](/integrations/frameworks/java/java-get-started/).
+
+## Connect from your AppHost
+
+The examples in this article use the following AppHost. The `orders` Spring Boot app references a PostgreSQL database and the `catalog` Spring Boot app, and a Node.js `storefront` app references `orders`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const ordersDb = await postgres.addDatabase('ordersdb');
+
+const catalog = await builder.addSpringBootApp('catalog', '../catalog');
+
+const orders = await builder.addSpringBootApp('orders', '../orders');
+await orders.withReference(ordersDb);
+await orders.withReference(catalog);
+await orders.waitFor(ordersDb);
+await orders.waitFor(catalog);
+
+const storefront = await builder.addNodeApp('storefront', '../storefront', 'server.js');
+await storefront.withReference(orders);
+await storefront.waitFor(orders);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var ordersDb = postgres.AddDatabase("ordersdb");
+
+var catalog = builder.AddSpringBootApp("catalog", "../catalog");
+
+var orders = builder.AddSpringBootApp("orders", "../orders")
+    .WithReference(ordersDb)
+    .WithReference(catalog)
+    .WaitFor(ordersDb)
+    .WaitFor(catalog);
+
+builder.AddNodeApp("storefront", "../storefront", "server.js")
+    .WithReference(orders)
+    .WaitFor(orders);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> injects the referenced resource's connection information into the referencing resource, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> delays the referencing resource until the referenced one is running — or healthy, when it has a health check. A Java app can be on either side of a reference, and the environment variables are the same whatever language the other app uses.
+
+## Connection properties
+
+Aspire passes connection information to apps as environment variables. A Java app is on both sides of that exchange: it exposes endpoints that other apps call, and it receives variables of its own.
+
+### Variables for apps that reference a Java app
+
+When a resource references a Java app, Aspire injects the URL of each of the Java app's endpoints. In the preceding AppHost, `storefront` receives the following variables for the `orders` app:
+
+| Environment variable        | Description                                                                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ORDERS_HTTP`               | The URL of the `orders` app's `http` endpoint, named `{RESOURCE}_{ENDPOINT}`. Read this variable from apps that don't use .NET service discovery. |
+| `services__orders__http__0` | The same URL, in the format that [.NET service discovery](/fundamentals/service-discovery/) reads.                                                |
+
+`AddSpringBootApp` and `AddQuarkusApp` name their endpoint `http`. When you add an endpoint with a different name to a Java app, the variables use that name instead — for example, an endpoint named `admin` produces `ORDERS_ADMIN`. For the naming rules, see [Endpoint URLs](/fundamentals/environment-variables/#endpoint-urls) and [Service discovery variables](/fundamentals/environment-variables/#service-discovery-variables).
+
+### Variables that a Java app receives
+
+A Java app receives the variables of every resource that it references. In the preceding AppHost, `orders` receives `CATALOG_HTTP` and `services__catalog__http__0` for the `catalog` app, and the connection properties of the `ordersdb` database, which include:
+
+| Environment variable            | Description                                                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `ORDERSDB_JDBCCONNECTIONSTRING` | The JDBC URL, in the format `jdbc:postgresql://{Host}:{Port}/{DatabaseName}`. It doesn't include the credentials. |
+| `ORDERSDB_USERNAME`             | The user name for authentication.                                                                                 |
+| `ORDERSDB_PASSWORD`             | The password for authentication.                                                                                  |
+| `ORDERSDB_HOST`                 | The host name of the PostgreSQL server.                                                                           |
+| `ORDERSDB_PORT`                 | The port of the PostgreSQL server.                                                                                |
+| `ORDERSDB_DATABASENAME`         | The name of the database.                                                                                         |
+
+Each resource type documents its own connection properties, such as those in [Connect to PostgreSQL](/integrations/databases/postgres/postgres-connect/#connection-properties). For the naming rules, see [Resource properties](/fundamentals/environment-variables/#resource-properties).
+
+The Java integration also sets the following variables on the Java app itself:
+
+| Environment variable                                                                      | Set on                                 | Description                                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SERVER_PORT`                                                                             | Spring Boot apps                       | The port that the app must listen on for its `http` endpoint. Spring Boot reads it as the `server.port` setting.                                                                                  |
+| `QUARKUS_HTTP_PORT`                                                                       | Quarkus apps                           | The port that the app must listen on for its `http` endpoint. Quarkus reads it as the `quarkus.http.port` setting.                                                                                |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, and the other `OTEL_*` variables      | All Java resources                     | Where and how to export telemetry. For details, see [OpenTelemetry environment variables](/fundamentals/telemetry/#opentelemetry-environment-variables).                                          |
+| `QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT`, `QUARKUS_OTEL_SERVICE_NAME`, and similar variables | Quarkus apps, when you run the AppHost | Copies of the OpenTelemetry settings under the names that the Quarkus OpenTelemetry extension reads.                                                                                              |
+| `QUARKUS_PROFILE`, `QUARKUS_HTTP_HOST`, and `QUARKUS_OBSERVABILITY_ENABLED`               | Quarkus apps, when you run the AppHost | Dev mode settings. For details, see [Add a Quarkus app](/integrations/frameworks/java/java-host/#add-a-quarkus-app).                                                                              |
+| `JAVA_TOOL_OPTIONS`                                                                       | Java resources that need JVM options   | The options from <ApiReference name="Aspire.Hosting.JavaHostingExtensions.WithJvmArgs" />, the `-javaagent` option for the OpenTelemetry Java agent, and the development certificate trust store. |
+
+For an app that you add with `AddJavaApp`, the port variable is the one that you name with the `env` parameter of `WithHttpEndpoint`.
+
+## Call a Java app from other apps
+
+Apps call a Java app at the URL that Aspire injects. Each example calls the `orders` app from the `storefront` app in the preceding AppHost. Only the language differs.
+
+<Tabs syncKey="java-consuming-lang">
+<TabItem label="C#">
+
+In a project that uses the Aspire service defaults, .NET service discovery resolves the `orders` name from the `services__orders__http__0` variable:
+
+```csharp title="Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
+
+builder.Services.AddHttpClient("orders", client =>
+{
+    client.BaseAddress = new Uri("https+http://orders");
+});
+
+var app = builder.Build();
+
+app.MapGet("/orders", async (IHttpClientFactory factory) =>
+{
+    var client = factory.CreateClient("orders");
+
+    return await client.GetStringAsync("/orders");
+});
+
+app.Run();
+```
+
+The `https+http` scheme prefers an HTTPS endpoint and falls back to HTTP. Without service discovery, read the URL from the `ORDERS_HTTP` configuration value instead.
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="main.go"
+package main
+
+import (
+    "fmt"
+    "io"
+    "net/http"
+    "os"
+)
+
+func main() {
+    ordersURL := os.Getenv("ORDERS_HTTP")
+
+    response, err := http.Get(ordersURL + "/orders")
+    if err != nil {
+        panic(err)
+    }
+    defer response.Body.Close()
+
+    body, err := io.ReadAll(response.Body)
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(string(body))
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="app.py"
+import os
+from urllib.request import urlopen
+
+orders_url = os.environ["ORDERS_HTTP"]
+
+with urlopen(f"{orders_url}/orders") as response:
+    print(response.read().decode())
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="server.ts"
+const ordersUrl = process.env.ORDERS_HTTP;
+
+const response = await fetch(`${ordersUrl}/orders`);
+
+console.log(await response.text());
+```
+
+</TabItem>
+</Tabs>
+
+## Read Aspire configuration in your Java app
+
+There's no Aspire client package for Java. A Java app reads the variables that Aspire injects through its framework's standard configuration mechanism. Each example configures the `orders` app from the preceding AppHost to call the `catalog` app and to use the `ordersdb` database. Only the framework differs.
+
+<Tabs syncKey="java-framework">
+<TabItem label="Spring Boot">
+
+Spring Boot resolves environment variables in `${...}` placeholders, so map the database variables to the standard datasource properties:
+
+```properties title="src/main/resources/application.properties"
+spring.datasource.url=${ORDERSDB_JDBCCONNECTIONSTRING}
+spring.datasource.username=${ORDERSDB_USERNAME}
+spring.datasource.password=${ORDERSDB_PASSWORD}
+```
+
+Inject the `catalog` app's URL wherever you create a client:
+
+```java title="src/main/java/com/example/orders/CatalogClient.java"
+package com.example.orders;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+
+@Component
+public class CatalogClient {
+
+    private final RestClient restClient;
+
+    public CatalogClient(
+            RestClient.Builder builder,
+            @Value("${CATALOG_HTTP:http://localhost:8080}") String catalogUrl) {
+        this.restClient = builder.baseUrl(catalogUrl).build();
+    }
+
+    public String products() {
+        return restClient.get()
+                .uri("/products")
+                .retrieve()
+                .body(String.class);
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Quarkus">
+
+Quarkus expands environment variables in `${...}` expressions, so map the variables to the REST client and datasource properties:
+
+```properties title="src/main/resources/application.properties"
+quarkus.rest-client.catalog-api.url=${CATALOG_HTTP:http://localhost:8080}
+
+quarkus.datasource.jdbc.url=${ORDERSDB_JDBCCONNECTIONSTRING}
+quarkus.datasource.username=${ORDERSDB_USERNAME}
+quarkus.datasource.password=${ORDERSDB_PASSWORD}
+```
+
+The REST client picks up its URL through its configuration key:
+
+```java title="src/main/java/com/example/orders/CatalogClient.java"
+package com.example.orders;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@RegisterRestClient(configKey = "catalog-api")
+@Path("/products")
+public interface CatalogClient {
+
+    @GET
+    String products();
+}
+```
+
+Because the datasource URL is configured, Quarkus connects to the Aspire database instead of starting a [Dev Services](https://quarkus.io/guides/dev-services) container for it.
+
+</TabItem>
+<TabItem label="Plain Java">
+
+Read the variables with `System.getenv`:
+
+```java title="src/main/java/com/example/orders/Main.java"
+package com.example.orders;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.sql.Connection;
+import java.sql.DriverManager;
+
+public class Main {
+
+    public static void main(String[] args) throws Exception {
+        var catalogUrl = System.getenv("CATALOG_HTTP");
+
+        var client = HttpClient.newHttpClient();
+        var request = HttpRequest.newBuilder(URI.create(catalogUrl + "/products")).build();
+        var products = client.send(request, HttpResponse.BodyHandlers.ofString()).body();
+
+        try (Connection connection = DriverManager.getConnection(
+                System.getenv("ORDERSDB_JDBCCONNECTIONSTRING"),
+                System.getenv("ORDERSDB_USERNAME"),
+                System.getenv("ORDERSDB_PASSWORD"))) {
+            // Use the connection.
+        }
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+A default after the colon in a placeholder, such as `http://localhost:8080` for `CATALOG_HTTP`, keeps the app runnable outside Aspire. Placeholders without a default make the app fail to start when the variable isn't set.
+
+## Send telemetry to the dashboard
+
+Every Java resource receives the standard OpenTelemetry environment variables, but a JVM doesn't export telemetry by itself. Use one of the following:
+
+- **The OpenTelemetry Java agent.** The agent reads the `OTEL_*` variables directly and instruments common libraries and frameworks without code changes. To attach it, see [Attach the OpenTelemetry Java agent](/integrations/frameworks/java/java-host/#attach-the-opentelemetry-java-agent).
+- **The Quarkus OpenTelemetry extension.** When you run the AppHost, a Quarkus app added with `AddQuarkusApp` receives copies of the settings under the `QUARKUS_OTEL_*` names that the extension reads. A published app needs a mapping in `application.properties`, as described in [Add a Quarkus app](/integrations/frameworks/java/java-host/#add-a-quarkus-app).
+
+An app that uses neither doesn't send telemetry to the dashboard, but its console output still appears in the dashboard's console logs.
+
+## Trust the development certificate
+
+Aspire points each Java resource's JVM at a trust store that contains the development certificate and the system's root certificates, through `JAVA_TOOL_OPTIONS`. HTTP clients and database drivers that use the JVM's default trust settings, such as `java.net.http.HttpClient`, therefore trust HTTPS endpoints that use the development certificate without any code changes. Code that builds its own `SSLContext` from a specific trust store doesn't use Aspire's trust store. For details, see [Configure certificate trust](/integrations/frameworks/java/java-host/#configure-certificate-trust).
+
+## See also
+
+- [Set up Java apps in the AppHost](/integrations/frameworks/java/java-host/)
+- [Get started with the Java integration](/integrations/frameworks/java/java-get-started/)
+- [Environment variables in Aspire](/fundamentals/environment-variables/)
+- [Service discovery](/fundamentals/service-discovery/)
+- [Spring Boot externalized configuration](https://docs.spring.io/spring-boot/reference/features/external-config.html)
+- [Quarkus configuration reference](https://quarkus.io/guides/config-reference)

@@ -1,0 +1,246 @@
+---
+title: Use interactive terminals in the dashboard
+description: Use resource terminals and built-in database REPLs in the Aspire dashboard, work with the terminal dock, and manage terminal sessions.
+---
+
+import { CardGrid, LinkCard, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components';
+import { Image } from 'astro:assets';
+import resourceTerminal from '@assets/dashboard/terminals/resource-terminal.png';
+import terminalDock from '@assets/dashboard/terminals/redis-repl-dock.png';
+import detachedTerminal from '@assets/dashboard/terminals/detached-terminal.png';
+
+The Aspire dashboard can display interactive terminal applications as well as logs. A terminal lets you type into a running process, respond to its prompts, and use a terminal user interface (TUI) without leaving the dashboard.
+
+:::caution[Experimental terminal features]
+Terminal features in Aspire are experimental and may change in future releases.
+:::
+
+## Choose a terminal experience
+
+Aspire has two kinds of terminals: those attached to resources in your app model, and ephemeral terminals created for a specific task.
+
+| Kind | Purpose | Where it appears |
+| ---- | ------- | ---------------- |
+| **Resource terminal** | Interact with a resource's own process, such as a TUI or shell, configured with `WithTerminal()`. | The resource's **Terminal** view on the **Console logs** page. |
+| **Ephemeral terminal** | Run a purpose-specific tool, such as a database REPL opened with `WithRepl()`. The AppHost owns this separate process. | The terminal dock. |
+
+Ephemeral terminals aren't resources in the app model. They can remain available for a task or session; their lifetime is controlled by the AppHost code that creates them or by closing their dock tab. Opening a resource or dock terminal in a separate window changes only its presentation, not its kind or process.
+
+The [terminal samples](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals) demonstrate both kinds in a complete application: a REST client runs as an interactive resource, while a Redis command opens a separate client in the dock. The samples also cover custom dock commands and programmatic terminal automation.
+
+<CardGrid>
+  <LinkCard
+    title="Run an interactive resource"
+    description="Configure WithTerminal for a resource and its replicas."
+    href="/app-host/with-terminal/"
+  />
+  <LinkCard
+    title="Create ephemeral terminals"
+    description="Use TerminalService for shells and container exec sessions."
+    href="/dashboard/ephemeral-terminals/"
+  />
+  <LinkCard
+    title="Query a database or cache"
+    description="Enable built-in REPL commands with WithRepl."
+    href="/dashboard/ephemeral-terminals/#open-a-database-or-cache-repl"
+  />
+  <LinkCard
+    title="Automate a terminal with a tape"
+    description="Run tape play examples and learn the supported file syntax."
+    href="/dashboard/terminal-tape-playback/"
+  />
+</CardGrid>
+
+## Open a resource terminal
+
+Add an interactive process to your app model with [`WithTerminal()`](/app-host/with-terminal/). This example runs Python's interactive prompt. Install Python on the AppHost machine and ensure `python3` is on `PATH`; use `python` instead if that's your installation's command.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder
+  .addExecutable('repl', 'python3', '.', ['-i', '-q'])
+  .withTerminal();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIRETERMINAL001
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddExecutable("repl", "python3", ".", "-i", "-q")
+    .WithTerminal();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. Start your AppHost with `aspire run`.
+2. Open **Console logs** in the dashboard and select `repl`.
+3. If the log view is displayed, select **Settings** in the page toolbar, then select **Terminal**.
+4. At the Python prompt, enter `print("Hello from Aspire")` to see the response.
+
+</Steps>
+
+<Image
+  src={resourceTerminal}
+  alt="Resource terminal in the dashboard Console logs page, showing an interactive REPL and its available commands."
+/>
+
+Selecting a running terminal-enabled resource initially shows **Terminal**. A resource that is waiting, starting, or has exited initially shows **Console logs**, so startup and exit messages are available. After that initial selection, state changes don't switch the view for you.
+
+Use that toolbar menu to switch between **Terminal** and **Console logs**. Switching views doesn't stop the resource or its console-log capture.
+
+For a complete application example, try the [TypeScript](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/basics-typescript) or [C#](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/basics-csharp) terminal basics sample. It uses `WithTerminal()` to run Slumber, a REST client, as a container resource. Select a saved request and press Enter to call the sample's notes API; Aspire supplies the API endpoint to the client.
+
+## Use the terminal dock
+
+Dashboard commands can open ephemeral terminals in the terminal dock for specific tasks. For example, adding `WithRepl()` to a Redis resource adds a **REPL** command to the dashboard. Selecting that command launches `redis-cli` inside the Redis container and displays its interactive session in the dock, with connection details and credentials already configured.
+
+For details on creating these experiences with the `TerminalService` API, see [Create ephemeral terminals from your AppHost](/dashboard/ephemeral-terminals/).
+
+For example, add the Redis hosting integration to your AppHost:
+
+```bash title="Add the Redis hosting integration"
+aspire add Aspire.Hosting.Redis
+```
+
+Then enable its REPL command:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addRedis('cache').withRepl();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRedis("cache").WithRepl();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+With a supported container runtime running:
+
+<Steps>
+
+1. Start your AppHost with `aspire run` and wait for `cache` to be running.
+2. On the dashboard's **Resources** page, open the **Actions** menu for `cache` and select **REPL**. The dock opens with a `redis-cli` tab.
+3. Type `PING` and press Enter. Redis responds with `PONG`.
+4. When you're finished, type `quit` and press Enter, then close the tab.
+
+</Steps>
+
+<Image
+  src={terminalDock}
+  alt="Aspire dashboard with the cache resource running and a redis-cli dock tab showing PING followed by PONG."
+/>
+
+The client runs inside the Redis container, so you don't need to install `redis-cli` locally. The integration guides show how to enable a REPL for [Redis](/integrations/caching/redis/redis-host/#open-an-interactive-repl), [PostgreSQL](/integrations/databases/postgres/postgres-host/#open-an-interactive-repl), [Valkey](/integrations/caching/valkey/valkey-host/#open-an-interactive-repl), [MongoDB](/integrations/databases/mongodb/mongodb-host/#open-an-interactive-repl), [MySQL](/integrations/databases/mysql/mysql-host/#open-an-interactive-repl), and [SQL Server](/integrations/databases/sql-server/sql-server-host/#open-an-interactive-repl).
+
+The terminal basics samples connect these two experiences: create a note through the REST client's resource terminal, edit its stored value through Redis's docked REPL, then send another API request to read the changed value. The terminal APIs aren't specific to either client.
+
+Keep the REPL open while you browse logs, traces, or other dashboard pages. You can open multiple sessions and switch between their tabs. To show or hide the dock, press the backtick key (<Kbd windows="`" />) when you're not typing in a terminal or text field. Drag the dock's top edge to resize it.
+
+:::caution[Hide is not close]
+Hiding the dock leaves its sessions running. Exit the database client before closing its tab: closing the tab alone can leave the client running inside the container.
+
+REPL sessions use the resource's configured credentials and can change or delete data. Only share dashboard access with trusted users.
+:::
+
+## Open a separate window
+
+For a resource terminal, use **Open in new window** in the terminal title bar, not the page toolbar's **Settings** menu. For a dock terminal, select its tab and use **Open terminal in a new window** in the dock's tab strip.
+
+The dashboard opens or reuses a window for that terminal instead of starting another process:
+
+- A **resource terminal** keeps its inline viewer available while the separate window is open.
+- A **dock terminal** shows a placeholder in the dock while detached. Select **Focus window** to reach the existing window, or **Return to panel** to bring its viewer back into the dock.
+
+<Image
+  src={detachedTerminal}
+  alt="Detached resource terminal window showing the same REPL, with font and grid-dimension controls but no dashboard navigation."
+/>
+
+Closing the detached browser window releases that viewer; it doesn't stop the terminal process. If its originating dock is still open, the terminal returns there. Closing the originating dashboard browser tab also doesn't stop an AppHost-owned process or its independent window.
+
+If the browser blocks the new window, the dashboard displays feedback. Allow pop-ups for your trusted dashboard origin and retry the terminal's launch button.
+
+## Adjust font size and terminal dimensions
+
+Use the minus and plus buttons in a terminal's footer to adjust its font size. The resource Terminal view and detached windows also provide a dimensions selector and a fit-to-container control. Dock panes fit their available space rather than offering fixed-dimension presets.
+
+A detached window starts with the originating viewer's selected font size, then manages its font preference independently. Resizing the dock or window changes the terminal's rows and columns without changing the selected font size.
+
+Multiple viewers can share a terminal, but only one is the **primary** viewer that controls the process's grid dimensions. Opening a detached window requests that role. Revealing or returning to an active dock pane also requests sizing control. Explicit sizing actions can request control; ordinary typing and pasting don't. A viewer that loses control doesn't continuously reclaim it from another viewer.
+
+## Navigate with the keyboard
+
+Terminal applications handle many keys themselves, including keys normally used to navigate a web page.
+
+| Focus location  | Keys                                                       | Action                                         |
+| --------------- | ---------------------------------------------------------- | ---------------------------------------------- |
+| Terminal input  | <Kbd windows="F6" />                                       | Move focus to the terminal footer controls.    |
+| Terminal input  | <Kbd windows="Shift+F6" />                                 | Move focus to the preceding dashboard control. |
+| Terminal footer | <Kbd windows="F6" />                                       | Return focus to terminal input.                |
+| Dock tab header | <Kbd windows="ArrowLeft" /> / <Kbd windows="ArrowRight" /> | Select the previous or next terminal tab.      |
+| Dock tab header | <Kbd windows="Home" /> / <Kbd windows="End" />             | Select the first or last terminal tab.         |
+
+Use the [CLI attachment experience](/reference/cli/commands/aspire-terminal-attach/) if you prefer to interact through your own terminal. The browser terminal's graphical rendering isn't a guarantee that every TUI is accessible to every assistive technology; console logs remain a separate text view.
+
+## Understand what stops a terminal
+
+A **viewer** is a browser view or CLI connection. The **producer** is the process running the terminal application. Disconnecting a viewer is different from stopping the producer.
+
+| Action                                                                         | Effect on the process                                                                          |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Hide the dock, switch tabs, switch to Console logs, or close a detached window | The process keeps running.                                                                     |
+| Close an AppHost-owned dock terminal tab                                       | Disposes the terminal and stops its local AppHost-owned workload.                               |
+| Dispose an AppHost-owned terminal in code                                      | Stops its local AppHost-owned workload and removes the terminal.                               |
+| Release a handle to a resource terminal                                        | Leaves the resource workload running. Use resource lifecycle controls to stop the resource.    |
+| Shut down the AppHost                                                          | Cleans up its AppHost-owned terminals. Resource shutdown follows the app's resource lifecycle. |
+
+Stopping a local `docker exec` subprocess doesn't guarantee that the program it launched inside the container stops. Exit the shell or client normally before closing its tab; see [Docker exec process cleanup](/dashboard/ephemeral-terminals/#open-a-database-or-cache-repl).
+
+## Prerequisites and limitations
+
+- **AppHost connection:** These experiences need a live, writable AppHost resource-service connection. An [OTEL-only standalone dashboard](/dashboard/standalone/#unavailable-features-when-standalone) has telemetry, not terminal producers; it doesn't show the dock. Historical read-only runs don't provide live resource terminals or a terminal dock.
+- **Installed tools:** A terminal doesn't install its executable. Host shells and tools must exist on the AppHost machine; a container exec command also needs a running container and an appropriate container CLI.
+- **Browser support:** Terminal rendering needs a browser with module workers and `OffscreenCanvas`. The renderer prefers WebGPU and can fall back to WebGL2. WebGPU requires HTTPS or localhost; clipboard access remains subject to browser permissions and secure-context rules.
+- **Shared input:** Browser viewers, CLI attachments, and automation share the same process. Coordinate their input; a terminal isn't an isolated session for each viewer.
+- **Sensitive operations:** Commands run with the host or container process's permissions. Output, copied text, and recordings can contain secrets. Only share access with trusted users.
+
+## See also
+
+- [Configure resource terminals](/app-host/with-terminal/)
+- [Create ephemeral terminals from your AppHost](/dashboard/ephemeral-terminals/)
+- [Automate terminals from your AppHost](/dashboard/automate-terminals/)
+- [Automate terminals with tape files](/dashboard/terminal-tape-playback/)
+- [Aspire terminal CLI reference](/reference/cli/commands/aspire-terminal/)

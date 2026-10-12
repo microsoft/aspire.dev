@@ -39,6 +39,15 @@ public sealed class LiveStatusOptions
     public int CoalesceWindowMs { get; set; } = 750;
 
     /// <summary>
+    /// Upper bound for a single <c>/api/live/stream</c> connection. Each stream ends
+    /// after a random lifetime between 80% and 100% of this value, so long-lived
+    /// tabs reconnect periodically instead of holding one request open for days
+    /// and reconnects are spread out. Defaults to 10 minutes.
+    /// </summary>
+    [Range(60, 24 * 60 * 60)]
+    public int StreamMaxLifetimeSeconds { get; set; } = 10 * 60;
+
+    /// <summary>
     /// When <c>true</c>, expose the dev-only <c>POST /api/live/_dev/set</c>
     /// endpoint that lets local devs (and Playwright) flip live state without
     /// provisioning real webhooks. Only honored when the host environment is
@@ -109,9 +118,9 @@ public sealed class YouTubeOptions
     public int PollingIntervalSeconds { get; set; } = 120;
 
     /// <summary>
-    /// How often to run the quota-expensive <c>search.list</c> discovery request
-    /// while offline. Defaults to 30 minutes, which stays below the standard
-    /// YouTube Data API daily quota.
+    /// How often to run <c>search.list</c> discovery while offline.
+    /// Defaults to 30 minutes; this limits scheduled searches, but does not
+    /// enforce the project's daily Search Queries quota across all callers.
     /// </summary>
     [Range(30 * 60, 24 * 60 * 60)]
     public int DiscoveryPollingIntervalSeconds { get; set; } = 30 * 60;

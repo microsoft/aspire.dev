@@ -2,7 +2,6 @@
 
 (function () {
   if (typeof location !== 'undefined' && location.origin !== 'https://aspire.dev') {
-    console.debug('[1ds] Skipping load for origin:', location.origin);
     return;
   }
 
@@ -11,7 +10,6 @@
   }
 
   if (window.analytics && window.analytics.__initialized) {
-    console.debug('[1ds] Already initialized, skipping.');
     return;
   }
 
@@ -21,6 +19,7 @@
       {
         instrumentationKey:
           '1c6ad99c3e274af7881b9c3c78eed459-573e6b44-ab25-4e60-97ad-7b7f38f0243a-6923',
+        disablePageUnloadEvents: ['unload'],
         channelConfiguration: { eventsLimitInMem: 50 },
         propertyConfiguration: { env: 'PROD' },
         webAnalyticsConfiguration: {
@@ -42,6 +41,6 @@
     analytics.__initialized = true;
     window.analytics = analytics;
   } catch (err) {
-    console.debug('[1ds] Failed to initialize Application Insights:', err);
+    console.warn('[1ds] Failed to initialize Application Insights:', err);
   }
 })();

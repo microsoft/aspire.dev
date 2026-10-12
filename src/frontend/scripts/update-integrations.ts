@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { fetchWithProxy as fetch } from './fetch-with-proxy';
 import {
   NUGET_ORG_SERVICE_INDEX,
+  getPinnedReleaseVersion,
   isOfficialAspirePackage,
   resolveOfficialAspirePackageSource,
 } from './aspire-package-source';
@@ -31,6 +32,7 @@ const OUTPUT_PATH = './src/data/aspire-integrations.json';
 const DOCS_OUTPUT_PATH = './src/data/integration-docs.json';
 export const DEFAULT_NUGET_ICON_URL =
   'https://www.nuget.org/Content/gallery/img/default-package-icon.svg';
+export const ASPIRE_RELEASE_ICON_URL = 'https://aspire.dev/favicon.svg';
 
 const TAKE = 1000;
 const MAX_SKIP = 3000;
@@ -46,6 +48,9 @@ interface ServiceIndexResponse {
 
 interface CatalogEntry {
   version?: string;
+  description?: string;
+  iconUrl?: string;
+  tags?: string | string[];
   isPrerelease?: boolean;
   listed?: boolean;
   deprecation?: unknown;
@@ -89,6 +94,9 @@ interface SearchResponse {
 
 interface RegistrationLeaf {
   version: string;
+  description?: string;
+  iconUrl?: string;
+  tags?: string[];
   isPrerelease: boolean;
   listed: boolean;
   deprecated: boolean;
@@ -254,6 +262,10 @@ export function resolveIconUrl(pkg: PackageRecord): string {
   const iconVersion = pkg.__iconVersion ?? pkg.version;
 
   if (isOfficialAspirePackage(pkg.id)) {
+    if (pkg.__trustedSource && !pkg.__iconVersion) {
+      // Feed icon extraction can require authentication even when metadata is public.
+      return ASPIRE_RELEASE_ICON_URL;
+    }
     return (
       buildNuGetFlatContainerIconUrl(pkg.id, iconVersion) ||
       buildNuGetIconUrl(pkg.id, iconVersion) ||
@@ -320,12 +332,18 @@ function filterAndTransform(pkgs: PackageRecord[]): IntegrationOutput[] {
 }
 
 async function filterOutDeprecatedWithRegistration(
-  pkgs: PackageRecord[]
-): Promise<PackageRecord[]> {
-  const prefiltered = pkgs.filter((pkg) => pkg.deprecated !== true && !pkg.deprecation);
+  pkgs: PackageRecord[],
+  releaseVersion?: string
+): Promise<{ packages: PackageRecord[]; unavailablePinnedPackages: Set<string> }> {
+  const prefiltered = pkgs.filter(
+    (pkg) =>
+      (releaseVersion && isOfficialAspirePackage(pkg.id)) ||
+      (pkg.deprecated !== true && !pkg.deprecation)
+  );
 
   const concurrency = 10;
   const output: PackageRecord[] = [];
+  const unavailablePinnedPackages = new Set<string>();
   let nextIndex = 0;
 
   async function worker(): Promise<void> {
@@ -335,19 +353,37 @@ async function filterOutDeprecatedWithRegistration(
 
       const registrationBase = pkg.__registrationBase;
       if (!registrationBase) {
-        continue;
+        throw new Error(`No registration source is available for ${pkg.id}.`);
       }
 
-      const preferred = await getPreferredNonDeprecatedVersion(registrationBase, pkg.id);
+      const pin = isOfficialAspirePackage(pkg.id) ? releaseVersion : undefined;
+      const preferred = await getPreferredNonDeprecatedVersion(registrationBase, pkg.id, pin);
       if (preferred) {
-        output.push({ ...pkg, version: preferred });
+        output.push({
+          ...pkg,
+          version: preferred.version,
+          ...(pin
+            ? {
+                deprecated: false,
+                deprecation: undefined,
+                description: preferred.description ?? pkg.description,
+                tags: preferred.tags ?? pkg.tags,
+                iconUrl: preferred.iconUrl,
+              }
+            : {}),
+        });
+      } else if (pin) {
+        unavailablePinnedPackages.add(pkg.id.toLowerCase());
       }
     }
   }
 
   const workers = Array.from({ length: concurrency }, () => worker());
   await Promise.all(workers);
-  return output.sort((a, b) => a.id.localeCompare(b.id));
+  return {
+    packages: output.sort((a, b) => a.id.localeCompare(b.id)),
+    unavailablePinnedPackages,
+  };
 }
 
 function parseSemVer(version: string): ParsedSemVer {
@@ -397,7 +433,8 @@ function cmpSemVer(a: string, b: string): number {
 
 async function getAllRegistrationLeaves(
   registrationBase: string,
-  id: string
+  id: string,
+  requireAllPages = false
 ): Promise<RegistrationLeaf[]> {
   const packageIdLower = id.toLowerCase();
   const indexUrl = `${registrationBase}${encodeURIComponent(packageIdLower)}/index.json`;
@@ -436,6 +473,11 @@ async function getAllRegistrationLeaves(
 
       leaves.push({
         version,
+        description: catalogEntry.description,
+        iconUrl: catalogEntry.iconUrl,
+        tags: Array.isArray(catalogEntry.tags)
+          ? catalogEntry.tags
+          : catalogEntry.tags?.split(/\s+/).filter(Boolean),
         isPrerelease: Boolean(catalogEntry.isPrerelease ?? version.includes('-')),
         listed: catalogEntry.listed !== false,
         deprecated: Boolean(leaf.deprecation || catalogEntry.deprecation),
@@ -456,6 +498,9 @@ async function getAllRegistrationLeaves(
 
     const pageResponse = await fetch(pageUrl);
     if (!pageResponse.ok) {
+      if (requireAllPages) {
+        throw new Error(`Failed registration page for ${id} (${pageResponse.status})`);
+      }
       continue;
     }
 
@@ -468,34 +513,47 @@ async function getAllRegistrationLeaves(
 
 async function getPreferredNonDeprecatedVersion(
   registrationBase: string,
-  id: string
-): Promise<string | null> {
+  id: string,
+  pinnedVersion?: string
+): Promise<RegistrationLeaf | null> {
   try {
-    const leaves = await getAllRegistrationLeaves(registrationBase, id);
-    if (leaves.length === 0) {
-      return null;
-    }
-
-    const listed = leaves.filter((leaf) => leaf.listed);
-    const pool = listed.length > 0 ? listed : leaves;
-    const nonDeprecated = pool.filter((leaf) => !leaf.deprecated);
-    if (nonDeprecated.length === 0) {
-      return null;
-    }
-
-    const hasAnyStable = pool.some((leaf) => !leaf.isPrerelease);
-    const nonDeprecatedStable = nonDeprecated.filter((leaf) => !leaf.isPrerelease);
-    if (hasAnyStable && nonDeprecatedStable.length === 0) {
-      return null;
-    }
-
-    const pickFrom = nonDeprecatedStable.length > 0 ? nonDeprecatedStable : nonDeprecated;
-    pickFrom.sort((a, b) => cmpSemVer(a.version, b.version));
-    return pickFrom[pickFrom.length - 1].version;
+    const leaves = await getAllRegistrationLeaves(registrationBase, id, Boolean(pinnedVersion));
+    const version = selectPreferredPackageVersion(leaves, pinnedVersion);
+    return leaves.find((leaf) => leaf.version === version) ?? null;
   } catch (error: unknown) {
+    if (pinnedVersion) {
+      throw new Error(`Failed to resolve ${id}@${pinnedVersion}: ${getErrorMessage(error)}`, {
+        cause: error,
+      });
+    }
     console.warn(`⚠️ Error selecting preferred version for ${id}:`, getErrorMessage(error));
     return null;
   }
+}
+
+export function selectPreferredPackageVersion(
+  leaves: RegistrationLeaf[],
+  pinnedVersion?: string
+): string | null {
+  if (pinnedVersion) {
+    const match = leaves.find((leaf) => leaf.version.toLowerCase() === pinnedVersion.toLowerCase());
+    if (match && (!match.listed || match.deprecated)) {
+      throw new Error(`Pinned version ${pinnedVersion} is unlisted or deprecated.`);
+    }
+    return match?.version ?? null;
+  }
+
+  const listed = leaves.filter((leaf) => leaf.listed);
+  const pool = listed.length > 0 ? listed : leaves;
+  const nonDeprecated = pool.filter((leaf) => !leaf.deprecated);
+  const nonDeprecatedStable = nonDeprecated.filter((leaf) => !leaf.isPrerelease);
+  if (pool.some((leaf) => !leaf.isPrerelease) && nonDeprecatedStable.length === 0) {
+    return null;
+  }
+
+  const pickFrom = nonDeprecatedStable.length > 0 ? nonDeprecatedStable : nonDeprecated;
+  pickFrom.sort((a, b) => cmpSemVer(a.version, b.version));
+  return pickFrom.at(-1)?.version ?? null;
 }
 
 async function fetchPackagesFromSource(source: PackageSource): Promise<PackageRecord[]> {
@@ -632,11 +690,11 @@ function readPreviousCatalog(): IntegrationOutput[] {
 // previously published one so a release-branch refresh only advances versions and never drops
 // or visually regresses previously published integrations. This is a no-op on non-release
 // branches, where nuget.org already provides the complete, authoritative catalog.
-function reconcileReleaseBranchCatalog(
+export function reconcileReleaseBranchCatalog(
   fresh: IntegrationOutput[],
-  fetchedIds: ReadonlySet<string>
+  fetchedIds: ReadonlySet<string>,
+  previous: IntegrationOutput[] = readPreviousCatalog()
 ): IntegrationOutput[] {
-  const previous = readPreviousCatalog();
   if (previous.length === 0) {
     return fresh;
   }
@@ -652,7 +710,13 @@ function reconcileReleaseBranchCatalog(
       return entry;
     }
     const icon =
-      prior.icon && prior.icon !== DEFAULT_NUGET_ICON_URL ? prior.icon : entry.icon;
+      isOfficialAspirePackage(entry.title) &&
+      prior.version !== entry.version &&
+      prior.icon &&
+      prior.icon !== ASPIRE_RELEASE_ICON_URL &&
+      prior.icon !== DEFAULT_NUGET_ICON_URL
+        ? prior.icon
+        : entry.icon;
     const downloads = entry.downloads && entry.downloads > 0 ? entry.downloads : prior.downloads;
     return { ...entry, icon, downloads };
   });
@@ -663,8 +727,7 @@ function reconcileReleaseBranchCatalog(
   // carrying it forward would silently reintroduce a package we chose to exclude.
   const carriedForward = previous.filter(
     (entry) =>
-      !freshTitles.has(entry.title.toLowerCase()) &&
-      !fetchedIds.has(entry.title.toLowerCase())
+      !freshTitles.has(entry.title.toLowerCase()) && !fetchedIds.has(entry.title.toLowerCase())
   );
   if (carriedForward.length > 0) {
     console.log(
@@ -677,10 +740,14 @@ function reconcileReleaseBranchCatalog(
 
 export async function updateIntegrations(): Promise<void> {
   const officialSource = resolveOfficialAspirePackageSource();
+  const releaseVersion = getPinnedReleaseVersion(officialSource.branchName);
   if (officialSource.isReleaseBranch) {
     console.log(
       `🌿 Release branch detected (${officialSource.branchName}). Official Aspire packages will resolve from ${officialSource.displayName}.`
     );
+  }
+  if (releaseVersion) {
+    console.log(`📌 Official Aspire packages are pinned to ${releaseVersion}.`);
   }
 
   const sources: PackageSource[] = [
@@ -743,12 +810,35 @@ export async function updateIntegrations(): Promise<void> {
   // cadence / never fetched" (carry forward) apart from "fetched then filtered out"
   // (drop, do not reintroduce).
   const fetchedPackageIds = new Set(unique.map((pkg) => pkg.id.toLowerCase()));
-  const nonDeprecated = await filterOutDeprecatedWithRegistration(unique);
-  let output = filterAndTransform(nonDeprecated);
+  const { packages, unavailablePinnedPackages } = await filterOutDeprecatedWithRegistration(
+    unique,
+    releaseVersion
+  );
+  let output = filterAndTransform(packages);
+  if (releaseVersion) {
+    if (!output.some((pkg) => isOfficialAspirePackage(pkg.title))) {
+      throw new Error(`No official Aspire integrations publish ${releaseVersion} in this feed.`);
+    }
+    for (const id of unavailablePinnedPackages) {
+      fetchedPackageIds.delete(id);
+    }
+    if (unavailablePinnedPackages.size > 0) {
+      console.log(
+        `ℹ️ ${unavailablePinnedPackages.size} package(s) do not publish ${releaseVersion}; ` +
+          'preserving previously cataloged versions only, without importing other release versions.'
+      );
+    }
+  }
   if (officialSource.isReleaseBranch) {
     output = reconcileReleaseBranchCatalog(output, fetchedPackageIds);
   }
   const defaultIconPackages = getOfficialAspireDefaultIconPackages(output);
+  const releaseIconPackages = output.filter((pkg) => pkg.icon === ASPIRE_RELEASE_ICON_URL);
+  if (releaseIconPackages.length > 0) {
+    console.log(
+      `ℹ️ Using the public Aspire icon for ${releaseIconPackages.length} release package(s) without published nuget.org icon metadata.`
+    );
+  }
   if (defaultIconPackages.length > 0) {
     console.warn(
       `⚠️ Official Aspire packages resolved to the default NuGet icon: ${defaultIconPackages.join(', ')}`

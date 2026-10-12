@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -91,10 +92,16 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     internal static async Task StreamSse(
         HttpContext context,
         LiveStatusBroadcaster broadcaster,
+        IOptions<LiveStatusOptions> options,
         TimeProvider time,
         CancellationToken cancellationToken)
     {
         await broadcaster.RefreshAsync(cancellationToken).ConfigureAwait(false);
+
+        // End every stream within a jittered bound so request durations stay finite
+        // and clients that reconnect after a deployment don't stay synchronized.
+        var maxLifetime = TimeSpan.FromSeconds(options.Value.StreamMaxLifetimeSeconds);
+        var lifetimeDuration = maxLifetime * (1 - (Random.Shared.NextDouble() * 0.2));
 
         context.Response.StatusCode = StatusCodes.Status200OK;
         context.Response.Headers.ContentType = "text/event-stream";
@@ -108,14 +115,15 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
         var (reader, unsubscribe) = broadcaster.Subscribe();
         using var _ = unsubscribe;
-        using var pending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var lifetime = new CancellationTokenSource(lifetimeDuration, time);
+        using var pending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
         using var heartbeat = new PeriodicTimer(TimeSpan.FromSeconds(15), time);
         var dataReady = reader.WaitToReadAsync(pending.Token).AsTask();
         var heartbeatReady = heartbeat.WaitForNextTickAsync(pending.Token).AsTask();
 
         try
         {
-            while (!cancellationToken.IsCancellationRequested)
+            while (!pending.IsCancellationRequested)
             {
                 await Task.WhenAny(dataReady, heartbeatReady).ConfigureAwait(false);
                 if (dataReady.IsCompleted)
@@ -123,21 +131,22 @@ public static class LiveStatusEndpointRouteBuilderExtensions
                     if (!await dataReady.ConfigureAwait(false)) break;
                     while (reader.TryRead(out var next))
                     {
-                        await context.Response.Body.WriteAsync(next.Frame, cancellationToken).ConfigureAwait(false);
+                        await context.Response.Body.WriteAsync(next.Frame, pending.Token).ConfigureAwait(false);
                     }
-                    await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    await context.Response.Body.FlushAsync(pending.Token).ConfigureAwait(false);
                     dataReady = reader.WaitToReadAsync(pending.Token).AsTask();
                 }
                 else
                 {
                     if (!await heartbeatReady.ConfigureAwait(false)) break;
-                    await context.Response.WriteAsync(":hb\n\n", cancellationToken).ConfigureAwait(false);
-                    await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    await context.Response.WriteAsync(":hb\n\n", pending.Token).ConfigureAwait(false);
+                    await context.Response.Body.FlushAsync(pending.Token).ConfigureAwait(false);
                     heartbeatReady = heartbeat.WaitForNextTickAsync(pending.Token).AsTask();
                 }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { /* client disconnected */ }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { /* max lifetime reached; client reconnects */ }
         finally
         {
             await pending.CancelAsync().ConfigureAwait(false);
@@ -203,7 +212,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         // replayed indefinitely.
         if (!TwitchWebhookHandler.IsFresh(timestamp, time.GetUtcNow(), TimeSpan.FromMinutes(10)))
         {
-            logger.LogWarning("Twitch webhook timestamp {Timestamp} is stale or unparseable; rejecting.", timestamp);
+            logger.LogWarning("Twitch webhook timestamp {Timestamp} (sanitized) is stale or unparseable; rejecting.",
+                TwitchWebhookHandler.SanitizeDiagnosticValue(timestamp));
             return Results.Unauthorized();
         }
 
@@ -226,15 +236,16 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
             if (acquisition.Status == TwitchMessageAcquisitionStatus.Completed)
             {
-                logger.LogDebug("Twitch webhook replay ignored for {MessageId}.", messageId);
+                logger.LogDebug("Twitch webhook replay ignored for message {MessageId}.",
+                    TwitchWebhookHandler.SanitizeDiagnosticValue(messageId));
                 return Results.Ok();
             }
 
             if (acquisition.Status == TwitchMessageAcquisitionStatus.Processing)
             {
                 logger.LogDebug(
-                    "Twitch webhook {MessageId} is already being processed; asking Twitch to retry.",
-                    messageId);
+                    "Twitch webhook message {MessageId} is already being processed; asking Twitch to retry.",
+                    TwitchWebhookHandler.SanitizeDiagnosticValue(messageId));
                 return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
             }
 
@@ -276,6 +287,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     private static async Task<IResult> YouTubeVerify(
         HttpContext context,
         IYouTubeWebSubSubscriptionState subscriptions,
+        IOptions<LiveStatusOptions> options,
         TimeProvider time,
         ILoggerFactory loggerFactory)
     {
@@ -291,6 +303,19 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         var verifyToken = query["hub.verify_token"].ToString();
         var logger = loggerFactory.CreateLogger("StaticHost.Live.YouTube.WebSub");
 
+        if (string.Equals(mode, "denied", StringComparison.Ordinal))
+        {
+            var channelId = options.Value.YouTube.ChannelId;
+            bool? matchesConfiguredTopic = string.IsNullOrEmpty(channelId)
+                ? null
+                : string.Equals(topic, YouTubeWebSubSubscriptionTransitions.TopicFor(channelId), StringComparison.Ordinal);
+            YouTubeDiagnostics.LogUntrustedDenial(
+                logger, query["hub.reason"].ToString(), !string.IsNullOrEmpty(topic), matchesConfiguredTopic);
+            return string.IsNullOrEmpty(topic)
+                ? Results.BadRequest("Invalid WebSub denial report.")
+                : Results.Ok();
+        }
+
         if (!int.TryParse(query["hub.lease_seconds"], out var leaseSeconds) ||
             string.IsNullOrEmpty(challenge))
         {
@@ -304,7 +329,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
                 verifyToken,
                 leaseSeconds))
         {
-            logger.LogWarning("Rejected malformed YouTube WebSub {Mode} verification for {Topic}.", mode, topic);
+            LogRejectedVerification(
+                logger, mode, topic, options.Value.YouTube.ChannelId, malformed: true);
             return Results.NotFound();
         }
 
@@ -330,13 +356,34 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
         if (!confirmed)
         {
-            logger.LogWarning("Rejected unexpected YouTube WebSub {Mode} verification for {Topic}.", mode, topic);
+            LogRejectedVerification(
+                logger, mode, topic, options.Value.YouTube.ChannelId, malformed: false);
             return Results.NotFound();
         }
 
-        logger.LogInformation("YouTube WebSub subscription verified for {Topic}; granted lease {LeaseSeconds}s.",
-            topic, leaseSeconds);
+        logger.LogInformation(
+            "YouTube {Operation} acknowledged; callback lease {LeaseSeconds}s. A matching retry does not extend the lease or reset subscription backoff.",
+            "WebSubVerification", leaseSeconds);
         return Results.Text(challenge, "text/plain");
+    }
+
+    private static void LogRejectedVerification(
+        ILogger logger, string mode, string topic, string channelId, bool malformed)
+    {
+        var modeClassification = mode switch
+        {
+            "subscribe" => "Subscribe",
+            "unsubscribe" => "Unsubscribe",
+            _ => "Unknown",
+        };
+        bool? matchesConfiguredTopic = string.IsNullOrEmpty(channelId)
+            ? null
+            : string.Equals(topic, YouTubeWebSubSubscriptionTransitions.TopicFor(channelId), StringComparison.Ordinal);
+        logger.LogWarning(
+            "YouTube {Operation} rejected: {RejectionReason}; mode {ModeClassification}, " +
+            "topic present {TopicPresent}, matches configured topic {MatchesConfiguredTopic}.",
+            "WebSubVerification", malformed ? "Malformed" : "Unexpected", modeClassification,
+            !string.IsNullOrEmpty(topic), matchesConfiguredTopic);
     }
 
     private static async Task<IResult> YouTubeWebhook(
@@ -365,8 +412,8 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         var signature = context.Request.Headers["X-Hub-Signature"].ToString();
         if (!YouTubeWebhookHandler.IsValidSignature(youtube.WebhookSecret, bodyBytes, signature))
         {
-            logger.LogWarning("YouTube WebSub signature mismatch.");
-            return Results.Unauthorized();
+            logger.LogWarning("YouTube WebSub signature missing or invalid; acknowledging and discarding the notification without processing.");
+            return Results.Ok();
         }
 
         if (env.IsDevelopment() && options.Value.EnableDevEndpoint && !youtube.IsConfigured)
@@ -408,16 +455,21 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         var channelId = youtube.ChannelId;
         if (string.IsNullOrWhiteSpace(channelId))
         {
-            channelId = await ytClient.ResolveChannelIdAsync(youtube.ChannelHandle, cancellationToken).ConfigureAwait(false);
+            channelId = await ConfirmOperationAsync("NotificationChannelResolution", YouTubeDiagnostics.ChannelsEndpoint,
+                () => ytClient.ResolveChannelIdAsync(youtube.ChannelHandle, cancellationToken)).ConfigureAwait(false);
         }
 
         if (string.IsNullOrWhiteSpace(channelId))
         {
-            logger.LogWarning("Could not resolve YouTube channel id for webhook confirmation.");
+            logger.LogWarning("YouTube {Operation} returned no channel; notification confirmation is unavailable, not confirmed offline.",
+                "NotificationChannelResolution");
             return;
         }
 
-        var live = await ytClient.GetCurrentLiveAsync(channelId, cancellationToken).ConfigureAwait(false);
+        var live = await ConfirmOperationAsync("NotificationConfirmation", YouTubeDiagnostics.SearchEndpoint,
+            () => ytClient.GetCurrentLiveAsync(channelId, cancellationToken)).ConfigureAwait(false);
+        logger.LogInformation("YouTube {Operation} succeeded at {CheckedAt}; observed live {ObservedLive}.",
+            "NotificationConfirmation", DateTimeOffset.UtcNow, live.Live);
         await broadcaster.UpdateAsync(
             new LiveStatusUpdate
             {
@@ -428,6 +480,22 @@ public static class LiveStatusEndpointRouteBuilderExtensions
                     youtube.OfflineConfirmationCount),
             },
             cancellationToken).ConfigureAwait(false);
+
+        async Task<T> ConfirmOperationAsync<T>(string operation, string endpoint, Func<Task<T>> action)
+        {
+            var started = Stopwatch.GetTimestamp();
+            try
+            {
+                return await action().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception exception)
+            {
+                YouTubeDiagnostics.LogFailure(logger, exception, operation, endpoint,
+                    elapsedMs: Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+                throw;
+            }
+        }
     }
 
     // --- Dev-only -----------------------------------------------------------

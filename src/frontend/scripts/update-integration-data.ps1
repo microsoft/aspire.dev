@@ -10,7 +10,8 @@
     reliable scripting that runs identically in CI and locally.
 
     Phases:
-      1. `pnpm update:all` — integration metadata, GitHub stats, sample metadata.
+      1. `pnpm update:all` — integration metadata, GitHub stats, samples, official blog archive,
+         and Aspire CLI config schemas for new microsoft/aspire releases.
          Reconciles documentation mappings, then runs structured-data tests.
       2. Version-change detection — compares the committed
          aspire-integrations.json against the freshly written one by package
@@ -75,6 +76,8 @@ $AllowedPaths = @(
     'src/frontend/src/data/integration-docs.json',
     'src/frontend/src/data/github-stats.json',
     'src/frontend/src/data/samples.json',
+    'src/frontend/src/data/aspire-blog-posts.json',
+    'src/frontend/src/data/schemas/',
     'src/frontend/src/assets/samples/',
     'src/frontend/src/data/pkgs/',
     'src/frontend/src/data/ts-modules/',
@@ -367,6 +370,8 @@ $pkgSummary = ''
 $pkgSkippedPackages = ''
 $tsApiSummary = ''
 $tsSkippedPackages = ''
+$tsToleratedPackages = ''
+$tsToleratedDiagnostics = [System.Collections.Generic.List[string]]::new()
 $twoslashSummary = ''
 $semanticSummary = ''
 
@@ -477,6 +482,34 @@ if ($versionsChanged -and -not $SkipRegen) {
     }
     else { '' }
 
+    # The generator tolerates only the known duplicate inherited-capability scanner
+    # defect (fixed by microsoft/aspire#20443) and lists each tolerated diagnostic
+    # under this line as "  [Package] message". Surface them loudly for review.
+    $inToleratedSection = $false
+    foreach ($line in $tsLog -split "`r?`n") {
+        if ($line -match '^\s*Packages with tolerated ATS diagnostics:\s*(?<Packages>.+?)\s*$') {
+            $tsToleratedPackages = $Matches.Packages
+            $inToleratedSection = $true
+        }
+        elseif ($inToleratedSection -and $line -match '^\s+\[(?<Package>[^\]]+)\]\s+(?<Message>.+?)\s*$') {
+            $tsToleratedDiagnostics.Add("$($Matches.Package): $($Matches.Message)")
+        }
+        else {
+            $inToleratedSection = $false
+        }
+    }
+    if ($tsToleratedPackages) {
+        $toleratedWarning = "TypeScript modules were generated despite known ATS scanner diagnostics for: $tsToleratedPackages. " +
+            "Their APIs may be incomplete until the Aspire CLI includes microsoft/aspire#20443; review them before merging."
+        Write-Warning $toleratedWarning
+        foreach ($diagnostic in $tsToleratedDiagnostics) {
+            Write-Warning "  $diagnostic"
+        }
+        if ($IsCI) {
+            Write-Host "::warning title=Tolerated ATS scanner diagnostics::$toleratedWarning"
+        }
+    }
+
     $twoslashSummary = 'succeeded'
 
     # 3c. Cross-artifact semantic validation. This runs only after every
@@ -515,18 +548,33 @@ elseif ($versionsChanged -and $SkipRegen) {
 Write-Section 'Phase 5 — scope check'
 $allStatus = @(Invoke-Git @('status', '--porcelain') | Where-Object { $_ -and $_.Trim().Length -gt 0 })
 $outOfScope = [System.Collections.Generic.List[string]]::new()
+# A release's schema never changes after it ships, so the updater may only add
+# versioned schema files. Modifying, deleting, or renaming one is a violation.
+$publishedSchemaPattern = '^src/frontend/src/data/schemas/aspire-config\..+\.schema\.json$'
+$changedPublishedSchemas = [System.Collections.Generic.List[string]]::new()
 foreach ($line in $allStatus) {
     # Porcelain format: "XY <path>" (path starts at column 4). Handle renames "old -> new".
+    $statusCode = $line.Substring(0, 2)
     $path = ($line.Substring(3)).Trim()
     if ($path -match ' -> ') { $path = ($path -split ' -> ')[-1].Trim() }
     $path = $path.Trim('"')
     if (-not (Test-PathAllowed -RelPath $path)) {
         $outOfScope.Add($path)
     }
+    $isNewFile = $statusCode -eq '??' -or $statusCode[0] -eq 'A'
+    if (($path -replace '\\', '/') -match $publishedSchemaPattern -and -not $isNewFile) {
+        $changedPublishedSchemas.Add($path)
+    }
 }
 if ($outOfScope.Count -gt 0) {
     Write-Error ("Working tree contains changes outside the allowed data paths:`n  " +
         ($outOfScope -join "`n  ") +
+        "`nAborting; no PR will be opened.")
+    exit 1
+}
+if ($changedPublishedSchemas.Count -gt 0) {
+    Write-Error ("Published Aspire CLI config schemas never change, but these were modified, deleted, or renamed:`n  " +
+        ($changedPublishedSchemas -join "`n  ") +
         "`nAborting; no PR will be opened.")
     exit 1
 }
@@ -570,6 +618,8 @@ $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine("- ``src/frontend/src/data/integration-docs.json`` — documentation mappings, when packages are removed")
 [void]$sb.AppendLine("- ``src/frontend/src/data/github-stats.json`` — repository statistics")
 [void]$sb.AppendLine("- ``src/frontend/src/data/samples.json`` — sample metadata, when changed")
+[void]$sb.AppendLine("- ``src/frontend/src/data/aspire-blog-posts.json`` — complete official Aspire blog metadata, when changed")
+[void]$sb.AppendLine("- ``src/frontend/src/data/schemas/`` — Aspire CLI config schemas, when microsoft/aspire ships a new release")
 [void]$sb.AppendLine("- ``src/frontend/src/assets/samples/`` — sample thumbnails, when changed")
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("### API reference regeneration")
@@ -605,6 +655,27 @@ if ($regenRan) {
     if ($tsSkippedPackages) {
         [void]$sb.AppendLine("- TypeScript packages skipped because they export no ATS functions: ``$tsSkippedPackages``")
     }
+    if ($tsToleratedPackages) {
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("### :warning: Tolerated ATS scanner diagnostics")
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("The Aspire CLI reported known duplicate inherited-capability diagnostics for the packages below. Their TypeScript modules were generated anyway, so the APIs named in these diagnostics may be incomplete until the CLI includes the scanner fix from microsoft/aspire#20443. **Review these modules before merging.**")
+        [void]$sb.AppendLine("")
+        foreach ($packageName in $tsToleratedPackages -split ',\s*') {
+            [void]$sb.AppendLine("- ``$packageName``")
+        }
+        if ($tsToleratedDiagnostics.Count -gt 0) {
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine("<details>")
+            [void]$sb.AppendLine("<summary>Tolerated diagnostics</summary>")
+            [void]$sb.AppendLine("")
+            foreach ($diagnostic in $tsToleratedDiagnostics) {
+                [void]$sb.AppendLine("- ``$diagnostic``")
+            }
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine("</details>")
+        }
+    }
 }
 else {
     [void]$sb.AppendLine("_No integration package versions changed in this run — API reference regeneration was skipped._")
@@ -626,6 +697,9 @@ if ($iconWarnings) {
 if ($regenRan) {
     [void]$sb.AppendLine("- [ ] New/removed ``pkgs/`` and ``ts-modules/`` files match the version changes")
     [void]$sb.AppendLine("- [ ] ``src/frontend/src/data/twoslash/aspire.d.ts`` is included in the diff")
+    if ($tsToleratedPackages) {
+        [void]$sb.AppendLine("- [ ] TypeScript modules generated with tolerated ATS scanner diagnostics were reviewed")
+    }
 }
 $prBody = $sb.ToString()
 

@@ -38,12 +38,20 @@ The MongoDB server resource exposes the following connection properties:
 | `Password`                 | The password for authentication |
 | `AuthenticationDatabase`   | The authentication database (when credentials are configured) |
 | `AuthenticationMechanism`  | The authentication mechanism (when credentials are configured) |
-| `Uri`                      | The connection URI, with the format `mongodb://{Username}:{Password}@{Host}:{Port}/?authSource={AuthenticationDatabase}&authMechanism={AuthenticationMechanism}` |
+| `Uri`                      | The connection URI, with the format `mongodb://{Username}:{Password}@{Host}:{Port}/?authSource={AuthenticationDatabase}&authMechanism={AuthenticationMechanism}&tls=true` |
 
-**Example connection string:**
+Starting in Aspire 13.6, ordinary MongoDB server resources use TLS during local runs when a certificate is configured and available. Consume the complete generated URI rather than reconstructing it from `Host` and `Port`, which omit TLS and other connection options. Your client must also trust the certificate and connect using a hostname it covers; trusting the certificate alone doesn't resolve a hostname mismatch for container clients. See [Automatic TLS and migration](../mongodb-host/#automatic-tls-and-migration-from-earlier-versions) for certificate requirements and local-development options.
+
+**Example connection string without TLS:**
 
 ```
 Uri: mongodb://admin:p%40ssw0rd1@localhost:27017/?authSource=admin&authMechanism=SCRAM-SHA-256
+```
+
+**Example connection string with TLS enabled:**
+
+```text title="MongoDB server URI (credentials redacted)"
+mongodb://<username>:<password>@localhost:27017/?authSource=admin&authMechanism=SCRAM-SHA-256&tls=true
 ```
 
 ### MongoDB database
@@ -54,7 +62,9 @@ The MongoDB database resource inherits all properties from its parent server res
 | -------------- | ----------- |
 | `DatabaseName` | The MongoDB database name |
 
-**Example:**
+The database's generated URI also includes `tls=true` when its parent server uses TLS. Preserve this option when passing the URI to your client.
+
+**Example without TLS:**
 
 ```
 Uri: mongodb://admin:p%40ssw0rd1@localhost:27017/?authSource=admin&authMechanism=SCRAM-SHA-256

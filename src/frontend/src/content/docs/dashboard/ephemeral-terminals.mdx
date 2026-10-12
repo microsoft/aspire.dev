@@ -1,0 +1,216 @@
+---
+title: Create ephemeral terminals from your AppHost
+description: Use TerminalService to launch interactive processes, display docked terminals, and manage their lifetime independently of resources in your AppHost.
+---
+
+Ephemeral terminals let AppHost code launch an interactive process for a specific task and display it in the dashboard. Redis's `WithRepl()` is one example: it adds a resource command that opens an authenticated `redis-cli` session inside the running container.
+
+The same building blocks are available for your own commands. Use `Aspire.Hosting.ApplicationModel.TerminalService` to create a terminal, configure its executable and placement, start its process, and show it in the dock. The [custom docked SQL REPL sample](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals/docked-repl-csharp) demonstrates this with rqlite's SQL client.
+
+These are **ephemeral terminals**: the AppHost launches and owns a separate terminal workload for a specific task. They aren't resources in the app model. They differ from [resource terminals](/dashboard/terminals/), where Aspire runs the resource and a terminal exposes that resource's existing process.
+
+:::caution[Experimental API]
+The low-level terminal authoring APIs are experimental and [emit diagnostic `ASPIRETERMINAL001`](/diagnostics/aspireterminal001/). Their examples explicitly acknowledge it with `#pragma warning disable ASPIRETERMINAL001`. The integration-level `WithRepl()` methods don't require this suppression.
+:::
+
+:::note[AppHost language support]
+The integration methods `withRepl()` and resource method `withTerminal()` are available to TypeScript AppHosts. Creating and automating AppHost-owned terminals directly with `TerminalService`, and displaying them with `PromptTerminalAsync`, aren't currently exported to TypeScript. The C#-only examples below apply to those lower-level operations.
+:::
+
+## How a command opens a terminal
+
+The [sample](https://github.com/microsoft/aspire-samples/blob/main/samples/terminals/docked-repl-csharp/apphost.cs) defines a custom rqlite container resource and an **Open SQL REPL** command. The excerpts below focus on the terminal code inside that command's callback. The surrounding implementation supplies `context`, the resource `builder`, and the running container's current `containerId`.
+
+### Resolve the runtime and terminal service
+
+The callback gets `TerminalService` from dependency injection. Because this process will run inside a container, it also resolves the configured container runtime:
+
+```csharp title="apphost.cs — resolve services"
+var runtime = await context.Services.GetRequiredService<IContainerRuntimeResolver>()
+    .ResolveAsync(context.CancellationToken);
+var terminals = context.Services.GetRequiredService<TerminalService>();
+```
+
+### Create a dock terminal
+
+`CreateTerminal` returns a handle to the new terminal. `Executable` selects the container runtime, and `Arguments` tells it to launch the SQL client with an interactive TTY. `TerminalPlacement.Dock` puts the session in the dashboard's terminal dock:
+
+```csharp title="apphost.cs — create the terminal"
+var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
+{
+    Title = $"SQL ({builder.Resource.Name})",
+    Executable = runtime.Name.ToLowerInvariant(),
+    Arguments = ["exec", "-it", containerId, "/bin/rqlite", "-H", "127.0.0.1", "-p", "4001"],
+    Placement = TerminalPlacement.Dock
+});
+```
+
+The database server continues running as a resource. The SQL client is a separate process inside the container, connecting to its container-local loopback endpoint.
+
+### Start, show, and wait for readiness
+
+`Start()` starts the terminal workload. `Show()` reveals its dock tab. The sample then waits for the client's prompt before reporting that the command succeeded:
+
+```csharp title="apphost.cs — start the session"
+try
+{
+    terminal.Start();
+    terminal.Show();
+    await terminal.WaitForTextAsync("127.0.0.1:4001>", TimeSpan.FromSeconds(20), context.CancellationToken);
+    // Keep the session alive for the user; TerminalService cleans up at AppHost shutdown.
+    return CommandResults.Success();
+}
+catch (Exception ex) when (ex is TimeoutException or OperationCanceledException or InvalidOperationException)
+{
+    await terminal.DisposeAsync();
+    context.Services.GetRequiredService<ResourceLoggerService>().GetLogger(builder.Resource)
+        .LogError(ex, "Could not open the SQL REPL.");
+    return CommandResults.Failure(ex is OperationCanceledException ? "Opening SQL REPL canceled." : ex.Message);
+}
+```
+
+A successful terminal intentionally outlives the command callback. Don't wrap it in `await using` here: that would dispose the session when the callback returns. If startup fails or is canceled, the catch block disposes it and reports a failed command instead.
+
+The same mechanism can launch other interactive programs, not just REPLs. For example, [open a Bash shell](#open-a-container-exec-session) when the container image includes Bash. Change the executable arguments and readiness check to match the program you launch.
+
+## Open a database or cache REPL
+
+A read-eval-print loop (REPL) accepts commands and displays their results interactively. The built-in `WithRepl()` methods are examples of this command-driven experience: they add an opt-in **REPL** resource command that opens the integration's bundled client in the dashboard terminal dock. They don't replace the database server's process or require `WithTerminal()`.
+
+For a complete TypeScript or C# Redis example, follow [Use the terminal dock](/dashboard/terminals/#use-the-terminal-dock). It covers setup, opening the **REPL** command, checking the connection with `PING`, and exiting cleanly.
+
+The command is disabled until the container is running and its runtime ID is available. Each invocation creates a new dock terminal and uses the current container ID, including after a container restart. Reopen the REPL after restarting its container; an old session doesn't reconnect automatically.
+
+:::caution[Docker exec process cleanup]
+Interrupting or terminating a local `docker exec` subprocess can leave the program it launched running inside the container. This is a [known Docker issue](https://github.com/moby/moby/issues/9098), not specific to REPLs. Exit the shell or client normally before closing its terminal tab. Stopping the container ends any processes left behind.
+:::
+
+REPL commands are opt-in and run-mode-only. They use the resource's configured credentials and can modify data, so enable them only for trusted dashboard users.
+
+Use `WithTerminal()` for a resource whose main process is itself interactive. Use `WithRepl()` for an additional database or cache client in the dock. The REPL dock session isn't a resource-terminal target for [`aspire terminal tape play`](/reference/cli/commands/aspire-terminal-tape-play/).
+
+## Resolve the service and configure a terminal
+
+Resolve `TerminalService` from dependency injection, either through the built AppHost's `app.Services.GetRequiredService<TerminalService>()` or a callback's service provider, such as `commandContext.Services`. You don't construct or register the service yourself.
+
+The terminal types are in `Aspire.Hosting.ApplicationModel`, which AppHost projects import automatically when implicit usings are enabled.
+
+`CreateTerminal(new TerminalLaunchOptions { ... })` returns an `AspireTerminal` handle. Launch options are properties of `TerminalLaunchOptions` itself; you don't need a terminal-library builder or a separate process-options object.
+
+For example, configure a local shell with a working directory, a custom prompt, and an initial grid size. This example requires `/bin/sh` on the AppHost machine:
+
+```csharp title="AppHost.cs — terminal launch options"
+#pragma warning disable ASPIRETERMINAL001
+
+var options = new TerminalLaunchOptions
+{
+    Title = "Local shell",
+    Executable = "/bin/sh",
+    Arguments = ["-i"],
+    WorkingDirectory = builder.AppHostDirectory,
+    EnvironmentVariables =
+    {
+        ["PS1"] = "tools> "
+    },
+    Columns = 100,
+    Rows = 30,
+    Placement = TerminalPlacement.Dock
+};
+```
+
+`Title` and `Executable` are required. Pass arguments separately; an executable name without a full path is resolved against `PATH`. Environment entries add to or override the inherited AppHost environment.
+
+If omitted, the working directory defaults to the AppHost's working directory, the initial grid is 80 × 24, and placement is `Dock`. Both dimensions must be positive. Viewers can resize the grid, but placement is fixed when the terminal is created.
+
+Choose the placement independently of the workload:
+
+- **`Dock`**: A tab in the dashboard's terminal dock.
+- **`Dialog`**: A caller-owned terminal that an interaction dialog can borrow. It isn't listed in the dock.
+- **`None`**: A terminal used only by automation, with no dashboard presentation.
+
+`TerminalPlacement.ResourceView` is reserved for resource-owned terminals. Passing it to `CreateTerminal` throws.
+
+## Open a persistent local shell
+
+This complete AppHost uses an Alpine container as the resource on which to display a custom command. Start the AppHost with Docker available, then select **Open local shell** on the `tools` resource in the dashboard. The shell runs on the **AppHost machine**, not inside the container.
+
+```csharp title="AppHost.cs"
+using Microsoft.Extensions.DependencyInjection;
+
+#pragma warning disable ASPIRETERMINAL001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("tools", "alpine", "3.22")
+    .WithArgs("sleep", "infinity")
+    .WithCommand("local-shell", "Open local shell", commandContext =>
+    {
+        var terminals = commandContext.Services
+            .GetRequiredService<TerminalService>();
+
+        // Keep the caller-owned terminal alive after this command returns.
+        var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
+        {
+            Title = "Local shell",
+            Executable = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
+            Arguments = OperatingSystem.IsWindows() ? [] : ["-i"],
+            WorkingDirectory = builder.AppHostDirectory,
+            Placement = TerminalPlacement.Dock
+        });
+
+        terminal.Start();
+        terminal.Show();
+
+        return Task.FromResult(CommandResults.Success());
+    });
+
+builder.Build().Run();
+```
+
+`Start()` is idempotent and nonblocking: it schedules the workload, but doesn't wait for output. Call it explicitly when you want the workload running before a viewer attaches. `Show()` reveals the dock and selects the terminal's tab in **every connected dashboard**, not just the browser that invoked the command. It doesn't make a dialog terminal visible.
+
+Don't put this dock terminal in an `await using` declaration inside the command. That would dispose it as soon as the command returned. It remains available until you dispose it, the user closes its dock tab, or the AppHost shuts down.
+
+## Open a container exec session
+
+To open a Bash shell instead of a SQL client, use the same command pattern with a container image that includes `/bin/bash`. Replace the terminal creation block with:
+
+```csharp title="AppHost.cs — Bash terminal variant"
+var terminal = terminals.CreateTerminal(new TerminalLaunchOptions
+{
+    Title = $"Shell ({builder.Resource.Name})",
+    Executable = runtime.Name.ToLowerInvariant(),
+    Arguments = ["exec", "-it", containerId, "/bin/bash", "-i"],
+    Placement = TerminalPlacement.Dock
+});
+```
+
+Keep the `Start()` and `Show()` calls, but replace the SQL-specific `WaitForTextAsync` with a readiness check for your shell's configured prompt. Also update the command label and failure messages. Not every image includes Bash; use an available shell such as `/bin/sh` when appropriate.
+
+Use the current container ID rather than guessing a name from the Aspire resource name. The sample's surrounding command resolves that ID on each invocation and disables the action while the resource isn't running.
+
+The shell is separate from the container's main process. Type `exit` before closing its tab: disposing the local runtime command doesn't guarantee that the shell inside the container stops. Shell access runs with the container user's permissions, so expose it only to trusted dashboard users.
+
+For input, screen inspection, headless workflows, and resource-terminal handles, see [Automate terminals from your AppHost](/dashboard/automate-terminals/).
+
+## Separate terminal and dialog lifetimes
+
+For short-lived modal workflows, create a `Dialog` terminal with `await using`, start it, and pass it to [`IInteractionService.PromptTerminalAsync`](/dashboard/terminal-interactions/#terminal-interactions). The interaction **borrows** the handle and never disposes it. You can reuse the same live terminal across multiple prompts before the owner disposes it.
+
+Keep these lifetimes separate:
+
+| Lifetime | What ends it |
+| --- | --- |
+| AppHost-owned workload | Its process exits, or terminal disposal stops it. |
+| AppHost-owned terminal | Explicit disposal, dock-tab close for a dock terminal, or AppHost shutdown. |
+| Terminal interaction | Successful work completion, explicit interaction completion, or cancellation—not process exit. |
+| Resource-owned producer | Resource lifecycle, not disposal of an acquired automation handle. |
+
+## See also
+
+- [Terminal samples](https://github.com/microsoft/aspire-samples/tree/main/samples/terminals)
+- [Dashboard terminals](/dashboard/terminals/)
+- [Automate terminals from your AppHost](/dashboard/automate-terminals/)
+- [Interaction service](/dashboard/terminal-interactions/#terminal-interactions)
+- [Custom resource commands](/fundamentals/custom-resource-commands/)
+- [Terminal API source](https://github.com/microsoft/aspire/blob/34db30a7d3733229da64a403dfc4e4e4d7a1a43b/src/Aspire.Hosting/ApplicationModel/TerminalService.cs)

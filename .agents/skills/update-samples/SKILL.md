@@ -71,6 +71,7 @@ Tags are automatically inferred from the README content and sample name. The scr
 | `javascript` | JavaScript references |
 | `node` | Node.js references |
 | `go` | Go/Golang references |
+| `java` | Java, Spring Boot, Quarkus, Maven, Gradle references |
 
 #### Services & Technologies
 | Tag | Matched by |
