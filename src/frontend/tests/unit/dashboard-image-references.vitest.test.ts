@@ -8,7 +8,7 @@ const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(testsDir, '..', '..', 'src', 'content', 'docs');
 const stableImage = 'mcr.microsoft.com/aspire/dashboard:latest';
 const nightlyImage = 'mcr.microsoft.com/aspire/nightly/dashboard:latest';
-const sampleImage = 'mcr.microsoft.com/aspire/nightly/dashboard:13.6';
+const versionedNightlyImage = 'mcr.microsoft.com/aspire/nightly/dashboard:13.6';
 
 function readDoc(file: string): string {
   return readFileSync(path.join(docsRoot, file), 'utf8');
@@ -17,6 +17,14 @@ function readDoc(file: string): string {
 function dockerCommands(source: string): string[] {
   return [...source.matchAll(/```(?:bash|powershell)[^\n]*\n([\s\S]*?)```/g)].flatMap(
     (match) => match[1].match(/^docker run[^\n]*(?:\n[ \t]+[^\n]*)*/gm) ?? []
+  );
+}
+
+function legacyImageReferences(source: string): string[] {
+  return (
+    source.match(
+      /mcr\.microsoft\.com\/dotnet\/(?:nightly\/)?aspire-dashboard:\w[\w.-]{0,127}(?=$|[\s`"'@])/g
+    ) ?? []
   );
 }
 
@@ -81,16 +89,34 @@ describe('standalone dashboard container images', () => {
     }
   });
 
-  test('uses canonical floating image references throughout active docs in all locales', () => {
+  test.each([
+    'latest',
+    '13',
+    '13.6',
+    '13.5',
+    '14.0',
+    '13.6.1',
+    '13.6.1-amd64',
+    'preview_1',
+    'Preview.1',
+    '_build',
+    'a'.repeat(128),
+  ])('detects the legacy Docker tag %s in both channels', (tag) => {
+    for (const repository of ['dotnet/aspire-dashboard', 'dotnet/nightly/aspire-dashboard']) {
+      const image = `mcr.microsoft.com/${repository}:${tag}`;
+      expect(legacyImageReferences(`image: "${image}"`)).toEqual([image]);
+      expect(legacyImageReferences(image)).toEqual([image]);
+      expect(legacyImageReferences(`${image}@sha256:${'a'.repeat(64)}`)).toEqual([image]);
+    }
+  });
+
+  test('uses canonical tagged image references throughout active docs in all locales', () => {
     const legacyImages: string[] = [];
     for (const file of readdirSync(docsRoot, { recursive: true, encoding: 'utf8' })) {
       if (!/\.mdx?$/.test(file) || /(?:^|[\\/])whats-new[\\/]aspire-\d/.test(file)) {
         continue;
       }
-      const images =
-        readDoc(file).match(
-          /mcr\.microsoft\.com\/dotnet\/(?:nightly\/)?aspire-dashboard:(?:latest|13|13\.6)(?=[\s`"'])/g
-        ) ?? [];
+      const images = legacyImageReferences(readDoc(file));
       legacyImages.push(...images.map((image) => `${file}: ${image}`));
     }
     expect(legacyImages).toEqual([]);
@@ -98,16 +124,22 @@ describe('standalone dashboard container images', () => {
 });
 
 describe('deployment example dashboard image references', () => {
-  test.each(['get-started/deploy-first-app.mdx', 'ja/get-started/deploy-first-app.mdx'])(
-    '%s selects the canonical floating nightly image',
-    (file) => {
-      // The examples intentionally select nightly latest, not a publisher default.
-      const images = [...readDoc(file).matchAll(/image: "(mcr\.microsoft\.com\/[^"]+)"/g)].map(
-        (match) => match[1]
-      );
-      expect(images).toEqual([nightlyImage, nightlyImage]);
-    }
-  );
+  test.each([
+    ['get-started/deploy-first-app.mdx', nightlyImage],
+    ['ja/get-started/deploy-first-app.mdx', versionedNightlyImage],
+  ])('%s preserves its documented nightly image selection', (file, image) => {
+    const images = [...readDoc(file).matchAll(/image: "(mcr\.microsoft\.com\/[^"]+)"/g)].map(
+      (match) => match[1]
+    );
+    expect(images).toEqual([image, image]);
+  });
+
+  test('distinguishes the English floating examples from installed publisher output', () => {
+    const source = readDoc('get-started/deploy-first-app.mdx');
+    expect(source).toContain(`intentionally select \`${nightlyImage}\``);
+    expect(source).toContain('Your installed Aspire publisher can generate a different repository');
+    expect(source).toContain('/dashboard/standalone/#container-image-repositories-and-migration');
+  });
 });
 
 describe('standalone dashboard sample image', () => {
@@ -117,9 +149,9 @@ describe('standalone dashboard sample image', () => {
     for (const field of ['readme', 'readmeRaw'] as const) {
       const source = sample![field];
       const images = source.match(/mcr\.microsoft\.com\/[^\s`]+/g);
-      expect(images).toEqual([sampleImage, sampleImage]);
-      expect(source).toContain(`--name aspire-dashboard ${sampleImage}`);
-      expect(source).toContain(`\`${sampleImage}\` prerelease image.`);
+      expect(images).toEqual([versionedNightlyImage, versionedNightlyImage]);
+      expect(source).toContain(`--name aspire-dashboard ${versionedNightlyImage}`);
+      expect(source).toContain(`\`${versionedNightlyImage}\` prerelease image.`);
     }
   });
 });
