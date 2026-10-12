@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import blogPosts from '../../src/data/aspire-blog-posts.json' with { type: 'json' };
+import { getSiteNavigationLink } from './helpers';
 
 const results = (page: import('@playwright/test').Page) => page.locator('.browse-result:not([hidden])');
 const openFacet = async (page: import('@playwright/test').Page, name: string) => {
@@ -475,16 +476,13 @@ for (const width of [390, 768, 1440]) {
     await page.goto('/hub/browse/');
     await expect(page.locator('.dev-breadcrumbs .breadcrumb')).toHaveCount(1);
     const hubMark = await page.locator('header .right-group .dev-center-btn svg').innerHTML();
-    await expect(page.locator('.dev-breadcrumbs a[href="/hub/"] svg')).toHaveCount(2);
+    await expect(page.locator('.dev-breadcrumbs a[href="/hub/"] svg')).toHaveCount(1);
     const desktopMark = page.locator('.bc-inline a[href="/hub/"] svg');
     await expect(desktopMark).toHaveAttribute('aria-hidden', 'true');
     expect(await desktopMark.innerHTML()).toBe(hubMark);
     await expect(page.locator('.bc-parent svg')).toHaveAttribute('aria-hidden', 'true');
     await expect(page.locator('.browse-trail')).toHaveCount(0);
-    if (width === 390) {
-      await page.locator('.bc-collapse > summary').click();
-      await expect(page.locator('.bc-dropdown').getByRole('link', { name: 'Aspire resources' })).toBeVisible();
-    }
+    await expect(page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).getByRole('link', { name: 'Aspire resources' })).toBeVisible();
     for (const type of ['guide', 'integration', 'video', 'sample', 'glossary', 'blog']) {
       await page.goto(`/hub/browse/?type=${type}`);
       await expect(results(page).first()).toBeVisible();
@@ -825,7 +823,7 @@ test('history returns focus from hidden pagination and closed filter options wit
   await expect(group.locator('summary')).toBeFocused();
 
   await page.goForward();
-  const hub = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
+  const hub = await getSiteNavigationLink(page, '/hub/');
   await hub.focus();
   await page.goBack();
   await expect(hub).toBeFocused();

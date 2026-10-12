@@ -129,7 +129,8 @@ it('breadcrumbs retain the nearest linked parent and semantic current page', asy
   ] } });
   expect(html).toMatch(/class="bc-parent\b[^"]*" href="\/docs\/"/);
   expect(html).toMatch(/<ol class="bc-inline\b/);
-  expect(html).toMatch(/<ol class="bc-dropdown\b/);
+  expect(html).not.toContain('<details');
+  expect(html.match(/aria-current="page"/g)).toHaveLength(1);
   expect(html).toContain('aria-current="page"');
 });
 
@@ -442,7 +443,7 @@ const basicRenderCases: BasicRenderCase[] = [
         { label: 'Aspire.Hosting' },
       ],
     },
-    includes: ['aria-label="Breadcrumb"', '/docs/', 'Reference', 'Aspire.Hosting'],
+    includes: ['aria-label="Breadcrumb"', '/docs/', 'Reference', 'Aspire.<wbr>Hosting'],
   },
   {
     name: 'Breadcrumb renders the shared Dev Hub logo',
@@ -453,7 +454,7 @@ const basicRenderCases: BasicRenderCase[] = [
         { label: 'Glossary' },
       ],
     },
-    includes: ['Dev Hub', '/hub/', 'M3.875 22.125', 'bc-inline', 'bc-dropdown'],
+    includes: ['Dev Hub', '/hub/', 'M3.875 22.125', 'bc-inline'],
   },
   {
     name: 'FeatureShowcase renders feature cards',

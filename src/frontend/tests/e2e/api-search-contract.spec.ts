@@ -33,11 +33,12 @@ for (const { path, prefix } of surfaces) {
     const input = page.locator(`#${prefix}-search-input`);
     const field = input.locator('..');
     const clear = page.locator(`#${prefix}-search-clear`);
+    const compact = page.viewportSize()!.width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
 
     for (const theme of ['light', 'dark']) {
       await page.evaluate(value => document.documentElement.dataset.theme = value, theme);
       await input.evaluate(element => element.blur());
-      await expect(input).toHaveCSS('height', '48px');
+      await expect(input).toHaveCSS('height', compact ? '34px' : '48px');
       await expect(input).toHaveCSS('font-size', '16px');
       await expect(field.locator('.search-field-icon')).toHaveCSS('width', '18px');
       await expect(field.locator('.search-field-icon')).toHaveCSS('height', '18px');

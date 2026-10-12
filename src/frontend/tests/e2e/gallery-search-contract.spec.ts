@@ -310,7 +310,7 @@ test('sidebar zero matches have one query recovery and retain focus', async ({ p
   const field = input.locator('..');
   await expect(field).toHaveAttribute('data-search-size', 'sm');
   const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-  await expect(input).toHaveCSS('height', coarse ? '48px' : '40px');
+  await expect(input).toHaveCSS('height', coarse || page.viewportSize()!.width < 800 ? '34px' : '40px');
   await expect(input).toHaveCSS('font-size', '16px');
   await expect(field.locator('.search-field-icon')).toHaveCSS('width', '18px');
   await expect(field.locator('.search-field-icon polygon')).toHaveAttribute(

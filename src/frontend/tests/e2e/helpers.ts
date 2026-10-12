@@ -1,4 +1,16 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
+
+export async function getSiteNavigationLink(page: Page, href: string): Promise<Locator> {
+  const headerLink = page.locator(`header a[href="${href}"]:visible`);
+  if (await headerLink.count()) return headerLink;
+
+  const menu = page.locator('starlight-menu-button button');
+  await expect(menu).toBeVisible();
+  if (await menu.getAttribute('aria-expanded') !== 'true') await menu.click();
+  const link = page.locator(`.mobile-site-links a[href="${href}"]`);
+  await expect(link).toBeVisible();
+  return link;
+}
 
 export async function resetCookieConsentState(page: Page): Promise<void> {
   await page.context().clearCookies();

@@ -790,26 +790,29 @@ test('aligns the scroll-to-top control with the header action at each breakpoint
 
     const scrollToTop = page.locator('#scroll-to-top-button');
     const headerAction = page.locator(
-      viewport.width >= 800 ? '.try-aspire-btn' : '.try-aspire-btn-mobile'
+      viewport.width >= 800 ? '.try-aspire-btn' : 'starlight-menu-button button'
     );
     await expect(scrollToTop).toBeVisible();
     await expect(headerAction).toBeVisible();
 
     const placement = await scrollToTop.evaluate((button, expected) => {
       const action = document.querySelector<HTMLElement>(
-        window.innerWidth >= 800 ? '.try-aspire-btn' : '.try-aspire-btn-mobile'
+        window.innerWidth >= 800 ? '.try-aspire-btn' : 'starlight-menu-button button'
       );
       const buttonBounds = button.getBoundingClientRect();
       const actionBounds = action?.getBoundingClientRect();
       const buttonStyle = getComputedStyle(button);
-      const actionStyle = action ? getComputedStyle(action) : null;
+      const primary = document.querySelector(
+        window.innerWidth >= 800 ? '.try-aspire-btn' : '.try-aspire-btn-mobile'
+      );
+      const primaryStyle = primary ? getComputedStyle(primary) : null;
       return {
         bottomGap: window.innerHeight - buttonBounds.bottom,
         colorsMatch:
-          actionStyle !== null &&
-          buttonStyle.backgroundColor === actionStyle.backgroundColor &&
-          buttonStyle.borderTopColor === actionStyle.borderTopColor &&
-          buttonStyle.color === actionStyle.color,
+          primaryStyle !== null &&
+          buttonStyle.backgroundColor === primaryStyle.backgroundColor &&
+          buttonStyle.borderTopColor === primaryStyle.borderTopColor &&
+          buttonStyle.color === primaryStyle.color,
         expectedBottom: expected,
         rightEdgeDelta: actionBounds
           ? Math.abs(actionBounds.right - buttonBounds.right)
@@ -1548,7 +1551,7 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
               return [Math.round(bounds.width), Math.round(bounds.height)];
             })
           )
-          .toEqual([48, 48]);
+          .toEqual([36, 36]);
         await scrollToTop.click();
         await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(0);
       }

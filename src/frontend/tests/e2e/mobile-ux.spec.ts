@@ -200,15 +200,22 @@ test('secondary controls match the compact TOC and code-copy glyphs do not stret
       page.locator('.try-aspire-btn-mobile'),
       page.locator('site-search button[data-open-modal]'),
       ...await page.locator('.actions-container .action-button:visible').all(),
-      page.locator('.bc-collapse summary'),
       page.locator('.expressive-code .copy button:visible').first(),
     ]) {
       const bounds = (await control.boundingBox())!;
       expect(bounds.height).toBeGreaterThanOrEqual(reference);
       expect(bounds.height).toBeLessThanOrEqual(reference + 2);
     }
+    for (const button of await page.locator('.actions-container .action-button:visible').all()) {
+      const padding = await button.evaluate((element) => ({
+        left: Number.parseFloat(getComputedStyle(element).paddingLeft),
+        right: Number.parseFloat(getComputedStyle(element).paddingRight),
+      }));
+      expect(padding.left).toBe(12);
+      expect(padding.right).toBe(12);
+    }
     const actionBlock = (await page.locator('.actions-container').boundingBox())!;
-    expect(actionBlock.height).toBeLessThanOrEqual(reference + 2);
+    expect(actionBlock.height).toBeLessThanOrEqual(width === 320 ? reference * 2 + 6 : reference + 2);
     const glyph = (await page.locator('.expressive-code .copy button:visible > div').first().boundingBox())!;
     expect(glyph.width).toBe(16);
     expect(glyph.height).toBe(16);
@@ -243,20 +250,33 @@ test('technical titles and breadcrumbs wrap whole identifier segments', async ({
   }
 });
 
-test('breadcrumbs expose parent links and a complete semantic trail', async ({ page }) => {
+test('breadcrumbs show one complete trail with obvious ancestor links and a plain current page', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await open(page, '/reference/api/csharp/aspire.hosting.redis/redisresource/');
   const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb', exact: true });
   const parent = breadcrumb.locator('.bc-parent');
   await expect(parent).toHaveAttribute('href', '/reference/api/csharp/aspire.hosting.redis/');
   await expectTouchTarget(parent);
-  await breadcrumb.locator('summary').press('Enter');
-  const trail = breadcrumb.locator('.bc-dropdown');
+  const trail = breadcrumb.locator('ol');
   await expect(trail).toBeVisible();
   await expect(trail.locator('[aria-current="page"]')).toHaveCount(1);
   await expect(trail.locator('[aria-current="page"]')).toHaveText('RedisResource');
-  for (const link of await trail.getByRole('link').all()) await expectTouchTarget(link);
+  await expect(breadcrumb.locator('summary, button, select')).toHaveCount(0);
+  await expect(breadcrumb.getByRole('link', { name: 'Aspire.Hosting.Redis', exact: true })).toHaveCount(1);
+  for (const link of await trail.getByRole('link').all()) {
+    await expectTouchTarget(link);
+    await expect(link).toHaveCSS('text-decoration-line', 'underline');
+  }
   await expectReflow(page);
+});
+
+test('integration-card code borders match their surrounding light-theme controls', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page, '/integrations/gallery/');
+  const card = page.locator('.card').first();
+  const border = await card.evaluate((element) => getComputedStyle(element).borderTopColor);
+  await expect(card.locator('pre').first()).toHaveCSS('border-top-color', border);
+  await expect(card.locator('.lang-button').first()).toHaveCSS('border-top-color', border);
 });
 
 test('page actions have unique panels, keyboard dismissal and bounded positioning', async ({

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { getSiteNavigationLink } from './helpers';
 
 test('production Dev Hub scripts, styles, and Pagefind load from static assets', async ({ page, request }) => {
   const pagefind = await request.get('/pagefind/pagefind.js');
@@ -397,11 +398,11 @@ test('Dev Hub uses consistent heading, body, and action sizes across viewports',
   const title = page.getByRole('heading', { level: 1, name: 'Aspire resources', exact: true });
   await expect(title.locator('svg')).toHaveAttribute('aria-hidden', 'true');
   expect(await title.locator('svg').innerHTML()).toBe(
-    await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML(),
+    await page.locator('header .right-group .dev-center-btn svg').innerHTML(),
   );
   for (const width of [320, 390, 768, 1440, 2000]) {
     await page.setViewportSize({ width, height: 1000 });
-    await expect(page.locator('main h1')).toHaveCSS('font-size', width < 1000 ? '32px' : '40px');
+    await expect(page.locator('main h1')).toHaveCSS('font-size', width < 800 ? '28px' : width < 1000 ? '32px' : '40px');
     const icon = (await title.locator('svg').boundingBox())!;
     const label = (await title.locator('span').boundingBox())!;
     expect(icon.width).toBeGreaterThan(24);
@@ -715,12 +716,12 @@ test('Developer Hub typography and glossary controls reflow in both themes', asy
         };
       });
       expect(layout.overflow).toBe(false);
-      expect(layout.headingSize).toBeGreaterThanOrEqual(32);
+      expect(layout.headingSize).toBeGreaterThanOrEqual(width < 800 ? 28 : 32);
       expect(layout.hasTagline).toBe(false);
       expect(layout.pillHeights.every((height) => height >= (width <= 600 ? 44 : 36))).toBe(true);
       expect(layout.searchClass).toContain('inpage-search-input');
       await expect(page.locator('glossary-browser select')).toHaveCount(0);
-      await expect(page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true })).toBeVisible();
+      await expect(await getSiteNavigationLink(page, '/hub/')).toBeVisible();
     }
   }
 });
@@ -763,7 +764,7 @@ test('unpublished dev routes do not duplicate the canonical hub pages or Markdow
 
 test('localized navigation keeps the English Developer Hub destination', async ({ page }) => {
   await page.goto('/de/docs/');
-  const link = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
+  const link = await getSiteNavigationLink(page, '/hub/');
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute('href', '/hub/');
 });
@@ -1084,12 +1085,8 @@ test('Developer Hub and glossary share content alignment and complete breadcrumb
       const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb', exact: true });
       const bounds = await breadcrumb.boundingBox();
       await expect(breadcrumb.locator('.current')).toHaveText(title);
-      if (width <= 480) {
-        await expect(breadcrumb.locator('.bc-toggle-label')).toHaveText(title);
-        await breadcrumb.locator('summary').click();
-      }
+      await expect(breadcrumb.locator('summary, select')).toHaveCount(0);
       await expect(breadcrumb.getByRole('link', { name: 'Aspire resources', exact: true })).toHaveAttribute('href', '/hub/');
-      if (width <= 480) await breadcrumb.locator('summary').click();
       expect(content!.x).toBeCloseTo(hub!.x, 0);
       expect(content!.width).toBeCloseTo(hub!.width, 0);
       expect(bounds!.x).toBeCloseTo(content!.x, 0);

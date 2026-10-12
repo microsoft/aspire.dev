@@ -40,7 +40,7 @@ const iconName = (icon: Exclude<BreadcrumbIcon, 'dev-hub'>): StarlightIcon =>
                 <ReadableText text={crumb.label} />
               </span>
             ) : crumb.href ? (
-              <a href={crumb.href}>
+              <a class:list={{ 'bc-parent': crumb === parent }} href={crumb.href}>
                 {crumb.icon === 'dev-hub' ? (
                   <DevHubSvg aria-hidden="true" focusable="false" />
                 ) : (
@@ -54,41 +54,6 @@ const iconName = (icon: Exclude<BreadcrumbIcon, 'dev-hub'>): StarlightIcon =>
           </li>
         ))}
       </ol>
-      <div class="bc-mobile">
-        {parent && (
-          <a class="bc-parent" href={parent.href}>
-            <Icon name="left-arrow" />
-            <span><ReadableText text={parent.label} /></span>
-          </a>
-        )}
-        {ancestors.length > 0 ? (
-          <details class="bc-collapse">
-            <summary aria-label={`Breadcrumb: ${current.label}`}>
-              <span class="bc-toggle-label"><ReadableText text={current.label} /></span>
-              <Icon name="down-caret" class="bc-chevron" />
-            </summary>
-            <ol class="bc-dropdown">
-              {crumbs.map((crumb, index) => (
-                <li>
-                  {index === crumbs.length - 1 ? (
-                    <span class="bc-current" aria-current="page">
-                      <ReadableText text={crumb.label} />
-                    </span>
-                  ) : crumb.href ? (
-                    <a href={crumb.href}><ReadableText text={crumb.label} /></a>
-                  ) : (
-                    <span><ReadableText text={crumb.label} /></span>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </details>
-        ) : (
-          <span class="bc-current" aria-current="page">
-            <ReadableText text={current.label} />
-          </span>
-        )}
-      </div>
     </nav>
   )
 }
@@ -130,8 +95,7 @@ const iconName = (icon: Exclude<BreadcrumbIcon, 'dev-hub'>): StarlightIcon =>
     color: var(--sl-color-text-accent);
     text-decoration: underline;
   }
-  a:focus-visible,
-  summary:focus-visible {
+  a:focus-visible {
     outline: 2px solid var(--aspire-action-focus);
     outline-offset: 2px;
     border-radius: 0.25rem;
@@ -146,101 +110,29 @@ const iconName = (icon: Exclude<BreadcrumbIcon, 'dev-hub'>): StarlightIcon =>
     flex-shrink: 0;
     color: var(--sl-color-gray-3);
   }
-  .current,
-  .bc-current {
+  .current {
     color: var(--sl-color-text);
     font-weight: 600;
     overflow-wrap: anywhere;
   }
-  .bc-mobile {
-    display: none;
-  }
-
   @media (max-width: 49.999rem) {
-    .bc-inline {
-      display: none;
-    }
-    .bc-mobile {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.375rem 0.75rem;
+    .breadcrumb {
       font-size: var(--aspire-text-control);
       line-height: 1.4;
     }
-    .bc-parent {
-      display: flex;
-      align-items: center;
-      gap: 0.375rem;
-      flex: 1 1 auto;
-      max-width: 100%;
-      min-width: 0;
+    .bc-inline {
+      gap: 0 0.5rem;
+    }
+    .bc-inline li {
       min-height: var(--aspire-touch-target);
+      color: var(--sl-color-gray-2);
     }
-    .bc-parent :global(svg),
-    .bc-chevron {
-      flex-shrink: 0;
-      width: 1rem;
-      height: 1rem;
-      --sl-icon-size: 1rem;
-    }
-    .bc-collapse {
-      flex: 1 1 auto;
-      max-width: 100%;
-      min-width: 0;
-    }
-    summary {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
+    .bc-inline a {
+      min-width: var(--aspire-touch-target);
       min-height: var(--aspire-touch-target);
-      padding: 0.3125rem 0.625rem;
-      list-style: none;
-      border: 1px solid var(--sl-color-gray-5);
-      border-radius: 0.5rem;
       color: var(--sl-color-text);
-      line-height: 1.4;
-      cursor: pointer;
-    }
-    summary::-webkit-details-marker {
-      display: none;
-    }
-    .bc-toggle-label {
-      min-width: 0;
-      overflow-wrap: anywhere;
-    }
-    .bc-collapse[open] .bc-chevron {
-      transform: rotate(180deg);
-    }
-    .bc-dropdown {
-      position: absolute;
-      inset-inline: 0;
-      top: calc(100% + 0.375rem);
-      z-index: 3;
-      max-height: 60dvh;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      padding: 0.375rem;
-      border: 1px solid var(--sl-color-gray-5);
-      border-radius: 0.5rem;
-      background: var(--sl-color-bg);
-      box-shadow: var(--sl-shadow-sm);
-    }
-    .bc-dropdown a,
-    .bc-dropdown span {
-      display: flex;
-      align-items: center;
-      min-height: var(--aspire-touch-target);
-      padding: 0.3125rem 0.625rem;
-      overflow-wrap: anywhere;
-      border-radius: 0.25rem;
-    }
-    .bc-dropdown a:hover {
-      background: var(--sl-color-gray-6);
-    }
-    .bc-dropdown .bc-current {
-      background: var(--sl-color-accent-low);
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
     }
   }
 </style>
