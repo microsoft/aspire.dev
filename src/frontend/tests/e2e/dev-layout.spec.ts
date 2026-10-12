@@ -718,7 +718,7 @@ test('Developer Hub typography and glossary controls reflow in both themes', asy
       expect(layout.overflow).toBe(false);
       expect(layout.headingSize).toBeGreaterThanOrEqual(width < 800 ? 28 : 32);
       expect(layout.hasTagline).toBe(false);
-      expect(layout.pillHeights.every((height) => height >= (width <= 600 ? 44 : 36))).toBe(true);
+      expect(layout.pillHeights.every((height) => height === 34)).toBe(true);
       expect(layout.searchClass).toContain('inpage-search-input');
       await expect(page.locator('glossary-browser select')).toHaveCount(0);
       await expect(await getSiteNavigationLink(page, '/hub/')).toBeVisible();

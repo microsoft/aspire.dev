@@ -103,7 +103,7 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
         expect(letter.x).toBeGreaterThanOrEqual(bounds.x);
         expect(letter.x + letter.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
         expect(letter.width).toBeGreaterThanOrEqual(24);
-        expect(letter.height).toBeGreaterThanOrEqual(width <= 600 ? 44 : 36);
+        expect(letter.height).toBe(34);
       }
       const search = (await page.getByRole('searchbox', { name: 'Find a term' }).boundingBox())!;
       expect(search.width).toBeLessThanOrEqual(512);

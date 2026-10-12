@@ -13,6 +13,40 @@ async function start(page: Page, path: string) {
   await dismissCookieConsentIfVisible(page);
 }
 
+test('Hub search and glossary filters use the shared control scale at every breakpoint', async ({ page }) => {
+  test.setTimeout(120_000);
+  for (const width of [320, 390, 834, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const compact = width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+    let fieldHeight: number | undefined;
+    for (const [route, selector] of [
+      ['/hub/browse/', '#browse-search-input'],
+      ['/hub/', '.dev-search'],
+      ['/hub/glossary/', '#glossary-search-input'],
+    ]) {
+      await start(page, route);
+      const control = page.locator(selector);
+      await expect(control).toBeVisible();
+      await expect(control).toHaveCSS('font-size', '16px');
+      const height = (await control.boundingBox())!.height;
+      expect(height, route).toBe(compact ? 34 : 48);
+      if (fieldHeight !== undefined) expect(height, route).toBe(fieldHeight);
+      fieldHeight = height;
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    for (const button of await page.locator('#glossary-kind-filters button').all()) {
+      expect((await button.boundingBox())!.height).toBe(34);
+    }
+    for (const letter of await page.locator('.glossary-alphabet > a').all()) {
+      expect((await letter.boundingBox())!.height).toBe(34);
+    }
+    await start(page, '/reference/api/csharp/aspire.hosting.redis/redisresource/');
+    for (const button of await page.locator('#type-kind-filters button').all()) {
+      expect((await button.boundingBox())!.height).toBe(34);
+    }
+  }
+});
+
 test('integration query, facets and recovery have independent scopes', async ({ page }) => {
   await start(page, '/integrations/gallery/?keep=1#catalog');
   const input = page.locator('input.filter');
