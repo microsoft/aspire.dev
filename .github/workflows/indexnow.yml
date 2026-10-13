@@ -25,6 +25,13 @@ name: IndexNow
 
 on:
   schedule:
+    # Once a day at 06:43 UTC (the fields are minute, hour, day of month, month and day of week).
+    # Each run submits the new and removed URLs, then the next window of the rotation through the
+    # whole sitemap. The window size is in config/indexnow.json: at 1,000 URLs a run, a sitemap of
+    # about 32,000 URLs takes about a month to cover. If GitHub skips a day, the rotation only
+    # slips by a day, because its position is saved in the state artifact. The odd minute avoids
+    # the top of the hour, when GitHub delays scheduled runs the most. Scheduled runs use the
+    # workflow on the default branch, so this starts once the pull request is merged.
     - cron: "43 6 * * *"
   pull_request:
     types: [closed]
