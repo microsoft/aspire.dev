@@ -13,6 +13,11 @@ var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
     .PublishAsAzureAppServiceWebsite((infra, website) =>
     {
         website.IsEndToEndEncryptionEnabled = true;
+
+        // App Service negotiates HTTP/1.1 unless HTTP/2 is enabled, which limits browsers to six
+        // connections per origin. The landing page loads dozens of small assets, so multiplexing
+        // them over one connection matters most on slow, high-latency links.
+        website.SiteConfig.IsHttp20Enabled = true;
     });
 
 var frontDoor = builder.AddAzureFrontDoor(staticHostWebsite);
