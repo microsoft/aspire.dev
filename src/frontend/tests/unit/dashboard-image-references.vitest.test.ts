@@ -81,10 +81,10 @@ describe('standalone dashboard container images', () => {
     expect(commands).toHaveLength(2);
     for (const command of commands) {
       expect(command).toContain(
-        '--mount type=volume,source=aspire-dashboard-data,target=/dashboard-data'
+        '--mount type=volume,source=aspire-dashboard-data,target=/home/app'
       );
       expect(command).toContain('-e ASPIRE_DASHBOARD_APPLICATION_NAME=my-app');
-      expect(command).toContain('-e ASPIRE_DASHBOARD_DATA_DIRECTORY=/dashboard-data');
+      expect(command).toContain('-e ASPIRE_DASHBOARD_DATA_DIRECTORY=/home/app/dashboard-data');
       expect(command).toContain('-e ASPIRE_DASHBOARD_PERSISTENCE_MODE=run');
     }
   });
