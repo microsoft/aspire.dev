@@ -58,6 +58,48 @@ setting only to the vnext build, not the live build. If vnext builds a different
 source branch, set the intended label explicitly instead. Changing the badge on
 a deployed static site requires rebuilding its frontend assets.
 
+## StaticHost publishing
+
+StaticHost publishes Brotli-compressed static assets using `Optimal` compression.
+This reduces compression time for the generated documentation and API catalog.
+HTML, Markdown, and other original assets remain available to clients that do
+not accept Brotli. Hashed `_astro/` assets retain their immutable cache headers.
+
+`src/statichost/StaticHost/Publishing.targets` sets the compression default and
+maps `BrotliCompressionLevel` to the compatibility property that .NET 10's
+publish target consumes. Explicit public or compatibility-property overrides
+remain supported.
+
+Publish logs include `[publish-timing]` messages with the compression level,
+asset count, compression duration, and subsequent static-asset metadata and
+manifest duration. Use these messages to distinguish MSBuild work from the
+frontend build and container archive creation.
+
+Run the publishing regression tests without building the frontend:
+
+```shell title="Run isolated static-asset publishing tests"
+dotnet test tests/StaticHost.Tests/StaticHost.Tests.csproj --configuration Release --filter FullyQualifiedName~PublishingTargetsTests
+```
+
+These tests publish small isolated projects using the production targets. They
+check the default and overridden compression levels, compressed file contents,
+HTTP content negotiation, and cache headers. AppHost CI runs them with the
+StaticHost tests and includes their publish binary logs in
+`logs-AppHost-ubuntu-latest`.
+
+Add the `build-profile` label to a pull request to run full StaticHost publishing
+diagnostics alongside the frontend profile. This opt-in CI job builds the
+frontend, publishes the Linux container archive, verifies the frontend output
+and representative Brotli round trips, and uploads
+`statichost-publish-performance`. The artifact contains the publish log, MSBuild
+binary log, resource measurements, frontend timings, and output sizes. It does
+not upload or deploy the container image.
+
+Measure full-site publishing in CI. Compare equivalent source commits, SDKs,
+runner images, and clean intermediate directories before attributing a timing
+change to compression. A full StaticHost publish also builds the frontend.
+Do not run a local full-site build without explicit maintainer approval.
+
 ## 🆘 Getting help
 
 - **Issues**: Report bugs or request features via [GitHub Issues](https://github.com/microsoft/aspire.dev/issues)

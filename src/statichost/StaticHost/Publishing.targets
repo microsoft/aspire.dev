@@ -1,0 +1,33 @@
+<Project>
+  <PropertyGroup>
+    <BrotliCompressionLevel Condition="'$(BrotliCompressionLevel)' == '' and '$(_BlazorBrotliCompressionLevel)' == ''">Optimal</BrotliCompressionLevel>
+    <!-- .NET 10 publish compression still reads the Blazor compatibility property. -->
+    <_BlazorBrotliCompressionLevel Condition="'$(_BlazorBrotliCompressionLevel)' == ''">$(BrotliCompressionLevel)</_BlazorBrotliCompressionLevel>
+  </PropertyGroup>
+
+  <Target Name="LogStaticHostCompressionStart" BeforeTargets="GeneratePublishCompressedStaticWebAssets">
+    <PropertyGroup>
+      <_StaticHostCompressionStartedTicks>$([System.DateTime]::UtcNow.Ticks)</_StaticHostCompressionStartedTicks>
+    </PropertyGroup>
+    <Message Importance="high"
+             Text="[publish-timing] compression start assets=@(_CompressedStaticWebAssetsForPublish->Count()) brotliLevel=$(_BlazorBrotliCompressionLevel)" />
+  </Target>
+
+  <Target Name="LogStaticHostCompressionEnd" AfterTargets="GeneratePublishCompressedStaticWebAssets">
+    <PropertyGroup>
+      <_StaticHostCompressionFinishedTicks>$([System.DateTime]::UtcNow.Ticks)</_StaticHostCompressionFinishedTicks>
+      <_StaticHostCompressionSeconds>$([MSBuild]::Divide($([MSBuild]::Subtract('$(_StaticHostCompressionFinishedTicks)', '$(_StaticHostCompressionStartedTicks)')), 10000000))</_StaticHostCompressionSeconds>
+    </PropertyGroup>
+    <Message Importance="high"
+             Text="[publish-timing] compression complete durationSeconds=$(_StaticHostCompressionSeconds)" />
+  </Target>
+
+  <Target Name="LogStaticHostPublishManifest" AfterTargets="GenerateStaticWebAssetsPublishManifest"
+          Condition="'$(_StaticHostCompressionFinishedTicks)' != ''">
+    <PropertyGroup>
+      <_StaticHostManifestSeconds>$([MSBuild]::Divide($([MSBuild]::Subtract($([System.DateTime]::UtcNow.Ticks), '$(_StaticHostCompressionFinishedTicks)')), 10000000))</_StaticHostManifestSeconds>
+    </PropertyGroup>
+    <Message Importance="high"
+             Text="[publish-timing] static asset metadata and manifest complete durationSeconds=$(_StaticHostManifestSeconds) assets=@(_FinalPublishStaticWebAsset->Count()) endpoints=@(StaticWebAssetEndpoint->Count())" />
+  </Target>
+</Project>

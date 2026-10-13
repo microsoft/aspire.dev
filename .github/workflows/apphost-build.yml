@@ -2,6 +2,12 @@ name: AppHost Build
 
 on:
   workflow_call:
+    inputs:
+      profile_publish:
+        description: Publish the complete site and capture static-asset and container diagnostics
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -109,4 +115,79 @@ jobs:
           name: apphost-release
           path: src/apphost/Aspire.Dev.AppHost/bin/Release/*/
           if-no-files-found: warn
+          retention-days: 7
+
+  publish:
+    name: StaticHost publish diagnostics
+    if: ${{ inputs.profile_publish }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOTNET_NOLOGO: 1
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      ASTRO_TELEMETRY_DISABLED: 1
+      NODE_OPTIONS: --max-old-space-size=8192
+      BUILD_TIMING: 1
+      BUILD_TIMING_LABEL: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.x"
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: src/frontend
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Publish complete StaticHost container archive
+        env:
+          BUILD_TIMING_OUT: ${{ runner.temp }}/statichost-publish/frontend-timing.jsonl
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/statichost-publish/images"
+          /usr/bin/time -v -o "$RUNNER_TEMP/statichost-publish/resources.txt" \
+            dotnet publish src/statichost/StaticHost/StaticHost.csproj \
+              --configuration Release --runtime linux-x64 \
+              /t:PublishContainer \
+              -p:ContainerRepository=aspiredev \
+              -p:ContainerImageTag=ci \
+              -p:ContainerImageFormat=OCI \
+              -p:ContainerArchiveOutputPath="$RUNNER_TEMP/statichost-publish/images" \
+              "-bl:$RUNNER_TEMP/statichost-publish/publish.binlog;ProjectImports=None" \
+              2>&1 | tee "$RUNNER_TEMP/statichost-publish/publish.log"
+
+      - name: Verify published files and summarize timings
+        shell: pwsh
+        run: |
+          & ./tests/scripts/Measure-StaticHostPublish.ps1 `
+            -PublishDirectory ./src/statichost/StaticHost/bin/Release/net10.0/linux-x64/publish `
+            -FrontendDirectory ./src/frontend/dist `
+            -DiagnosticsDirectory "$env:RUNNER_TEMP/statichost-publish" `
+            -SummaryPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload publish diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: statichost-publish-performance
+          path: |
+            ${{ runner.temp }}/statichost-publish/*.json
+            ${{ runner.temp }}/statichost-publish/*.jsonl
+            ${{ runner.temp }}/statichost-publish/*.binlog
+            ${{ runner.temp }}/statichost-publish/*.log
+            ${{ runner.temp }}/statichost-publish/*.txt
+          if-no-files-found: error
           retention-days: 7
