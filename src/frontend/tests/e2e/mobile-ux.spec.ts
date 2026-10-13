@@ -165,6 +165,39 @@ test('shared menus announce state, keep filters usable and restore focus after n
   await expect(returnedMenu).toHaveAttribute('aria-expanded', 'false');
 });
 
+test('environment badges remain visible on desktop and hide only in compact headers', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'desktop-chromium',
+    'Explicit desktop and phone widths are covered once.'
+  );
+  for (const path of ['/', '/get-started/install-cli/', '/reference/api/csharp/']) {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, path);
+    // Public production builds omit the label; use the same badge markup to exercise its CSS.
+    await page.locator('header .title-wrapper').evaluate((wrapper) => {
+      if (wrapper.querySelector('.sl-badge')) return;
+      const badge = document.createElement('span');
+      badge.className = 'sl-badge tip small';
+      badge.textContent = 'staging';
+      wrapper.classList.add('has-environment-badge');
+      wrapper.append(badge);
+    });
+    const badge = page.locator('header .title-wrapper .sl-badge');
+    for (const width of [1440, 1024, 390, 320, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      if (width >= 800) await expect(badge).toBeVisible();
+      else await expect(badge).toBeHidden();
+    }
+    await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
+    await expect(page.locator('html')).toHaveAttribute('data-mobile-layout', '');
+    await expect(badge).toBeHidden();
+    await page.evaluate(() => document.documentElement.style.removeProperty('font-size'));
+    await expect(badge).toBeVisible();
+  }
+});
+
 test('announcement links remain text links with a separate dismiss column', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'Explicit banner sizes are covered once.');
   for (const width of [320, 390, 768, 1440]) {
