@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   dismissCookieConsentIfVisible,
   waitForAccessibilityEnhancements,
+  revealMobileSiteMenu,
 } from '@tests/e2e/helpers';
 
 type Theme = 'light' | 'dark';
@@ -148,6 +149,7 @@ for (const theme of ['light', 'dark'] as const) {
     const touchFirst = await page.evaluate(
       () => window.matchMedia('(hover: none) and (pointer: coarse)').matches
     );
+    await revealMobileSiteMenu(page);
     const trigger = page.locator('.live-btn:visible').first();
     await trigger.click();
     const picker = page.getByRole('dialog', { name: 'Choose how to watch' });
@@ -195,6 +197,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.keyboard.press('Escape');
     await expect(search).toBeFocused();
 
+    await revealMobileSiteMenu(page);
     await trigger.click();
     await picker.getByRole('button', { name: 'Dismiss notification' }).click();
     await expect(picker).toBeHidden();

@@ -41,7 +41,7 @@ test('section 08 pairs getting started with Dev Hub discovery and stacks on mobi
   await expect(section.getByRole('link', { name: 'View on GitHub', exact: true })).toHaveAttribute('href', 'https://github.com/microsoft/aspire');
   await expect(section.getByRole('heading', { level: 3, name: 'Find your next step.' })).toBeVisible();
   expect(await link.locator('.dev-hub-mark').innerHTML()).toBe(
-    await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML(),
+    await page.locator('header .right-group .dev-center-btn svg').innerHTML(),
   );
   for (const width of [320, 390, 768, 1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -313,7 +313,9 @@ test('uses concise section copy and a compact editorial rhythm', async ({ page }
 
     return {
       width: window.innerWidth,
-      pageHeight: document.documentElement.scrollHeight,
+      // Release announcements vary independently of the homepage's editorial spacing.
+      pageHeight: document.documentElement.scrollHeight -
+        (document.querySelector('[data-aspire-banner]')?.getBoundingClientRect().height ?? 0),
       headingLines,
       modelHeadingOffset:
         sectionIndex && sectionHeading

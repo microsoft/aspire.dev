@@ -27,6 +27,15 @@ function render(data: Record<string, unknown>): Promise<string> {
 }
 
 describe('Banner.astro rendered output', () => {
+  test('separates the release label and ordinary text link without a dangling separator', async () => {
+    const html = await render({
+      banner: { content: '<strong>Aspire is available!</strong> \u2014 <a href="/whats-new/">Release notes</a>' },
+    });
+    expect(html).toContain('<strong>Aspire is available!</strong> <a href="/whats-new/">Release notes</a>');
+    expect(html).not.toContain('\u2014');
+    expect(html).toContain('aria-label="Dismiss announcement banner"');
+  });
+
   test('carries top-level expiry metadata through to the client controller', async () => {
     // Regression: previously these lived nested under `banner:` and were dropped
     // by Starlight's built-in banner schema, reaching the component as `null`.

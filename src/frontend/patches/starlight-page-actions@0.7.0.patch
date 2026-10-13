@@ -1,0 +1,248 @@
+diff --git a/components/Dropdown.astro b/components/Dropdown.astro
+index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe04644ab5 100644
+--- a/components/Dropdown.astro
++++ b/components/Dropdown.astro
+@@ -19,13 +19,13 @@ const { label, options, id } = Astro.props;
+ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
+ ---
+ 
+-<div class="dropdown" id={dropdownId}>
+-  <Button id="dropdown-toggle">
++<div class="dropdown" id={dropdownId} data-page-action-dropdown>
++  <Button id={`${dropdownId}-toggle`} aria-expanded="false" aria-controls={`${dropdownId}-menu`}>
+     <span>{label}</span>
+     <Icon name="down-caret" size="1rem" />
+   </Button>
+ 
+-  <div id="dropdown-menu">
++  <div id={`${dropdownId}-menu`} class="dropdown-menu" role="group" aria-label={label} hidden>
+     {
+       options.map((option) => {
+         const OptionIcon = option.icon;
+@@ -53,8 +53,8 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
+     position: relative;
+   }
+ 
+-  #dropdown-menu {
+-    position: absolute;
++  .dropdown-menu {
++    position: fixed;
+     top: calc(100% + 0.5rem);
+     left: 0;
+     right: auto;
+@@ -68,9 +68,12 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
+       0 2px 4px -1px rgba(0, 0, 0, 0.2);
+     display: none;
+     z-index: 10;
++    max-height: calc(100dvh - 2rem);
++    overflow-y: auto;
++    overscroll-behavior: contain;
+   }
+ 
+-  #dropdown-menu.show {
++  .dropdown-menu.show {
+     display: block;
+   }
+ 
+@@ -159,7 +162,7 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
+   }
+ 
+   @media (min-width: 425px) {
+-    #dropdown-menu {
++    .dropdown-menu {
+       right: 0;
+       left: auto;
+       width: 236px;
+@@ -168,34 +171,66 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
+ </style>
+ 
+ <script>
+-  const allDropdownIds = ["dropdown-0", "dropdown-1"];
+-
+-  const handleDropdownToggle = (dropdownId: string) => {
+-    const dropdownToggle = document.querySelector(
+-      `#${dropdownId} > #dropdown-toggle`
+-    ) as HTMLButtonElement;
+-    const dropdownMenu = document.querySelector(
+-      `#${dropdownId} > #dropdown-menu`
+-    ) as HTMLElement;
+-
+-    dropdownToggle?.addEventListener("click", (e) => {
+-      e.stopPropagation();
+-      allDropdownIds.map((id) =>
+-        document
+-          .querySelector(`#${id} > #dropdown-menu`)
+-          ?.classList.remove("show")
+-      );
+-      dropdownMenu.classList.toggle("show");
++  let listeners: AbortController | undefined;
++
++  function initializeDropdowns() {
++    listeners?.abort();
++    listeners = new AbortController();
++    const { signal } = listeners;
++    const closeAll: Array<() => void> = [];
++
++    document.querySelectorAll<HTMLElement>("[data-page-action-dropdown]").forEach((root) => {
++      const button = root.querySelector<HTMLButtonElement>("button");
++      const menu = root.querySelector<HTMLElement>(".dropdown-menu");
++      if (!button || !menu) return;
++
++      const close = () => {
++        menu.hidden = true;
++        menu.classList.remove("show");
++        button.setAttribute("aria-expanded", "false");
++      };
++      closeAll.push(close);
++      close();
++
++      button.addEventListener("click", (event) => {
++        event.stopPropagation();
++        const wasOpen = !menu.hidden;
++        closeAll.forEach((close) => close());
++        if (wasOpen) return;
++
++        menu.hidden = false;
++        menu.classList.add("show");
++        button.setAttribute("aria-expanded", "true");
++        const anchor = button.getBoundingClientRect();
++        const width = menu.getBoundingClientRect().width;
++        const headerBottom = document.querySelector("header")?.getBoundingClientRect().bottom ?? 0;
++        const below = Math.max(44, innerHeight - anchor.bottom - 16);
++        const above = Math.max(44, anchor.top - headerBottom - 16);
++        const flip = below < Math.min(menu.scrollHeight, 256) && above > below;
++        menu.style.left = `${Math.max(8, Math.min(anchor.left, innerWidth - width - 8))}px`;
++        menu.style.right = "auto";
++        menu.style.maxHeight = `${flip ? above : below}px`;
++        menu.style.top = `${flip ? Math.max(headerBottom + 8, anchor.top - Math.min(menu.scrollHeight, above) - 8) : anchor.bottom + 8}px`;
++        menu.style.bottom = "auto";
++      }, { signal });
++
++      root.addEventListener("keydown", (event) => {
++        if (event.key === "Escape" && !menu.hidden) {
++          event.preventDefault();
++          close();
++          button.focus();
++        }
++      }, { signal });
++      root.addEventListener("focusout", (event) => {
++        if (event.relatedTarget instanceof Node && !root.contains(event.relatedTarget)) close();
++      }, { signal });
+     });
+ 
+-    document.addEventListener("click", () => {
+-      dropdownMenu?.classList.remove("show");
+-    });
+-
+-    dropdownMenu?.addEventListener("click", (e) => {
+-      e.stopPropagation();
+-    });
+-  };
++    document.addEventListener("click", () => closeAll.forEach((close) => close()), { signal });
++    window.addEventListener("resize", () => closeAll.forEach((close) => close()), { signal });
++  }
+ 
+-  allDropdownIds.map((id) => handleDropdownToggle(id));
++  initializeDropdowns();
++  document.addEventListener("astro:page-load", initializeDropdowns);
++  document.addEventListener("astro:before-swap", () => listeners?.abort());
+ </script>
+diff --git a/components/PageActions.astro b/components/PageActions.astro
+index c431e5f8076182c5dbca12de6a441dbc30cf9c21..9d3c3f2a04e5a73fbb6127f56602632bd5bd45a3 100644
+--- a/components/PageActions.astro
++++ b/components/PageActions.astro
+@@ -446,38 +446,48 @@ const shareOptions = [
+ </style>
+ 
+ <script>
+-  const copyButtons = document.querySelectorAll<HTMLButtonElement>(
+-    '[data-page-action="copy-markdown"]'
+-  );
+-
+-  copyButtons.forEach((copyButton) => {
+-    if (copyButton.dataset.pageActionReady === "true") return;
+-    copyButton.dataset.pageActionReady = "true";
+-
+-    copyButton.addEventListener("click", async () => {
+-      let copyButtonClass: "copied" | "error" = "copied";
+-
+-      try {
+-        copyButton.disabled = true;
+-
+-        const currentPath = copyButton.dataset.path;
+-        const mdPath = `${currentPath}.md`;
+-
+-        const res = await fetch(mdPath);
+-        const contentForClipboard = await res.text();
+-
+-        await navigator.clipboard.writeText(contentForClipboard);
+-      } catch (error) {
+-        console.error(error);
+-        copyButtonClass = "error";
+-      } finally {
+-        copyButton.classList.add(copyButtonClass);
+-        copyButton.disabled = false;
+-
+-        setTimeout(() => {
+-          copyButton.classList.remove(copyButtonClass);
+-        }, 3000);
+-      }
++  let listeners: AbortController | undefined;
++  const resetTimers = new Set<ReturnType<typeof setTimeout>>();
++
++  function disposeCopyButtons() {
++    listeners?.abort();
++    resetTimers.forEach(clearTimeout);
++    resetTimers.clear();
++  }
++
++  function initializeCopyButtons() {
++    disposeCopyButtons();
++    listeners = new AbortController();
++    const { signal } = listeners;
++    document.querySelectorAll<HTMLButtonElement>('[data-page-action="copy-markdown"]').forEach((copyButton) => {
++      copyButton.dataset.pageActionReady = "true";
++      copyButton.addEventListener("click", async () => {
++        let copyButtonClass: "copied" | "error" = "copied";
++        try {
++          copyButton.disabled = true;
++          const res = await fetch(`${copyButton.dataset.path}.md`, { signal });
++          if (!res.ok) throw new Error(`Unable to copy Markdown: HTTP ${res.status}`);
++          const contentForClipboard = await res.text();
++          if (!signal.aborted) await navigator.clipboard.writeText(contentForClipboard);
++        } catch (error) {
++          if (signal.aborted) return;
++          console.error(error);
++          copyButtonClass = "error";
++        } finally {
++          copyButton.disabled = false;
++          if (!signal.aborted) {
++            copyButton.classList.add(copyButtonClass);
++            const timer = setTimeout(() => {
++              copyButton.classList.remove(copyButtonClass);
++              resetTimers.delete(timer);
++            }, 3000);
++            resetTimers.add(timer);
++          }
++        }
++      }, { signal });
+     });
+-  });
++  }
++  initializeCopyButtons();
++  document.addEventListener("astro:page-load", initializeCopyButtons);
++  document.addEventListener("astro:before-swap", disposeCopyButtons);
+ </script>
+diff --git a/overrides/PageTitle.astro b/overrides/PageTitle.astro
+index c88f3530ff02325bd1fb3d923e48da9729f14ee9..5ef5ffde253aac8a7fdcc6f0868cda002f1fa7c8 100644
+--- a/overrides/PageTitle.astro
++++ b/overrides/PageTitle.astro
+@@ -4,7 +4,7 @@ import config from "virtual:config";
+ import PageActions from "../components/PageActions.astro";
+ ---
+ 
+-<DefaultPageTitle />
++{Astro.slots.has("title") ? <slot name="title" /> : <DefaultPageTitle />}
+ {config.position === "page-title" && <PageActions />}
+ {
+   config.position === "table-of-contents" && (

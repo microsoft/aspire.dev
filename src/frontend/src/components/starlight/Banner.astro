@@ -9,6 +9,10 @@ const routeData = Astro.locals.starlightRoute.entry.data as {
 };
 
 const bannerContent = routeData.banner?.content;
+const displayContent = bannerContent?.replace(
+  /(<\/strong>)\s*[\u2013\u2014]\s*(?=<a\b)/g,
+  '$1 '
+);
 
 // Absolute sunset date, if configured. When it's already past at build time we
 // skip rendering the banner entirely; the client check below covers the gap
@@ -52,7 +56,7 @@ const firstSeenKey = bannerHash
         data-banner-state="open"
         data-pagefind-ignore
       >
-        <div class="sl-banner__content" set:html={bannerContent} />
+        <div class="sl-banner__content" set:html={displayContent} />
         <button
           type="button"
           class="sl-banner__dismiss"
@@ -269,9 +273,17 @@ const firstSeenKey = bannerHash
 
     .sl-banner--dismissable {
       position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.75rem;
       overflow: clip;
-      padding-inline: calc(var(--sl-nav-pad-x) + 3rem);
-      max-block-size: 12rem;
+      padding: 0.625rem var(--sl-nav-pad-x);
+      max-block-size: 32rem;
+    }
+
+    .sl-banner[hidden] {
+      display: none;
     }
 
     .sl-banner--dismissable[data-banner-state='closing'] {
@@ -294,8 +306,10 @@ const firstSeenKey = bannerHash
       flex-wrap: wrap;
       align-items: center;
       justify-content: center;
-      gap: 0.25rem 0.625rem;
-      font-size: var(--sl-text-sm);
+      gap: 0.125rem 0.75rem;
+      min-width: 0;
+      font-size: var(--aspire-text-control);
+      line-height: 1.5;
     }
 
     .sl-banner__content :global(p) {
@@ -304,54 +318,23 @@ const firstSeenKey = bannerHash
 
     .sl-banner__content :global(strong) {
       color: var(--__sl-banner-text);
-      font-weight: 700;
+      font-weight: 600;
     }
 
     .sl-banner__content :global(a) {
-      display: inline-flex;
+      display: inline;
       max-inline-size: 100%;
-      min-height: 2rem;
-      align-items: center;
-      justify-content: center;
-      gap: 0.35rem;
-      border: 1px solid color-mix(in srgb, var(--__sl-banner-accent) 28%, transparent);
-      border-radius: 0.5rem;
-      padding: 0.25rem 0.625rem;
-      background: color-mix(in srgb, var(--__sl-banner-accent) 7%, transparent);
       color: var(--__sl-banner-accent);
-      font-size: var(--sl-text-sm);
-      font-weight: 600;
-      line-height: 1.2;
-      text-align: center;
-      text-decoration: none;
-      transition:
-        border-color 0.2s ease,
-        background-color 0.2s ease,
-        box-shadow 0.2s ease;
-    }
-
-    .sl-banner__content :global(a)::after {
-      content: '';
-      inline-size: 0.45rem;
-      block-size: 0.45rem;
-      flex: 0 0 auto;
-      border-block-start: 0.1rem solid currentColor;
-      border-inline-end: 0.1rem solid currentColor;
-      transform: rotate(45deg);
-      transition: transform 0.2s ease;
+      font-weight: 400;
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+      overflow-wrap: break-word;
     }
 
     .sl-banner__content :global(a):hover {
-      border-color: color-mix(in srgb, var(--__sl-banner-accent) 42%, transparent);
-      background: color-mix(in srgb, var(--__sl-banner-accent) 13%, transparent);
       color: var(--__sl-banner-accent);
+      text-decoration-thickness: 2px;
       filter: none;
-      box-shadow: 0 0.2rem 0.6rem
-        color-mix(in srgb, var(--__sl-banner-accent) 12%, transparent);
-    }
-
-    .sl-banner__content :global(a):hover::after {
-      transform: translateX(0.125rem) rotate(45deg);
     }
 
     .sl-banner__content :global(a):focus-visible {
@@ -360,33 +343,23 @@ const firstSeenKey = bannerHash
     }
 
     .sl-banner__dismiss {
-      position: absolute;
-      inset-inline-end: max(0.75rem, calc(var(--sl-nav-pad-x) - 0.125rem));
-      top: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      inline-size: 2.25rem;
-      block-size: 2.25rem;
-      border: 1px solid color-mix(in srgb, var(--__sl-banner-accent) 20%, transparent);
-      border-radius: 0.5rem;
+      inline-size: var(--aspire-touch-target);
+      block-size: var(--aspire-touch-target);
+      border: 0;
+      border-radius: 0.375rem;
       padding: 0;
-      background-color: color-mix(in srgb, var(--__sl-banner-accent) 5%, transparent);
+      background-color: transparent;
       color: var(--__sl-banner-accent);
       cursor: pointer;
-      transform: translateY(-50%);
-      transition:
-        border-color 0.2s ease,
-        background-color 0.2s ease,
-        box-shadow 0.2s ease;
+      transition: background-color 0.2s ease;
     }
 
     .sl-banner__dismiss:hover,
     .sl-banner__dismiss:focus-visible {
-      border-color: color-mix(in srgb, var(--__sl-banner-accent) 38%, transparent);
       background-color: color-mix(in srgb, var(--__sl-banner-accent) 12%, transparent);
-      box-shadow: 0 0.2rem 0.6rem
-        color-mix(in srgb, var(--__sl-banner-accent) 12%, transparent);
     }
 
     .sl-banner__dismiss:focus-visible {
@@ -416,28 +389,18 @@ const firstSeenKey = bannerHash
       opacity: 1;
     }
 
-    @media (max-width: 40rem) {
-      .sl-banner--dismissable {
-        padding-inline: 3.25rem;
-        max-block-size: 16rem;
-      }
-
+    @media (max-width: 49.999rem) {
       .sl-banner__content,
       .sl-banner__content :global(p) {
-        gap: 0.2rem 0.5rem;
-      }
-
-      .sl-banner__content :global(a) {
-        min-height: 1.875rem;
-        padding: 0.2rem 0.5rem;
-        font-size: var(--sl-text-xs);
+        justify-content: start;
+        text-align: start;
+        text-wrap: pretty;
       }
     }
 
     @media (prefers-reduced-motion: reduce) {
       .sl-banner--dismissable,
       .sl-banner__content :global(a),
-      .sl-banner__content :global(a)::after,
       .sl-banner__dismiss,
       .sl-banner__dismiss :global(svg) {
         transition: none;
