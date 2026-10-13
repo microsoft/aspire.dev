@@ -1,11 +1,18 @@
 ---
 import 'tippy.js/dist/tippy.css';
+import poppinsRegular from '@fontsource/poppins/files/poppins-latin-400-normal.woff2?url';
+import poppinsSemiBold from '@fontsource/poppins/files/poppins-latin-600-normal.woff2?url';
+import poppinsBold from '@fontsource/poppins/files/poppins-latin-700-normal.woff2?url';
 import DefaultHead from '@astrojs/starlight/components/Head.astro';
 import { ClientRouter } from 'astro:transitions';
 import AccessibleCodeButtons from '../AccessibleCodeButtons.astro';
 import SiteTour from '../SiteTour.astro';
 import { getStructuredData } from '@utils/structured-data';
 import { getOgMetadata } from '@utils/page-metadata';
+
+// The Poppins weights that text in the first viewport renders with. The same files back the
+// @font-face rules in site.css, so these resolve to the already-emitted assets.
+const preloadedFonts = [poppinsRegular, poppinsSemiBold, poppinsBold];
 
 const repoUrl = (
   import.meta.env.PUBLIC_REPO_URL ||
@@ -40,6 +47,18 @@ function computeSourceUrl() {
 <meta name="git-source-url" content={computeSourceUrl()} />
 
 <DefaultHead {...Astro.props} />
+{
+  /*
+   * Fonts are declared in site.css, so without these the browser only discovers them after that
+   * stylesheet has downloaded and parsed. Preloading starts the downloads with the document and
+   * lets the text paint in Poppins instead of swapping in (and re-flowing) after first paint.
+   */
+}
+{
+  preloadedFonts.map((href) => (
+    <link rel="preload" as="font" type="font/woff2" href={href} crossorigin />
+  ))
+}
 <script>
   import '@scripts/deployment-guard';
   import '@scripts/mermaid';

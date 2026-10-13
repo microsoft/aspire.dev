@@ -1413,6 +1413,36 @@ test('reflows to 320 CSS pixels without clipping the page', async ({ page }) => 
   expect(dimensions.footerFits).toBe(true);
 });
 
+test('loads icons hidden behind tabs and language toggles before they are revealed', async ({
+  page,
+}) => {
+  // The dev server transforms every icon on request, which takes tens of seconds when parallel
+  // workers share it, so the loaded checks below wait far longer than the 5 s default.
+  test.slow();
+
+  // Native lazy loading never starts for `display: none` images, so these only load because their
+  // sections fetch them as they near the viewport.
+  const allLoaded = (images: Element[]) =>
+    images.length > 0 &&
+    images.every(
+      (image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0
+    );
+
+  const environment = page.locator('[data-home-environments]');
+  await environment.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => environment.locator('img').evaluateAll(allLoaded), { timeout: 60_000 })
+    .toBe(true);
+  // The point of the test: some of those images sit in panels that are not displayed.
+  await expect(environment.locator('[data-environment-panel][hidden] img').first()).toBeAttached();
+
+  const model = page.locator('[data-model-story]');
+  await model.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => model.locator('.model-tab-lang-icon').evaluateAll(allLoaded), { timeout: 60_000 })
+    .toBe(true);
+});
+
 test('keeps the environment frame stable while each topology changes', async ({ page }) => {
   const environment = page.locator('[data-home-environments]');
   const stage = environment.locator('.environment-stage');

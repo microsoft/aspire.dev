@@ -1,6 +1,9 @@
+import vm from 'node:vm';
+
 import { describe, expect, test } from 'vitest';
 
 import Banner from '@components/starlight/Banner.astro';
+import { MS_PER_DAY, parseFirstSeen, resolveBannerVisibility } from '@utils/banner-expiry';
 
 import { renderComponent, type StarlightRoute } from './astro-test-utils';
 
@@ -61,5 +64,105 @@ describe('Banner.astro rendered output', () => {
 
     expect(html).not.toContain('data-aspire-banner');
     expect(html).not.toContain('Aspire 13.4 is here');
+  });
+
+  test('is visible in the server-rendered markup so revealing it cannot shift the page', async () => {
+    const html = await render({ banner: { content: CONTENT } });
+    const opening = html.match(/<div[^>]*data-aspire-banner[^>]*>/)?.[0] ?? '';
+
+    expect(opening).not.toBe('');
+    expect(opening).not.toMatch(/\shidden(?=[\s>=])/);
+    expect(opening).toContain('data-banner-state="open"');
+  });
+});
+
+describe('Banner.astro pre-paint script', () => {
+  const NOW = Date.UTC(2026, 9, 6, 12);
+  const FAR_FUTURE = new Date('2999-01-01T00:00:00.000Z');
+
+  function datasetOf(html: string): Record<string, string> {
+    const opening = html.match(/<div[^>]*data-aspire-banner[^>]*>/)?.[0] ?? '';
+    const dataset: Record<string, string> = {};
+    for (const [, name, value] of opening.matchAll(/\sdata-([a-z-]+)(?:="([^"]*)")?/g)) {
+      const key = name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
+      dataset[key] = value ?? '';
+    }
+    return dataset;
+  }
+
+  /** Runs the emitted script as a browser would, against fake storage and time. */
+  function runPrepaint(html: string, storage: Record<string, string>, nowMs: number) {
+    const script = html.match(/<script[^>]*data-banner-prepaint[^>]*>([\s\S]*?)<\/script>/)?.[1];
+    expect(script, 'the pre-paint script must be rendered with the banner').toBeTruthy();
+
+    const banner = { dataset: datasetOf(html), hidden: false };
+    vm.runInNewContext(script as string, {
+      Date: { now: () => nowMs },
+      document: { querySelector: (selector: string) => (selector === '[data-aspire-banner]' ? banner : null) },
+      window: { localStorage: { getItem: (key: string) => storage[key] ?? null } },
+    });
+    return banner;
+  }
+
+  /** The visibility the bundled controller computes for the same inputs. */
+  function controllerVisible(html: string, storage: Record<string, string>, nowMs: number) {
+    const { dismissKey, firstSeenKey, expiresOn, autoDismissDays } = datasetOf(html);
+    return resolveBannerVisibility({
+      nowMs,
+      expiresOnMs: expiresOn ? Number(expiresOn) : null,
+      autoDismissAfterDays: autoDismissDays ? Number(autoDismissDays) : null,
+      firstSeenMs: parseFirstSeen(storage[firstSeenKey] ?? null, nowMs),
+      dismissed: storage[dismissKey] === 'true',
+    }).visible;
+  }
+
+  test('agrees with resolveBannerVisibility for dismiss, sunset and auto-dismiss state', async () => {
+    const plain = await render({ banner: { content: CONTENT } });
+    const sunset = await render({ banner: { content: CONTENT }, bannerExpiresOn: FAR_FUTURE });
+    const auto = await render({ banner: { content: CONTENT }, bannerAutoDismissAfterDays: 14 });
+    const { dismissKey, firstSeenKey } = datasetOf(plain);
+
+    const seen = (daysAgo: number) => ({ [firstSeenKey]: String(NOW - daysAgo * MS_PER_DAY) });
+    const scenarios: Array<[string, string, Record<string, string>, number]> = [
+      ['nothing stored', plain, {}, NOW],
+      ['dismissed', plain, { [dismissKey]: 'true' }, NOW],
+      ['dismiss flag is not "true"', plain, { [dismissKey]: 'false' }, NOW],
+      ['before the sunset', sunset, {}, NOW],
+      ['after the sunset', sunset, {}, FAR_FUTURE.getTime() + 1],
+      ['dismissed before the sunset', sunset, { [dismissKey]: 'true' }, NOW],
+      ['first view (nothing stored)', auto, {}, NOW],
+      ['inside the auto-dismiss window', auto, seen(13), NOW],
+      ['exactly at the auto-dismiss boundary', auto, seen(14), NOW],
+      ['past the auto-dismiss window', auto, seen(30), NOW],
+      ['junk first-seen value', auto, { [firstSeenKey]: '12abc' }, NOW],
+      ['negative first-seen value', auto, { [firstSeenKey]: '-5' }, NOW],
+      ['zero first-seen value', auto, { [firstSeenKey]: '0' }, NOW],
+      ['first-seen in the future', auto, { [firstSeenKey]: String(NOW + MS_PER_DAY) }, NOW],
+      ['dismissed and past the window', auto, { ...seen(30), [dismissKey]: 'true' }, NOW],
+    ];
+
+    for (const [name, html, storage, nowMs] of scenarios) {
+      const banner = runPrepaint(html, storage, nowMs);
+      expect(!banner.hidden, name).toBe(controllerVisible(html, storage, nowMs));
+      expect(banner.dataset.bannerState ?? 'open', name).toBe(banner.hidden ? 'closed' : 'open');
+    }
+  });
+
+  test('leaves the banner visible when storage is unavailable', async () => {
+    const html = await render({ banner: { content: CONTENT }, bannerAutoDismissAfterDays: 14 });
+    const script = html.match(/<script[^>]*data-banner-prepaint[^>]*>([\s\S]*?)<\/script>/)?.[1] ?? '';
+    const banner = { dataset: datasetOf(html), hidden: false };
+
+    vm.runInNewContext(script, {
+      Date: { now: () => NOW },
+      document: { querySelector: () => banner },
+      window: {
+        get localStorage() {
+          throw new Error('storage blocked');
+        },
+      },
+    });
+
+    expect(banner.hidden).toBe(false);
   });
 });
