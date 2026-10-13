@@ -72,11 +72,12 @@ jobs:
 
           # An open repair PR means a human already owes this release a conflict
           # resolution; syncing again would only repeat the same conflict.
-          existing=$(gh pr list \
-            --state open \
-            --head "release-sync/${BRANCH#release/}" \
-            --json url \
-            --jq '.[0].url // empty')
+          # Match the head owner so a fork branch with the same name can't pause syncing.
+          existing=$(gh api --method GET "repos/$GH_REPO/pulls" \
+            -f state=open \
+            -f head="${GH_REPO%%/*}:release-sync/${BRANCH#release/}" \
+            -f base="$BRANCH" \
+            --jq '.[0].html_url // empty')
 
           if [[ -n "$existing" ]]; then
             echo "::notice::Skipping sync: repair PR $existing is still open."
@@ -117,7 +118,15 @@ jobs:
           git show "$MAIN_SHA:.github/scripts/merge-main-into-release.sh" > "$RUNNER_TEMP/merge-main-into-release.sh"
 
           status=0
-          bash "$RUNNER_TEMP/merge-main-into-release.sh" "$MAIN_SHA" "$BRANCH" || status=$?
+          # Buffer the helper's summary: its manual-recovery guidance is wrong
+          # when the repair PR step below handles the conflict automatically.
+          probe_summary="$RUNNER_TEMP/release-sync-summary.md"
+          : > "$probe_summary"
+          GITHUB_STEP_SUMMARY="$probe_summary" \
+            bash "$RUNNER_TEMP/merge-main-into-release.sh" "$MAIN_SHA" "$BRANCH" || status=$?
+          if [[ "$status" -ne 3 ]]; then
+            cat "$probe_summary" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           case "$status" in
             0)
@@ -159,13 +168,25 @@ jobs:
           {
             echo "## Summary"
             echo
-            echo "Merging \`main\` (\`$MAIN_SHA\`) into \`$BRANCH\` hit conflicts that the release sync can't resolve automatically. This branch holds the merge with conflict markers left in:"
+            echo "Merging \`main\` (\`$MAIN_SHA\`) into \`$BRANCH\` hit conflicts that the release sync can't resolve automatically. This branch holds the merge with the conflicts left for you to resolve."
             echo
-            sed 's/.*/- `&`/' "$conflicts_file"
+            echo "### Text conflicts (markers left in the file)"
+            echo
+            awk -F'\t' '$1 == "text" { print "- `" $2 "`" }' "$conflicts_file"
+            echo
+            echo "### Needs a decision (no markers)"
+            echo
+            echo "Git can't mark these, so this branch currently keeps one side. Review each and choose deliberately:"
+            echo
+            awk -F'\t' '
+              $1 == "binary" { print "- `" $2 "`: binary file changed on both sides; the release copy is kept. Take main with `git checkout " ENVIRON["MAIN_SHA"] " -- \"" $2 "\"`." }
+              $1 == "deleted-on-main" { print "- `" $2 "`: deleted on main, modified on release; the release copy is kept. Delete it with `git rm \"" $2 "\"` if the deletion should win." }
+              $1 == "deleted-on-release" { print "- `" $2 "`: deleted on release, modified on main; the main copy is kept. Delete it with `git rm \"" $2 "\"` if the deletion should win." }
+            ' "$conflicts_file"
             echo
             echo "To land it:"
             echo
-            echo "1. Check out \`$repair_branch\` and resolve the markers without discarding release-only work."
+            echo "1. Check out \`$repair_branch\` and resolve each item above without discarding release-only work."
             echo "2. Push the fix, mark the PR ready for review, and wait for checks."
             echo "3. Merge with **Create a merge commit**, never squash or rebase. Copying content alone doesn't repair ancestry."
             echo
@@ -177,7 +198,7 @@ jobs:
             echo
             echo "## Validation"
             echo
-            echo "Automated merge of \`main\` into \`$BRANCH\`. Not validated: conflict markers are still present."
+            echo "Automated merge of \`main\` into \`$BRANCH\`. Not validated: conflicts are unresolved."
           } > "$body_file"
 
           pr_url=$(gh pr create \

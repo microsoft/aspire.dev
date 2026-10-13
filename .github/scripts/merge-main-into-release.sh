@@ -8,9 +8,12 @@
 #   3  conflicts need human review; the merge was aborted and HEAD is unchanged.
 #
 # With --commit-conflicts the conflicts are not an error: the merge is committed
-# with conflict markers left in the unresolved files, so the result can be pushed
-# to a repair branch. The unresolved paths are written to
-# $RELEASE_SYNC_CONFLICTS_FILE when it is set. Never push that commit to release.
+# with conflict markers left in the unresolved text files, so the result can be
+# pushed to a repair branch. Non-text conflicts (binary, modify/delete) have no
+# markers; Git's worktree side is staged and the path is flagged for a human.
+# Unresolved paths are written to $RELEASE_SYNC_CONFLICTS_FILE as
+# "<kind>\t<path>" (text, binary, deleted-on-main, deleted-on-release) when it
+# is set. Never push that commit to release.
 set -euo pipefail
 
 MAIN_SHA="$(git rev-parse --verify "${1:?main ref required}^{commit}")"
@@ -134,10 +137,23 @@ for path in "${conflicts[@]}"; do
   fi
 done
 
+# Only text conflicts leave markers. For the other kinds Git leaves one side in
+# the worktree, so staging it would silently pick that side.
+conflict_kind() {
+  local stages
+  stages="$(git ls-files -u -- ":(literal)$1" | awk '{print $3}' | sort -u | tr -d '\n')"
+  if [[ "$stages" != *2* ]]; then echo deleted-on-release; return; fi
+  if [[ "$stages" != *3* ]]; then echo deleted-on-main; return; fi
+  if grep -Iq '^<<<<<<< ' -- "$1" 2>/dev/null; then echo text; else echo binary; fi
+}
+
 if [[ "${#unresolved[@]}" -ne 0 ]]; then
+  unresolved_kinds=()
   report "" "### Conflicts requiring human review"
   for path in "${unresolved[@]}"; do
-    report "- \`$path\`"
+    kind="$(conflict_kind "$path")"
+    unresolved_kinds+=("$kind")
+    report "- \`$path\` ($kind)"
   done
   if [[ "$COMMIT_CONFLICTS" -eq 0 ]]; then
     report "" \
@@ -148,7 +164,10 @@ if [[ "${#unresolved[@]}" -ne 0 ]]; then
     exit 3
   fi
   if [[ -n "${RELEASE_SYNC_CONFLICTS_FILE:-}" ]]; then
-    printf '%s\n' "${unresolved[@]}" > "$RELEASE_SYNC_CONFLICTS_FILE"
+    : > "$RELEASE_SYNC_CONFLICTS_FILE"
+    for i in "${!unresolved[@]}"; do
+      printf '%s\t%s\n' "${unresolved_kinds[$i]}" "${unresolved[$i]}" >> "$RELEASE_SYNC_CONFLICTS_FILE"
+    done
   fi
 fi
 
@@ -167,12 +186,18 @@ for path in "${generated_files[@]}" "${generated_dirs[@]}"; do
 done
 
 if [[ "${#unresolved[@]}" -ne 0 ]]; then
-  # Stage the conflicted files as-is, markers included, for the repair branch.
+  # Stage the conflicted files as-is for the repair branch. Text conflicts keep
+  # their markers; the workflow tells reviewers to decide the other kinds.
   git --literal-pathspecs add -A -- "${unresolved[@]}"
 fi
 
 [[ -z "$(git ls-files -u)" ]] || fail "Unexpected unmerged entries remain."
-if [[ "${#unresolved[@]}" -eq 0 ]] && ! markers="$(git diff --cached --check)"; then
+# Check everything except the paths intentionally left unresolved.
+check_pathspecs=(.)
+for path in ${unresolved[@]+"${unresolved[@]}"}; do
+  check_pathspecs+=(":(exclude,literal)$path")
+done
+if ! markers="$(git diff --cached --check -- "${check_pathspecs[@]}")"; then
   [[ -n "$markers" ]] || fail "Could not check the merged diff."
   if grep -q 'conflict marker' <<< "$markers"; then
     fail "Conflict markers detected after auto-resolution."
