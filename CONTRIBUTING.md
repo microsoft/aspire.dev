@@ -95,6 +95,30 @@ and representative Brotli round trips, and uploads
 binary log, resource measurements, frontend timings, and output sizes. It does
 not upload or deploy the container image.
 
+Use the `compression-profile` label for a controlled `SmallestSize` versus
+`Optimal` comparison. The job renders the frontend once, snapshots every output
+file with SHA-256, and republishes each compression variant without rebuilding
+the frontend or StaticHost assembly. It clears only the generated publish and
+compression directories between variants. Both variants must retain identical
+frontend content, assembly/configuration hashes, and container base layers.
+
+The comparison records Brotli and published-output totals, sizes by directory,
+actual OCI archive sizes, compression timings, CPU time, and peak RSS. Chromium
+measures response/transfer sizes, TTFB, FCP/LCP, main-thread activity, and JS heap
+for home, a guide, and median-sized C# and TypeScript API pages. Each page gets
+three cold/warm browser-cache pairs in desktop and mobile-like scenarios.
+The mobile-like profile uses 5 Mbps downstream, 40 ms simulated latency, and
+4x CPU throttling. An isolated native decoder measurement and 1/5/20 Mbps
+body-byte transfer models are also included.
+
+These are lab measurements against Kestrel with the published SDK static-asset
+manifest. Front Door, TLS, Redis, live APIs, external requests, and physical
+device behavior are not measured. Server filesystem caches are not forcibly
+evicted. Medians and ranges are descriptive, not statistical significance
+claims. Review `comparison/comparison.json` in
+`statichost-publish-performance` before deciding whether the byte-size tradeoff
+is acceptable.
+
 Measure full-site publishing in CI. Compare equivalent source commits, SDKs,
 runner images, and clean intermediate directories before attributing a timing
 change to compression. A full StaticHost publish also builds the frontend.

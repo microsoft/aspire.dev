@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      profile_compression:
+        description: Compare compression, image sizes, and browser performance on identical generated content
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -119,9 +124,9 @@ jobs:
 
   publish:
     name: StaticHost publish diagnostics
-    if: ${{ inputs.profile_publish }}
+    if: ${{ inputs.profile_publish || inputs.profile_compression }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     env:
       DOTNET_NOLOGO: 1
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
@@ -178,6 +183,22 @@ jobs:
             -DiagnosticsDirectory "$env:RUNNER_TEMP/statichost-publish" `
             -SummaryPath $env:GITHUB_STEP_SUMMARY
 
+      - name: Build controlled compression profiler
+        if: ${{ inputs.profile_compression }}
+        run: >
+          dotnet build tests/performance/CompressionProfile/CompressionProfile.csproj
+          --configuration Release --output "$RUNNER_TEMP/statichost-publish/profiler"
+
+      - name: Install Chromium for compression comparison
+        if: ${{ inputs.profile_compression }}
+        working-directory: src/frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Compare complete compression variants and browser performance
+        if: ${{ inputs.profile_compression }}
+        shell: bash
+        run: bash tests/scripts/profile-static-host-compression.sh
+
       - name: Upload publish diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -189,5 +210,10 @@ jobs:
             ${{ runner.temp }}/statichost-publish/*.binlog
             ${{ runner.temp }}/statichost-publish/*.log
             ${{ runner.temp }}/statichost-publish/*.txt
+            ${{ runner.temp }}/statichost-publish/comparison/**/*.json
+            ${{ runner.temp }}/statichost-publish/comparison/**/*.binlog
+            ${{ runner.temp }}/statichost-publish/comparison/**/*.log
+            ${{ runner.temp }}/statichost-publish/comparison/**/*.txt
+            ${{ runner.temp }}/statichost-publish/comparison/*.sha256
           if-no-files-found: error
           retention-days: 7

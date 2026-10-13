@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory)][string]$PublishDirectory,
     [Parameter(Mandatory)][string]$FrontendDirectory,
     [Parameter(Mandatory)][string]$DiagnosticsDirectory,
-    [Parameter(Mandatory)][string]$SummaryPath
+    [Parameter(Mandatory)][string]$SummaryPath,
+    [ValidateSet('Optimal', 'SmallestSize')][string]$BrotliLevel = 'Optimal'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -61,8 +62,8 @@ foreach ($phase in @('compression start', 'compression complete', 'static asset 
         throw "Publish timing is missing: $phase"
     }
 }
-if (-not ($timings | Where-Object { $_.Contains('brotliLevel=Optimal') })) {
-    throw 'Full-site publishing did not use Optimal Brotli.'
+if (-not ($timings | Where-Object { $_.Contains("brotliLevel=$BrotliLevel") })) {
+    throw "Full-site publishing did not use $BrotliLevel Brotli."
 }
 $metrics = [ordered]@{
     frontendFiles = $frontendFiles.Count
