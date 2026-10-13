@@ -128,12 +128,6 @@ await pgsql.withPgAdmin(); // Still works because it's still a PostgreSQL resour
 
 Use `AddDockerfileBuilder` or `WithDockerfileBuilder` when you need Aspire to generate a Dockerfile from AppHost code. These APIs are useful when the Dockerfile depends on AppHost configuration, when you want to compose Dockerfile fragments, or when you want to keep multi-stage image build logic near the resource definition.
 
-<Aside type="caution">
-  The Dockerfile builder APIs are experimental and may change in future
-  releases. In C# AppHosts, suppress diagnostic
-  [`ASPIREDOCKERFILEBUILDER001`](/diagnostics/aspiredockerfilebuilder001/) when you choose to use them.
-</Aside>
-
 `AddDockerfileBuilder` creates a new container resource and configures the generated Dockerfile in one step:
 
 <Tabs syncKey='aspire-lang'>
@@ -143,7 +137,6 @@ using Aspire.Hosting.ApplicationModel.Docker;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-#pragma warning disable ASPIREDOCKERFILEBUILDER001
 builder.AddDockerfileBuilder("frontend", "../frontend", context =>
 {
     var build = context.Builder.From("node:22-alpine", "build");
@@ -159,7 +152,6 @@ builder.AddDockerfileBuilder("frontend", "../frontend", context =>
 
     return Task.CompletedTask;
 }, stage: "runtime");
-#pragma warning restore ASPIREDOCKERFILEBUILDER001
 
 builder.Build().Run();
 ```
@@ -206,7 +198,6 @@ using Aspire.Hosting.ApplicationModel.Docker;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-#pragma warning disable ASPIREDOCKERFILEBUILDER001
 builder.AddContainer("frontend", "nginx:alpine")
     .WithDockerfileBuilder("../frontend", context =>
     {
@@ -216,7 +207,6 @@ builder.AddContainer("frontend", "nginx:alpine")
 
         return Task.CompletedTask;
     }, stage: "runtime");
-#pragma warning restore ASPIREDOCKERFILEBUILDER001
 
 builder.Build().Run();
 ```
