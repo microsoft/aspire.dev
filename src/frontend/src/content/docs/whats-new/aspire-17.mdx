@@ -76,3 +76,23 @@ The service registration calls, `AddRabbitMQClient` and `AddMongoDBClient`, rema
   current client setup guidance. For the removal details, see
   [microsoft/aspire#20608](https://github.com/microsoft/aspire/pull/20608).
 </LearnMore>
+
+#### `AddCSharpApp` is obsolete
+
+`AddCSharpApp` (and the polyglot `addCSharpApp` export) has always been experimental. Starting in Aspire 17.0, the public overloads and the internal dispatcher are marked `[Obsolete]` instead of `[Experimental("ASPIRECSHARPAPPS001")]`. Existing calls now produce the compiler warning `CS0618` instead of the `ASPIRECSHARPAPPS001` error, and the TypeScript API surface emits `@deprecated` instead of `@experimental`.
+
+Add the [📦 Aspire.Hosting.Dotnet](https://www.nuget.org/packages/Aspire.Hosting.Dotnet) integration and replace calls with `AddDotnetProject` / `addDotnetProject`:
+
+```csharp title="AppHost.cs" del={1} ins={2}
+builder.AddCSharpApp("api", "./api/api.cs");
+builder.AddDotnetProject("api", "./api/api.cs");
+```
+
+`AddDotnetProject` accepts the same kinds of paths — a `.cs` file, a `.csproj` file, or a directory containing a single `.csproj` — but returns a `DotnetProjectResource` rather than a `ProjectResource` / `CSharpAppResource`. Explicitly typed resource builders and project-specific customizations might need updating. This change doesn't automatically migrate or alter the runtime behavior of existing `AddCSharpApp` consumers; legacy calls keep their current launch and publishing behavior and only need an explicit `#pragma warning disable CS0618` (or equivalent `NoWarn`/`.editorconfig` suppression) if you treat warnings as errors.
+
+<LearnMore>
+  See [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/) and
+  [Set up .NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/)
+  for migration guidance. For the obsoletion details, see
+  [microsoft/aspire#20825](https://github.com/microsoft/aspire/pull/20825).
+</LearnMore>
