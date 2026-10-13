@@ -2,54 +2,48 @@
  * Tells IndexNow-participating search engines (Bing, Yandex, Naver, Seznam, Yep, Amazon) about
  * aspire.dev URLs. See https://www.indexnow.org/documentation.
  *
- * Every run reads the live sitemap, compares it with the URL list remembered from the previous run
- * and submits, in priority order:
- *   1. removed URLs (so engines drop them) and new URLs (so engines discover them),
- *   2. the next window of the rotation cycle, which walks the whole sitemap in (rank, tier, path)
- *      order: the pages a release added or updated first (docs before the API reference), then
- *      everything else.
+ * Every run reads the live sitemap, compares it with the URL list saved by the previous run and
+ * sends one request (IndexNow takes at most 10,000 URLs in one) with, in this order:
+ *   1. URLs that left the sitemap (so engines drop them) and URLs that are new in it,
+ *   2. the next window of a rotation that walks the whole sitemap: English pages first, then the
+ *      API reference, then localized pages.
  *
- * A release flush covers its new URLs in step 2 instead of step 1: a release adds thousands of
- * generated API pages, and sending those first would use up the budget before any updated docs page.
+ * The rotation is a cursor over that order, so it survives pages being added or removed. A release
+ * is a "flush": it starts the rotation again from the top at the larger release budget, and the
+ * daily runs finish that pass before the small rotation budget applies again. IndexNow does not
+ * publish its rate limits, so both budgets are in config/indexnow.json. A request that fails (a
+ * 429 included) leaves the progress alone, so the next run simply tries again; only a cold start
+ * still seeds the known list and a flush still starts its pass. A page that is new while a pass
+ * is running can be sent twice: when it appears and when the rotation reaches it.
  *
- * The rotation cycle is a cursor over that order, so it survives URLs being added or removed. A
- * `flush` (a release merge or a manual dispatch) restarts the cycle from the top at the larger
- * release budget; the daily runs then drain it until the whole sitemap has been covered, after
- * which the slow rotation budget applies. IndexNow does not publish its rate limits, so both
- * budgets live in config/indexnow.json and a 429 simply pauses the run until the next one.
+ * The sitemap has no `lastmod`, so the script cannot tell an updated page from an unchanged one.
+ * A release flush sends the English pages first, which is where the new and updated docs are, and
+ * the generated API reference after them.
  *
- * The sitemap has no `lastmod`, so "updated" comes from the release itself: the workflow lists the
- * files the release pull request changed (--changed-files) and they are mapped to pages (docs and
- * API reference data). API data files only count when something besides the version, source
- * commit and source line numbers changed, because those move in every file on every release.
+ * Besides config/indexnow.json, the script assumes that:
+ *   - pages under /reference/api/ are the generated API reference, and the locale folders listed
+ *     in config/locales.ts hold the translations; both are sent after the English pages,
+ *   - release X.Y is merged from a release/X.Y branch and publishes /whats-new/aspire-X-Y/ (or
+ *     aspire-X for X.0), which is how a run knows that the new docs are live.
  *
- * State (`state.json` and `known-urls.txt.gz`) lives in --state-dir. The workflow keeps it between
- * runs as an Actions artifact; losing it only causes a cold start, which seeds the known URL list
- * without submitting every URL as "new".
+ * The state (state.json) lives in --state-dir. The workflow keeps it between runs as an Actions
+ * artifact; losing it only causes a cold start, which seeds the known URL list without submitting
+ * every URL as new.
  *
  * Usage (from src/frontend):
  *   pnpm indexnow --state-dir <dir> [--mode daily|flush] [--limit <n>] [--release <X.Y>]
- *                 [--changed-files <file>] [--trigger <name>] [--dry-run] [--allow-shrink]
+ *                 [--trigger <name>] [--dry-run] [--allow-shrink]
  */
-import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { locales } from '../config/locales';
 import { fetchWithProxy } from './fetch-with-proxy';
 
 export type FetchLike = typeof fetchWithProxy;
-export type Sleep = (ms: number) => Promise<void>;
 export type RunMode = 'daily' | 'flush';
-export type CycleKind = 'release' | 'rotation';
-
-export interface Logger {
-  info(message: string): void;
-  warn(message: string): void;
-  error(message: string): void;
-}
 
 export interface IndexNowConfig {
   host: string;
@@ -59,64 +53,41 @@ export interface IndexNowConfig {
   budgets: { release: number; rotation: number };
 }
 
-/** A pass over the sitemap. `cursor` is the last URL covered, in (rank, tier, path) order. */
+/** A pass over the sitemap. `cursor` is the last URL covered, in the order of `compareUrls`. */
 export interface Cycle {
-  kind: CycleKind;
-  reason: string;
-  startedAt: string;
+  kind: 'release' | 'rotation';
   cursor: string | null;
-  /** URLs ahead of the cursor that were already submitted as new, so the window skips them. */
-  skip: string[];
-  /** Pages the release added or changed. They rank ahead of every other page in this cycle. */
-  updated: string[];
-}
-
-export interface RunRecord {
-  at: string;
-  trigger: string;
-  mode: RunMode;
-  coldStart: boolean;
-  newUrls: number;
-  removedUrls: number;
-  windowUrls: number;
-  submitted: number;
-  statuses: number[];
 }
 
 export interface IndexNowState {
   host: string;
   updatedAt: string;
-  /** The `git-commit-id` meta value served by the site when the state was written. */
-  deployment: string;
-  /** `null` once the previous cycle has covered the whole sitemap. */
+  /** The pass in progress, or null when the last one finished and the next run starts a new one. */
   cycle: Cycle | null;
-  lastRun: RunRecord | null;
-  /** Every sitemap URL as of the last run, sorted. */
+  /** The sitemap URLs that were submitted or are left to the pass in progress. */
   known: string[];
+}
+
+/** What a run needs from the outside world. Tests replace it. */
+export interface Deps {
+  fetch: FetchLike;
+  sleep: (ms: number) => Promise<void>;
+  now: () => Date;
 }
 
 const CONFIG_PATH = fileURLToPath(new URL('../config/indexnow.json', import.meta.url));
 const STATE_FILE = 'state.json';
-const KNOWN_FILE = 'known-urls.txt.gz';
 const SCHEMA_VERSION = 1;
-const KEY_PATTERN = /^[A-Za-z0-9-]{8,128}$/;
 const USER_AGENT = 'aspire.dev-indexnow (+https://github.com/microsoft/aspire.dev)';
+/** The generated API reference, which is sent after the English pages. */
+const API_REFERENCE_PATH = '/reference/api/';
 
-/** IndexNow accepts at most 10,000 URLs per POST. */
-export const MAX_URLS_PER_REQUEST = 10_000;
-/** Cap on the removed and new URLs, together, submitted ahead of the window in one run. */
-const MAX_PRIORITY_URLS = 10_000;
-export const MAX_LIMIT = 50_000;
+/** IndexNow takes at most 10,000 URLs per request, and a run sends a single request. */
+export const MAX_URLS_PER_RUN = 10_000;
 /** A sitemap with fewer URLs than this share of the last known list is treated as broken. */
 export const SHRINK_THRESHOLD = 0.8;
-const MAX_SITEMAP_CHARS = 100_000_000;
-const MAX_CHILD_SITEMAPS = 50;
-const SITEMAP_TIMEOUT_MS = 120_000;
-const REQUEST_TIMEOUT_MS = 60_000;
-/** Back-off for 5xx and network errors. A 429 waits for its Retry-After header instead. */
+/** Waits before the retries of a request that failed with a 5xx or a network error. */
 const RETRY_DELAYS_MS = [5_000, 30_000, 120_000];
-const MAX_RETRY_AFTER_MS = 300_000;
-const CHUNK_PAUSE_MS = 2_000;
 const GATE_INTERVAL_MS = 60_000;
 const GATE_TIMEOUT_MS = 45 * 60_000;
 
@@ -132,83 +103,20 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function compareOrdinal(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
+function annotate(level: 'warning' | 'error', message: string): string {
+  return process.env.GITHUB_ACTIONS === 'true'
+    ? `::${level}::${message.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A')}`
+    : `${level}: ${message}`;
 }
 
-const defaultSleep: Sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function escapeAnnotation(message: string): string {
-  return message.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
-}
-
-export const consoleLogger: Logger = {
-  info: (message) => console.log(message),
-  warn: (message) =>
-    console.warn(
-      process.env.GITHUB_ACTIONS === 'true'
-        ? `::warning::${escapeAnnotation(message)}`
-        : `warning: ${message}`
-    ),
-  error: (message) =>
-    console.error(
-      process.env.GITHUB_ACTIONS === 'true'
-        ? `::error::${escapeAnnotation(message)}`
-        : `error: ${message}`
-    ),
+const log = {
+  info: (message: string) => console.log(message),
+  warn: (message: string) => console.warn(annotate('warning', message)),
+  error: (message: string) => console.error(annotate('error', message)),
 };
 
-// ---------------------------------------------------------------------------------------------
-// Configuration
-// ---------------------------------------------------------------------------------------------
-
-function isLimit(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_LIMIT;
-}
-
-function isHttpsUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:' && !url.username && !url.password;
-  } catch {
-    return false;
-  }
-}
-
-export function parseConfig(value: unknown): IndexNowConfig {
-  if (!isRecord(value)) throw new Error('The IndexNow config must be a JSON object');
-  const { host, key, endpoint, sitemapIndex, budgets } = value;
-  if (typeof host !== 'string' || !/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(host)) {
-    throw new Error('The IndexNow config needs a lowercase "host" such as aspire.dev');
-  }
-  if (typeof key !== 'string' || !KEY_PATTERN.test(key)) {
-    throw new Error('The IndexNow "key" must be 8-128 characters of letters, digits, or dashes');
-  }
-  if (typeof endpoint !== 'string' || !isHttpsUrl(endpoint)) {
-    throw new Error('The IndexNow "endpoint" must be an https URL');
-  }
-  if (
-    typeof sitemapIndex !== 'string' ||
-    !isHttpsUrl(sitemapIndex) ||
-    new URL(sitemapIndex).hostname !== host
-  ) {
-    throw new Error('The IndexNow "sitemapIndex" must be an https URL on the configured host');
-  }
-  if (!isRecord(budgets) || !isLimit(budgets.release) || !isLimit(budgets.rotation)) {
-    throw new Error(`The IndexNow "budgets" must be integers between 1 and ${MAX_LIMIT}`);
-  }
-  return {
-    host,
-    key,
-    endpoint,
-    sitemapIndex,
-    budgets: { release: budgets.release, rotation: budgets.rotation },
-  };
-}
-
 export async function loadConfig(configPath = CONFIG_PATH): Promise<IndexNowConfig> {
-  const raw: unknown = JSON.parse(await readFile(configPath, 'utf8'));
-  return parseConfig(raw);
+  return JSON.parse(await readFile(configPath, 'utf8')) as IndexNowConfig;
 }
 
 export function keyLocation(config: Pick<IndexNowConfig, 'host' | 'key'>): string {
@@ -219,351 +127,149 @@ export function keyLocation(config: Pick<IndexNowConfig, 'host' | 'key'>): strin
 // Sitemap
 // ---------------------------------------------------------------------------------------------
 
-export interface ParsedSitemap {
-  kind: 'index' | 'urlset';
-  locations: string[];
-}
-
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-};
-
-function decodeXml(value: string): string {
-  return value.replace(
-    /&(?:#(\d+)|#x([0-9a-fA-F]+)|(amp|lt|gt|quot|apos));/g,
-    (match: string, decimal?: string, hex?: string, name?: string) => {
-      if (name) return NAMED_ENTITIES[name] ?? match;
-      const code = decimal ? Number(decimal) : parseInt(hex ?? '', 16);
-      return Number.isInteger(code) && code > 0 && code <= 0x10ffff
-        ? String.fromCodePoint(code)
-        : match;
-    }
-  );
-}
+const XML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 
 /**
  * Reads the `<loc>` values of a sitemap or sitemap index. The `xhtml:link` alternates that Astro
  * adds carry their URL in an attribute and are ignored: every localized page is also listed as a
  * `<url>` of its own.
  */
-export function parseSitemap(xml: string): ParsedSitemap {
+export function parseSitemap(xml: string): { kind: 'index' | 'urlset'; locations: string[] } {
   const root = /<(sitemapindex|urlset)[\s>]/.exec(xml);
   if (!root) throw new Error('Not a sitemap: expected a <urlset> or <sitemapindex> element');
-  const locations: string[] = [];
-  for (const match of xml.matchAll(/<loc>\s*([^<]*?)\s*<\/loc>/g)) {
-    const location = decodeXml(match[1]);
-    if (location) locations.push(location);
-  }
+  const locations = [...xml.matchAll(/<loc>\s*([^<]*?)\s*<\/loc>/g)].map((match) =>
+    match[1].replace(/&(amp|lt|gt|quot|apos);/g, (_, name: string) => XML_ENTITIES[name])
+  );
   return { kind: root[1] === 'sitemapindex' ? 'index' : 'urlset', locations };
 }
 
-async function fetchXml(fetch: FetchLike, url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: { 'User-Agent': USER_AGENT, Accept: 'application/xml, text/xml' },
-    signal: AbortSignal.timeout(SITEMAP_TIMEOUT_MS),
-  });
-  if (!response.ok) throw new Error(`GET ${url} failed: HTTP ${response.status}`);
-  const text = await response.text();
-  if (text.length > MAX_SITEMAP_CHARS) throw new Error(`${url} is larger than expected`);
-  return text;
-}
-
-/** Returns every `<loc>` of the sitemap, following a sitemap index one level deep. */
-export async function fetchSitemapLocations(
-  indexUrl: string,
-  fetch: FetchLike = fetchWithProxy
-): Promise<string[]> {
-  const first = parseSitemap(await fetchXml(fetch, indexUrl));
-  if (first.kind === 'urlset') return first.locations;
-  if (first.locations.length === 0) throw new Error(`${indexUrl} lists no sitemaps`);
-  if (first.locations.length > MAX_CHILD_SITEMAPS) {
-    throw new Error(`${indexUrl} lists more than ${MAX_CHILD_SITEMAPS} sitemaps`);
-  }
-
-  const host = new URL(indexUrl).hostname;
-  const locations: string[] = [];
-  for (const child of first.locations) {
-    if (!isHttpsUrl(child) || new URL(child).hostname !== host) {
-      throw new Error(`Refusing to read sitemap ${child}: it is not an https URL on ${host}`);
-    }
-    const parsed = parseSitemap(await fetchXml(fetch, child));
-    if (parsed.kind !== 'urlset') throw new Error(`${child} is a nested sitemap index`);
-    for (const location of parsed.locations) locations.push(location);
-  }
-  return locations;
-}
-
-/** Keeps only https URLs on `host`, drops fragments and removes duplicates. */
-export function normalizeUrls(
-  locations: readonly string[],
-  host: string
-): { urls: string[]; rejected: string[] } {
-  const urls = new Set<string>();
-  const rejected: string[] = [];
-  for (const location of locations) {
-    let url: URL;
-    try {
-      url = new URL(location);
-    } catch {
-      rejected.push(location);
-      continue;
-    }
-    if (
-      url.protocol !== 'https:' ||
-      url.hostname !== host ||
-      url.port ||
-      url.username ||
-      url.password
-    ) {
-      rejected.push(location);
-      continue;
-    }
+/** The https URL on `host` without a fragment, or null for anything else. */
+function canonicalUrl(value: string, host: string): string | null {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.hostname !== host) return null;
+    if (url.port || url.username || url.password) return null;
     url.hash = '';
-    urls.add(url.href);
+    return url.href;
+  } catch {
+    return null;
   }
-  return { urls: [...urls], rejected };
+}
+
+/** Every page URL of the sitemap (following a sitemap index one level deep), de-duplicated. */
+export async function fetchSitemapUrls(
+  indexUrl: string,
+  host: string,
+  fetch: FetchLike
+): Promise<string[]> {
+  const load = async (url: string) => {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT },
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!response.ok) throw new Error(`GET ${url} failed: HTTP ${response.status}`);
+    return parseSitemap(await response.text());
+  };
+
+  const root = await load(indexUrl);
+  let locations = root.locations;
+  if (root.kind === 'index') {
+    locations = [];
+    for (const child of root.locations) {
+      if (canonicalUrl(child, host) === null) {
+        throw new Error(`Refusing to read sitemap ${child}: it is not an https URL on ${host}`);
+      }
+      const sitemap = await load(child);
+      if (sitemap.kind !== 'urlset') throw new Error(`${child} is a nested sitemap index`);
+      for (const location of sitemap.locations) locations.push(location);
+    }
+  }
+
+  const urls = new Set<string>();
+  let ignored = 0;
+  for (const location of locations) {
+    const url = canonicalUrl(location, host);
+    if (url) urls.add(url);
+    else ignored++;
+  }
+  if (ignored > 0) log.warn(`Ignored ${ignored} sitemap URLs that are not https URLs on ${host}.`);
+  return [...urls];
 }
 
 // ---------------------------------------------------------------------------------------------
-// Ordering
+// Ordering and planning
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Priority of a page. Lower tiers are submitted first: English pages (docs, integrations, What's
- * new), then the API reference, then localized pages.
+ * Priority of a page. Lower tiers are sent first: English pages (docs, integrations, What's new),
+ * then the API reference, then localized pages.
  */
-export function tierOf(pathname: string, codes: ReadonlySet<string> = LOCALE_CODES): 0 | 1 | 2 {
-  const first = pathname.split('/')[1] ?? '';
-  if (codes.has(first)) return 2;
-  if (pathname.startsWith('/reference/api/')) return 1;
-  return 0;
+export function tierOf(pathname: string): 0 | 1 | 2 {
+  if (LOCALE_CODES.has(pathname.split('/')[1] ?? '')) return 2;
+  return pathname.startsWith(API_REFERENCE_PATH) ? 1 : 0;
 }
 
 interface Entry {
   url: string;
-  /** 0 for pages the release updated, 1 for the rest. */
-  rank: number;
   tier: number;
 }
 
-const NO_URLS: ReadonlySet<string> = new Set();
-
-function toEntry(url: string, codes: ReadonlySet<string>, updated: ReadonlySet<string>): Entry {
-  return { url, rank: updated.has(url) ? 0 : 1, tier: tierOf(new URL(url).pathname, codes) };
-}
+const toEntry = (url: string): Entry => ({ url, tier: tierOf(new URL(url).pathname) });
 
 function compareEntries(a: Entry, b: Entry): number {
-  return a.rank - b.rank || a.tier - b.tier || compareOrdinal(a.url, b.url);
+  return a.tier - b.tier || (a.url < b.url ? -1 : a.url > b.url ? 1 : 0);
 }
 
-/** Orders URLs by (rank, tier, URL), the order the rotation cursor walks. */
-export function compareUrls(
-  a: string,
-  b: string,
-  codes: ReadonlySet<string> = LOCALE_CODES,
-  updated: ReadonlySet<string> = NO_URLS
-) {
-  return compareEntries(toEntry(a, codes, updated), toEntry(b, codes, updated));
+/** Orders URLs by (tier, URL), the order the rotation cursor walks. */
+export function compareUrls(a: string, b: string): number {
+  return compareEntries(toEntry(a), toEntry(b));
 }
-
-function firstIndexAfter(entries: readonly Entry[], target: Entry): number {
-  let low = 0;
-  let high = entries.length;
-  while (low < high) {
-    const middle = (low + high) >>> 1;
-    if (compareEntries(entries[middle], target) > 0) high = middle;
-    else low = middle + 1;
-  }
-  return low;
-}
-
-/** How many of the URLs a cycle with this cursor has already covered. */
-export function countCovered(
-  urls: readonly string[],
-  cursor: string | null,
-  codes: ReadonlySet<string> = LOCALE_CODES,
-  updated: ReadonlySet<string> = NO_URLS
-): number {
-  if (cursor === null) return 0;
-  const target = toEntry(cursor, codes, updated);
-  return urls.filter((url) => compareEntries(toEntry(url, codes, updated), target) <= 0).length;
-}
-
-// ---------------------------------------------------------------------------------------------
-// Pages updated by a release
-// ---------------------------------------------------------------------------------------------
-
-/** A file a release changed, as listed by GitHub's "list pull request files" API. */
-export interface ChangedFile {
-  status: string;
-  filename: string;
-  /** Lines added plus lines deleted, when known. */
-  changes: number | null;
-  /** The unified diff of the file. GitHub leaves it out when the diff is very large. */
-  patch: string | null;
-}
-
-/** Reads one JSON object per line: `{"status": "...", "filename": "...", "changes": 3, "patch": "..."}`. */
-export function parseChangedFiles(text: string): ChangedFile[] {
-  const files: ChangedFile[] = [];
-  text.split('\n').forEach((line, index) => {
-    if (!line.trim()) return;
-    let value: unknown;
-    try {
-      value = JSON.parse(line);
-    } catch {
-      throw new Error(`Line ${index + 1} of the changed files is not JSON`);
-    }
-    if (
-      !isRecord(value) ||
-      typeof value.status !== 'string' ||
-      typeof value.filename !== 'string'
-    ) {
-      throw new Error(`Line ${index + 1} of the changed files needs a "status" and a "filename"`);
-    }
-    files.push({
-      status: value.status,
-      filename: value.filename,
-      changes: typeof value.changes === 'number' ? value.changes : null,
-      patch: typeof value.patch === 'string' ? value.patch : null,
-    });
-  });
-  return files;
-}
-
-const DOCS_FILE = /^src\/frontend\/src\/content\/docs\/(.+)\.mdx?$/;
-const API_DATA_FILE =
-  /^src\/frontend\/src\/data\/(pkgs|ts-modules)\/(.+?)\.\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\.json$/;
-const API_ROUTES = { pkgs: '/reference/api/csharp/', 'ts-modules': '/reference/api/typescript/' };
-/** Keys that change in every API data file on every release without changing the API. */
-const VOLATILE_API_KEY = /^[+-]\s*"(?:version|sourceCommit|sourceLines)"\s*:/;
-const CONTENT_STATUSES = new Set(['added', 'modified', 'renamed', 'copied', 'changed']);
-
-/**
- * Whether an API data file changed in a way that shows on its pages. Every file is renamed to the
- * new package version and gets a new `version`, `sourceCommit` and shifted `sourceLines` on each
- * release, so only a diff with other changed lines counts. A diff GitHub left out is too large to
- * be one of those, except for a pure rename, which has no changes at all.
- */
-export function hasApiChanges(file: ChangedFile): boolean {
-  if (file.status === 'added') return true;
-  if (file.patch === null) return file.changes !== 0;
-  return file.patch.split('\n').some((line) => /^[+-]/.test(line) && !VOLATILE_API_KEY.test(line));
-}
-
-/**
- * Maps the files a release changed to the sitemap pages they produce, so those pages can be
- * submitted first. Docs map to their route (`content/docs/a/b.mdx` is `/a/b/`, an `index` file is
- * its folder, and localized docs live in a locale folder); API data files map to every page of
- * their package or module. Files that no page comes from, such as components, are ignored.
- */
-export function urlsForChangedFiles(
-  files: readonly ChangedFile[],
-  urls: readonly string[],
-  host: string
-): string[] {
-  const origin = `https://${host}`;
-  const byPath = new Map<string, string>();
-  const byApiRoute = new Map<string, string[]>();
-  for (const url of urls) {
-    const pathname = url.slice(origin.length);
-    byPath.set(pathname.toLowerCase(), url);
-    for (const prefix of Object.values(API_ROUTES)) {
-      if (!pathname.startsWith(prefix)) continue;
-      const route = `${prefix}${pathname.slice(prefix.length).split('/')[0]}/`;
-      const group = byApiRoute.get(route);
-      if (group) group.push(url);
-      else byApiRoute.set(route, [url]);
-    }
-  }
-
-  const updated = new Set<string>();
-  for (const file of files) {
-    if (!CONTENT_STATUSES.has(file.status)) continue;
-
-    const docs = DOCS_FILE.exec(file.filename);
-    if (docs) {
-      const segments = docs[1].split('/');
-      if (segments[segments.length - 1] === 'index') segments.pop();
-      const url = byPath.get(segments.length === 0 ? '/' : `/${segments.join('/')}/`);
-      if (url) updated.add(url);
-      continue;
-    }
-
-    const api = API_DATA_FILE.exec(file.filename);
-    if (api && hasApiChanges(file)) {
-      const prefix = api[1] === 'pkgs' ? API_ROUTES.pkgs : API_ROUTES['ts-modules'];
-      for (const url of byApiRoute.get(`${prefix}${api[2].toLowerCase()}/`) ?? []) updated.add(url);
-    }
-  }
-  return [...updated].sort(compareOrdinal);
-}
-
-// ---------------------------------------------------------------------------------------------
-// Planning
-// ---------------------------------------------------------------------------------------------
 
 export interface PlanInput {
   /** Normalized, de-duplicated sitemap URLs. */
   current: readonly string[];
   state: IndexNowState | null;
   mode: RunMode;
-  /** Recorded on the cycle when one is started. */
-  reason: string;
   budgets: IndexNowConfig['budgets'];
-  /** Replaces the budget for this run. It also caps the new and removed URLs sent first. */
+  /** Replaces the budget for this run. It is a hard cap: it bounds the removed and new URLs too. */
   limit?: number;
-  /** Pages the release updated. They rank first when this run starts a new cycle. */
-  updatedUrls?: readonly string[];
-  now: Date;
   allowShrink?: boolean;
-  localeCodes?: ReadonlySet<string>;
 }
 
 export interface Plan {
   coldStart: boolean;
   mode: RunMode;
   budget: number;
-  /** The cycle this run works on (continued or newly started). */
+  /** The pass this run works on (continued or newly started). */
   cycle: Cycle;
   total: number;
   /** Every URL that is in the sitemap but was not known. */
   newUrls: string[];
   /** Every known URL that left the sitemap. */
   removedUrls: string[];
-  /** The removed URLs submitted this run, in submission order. */
+  /** The removed URLs sent this run. */
   removed: string[];
-  /** The new URLs submitted ahead of the window this run. A flush leaves its new URLs to the cycle. */
+  /** The new URLs sent ahead of the window. A flush leaves them to its window. */
   fresh: string[];
-  /** The rotation window submitted this run. */
+  /** The next URLs of the rotation. */
   window: string[];
-  /** The last URL the window scan went past, or null when it did not move. */
-  windowEnd: string | null;
-  /** True when a fully accepted window finishes the cycle. */
+  /** True when sending the window finishes the pass. */
   windowComplete: boolean;
-  /** How many sitemap URLs the cycle has covered after this run's scan. */
+  /** How many sitemap URLs the pass has covered once the window is sent. */
   covered: number;
-  localeCodes: ReadonlySet<string>;
 }
 
 /**
- * Decides what to submit. Pure: it does not touch the network or the disk.
+ * Decides what to send. Pure: it does not touch the network or the disk.
  *
  * - A cold start (no state) seeds the known list and never treats the whole sitemap as new.
- * - A flush starts a release cycle from the top; otherwise the active cycle continues, or a new
- *   rotation cycle begins when the previous one has completed.
- * - Removed and new URLs go first. A flush is the exception for new URLs: it covers them in the
- *   release cycle it starts, ordered with the pages the release updated. New URLs ahead of the
- *   cursor are remembered in `cycle.skip` (see finalizeRun) so the window does not send them a
- *   second time.
+ * - A flush starts a release pass from the top; otherwise the pass in progress continues, or a new
+ *   rotation pass begins when the previous one has finished.
+ * - Removed and new URLs go first and count against the budget. A flush is the exception for new
+ *   URLs: its pass covers the whole sitemap, so it leaves them to the window.
  */
 export function planRun(input: PlanInput): Plan {
-  const localeCodes = input.localeCodes ?? LOCALE_CODES;
-  const { state } = input;
+  const { state, mode } = input;
   const currentSet = new Set(input.current);
   const total = currentSet.size;
   if (total === 0) throw new Error('The sitemap lists no URLs; refusing to continue');
@@ -577,67 +283,38 @@ export function planRun(input: PlanInput): Plan {
     );
   }
 
-  // A flush covers the pages that are new when it starts together with the ones its files updated,
-  // so a release's new and updated pages are ordered by tier: docs before the generated API
-  // reference, however many API pages a new module adds. Without that, thousands of new API pages
-  // sent first would use up the budget before any updated docs page. The set is fixed when the
-  // cycle starts and ranks first until the cycle completes.
-  const startsRelease = input.mode === 'flush';
-  const startedAt = input.now.toISOString();
+  const entries = [...currentSet].map(toEntry).sort(compareEntries);
   const knownSet = new Set(previous);
-  const unknown = state ? [...currentSet].filter((url) => !knownSet.has(url)) : [];
-  const updated = [...new Set([...(input.updatedUrls ?? []), ...(startsRelease ? unknown : [])])]
-    .filter((url) => currentSet.has(url))
-    .sort(compareOrdinal);
-  let cycle: Cycle;
-  if (startsRelease) {
-    cycle = { kind: 'release', reason: input.reason, startedAt, cursor: null, skip: [], updated };
-  } else if (state?.cycle) {
-    cycle = state.cycle;
-  } else {
-    cycle = { kind: 'rotation', reason: input.reason, startedAt, cursor: null, skip: [], updated };
-  }
-
-  const updatedSet = new Set(cycle.updated);
-  const entries = [...currentSet]
-    .map((url) => toEntry(url, localeCodes, updatedSet))
-    .sort(compareEntries);
   const newUrls = state ? entries.filter((e) => !knownSet.has(e.url)).map((e) => e.url) : [];
   const removedUrls = previous
     .filter((url) => !currentSet.has(url))
-    .map((url) => toEntry(url, localeCodes, updatedSet))
+    .map(toEntry)
     .sort(compareEntries)
     .map((entry) => entry.url);
 
-  const budget =
-    input.limit ?? (cycle.kind === 'release' ? input.budgets.release : input.budgets.rotation);
-  // --limit is a hard cap, so it bounds the new and removed URLs that go first as well. A flush
-  // leaves its new URLs to the cycle it starts instead of sending them ahead of it.
-  const cap = Math.min(MAX_PRIORITY_URLS, input.limit ?? Infinity);
+  const cycle: Cycle =
+    mode === 'flush'
+      ? { kind: 'release', cursor: null }
+      : (state?.cycle ?? { kind: 'rotation', cursor: null });
+  const configured = cycle.kind === 'release' ? input.budgets.release : input.budgets.rotation;
+  const budget = Math.min(input.limit ?? configured, MAX_URLS_PER_RUN);
+
+  const cap = Math.min(input.limit ?? MAX_URLS_PER_RUN, MAX_URLS_PER_RUN);
   const removed = removedUrls.slice(0, cap);
-  const fresh = (startsRelease ? [] : newUrls).slice(0, Math.max(0, cap - removed.length));
-  const priority = new Set([...removed, ...fresh]);
-  const skip = new Set(cycle.skip);
+  const fresh = (mode === 'flush' ? [] : newUrls).slice(0, cap - removed.length);
   const room = Math.max(0, budget - removed.length - fresh.length);
 
-  const alreadySent = (entry: Entry) => priority.has(entry.url) || skip.has(entry.url);
-  let index =
-    cycle.cursor === null
-      ? 0
-      : firstIndexAfter(entries, toEntry(cycle.cursor, localeCodes, updatedSet));
-  let windowEnd: string | null = null;
-  const window: string[] = [];
-  while (index < total && window.length < room) {
-    const entry = entries[index++];
-    windowEnd = entry.url;
-    if (!alreadySent(entry)) window.push(entry.url);
+  let start = 0;
+  if (cycle.cursor !== null) {
+    const target = toEntry(cycle.cursor);
+    start = entries.findIndex((entry) => compareEntries(entry, target) > 0);
+    if (start === -1) start = entries.length;
   }
-  // Trailing URLs that were already sent this cycle do not need another run to be passed over.
-  while (index < total && alreadySent(entries[index])) windowEnd = entries[index++].url;
+  const window = entries.slice(start, start + room).map((entry) => entry.url);
 
   return {
     coldStart: state === null,
-    mode: input.mode,
+    mode,
     budget,
     cycle,
     total,
@@ -646,10 +323,8 @@ export function planRun(input: PlanInput): Plan {
     removed,
     fresh,
     window,
-    windowEnd,
-    windowComplete: index >= total,
-    covered: index,
-    localeCodes,
+    windowComplete: start + window.length >= total,
+    covered: start + window.length,
   };
 }
 
@@ -657,69 +332,32 @@ export interface FinalizeOptions {
   host: string;
   /** The URLs the plan was computed from. */
   current: readonly string[];
-  /** How many URLs of `[...removed, ...fresh, ...window]` were accepted, as a prefix. */
-  accepted: number;
+  /** Whether IndexNow accepted the request. */
+  submitted: boolean;
   now: Date;
-  trigger: string;
-  deployment: string;
-  statuses: readonly number[];
 }
 
 /**
- * Builds the state to remember after a run. Only accepted URLs count as done: a new URL that was
- * not accepted stays new, a removed URL that was not accepted stays known, and the cursor stops at
- * the last accepted window URL. The new URLs of a flush count as known right away, because the
- * release cycle it starts submits them when its cursor reaches them.
+ * Builds the state to remember after a run. URLs count as done only when the request was
+ * accepted: a new URL that was not sent stays new, a removed URL that was not sent stays known, and
+ * the cursor moves to the last URL of the window. The new URLs of a flush count as known right
+ * away, because the pass it starts reaches them.
  */
 export function finalizeRun(plan: Plan, options: FinalizeOptions): IndexNowState {
-  const ordered = [...plan.removed, ...plan.fresh, ...plan.window];
-  const accepted = Math.min(Math.max(options.accepted, 0), ordered.length);
-  const acceptedUrls = new Set(ordered.slice(0, accepted));
-  const acceptedWindow = Math.max(0, accepted - plan.removed.length - plan.fresh.length);
-
-  const known = new Set(options.current);
+  const { host, current, submitted, now } = options;
+  const sent = new Set(submitted ? [...plan.removed, ...plan.fresh, ...plan.window] : []);
+  const known = new Set(current);
   if (plan.mode !== 'flush') {
-    for (const url of plan.newUrls) if (!acceptedUrls.has(url)) known.delete(url);
+    for (const url of plan.newUrls) if (!sent.has(url)) known.delete(url);
   }
-  for (const url of plan.removedUrls) if (!acceptedUrls.has(url)) known.add(url);
+  for (const url of plan.removedUrls) if (!sent.has(url)) known.add(url);
 
-  let cycle: Cycle | null = null;
-  const windowDone = acceptedWindow === plan.window.length;
-  if (!(windowDone && plan.windowComplete)) {
-    const cursor = windowDone
-      ? (plan.windowEnd ?? plan.cycle.cursor)
-      : (plan.window[acceptedWindow - 1] ?? plan.cycle.cursor);
-    const skip = new Set(plan.cycle.skip);
-    for (const url of plan.fresh) if (acceptedUrls.has(url)) skip.add(url);
-    const updatedSet = new Set(plan.cycle.updated);
-    cycle = {
-      ...plan.cycle,
-      cursor,
-      skip: [...skip]
-        .filter(
-          (url) => cursor === null || compareUrls(url, cursor, plan.localeCodes, updatedSet) > 0
-        )
-        .sort(compareOrdinal),
-    };
-  }
-
+  const cursor = submitted ? (plan.window.at(-1) ?? plan.cycle.cursor) : plan.cycle.cursor;
   return {
-    host: options.host,
-    updatedAt: options.now.toISOString(),
-    deployment: options.deployment,
-    cycle,
-    lastRun: {
-      at: options.now.toISOString(),
-      trigger: options.trigger,
-      mode: plan.mode,
-      coldStart: plan.coldStart,
-      newUrls: plan.newUrls.length,
-      removedUrls: plan.removedUrls.length,
-      windowUrls: acceptedWindow,
-      submitted: accepted,
-      statuses: [...options.statuses],
-    },
-    known: [...known].sort(compareOrdinal),
+    host,
+    updatedAt: now.toISOString(),
+    cycle: submitted && plan.windowComplete ? null : { ...plan.cycle, cursor },
+    known: [...known].sort(),
   };
 }
 
@@ -727,60 +365,17 @@ export function finalizeRun(plan: Plan, options: FinalizeOptions): IndexNowState
 // State on disk
 // ---------------------------------------------------------------------------------------------
 
-function parseCycle(value: unknown): Cycle | null {
-  if (value === null) return null;
-  if (!isRecord(value)) throw new Error('"cycle" must be an object or null');
-  const { kind, reason, startedAt, cursor, skip, updated = [] } = value;
-  const isUrlList = (list: unknown): list is string[] =>
-    Array.isArray(list) && list.every((url) => typeof url === 'string');
-  if (
-    (kind !== 'release' && kind !== 'rotation') ||
-    typeof reason !== 'string' ||
-    typeof startedAt !== 'string' ||
-    !(cursor === null || typeof cursor === 'string') ||
-    !isUrlList(skip) ||
-    !isUrlList(updated)
-  ) {
-    throw new Error('"cycle" has an unexpected shape');
-  }
-  return { kind, reason, startedAt, cursor, skip, updated };
+function isCycle(value: unknown): value is Cycle | null {
+  return (
+    value === null ||
+    (isRecord(value) &&
+      (value.kind === 'release' || value.kind === 'rotation') &&
+      (value.cursor === null || typeof value.cursor === 'string'))
+  );
 }
 
-function parseRunRecord(value: unknown): RunRecord | null {
-  if (!isRecord(value)) return null;
-  const count = (entry: unknown) => (typeof entry === 'number' ? entry : 0);
-  return {
-    at: typeof value.at === 'string' ? value.at : '',
-    trigger: typeof value.trigger === 'string' ? value.trigger : '',
-    mode: value.mode === 'flush' ? 'flush' : 'daily',
-    coldStart: value.coldStart === true,
-    newUrls: count(value.newUrls),
-    removedUrls: count(value.removedUrls),
-    windowUrls: count(value.windowUrls),
-    submitted: count(value.submitted),
-    statuses: Array.isArray(value.statuses)
-      ? value.statuses.filter((status): status is number => typeof status === 'number')
-      : [],
-  };
-}
-
-/** Rejects entries that are not already the canonical https URLs on `host` that normalizeUrls makes. */
-function assertCanonical(urls: readonly string[], host: string, what: string): void {
-  const { urls: canonical, rejected } = normalizeUrls(urls, host);
-  if (
-    rejected.length > 0 ||
-    canonical.length !== urls.length ||
-    canonical.some((url, index) => url !== urls[index])
-  ) {
-    throw new Error(`${what} has entries that are not https://${host}/ pages`);
-  }
-}
-
-export async function loadState(
-  dir: string,
-  host: string,
-  log: Logger = consoleLogger
-): Promise<IndexNowState | null> {
+/** Returns null for a missing state (a cold start) and for one that cannot be trusted. */
+export async function loadState(dir: string, host: string): Promise<IndexNowState | null> {
   let raw: string;
   try {
     raw = await readFile(path.join(dir, STATE_FILE), 'utf8');
@@ -791,38 +386,22 @@ export async function loadState(
 
   try {
     const file: unknown = JSON.parse(raw);
-    if (!isRecord(file) || file.schemaVersion !== SCHEMA_VERSION) {
-      throw new Error('the state file has a different schema version');
+    if (!isRecord(file) || file.schemaVersion !== SCHEMA_VERSION || file.host !== host) {
+      throw new Error('it was written for another schema version or host');
     }
-    if (file.host !== host) throw new Error(`the state belongs to ${String(file.host)}`);
-    if (typeof file.updatedAt !== 'string' || typeof file.deployment !== 'string') {
-      throw new Error('the state file is missing fields');
+    const { updatedAt, cycle, known } = file;
+    // The state comes from an artifact, so anything that is not a page of this site is not trusted.
+    if (
+      typeof updatedAt !== 'string' ||
+      !isCycle(cycle) ||
+      !Array.isArray(known) ||
+      known.length === 0 ||
+      !known.every((url) => typeof url === 'string' && canonicalUrl(url, host) === url) ||
+      (typeof cycle?.cursor === 'string' && canonicalUrl(cycle.cursor, host) !== cycle.cursor)
+    ) {
+      throw new Error('it is not in the expected format');
     }
-    const known = gunzipSync(await readFile(path.join(dir, KNOWN_FILE)))
-      .toString('utf8')
-      .split('\n')
-      .filter(Boolean);
-    if (known.length !== file.knownCount) {
-      throw new Error(`expected ${String(file.knownCount)} known URLs but found ${known.length}`);
-    }
-    // The state comes from an artifact, so it is checked like any other input. A list that is
-    // empty, or holds other hosts, would otherwise make a run submit URLs it should not.
-    if (known.length === 0) throw new Error('the known URL list is empty');
-    assertCanonical(known, host, 'the known URL list');
-    const cycle = parseCycle(file.cycle);
-    if (cycle) {
-      assertCanonical(cycle.skip, host, 'the cycle skip list');
-      assertCanonical(cycle.updated, host, 'the cycle updated list');
-      if (cycle.cursor !== null) assertCanonical([cycle.cursor], host, 'the cycle cursor');
-    }
-    return {
-      host,
-      updatedAt: file.updatedAt,
-      deployment: file.deployment,
-      cycle,
-      lastRun: parseRunRecord(file.lastRun),
-      known,
-    };
+    return { host, updatedAt, cycle, known: known as string[] };
   } catch (error) {
     log.warn(`Ignoring unusable IndexNow state (${errorMessage(error)}); starting cold.`);
     return null;
@@ -831,105 +410,25 @@ export async function loadState(
 
 export async function saveState(dir: string, state: IndexNowState): Promise<void> {
   await mkdir(dir, { recursive: true });
-  const stateFile = path.join(dir, STATE_FILE);
-  const knownFile = path.join(dir, KNOWN_FILE);
-  const stagedState = `${stateFile}.${process.pid}.next`;
-  const stagedKnown = `${knownFile}.${process.pid}.next`;
-  const { known, ...rest } = state;
-  try {
-    await writeFile(stagedKnown, gzipSync(`${known.join('\n')}\n`));
-    await writeFile(
-      stagedState,
-      `${JSON.stringify({ schemaVersion: SCHEMA_VERSION, ...rest, knownCount: known.length }, null, 2)}\n`,
-      'utf8'
-    );
-    await rename(stagedKnown, knownFile);
-    await rename(stagedState, stateFile);
-  } finally {
-    await rm(stagedKnown, { force: true });
-    await rm(stagedState, { force: true });
-  }
+  const content = JSON.stringify({ schemaVersion: SCHEMA_VERSION, ...state }, null, 2);
+  await writeFile(path.join(dir, STATE_FILE), `${content}\n`, 'utf8');
 }
 
 // ---------------------------------------------------------------------------------------------
-// Submission
+// Talking to IndexNow and the site
 // ---------------------------------------------------------------------------------------------
 
-export interface ChunkResult {
-  size: number;
-  status: number;
-  attempts: number;
-}
+export type Submission = { ok: true } | { ok: false; status: number; detail: string };
 
-export interface SubmitStop {
-  reason: 'rate-limited' | 'failed';
-  status: number;
-  detail: string;
-}
-
-export interface SubmitResult {
-  /** URLs accepted by IndexNow: always a prefix of the list that was submitted. */
-  accepted: number;
-  chunks: ChunkResult[];
-  stop: SubmitStop | null;
-}
-
-export interface SubmitOptions {
-  config: IndexNowConfig;
-  urls: readonly string[];
-  fetch?: FetchLike;
-  sleep?: Sleep;
-  now?: () => number;
-  log?: Logger;
-}
-
-/** Reads a Retry-After header, either as seconds or as an HTTP date, into milliseconds. */
-export function parseRetryAfter(value: string | null, nowMs: number): number | undefined {
-  if (value === null) return undefined;
-  const trimmed = value.trim();
-  if (/^\d+$/.test(trimmed)) return Number(trimmed) * 1000;
-  const date = Date.parse(trimmed);
-  return Number.isNaN(date) ? undefined : Math.max(0, date - nowMs);
-}
-
-interface PostAttempt {
-  /** HTTP status, or 0 when the request itself failed. */
-  status: number;
-  detail: string;
-  retryAfter?: number;
-}
-
-async function postOnce(
-  config: IndexNowConfig,
-  body: string,
-  fetch: FetchLike,
-  now: () => number
-): Promise<PostAttempt> {
-  try {
-    const response = await fetch(config.endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8', 'User-Agent': USER_AGENT },
-      body,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    return {
-      status: response.status,
-      retryAfter: parseRetryAfter(response.headers.get('retry-after'), now()),
-      detail: (await response.text()).trim().slice(0, 300),
-    };
-  } catch (error) {
-    return { status: 0, detail: errorMessage(error) };
-  }
-}
-
-async function postChunk(
+/**
+ * Sends the URLs in a single request. A 5xx or a network error is retried after a back-off; any
+ * other answer, a 429 included, ends the attempt, and the next run tries again.
+ */
+export async function submitUrls(
   config: IndexNowConfig,
   urls: readonly string[],
-  fetch: FetchLike,
-  sleep: Sleep,
-  now: () => number,
-  log: Logger
-): Promise<ChunkResult & { detail: string }> {
+  deps: Pick<Deps, 'fetch' | 'sleep'>
+): Promise<Submission> {
   const body = JSON.stringify({
     host: config.host,
     key: config.key,
@@ -937,89 +436,53 @@ async function postChunk(
     urlList: urls,
   });
 
-  for (let attempt = 1; ; attempt++) {
-    const { status, detail, retryAfter } = await postOnce(config, body, fetch, now);
-    const result = { size: urls.length, status, attempts: attempt, detail };
-    if (status === 200 || status === 202) return result;
-    const retryable = status === 0 || status === 429 || status >= 500;
-    const delay = status === 429 ? retryAfter : RETRY_DELAYS_MS[attempt - 1];
-    if (
-      !retryable ||
-      attempt > RETRY_DELAYS_MS.length ||
-      delay === undefined ||
-      delay > MAX_RETRY_AFTER_MS
-    ) {
-      return result;
+  let status = 0;
+  let detail = '';
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) {
+      const delay = RETRY_DELAYS_MS[attempt - 1];
+      log.warn(
+        `IndexNow answered ${status || 'with a network error'}; retrying in ${delay / 1000}s.`
+      );
+      await deps.sleep(delay);
     }
-    log.warn(
-      `IndexNow answered ${status || 'with a network error'}; retrying in ${Math.ceil(delay / 1000)}s.`
-    );
-    await sleep(delay);
+    try {
+      const response = await deps.fetch(config.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'User-Agent': USER_AGENT },
+        body,
+        signal: AbortSignal.timeout(60_000),
+      });
+      status = response.status;
+      detail = (await response.text()).trim().slice(0, 300);
+    } catch (error) {
+      status = 0;
+      detail = errorMessage(error);
+    }
+    // 202 is what IndexNow answers while it is still verifying a new key.
+    if (status === 200 || status === 202) return { ok: true };
+    if (status !== 0 && status < 500) break;
   }
+  return { ok: false, status, detail };
 }
 
-/**
- * POSTs the URLs in chunks of at most 10,000. Chunks are all-or-nothing, so `accepted` is a
- * prefix of `urls`. A 429 (after honouring a short Retry-After) or any other failure stops the
- * run; the caller keeps the progress made so far.
- */
-export async function submitUrls(options: SubmitOptions): Promise<SubmitResult> {
-  const {
-    config,
-    urls,
-    fetch = fetchWithProxy,
-    sleep = defaultSleep,
-    now = Date.now,
-    log = consoleLogger,
-  } = options;
-  const chunks: ChunkResult[] = [];
-  let accepted = 0;
-
-  for (let offset = 0; offset < urls.length; offset += MAX_URLS_PER_REQUEST) {
-    if (offset > 0) await sleep(CHUNK_PAUSE_MS);
-    const chunk = urls.slice(offset, offset + MAX_URLS_PER_REQUEST);
-    const { detail, ...result } = await postChunk(config, chunk, fetch, sleep, now, log);
-    chunks.push(result);
-    if (result.status === 200 || result.status === 202) {
-      accepted += chunk.length;
-      log.info(`IndexNow accepted ${chunk.length} URLs (HTTP ${result.status}).`);
-      continue;
-    }
-    return {
-      accepted,
-      chunks,
-      stop: {
-        reason: result.status === 429 ? 'rate-limited' : 'failed',
-        status: result.status,
-        detail,
-      },
-    };
-  }
-  return { accepted, chunks, stop: null };
-}
-
-// ---------------------------------------------------------------------------------------------
-// Live-site checks
-// ---------------------------------------------------------------------------------------------
-
-/** IndexNow verifies ownership by fetching this file, so it has to be live before submitting. */
-export async function verifyKeyFile(
+/** IndexNow verifies ownership by fetching the key file, so it has to be live before submitting. */
+export async function keyFileProblem(
   config: IndexNowConfig,
-  fetch: FetchLike = fetchWithProxy
-): Promise<{ ok: true } | { ok: false; detail: string }> {
+  fetch: FetchLike
+): Promise<string | null> {
   const url = keyLocation(config);
   try {
     const response = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(30_000),
     });
-    if (!response.ok) return { ok: false, detail: `GET ${url} returned HTTP ${response.status}` };
-    const body = (await response.text()).trim();
-    return body === config.key
-      ? { ok: true }
-      : { ok: false, detail: `${url} does not contain the configured key` };
+    if (!response.ok) return `GET ${url} returned HTTP ${response.status}`;
+    return (await response.text()).trim() === config.key
+      ? null
+      : `${url} does not contain the configured key`;
   } catch (error) {
-    return { ok: false, detail: `GET ${url} failed: ${errorMessage(error)}` };
+    return `GET ${url} failed: ${errorMessage(error)}`;
   }
 }
 
@@ -1027,117 +490,214 @@ export async function verifyKeyFile(
 export function whatsNewPath(version: string): string {
   const match = /^(\d+)\.(\d+)$/.exec(version);
   if (!match) throw new Error(`"${version}" is not a release version such as 13.6`);
-  const major = Number(match[1]);
-  const minor = Number(match[2]);
+  const [major, minor] = [Number(match[1]), Number(match[2])];
   return minor === 0 ? `/whats-new/aspire-${major}/` : `/whats-new/aspire-${major}-${minor}/`;
-}
-
-export async function isReleaseLive(
-  host: string,
-  version: string,
-  fetch: FetchLike = fetchWithProxy
-): Promise<boolean> {
-  try {
-    const response = await fetch(`https://${host}${whatsNewPath(version)}`, {
-      method: 'HEAD',
-      headers: { 'User-Agent': USER_AGENT },
-      signal: AbortSignal.timeout(30_000),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-export interface WaitForReleaseOptions {
-  host: string;
-  version: string;
-  fetch?: FetchLike;
-  sleep?: Sleep;
-  now?: () => number;
-  timeoutMs?: number;
-  intervalMs?: number;
-  log?: Logger;
 }
 
 /**
  * Waits for the release's What's new page to be served. The release merge normally lands right
- * after the slot swap; this protects against submitting URLs while the old build is still live,
- * which would make engines crawl stale content.
+ * after the slot swap; this protects against sending URLs while the old build is still live, which
+ * would make engines crawl stale content.
  */
-export async function waitForRelease(options: WaitForReleaseOptions): Promise<boolean> {
-  const {
-    host,
-    version,
-    fetch = fetchWithProxy,
-    sleep = defaultSleep,
-    now = Date.now,
-    timeoutMs = GATE_TIMEOUT_MS,
-    intervalMs = GATE_INTERVAL_MS,
-    log = consoleLogger,
-  } = options;
-  const deadline = now() + timeoutMs;
-  for (;;) {
-    if (await isReleaseLive(host, version, fetch)) return true;
-    if (now() + intervalMs > deadline) return false;
-    log.info(`Release ${version} is not live yet; checking again in ${intervalMs / 1000}s.`);
-    await sleep(intervalMs);
-  }
-}
-
-/** Reads the deployment identity the site embeds in every page. Diagnostic only. */
-export async function readDeployment(
+export async function waitForRelease(
   host: string,
-  fetch: FetchLike = fetchWithProxy
-): Promise<string> {
-  try {
-    const response = await fetch(`https://${host}/`, {
-      headers: { 'User-Agent': USER_AGENT },
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!response.ok) return '';
-    const match = /<meta\s+name="git-commit-id"\s+content="([^"]*)"/.exec(await response.text());
-    return match?.[1].trim() ?? '';
-  } catch {
-    return '';
+  version: string,
+  deps: Deps,
+  { timeoutMs = GATE_TIMEOUT_MS, intervalMs = GATE_INTERVAL_MS } = {}
+): Promise<boolean> {
+  const url = `https://${host}${whatsNewPath(version)}`;
+  const deadline = deps.now().getTime() + timeoutMs;
+  for (;;) {
+    try {
+      const response = await deps.fetch(url, {
+        method: 'HEAD',
+        headers: { 'User-Agent': USER_AGENT },
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (response.ok) return true;
+    } catch {
+      // Not reachable yet counts as not live.
+    }
+    if (deps.now().getTime() + intervalMs > deadline) return false;
+    log.info(`Release ${version} is not live yet; checking again in ${intervalMs / 1000}s.`);
+    await deps.sleep(intervalMs);
   }
 }
-
-// ---------------------------------------------------------------------------------------------
-// Triggers
-// ---------------------------------------------------------------------------------------------
 
 /**
- * Recognizes a merged release PR: same-repository, merged, from `release/X.Y` (the branch the
- * release content is prepared on) or titled "Merge release/X.Y into main". Release PRs are
- * squash-merged, so Git ancestry cannot be used for this.
+ * The version of a merged release pull request: from this repository, merged, from a
+ * `release/X.Y` branch. Release pull requests are squash-merged, so Git ancestry cannot be used.
  */
-export function detectReleaseMerge(event: unknown): { version: string; reason: string } | null {
-  if (!isRecord(event) || !isRecord(event.pull_request)) return null;
-  const pr = event.pull_request;
-  if (pr.merged !== true) return null;
-
-  const repo = (side: unknown) =>
-    isRecord(side) && isRecord(side.repo) && typeof side.repo.full_name === 'string'
-      ? side.repo.full_name
-      : '';
-  const headRepo = repo(pr.head);
-  if (!headRepo || headRepo !== repo(pr.base)) return null;
-
-  const headRef = isRecord(pr.head) && typeof pr.head.ref === 'string' ? pr.head.ref : '';
-  const title = typeof pr.title === 'string' ? pr.title : '';
-  const match =
-    /^release\/(\d+\.\d+)$/.exec(headRef) ?? /^Merge release\/(\d+\.\d+) into main\b/i.exec(title);
-  return match ? { version: match[1], reason: `release/${match[1]}` } : null;
+export function releaseVersion(event: unknown): string | null {
+  const pull = isRecord(event) ? event.pull_request : undefined;
+  if (!isRecord(pull) || pull.merged !== true) return null;
+  const repository = (side: unknown) =>
+    isRecord(side) && isRecord(side.repo) ? side.repo.full_name : undefined;
+  const ref = isRecord(pull.head) ? pull.head.ref : undefined;
+  if (typeof ref !== 'string' || typeof repository(pull.head) !== 'string') return null;
+  if (repository(pull.head) !== repository(pull.base)) return null;
+  return /^release\/(\d+\.\d+)$/.exec(ref)?.[1] ?? null;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Run
+// ---------------------------------------------------------------------------------------------
+
+export interface RunOptions extends Partial<Deps> {
+  config: IndexNowConfig;
+  stateDir: string;
+  mode: RunMode;
+  trigger: string;
+  /** Wait for this release's What's new page before submitting. */
+  release?: string;
+  limit?: number;
+  dryRun?: boolean;
+  allowShrink?: boolean;
+}
+
+export interface RunResult {
+  outcome: 'completed' | 'dry-run' | 'skipped' | 'failed';
+  /** URLs accepted by IndexNow, or planned in a dry run. */
+  submitted: number;
+  stateChanged: boolean;
+  /** Markdown for the job summary page. */
+  summary: string;
+  /** Set when the run failed after it had started submitting. */
+  failure?: string;
+}
+
+const count = (value: number) => value.toLocaleString('en-US');
+
+function summarize(host: string, outcome: RunResult['outcome'], lines: (string | false)[]): string {
+  const bullets = lines.filter(Boolean).map((line) => `- ${line}`);
+  return [`## IndexNow submission for ${host}: ${outcome}`, '', ...bullets, ''].join('\n');
+}
+
+function skipped(host: string, note: string): RunResult {
+  const summary = summarize(host, 'skipped', [note]);
+  return { outcome: 'skipped', submitted: 0, stateChanged: false, summary };
+}
+
+function failureMessage(submission: { status: number; detail: string }, mode: RunMode): string {
+  const reason =
+    submission.status === 429
+      ? 'IndexNow answered 429 (too many requests), so nothing was submitted. If this keeps happening, lower the budgets in config/indexnow.json.'
+      : `IndexNow rejected the submission with HTTP ${submission.status || 'a network error'}` +
+        `${submission.detail ? `: ${submission.detail}` : ''}. ` +
+        'For 403 or 422, check that the key file is live and matches config/indexnow.json.';
+  return mode === 'flush'
+    ? `${reason} The release pass was started, so the next run sends it from the top.`
+    : `${reason} The next run tries again.`;
+}
+
+export async function run(options: RunOptions): Promise<RunResult> {
+  const { config, stateDir, mode, trigger, release, dryRun = false } = options;
+  const { host } = config;
+  const deps: Deps = {
+    fetch: options.fetch ?? fetchWithProxy,
+    sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
+    now: options.now ?? (() => new Date()),
+  };
+
+  const state = await loadState(stateDir, host);
+  log.info(
+    state
+      ? `Loaded state from ${state.updatedAt}: ${state.known.length} known URLs.`
+      : 'No previous state; this is a cold start.'
+  );
+
+  const keyProblem = await keyFileProblem(config, deps.fetch);
+  if (keyProblem) {
+    if (dryRun) {
+      log.warn(`${keyProblem}. IndexNow would reject submissions until the key file is live.`);
+    } else if (state === null) {
+      // Before the first deployment that ships the key file there is nothing to submit yet.
+      const note = `The IndexNow key file is not live yet (${keyProblem}); skipping this run.`;
+      log.warn(note);
+      return skipped(host, note);
+    } else {
+      throw new Error(`The IndexNow key file is not reachable: ${keyProblem}`);
+    }
+  }
+
+  if (release) {
+    // A dry run only checks once.
+    const gate = dryRun ? { timeoutMs: 0 } : undefined;
+    if (!(await waitForRelease(host, release, deps, gate))) {
+      if (!dryRun) {
+        throw new Error(
+          `The What's new page for release ${release} (${whatsNewPath(release)}) did not go live in ` +
+            `time. Once the new docs are live, run the workflow manually with mode "flush" and release "${release}".`
+        );
+      }
+      log.warn(`The What's new page for release ${release} is not live yet.`);
+    }
+  }
+
+  const urls = await fetchSitemapUrls(config.sitemapIndex, host, deps.fetch);
+  const plan = planRun({
+    current: urls,
+    state,
+    mode,
+    budgets: config.budgets,
+    limit: options.limit,
+    allowShrink: options.allowShrink,
+  });
+  const ordered = [...plan.removed, ...plan.fresh, ...plan.window];
+  const facts = [
+    `Sitemap: ${count(plan.total)} URLs, ${count(plan.newUrls.length)} new and ${count(plan.removedUrls.length)} removed since the last run`,
+    `Plan: ${count(ordered.length)} URLs (${count(plan.removed.length)} removed, ${count(plan.fresh.length)} new, ${count(plan.window.length)} from the ${plan.cycle.kind} pass) with a budget of ${count(plan.budget)}`,
+  ];
+  for (const fact of facts) log.info(fact);
+  const describe = (outcome: RunResult['outcome'], covered: number, finished: boolean, note = '') =>
+    summarize(host, outcome, [
+      `Trigger \`${trigger}\`, mode \`${mode}\`${release ? `, release ${release}` : ''}`,
+      ...facts,
+      `Pass: ${plan.cycle.kind}, ${count(covered)} of ${count(plan.total)} URLs covered (${Math.floor((covered / plan.total) * 100)}%)${finished ? ', complete' : ''}`,
+      plan.coldStart && `Cold start: the known URL list ${dryRun ? 'would be' : 'was'} seeded`,
+      note,
+    ]);
+  if (dryRun) {
+    const note = 'Dry run: nothing was submitted and the state was not saved.';
+    const summary = describe('dry-run', plan.covered, plan.windowComplete, note);
+    return { outcome: 'dry-run', submitted: ordered.length, stateChanged: false, summary };
+  }
+
+  const submission: Submission =
+    ordered.length === 0 ? { ok: true } : await submitUrls(config, ordered, deps);
+
+  // A failed run leaves the state alone, except that a cold start still seeds the known list and a
+  // flush still starts the release pass: dropping that would lose the burst, which the next run
+  // then carries out.
+  const stateChanged = submission.ok || plan.coldStart || plan.mode === 'flush';
+  if (stateChanged) {
+    const next = finalizeRun(plan, {
+      host,
+      current: urls,
+      submitted: submission.ok,
+      now: deps.now(),
+    });
+    await saveState(stateDir, next);
+  }
+
+  if (submission.ok) {
+    const summary = describe('completed', plan.covered, plan.windowComplete);
+    return { outcome: 'completed', submitted: ordered.length, stateChanged, summary };
+  }
+  const failure = failureMessage(submission, plan.mode);
+  const summary = describe('failed', plan.covered - plan.window.length, false, failure);
+  return { outcome: 'failed', submitted: 0, stateChanged, summary, failure };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Command line
+// ---------------------------------------------------------------------------------------------
 
 export interface CliOptions {
   stateDir: string;
   mode: RunMode;
   limit?: number;
   release?: string;
-  /** A file with one JSON object per line for each file the release changed. */
-  changedFiles?: string;
   trigger: string;
   dryRun: boolean;
   allowShrink: boolean;
@@ -1151,7 +711,6 @@ export function parseCli(argv: readonly string[]): CliOptions {
       mode: { type: 'string' },
       limit: { type: 'string' },
       release: { type: 'string' },
-      'changed-files': { type: 'string' },
       trigger: { type: 'string' },
       'dry-run': { type: 'boolean' },
       'allow-shrink': { type: 'boolean' },
@@ -1160,482 +719,76 @@ export function parseCli(argv: readonly string[]): CliOptions {
     allowPositionals: false,
   });
 
-  const stateDir = values['state-dir'];
-  if (!stateDir) throw new Error('--state-dir is required');
+  if (!values['state-dir']) throw new Error('--state-dir is required');
   const mode = values.mode ?? 'daily';
   if (mode !== 'daily' && mode !== 'flush') throw new Error('--mode must be "daily" or "flush"');
 
   let limit: number | undefined;
   if (values.limit !== undefined) {
     limit = Number(values.limit);
-    if (!isLimit(limit)) throw new Error(`--limit must be an integer between 1 and ${MAX_LIMIT}`);
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_URLS_PER_RUN) {
+      throw new Error(`--limit must be an integer between 1 and ${MAX_URLS_PER_RUN}`);
+    }
   }
   if (values.release !== undefined && !/^\d+\.\d+$/.test(values.release)) {
     throw new Error('--release must look like 13.6');
   }
 
   return {
-    stateDir: path.resolve(stateDir),
+    stateDir: path.resolve(values['state-dir']),
     mode,
     limit,
     release: values.release,
-    changedFiles: values['changed-files'] ? path.resolve(values['changed-files']) : undefined,
     trigger: values.trigger || 'manual',
     dryRun: values['dry-run'] ?? false,
     allowShrink: values['allow-shrink'] ?? false,
   };
 }
 
-export interface ResolvedRun {
-  /** Set when the trigger does not call for a run; nothing is fetched or submitted. */
-  skip?: string;
-  mode: RunMode;
-  release?: string;
-  reason: string;
-}
-
-/** Turns the CLI options and the (pull_request) event payload into what this run should do. */
-export function resolveRun(options: CliOptions, event: unknown): ResolvedRun {
-  if (options.trigger === 'pull_request') {
-    const release = detectReleaseMerge(event);
-    if (!release) {
-      return {
-        skip: 'This pull request is not a merged release/X.Y pull request; nothing to submit.',
-        mode: 'flush',
-        reason: '',
-      };
-    }
-    return { mode: 'flush', release: release.version, reason: release.reason };
-  }
-
-  let reason = 'manual';
-  if (options.release) reason = `release/${options.release}`;
-  else if (options.mode === 'flush') reason = 'manual flush';
-  else if (options.trigger === 'schedule') reason = 'schedule';
-  return { mode: options.mode, release: options.release, reason };
-}
-
-// ---------------------------------------------------------------------------------------------
-// Run
-// ---------------------------------------------------------------------------------------------
-
-export interface RunReport {
-  outcome: 'completed' | 'dry-run' | 'skipped' | 'rate-limited' | 'failed';
-  trigger: string;
-  mode: RunMode;
-  reason: string;
-  host: string;
-  note: string;
-  deployment: string;
-  coldStart: boolean;
-  budget: number;
-  totalUrls: number;
-  newUrls: number;
-  removedUrls: number;
-  /** Pages the release added or updated, which this cycle covers before everything else. */
-  updatedUrls: number;
-  /** URLs planned (dry run) or accepted (real run) from the rotation window. */
-  windowUrls: number;
-  submitted: number;
-  /** New and removed URLs that did not fit in this run and stay pending. */
-  deferred: number;
-  cycleKind: CycleKind | null;
-  cycleCovered: number;
-  cycleCompleted: boolean;
-  chunks: ChunkResult[];
-  firstWindowUrl: string;
-  lastWindowUrl: string;
-}
-
-export interface RunResult {
-  report: RunReport;
-  stateChanged: boolean;
-  /** Set when the run failed after it had started submitting. */
-  failure?: string;
-}
-
-export interface RunOptions {
-  config: IndexNowConfig;
-  stateDir: string;
-  mode: RunMode;
-  trigger: string;
-  reason: string;
-  dryRun?: boolean;
-  allowShrink?: boolean;
-  limit?: number;
-  /** Wait for this release's What's new page before submitting. */
-  release?: string;
-  /** The files the release changed; their pages are submitted first when a cycle starts. */
-  changedFiles?: readonly ChangedFile[];
-  fetch?: FetchLike;
-  sleep?: Sleep;
-  now?: () => Date;
-  log?: Logger;
-  gate?: { timeoutMs?: number; intervalMs?: number };
-}
-
-export function emptyReport(
-  overrides: Partial<RunReport> & Pick<RunReport, 'outcome' | 'trigger' | 'host'>
-): RunReport {
-  return {
-    mode: 'daily',
-    reason: '',
-    note: '',
-    deployment: '',
-    coldStart: false,
-    budget: 0,
-    totalUrls: 0,
-    newUrls: 0,
-    removedUrls: 0,
-    updatedUrls: 0,
-    windowUrls: 0,
-    submitted: 0,
-    deferred: 0,
-    cycleKind: null,
-    cycleCovered: 0,
-    cycleCompleted: false,
-    chunks: [],
-    firstWindowUrl: '',
-    lastWindowUrl: '',
-    ...overrides,
-  };
-}
-
-export async function run(options: RunOptions): Promise<RunResult> {
-  const { config, stateDir, trigger, reason, release, limit } = options;
-  const dryRun = options.dryRun ?? false;
-  const fetch = options.fetch ?? fetchWithProxy;
-  const sleep = options.sleep ?? defaultSleep;
-  const now = options.now ?? (() => new Date());
-  const log = options.log ?? consoleLogger;
-
-  const state = await loadState(stateDir, config.host, log);
-  log.info(
-    state
-      ? `Loaded state from ${state.updatedAt}: ${state.known.length} known URLs.`
-      : 'No previous state; this is a cold start.'
-  );
-
-  // A release can reach the workflow twice: its content pull request and, hours later, the pull
-  // request that merges the release branch back, which changes no files. Starting over would send
-  // the whole burst again, so a pull request for a release whose cycle is still running continues
-  // that cycle. A manual flush always starts over.
-  const resumes =
-    options.mode === 'flush' &&
-    trigger === 'pull_request' &&
-    state?.cycle?.kind === 'release' &&
-    state.cycle.reason === reason;
-  const mode: RunMode = resumes ? 'daily' : options.mode;
-  const resumeNote = resumes
-    ? `The release cycle for ${reason} was already running, so this run continued it instead of starting over.`
-    : '';
-  if (resumeNote) log.info(resumeNote);
-  const base = { trigger, mode, reason, host: config.host };
-  const key = await verifyKeyFile(config, fetch);
-  if (!key.ok) {
-    if (dryRun) {
-      log.warn(`${key.detail}. IndexNow would reject submissions until the key file is live.`);
-    } else if (state === null) {
-      // Before the first deployment that ships the key file there is nothing to submit yet.
-      const note = `The IndexNow key file is not live yet (${key.detail}); skipping this run.`;
-      log.warn(note);
-      return { report: emptyReport({ ...base, outcome: 'skipped', note }), stateChanged: false };
-    } else {
-      throw new Error(`The IndexNow key file is not reachable: ${key.detail}`);
-    }
-  }
-
-  if (release) {
-    if (dryRun) {
-      if (!(await isReleaseLive(config.host, release, fetch))) {
-        log.warn(`The What's new page for release ${release} is not live yet.`);
-      }
-    } else {
-      const ready = await waitForRelease({
-        host: config.host,
-        version: release,
-        fetch,
-        sleep,
-        now: () => now().getTime(),
-        log,
-        ...options.gate,
-      });
-      if (!ready) {
-        throw new Error(
-          `The What's new page for release ${release} (${whatsNewPath(release)}) did not go live in ` +
-            `time. Once the new docs are live, run the workflow manually with mode "flush" and release "${release}".`
-        );
-      }
-    }
-  }
-
-  const { urls, rejected } = normalizeUrls(
-    await fetchSitemapLocations(config.sitemapIndex, fetch),
-    config.host
-  );
-  if (rejected.length > 0) {
-    log.warn(
-      `Ignored ${rejected.length} sitemap URLs that are not https URLs on ${config.host} (for example ${rejected[0]}).`
-    );
-  }
-  const deployment = await readDeployment(config.host, fetch);
-  const updatedUrls = options.changedFiles
-    ? urlsForChangedFiles(options.changedFiles, urls, config.host)
-    : [];
-  if (options.changedFiles) {
-    log.info(
-      `${options.changedFiles.length} files changed by the release map to ${updatedUrls.length} updated pages.`
-    );
-  }
-
-  const plan = planRun({
-    current: urls,
-    state,
-    mode,
-    reason,
-    budgets: config.budgets,
-    limit,
-    updatedUrls,
-    now: now(),
-    allowShrink: options.allowShrink,
-  });
-  const ordered = [...plan.removed, ...plan.fresh, ...plan.window];
-  const updatedSet = new Set(plan.cycle.updated);
-  // A flush leaves its new URLs to the release cycle it starts, so none of them waits for a later run.
-  const pendingNew = plan.mode === 'flush' ? 0 : plan.newUrls.length - plan.fresh.length;
-  const planned = {
-    ...base,
-    deployment,
-    coldStart: plan.coldStart,
-    budget: plan.budget,
-    totalUrls: plan.total,
-    newUrls: plan.newUrls.length,
-    removedUrls: plan.removedUrls.length,
-    updatedUrls: plan.cycle.updated.length,
-    deferred: pendingNew + plan.removedUrls.length - plan.removed.length,
-    cycleKind: plan.cycle.kind,
-    firstWindowUrl: plan.window[0] ?? '',
-    lastWindowUrl: plan.window[plan.window.length - 1] ?? '',
-  };
-  log.info(
-    `Sitemap: ${plan.total} URLs; ${plan.newUrls.length} new, ${plan.removedUrls.length} removed, ` +
-      `${plan.cycle.updated.length} prioritized as new or updated by the release. ` +
-      `Submitting ${ordered.length} (${plan.removed.length} removed, ${plan.fresh.length} new, ` +
-      `${plan.window.length} from the ${plan.cycle.kind} cycle) with a budget of ${plan.budget}.`
-  );
-
-  if (dryRun) {
-    return {
-      report: emptyReport({
-        ...planned,
-        outcome: 'dry-run',
-        note: 'Dry run: nothing was submitted and the state was not saved.',
-        windowUrls: plan.window.length,
-        submitted: ordered.length,
-        cycleCovered: plan.covered,
-        cycleCompleted: plan.windowComplete,
-      }),
-      stateChanged: false,
-    };
-  }
-
-  const result: SubmitResult =
-    ordered.length === 0
-      ? { accepted: 0, chunks: [], stop: null }
-      : await submitUrls({ config, urls: ordered, fetch, sleep, now: () => now().getTime(), log });
-
-  // Progress is kept even when a later chunk fails, so accepted URLs are never sent twice. A flush
-  // is kept even when nothing was accepted: starting the release cycle is what it changes, and
-  // dropping it would lose the release burst, which the next run then picks up.
-  const stateChanged =
-    result.stop === null || result.accepted > 0 || plan.coldStart || plan.mode === 'flush';
-  let next: IndexNowState | null = null;
-  if (stateChanged) {
-    next = finalizeRun(plan, {
-      host: config.host,
-      current: urls,
-      accepted: result.accepted,
-      now: now(),
-      trigger,
-      deployment,
-      statuses: result.chunks.map((chunk) => chunk.status),
-    });
-    await saveState(stateDir, next);
-  }
-
-  const cycleCompleted = next !== null && next.cycle === null;
-  const cursor = next ? (next.cycle?.cursor ?? null) : plan.cycle.cursor;
-  const report = emptyReport({
-    ...planned,
-    outcome: 'completed',
-    note: resumeNote,
-    windowUrls: next?.lastRun?.windowUrls ?? 0,
-    submitted: result.accepted,
-    chunks: result.chunks,
-    cycleCovered: cycleCompleted
-      ? plan.total
-      : countCovered(urls, cursor, plan.localeCodes, updatedSet),
-    cycleCompleted,
-  });
-
-  if (result.stop?.reason === 'rate-limited') {
-    if (result.accepted > 0) {
-      const note =
-        `IndexNow answered 429 (too many requests) after ${result.accepted} URLs. The progress was ` +
-        'saved and the next run continues from there.';
-      log.warn(note);
-      return { report: { ...report, outcome: 'rate-limited', note }, stateChanged };
-    }
-    // Nothing went out, so this run did not do its job even though it will be retried.
-    const failure =
-      'IndexNow answered 429 (too many requests) before accepting any URL, so nothing was ' +
-      `submitted. ${plan.mode === 'flush' ? 'The release cycle was started, so the next run submits it from the top. ' : 'The next run tries again. '}` +
-      'If this keeps happening, lower the budgets in config/indexnow.json.';
-    return { report: { ...report, outcome: 'rate-limited', note: failure }, stateChanged, failure };
-  }
-  if (result.stop) {
-    const failure =
-      `IndexNow rejected the submission with HTTP ${result.stop.status || 'a network error'}` +
-      `${result.stop.detail ? `: ${result.stop.detail}` : ''}. ` +
-      'For 403 or 422, check that the key file is live and matches config/indexnow.json.';
-    return { report: { ...report, outcome: 'failed', note: failure }, stateChanged, failure };
-  }
-  return { report, stateChanged };
-}
-
-export function renderSummary(report: RunReport): string {
-  const count = (value: number) => value.toLocaleString('en-US');
-  const code = (value: string) => `\`${value}\``;
-  const rows: [string, string][] = [
-    ['Outcome', report.outcome],
-    ['Trigger', code(report.trigger)],
-  ];
-  if (report.outcome !== 'skipped') {
-    rows.push(['Mode', `${code(report.mode)}${report.reason ? ` (${report.reason})` : ''}`]);
-  }
-  if (report.totalUrls > 0) {
-    rows.push(
-      ['Sitemap URLs', count(report.totalUrls)],
-      ['New / removed', `${count(report.newUrls)} / ${count(report.removedUrls)}`]
-    );
-    if (report.deferred > 0) rows.push(['Deferred to the next run', count(report.deferred)]);
-    if (report.updatedUrls > 0) {
-      rows.push([
-        'Prioritized pages',
-        `${count(report.updatedUrls)} new or updated by the release, ahead of the rest`,
-      ]);
-    }
-    rows.push([
-      report.outcome === 'dry-run' ? 'Would submit' : 'Submitted',
-      `${count(report.submitted)} of a ${count(report.budget)} URL budget`,
-    ]);
-    if (report.cycleKind) {
-      const percent = Math.floor((report.cycleCovered / report.totalUrls) * 100);
-      rows.push([
-        'Cycle',
-        `${report.cycleKind}: ${count(report.cycleCovered)} of ${count(report.totalUrls)} URLs ` +
-          `(${percent}%)${report.cycleCompleted ? ', complete' : ''}`,
-      ]);
-    }
-    if (report.firstWindowUrl) {
-      rows.push([
-        'Window',
-        `${count(report.windowUrls)} URLs, ${code(report.firstWindowUrl)} to ${code(report.lastWindowUrl)}`,
-      ]);
-    }
-  }
-  if (report.chunks.length > 0) {
-    rows.push([
-      'Requests',
-      report.chunks
-        .map((chunk) => `HTTP ${chunk.status || 'error'} for ${count(chunk.size)} URLs`)
-        .join('<br>'),
-    ]);
-  }
-  if (report.deployment) rows.push(['Live deployment', code(report.deployment.slice(0, 7))]);
-  if (report.coldStart) {
-    rows.push([
-      'Cold start',
-      `yes: the known URL list ${report.outcome === 'dry-run' ? 'would be' : 'was'} seeded`,
-    ]);
-  }
-
-  const lines = [
-    `## IndexNow submission${report.host ? ` for ${report.host}` : ''}`,
-    '',
-    '| | |',
-    '|---|---|',
-    ...rows.map(([name, value]) => `| ${name} | ${value} |`),
-  ];
-  if (report.note) lines.push('', report.note);
-  return `${lines.join('\n')}\n`;
-}
-
-async function readEventPayload(env: NodeJS.ProcessEnv): Promise<unknown> {
-  if (!env.GITHUB_EVENT_PATH) throw new Error('GITHUB_EVENT_PATH is not set');
-  const payload: unknown = JSON.parse(await readFile(env.GITHUB_EVENT_PATH, 'utf8'));
-  return payload;
-}
-
-async function publish(
-  env: NodeJS.ProcessEnv,
-  report: RunReport,
-  stateChanged: boolean
-): Promise<void> {
-  if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, renderSummary(report));
-  if (env.GITHUB_OUTPUT) {
-    await appendFile(
-      env.GITHUB_OUTPUT,
-      `state_changed=${stateChanged}\nsubmitted=${report.submitted}\noutcome=${report.outcome}\n`
-    );
-  }
-}
-
 /** Runs the CLI and returns the process exit code. */
 export async function main(
   argv: readonly string[] = process.argv.slice(2),
   env: NodeJS.ProcessEnv = process.env,
-  log: Logger = consoleLogger,
-  overrides: Pick<RunOptions, 'fetch' | 'sleep' | 'now' | 'gate'> = {}
+  overrides: Partial<Deps> = {}
 ): Promise<number> {
-  let trigger = 'manual';
   let host = '';
+  const publish = async (summary: string, stateChanged: boolean) => {
+    if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, summary);
+    if (env.GITHUB_OUTPUT) await appendFile(env.GITHUB_OUTPUT, `state_changed=${stateChanged}\n`);
+  };
+
   try {
     const options = parseCli(argv);
-    trigger = options.trigger;
     const config = await loadConfig();
     host = config.host;
-    const event = trigger === 'pull_request' ? await readEventPayload(env) : undefined;
-    const resolved = resolveRun(options, event);
 
-    if (resolved.skip) {
-      log.info(resolved.skip);
-      await publish(
-        env,
-        emptyReport({ outcome: 'skipped', trigger, host, note: resolved.skip }),
-        false
-      );
-      return 0;
+    let { mode, release } = options;
+    if (options.trigger === 'pull_request') {
+      if (!env.GITHUB_EVENT_PATH) throw new Error('GITHUB_EVENT_PATH is not set');
+      const event: unknown = JSON.parse(await readFile(env.GITHUB_EVENT_PATH, 'utf8'));
+      const version = releaseVersion(event);
+      if (!version) {
+        const note =
+          'This pull request is not a merged release/X.Y pull request; nothing to submit.';
+        log.info(note);
+        await publish(skipped(host, note).summary, false);
+        return 0;
+      }
+      [mode, release] = ['flush', version];
     }
 
-    const changedFiles = options.changedFiles
-      ? parseChangedFiles(await readFile(options.changedFiles, 'utf8'))
-      : undefined;
     const result = await run({
+      ...overrides,
       config,
       stateDir: options.stateDir,
-      mode: resolved.mode,
-      trigger,
-      reason: resolved.reason,
-      release: resolved.release,
+      mode,
+      trigger: options.trigger,
+      release,
       limit: options.limit,
-      changedFiles,
       dryRun: options.dryRun,
       allowShrink: options.allowShrink,
-      log,
-      ...overrides,
     });
-    await publish(env, result.report, result.stateChanged);
+    await publish(result.summary, result.stateChanged);
     if (result.failure) {
       log.error(result.failure);
       return 1;
@@ -1644,20 +797,12 @@ export async function main(
   } catch (error) {
     const message = errorMessage(error);
     log.error(message);
-    await publish(
-      env,
-      emptyReport({ outcome: 'failed', trigger, host, note: message }),
-      false
-    ).catch(() => undefined);
+    await publish(summarize(host, 'failed', [message]), false).catch(() => undefined);
     return 1;
   }
 }
 
-const isMainModule = process.argv[1]
-  ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-  : false;
-
-if (isMainModule) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   void main().then((code) => {
     process.exitCode = code;
   });

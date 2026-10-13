@@ -6,12 +6,10 @@ name: IndexNow
 #   window of a slow rotation through the whole sitemap.
 # - Release: when a release/X.Y pull request is merged into main, waits for that release's "What's
 #   new" page to be live (the docs slot swap) and then starts a full-sitemap burst that the daily
-#   runs finish. The pages the release added or updated go first (docs before the generated API
-#   reference; the updated ones are found from the files the release pull request changed), then
-#   everything else. A later pull request for the same release, such as the one that merges the
-#   release branch back, continues the burst that is running instead of starting another.
-# - Manual: run it from the Actions tab (mode, limit, release, dry run). A flush with a release
-#   prioritizes that release's new and updated pages the same way.
+#   runs finish. The sitemap has no lastmod, so the burst sends the English pages first (where the
+#   new and updated docs are), then the generated API reference, then the localized pages.
+# - Manual: run it from the Actions tab (mode, limit, release, dry run). A flush restarts the
+#   full-sitemap burst, the same way a release does.
 #
 # All logic lives in src/frontend/scripts/indexnow.ts so the same flow can be reproduced locally:
 #   cd src/frontend && pnpm indexnow --state-dir /tmp/indexnow --dry-run
@@ -46,7 +44,7 @@ on:
           - flush
         default: daily
       limit:
-        description: "Number of URLs to submit in this run (1-50000). Leave empty to use the configured budget."
+        description: "Number of URLs to submit in this run (1-10000). Leave empty to use the configured budget."
         type: string
         required: false
       release:
@@ -68,14 +66,13 @@ jobs:
   submit:
     name: Submit URLs to IndexNow
     # Pull requests only matter when they are merged release pull requests from this repository. The
-    # script checks the exact branch or title format again.
+    # script checks the exact branch format again.
     if: >-
       ${{ github.repository == 'microsoft/aspire.dev' &&
       (github.event_name != 'pull_request' ||
       (github.event.pull_request.merged == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      (startsWith(github.event.pull_request.head.ref, 'release/') ||
-      startsWith(github.event.pull_request.title, 'Merge release/')))) }}
+      startsWith(github.event.pull_request.head.ref, 'release/'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 75
     # The group is on the job, not the workflow, so the many pull requests that are closed without
@@ -89,7 +86,6 @@ jobs:
     permissions:
       contents: read
       actions: read
-      pull-requests: read
     defaults:
       run:
         working-directory: src/frontend
@@ -152,45 +148,6 @@ jobs:
           gh api "repos/$GH_REPO/actions/artifacts/$artifact_id/zip" > "$RUNNER_TEMP/indexnow-state.zip"
           unzip -q -o "$RUNNER_TEMP/indexnow-state.zip" -d "$state_dir"
 
-      # A release rewrites most of the API reference data, so the pages worth submitting first are
-      # the ones whose own files changed. The sitemap has no lastmod to tell, so list the files of
-      # the release pull request. The script maps docs and API data to pages and leaves out API
-      # files that only moved to the new version.
-      - name: Find the files changed by the release
-        id: changes
-        if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'flush' && inputs.release != '') }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          EVENT_NAME: ${{ github.event_name }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          RELEASE: ${{ inputs.release }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          pr="$PR_NUMBER"
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            if ! [[ "$RELEASE" =~ ^[0-9]+\.[0-9]+$ ]]; then
-              echo "::error::The release input must look like 13.6."
-              exit 1
-            fi
-            pr=$(gh pr list --state merged --base main --head "release/$RELEASE" \
-              --json number,mergedAt,isCrossRepository \
-              --jq 'map(select(.isCrossRepository == false)) | sort_by(.mergedAt) | last | .number // empty')
-          fi
-
-          if [ -z "$pr" ]; then
-            echo "::notice::No merged release pull request was found, so only the pages that are new to the sitemap are prioritized."
-            exit 0
-          fi
-
-          changes="$RUNNER_TEMP/changed-files.jsonl"
-          gh api "repos/$GH_REPO/pulls/$pr/files" --paginate \
-            --jq '.[] | {status, filename, changes, patch: (if (.filename | test("/data/(pkgs|ts-modules)/")) then .patch else null end)}' \
-            > "$changes"
-          echo "Release pull request #$pr changed $(wc -l < "$changes") files."
-          echo "path=$changes" >> "$GITHUB_OUTPUT"
-
       - name: Submit URLs
         id: submit
         env:
@@ -200,12 +157,10 @@ jobs:
           INPUT_RELEASE: ${{ inputs.release }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
           INPUT_ALLOW_SHRINK: ${{ inputs.allow_shrink }}
-          CHANGED_FILES: ${{ steps.changes.outputs.path }}
         shell: bash
         run: |
           set -euo pipefail
           args=(--state-dir "$RUNNER_TEMP/indexnow-state" --trigger "$EVENT_NAME")
-          [ -z "$CHANGED_FILES" ] || args+=(--changed-files "$CHANGED_FILES")
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             args+=(--mode "$INPUT_MODE")
             [ -z "$INPUT_LIMIT" ] || args+=(--limit "$INPUT_LIMIT")
@@ -215,7 +170,7 @@ jobs:
           fi
           pnpm indexnow "${args[@]}"
 
-      # Runs after a failure too, so URLs that were accepted before an error are not sent again.
+      # Runs after a failure too, because a failed cold start or flush still saves what it started.
       - name: Save state for the next run
         if: ${{ !cancelled() && steps.submit.outputs.state_changed == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
