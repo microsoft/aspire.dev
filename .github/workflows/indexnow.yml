@@ -8,7 +8,8 @@ name: IndexNow
 #   new" page to be live (the docs slot swap) and then starts a full-sitemap burst that the daily
 #   runs finish. The pages the release added or updated go first (docs before the generated API
 #   reference; the updated ones are found from the files the release pull request changed), then
-#   everything else.
+#   everything else. A later pull request for the same release, such as the one that merges the
+#   release branch back, continues the burst that is running instead of starting another.
 # - Manual: run it from the Actions tab (mode, limit, release, dry run). A flush with a release
 #   prioritizes that release's new and updated pages the same way.
 #
@@ -167,7 +168,8 @@ jobs:
               exit 1
             fi
             pr=$(gh pr list --state merged --base main --head "release/$RELEASE" \
-              --json number,mergedAt --jq 'sort_by(.mergedAt) | last | .number // empty')
+              --json number,mergedAt,isCrossRepository \
+              --jq 'map(select(.isCrossRepository == false)) | sort_by(.mergedAt) | last | .number // empty')
           fi
 
           if [ -z "$pr" ]; then

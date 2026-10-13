@@ -104,7 +104,7 @@ const USER_AGENT = 'aspire.dev-indexnow (+https://github.com/microsoft/aspire.de
 
 /** IndexNow accepts at most 10,000 URLs per POST. */
 export const MAX_URLS_PER_REQUEST = 10_000;
-/** Cap on new URLs, and separately on removed URLs, submitted ahead of the window in one run. */
+/** Cap on the removed and new URLs, together, submitted ahead of the window in one run. */
 const MAX_PRIORITY_URLS = 10_000;
 export const MAX_LIMIT = 50_000;
 /** A sitemap with fewer URLs than this share of the last known list is treated as broken. */
@@ -1302,13 +1302,12 @@ export function emptyReport(
 }
 
 export async function run(options: RunOptions): Promise<RunResult> {
-  const { config, stateDir, mode, trigger, reason, release, limit } = options;
+  const { config, stateDir, trigger, reason, release, limit } = options;
   const dryRun = options.dryRun ?? false;
   const fetch = options.fetch ?? fetchWithProxy;
   const sleep = options.sleep ?? defaultSleep;
   const now = options.now ?? (() => new Date());
   const log = options.log ?? consoleLogger;
-  const base = { trigger, mode, reason, host: config.host };
 
   const state = await loadState(stateDir, config.host, log);
   log.info(
@@ -1317,6 +1316,21 @@ export async function run(options: RunOptions): Promise<RunResult> {
       : 'No previous state; this is a cold start.'
   );
 
+  // A release can reach the workflow twice: its content pull request and, hours later, the pull
+  // request that merges the release branch back, which changes no files. Starting over would send
+  // the whole burst again, so a pull request for a release whose cycle is still running continues
+  // that cycle. A manual flush always starts over.
+  const resumes =
+    options.mode === 'flush' &&
+    trigger === 'pull_request' &&
+    state?.cycle?.kind === 'release' &&
+    state.cycle.reason === reason;
+  const mode: RunMode = resumes ? 'daily' : options.mode;
+  const resumeNote = resumes
+    ? `The release cycle for ${reason} was already running, so this run continued it instead of starting over.`
+    : '';
+  if (resumeNote) log.info(resumeNote);
+  const base = { trigger, mode, reason, host: config.host };
   const key = await verifyKeyFile(config, fetch);
   if (!key.ok) {
     if (dryRun) {
@@ -1454,6 +1468,7 @@ export async function run(options: RunOptions): Promise<RunResult> {
   const report = emptyReport({
     ...planned,
     outcome: 'completed',
+    note: resumeNote,
     windowUrls: next?.lastRun?.windowUrls ?? 0,
     submitted: result.accepted,
     chunks: result.chunks,

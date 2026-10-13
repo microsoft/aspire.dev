@@ -841,6 +841,20 @@ describe('planning', () => {
     expect(plan.newUrls).toHaveLength(3);
   });
 
+  test('--limit also caps the removed URLs that go first', () => {
+    const known = SMALL_SITE.map(url);
+    const gone = [url('/reference/api/typescript/c/'), url('/ja/')];
+    const plan = planRun({
+      ...base,
+      current: known.filter((entry) => !gone.includes(entry)),
+      state: makeState({ known }),
+      limit: 1,
+    });
+    expect(plan.removedUrls).toEqual(gone);
+    expect(plan.removed).toEqual([gone[0]]);
+    expect(plan.window).toEqual([]);
+  });
+
   test('refuses an empty sitemap', () => {
     expect(() => planRun({ ...base, current: [] })).toThrow(/no URLs/);
   });
@@ -1800,6 +1814,63 @@ describe('running end to end', () => {
     expect(submitted()).toEqual(sent(['/', '/app-host/', '/get-started/']));
   });
 
+  test('a second pull request for a release whose cycle is running continues it instead of starting over', async () => {
+    await runDay();
+    const release = { mode: 'flush', trigger: 'pull_request', reason: 'release/13.6' } as const;
+    const first = await runDay(release);
+    expect(first.report).toMatchObject({ mode: 'flush', cycleKind: 'release' });
+    expect(submitted()).toEqual(sent([...DOCS, '/reference/api/csharp/a/']));
+
+    const second = await runDay(release);
+    expect(second.report).toMatchObject({ mode: 'daily', cycleKind: 'release' });
+    expect(second.report.note).toMatch(/already running/);
+    expect(submitted()).toEqual(
+      sent(['/reference/api/csharp/b/', '/reference/api/typescript/c/', ...LOCALIZED])
+    );
+    expect((await loadState(stateDir, HOST, log))?.cycle).toBeNull();
+  });
+
+  test('a pull request for another release, and a manual flush, still start the burst over', async () => {
+    await runDay();
+    await runDay({ mode: 'flush', trigger: 'pull_request', reason: 'release/13.6' });
+
+    const other = await runDay({ mode: 'flush', trigger: 'pull_request', reason: 'release/13.7' });
+    expect(other.report.mode).toBe('flush');
+    expect(submitted()).toEqual(sent([...DOCS, '/reference/api/csharp/a/']));
+
+    const manual = await runDay({
+      mode: 'flush',
+      trigger: 'workflow_dispatch',
+      reason: 'release/13.7',
+    });
+    expect(manual.report.mode).toBe('flush');
+    expect(submitted()).toEqual(sent([...DOCS, '/reference/api/csharp/a/']));
+  });
+
+  test('reports the new URLs that did not fit in the run as deferred', async () => {
+    await runDay();
+    site.paths = [...site.paths, '/aaa/', '/aab/', '/aac/'];
+    const limited = await runDay({ limit: 2 });
+    expect(limited.report).toMatchObject({ newUrls: 3, deferred: 1 });
+  });
+
+  test('a flush defers none of its new URLs, because the cycle it starts covers them', async () => {
+    await runDay();
+    site.paths = [...site.paths, '/aaa/', '/aab/', '/aac/'];
+    const flush = await runDay({ mode: 'flush', reason: 'release/13.6', limit: 2 });
+    expect(flush.report).toMatchObject({ newUrls: 3, deferred: 0 });
+  });
+
+  test('a cold start that fails to submit still seeds the state', async () => {
+    site.responses = [422];
+    const result = await runDay();
+    expect(result.report.outcome).toBe('failed');
+    expect(result.stateChanged).toBe(true);
+    const saved = await loadState(stateDir, HOST, log);
+    expect(saved?.known).toHaveLength(SMALL_SITE.length);
+    expect(saved?.cycle?.cursor).toBeNull();
+  });
+
   test('skips a cold start while the key file is not live yet', async () => {
     site.keyLive = false;
     const result = await runDay();
@@ -1929,7 +2000,7 @@ describe('running end to end', () => {
     },
   ];
 
-  test('a release flush submits new pages, then updated pages, then the rest, and sends nothing twice', async () => {
+  test('a release flush submits its new and updated pages in tier order, then the rest, and sends nothing twice', async () => {
     await runDay();
     site.paths = [...site.paths, '/get-started/new-page/'];
 
@@ -1941,8 +2012,8 @@ describe('running end to end', () => {
     expect(flush.report).toMatchObject({ newUrls: 1, updatedUrls: 3, cycleKind: 'release' });
     expect(submitted()).toEqual(
       sent([
-        '/get-started/new-page/', // new
-        '/whats-new/aspire-13-6/', // updated docs
+        '/get-started/new-page/', // new docs page
+        '/whats-new/aspire-13-6/', // updated docs page
         '/reference/api/csharp/a/', // updated API package (B only moved to the new version)
         '/', // then everything else, in the usual order
         '/app-host/',
