@@ -57,6 +57,14 @@ public sealed class PublishingTargetsTests(PublishingFixture fixture) : IClassFi
         Assert.Contains("Frontend output is missing from the published host", incomplete.Log);
     }
 
+    [Fact]
+    public async Task PublishMeasurementRejectsIncorrectBrotliContent()
+    {
+        var result = await fixture.MeasureAsync(includeMissingFile: false, corruptBrotli: true);
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("Brotli content differs from the original", result.Log);
+    }
+
     [Theory]
     [InlineData("/index.html")]
     [InlineData("/reference/api/sample.md")]
@@ -163,10 +171,11 @@ public sealed class PublishingFixture : IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    public async Task<(int ExitCode, string Log)> MeasureAsync(bool includeMissingFile)
+    public async Task<(int ExitCode, string Log)> MeasureAsync(bool includeMissingFile, bool corruptBrotli = false)
     {
-        var directory = Path.Combine(_root, includeMissingFile ? "measure-incomplete" : "measure-complete");
+        var directory = Path.Combine(_root, $"measure-{Guid.NewGuid():N}");
         var frontend = Path.Combine(directory, "frontend");
+        var publish = Path.Combine(directory, "publish");
         var diagnostics = Path.Combine(directory, "diagnostics");
         Directory.CreateDirectory(Path.Combine(diagnostics, "images"));
         foreach (var path in AssetPaths)
@@ -174,10 +183,20 @@ public sealed class PublishingFixture : IAsyncLifetime
             var file = Path.Combine(frontend, path);
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
             File.Copy(Path.Combine(DefaultDirectory, "wwwroot", path), file);
+            var published = Path.Combine(publish, "wwwroot", path);
+            Directory.CreateDirectory(Path.GetDirectoryName(published)!);
+            File.Copy(file, published);
+            File.Copy(Path.Combine(DefaultDirectory, "wwwroot", path + ".br"), published + ".br");
         }
         if (includeMissingFile)
         {
             await File.WriteAllTextAsync(Path.Combine(frontend, "missing.html"), "missing");
+        }
+        if (corruptBrotli)
+        {
+            await using var output = File.Create(Path.Combine(publish, "wwwroot", "index.html.br"));
+            await using var compressor = new BrotliStream(output, CompressionLevel.Optimal);
+            await compressor.WriteAsync(Encoding.UTF8.GetBytes("incorrect content"));
         }
         await File.WriteAllTextAsync(Path.Combine(diagnostics, "images", "fixture.tar.gz"), "fixture archive");
         await File.WriteAllTextAsync(Path.Combine(diagnostics, "publish.log"), DefaultOutput);
@@ -192,7 +211,7 @@ public sealed class PublishingFixture : IAsyncLifetime
         {
             "-NoProfile", "-NonInteractive", "-File",
             Path.Combine(AppContext.BaseDirectory, "PublishFixture", "Measure-StaticHostPublish.ps1"),
-            "-PublishDirectory", DefaultDirectory,
+            "-PublishDirectory", publish,
             "-FrontendDirectory", frontend,
             "-DiagnosticsDirectory", diagnostics,
             "-SummaryPath", Path.Combine(diagnostics, "summary.md")
