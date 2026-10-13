@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
-# Usage: merge-main-into-release.sh <main-ref> <release-branch>
+# Usage: merge-main-into-release.sh <main-ref> <release-branch> [--commit-conflicts]
 # Run from a clean release checkout. The caller owns fetching and pushing.
+#
+# Exit codes:
+#   0  main is merged (or was already an ancestor); HEAD is the result.
+#   1  unexpected failure; nothing should be pushed.
+#   3  conflicts need human review; the merge was aborted and HEAD is unchanged.
+#
+# With --commit-conflicts the conflicts are not an error: the merge is committed
+# with conflict markers left in the unresolved files, so the result can be pushed
+# to a repair branch. The unresolved paths are written to
+# $RELEASE_SYNC_CONFLICTS_FILE when it is set. Never push that commit to release.
 set -euo pipefail
 
 MAIN_SHA="$(git rev-parse --verify "${1:?main ref required}^{commit}")"
@@ -12,6 +22,13 @@ fail() {
   echo "::error::$*" >&2
   exit 1
 }
+
+COMMIT_CONFLICTS=0
+case "${3:-}" in
+  "") ;;
+  --commit-conflicts) COMMIT_CONFLICTS=1 ;;
+  *) fail "Unknown option: $3" ;;
+esac
 
 [[ -z "$(git status --porcelain)" ]] || fail "Release checkout must be clean."
 if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
@@ -122,11 +139,17 @@ if [[ "${#unresolved[@]}" -ne 0 ]]; then
   for path in "${unresolved[@]}"; do
     report "- \`$path\`"
   done
-  report "" \
-    "Create a repair branch from \`$BRANCH\`, merge main into it, and resolve these conflicts without discarding release-only work." \
-    "Land the repair PR with **Create a merge commit**, never squash or rebase. Copying content alone does not repair ancestry." \
-    "After landing, verify \`git merge-base --is-ancestor $MAIN_SHA origin/$BRANCH\`, then dispatch a fresh workflow run from main."
-  fail "Automated merge aborted: ${#unresolved[@]} conflicts require human review."
+  if [[ "$COMMIT_CONFLICTS" -eq 0 ]]; then
+    report "" \
+      "Create a repair branch from \`$BRANCH\`, merge main into it, and resolve these conflicts without discarding release-only work." \
+      "Land the repair PR with **Create a merge commit**, never squash or rebase. Copying content alone does not repair ancestry." \
+      "After landing, verify \`git merge-base --is-ancestor $MAIN_SHA origin/$BRANCH\`, then dispatch a fresh workflow run from main."
+    echo "::warning::Automated merge aborted: ${#unresolved[@]} conflicts require human review." >&2
+    exit 3
+  fi
+  if [[ -n "${RELEASE_SYNC_CONFLICTS_FILE:-}" ]]; then
+    printf '%s\n' "${unresolved[@]}" > "$RELEASE_SYNC_CONFLICTS_FILE"
+  fi
 fi
 
 # Only these producer-owned paths are mirrored. Other data is hand-authored.
@@ -143,8 +166,13 @@ for path in "${generated_files[@]}" "${generated_dirs[@]}"; do
   fi
 done
 
+if [[ "${#unresolved[@]}" -ne 0 ]]; then
+  # Stage the conflicted files as-is, markers included, for the repair branch.
+  git --literal-pathspecs add -A -- "${unresolved[@]}"
+fi
+
 [[ -z "$(git ls-files -u)" ]] || fail "Unexpected unmerged entries remain."
-if ! markers="$(git diff --cached --check)"; then
+if [[ "${#unresolved[@]}" -eq 0 ]] && ! markers="$(git diff --cached --check)"; then
   [[ -n "$markers" ]] || fail "Could not check the merged diff."
   if grep -q 'conflict marker' <<< "$markers"; then
     fail "Conflict markers detected after auto-resolution."
@@ -159,4 +187,8 @@ read -r commit first_parent second_parent extra <<< "$(git rev-list --parents -n
 if [[ "$first_parent" != "$RELEASE_SHA" || "$second_parent" != "$MAIN_SHA" || -n "$extra" ]]; then
   fail "Expected a two-parent release/main merge commit; do not push."
 fi
-report "" "Merged main into release with both parents preserved: \`$commit\`."
+if [[ "${#unresolved[@]}" -ne 0 ]]; then
+  report "" "Committed main merge with ${#unresolved[@]} unresolved conflict(s) for a repair PR: \`$commit\`."
+else
+  report "" "Merged main into release with both parents preserved: \`$commit\`."
+fi
