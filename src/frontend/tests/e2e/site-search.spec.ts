@@ -3,8 +3,7 @@ import { dismissCookieConsentIfVisible, getSiteNavigationLink } from '@tests/e2e
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
-const require = createRequire(import.meta.url);
-const pagefindRequire = createRequire(require.resolve('@astrojs/starlight'));
+const pagefindRequire = createRequire(import.meta.resolve('@astrojs/starlight'));
 // Native prefix expansion can match an indexed "Z" for an unquoted nonsense
 // term. Exact-phrase syntax makes these tests exercise a genuinely empty search.
 const missingSearchQuery = '"zzzznonexistentcatalogquery"';
@@ -57,21 +56,28 @@ async function typeSearchQuery(page: Page, query: string): Promise<void> {
 async function navigateClient(page: Page, navigate: () => Promise<unknown>): Promise<void> {
   await page.evaluate(() => {
     Reflect.set(window, '__siteSearchPageLoaded', false);
-    document.addEventListener('astro:page-load', () => {
-      Reflect.set(window, '__siteSearchPageLoaded', true);
-    }, { once: true });
+    document.addEventListener(
+      'astro:page-load',
+      () => {
+        Reflect.set(window, '__siteSearchPageLoaded', true);
+      },
+      { once: true }
+    );
   });
   await navigate();
-  await expect.poll(
-    () => page.evaluate(() => Reflect.get(window, '__siteSearchPageLoaded')),
-    { timeout: 30_000 }
-  ).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => Reflect.get(window, '__siteSearchPageLoaded')), {
+      timeout: 30_000,
+    })
+    .toBe(true);
   await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
 }
 
 test.describe('site search dialog', () => {
   for (const theme of ['light', 'dark']) {
-    test(`native Pagefind input presentation matches browse in ${theme}`, async ({ page }, testInfo) => {
+    test(`native Pagefind input presentation matches browse in ${theme}`, async ({
+      page,
+    }, testInfo) => {
       await page.addInitScript((value) => localStorage.setItem('starlight-theme', value), theme);
       await page.goto('/hub/browse/');
       await dismissCookieConsentIfVisible(page);
@@ -88,9 +94,11 @@ test.describe('site search dialog', () => {
         };
       };
       const expected = await page.locator('#browse-search-input').evaluate(presentation);
-      const iconColor = await page.locator('#browse-search-input').locator('..').locator('.search-field-icon').evaluate(
-        (icon) => getComputedStyle(icon).color,
-      );
+      const iconColor = await page
+        .locator('#browse-search-input')
+        .locator('..')
+        .locator('.search-field-icon')
+        .evaluate((icon) => getComputedStyle(icon).color);
       const focusPresentation = (element: Element) => {
         const style = getComputedStyle(element);
         return {
@@ -115,19 +123,23 @@ test.describe('site search dialog', () => {
       if (!ready) {
         testInfo.annotations.push({
           type: 'presentation-only',
-          description: 'Mounts installed native Pagefind UI with an empty-result backend fixture; production index behavior is tested separately.',
+          description:
+            'Mounts installed native Pagefind UI with an empty-result backend fixture; production index behavior is tested separately.',
         });
-        await page.route('**/__pagefind-presentation__/pagefind.js', (route) => route.fulfill({
-          contentType: 'text/javascript',
-          body: `
+        await page.route('**/__pagefind-presentation__/pagefind.js', (route) =>
+          route.fulfill({
+            contentType: 'text/javascript',
+            body: `
             export async function options() {}
             export async function filters() { return {}; }
             export async function preload() {}
             export async function search() { return { results: [], filters: {}, unfilteredResultCount: 0 }; }
           `,
-        }));
+          })
+        );
         const nativeModule = readFileSync(
-          pagefindRequire.resolve('@pagefind/default-ui/npm_dist/mjs/ui-core.mjs'), 'utf8',
+          pagefindRequire.resolve('@pagefind/default-ui/npm_dist/mjs/ui-core.mjs'),
+          'utf8'
         );
         await page.addScriptTag({
           type: 'module',
@@ -142,8 +154,12 @@ test.describe('site search dialog', () => {
           // Match the production wrapper's Astro-scoped styles, including
           // reserved mobile Cancel space, when mounting the native UI in dev.
           for (const element of [container, root]) {
-            element.classList.add(...[...frame.classList].filter((name) => name.startsWith('astro-')));
-            for (const name of frame.getAttributeNames().filter((name) => name.startsWith('data-astro-cid-'))) {
+            element.classList.add(
+              ...[...frame.classList].filter((name) => name.startsWith('astro-'))
+            );
+            for (const name of frame
+              .getAttributeNames()
+              .filter((name) => name.startsWith('data-astro-cid-'))) {
               element.setAttribute(name, '');
             }
           }
@@ -154,7 +170,11 @@ test.describe('site search dialog', () => {
             autofocus: boolean;
             bundlePath: string;
           }) => unknown;
-          new PagefindUI({ element: '#starlight__search', autofocus: false, bundlePath: '/__pagefind-presentation__/' });
+          new PagefindUI({
+            element: '#starlight__search',
+            autofocus: false,
+            bundlePath: '/__pagefind-presentation__/',
+          });
         });
       }
       const input = page.locator('#starlight__search .pagefind-ui__search-input');
@@ -165,7 +185,12 @@ test.describe('site search dialog', () => {
       expect(await input.evaluate(focusPresentation)).toEqual(expectedFocus);
       const icon = await page.locator('#starlight__search .pagefind-ui__form').evaluate((form) => {
         const style = getComputedStyle(form, '::before');
-        return { width: style.width, height: style.height, color: style.backgroundColor, mask: style.maskImage };
+        return {
+          width: style.width,
+          height: style.height,
+          color: style.backgroundColor,
+          mask: style.maskImage,
+        };
       });
       expect(icon).toMatchObject({ width: '18px', height: '18px', color: iconColor });
       expect(decodeURIComponent(icon.mask)).toContain('m21 21-4.35-4.35');
@@ -194,7 +219,8 @@ test.describe('site search dialog', () => {
       const apiLinks = page.locator('site-search dialog[open]');
       for (const language of ['csharp', 'typescript']) {
         await expect(apiLinks.locator(`a[data-api-lang="${language}"]`)).toHaveAttribute(
-          'href', `/reference/api/${language}/?q=${encodeURIComponent(missingSearchQuery)}`,
+          'href',
+          `/reference/api/${language}/?q=${encodeURIComponent(missingSearchQuery)}`
         );
       }
       await clear.click();
@@ -202,13 +228,16 @@ test.describe('site search dialog', () => {
       await expect(input).toBeFocused();
       for (const language of ['csharp', 'typescript']) {
         await expect(apiLinks.locator(`a[data-api-lang="${language}"]`)).toHaveAttribute(
-          'href', `/reference/api/${language}/`,
+          'href',
+          `/reference/api/${language}/`
         );
       }
     });
   }
 
-  test('zero matches retain one native clear action and return focus to the query', async ({ page }) => {
+  test('zero matches retain one native clear action and return focus to the query', async ({
+    page,
+  }) => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
     const ready = await openSearchDialog(page);
@@ -225,7 +254,10 @@ test.describe('site search dialog', () => {
     await clear.click();
     await expect(input).toHaveValue('');
     await expect(input).toBeFocused();
-    await expect(dialog.locator('a[data-api-lang="csharp"]')).toHaveAttribute('href', /\/reference\/api\/csharp\/$/);
+    await expect(dialog.locator('a[data-api-lang="csharp"]')).toHaveAttribute(
+      'href',
+      /\/reference\/api\/csharp\/$/
+    );
   });
 
   for (const openWith of ['button', 'shortcut'] as const) {
@@ -256,7 +288,7 @@ test.describe('site search dialog', () => {
           const results = dialog.locator('.pagefind-ui__result-link');
           await expect(results.first()).toBeVisible({ timeout: 15000 });
           const hrefs = await results.evaluateAll((links) =>
-            links.map((link) => link.getAttribute('href')),
+            links.map((link) => link.getAttribute('href'))
           );
           expect(hrefs.some((href) => href?.includes('/integrations/'))).toBe(true);
           expect(hrefs.every((href) => !href?.includes('/reference/api/'))).toBe(true);
@@ -342,9 +374,9 @@ test.describe('site search dialog', () => {
     );
     await expect(page).toHaveURL((url) => url.pathname === '/');
     await expect(hero).not.toHaveClass(/api-page-title/);
-    await expect.poll(() => hero.evaluate((element) => getComputedStyle(element).fontSize)).toBe(
-      expectedFontSize
-    );
+    await expect
+      .poll(() => hero.evaluate((element) => getComputedStyle(element).fontSize))
+      .toBe(expectedFontSize);
   });
 
   test('navigation during the lazy UI import mounts only the current search instance', async ({
@@ -354,9 +386,13 @@ test.describe('site search dialog', () => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     let releaseImport!: () => void;
-    const importGate = new Promise<void>((resolve) => { releaseImport = resolve; });
+    const importGate = new Promise<void>((resolve) => {
+      releaseImport = resolve;
+    });
     let markRequested!: () => void;
-    const importRequested = new Promise<void>((resolve) => { markRequested = resolve; });
+    const importRequested = new Promise<void>((resolve) => {
+      markRequested = resolve;
+    });
     await page.route('**/_astro/ui-core.*.js', async (route) => {
       markRequested();
       await importGate;
@@ -407,7 +443,10 @@ test.describe('site search dialog', () => {
     await dismissCookieConsentIfVisible(page);
 
     const ready = await openSearchDialog(page);
-    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against astro preview.');
+    test.skip(
+      !ready,
+      'Pagefind is not available in dev mode; this assertion runs against astro preview.'
+    );
 
     const footer = page.locator('[data-testid="search-keyboard-footer"]');
     await expect(footer).toBeVisible();
@@ -430,7 +469,10 @@ test.describe('site search dialog', () => {
     await dismissCookieConsentIfVisible(page);
 
     const ready = await openSearchDialog(page);
-    test.skip(!ready, 'Pagefind is not available in dev mode; keyboard nav runs against astro preview.');
+    test.skip(
+      !ready,
+      'Pagefind is not available in dev mode; keyboard nav runs against astro preview.'
+    );
 
     // Use a query that consistently returns multiple Pagefind hits across
     // the docs index. "aspire" is referenced by virtually every doc page.
@@ -491,7 +533,10 @@ test.describe('site search dialog', () => {
     await dismissCookieConsentIfVisible(page);
 
     const ready = await openSearchDialog(page);
-    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against astro preview.');
+    test.skip(
+      !ready,
+      'Pagefind is not available in dev mode; this assertion runs against astro preview.'
+    );
 
     await typeSearchQuery(page, 'aspire');
 
@@ -528,14 +573,15 @@ test.describe('site search dialog', () => {
     await expect(csharpBtn).not.toHaveAttribute('data-search-active', 'true');
   });
 
-  test('Home/End in the search input do not focus the API/load-more buttons', async ({
-    page,
-  }) => {
+  test('Home/End in the search input do not focus the API/load-more buttons', async ({ page }) => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
     const ready = await openSearchDialog(page);
-    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against astro preview.');
+    test.skip(
+      !ready,
+      'Pagefind is not available in dev mode; this assertion runs against astro preview.'
+    );
 
     await typeSearchQuery(page, 'aspire');
 
