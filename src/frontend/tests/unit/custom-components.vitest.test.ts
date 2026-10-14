@@ -8,6 +8,7 @@ import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
+import CatalogSearchActiveFilters from '@components/CatalogSearchActiveFilters.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
 import ContainerImages from '@components/ContainerImages.astro';
 import ContainerRuntimeChoices from '@components/ContainerRuntimeChoices.astro';
@@ -22,6 +23,7 @@ import GitHubRepoStats from '@components/GitHubRepoStats.astro';
 import HeroSection from '@components/HeroSection.astro';
 import IconAside from '@components/IconAside.astro';
 import IconLinkCard from '@components/IconLinkCard.astro';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import ImageShowcase from '@components/ImageShowcase.astro';
 import InstallAspireCLI from '@components/InstallAspireCLI.astro';
 import InstallCliModal from '@components/InstallCliModal.astro';
@@ -34,11 +36,13 @@ import LicenseBadge from '@components/LicenseBadge.astro';
 import LoopingImage from '@components/LoopingImage.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
 import MediaCard from '@components/MediaCard.astro';
+import NotFoundPage from '@components/NotFoundPage.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
+import ReadableText from '@components/ReadableText.astro';
 import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 import SampleCard from '@components/SampleCard.astro';
 import SampleDetail from '@components/SampleDetail.astro';
@@ -75,6 +79,11 @@ import trTranslations from '../../src/content/i18n/tr.json';
 import ukTranslations from '../../src/content/i18n/uk.json';
 import zhCnTranslations from '../../src/content/i18n/zh-CN.json';
 import { normalizeHtml, renderComponent, type StarlightRoute } from './astro-test-utils';
+import {
+  currentAspireMajorMinorVersion,
+  currentAspireReleaseDate,
+  currentAspireVersion,
+} from '../../config/aspire-versions.mjs';
 
 type BasicRenderCase = {
   name: string;
@@ -82,6 +91,7 @@ type BasicRenderCase = {
   props?: Record<string, unknown>;
   slots?: Record<string, string>;
   includes: string[];
+  excludes?: string[];
   requestUrl?: string;
 };
 
@@ -103,11 +113,81 @@ it.each([
 });
 
 it.each([
-  ['en', 'Scroll to top'], ['fr', 'Retour en haut'], ['pt-BR', 'Voltar ao topo'],
-  ['zh-CN', '回到顶部'], ['es-ES', 'Ir arriba'], ['unknown', 'Scroll to top'],
+  ['ResourceNotificationService', ['Resource', 'Notification', 'Service']],
+  ['RedisResource.withModule', ['Redis', 'Resource.', 'with', 'Module']],
+  ['SQLServerResource', ['SQL', 'Server', 'Resource']],
+  ['IResourceBuilder<RedisResource>', ['I', 'Resource', 'Builder', '<Redis', 'Resource>']],
+])(
+  'identifiers expose readable wrap boundaries without changing their text: %s',
+  async (text, parts) => {
+    const html = await renderComponent(ReadableText, { props: { text } });
+    const rendered = html.trim();
+    expect(rendered.replaceAll('<wbr>', '')).toBe(
+      text.replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    );
+    expect(rendered.split('<wbr>')).toEqual(
+      parts.map((part) => part.replaceAll('<', '&lt;').replaceAll('>', '&gt;'))
+    );
+  }
+);
+
+it.each(['Install Aspire CLI', 'Aspire 13.6', '日本語', 'plain text <script>'])(
+  'readable text preserves ordinary copy and escapes markup: %s',
+  async (text) => {
+    const html = await renderComponent(ReadableText, { props: { text } });
+    expect(html).not.toContain('<script>');
+    expect(html.replaceAll('<wbr>', '').trim()).toBe(
+      text.replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    );
+  }
+);
+
+it.each([
+  {
+    Component: YouTubeEmbed,
+    props: { videoId: 'test', title: null },
+    name: 'YouTube video player',
+  },
+  {
+    Component: TwitchEmbed,
+    props: { channel: 'aspiredotdev', title: ' ' },
+    name: 'Twitch stream player',
+  },
+])(
+  'media embeds retain an accessible name when the title is empty: $name',
+  async ({ Component, props, name }) => {
+    expect(await renderComponent(Component, { props })).toContain(`aria-label="${name}"`);
+  }
+);
+
+it('breadcrumbs retain the nearest linked parent and semantic current page', async () => {
+  const html = await renderComponent(Breadcrumb, {
+    props: {
+      crumbs: [
+        { label: 'Docs', href: '/docs/' },
+        { label: 'Reference' },
+        { label: 'Current type' },
+      ],
+    },
+  });
+  expect(html).toMatch(/class="bc-parent\b[^"]*" href="\/docs\/"/);
+  expect(html).toMatch(/<ol class="bc-inline\b/);
+  expect(html).not.toContain('<details');
+  expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+  expect(html).toContain('aria-current="page"');
+});
+
+it.each([
+  ['en', 'Scroll to top'],
+  ['fr', 'Retour en haut'],
+  ['pt-BR', 'Voltar ao topo'],
+  ['zh-CN', '回到顶部'],
+  ['es-ES', 'Ir arriba'],
+  ['unknown', 'Scroll to top'],
 ])('ScrollToTop renders the existing label for %s', async (lang, label) => {
   const route = {
-    lang, editUrl: '',
+    lang,
+    editUrl: '',
     entry: { id: 'docs/test', slug: 'docs/test', filePath: '', data: {} },
   };
   const html = await renderComponent(ScrollToTop, { locals: { starlightRoute: route } });
@@ -281,6 +361,53 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['<details', 'Expandable summary', 'Expanded body'],
   },
   {
+    name: 'CatalogSearchActiveFilters preserves the localized label for its bundled renderer',
+    Component: CatalogSearchActiveFilters,
+    props: { label: 'Filtres actifs' },
+    includes: [
+      '<catalog-search-active-filters',
+      'data-label="Filtres actifs"',
+      'data-labels="[]"',
+      'hidden',
+    ],
+  },
+  {
+    name: 'InpageSearch keeps its API defaults',
+    Component: InpageSearch,
+    props: {
+      id: 'api',
+      placeholder: 'Search API',
+      kinds: ['class', 'interface'],
+      defaultStatsText: '20 types',
+    },
+    includes: [
+      'id="api-search-input"',
+      '<label class="search-sr-only',
+      'Search API',
+      'data-kind="class"',
+      '20 types',
+    ],
+  },
+  {
+    name: 'InpageSearch supports labeled discovery search and colored topic toggles',
+    Component: InpageSearch,
+    props: {
+      id: 'glossary',
+      label: 'Find a term',
+      placeholder: 'Try AppHost',
+      kinds: ['Foundations', 'Reference'],
+      kindColors: { Foundations: 'var(--sl-color-purple)' },
+      defaultStatsText: '32 terms',
+    },
+    includes: [
+      '<label class="search-field-label',
+      'Find a term',
+      'data-kind="Foundations"',
+      '--filter-color: var(--sl-color-purple)',
+      'aria-pressed="false"',
+    ],
+  },
+  {
     name: 'CTABanner renders calls to action',
     Component: CTABanner,
     props: {
@@ -352,6 +479,21 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['Model distributed apps', 'Learn more', '/get-started/app-host/', '--cap-cols: 2'],
   },
   {
+    name: 'ReleaseCommunity renders the Aspire 13.6 core team roster and release contributors',
+    Component: ReleaseCommunity,
+    props: { version: '13.6' },
+    includes: [
+      'The Aspire core team is',
+      '.png?size=96',
+      'Special thanks to everyone whose pull requests shipped in Aspire 13.6',
+      'https://github.com/marshalhayes',
+      'https://github.com/afscrome',
+      'https://github.com/zhiyuanliang-ms',
+      '/community/contributors/',
+      '/community/contributor-guide/',
+    ],
+  },
+  {
     name: 'ReleaseCommunity renders the core team roster and release contributors',
     Component: ReleaseCommunity,
     props: { version: '13.4' },
@@ -374,7 +516,15 @@ const basicRenderCases: BasicRenderCase[] = [
         { label: 'Aspire.Hosting' },
       ],
     },
-    includes: ['aria-label="Breadcrumb"', '/docs/', 'Reference', 'Aspire.Hosting'],
+    includes: ['aria-label="Breadcrumb"', '/docs/', 'Reference', 'Aspire.<wbr>Hosting'],
+  },
+  {
+    name: 'Breadcrumb renders the shared Dev Hub logo',
+    Component: Breadcrumb,
+    props: {
+      crumbs: [{ label: 'Dev Hub', href: '/hub/', icon: 'dev-hub' }, { label: 'Glossary' }],
+    },
+    includes: ['Dev Hub', '/hub/', 'M3.875 22.125', 'bc-inline'],
   },
   {
     name: 'FeatureShowcase renders feature cards',
@@ -414,7 +564,12 @@ const basicRenderCases: BasicRenderCase[] = [
     name: 'YouTubeEmbed renders a non-autoplaying playlist',
     Component: YouTubeEmbed,
     props: { playlistId: 'UUW_UJkc7RhM_NPcDXnOCfrQ', title: 'Aspire uploads' },
-    includes: ['youtube-nocookie.com/embed/videoseries', 'list=UUW_UJkc7RhM_NPcDXnOCfrQ', 'autoplay=0', 'Aspire uploads'],
+    includes: [
+      'youtube-nocookie.com/embed/videoseries',
+      'list=UUW_UJkc7RhM_NPcDXnOCfrQ',
+      'autoplay=0',
+      'Aspire uploads',
+    ],
   },
   {
     name: 'TwitchEmbed defers its URL until the browser hostname is known',
@@ -569,6 +724,24 @@ const basicRenderCases: BasicRenderCase[] = [
     ],
   },
   {
+    name: 'LoopingImage preserves a single animation source and playback controls',
+    Component: LoopingImage,
+    props: { src: heroImage, alt: 'Animated dashboard' },
+    includes: ['looping-image-toggle', 'Pause animation', 'Animated dashboard'],
+  },
+  {
+    name: 'LoopingImage renders paired animation sources and a no-script fallback',
+    Component: LoopingImage,
+    props: { light: heroImage, dark: heroImage, alt: 'Themed animated dashboard' },
+    includes: [
+      'data-light-src=',
+      'data-dark-src=',
+      'data-themed-animation',
+      '<noscript>',
+      'Pause animation',
+    ],
+  },
+  {
     name: 'LoopingVideo renders sources and toggle button state',
     Component: LoopingVideo,
     props: {
@@ -648,6 +821,10 @@ const basicRenderCases: BasicRenderCase[] = [
       'id="version-select"',
       'data-version="staging"',
       'More installation options',
+      'data-quality="release"',
+      `>${currentAspireVersion}</strong>`,
+      `datetime="${currentAspireReleaseDate}"`,
+      `href="/whats-new/aspire-${currentAspireMajorMinorVersion.replace('.', '-').replace(/-0$/, '')}/"`,
     ],
   },
   {
@@ -938,6 +1115,9 @@ describe('custom Astro component render coverage', () => {
       for (const fragment of testCase.includes) {
         expect(html).toContain(fragment);
       }
+      for (const fragment of testCase.excludes ?? []) {
+        expect(html).not.toContain(fragment);
+      }
     });
   }
 
@@ -1029,6 +1209,23 @@ describe('custom Astro component render coverage', () => {
 
     // Regression: `fit` must not leak onto the rendered <img> as an attribute.
     expect(html).not.toContain('fit="contain"');
+  });
+
+  it('LoopingImage defers themed requests until the page theme is known', async () => {
+    const html = normalizeHtml(
+      await renderComponent(LoopingImage, {
+        props: { light: heroImage, dark: heroImage, alt: 'Themed animation' },
+      })
+    );
+    const animation = [...html.matchAll(/<img\b[^>]*>/g)]
+      .map(([tag]) => tag)
+      .find((tag) => tag.includes('data-light-src=') && tag.includes('data-dark-src='));
+
+    expect(animation).toBeDefined();
+    expect(animation).toContain('data-light-src=');
+    expect(animation).toContain('data-dark-src=');
+    expect(animation).not.toMatch(/\ssrc=/);
+    expect(html).toContain('looping-image-fallback');
   });
 
   it('keeps every statement-player locale complete and preserves technology names', () => {
@@ -1151,7 +1348,18 @@ describe('custom Astro component render coverage', () => {
 
   it('renders SampleGrid controls and sample cards', async () => {
     const html = normalizeHtml(
-      await renderComponent(SampleGrid, { props: { samples: sampleGridSamples } })
+      await renderComponent(SampleGrid, {
+        props: { samples: sampleGridSamples },
+        locals: {
+          t: Object.assign(
+            (key: string) =>
+              enTranslations.catalogSearch[
+                key.replace('catalogSearch.', '') as keyof typeof enTranslations.catalogSearch
+              ] ?? key,
+            { dir: () => 'ltr' as const }
+          ),
+        },
+      })
     );
 
     expect(html).toContain('data-samples-browser');
@@ -1166,17 +1374,14 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('theme-image');
     expect(html).toContain('data-light=');
     expect(html).toContain('data-dark=');
-    expect(html).toContain('Try removing a filter or adjusting your search.');
+    expect(html).toContain(enTranslations.catalogSearch.guidance);
 
-    // The redesigned filter UI replaces the boxy "Filtered by" bar with a
-    // single subtle "Clear all" text link in the results header, and an
-    // embedded `X` icon button inside the search input — the same compact
-    // pattern used by the in-page API search component.
     expect(html).not.toContain('data-active-filter-bar');
-    expect(html).not.toContain('Clear filters');
+    expect(html).toContain('Clear filters');
     expect(html).toContain('data-clear-all');
-    expect(html).toContain('Clear all');
+    expect(html).toContain('Reset all');
     expect(html).toContain('aria-label="Clear search"');
+    expect(html).toContain('aria-live="polite"');
 
     // The browse view persists the active search and tag filters in the
     // URL so a link like `/reference/samples/?q=redis&tags=cache` lands on a
@@ -1372,6 +1577,36 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('Zoom image: Aspire dashboard');
   });
 
+  it('drops markdown tables from plain-text sample descriptions', async () => {
+    const { sampleDescriptionText } = await import('@utils/samples');
+
+    expect(
+      sampleDescriptionText(
+        'Intro paragraph.\n\n| Sample | AppHost |\n| --- | --- |\n| [C# basics](./basics/) | C# |\n\nClosing paragraph.'
+      )
+    ).toBe('Intro paragraph.\n\nClosing paragraph.');
+  });
+
+  it('drops markdown tables missing leading/trailing pipes', async () => {
+    const { sampleDescriptionText } = await import('@utils/samples');
+
+    expect(
+      sampleDescriptionText(
+        'Intro paragraph.\n\nSample | AppHost\n--- | ---\nC# basics | C#\n\nClosing paragraph.'
+      )
+    ).toBe('Intro paragraph.\n\nClosing paragraph.');
+  });
+
+  it('drops markdown tables with alignment markers', async () => {
+    const { sampleDescriptionText } = await import('@utils/samples');
+
+    expect(
+      sampleDescriptionText(
+        'Intro paragraph.\n\n| Sample | AppHost |\n|:---|---:|\n| C# basics | C# |\n\nClosing paragraph.'
+      )
+    ).toBe('Intro paragraph.\n\nClosing paragraph.');
+  });
+
   it('builds sample markdown payload with absolute image URLs and metadata preamble', async () => {
     const { appHostLabel, buildSampleMarkdown } = await import('@utils/samples');
 
@@ -1415,10 +1650,27 @@ describe('custom Astro component render coverage', () => {
   it('renders SessionGrid grouped by timeslot with search controls', async () => {
     const html = normalizeHtml(await renderComponent(SessionGrid, { props: { sessions } }));
 
-    expect(html).toContain('Search sessions');
+    expect(html).toContain('catalogSearch.sessionsLabel');
+    expect(html).toContain('catalogSearch.sessionsEmpty');
+    expect(html).toContain('data-session-recover');
+    expect(html).toContain('aria-live="polite"');
     expect(html).toContain('Shipping distributed apps');
     expect(html).toContain('Observability by default');
     expect(html).toContain('09:00 AM');
+  });
+
+  it('distinguishes empty gallery datasets from zero search matches', async () => {
+    const integrations = await renderComponent(Integrations, {
+      props: { integrations: [], availableDocs: [] },
+    });
+    expect(integrations).toContain('catalogSearch.integrationsUnavailable');
+    expect(integrations).not.toMatch(/<button[^>]*data-integration-recover/);
+    const samples = await renderComponent(SampleGrid, { props: { samples: [] } });
+    expect(samples).toContain('catalogSearch.samplesUnavailable');
+    expect(samples).not.toMatch(/<p[^>]*>catalogSearch.samplesEmpty<\/p>/);
+    const emptySessions = await renderComponent(SessionGrid, { props: { sessions: [] } });
+    expect(emptySessions).toContain('catalogSearch.sessionsUnavailable');
+    expect(emptySessions).not.toContain('catalogSearch.sessionsEmpty');
   });
 
   it('calculates IntegrationTotals targets from package data', async () => {
@@ -1448,6 +1700,17 @@ describe('custom Astro component render coverage', () => {
     expect(lowerIndex).toBeGreaterThanOrEqual(0);
     expect(higherIndex).toBeLessThan(lowerIndex);
     expect(html).toContain('/integrations/higher/docs/');
+  });
+
+  it('renders the custom not-found recovery surface', async () => {
+    const html = normalizeHtml(await renderComponent(NotFoundPage));
+
+    expect(html).toContain('404 / Not found');
+    expect(html).toContain('>Wrong <span');
+    expect(html).toContain('>route?</span>');
+    expect(html).toContain('not-found-map.webp');
+    expect(html).toContain('Go home');
+    expect(html).toContain('Go back');
   });
 
   it('renders current sample metadata from repository data without throwing', async () => {

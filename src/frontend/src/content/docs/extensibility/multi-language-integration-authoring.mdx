@@ -5,6 +5,7 @@ description: Annotate Aspire hosting integrations so they work with TypeScript A
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire hosting integrations are C# libraries that extend the AppHost with new resource types. By default, these integrations are only available in C# AppHosts. To make them available in TypeScript AppHosts, you annotate your APIs with ATS (Aspire Type System) attributes.
 
@@ -651,7 +652,7 @@ Prefer getter-only properties (`=> value;` or `{ get; }` without a setter) when 
 
 ## Callback context types and the ATS-first editor pattern
 
-When you export a method that accepts a callback (such as `withEnvironmentCallback`, `withArgsCallback`, or `withUrls`), the callback receives a _context_ object. For ATS compatibility, context types should follow the ATS-first design:
+When you export a method that accepts a callback (such as `withEnvironmentCallback`, `withArgsCallback`, or <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithUrls" />), the callback receives a _context_ object. For ATS compatibility, context types should follow the ATS-first design:
 
 1. Use `[AspireExport]` (not `ExposeProperties = true`) on the context class.
 2. Annotate only the properties that generated SDK callers need with individual `[AspireExport]` attributes.
@@ -743,6 +744,8 @@ await myResource.withMyCallback(async (context) => {
 :::note
 The `Action<T>` delegate type is ATS-compatible. The TypeScript side receives an async function. If your exported method invokes that synchronous delegate inline, use `RunSyncOnBackgroundThread = true` on `[AspireExport]` so the runtime can process nested async callback responses without blocking the RPC dispatcher.
 :::
+
+Callback parameters typed as `Action<IResourceBuilder<T>>` (a builder for a concrete exported resource type, rather than a plain callback context) are marshalled using that concrete resource type's identity, so generated guest-language wrappers resolve to the correct typed handle at runtime — for example, a Python callback that receives a `RedisCommanderResource` builder can call `with_host_port` on it directly.
 
 ## Services available from callback service providers
 

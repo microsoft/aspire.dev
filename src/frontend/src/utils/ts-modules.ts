@@ -4,6 +4,7 @@
 
 import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
+import { prepareTsApiRoutes } from '@utils/ts-api-routes';
 
 export interface TsFunctionParameter {
   name: string;
@@ -95,7 +96,10 @@ export function getTsModules(): Promise<TsModuleCollectionEntry[]> {
     return getCollection('tsModules');
   }
 
-  tsModulesPromise ??= getCollection('tsModules');
+  tsModulesPromise ??= getCollection('tsModules').then((entries) => {
+    for (const entry of entries) prepareTsApiRoutes(entry.data);
+    return entries;
+  });
   return tsModulesPromise;
 }
 

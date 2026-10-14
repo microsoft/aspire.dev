@@ -7,7 +7,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
-const REQUIRED_FILES = ['./src/data/aspire-integrations.json', './src/data/github-stats.json'];
+const REQUIRED_FILES = ['./src/data/aspire-integrations.json', './src/data/github-stats.json', './src/data/aspire-blog-posts.json'];
 
 function checkDataFiles() {
   const missingFiles = REQUIRED_FILES.filter((file) => {

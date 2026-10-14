@@ -100,13 +100,16 @@ copy/paste guidance that should track the active release, including:
   version.
 - Getting started, installation, or "use this today" examples that should move
   with the release branch.
+- Generic `--version`, `-Version`, or package-installation examples where the
+  exact version is not material to the scenario.
 
 Do **not** require placeholders for intentionally fixed versions, including:
 
 - What's-new or release-note pages that describe a specific historical release.
 - Upgrade examples that deliberately compare old and new versions.
-- CLI examples where the point is pinning a specific version with `--version`,
-  `-Version`, or `Aspire.ProjectTemplates::...`.
+- Compatibility, reproduction, or migration examples where pinning the exact
+  version with `--version`, `-Version`, or `Aspire.ProjectTemplates::...` is
+  material to the scenario.
 - Versioned schema URLs, package compatibility notes, minimum-version
   requirements, third-party dependency versions, container image tags, or issue
   reproduction snippets.

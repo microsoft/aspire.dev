@@ -5,6 +5,7 @@ import { markdownResponse } from '@utils/api-markdown-shared';
 import { renderTypeScriptItemMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsDtoType, TsEnumType, TsFunction, TsHandleType } from '@utils/ts-modules';
 import { getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
+import { getTsItemSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 
 export const prerender = true;
 
@@ -30,9 +31,10 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   for (const entry of packages) {
     const pkg = entry.data;
     const pkgSlug = tsModuleSlug(pkg.package.name);
+    const items = getTsTopLevelRouteItems(pkg);
 
     for (const handle of pkg.handleTypes ?? []) {
-      const itemSlug = tsSlugify(handle.name);
+      const itemSlug = getTsItemSlug(handle, items);
       if (!itemSlug) {
         continue;
       }
@@ -52,7 +54,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
     }
 
     for (const dto of pkg.dtoTypes ?? []) {
-      const itemSlug = tsSlugify(dto.name);
+      const itemSlug = getTsItemSlug(dto, items);
       if (!itemSlug) {
         continue;
       }
@@ -72,7 +74,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
     }
 
     for (const enumType of pkg.enumTypes ?? []) {
-      const itemSlug = tsSlugify(enumType.name);
+      const itemSlug = getTsItemSlug(enumType, items);
       if (!itemSlug) {
         continue;
       }
@@ -91,8 +93,8 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
       });
     }
 
-    for (const fn of (pkg.functions ?? []).filter((candidate) => !candidate.qualifiedName || !candidate.qualifiedName.includes('.'))) {
-      const itemSlug = tsSlugify(fn.name);
+    for (const fn of getTsStandaloneFunctions(pkg)) {
+      const itemSlug = getTsItemSlug(fn, items);
       if (!itemSlug) {
         continue;
       }
@@ -112,7 +114,17 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
     }
   }
 
-  return paths;
+  // Keep previously published base-name exports alongside collision-safe HTML peers.
+  const canonical = new Set(paths.map(({ params }) => `${params.module}/${params.item}`));
+  const legacy = new Map<string, StaticPath>();
+  for (const path of paths) {
+    const item = tsSlugify(path.props.item.name);
+    const key = `${path.params.module}/${item}`;
+    if (item && !canonical.has(key)) {
+      legacy.set(key, { ...path, params: { ...path.params, item } });
+    }
+  }
+  return [...paths, ...legacy.values()];
 }
 
 export const GET: APIRoute = ({ props }) => {

@@ -1,14 +1,26 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 // For deployment: We want to pick AppService as the environment to publish to.
-builder.AddAzureAppServiceEnvironment("production");
+builder.AddAzureAppServiceEnvironment("production")
+    .WithDashboard(false);
 
 var cache = builder.AddAzureManagedRedis("cache")
     .RunAsContainer();
 
 var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
     .WithReference(cache)
-    .WithExternalHttpEndpoints();
+    .WithExternalHttpEndpoints()
+    .PublishAsAzureAppServiceWebsite((infra, website) =>
+    {
+        website.IsEndToEndEncryptionEnabled = true;
+
+        // App Service negotiates HTTP/1.1 unless HTTP/2 is enabled, which limits browsers to six
+        // connections per origin. The landing page loads dozens of small assets, so multiplexing
+        // them over one connection matters most on slow, high-latency links.
+        website.SiteConfig.IsHttp20Enabled = true;
+    });
+
+var frontDoor = builder.AddAzureFrontDoor(staticHostWebsite);
 
 if (builder.ExecutionContext.IsRunMode)
 {
@@ -28,8 +40,10 @@ else
 {
     var secrets = builder.AddAzureKeyVault("secrets");
     staticHostWebsite.WithProductionLiveStatus(builder, secrets);
-}
 
-builder.AddAzureFrontDoor(staticHostWebsite);
+    var logsWorkspace = builder.AddAzureLogAnalyticsWorkspace("workspace-logs");
+    frontDoor.WithDiagnostics(logsWorkspace);
+    cache.WithDiagnostics(logsWorkspace);
+}
 
 builder.Build().Run();

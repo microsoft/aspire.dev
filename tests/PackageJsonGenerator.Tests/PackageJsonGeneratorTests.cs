@@ -7,6 +7,56 @@ namespace PackageJsonGenerator.Tests;
 public sealed class PackageJsonGeneratorTests
 {
     [Fact]
+    public void GeneratePackageJson_PreservesMetadataForInternalGeneratedExports()
+    {
+        using var assembly = TestAssembly.Create(
+            """
+            using System;
+
+            [assembly: GeneratedExports]
+
+            [Aspire.Hosting.AspireExportProvider]
+            [AttributeUsage(AttributeTargets.Assembly)]
+            internal sealed class GeneratedExportsAttribute : Attribute;
+
+            namespace Aspire.Hosting
+            {
+                [AttributeUsage(AttributeTargets.Class)]
+                internal sealed class AspireExportProviderAttribute : Attribute;
+            }
+            """);
+        var outputPath = Path.Combine(assembly.DirectoryPath, "Package.json");
+
+        var generated = PackageJsonGenerator.GeneratePackageJson(
+            assembly.AssemblyPath,
+            assembly.References,
+            outputPath,
+            versionOverride: "13.6.0",
+            packageNameOverride: "Sample.Provisioning",
+            sourceRepoOverride: "https://github.com/microsoft/aspire",
+            sourceCommitOverride: "abc123");
+
+        Assert.True(generated);
+        using var document = JsonDocument.Parse(File.ReadAllText(outputPath));
+        Assert.Empty(document.RootElement.GetProperty("types").EnumerateArray());
+        var package = document.RootElement.GetProperty("package");
+        Assert.True(package.GetProperty("hasGeneratedExports").GetBoolean());
+        Assert.Equal("13.6.0", package.GetProperty("version").GetString());
+        Assert.Equal("abc123", package.GetProperty("sourceCommit").GetString());
+    }
+
+    [Fact]
+    public void GeneratePackageJson_StillSkipsAssembliesWithoutPublicTypesOrGeneratedExports()
+    {
+        using var assembly = TestAssembly.Create("internal sealed class Implementation;");
+        var outputPath = Path.Combine(assembly.DirectoryPath, "Package.json");
+
+        Assert.False(PackageJsonGenerator.GeneratePackageJson(
+            assembly.AssemblyPath, assembly.References, outputPath));
+        Assert.False(File.Exists(outputPath));
+    }
+
+    [Fact]
     public void GeneratePackageJson_WritesSelectedTargetFrameworkMetadata()
     {
         using var assembly = TestAssembly.Create(

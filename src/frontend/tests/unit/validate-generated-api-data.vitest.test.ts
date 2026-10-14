@@ -99,6 +99,48 @@ function createValidInput(): ValidationInput {
 }
 
 describe('validateGeneratedApiData', () => {
+  test('rejects an enum replaced by an empty interface stub', () => {
+    const input = createValidInput();
+    input.modules[0].data.enumTypes = [{ name: 'Sku', members: ['Standard'] }];
+    input.declarations += '\nexport interface Sku {}';
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'Twoslash enum Sku is missing declared SDK members.'
+    );
+
+    input.declarations += '\nexport enum Sku { Standard = "Standard" }';
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+  });
+
+  test('accepts the generated string-union and const-object enum representation', () => {
+    const input = createValidInput();
+    input.modules[0].data.enumTypes = [{ name: 'Sku', members: ['Standard'] }];
+    input.declarations +=
+      '\nexport type Sku = "Standard";\nexport declare const Sku: { readonly Standard: "Standard"; };';
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+  });
+
+  test('requires TypeScript output for generated exports without public C# types', () => {
+    const input = createValidInput();
+    input.packages[0].data.package.hasGeneratedExports = true;
+    input.packages[0].data.types = [];
+    input.packages[0].baseline = undefined;
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+
+    input.modules = [];
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'Missing TypeScript API output for exported package Aspire.Hosting.Foo@1.0.0.'
+    );
+  });
+
+  test('allows the private provisioning generator to have no public API output', () => {
+    const input = createValidInput();
+    input.catalog.push({
+      title: 'Aspire.Hosting.Azure.Provisioning.Generators',
+      version: '1.0.0',
+    });
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+  });
+
   test('accepts semantically faithful generated data', () => {
     expect(validateGeneratedApiData(createValidInput()).errors).toEqual([]);
   });

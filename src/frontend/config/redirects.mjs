@@ -41,6 +41,9 @@ function getLatestWhatsNewSlug() {
 const latestWhatsNewSlug = getLatestWhatsNewSlug();
 
 export const redirects = {
+  '/app-host/terminal-service/': '/dashboard/ephemeral-terminals/',
+  '/app-host/terminal-automation/': '/dashboard/automate-terminals/',
+  '/dashboard/terminal-automation/': '/dashboard/terminal-tape-playback/',
   // https://docs.astro.build/en/guides/routing/#configured-redirects
   // For example:
   // '/original/path/': '/new/path'

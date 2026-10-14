@@ -29,6 +29,7 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
           permission-contents: write
+          permission-pull-requests: write
 
       - name: Find active release branch
         id: find-branch
@@ -58,8 +59,35 @@ jobs:
             echo "branch=$branch" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Checkout release branch
+      - name: Check for an open repair PR
+        id: repair-pr
         if: ${{ steps.find-branch.outputs.branch != '' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.find-branch.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # An open repair PR means a human already owes this release a conflict
+          # resolution; syncing again would only repeat the same conflict.
+          # Match the head owner so a fork branch with the same name can't pause syncing.
+          existing=$(gh api --method GET "repos/$GH_REPO/pulls" \
+            -f state=open \
+            -f head="${GH_REPO%%/*}:release-sync/${BRANCH#release/}" \
+            -f base="$BRANCH" \
+            --jq '.[0].html_url // empty')
+
+          if [[ -n "$existing" ]]; then
+            echo "::notice::Skipping sync: repair PR $existing is still open."
+            echo "## Release sync skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "Repair PR $existing is open. Resolve and merge it with **Create a merge commit** to resume syncing." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "url=$existing" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release branch
+        if: ${{ steps.find-branch.outputs.branch != '' && steps.repair-pr.outputs.url == '' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.find-branch.outputs.branch }}
@@ -67,14 +95,15 @@ jobs:
           fetch-depth: 0
 
       - name: Configure git identity
-        if: ${{ steps.find-branch.outputs.branch != '' }}
+        if: ${{ steps.find-branch.outputs.branch != '' && steps.repair-pr.outputs.url == '' }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Merge main into release branch
-        if: ${{ steps.find-branch.outputs.branch != '' }}
+        id: merge
+        if: ${{ steps.find-branch.outputs.branch != '' && steps.repair-pr.outputs.url == '' }}
         env:
           BRANCH: ${{ steps.find-branch.outputs.branch }}
         shell: bash
@@ -87,5 +116,100 @@ jobs:
           # Checkout is on release; always run the helper from the pinned main
           # commit, including when release has not received the helper yet.
           git show "$MAIN_SHA:.github/scripts/merge-main-into-release.sh" > "$RUNNER_TEMP/merge-main-into-release.sh"
-          bash "$RUNNER_TEMP/merge-main-into-release.sh" "$MAIN_SHA" "$BRANCH"
-          git push origin "HEAD:refs/heads/$BRANCH"
+
+          status=0
+          # Buffer the helper's summary: its manual-recovery guidance is wrong
+          # when the repair PR step below handles the conflict automatically.
+          probe_summary="$RUNNER_TEMP/release-sync-summary.md"
+          : > "$probe_summary"
+          GITHUB_STEP_SUMMARY="$probe_summary" \
+            bash "$RUNNER_TEMP/merge-main-into-release.sh" "$MAIN_SHA" "$BRANCH" || status=$?
+          if [[ "$status" -ne 3 ]]; then
+            cat "$probe_summary" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          case "$status" in
+            0)
+              git push origin "HEAD:refs/heads/$BRANCH"
+              ;;
+            3)
+              # Real conflicts: the helper aborted cleanly, so hand off to the repair PR step.
+              echo "needs-repair=true" >> "$GITHUB_OUTPUT"
+              echo "main-sha=$MAIN_SHA" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              exit "$status"
+              ;;
+          esac
+
+      - name: Open repair PR for conflicts
+        if: ${{ steps.merge.outputs.needs-repair == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.find-branch.outputs.branch }}
+          MAIN_SHA: ${{ steps.merge.outputs.main-sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repair_branch="release-sync/${BRANCH#release/}"
+          conflicts_file="$RUNNER_TEMP/release-sync-conflicts.txt"
+
+          # The failed attempt was aborted, so HEAD is still the release tip.
+          # The repair branch is bot-owned and rolling: reset any stale leftover.
+          git checkout -B "$repair_branch"
+          RELEASE_SYNC_CONFLICTS_FILE="$conflicts_file" \
+            bash "$RUNNER_TEMP/merge-main-into-release.sh" "$MAIN_SHA" "$BRANCH" --commit-conflicts
+          [[ -s "$conflicts_file" ]] || { echo "::error::Repair merge reported no conflicts."; exit 1; }
+          git push --force origin "HEAD:refs/heads/$repair_branch"
+
+          body_file="$RUNNER_TEMP/release-sync-pr-body.md"
+          {
+            echo "## Summary"
+            echo
+            echo "Merging \`main\` (\`$MAIN_SHA\`) into \`$BRANCH\` hit conflicts that the release sync can't resolve automatically. This branch holds the merge with the conflicts left for you to resolve."
+            echo
+            echo "### Text conflicts (markers left in the file)"
+            echo
+            awk -F'\t' '$1 == "text" { print "- `" $2 "`" }' "$conflicts_file"
+            echo
+            echo "### Needs a decision (no markers)"
+            echo
+            echo "Git can't mark these, so this branch currently keeps one side. Review each and choose deliberately:"
+            echo
+            awk -F'\t' '
+              $1 == "binary" { print "- `" $2 "`: binary file changed on both sides; the release copy is kept. Take main with `git checkout " ENVIRON["MAIN_SHA"] " -- \"" $2 "\"`." }
+              $1 == "deleted-on-main" { print "- `" $2 "`: deleted on main, modified on release; the release copy is kept. Delete it with `git rm \"" $2 "\"` if the deletion should win." }
+              $1 == "deleted-on-release" { print "- `" $2 "`: deleted on release, modified on main; the main copy is kept. Delete it with `git rm \"" $2 "\"` if the deletion should win." }
+            ' "$conflicts_file"
+            echo
+            echo "To land it:"
+            echo
+            echo "1. Check out \`$repair_branch\` and resolve each item above without discarding release-only work."
+            echo "2. Push the fix, mark the PR ready for review, and wait for checks."
+            echo "3. Merge with **Create a merge commit**, never squash or rebase. Copying content alone doesn't repair ancestry."
+            echo
+            echo "Release sync is paused while this PR is open. After it merges, verify \`git merge-base --is-ancestor $MAIN_SHA origin/$BRANCH\`; the next push to main resumes syncing."
+            echo
+            echo "## Third-party links and affiliations"
+            echo
+            echo "None"
+            echo
+            echo "## Validation"
+            echo
+            echo "Automated merge of \`main\` into \`$BRANCH\`. Not validated: conflicts are unresolved."
+          } > "$body_file"
+
+          pr_url=$(gh pr create \
+            --draft \
+            --base "$BRANCH" \
+            --head "$repair_branch" \
+            --title "Resolve release sync conflicts for $BRANCH" \
+            --body-file "$body_file")
+
+          echo "::warning::Release sync needs human review: $pr_url"
+          {
+            echo "## Release sync needs human review"
+            echo "Opened repair PR: $pr_url"
+          } >> "$GITHUB_STEP_SUMMARY"

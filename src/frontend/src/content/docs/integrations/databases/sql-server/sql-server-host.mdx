@@ -9,6 +9,7 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import sqlIcon from '@assets/icons/sql-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={sqlIcon}
@@ -146,7 +147,7 @@ IF (NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = @DatabaseName))
     CREATE DATABASE [<QUOTED_DATABASE_NAME>];
 ```
 
-To supply a custom creation script, call `WithCreationScript` (or `withCreationScript`) on the database resource builder:
+To supply a custom creation script, call <ApiReference name="Aspire.Hosting.SqlServerBuilderExtensions.WithCreationScript" /> on the database resource builder:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -373,7 +374,7 @@ When no `password` parameter is provided, Aspire generates a strong password aut
 
 ## Use a specific SQL Server container image tag
 
-To pin the SQL Server container to a specific release, call `WithImageTag` (or `withImageTag`):
+To pin the SQL Server container to a specific release, call <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithImageTag" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -464,7 +465,7 @@ await builder.build().run();
 
 ## Connect to an existing SQL Server instance
 
-To reference an externally managed SQL Server instance instead of running one as a container, use `AddConnectionString`:
+To reference an externally managed SQL Server instance instead of running one as a container, use <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -555,6 +556,55 @@ When the AppHost runs, the server's database resources can be accessed from exte
         </LearnMore>
     </TabItem>
 </Tabs>
+
+<span id="add-sql-server-resource-with-a-repl-command"></span>
+
+## Open an interactive REPL
+
+In Aspire 13.6 or later, add <ApiReference name="Aspire.Hosting.SqlServerBuilderExtensions.WithRepl" /> to the SQL Server resource to enable a **REPL** command that opens `sqlcmd` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addSqlServer('sql').withRepl();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddSqlServer("sql").WithRepl();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The command is opt-in and available only in run mode while the container is running. The client runs inside the container as `sa`, connected to the `master` database, so no local SQL client is needed. It uses the configured password without putting it in command-line arguments and trusts the local server's self-signed certificate, matching the integration's local development connection string.
+
+The command supports `/opt/mssql-tools18/bin/sqlcmd` in newer SQL Server images and `/opt/mssql-tools/bin/sqlcmd` in older images. Custom images must include one of these clients.
+
+Enter SQL statements followed by `GO` on its own line to execute a batch:
+
+```sql title="Execute a SQL batch"
+SELECT DB_NAME();
+GO
+```
+
+Use `USE [db];` followed by `GO` to switch databases, and `QUIT` to exit before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client runs as `sa`, can modify or delete data, and can execute server-side operating system commands when enabled. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
+:::
 
 ## Connection properties
 

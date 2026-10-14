@@ -6,13 +6,14 @@ description: Configure HTTPS endpoints and certificate trust for Aspire resource
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire provides two complementary sets of certificate APIs:
 
 1. **HTTPS endpoint APIs**: Configure the certificates that resources use for their own HTTPS endpoints (server authentication)
 2. **Certificate trust APIs**: Configure which certificates resources trust when making outbound HTTPS connections (client authentication)
 
-Both sets of APIs work together to enable secure HTTPS communication during local development. For example, a Vite frontend might use `WithHttpsDeveloperCertificate` to serve HTTPS traffic, while also using `WithDeveloperCertificateTrust` to trust the dashboard's <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint certificate.
+Both sets of APIs work together to enable secure HTTPS communication during local development. For example, a Vite frontend might use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpsDeveloperCertificate" /> to serve HTTPS traffic, while also using <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithDeveloperCertificateTrust" /> to trust the dashboard's <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint certificate.
 
 <Aside type="caution">
   Certificate customization only applies at run time. Custom certificates aren't
@@ -98,6 +99,26 @@ aspire certs trust
   You may need to reload your profile or start a new terminal session for the change to take effect.
 </Aside>
 
+<Aside type="note" title="Firefox certificate trust on Linux">
+  On Linux, `aspire certs trust` and `aspire certs clean` also import and remove the development certificate from any Firefox and Chromium-family (Chrome, Chromium, Edge) NSS certificate databases discovered on the machine, so browser-based access to HTTPS endpoints secured by the development certificate works without a manual import.
+
+  Browser certificate trust depends on the `certutil` tool to update browser-specific NSS certificate databases. If certificate trust isn't working in your browser after running `aspire certs trust`, run [`aspire doctor`](/reference/cli/commands/aspire-doctor/) to check for missing prerequisites, including `certutil`.
+
+  Firefox profiles are discovered under the legacy `~/.mozilla/firefox` directory when it exists; if that directory does not exist, the CLI falls back to `$XDG_CONFIG_HOME/mozilla/firefox` (or `~/.config/mozilla/firefox` when `XDG_CONFIG_HOME` isn't set). Firefox Snap profiles are discovered separately under `~/snap/firefox/common/.mozilla/firefox`. Chromium-family databases are discovered under `~/.pki/nssdb` and the Chromium Snap package's `~/snap/chromium/current/.pki/nssdb`.
+
+  To trust or clean specific NSS databases instead of relying on auto-discovery, configure `certificates.nssDbPaths` as a `:`-separated list of NSS database directories. Firefox and Chromium-family browsers require different trust settings; prefix a custom NSS database path with `firefox=` to apply the correct trust settings for Firefox-based browsers or prefix it with `chromium=` to apply Chromium-family trust settings. If no prefix is specified, Chromium-family trust settings are the default.
+
+  ```bash title="Override the NSS databases used for certificate trust"
+  aspire config set --global certificates.nssDbPaths "firefox=/path/to/firefox-profile:chromium=/path/to/chromium-nssdb"
+  ```
+
+  This setting takes precedence over the `DOTNET_DEV_CERTS_NSSDB_PATHS` environment variable used by the .NET SDK's `dotnet dev-certs`. To stop using the custom paths and restore the environment variable or automatic discovery fallback, set the global value to an empty string:
+
+  ```bash title="Restore NSS database auto-discovery"
+  aspire config set --global certificates.nssDbPaths ""
+  ```
+</Aside>
+
 ### Developer certificate for DCP communication
 
 By default, Aspire uses the ASP.NET Core developer certificate to secure communication with its internal Developer Control Plane (DCP) server. This replaces the ephemeral localhost certificate that DCP would otherwise generate itself, and avoids certificate trust errors caused by that certificate not being in the system trust store.
@@ -131,7 +152,7 @@ HTTPS endpoint configuration determines which certificate a resource presents wh
 
 ### Default behavior
 
-For resources that have a certificate configuration defined with `WithHttpsCertificateConfiguration`, Aspire attempts to configure it to use the development certificate if available. This automatic configuration works for many common resource types including YARP, Redis, and Keycloak containers; Vite based JavaScript apps; and Python apps using Uvicorn.
+For resources that have a certificate configuration defined with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpsCertificateConfiguration" />, Aspire attempts to configure it to use the development certificate if available. This automatic configuration works for many common resource types including YARP, Redis, and Keycloak containers; Vite based JavaScript apps; and Python apps using Uvicorn.
 
 You can control this behavior using the HTTPS endpoint APIs described below.
 
@@ -271,7 +292,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-Use `WithoutHttpsCertificate` when:
+Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithoutHttpsCertificate" /> when:
 
 - The resource doesn't support HTTPS
 - You want to manually configure certificates
@@ -350,6 +371,20 @@ The callback receives an `HttpsCertificateConfigurationCallbackAnnotationContext
 - `EnvironmentVariables`: Environment variables dictionary to modify
 - `ExecutionContext`: The current execution context
 - `Resource`: The resource being configured
+
+<Aside type="note">
+  For .NET project resources with a TLS-enabled endpoint, `WithProjectDefaults`
+  maps the available HTTPS certificate to Kestrel's default PFX certificate
+  environment variables (`Kestrel__Certificates__Default__Path` and
+  `Kestrel__Certificates__Default__Password`). If an earlier
+  `WithHttpsCertificateConfiguration` callback already set
+  `Kestrel__Certificates__Default__Path`, `Kestrel__Certificates__Default__KeyPath`,
+  or `Kestrel__Certificates__Default__Subject` (matched case-insensitively), the
+  default PFX mapping is skipped entirely and the existing certificate
+  configuration — including any password — is left untouched. This prevents
+  Aspire from mixing an explicit PEM certificate/key pair with a replaced PFX
+  path, which Kestrel can't load.
+</Aside>
 
 ## Certificate trust configuration
 
@@ -446,7 +481,7 @@ In the preceding example, the certificate bundle is created with custom certific
 
 Certificate trust scopes control how custom certificates interact with a resource's default trusted certificates. Different scopes provide flexibility in managing certificate trust based on your application's requirements.
 
-The `WithCertificateTrustScope` API accepts a `CertificateTrustScope` value to specify the trust behavior.
+The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithCertificateTrustScope" /> API accepts a `CertificateTrustScope` value to specify the trust behavior.
 
 #### Available trust scopes
 
@@ -643,7 +678,7 @@ Default implementations are provided for Node.js, Python, and container resource
 
 #### Configure container certificate paths
 
-For container resources, you can customize where certificates are stored and accessed using `WithContainerCertificatePaths`:
+For container resources, you can customize where certificates are stored and accessed using <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithContainerCertificatePaths" />:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);

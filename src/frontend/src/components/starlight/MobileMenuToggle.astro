@@ -1,0 +1,165 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+---
+
+<starlight-menu-button class="print:hidden" aria-expanded="false">
+  <button
+    type="button"
+    aria-expanded="false"
+    aria-controls="starlight__sidebar"
+    aria-label={Astro.locals.t('menuButton.accessibleLabel')}
+    class="sl-flex md:sl-hidden"
+  >
+    <Icon name="bars" class="open-menu" />
+    <Icon name="close" class="close-menu" />
+  </button>
+</starlight-menu-button>
+
+<script>
+  class MobileMenuButton extends HTMLElement {
+    private listeners?: AbortController;
+
+    connectedCallback() {
+      this.listeners?.abort();
+      this.listeners = new AbortController();
+      const { signal } = this.listeners;
+      const button = this.querySelector('button');
+      const nav = this.closest('nav');
+      if (!button || !nav) return;
+      button.addEventListener(
+        'click',
+        () => this.setExpanded(this.getAttribute('aria-expanded') !== 'true'),
+        { signal }
+      );
+      nav.addEventListener(
+        'click',
+        (event) => {
+          if (
+            !event.defaultPrevented &&
+            event.target instanceof Element &&
+            event.target.closest('a[href], .mobile-site-links button')
+          ) {
+            this.setExpanded(false);
+          }
+        },
+        { signal }
+      );
+      document.addEventListener(
+        'keydown',
+        (event) => {
+          if (this.getAttribute('aria-expanded') !== 'true') return;
+          if (event.target instanceof Element && event.target.closest('[role="dialog"], dialog'))
+            return;
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            const restoreFocus = nav.contains(document.activeElement);
+            this.setExpanded(false);
+            if (restoreFocus) button.focus();
+          } else if (event.key === 'Tab') {
+            const header = document.querySelector('header.header');
+            const controls = [header, nav]
+              .flatMap((root) =>
+                Array.from(
+                  root?.querySelectorAll<HTMLElement>('a[href], button, input, select, summary') ??
+                    []
+                )
+              )
+              .filter(
+                (element) =>
+                  element.tabIndex >= 0 &&
+                  element.checkVisibility() &&
+                  !element.matches(':disabled') &&
+                  !element.closest('[inert]')
+              );
+            const first = controls[0];
+            const last = controls.at(-1);
+            if (event.shiftKey && document.activeElement === first && last) {
+              event.preventDefault();
+              last.focus();
+            } else if (!event.shiftKey && document.activeElement === last && first) {
+              event.preventDefault();
+              first.focus();
+            }
+          }
+        },
+        { signal }
+      );
+      document.addEventListener(
+        'click',
+        (event) => {
+          if (event.target instanceof Element && event.target.closest('.live-source-menu')) return;
+          if (event.target instanceof Node && !nav.contains(event.target)) this.setExpanded(false);
+        },
+        { signal }
+      );
+      document.addEventListener('astro:before-swap', () => this.setExpanded(false), { signal });
+      window.addEventListener(
+        'resize',
+        () => {
+          if (!button.checkVisibility()) this.setExpanded(false);
+        },
+        { signal }
+      );
+    }
+
+    disconnectedCallback() {
+      this.setExpanded(false);
+      this.listeners?.abort();
+    }
+
+    private setExpanded(expanded: boolean) {
+      this.setAttribute('aria-expanded', String(expanded));
+      this.querySelector('button')?.setAttribute('aria-expanded', String(expanded));
+      document.body.toggleAttribute('data-mobile-menu-expanded', expanded);
+      document
+        .querySelectorAll<HTMLElement>('.main-frame, .sl-skip-link')
+        .forEach((element) => element.toggleAttribute('inert', expanded));
+    }
+  }
+  if (!customElements.get('starlight-menu-button'))
+    customElements.define('starlight-menu-button', MobileMenuButton);
+</script>
+
+<style>
+  button {
+    position: fixed;
+    top: calc((var(--sl-nav-height) - var(--sl-menu-button-size)) / 2);
+    inset-inline-end: var(--sl-nav-pad-x);
+    z-index: var(--sl-z-index-navbar);
+    width: var(--sl-menu-button-size);
+    height: var(--sl-menu-button-size);
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg-nav);
+    color: var(--sl-color-text);
+    cursor: pointer;
+  }
+  button :global(svg) {
+    width: var(--aspire-icon-size);
+    height: var(--aspire-icon-size);
+    --sl-icon-size: var(--aspire-icon-size) !important;
+  }
+  [aria-expanded='true'] .open-menu,
+  [aria-expanded='false'] .close-menu {
+    display: none;
+  }
+  button:hover,
+  [aria-expanded='true'] button {
+    background: var(--sl-color-gray-6);
+  }
+  button:focus-visible {
+    outline: 2px solid var(--aspire-action-focus);
+    outline-offset: 2px;
+  }
+  :global(body[data-mobile-menu-expanded]) {
+    overflow: hidden;
+  }
+  @media (max-width: 49.999rem) {
+    button {
+      top: var(--sl-nav-pad-y);
+    }
+  }
+</style>

@@ -1,18 +1,14 @@
 ---
-title: Get started with Java and Aspire
-description: Run Java applications with Aspire, model executable and container resources, and configure Maven or Gradle development workflows.
+title: Get started with the Java integration
+seoTitle: 'Get started with Java in Aspire: Spring Boot and Quarkus'
+description: Run Spring Boot, Quarkus, and other Java apps from your Aspire AppHost with Maven or Gradle builds, OpenTelemetry, debugging, and generated Dockerfiles.
+category: quickstart
+prev: false
 ---
 
-import {
-  Badge,
-  LinkButton,
-  TabItem,
-  Tabs,
-} from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import javaIcon from '@assets/icons/java-icon.png';
-
-<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
 <Image
   src={javaIcon}
@@ -24,70 +20,90 @@ import javaIcon from '@assets/icons/java-icon.png';
   data-zoom-off
 />
 
-The [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) Java hosting integration adds Java executable and container applications to your [AppHost](/get-started/app-host/). It supports Maven and Gradle wrapper workflows, running an existing JAR, and container images.
+[Java](https://dev.java/) is a general-purpose, object-oriented language whose apps run on the Java Virtual Machine (JVM). It powers popular frameworks such as [Spring Boot](https://spring.io/projects/spring-boot) and [Quarkus](https://quarkus.io/). The Aspire Java hosting integration lets you model Java apps as first-class resources in your AppHost — whether they run through a [Maven](https://maven.apache.org/) or [Gradle](https://gradle.org/) wrapper, from a prebuilt JAR, or from a container image built elsewhere — and connect them to the rest of your app, regardless of the language each part is written in.
 
-## How the integration works
+:::note[New in Aspire 13.6]
+[📦 Aspire.Hosting.Java](https://www.nuget.org/packages/Aspire.Hosting.Java) is the official Java hosting integration. It replaces [📦 CommunityToolkit.Aspire.Hosting.Java](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Java) for Aspire 13.6 and later. If you use the Community Toolkit package, see [Migrate from the Community Toolkit](/integrations/frameworks/java/java-host/#migrate-from-the-community-toolkit).
+:::
 
-The integration is a hosting integration: install it in the AppHost, create a Java app resource, and apply a launch mode. An executable resource runs the local Java command, Maven wrapper, or Gradle wrapper from the configured project directory. A container resource runs an image. Both resource types can have endpoints, environment variables, health checks, and references configured through the AppHost.
+## Why use Java with Aspire
 
-Build helpers create setup resources that the executable application waits for during local development. JVM arguments and optional OpenTelemetry Java-agent configuration are supplied through `JAVA_TOOL_OPTIONS`.
+Adding Java apps through Aspire — rather than starting each JVM by hand and wiring up ports, URLs, and credentials yourself — gives you:
+
+- **Framework-aware defaults.** Spring Boot and Quarkus apps are added with a single call. Aspire detects Maven or Gradle from the project's build file, launches the framework's own run goal, and delivers the app's port through the environment variable the framework already reads.
+- **Builds that run for you.** Aspire launches and builds apps with the Maven or Gradle wrapper checked into each project — the same pinned tool version that your CI and your published images use — and runs a build first when an app needs one, such as a JAR that must exist before it starts.
+- **Telemetry in the dashboard.** Every Java resource receives the standard OpenTelemetry exporter settings. Attach the OpenTelemetry Java agent for automatic instrumentation, or use the Quarkus OpenTelemetry extension, which Aspire points at the dashboard during local runs.
+- **Service discovery and connection information.** Reference a Java app from another resource — or reference databases, caches, and other services from a Java app — and Aspire injects URLs and connection details as environment variables that your framework's configuration system can read.
+- **Trusted development certificates.** Aspire gives each JVM a trust store that contains the development certificate along with the system root certificates, so HTTPS calls between local resources work without turning off certificate validation.
+- **Debugging and publishing.** Debug Java apps in VS Code with the standard Aspire debugging flow, and publish them as container images built from your own Dockerfile or from one that Aspire generates.
 
 ## Prerequisites
 
-- Install a compatible [JDK](https://adoptium.net/) and ensure `java` is available on your `PATH` for executable resources.
-- Include the Maven or Gradle wrapper in your Java project and ensure its script is executable when you use those launch modes.
-- Install the [Aspire CLI](/get-started/install-cli/) and meet the [Aspire prerequisites](/get-started/prerequisites/).
-- Download the [OpenTelemetry Java agent](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases) if you plan to configure an agent path.
+- A JDK that matches the Java version your app targets, with `java` on your `PATH`, for each Java app that the AppHost runs locally. Aspire doesn't install a JDK; one option is [Eclipse Temurin](https://adoptium.net/). A Java app that runs from a container image uses the JDK inside that image.
+- For apps built or launched with Maven or Gradle, the project's wrapper (`mvnw` or `gradlew`), checked into the app directory or into the root of its multi-module build. Aspire doesn't fall back to a globally installed `mvn` or `gradle`. To publish an app with a Dockerfile that Aspire generates, its wrapper must be in the app directory. An app that runs a prebuilt JAR doesn't need a wrapper.
+- To debug in VS Code, the [Language Support for Java](https://marketplace.visualstudio.com/items?itemName=redhat.java) and [Debugger for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-debug) extensions.
+- The [Aspire CLI](/get-started/install-cli/), along with the other [Aspire prerequisites](/get-started/prerequisites/).
 
-## Add a Java app
+:::note
+A C# or TypeScript AppHost can host Java apps that target any JDK version. Writing the AppHost itself in Java is a separate scenario that requires JDK 25 or later.
+:::
 
-Add `CommunityToolkit.Aspire.Hosting.Java` to the AppHost, then configure an executable Java application. This short example runs a Spring Boot application through its Maven wrapper:
+## How the pieces fit together
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+The Java integration is a **hosting integration**. You install it in your AppHost and add a resource for each Java app. When a Java app starts, Aspire runs it through the project's wrapper or the `java` launcher, supplies its configuration as environment variables, and shows its logs, status, and telemetry in the dashboard.
 
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+```mermaid
+architecture-beta
 
-var api = builder.AddJavaApp("java-api", "../java-api")
-    .WithMavenGoal("spring-boot:run")
-    .WithHttpEndpoint(targetPort: 8080, env: "SERVER_PORT")
-    .WithHttpHealthCheck("/health");
+  group apphost(server)[AppHost]
+  group javaapp(server)[Java app]
 
-builder.Build().Run();
+  service hosting(server)[Java hosting integration] in apphost
+  service resource(logos:java)[Java app resource] in apphost
+  service launcher(server)[Wrapper or java launcher] in javaapp
+  service app(logos:java)[JVM process] in javaapp
+
+  hosting:R --> L:resource
+  resource:R --> L:launcher
+  launcher:R --> L:app
 ```
 
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+There's no Aspire client package for Java. Your app reads the environment variables Aspire injects through its framework's standard configuration system — Spring Boot properties, Quarkus configuration, or plain `System.getenv` calls — and exports telemetry with the OpenTelemetry Java agent or the Quarkus OpenTelemetry extension.
 
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
+Getting there is a two-step process: model your Java apps in the AppHost, then connect them to — and from — the other resources in your app.
 
-const builder = await createBuilder();
+<Steps>
 
-const api = await builder
-  .addJavaApp('java-api', '../java-api')
-  .withMavenGoal('spring-boot:run', [])
-  .withHttpEndpoint({ targetPort: 8080, env: 'SERVER_PORT' })
-  .withHttpHealthCheck({ path: '/health' });
+1. ### Model Java apps in your AppHost
 
-await builder.build().run();
-```
+    Add the Java hosting integration to your AppHost, then declare a resource for each Java app. The [Set up Java apps in the AppHost](/integrations/frameworks/java/java-host/) article walks through every capability — Spring Boot and Quarkus apps, Maven goals and Gradle tasks, prebuilt JARs and containers, JVM options, the OpenTelemetry Java agent, debugging, and publishing — with side-by-side TypeScript and C# examples.
 
-</TabItem>
-</Tabs>
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/frameworks/java/java-host/'>
+        Set up Java apps in the AppHost
+    </LinkButton>
 
-<LinkButton
-  variant="secondary"
-  iconPlacement="end"
-  icon="right-arrow"
-  href="/integrations/frameworks/java/java-host/"
->
-  Set up Java apps in the AppHost
-</LinkButton>
+2. ### Connect to and from your Java apps
+
+    When you reference a Java app from another resource, Aspire injects the app's URLs into that resource. When you reference other resources from a Java app, Aspire injects their connection information into the JVM. See [Connect to Java apps](/integrations/frameworks/java/java-connect/) for the environment variable reference, examples in C#, Go, Python, and TypeScript, and how Spring Boot, Quarkus, and plain Java apps read Aspire configuration.
+
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/frameworks/java/java-connect/'>
+        Connect to Java apps
+    </LinkButton>
+
+</Steps>
 
 ## See also
 
-- [Java documentation](https://dev.java/learn/)
-- [Java AppHost API reference](/integrations/frameworks/java/java-host/)
+- [Learn Java](https://dev.java/learn/)
+- [Spring Boot documentation](https://docs.spring.io/spring-boot/)
+- [Quarkus guides](https://quarkus.io/guides/)
+- [OpenTelemetry Java agent](https://opentelemetry.io/docs/zero-code/java/agent/)
 - [Aspire integrations overview](/integrations/overview/)

@@ -15,6 +15,9 @@ export default defineConfig({
     include: [
       'tests/unit/structured-data.vitest.test.ts',
       'tests/unit/update-integrations.vitest.test.ts',
+      'tests/unit/validate-generated-api-data.vitest.test.ts',
+      'tests/unit/supplement-ats-enums.vitest.test.ts',
+      'tests/unit/cli-config-schema.vitest.test.ts',
     ],
     environment: 'node',
     testTimeout: 30000,

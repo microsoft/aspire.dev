@@ -7,6 +7,7 @@ import { Kbd } from 'starlight-kbd/components'
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import azureIcon from '@assets/icons/azure-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={azureIcon}
@@ -19,13 +20,62 @@ import azureIcon from '@assets/icons/azure-icon.png';
 
 Aspire provides a comprehensive set of integrations for Azure services that enable you to build cloud-native distributed applications. These integrations handle configuration, health checks, telemetry, and deployment for various Azure services. Use the AppHost APIs to model Azure resources alongside your application services—Aspire provisions them automatically during local development and generates Bicep templates for production deployments. Both C# and TypeScript AppHosts are supported, with consistent API conventions across all Azure integrations.
 
+## Connect your app to Azure Blob Storage
+
+From your AppHost directory, run `aspire add azure-storage`. This example connects an existing `Api` project to blob storage backed by the local Azurite emulator. You need a [container runtime](/get-started/prerequisites/), but not an Azure subscription, to run this example.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage('storage');
+await storage.runAsEmulator();
+const blobs = await storage.addBlobs('blobs');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(blobs);
+await api.waitFor(blobs);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var blobs = builder.AddAzureStorage("storage")
+    .RunAsEmulator()
+    .AddBlobs("blobs");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(blobs)
+    .WaitFor(blobs);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The resource reference supplies connection information to your API, and the startup dependency waits for blob storage to be ready. Your app still uses a Blob Storage client to read and write data—you don't need to copy emulator endpoints or connection strings into its configuration. The emulator is only for local runs; publishing models an Azure Storage account.
+
+- [Connect to Azure Blob Storage](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-connect/) to add the consuming client.
+- [Configure the hosting integration](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-host/) for blob containers, persistent emulator data, and existing accounts.
+- [Deploy to Azure Container Apps](/deployment/azure/container-apps/) when you're ready to deploy your application and Azure resources.
+
 ## Why use Azure with Aspire?
 
 - **Unified app model**: Define Azure services and application code side-by-side in a single AppHost project.
 - **Frictionless local development**: Aspire provisions real Azure resources (or emulators/containers) automatically when you run your app locally.
 - **Observability built in**: Azure client integrations wire up health checks, distributed tracing, and metrics out of the box.
 - **Bicep-first deployment**: Aspire generates Bicep templates from your app model, giving you full control over what's deployed to Azure.
-- **Consistent API patterns**: All Azure integrations share common `AddAzure*`, `RunAs*`, `PublishAs*`, and `AsExisting` conventions.
+- **Consistent API patterns**: All Azure integrations share common `AddAzure*`, `RunAs*`, `PublishAs*`, and <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" /> conventions.
 
 ## What are Azure integrations?
 
@@ -56,7 +106,7 @@ Some Azure services can be emulated to run locally. Currently, Aspire supports t
 |--|--|
 | [Azure App Configuration](/integrations/cloud/azure/azure-app-configuration/azure-app-configuration-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureAppConfigurationResource>` to configure the Azure App Configuration resource to be [emulated with the Azure App Configuration Emulator](https://learn.microsoft.com/azure/azure-app-configuration/emulator-overview). |
 | [Azure Cosmos DB](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureCosmosDBResource>` to configure the Cosmos DB resource to be [emulated with the NoSQL API](https://learn.microsoft.com/azure/cosmos-db/how-to-develop-emulator). |
-| [Microsoft Foundry](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/) | Call `RunAsFoundryLocal` on the `IResourceBuilder<FoundryResource>` to configure the resource to be [emulated with Foundry Local](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started). |
+| [Microsoft Foundry](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/) | Call <ApiReference name="Aspire.Hosting.FoundryExtensions.RunAsFoundryLocal" /> on the `IResourceBuilder<FoundryResource>` to configure the resource to be [emulated with Foundry Local](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started). |
 | [Azure Event Hubs](/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureEventHubsResource>` to configure the Event Hubs resource to be [emulated](https://learn.microsoft.com/azure/event-hubs/overview-emulator). |
 | [Azure Service Bus](/integrations/cloud/azure/azure-service-bus/azure-service-bus-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureServiceBusResource>` to configure the Service Bus resource to be [emulated with Service Bus emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator). |
 | [Azure SignalR Service](/integrations/cloud/azure/azure-signalr/azure-signalr-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureSignalRResource>` to configure the SignalR resource to be [emulated with Azure SignalR emulator](https://learn.microsoft.com/azure/azure-signalr/signalr-howto-emulator). |
@@ -67,6 +117,8 @@ To have your Azure resources use the local emulators, chain a call the `RunAsEmu
 <Aside type="caution">
 Calling any of the available `RunAsEmulator` APIs on an Azure resource builder doesn't affect the [publishing manifest](/architecture/resource-publishing/). When you publish your app, [the generated Bicep file](/integrations/cloud/azure/customize-resources/) reflects the actual Azure service, not the local emulator.
 </Aside>
+
+When you run an AppHost, Aspire adds an `azure-environment` resource to represent the Azure provisioning environment. If every Azure resource in the app model is configured with `RunAsEmulator` (so none require provisioning), Aspire hides the `azure-environment` resource from the dashboard, since it has no provisioning work to represent. Adding any Azure resource that requires provisioning—one that isn't running as an emulator—makes the `azure-environment` resource visible again.
 
 ### Local containers
 
@@ -118,11 +170,11 @@ The following table summarizes the naming conventions used to express Azure reso
 
 | Operation | API | Description |
 |--|--|--|
-| Publish | `PublishAsConnectionString` _(obsolete)_ | Changes the resource to be published as a connection string reference in the manifest. Use `AddConnectionString` with the [execution context](/get-started/app-host/) instead. |
-| Publish | `PublishAsExisting` | Uses an existing Azure resource when the application is deployed instead of creating a new one. |
+| Publish | <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.PublishAsConnectionString" /> _(obsolete)_ | Changes the resource to be published as a connection string reference in the manifest. Use <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" /> with the [execution context](/get-started/app-host/) instead. |
+| Publish | <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" /> | Uses an existing Azure resource when the application is deployed instead of creating a new one. |
 | Run | `RunAsContainer` | Configures an equivalent container to run locally. For more information, see [Local containers](#local-containers). |
 | Run | `RunAsEmulator` | Configures the Azure resource to be emulated. For more information, see [Local emulators](#local-emulators). |
-| Run | `RunAsExisting` | Uses an existing resource when the application is running instead of creating a new one. |
+| Run | <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.RunAsExisting" /> | Uses an existing resource when the application is running instead of creating a new one. |
 | Publish and Run | `AsExisting` | Uses an existing resource regardless of the operation. |
 
 :::caution[PublishAsConnectionString is obsolete]
@@ -399,7 +451,7 @@ Aspire deploys compute resources to [Azure Container Apps](https://learn.microso
 - `ExecutableResource`: Represents a specified executable process.
 - `ProjectResource`: Represents a specified .NET project.
 
-Add an ACA environment with `AddAzureContainerAppEnvironment` to target these resources to Azure Container Apps.
+Add an ACA environment with <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.AddAzureContainerAppEnvironment" /> to target these resources to Azure Container Apps.
 
 Use the following APIs when you want to customize the generated Container App resource for a specific resource:
 

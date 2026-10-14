@@ -7,7 +7,8 @@
 .DESCRIPTION
     For each package in the list, this script:
     1. Queries the NuGet V3 API for the latest stable version (or latest preview if no stable exists).
-    2. Restores each package into an isolated project.
+    2. Restores each package into an isolated project. Restores run in parallel,
+       and transient `dotnet restore` failures are retried.
     3. Reads NuGet's exact direct and transitive assets from project.assets.json.
     4. Runs the PackageJsonGenerator tool in batch mode, passing all packages at once
        for parallel processing.
@@ -25,7 +26,9 @@
     Defaults to "net10.0".
 
 .PARAMETER Parallelism
-    Maximum degree of parallelism for the batch tool. Defaults to processor count.
+    Maximum degree of parallelism for package restores and the batch tool.
+    Defaults to min(processor count, 8) for restores and processor count for
+    the batch tool.
 
 .PARAMETER Sequential
     Force sequential processing (one package at a time, legacy mode).
@@ -462,7 +465,8 @@ function Resolve-NuGetPackageRestoreGraph {
     param(
         [string]$PackageId,
         [string]$Version,
-        [string[]]$RestoreSources
+        [string[]]$RestoreSources,
+        [string]$HostingVersion
     )
 
     # A separate restore project is intentional: it prevents NuGet from unifying
@@ -475,6 +479,23 @@ function Resolve-NuGetPackageRestoreGraph {
         $escapedPackageId = [System.Security.SecurityElement]::Escape($PackageId)
         $escapedVersion = [System.Security.SecurityElement]::Escape($Version)
         $escapedFramework = [System.Security.SecurityElement]::Escape($Framework)
+        # Provisioning overlays extend an AppHost, not a standalone class library.
+        # Keep each overlay isolated, but include its same-build hosting context.
+        # Prerelease overlays can ship beside a stable Aspire.Hosting build, so
+        # prefer the Aspire.Hosting version resolved in this run.
+        $escapedHostingVersion = if ([string]::IsNullOrWhiteSpace($HostingVersion)) {
+            $escapedVersion
+        }
+        else {
+            [System.Security.SecurityElement]::Escape($HostingVersion)
+        }
+        $hostingReference = if (
+            $PackageId.StartsWith("Aspire.Hosting.Azure.Provisioning.", [System.StringComparison]::OrdinalIgnoreCase) -and
+            -not $PackageId.Equals("Aspire.Hosting.Azure.Provisioning.Generators", [System.StringComparison]::OrdinalIgnoreCase)
+        ) {
+            "    <PackageReference Include=`"Aspire.Hosting`" Version=`"[$escapedHostingVersion]`" />"
+        }
+        else { "" }
         $csproj = @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -483,6 +504,7 @@ function Resolve-NuGetPackageRestoreGraph {
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="$escapedPackageId" Version="[$escapedVersion]" />
+$hostingReference
   </ItemGroup>
 </Project>
 "@
@@ -511,9 +533,20 @@ function Resolve-NuGetPackageRestoreGraph {
         $configLines += '</configuration>'
         $configLines | Set-Content $nugetConfigPath -Encoding UTF8
 
-        $restoreResult = & dotnet restore $csprojPath --configfile $nugetConfigPath --verbosity quiet 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            throw "dotnet restore failed for $PackageId $Version`n$restoreResult"
+        # Retry transient feed and network failures. Deterministic failures,
+        # such as a missing version, still fail after the final attempt.
+        $maxRestoreAttempts = 3
+        for ($attempt = 1; ; $attempt++) {
+            $restoreResult = & dotnet restore $csprojPath --configfile $nugetConfigPath --verbosity quiet 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                break
+            }
+            if ($attempt -ge $maxRestoreAttempts) {
+                throw "dotnet restore failed for $PackageId $Version after $attempt attempts`n$restoreResult"
+            }
+            $retryDelaySeconds = 5 * $attempt
+            Write-Warning "dotnet restore failed for $PackageId $Version (attempt $attempt of $maxRestoreAttempts); retrying in ${retryDelaySeconds}s..."
+            Start-Sleep -Seconds $retryDelaySeconds
         }
 
         $assetsPath = [System.IO.Path]::Combine($restoreDir, "obj", "project.assets.json")
@@ -636,6 +669,59 @@ function Resolve-NuGetPackageRestoreGraph {
     }
     finally {
         Remove-Item $restoreDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Invoke-PackageRestore {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][object]$Request)
+
+    # This can run in a ForEach-Object -Parallel runspace, so it doesn't write to
+    # the host. Its status and retry warnings are returned as data for the main
+    # runspace to print as each restore completes. Failure details are reported
+    # in package order after all restores finish.
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $graph = $null
+    $errorMessage = $null
+    $restoreWarnings = @()
+    try {
+        $graph = Resolve-NuGetPackageRestoreGraph `
+            -PackageId $Request.PackageId `
+            -Version $Request.Version `
+            -RestoreSources $Request.RestoreSources `
+            -HostingVersion $Request.HostingVersion `
+            -WarningAction SilentlyContinue `
+            -WarningVariable restoreWarnings
+    }
+    catch {
+        $errorMessage = "$_"
+    }
+
+    return [PSCustomObject]@{
+        PackageId     = $Request.PackageId
+        Version       = $Request.Version
+        DisplaySource = $Request.DisplaySource
+        Graph         = $graph
+        Error         = $errorMessage
+        Warnings      = @($restoreWarnings | ForEach-Object { $_.Message })
+        Elapsed       = $stopwatch.Elapsed
+    }
+}
+
+# Prints a restore's retry warnings and status on the main runspace, then passes
+# the result through.
+function Write-PackageRestoreStatus {
+    [CmdletBinding()]
+    param([Parameter(Mandatory, ValueFromPipeline)][psobject]$Outcome)
+
+    process {
+        foreach ($warning in $Outcome.Warnings) {
+            Write-Warning $warning
+        }
+        $status = if ($null -eq $Outcome.Error) { "Restored" } else { "Restore failed" }
+        $color = if ($null -eq $Outcome.Error) { "Yellow" } else { "Red" }
+        Write-Host ("  {0}: {1} {2} from {3} ({4:N1}s)" -f $status, $Outcome.PackageId, $Outcome.Version, $Outcome.DisplaySource, $Outcome.Elapsed.TotalSeconds) -ForegroundColor $color
+        $Outcome
     }
 }
 
@@ -840,25 +926,95 @@ Write-Host "Resolved $($packageInfos.Count) package versions ($failCount failed)
 Write-Host "Preparing packages..." -ForegroundColor Cyan
 
 $manifestEntries = @()
+$hostingInfo = $packageInfos | Where-Object { $_.PackageId -eq "Aspire.Hosting" } | Select-Object -First 1
+$hostingVersion = if ($hostingInfo) { $hostingInfo.Version } else { $null }
+if (-not $hostingVersion -and $catalogVersions.ContainsKey("Aspire.Hosting")) {
+    $hostingVersion = $catalogVersions["Aspire.Hosting"]
+}
+if (-not $hostingVersion) {
+    $overlay = $packageInfos | Where-Object {
+        $_.PackageId.StartsWith("Aspire.Hosting.Azure.Provisioning.", [System.StringComparison]::OrdinalIgnoreCase)
+    } | Select-Object -First 1
+    if ($overlay) {
+        $hostingVersion = Get-LatestNuGetVersion -PackageId "Aspire.Hosting" `
+            -PackageBaseAddress $packageSourceMetadata[$overlay.PackageId].PackageBaseAddress
+    }
+}
+
+# Each package restores into its own project, so restores can run concurrently;
+# NuGet coordinates access to the shared global packages folder and HTTP cache.
+$restoreParallelism = if ($Sequential) {
+    1
+}
+elseif ($Parallelism -gt 0) {
+    $Parallelism
+}
+else {
+    [Math]::Min([Environment]::ProcessorCount, 8)
+}
+$restoreRequests = @(foreach ($info in $packageInfos) {
+        $sourceInfo = $packageSourceMetadata[$info.PackageId]
+        [PSCustomObject]@{
+            PackageId      = $info.PackageId
+            Version        = $info.Version
+            RestoreSources = @($sourceInfo.RestoreSources)
+            DisplaySource  = $sourceInfo.DisplaySource
+            HostingVersion = $hostingVersion
+        }
+    })
+
+Write-Host "  Restoring $($restoreRequests.Count) packages (parallelism $restoreParallelism)..."
+New-Item -ItemType Directory -Path (Join-Path $ScriptDir ".package-json-generator-work") -Force | Out-Null
+$restoreStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+$restoreResults = if ($restoreParallelism -le 1 -or $restoreRequests.Count -le 1) {
+    foreach ($request in $restoreRequests) {
+        Invoke-PackageRestore -Request $request | Write-PackageRestoreStatus
+    }
+}
+else {
+    $functionDefinitions = @{}
+    foreach ($functionName in @(
+            "ConvertTo-NativeAssetPath",
+            "Get-AssetPaths",
+            "Resolve-RestoredPackagePath",
+            "Resolve-NuGetPackageRestoreGraph",
+            "Invoke-PackageRestore")) {
+        $functionDefinitions[$functionName] = (Get-Command $functionName -CommandType Function).Definition
+    }
+
+    $restoreRequests | ForEach-Object -ThrottleLimit $restoreParallelism -Parallel {
+        Set-StrictMode -Version Latest
+        $ErrorActionPreference = "Stop"
+        $definitions = $using:functionDefinitions
+        foreach ($functionName in $definitions.Keys) {
+            Set-Item -Path "function:$functionName" -Value ([scriptblock]::Create($definitions[$functionName]))
+        }
+        # Resolve-NuGetPackageRestoreGraph reads these script-level values.
+        $ScriptDir = $using:ScriptDir
+        $Framework = $using:Framework
+        Invoke-PackageRestore -Request $_
+    } | Write-PackageRestoreStatus
+}
+
+$restoreResultsById = @{}
+foreach ($restoreOutcome in @($restoreResults)) {
+    $restoreResultsById[$restoreOutcome.PackageId] = $restoreOutcome
+}
+Write-Host ("  Restored package graphs in {0:mm\:ss}." -f $restoreStopwatch.Elapsed)
 
 foreach ($info in $packageInfos) {
     $packageId = $info.PackageId
     $version = $info.Version
-    $sourceInfo = $packageSourceMetadata[$packageId]
 
-    try {
-        Write-Host "  Restoring: $packageId $version from $($sourceInfo.DisplaySource)" -ForegroundColor Yellow
-        $restoreGraph = Resolve-NuGetPackageRestoreGraph `
-            -PackageId $packageId `
-            -Version $version `
-            -RestoreSources $sourceInfo.RestoreSources
-    }
-    catch {
-        Write-Warning "Failed to restore $packageId $version`: $_"
+    $restoreOutcome = $restoreResultsById[$packageId]
+    if ($null -eq $restoreOutcome -or $null -ne $restoreOutcome.Error) {
+        $restoreError = if ($null -eq $restoreOutcome) { "no restore result was produced." } else { $restoreOutcome.Error }
+        Write-Warning "Failed to restore $packageId $version`: $restoreError"
         $failCount++
         [void]$failedPackageNames.Add($packageId)
         continue
     }
+    $restoreGraph = $restoreOutcome.Graph
 
     if (-not $restoreGraph.InputAssembly) {
         Write-Warning "No compile/runtime assemblies selected by NuGet for $packageId $version — skipping."

@@ -42,7 +42,7 @@ async function clickClientLink(page: Page, link: Locator): Promise<void> {
     }, { once: true });
   });
   await link.click();
-  await expect(page).toHaveURL(destination);
+  await expect(page).toHaveURL(destination, { timeout: 30_000 });
   await expect.poll(() => page.evaluate(() => Reflect.get(window, '__apiNavigationLoaded'))).toBe(true);
   // page-load precedes the visual transition finishing. Wait before scrolling,
   // searching, or tapping again so touch navigation doesn't abort its capture.

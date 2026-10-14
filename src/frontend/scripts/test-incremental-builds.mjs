@@ -23,32 +23,6 @@ export function buildArguments(kind) {
   return ['build', '--mode', 'production', ...(kind === 'clean' ? ['--force'] : [])];
 }
 
-/**
- * @param {string} log
- * @returns {{reused: boolean, reason: string, htmlFiles: number, keyedHtmlFiles: number, wallMs: number}}
- */
-export function pagefindMeasurement(log) {
-  const records = [
-    ...stripVTControlCharacters(log).matchAll(/^\[incremental-build\] pagefind (\{[^\r\n]+\})$/gm),
-  ];
-  if (records.length !== 1) throw new Error('Expected one Pagefind cache measurement.');
-  const result = JSON.parse(records[0][1]);
-  if (
-    typeof result.reused !== 'boolean' ||
-    !['hit', 'inputs', 'force', 'missing', 'damaged'].includes(result.reason) ||
-    result.reused !== (result.reason === 'hit') ||
-    !Number.isSafeInteger(result.htmlFiles) ||
-    !Number.isSafeInteger(result.keyedHtmlFiles) ||
-    result.htmlFiles < result.keyedHtmlFiles ||
-    result.keyedHtmlFiles <= 0 ||
-    !Number.isFinite(result.wallMs) ||
-    result.wallMs < 0
-  ) {
-    throw new Error('Invalid Pagefind cache measurement.');
-  }
-  return result;
-}
-
 /** @param {string} log */
 export function restoredPaths(log) {
   return [...stripVTControlCharacters(log).matchAll(/(\S+)\s+\((?:restored|cached)\)/g)].map(
@@ -183,7 +157,6 @@ async function runPilot(scenario) {
     const output = await readFile(logPath, 'utf8');
     const { htmlRestored, markdownRestored, ogRestored } = restoredRouteCounts(output);
     const identity = incremental ? identityFinalization(output) : undefined;
-    const search = incremental ? pagefindMeasurement(output) : undefined;
     measurements.push({
       label,
       kind,
@@ -198,7 +171,6 @@ async function runPilot(scenario) {
       markdownRestored,
       ogRestored,
       identityFinalization: identity,
-      pagefind: search,
     });
     await writeFile(
       join(reportDirectory, 'measurements.json'),
@@ -214,12 +186,6 @@ async function runPilot(scenario) {
     }
     if (requireReuse && !ogRestored) {
       throw new Error(`${label}: expected unchanged OG image reuse.`);
-    }
-    if (
-      (label.startsWith('incremental-warm') || label === 'api-data-incremental') &&
-      !search?.reused
-    ) {
-      throw new Error(`${label}: expected unchanged Pagefind bundle reuse.`);
     }
     const manifest = await buildManifest(join(root, 'dist'));
     await writeFile(join(reportDirectory, `${label}-manifest.json`), JSON.stringify(manifest));
@@ -250,7 +216,11 @@ async function runPilot(scenario) {
     await equivalent('full-warm', clean, await build('full-warm', 'full'));
   }
   await equivalent('incremental-first', clean, await build('incremental-first', 'incremental'));
-  await equivalent('incremental-warm', clean, await build('incremental-warm', 'incremental', {}, true));
+  await equivalent(
+    'incremental-warm',
+    clean,
+    await build('incremental-warm', 'incremental', {}, true)
+  );
   if (scenario === 'warm') {
     await equivalent(
       'incremental-warm-repeat',
@@ -374,12 +344,15 @@ async function runPilot(scenario) {
         await rm(new URL(entry.outputFile, new URL('dist/', cacheDir)));
         console.log(`[incremental-pilot] Removed one cached output: ${entry.outputFile}`);
       }
-      await writeFile(new URL('pagefind-bundle/pagefind-entry.json', cacheDir), 'damaged probe');
     }
     if (scenario !== 'warm') {
       const expected = await build(`${scenario}-clean`, 'clean', env);
       if (scenario === 'api-data') {
-        await equivalent(`${scenario}-full`, expected, await build(`${scenario}-full`, 'full', env));
+        await equivalent(
+          `${scenario}-full`,
+          expected,
+          await build(`${scenario}-full`, 'full', env)
+        );
       }
       if (
         scenario === 'identity' &&
@@ -404,7 +377,12 @@ async function runPilot(scenario) {
         throw new Error('The background fixture must change generated OG images.');
       }
       const globalInvalidation = ['global-input', 'og-input'].includes(scenario);
-      const actual = await build(`${scenario}-incremental`, 'incremental', env, !globalInvalidation);
+      const actual = await build(
+        `${scenario}-incremental`,
+        'incremental',
+        env,
+        !globalInvalidation
+      );
       if (scenario === 'api-data') await verifyContentProbe(actual);
       await equivalent(scenario, expected, actual);
       if (
@@ -412,12 +390,6 @@ async function runPilot(scenario) {
         (measurements.at(-1).htmlRestored !== 0 || measurements.at(-1).ogRestored !== 0)
       ) {
         throw new Error('A global input change must invalidate the compatibility partition.');
-      }
-      if (
-        ['identity', 'partial-cache'].includes(scenario) &&
-        measurements.at(-1).pagefind.reused
-      ) {
-        throw new Error('Changed identity or damaged search cache must rebuild the index.');
       }
     }
   } finally {

@@ -3,6 +3,7 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddForwardedClientIp();
 
 // Production supplies the vault reference; local Aspire runs intentionally do not.
 if (builder.Configuration.GetConnectionString("secrets") is not null)
@@ -25,6 +26,9 @@ if (builder.Environment.IsDevelopment())
 }
 
 await using var app = builder.Build();
+
+// Restore the Front Door client IP before telemetry or any middleware reads it.
+app.UseForwardedClientIp();
 
 // Only enable HSTS in production
 if (!app.Environment.IsDevelopment())

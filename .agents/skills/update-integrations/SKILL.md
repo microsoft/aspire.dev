@@ -51,6 +51,26 @@ The scripts use this precedence on `release/*` branches:
 
 If the Aspire release branch is not publicly reachable yet, set one of the override environment variables above. The scripts intentionally fail on `release/*` if the official release feed cannot be resolved, to avoid accidentally ingesting stale nuget.org packages.
 
+When the commit-specific feed is unavailable but a shared feed contains the required
+build, set `ASPIRE_RELEASE_FEED_URL` and `ASPIRE_RELEASE_VERSION` together. The
+version must be an exact package version matching the release branch, not a range.
+Official packages select only that version; Toolkit packages keep their normal
+nuget.org selection. Packages absent from that build retain an existing catalog
+entry, if any, rather than importing a different release. An unavailable pin for
+the entire integration set, an unlisted/deprecated pinned version, or a pinned
+registration lookup failure stops the update before the catalog is written.
+Selected-version registration metadata supplies release descriptions and tags.
+Where no published nuget.org icon metadata exists, the updater reports use of the
+public Aspire site icon instead of embedding an unpublished or authenticated-feed
+image URL.
+
+For an app-managed worktree whose branch name is not `release/*`, set
+`BUILD_SOURCEBRANCH=refs/heads/release/N.N` in the update process alongside those
+overrides. This supplies the existing branch-resolution context without renaming
+or switching the worktree. Do not set these variables globally. Review the
+resolved source and version before regeneration; C# and TypeScript generators
+consume the resulting catalog's exact versions.
+
 ## Step-by-Step Process
 
 ### 1. Run the update script
@@ -138,9 +158,22 @@ The script performs the following for every package listed in `aspire-integratio
 1. Resolves the correct package source per package: official Aspire packages use the branch-specific release feed on `release/*`, while Community Toolkit packages continue to use nuget.org.
 2. Queries that package source for the latest stable version (falls back to latest preview if no stable exists).
 3. Downloads the package into the local NuGet cache via `dotnet restore` if not already cached.
+   Provisioning SDK overlays restore with the same-version `Aspire.Hosting`
+   reference to model their AppHost context; other packages retain standalone
+   per-package restore graphs. Dependency errors remain fatal.
+   Restores run in parallel, up to 8 at a time by default (`-Parallelism` changes
+   the limit; `-Sequential` restores one package at a time). A failed `dotnet restore`
+   is attempted up to three times before the package counts as failed.
 4. Selects the best-matching target framework folder (prefers `net10.0`, then `net9.0`, etc.).
 5. Uses Roslyn to analyze the assembly and extract all public types, members, XML docs, and attributes.
 6. Writes a `{Package}.{Version}.json` file to `src/frontend/src/data/pkgs/`.
+
+An assembly that opts into an `AspireExportProvider` can expose generated ATS
+APIs without public C# types. For those assemblies, the generator retains package
+identity and provenance with `types: []` and `package.hasGeneratedExports: true`.
+This record feeds TypeScript generation and requires a corresponding TypeScript
+module at semantic validation. It does not add an empty C# package to API navigation.
+Build-only packages without public types or generated-export opt-ins remain explicit skips.
 
 The generated JSON follows this schema:
 
@@ -192,6 +225,7 @@ The script reports a summary of successes, failures, and skipped packages. Commo
 - NuGet API resolution failure
 
 Packages that fail should be investigated individually — they may need a different framework target or may not ship a public API surface.
+Because restores are retried, a restore failure in the summary usually has a persistent cause, such as a pinned version that's no longer published on the package's feed.
 
 If an official release feed is required but not yet publicly reachable, rerun with one of the release feed override environment variables set.
 
@@ -204,6 +238,49 @@ pnpm --filter ./src/frontend run update:ts-api
 ```
 
 The companion `generate-ts-api-json.ps1` script reads the generated C# package JSON files in `src/frontend/src/data/pkgs/`, selects `Aspire.Hosting`, `Aspire.Hosting.*`, and `CommunityToolkit.Aspire.Hosting.*` packages, and passes each package/version through to `aspire sdk dump`. This keeps `src/frontend/src/data/ts-modules/` aligned with the same package set and versions that already flowed through C# API generation.
+
+Radius versions exporting the generic `IDotnetProgramResource` overload are
+scanned with `Aspire.Hosting.Dotnet` as supporting context. Its exact version
+comes from the generated C# metadata, so the scanner can retain the export on
+`DotnetProjectResource` while the concrete overload serves legacy project
+resources. Generate the Dotnet module first when regenerating Radius selectively.
+The transformer excludes core and supporting APIs using their generated modules;
+it preserves Radius's real capability IDs and expanded receiver targets.
+A scanner collision that removes the generic export must be fixed upstream,
+not hidden by changing the C# metadata or weakening API-reference validation.
+
+For generated-export overlays, the script also obtains the matching
+`aspire sdk export --language typescript` document. Referenced SDK enum definitions
+missing from the raw dump are taken from that canonical export, with package identity
+and unambiguous ownership checks. Union members are preserved during transformation;
+missing or unsupported enum definitions fail generation rather than becoming empty
+interface stubs. Semantic validation checks enum members in the final Twoslash bundle.
+The bundle represents enums as string unions with companion constant objects.
+When independent packages export the same enum short name, the shared bundle
+combines their literals; each package's API JSON retains its exact enum surface.
+Use the package-specific SDK to validate behavior that depends on those differences.
+The generator rejects nonzero SDK dump exits and error diagnostics even when a JSON
+file was produced. An incomplete dump isn't a successful API-generation result.
+The one exception is a known scanner defect: a method inherited by several proxy
+types is exported once per derived type under the base type's capability ID, and the
+scanner reports each collision as a `Duplicate capability` error. When a dump exits
+nonzero after writing its JSON, the script passes `--tolerate-known-scanner-diagnostics`
+to the transformer, which accepts only that diagnostic shape, and only when the dump's
+`HandleTypes` show that each defining type is, or derives from, the type that owns the
+capability ID. Any other error diagnostic, or a nonzero exit without one, still fails the
+package. The script lists tolerated diagnostics in its summary, and
+`update-integration-data.ps1` raises a CI warning and lists the affected packages in the
+pull request body. Remove the tolerance
+once the shipped Aspire CLI includes [microsoft/aspire#20443](https://github.com/microsoft/aspire/pull/20443).
+
+Packages are generated in waves: `Aspire.Hosting` first, then packages that don't need
+supporting scan context, then packages that do. Packages in a wave run concurrently,
+up to 8 at a time by default; set `ASPIRE_TS_API_PARALLELISM` to change the limit (`1`
+processes one package at a time). `-AspireRepoPath` runs always process one package at
+a time because they build shared repo projects. Each `aspire` CLI call is limited to 10
+minutes and each helper tool call to 5 minutes. A dump or export that fails without
+producing a result, for example after a timeout or a transient restore failure, is
+attempted up to three times.
 
 When a TypeScript module is regenerated for a new package version, stale `ts-modules` JSON files for older versions of that same package are deleted automatically. Regenerated modules with no functions or types are omitted from `src/frontend/src/data/ts-modules/`.
 

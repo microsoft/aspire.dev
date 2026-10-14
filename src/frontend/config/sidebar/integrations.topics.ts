@@ -292,7 +292,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'AWS',
-          link: 'https://docs.aws.amazon.com/sdk-for-net/v4/developer-guide/aspire-integrations.html',
+          slug: 'integrations/cloud/aws/overview',
         },
         {
           label: 'Azure',
@@ -304,12 +304,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/customize-resources',
             },
             {
+              label: 'Bicep helpers',
+              slug: 'integrations/cloud/azure/bicep-helpers',
+            },
+            {
               label: 'Local Azure provisioning',
               slug: 'integrations/cloud/azure/local-provisioning',
             },
             {
               label: 'Configure Azure Container Apps',
               slug: 'integrations/cloud/azure/configure-container-apps',
+            },
+            {
+              label: 'Azure Connector Namespace',
+              slug: 'integrations/cloud/azure/azure-connector-namespace',
             },
             {
               label: 'Default Azure credential',
@@ -1406,6 +1414,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               label: 'Set up Java apps in the AppHost',
               slug: 'integrations/frameworks/java/java-host',
             },
+            {
+              label: 'Connect to Java apps',
+              slug: 'integrations/frameworks/java/java-connect',
+            },
           ],
         },
         {
@@ -1491,6 +1503,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Set up Rust apps in the AppHost',
               slug: 'integrations/frameworks/rust/rust-host',
+            },
+            {
+              label: 'Connect to Rust apps',
+              slug: 'integrations/frameworks/rust/rust-connect',
             },
           ],
         },

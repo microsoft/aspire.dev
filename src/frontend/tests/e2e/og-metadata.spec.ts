@@ -71,7 +71,7 @@ for (const url of [
     expect(description).toBeTruthy();
     expect(description).toBe(ogDescriptions[0].properties.content);
     expect(description).not.toBe(
-      'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.'
+      'Aspire is the tool for code-first, extensible, observable dev and deploy.'
     );
   });
 }
@@ -113,7 +113,7 @@ test('uses Starlight site description only when page frontmatter has no descript
 
   expect(descriptions).toHaveLength(1);
   expect(descriptions[0].properties.content).toBe(
-    'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.'
+    'Aspire is the tool for code-first, extensible, observable dev and deploy.'
   );
   expect(ogDescriptions).toHaveLength(1);
   expect(ogDescriptions[0].properties.content).toBe(FALLBACK_DESCRIPTION);

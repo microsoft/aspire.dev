@@ -21,7 +21,6 @@ import {
   buildArguments,
   changedIdentity,
   identityFinalization,
-  pagefindMeasurement,
   restoredPaths,
   restoredRouteCounts,
 } from '../../scripts/test-incremental-builds.mjs';
@@ -571,7 +570,6 @@ describe('incremental compatibility and package keys', () => {
           cacheDir: astroConfig.cacheDir.href,
           incremental: astroConfig.experimental.incrementalBuild,
           concurrency: astroConfig.build.concurrency,
-          searchCache: astroConfig.integrations.some(i => i.name === 'aspire-pagefind-cache'),
         }));
       `,
         ],
@@ -592,7 +590,6 @@ describe('incremental compatibility and package keys', () => {
         cacheDir: expect.stringContaining(`/node_modules/.astro-incremental/${mode}/api-v1-`),
         incremental: true,
         concurrency: 4,
-        searchCache: mode === 'production',
       });
     }
   );
@@ -706,14 +703,6 @@ describe('whole-output equivalence', () => {
     expect(buildArguments('incremental')).toEqual(['build', '--mode', 'production']);
   });
 
-  it('requires consistent search reuse measurements', () => {
-    const record = { reused: true, reason: 'hit', htmlFiles: 10, keyedHtmlFiles: 5, wallMs: 2 };
-    const log = `[incremental-build] pagefind ${JSON.stringify(record)}`;
-    expect(pagefindMeasurement(log)).toEqual(record);
-    expect(() => pagefindMeasurement('')).toThrow('Expected one');
-    expect(() => pagefindMeasurement(log + '\n' + log)).toThrow('Expected one');
-    expect(() => pagefindMeasurement(log.replace('"hit"', '"inputs"'))).toThrow('Invalid');
-  });
   it('records measured identity work without accepting missing, duplicate or inconsistent totals', () => {
     const measurement = { htmlFiles: 10, parsedPages: 2, reusedPages: 8, wallMs: 20.5 };
     const log = `[incremental-build] finalized identity ${JSON.stringify(measurement)}`;
@@ -753,12 +742,14 @@ describe('whole-output equivalence', () => {
 
   it('accepts Astro endpoint trailing slashes while keeping reuse restricted to API and OG routes', () => {
     expect(
-      restoredRouteCounts([
-        '/reference/api/csharp/test/index.html (restored)',
-        '/reference/api/typescript/test.md (restored)',
-        '/og/app-host/configuration.png/ (restored)',
-        '/og/reference/samples/example.png (cached)',
-      ].join('\n'))
+      restoredRouteCounts(
+        [
+          '/reference/api/csharp/test/index.html (restored)',
+          '/reference/api/typescript/test.md (restored)',
+          '/og/app-host/configuration.png/ (restored)',
+          '/og/reference/samples/example.png (cached)',
+        ].join('\n')
+      )
     ).toEqual({ htmlRestored: 1, markdownRestored: 1, ogRestored: 2 });
     for (const path of ['/docs/index.html', '/og/index.html', '/og/image.png/other']) {
       expect(() => restoredRouteCounts(`${path} (restored)`)).toThrow('outside the API/OG pilot');

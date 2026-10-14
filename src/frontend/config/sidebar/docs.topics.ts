@@ -91,6 +91,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       collapsed: true,
       items: [
         {
+          label: 'Aspire 13.6',
+          slug: 'whats-new/aspire-13-6',
+        },
+        {
           label: 'Aspire 13.5',
           slug: 'whats-new/aspire-13-5',
         },
@@ -223,7 +227,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'Setup and tooling',
-          collapsed: false,
+          collapsed: true,
           translations: {
             da: 'Opsætning og værktøjer',
             de: 'Einrichtung und Werkzeuge',
@@ -413,7 +417,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Use AI coding agents',
-          collapsed: false,
+          collapsed: true,
           translations: {
             da: 'AI-kodningsagenter',
             de: 'KI-Coding-Agenten',
@@ -566,7 +570,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Glossary',
-              slug: 'get-started/glossary',
+              link: '/hub/glossary/',
               translations: {
                 da: 'Ordliste',
                 de: 'Glossar',
@@ -890,6 +894,14 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 ja: '証明書の構成',
               },
             },
+            {
+              label: 'CORS configuration',
+              slug: 'app-host/cors-configuration',
+              translations: {
+                en: 'CORS configuration',
+                ja: 'CORS の構成',
+              },
+            },
           ],
         },
         {
@@ -962,10 +974,22 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               },
             },
             {
-              label: 'Interactive terminals',
-              slug: 'app-host/with-terminal',
+              label: 'Console and worker apps',
+              slug: 'app-host/console-apps',
+              translations: {
+                en: 'Console and worker apps',
+                ja: 'コンソール アプリとワーカー アプリ',
+              },
             },
           ],
+        },
+        {
+          label: 'Resource naming',
+          slug: 'app-host/resource-naming',
+          translations: {
+            en: 'Resource naming',
+            ja: 'リソースの名前付け',
+          },
         },
         {
           label: 'Project structure',

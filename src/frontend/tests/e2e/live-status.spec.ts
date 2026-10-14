@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-import { dismissCookieConsentIfVisible, isNarrowViewport } from '@tests/e2e/helpers';
+import { dismissCookieConsentIfVisible, isNarrowViewport, revealMobileSiteMenu } from '@tests/e2e/helpers';
 
 /**
  * E2E coverage for the live-status feature.
@@ -33,7 +33,8 @@ test.describe('live status', () => {
   const snapshotEndpoint = /\/api\/live\/?$/;
   const streamEndpoint = /\/api\/live\/stream\/?$/;
 
-  function visibleLiveButton(page: Page) {
+  async function visibleLiveButton(page: Page) {
+    await revealMobileSiteMenu(page);
     return page.locator('.live-btn:visible').first();
   }
 
@@ -57,6 +58,50 @@ test.describe('live status', () => {
       body: `event: state\ndata: ${JSON.stringify(snapshot)}\n\n`,
     });
   }
+
+  test('a missing live API stays disabled across navigation and visibility changes until reload', async ({ page }) => {
+    let snapshotRequests = 0;
+    let streamRequests = 0;
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.clock.install();
+    await page.route(snapshotEndpoint, (route) => {
+      snapshotRequests++;
+      return route.fulfill({ status: 404 });
+    });
+    await page.route(streamEndpoint, (route) => {
+      streamRequests++;
+      return route.fulfill({ status: 404 });
+    });
+    const disabled = page.waitForEvent('console', {
+      predicate: (message) => message.text().includes('live updates disabled until reload'),
+    });
+    await page.goto('/reference/samples/?q=asdf');
+    await disabled;
+    await dismissCookieConsentIfVisible(page);
+    await page.clock.fastForward(120_000);
+    expect(snapshotRequests).toBe(1);
+    expect(streamRequests).toBeLessThanOrEqual(1);
+    const initialStreamRequests = streamRequests;
+
+    const videos = await visibleLiveButton(page);
+    await expect(videos).toHaveAttribute('href', '/community/videos/');
+    await videos.click();
+    await expect(page).toHaveURL(/\/community\/videos\/$/);
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await page.clock.fastForward(120_000);
+    expect(snapshotRequests).toBe(1);
+    expect(streamRequests).toBe(initialStreamRequests);
+
+    const disabledAgain = page.waitForEvent('console', {
+      predicate: (message) => message.text().includes('live updates disabled until reload'),
+    });
+    await page.reload();
+    await disabledAgain;
+    expect(snapshotRequests).toBe(2);
+    expect(streamRequests).toBeLessThanOrEqual(initialStreamRequests + 1);
+    expect(errors).toEqual([]);
+  });
 
   test('touch-first live action prioritizes provider handoff', async ({ page }) => {
     test.skip(
@@ -106,7 +151,7 @@ test.describe('live status', () => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = visibleLiveButton(page);
+    const liveBtn = await visibleLiveButton(page);
     await expect(liveBtn).toHaveAttribute('data-source', 'both');
     await liveBtn.click();
 
@@ -149,6 +194,7 @@ test.describe('live status', () => {
     await page.keyboard.press('Escape');
     await expect(searchButton).toBeFocused();
 
+    await revealMobileSiteMenu(page);
     await liveBtn.click();
     await expect(liveDialog).toBeVisible();
     const reopenedBox = await liveDialog.boundingBox();
@@ -221,7 +267,7 @@ test.describe('live status', () => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = visibleLiveButton(page);
+    const liveBtn = await visibleLiveButton(page);
     await expect(liveBtn).toHaveAttribute('data-source', 'both');
     await liveBtn.click();
 
@@ -325,7 +371,7 @@ test.describe('live status', () => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = visibleLiveButton(page);
+    const liveBtn = await visibleLiveButton(page);
     await expect(liveBtn).toBeVisible();
     await expect(liveBtn).toHaveAttribute('data-live', 'false');
 
@@ -399,7 +445,7 @@ test.describe('live status', () => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = visibleLiveButton(page);
+    const liveBtn = await visibleLiveButton(page);
     await expect(liveBtn).toHaveAttribute('data-live', 'false');
 
     const firstProviderLive: LiveSnapshot = {
@@ -478,7 +524,7 @@ test.describe('live status', () => {
     await page.goto('/community/videos/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = visibleLiveButton(page);
+    const liveBtn = await visibleLiveButton(page);
     await expect(liveBtn).toHaveAttribute('data-live', 'false');
     await expect(liveBtn).toHaveAttribute('aria-label', /live/i);
   });
@@ -554,7 +600,7 @@ test.describe('live status', () => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = visibleLiveButton(page);
+    const liveBtn = await visibleLiveButton(page);
     await expect(liveBtn).toHaveAttribute('data-live', 'true');
     await liveBtn.click();
 
@@ -597,7 +643,8 @@ test.describe('live status', () => {
       return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
     });
 
-    await page.locator('a.docs-btn:visible, a.docs-btn-mobile:visible').first().click();
+    await revealMobileSiteMenu(page);
+    await page.locator('a.docs-btn:visible, .mobile-site-links a[href="/docs/"]:visible').first().click();
     await expect(page).toHaveURL(/\/docs\/$/);
 
     await expect
@@ -607,7 +654,7 @@ test.describe('live status', () => {
         )
       )
       .toBe(1);
-    const liveBtnAfterNavigation = visibleLiveButton(page);
+    const liveBtnAfterNavigation = await visibleLiveButton(page);
     await expect(liveBtnAfterNavigation).toHaveAttribute('data-live', 'false');
     await expect(liveBtnAfterNavigation).toHaveAttribute('data-pip-open', 'true');
     await expect
@@ -717,7 +764,7 @@ test.describe('live status', () => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = visibleLiveButton(page);
+    const liveBtn = await visibleLiveButton(page);
     await expect(liveBtn).toHaveAttribute('data-source', 'both');
     await liveBtn.click();
 
