@@ -12,11 +12,32 @@ const { hasSidebar } = Astro.locals.starlightRoute;
     aria-label={Astro.locals.t('sidebarNav.accessibleLabel')}
   >
     <MobileMenuToggle />
-    <div id="starlight__sidebar" class:list={['sidebar-pane', { 'site-menu-panel': !hasSidebar }]}>
+    <script>
+      class StarlightSidebarPane extends HTMLElement {
+        constructor() {
+          super();
+          matchMedia('(min-width: 50em)').addEventListener('change', () => this.hidePopover());
+          this.addEventListener('toggle', ({ newState }) => this.trapFocus(newState === 'open'));
+        }
+
+        private trapFocus(shouldTrap: boolean) {
+          document
+            .querySelectorAll<HTMLElement>('.main-frame, .sl-skip-link')
+            .forEach((element) => element.toggleAttribute('inert', shouldTrap));
+        }
+      }
+      if (!customElements.get('sl-sidebar-pane'))
+        customElements.define('sl-sidebar-pane', StarlightSidebarPane);
+    </script>
+    <sl-sidebar-pane
+      popover=""
+      id="starlight__sidebar"
+      class:list={['sidebar-pane', { 'site-menu-panel': !hasSidebar }]}
+    >
       <div class="sidebar-content sl-flex">
         {hasSidebar ? <slot name="sidebar" /> : <MobileSiteLinks />}
       </div>
-    </div>
+    </sl-sidebar-pane>
   </nav>
   <div class="main-frame"><slot /></div>
 </div>
@@ -45,7 +66,10 @@ const { hasSidebar } = Astro.locals.starlightRoute;
       );
     }
     .sidebar-pane {
-      visibility: var(--sl-sidebar-visibility, hidden);
+      border: unset;
+      padding: unset;
+      height: unset;
+      color: unset;
       position: fixed;
       z-index: var(--sl-z-index-menu);
       inset-block: var(--sl-nav-height) 0;
@@ -55,9 +79,6 @@ const { hasSidebar } = Astro.locals.starlightRoute;
       overflow-y: auto;
       overscroll-behavior: contain;
       scrollbar-gutter: stable;
-    }
-    :global(starlight-menu-button[aria-expanded='true']) ~ .sidebar-pane {
-      --sl-sidebar-visibility: visible;
     }
     .sidebar-content {
       height: 100%;
@@ -75,7 +96,7 @@ const { hasSidebar } = Astro.locals.starlightRoute;
         padding-inline-end: var(--sl-nav-pad-x);
       }
       .sidebar-pane:not(.site-menu-panel) {
-        --sl-sidebar-visibility: visible;
+        display: block;
         width: var(--sl-sidebar-width);
         background-color: var(--sl-color-bg-sidebar);
         border-inline-end: 1px solid var(--sl-color-hairline-shade);

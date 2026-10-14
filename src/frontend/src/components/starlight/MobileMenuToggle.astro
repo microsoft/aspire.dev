@@ -6,9 +6,9 @@ import { Icon } from '@astrojs/starlight/components';
   <button
     type="button"
     aria-expanded="false"
-    aria-controls="starlight__sidebar"
+    popovertarget="starlight__sidebar"
     aria-label={Astro.locals.t('menuButton.accessibleLabel')}
-    class="sl-flex md:sl-hidden"
+    class="sl-menu-button sl-flex md:sl-hidden"
   >
     <Icon name="bars" class="open-menu" />
     <Icon name="close" class="close-menu" />
@@ -25,12 +25,15 @@ import { Icon } from '@astrojs/starlight/components';
       const { signal } = this.listeners;
       const button = this.querySelector('button');
       const nav = this.closest('nav');
-      if (!button || !nav) return;
-      button.addEventListener(
-        'click',
-        () => this.setExpanded(this.getAttribute('aria-expanded') !== 'true'),
-        { signal }
-      );
+      const sidebar = nav?.querySelector<HTMLElement>('#starlight__sidebar');
+      if (!button || !nav || !sidebar) return;
+      const syncExpanded = () => {
+        const expanded = sidebar.matches(':popover-open');
+        this.setAttribute('aria-expanded', String(expanded));
+        button.setAttribute('aria-expanded', String(expanded));
+        document.body.toggleAttribute('data-mobile-menu-expanded', expanded);
+      };
+      sidebar.addEventListener('toggle', syncExpanded, { signal });
       nav.addEventListener(
         'click',
         (event) => {
@@ -39,47 +42,7 @@ import { Icon } from '@astrojs/starlight/components';
             event.target instanceof Element &&
             event.target.closest('a[href], .mobile-site-links button')
           ) {
-            this.setExpanded(false);
-          }
-        },
-        { signal }
-      );
-      document.addEventListener(
-        'keydown',
-        (event) => {
-          if (this.getAttribute('aria-expanded') !== 'true') return;
-          if (event.target instanceof Element && event.target.closest('[role="dialog"], dialog'))
-            return;
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            const restoreFocus = nav.contains(document.activeElement);
-            this.setExpanded(false);
-            if (restoreFocus) button.focus();
-          } else if (event.key === 'Tab') {
-            const header = document.querySelector('header.header');
-            const controls = [header, nav]
-              .flatMap((root) =>
-                Array.from(
-                  root?.querySelectorAll<HTMLElement>('a[href], button, input, select, summary') ??
-                    []
-                )
-              )
-              .filter(
-                (element) =>
-                  element.tabIndex >= 0 &&
-                  element.checkVisibility() &&
-                  !element.matches(':disabled') &&
-                  !element.closest('[inert]')
-              );
-            const first = controls[0];
-            const last = controls.at(-1);
-            if (event.shiftKey && document.activeElement === first && last) {
-              event.preventDefault();
-              last.focus();
-            } else if (!event.shiftKey && document.activeElement === last && first) {
-              event.preventDefault();
-              first.focus();
-            }
+            sidebar.hidePopover();
           }
         },
         { signal }
@@ -88,32 +51,35 @@ import { Icon } from '@astrojs/starlight/components';
         'click',
         (event) => {
           if (event.target instanceof Element && event.target.closest('.live-source-menu')) return;
-          if (event.target instanceof Node && !nav.contains(event.target)) this.setExpanded(false);
+          if (
+            sidebar.matches(':popover-open') &&
+            event.target instanceof Node &&
+            !nav.contains(event.target)
+          )
+            sidebar.hidePopover();
         },
         { signal }
       );
-      document.addEventListener('astro:before-swap', () => this.setExpanded(false), { signal });
+      document.addEventListener(
+        'astro:before-swap',
+        () => {
+          if (sidebar.matches(':popover-open')) sidebar.hidePopover();
+        },
+        { signal }
+      );
       window.addEventListener(
         'resize',
         () => {
-          if (!button.checkVisibility()) this.setExpanded(false);
+          if (!button.checkVisibility() && sidebar.matches(':popover-open')) sidebar.hidePopover();
         },
         { signal }
       );
+      syncExpanded();
     }
 
     disconnectedCallback() {
-      this.setExpanded(false);
       this.listeners?.abort();
-    }
-
-    private setExpanded(expanded: boolean) {
-      this.setAttribute('aria-expanded', String(expanded));
-      this.querySelector('button')?.setAttribute('aria-expanded', String(expanded));
-      document.body.toggleAttribute('data-mobile-menu-expanded', expanded);
-      document
-        .querySelectorAll<HTMLElement>('.main-frame, .sl-skip-link')
-        .forEach((element) => element.toggleAttribute('inert', expanded));
+      document.body.removeAttribute('data-mobile-menu-expanded');
     }
   }
   if (!customElements.get('starlight-menu-button'))
@@ -142,12 +108,12 @@ import { Icon } from '@astrojs/starlight/components';
     height: var(--aspire-icon-size);
     --sl-icon-size: var(--aspire-icon-size) !important;
   }
-  [aria-expanded='true'] .open-menu,
-  [aria-expanded='false'] .close-menu {
+  :global(starlight-menu-button:has(~ #starlight__sidebar:popover-open)) .open-menu,
+  :global(starlight-menu-button:not(:has(~ #starlight__sidebar:popover-open))) .close-menu {
     display: none;
   }
   button:hover,
-  [aria-expanded='true'] button {
+  :global(starlight-menu-button:has(~ #starlight__sidebar:popover-open)) button {
     background: var(--sl-color-gray-6);
   }
   button:focus-visible {
