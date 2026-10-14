@@ -3,12 +3,13 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Xml.Linq;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Logging;
 
-if (args.Length == 0 || args.Length != (args[0] == "verify" ? 2 : 3))
+if (args.Length == 0 || args.Length != (args[0] == "verify" ? 2 : args[0] == "subset" ? 5 : 3))
 {
     throw new ArgumentException("Usage: CompressionProfile snapshot|describe|image|tasks|serve <input> <output-or-url>, or verify <snapshot>");
 }
@@ -17,6 +18,49 @@ switch (args[0])
 {
     case "snapshot":
         WriteJson(args[2], CompressionInputs.Create(args[1]));
+        break;
+    case "subset":
+        using (var comparison = JsonDocument.Parse(File.ReadAllText(args[2])))
+        {
+            var expected = comparison.RootElement.GetProperty("variants")[0].GetProperty("output").GetProperty("pages");
+            var selected = expected.EnumerateArray().Select(page => page.GetProperty("path").GetString()
+                ?? throw new InvalidDataException("Missing representative page path.")).ToHashSet(StringComparer.Ordinal);
+            var root = Path.GetFullPath(args[1]);
+            var destination = Path.GetFullPath(args[3]);
+            var subsetWebRoot = Path.Combine(destination, "wwwroot");
+            var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ".js", ".mjs", ".css", ".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif",
+                ".ico", ".woff", ".woff2", ".otf", ".ttf", ".wasm", ".webmanifest"
+            };
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+                if (!selected.Contains(relative) && !extensions.Contains(Path.GetExtension(file))) continue;
+                var output = Path.Combine(subsetWebRoot, relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+                File.Copy(file, output, overwrite: false);
+            }
+            foreach (var page in expected.EnumerateArray())
+            {
+                var path = Path.Combine(subsetWebRoot, page.GetProperty("path").GetString()!);
+                if (CompressionInputs.Hash(path) != page.GetProperty("sha256").GetString())
+                {
+                    throw new InvalidDataException($"Downloaded representative page differs from the complete-corpus profile: {path}.");
+                }
+            }
+            Directory.CreateDirectory(destination);
+            File.WriteAllText(Path.Combine(destination, "Program.cs"),
+                "var app = WebApplication.CreateBuilder(args).Build(); app.MapStaticAssets(); app.Run();");
+            var project = new XDocument(new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk.Web"),
+                new XElement("PropertyGroup",
+                    new XElement("TargetFramework", "net10.0"), new XElement("ImplicitUsings", "enable"),
+                    new XElement("EnableDefaultCompressionFormats", "false"),
+                    new XElement("PublishCompressionFormats", "brotli")),
+                new XElement("Import", new XAttribute("Project", Path.Combine(Path.GetFullPath(args[4]), "Publishing.targets"))),
+                new XElement("Import", new XAttribute("Project", Path.Combine(Path.GetFullPath(args[4]), "Caching.targets")))));
+            File.WriteAllText(Path.Combine(destination, "StaticHost.csproj"), project.ToString());
+        }
         break;
     case "verify":
         CompressionInputs.Verify(ReadJson<InputSnapshot>(args[1]));

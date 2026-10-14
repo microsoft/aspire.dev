@@ -13,9 +13,15 @@ on:
         required: false
         default: false
         type: boolean
+      profile_browser:
+        description: Rerun browser/cache profiling from the latest successful paired corpus
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build:
@@ -120,6 +126,85 @@ jobs:
           name: apphost-release
           path: src/apphost/Aspire.Dev.AppHost/bin/Release/*/
           if-no-files-found: warn
+          retention-days: 7
+
+  browser-profile:
+    name: StaticHost browser-cache profile
+    if: ${{ inputs.profile_browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOTNET_NOLOGO: 1
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      ASTRO_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.x"
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+      - name: Select the latest successful paired source on this branch
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SOURCE_BRANCH: ${{ github.head_ref || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidates=$(gh run list --workflow ci.yml --branch "$SOURCE_BRANCH" --status success \
+            --limit 20 --json databaseId --jq '.[].databaseId')
+          for id in $candidates; do
+            matched=$(gh api "repos/$GH_REPO/actions/runs/$id/jobs" --jq \
+              'any(.jobs[]; .name == "apphost-build / StaticHost publish diagnostics" and any(.steps[]; .name == "Compare complete compression variants and browser performance" and .conclusion == "success"))')
+            if [[ "$matched" == true ]]; then
+              echo "run_id=$id" >> "$GITHUB_OUTPUT"
+              echo "Reusing paired corpus from run $id."
+              exit 0
+            fi
+          done
+          echo "No completed paired compression profile was found on this branch." >&2
+          exit 1
+      - name: Download paired measurements
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: statichost-publish-performance
+          path: ${{ runner.temp }}/statichost-browser/source
+          run-id: ${{ steps.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Download the same generated frontend
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: frontend-dist
+          path: ${{ runner.temp }}/statichost-browser/frontend
+          run-id: ${{ steps.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Install browser profiler dependencies
+        working-directory: src/frontend
+        run: pnpm install --frozen-lockfile --prefer-offline && pnpm exec playwright install --with-deps chromium
+      - name: Build representative browser profiler
+        run: >
+          dotnet build tests/performance/CompressionProfile/CompressionProfile.csproj
+          --configuration Release --output "$RUNNER_TEMP/statichost-browser/profiler"
+      - name: Measure genuine cold and warm HTTP caches
+        shell: bash
+        run: bash tests/scripts/profile-static-host-browser.sh
+      - name: Upload browser-cache measurements
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: statichost-browser-performance
+          path: |
+            ${{ runner.temp }}/statichost-browser/results/**/*.json
+            ${{ runner.temp }}/statichost-browser/results/**/*.log
+          if-no-files-found: error
           retention-days: 7
 
   publish:

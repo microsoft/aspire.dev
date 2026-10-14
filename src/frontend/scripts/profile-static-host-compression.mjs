@@ -40,15 +40,21 @@ async function run(baseUrl, manifestPath, variant, output) {
             locale: 'en-US',
           });
           try {
-            await context.route('**/*', (route) => {
-              return new URL(route.request().url()).origin === new URL(baseUrl).origin
-                ? route.continue() : route.abort();
-            });
             for (const cache of ['cold', 'warm']) {
               const page = await context.newPage();
               try {
                 const session = await context.newCDPSession(page);
                 await session.send('Network.enable');
+                // Playwright routing disables HTTP caching, so block external
+                // URLs in Chromium without installing a request interceptor.
+                await session.send('Network.setBlockedURLs', {
+                  urlPatterns: [
+                    { urlPattern: `${new URL(baseUrl).origin}/*`, block: false },
+                    { urlPattern: 'http://*:*/*', block: true },
+                    { urlPattern: 'https://*:*/*', block: true },
+                  ],
+                });
+                await session.send('Network.setCacheDisabled', { cacheDisabled: false });
                 if (cache === 'cold') await session.send('Network.clearBrowserCache');
                 await session.send('Performance.enable');
                 if (scenario === 'mobile-like') {
@@ -84,8 +90,12 @@ async function run(baseUrl, manifestPath, variant, output) {
                     documentEncodedBytes: navigation.encodedBodySize,
                     documentDecodedBytes: navigation.decodedBodySize,
                     transferBytes: navigation.transferSize + resources.reduce((sum, entry) => sum + entry.transferSize, 0),
+                    cachedResourceCount: resources.filter((entry) => entry.transferSize === 0 && entry.encodedBodySize > 0).length,
                   };
                 });
+                if (cache === 'warm' && timing.cachedResourceCount === 0) {
+                  throw new Error(`Warm navigation did not reuse HTTP-cached resources: ${target.path}.`);
+                }
                 const performanceMetrics = Object.fromEntries((await session.send('Performance.getMetrics'))
                   .metrics.map(({ name, value }) => [name, value]));
                 samples.push({
@@ -144,6 +154,7 @@ async function compare(directory, summaryPath) {
             'ttfbMs', 'downloadMs', 'domContentLoadedMs', 'loadMs', 'fcpMs', 'lcpMs',
             'documentEncodedBytes', 'documentDecodedBytes', 'transferBytes', 'mainThreadTaskMs',
             'scriptMs', 'layoutMs', 'jsHeapBytes',
+            'cachedResourceCount',
           ].map((metric) => {
             const values = samples.map((sample) => sample[metric]).filter((value) => value !== null);
             return [metric, values.length ? {
@@ -195,11 +206,35 @@ async function compare(directory, summaryPath) {
   await appendFile(summaryPath, lines.join('\n'));
 }
 
+async function browserReport(directory, originalComparison, summaryPath) {
+  const source = JSON.parse(await readFile(originalComparison, 'utf8'));
+  const variants = await Promise.all(['SmallestSize', 'Optimal'].map(async (name) => ({
+    name,
+    output: JSON.parse(await readFile(`${directory}/${name}/files.json`, 'utf8')),
+    browser: JSON.parse(await readFile(`${directory}/${name}/browser.json`, 'utf8')),
+  })));
+  for (const variant of variants) {
+    const original = source.variants.find((candidate) => candidate.name === variant.name);
+    if (!original || variant.output.pages.some((page, index) =>
+      page.sha256 !== original.output.pages[index]?.sha256 ||
+      page.brotliBytes !== original.output.pages[index]?.brotliBytes)) {
+      throw new Error('Browser follow-up changed representative content or compression bytes.');
+    }
+  }
+  await writeFile(`${directory}/browser-comparison.json`, JSON.stringify({
+    sourceCommit: source.variants[0].output.environment.sourceCommit,
+    methodology: 'Representative pages and static assets from the completed full-corpus profile. Page hashes and Brotli bytes must match. Chromium-native URL blocking preserves HTTP caching; warm samples require cache hits. Kestrel fixture has fewer routes, so its startup/RSS is not the full-site origin footprint.',
+    variants,
+  }, null, 2));
+  await appendFile(summaryPath, '\n## Corrected browser-cache comparison\n\nPage hashes and Brotli bytes match the completed full-site profile. Genuine warm HTTP-cache hits were verified. See `browser-comparison.json`; earlier interceptor-based browser observations are superseded.\n');
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === 'run' && args.length === 4) await run(...args);
   else if (command === 'compare' && args.length === 2) await compare(...args);
-  else throw new Error('Usage: profile-static-host-compression.mjs run <url> <manifest> <variant> <output> | compare <directory> <summary>');
+  else if (command === 'browser-report' && args.length === 3) await browserReport(...args);
+  else throw new Error('Usage: profile-static-host-compression.mjs run <url> <manifest> <variant> <output> | compare <directory> <summary> | browser-report <directory> <original-comparison> <summary>');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

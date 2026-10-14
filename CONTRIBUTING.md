@@ -119,6 +119,18 @@ claims. Review `comparison/comparison.json` in
 `statichost-publish-performance` before deciding whether the byte-size tradeoff
 is acceptable.
 
+Use `browser-profile` to repeat only browser/cache measurements from the latest
+successful paired profile on the same pull-request branch. It downloads that
+run's generated frontend, copies the representative pages and static assets
+into an SDK endpoint fixture, and requires matching page hashes and Brotli
+bytes. It does not render the frontend or recompress the complete API catalog.
+The fixture has fewer routes, so its startup time and RSS are not full-site
+origin measurements. Results are in `statichost-browser-performance`.
+
+External URLs are blocked through Chromium's native network controls.
+Playwright request interception disables HTTP caching and must not be used in
+cache profiles. Warm observations explicitly require cached resource hits.
+
 Measure full-site publishing in CI. Compare equivalent source commits, SDKs,
 runner images, and clean intermediate directories before attributing a timing
 change to compression. A full StaticHost publish also builds the frontend.
