@@ -85,7 +85,10 @@ describe('resource catalog normalization', () => {
   });
 
   it('honors canonical slugs and index routes without mangling names ending in index', () => {
-    expect(docHref(doc('old', { slug: 'new/page' }))).toBe('/new/page/');
+    expect(docHref(doc('new/page'))).toBe('/new/page/');
+    const data = { title: 'Canonical ID' };
+    Object.defineProperty(data, 'slug', { get: () => { throw new Error('deprecated slug access'); } });
+    expect(docHref({ id: 'canonical/page', data })).toBe('/canonical/page/');
     expect(docHref(doc('fundamentals/index'))).toBe('/fundamentals/');
     expect(docHref(doc('reference/search-index'))).toBe('/reference/search-index/');
     expect(canonicalDestination('/')).toBe('/');
@@ -132,7 +135,7 @@ describe('resource catalog normalization', () => {
     const entries = [
       doc('includes/shared'),
       doc('reference/cli/includes/option-help'),
-      doc('reference/cli/includes/renamed', { slug: 'public-fragment' }),
+      { ...doc('public-fragment'), filePath: 'src/content/docs/reference/cli/includes/renamed.mdx' },
       { ...doc('another-fragment'), filePath: 'C:\\repo\\src\\content\\docs\\reference\\cli\\includes\\shared.md' },
       doc('reference/cli/includes-overview'),
     ];
@@ -143,7 +146,7 @@ describe('resource catalog normalization', () => {
 
   it('merges packages into canonical docs and preserves package search metadata', () => {
     const result = buildResourceCatalog({ ...empty,
-      docs: [{ ...doc('integrations/new', { slug: 'integrations/canonical', category: 'quickstart' }), filePath: 'src/content/docs/integrations/old.mdx' }],
+      docs: [{ ...doc('integrations/canonical', { category: 'quickstart' }), filePath: 'src/content/docs/integrations/old.mdx' }],
       integrations: [
         { title: 'Hosting.Redis', href: 'https://nuget.org/packages/Hosting.Redis', description: 'Hosting package', tags: ['redis'], icon: 'https://example.com/redis.svg' },
         { title: 'Client.Redis', href: 'https://nuget.org/packages/Client.Redis', description: 'Client package', tags: ['client'] },
@@ -212,8 +215,7 @@ describe('resource catalog normalization', () => {
 
   it('fails loudly on conflicting source identities, destinations, mappings and unsafe URLs', () => {
     expect(() => buildResourceCatalog({ ...empty, docs: [doc('same'), doc('same')] })).toThrow('Conflicting resource ID');
-    expect(() => buildResourceCatalog({ ...empty, docs: [doc('same', { slug: 'one' }), doc('same', { slug: 'two' })] })).toThrow('Conflicting resource ID');
-    expect(() => buildResourceCatalog({ ...empty, docs: [doc('one', { slug: 'same' }), doc('two', { slug: 'same' })] })).toThrow('Conflicting resource destination');
+    expect(() => buildResourceCatalog({ ...empty, docs: [doc('same'), doc('same/')] })).toThrow('Conflicting resource destination');
     expect(() => buildResourceCatalog({ ...empty, integrationDocs: [{ match: 'One', href: '/one/' }, { match: 'one', href: '/two/' }] })).toThrow('Duplicate integration documentation mapping');
     expect(() => buildResourceCatalog({ ...empty, integrations: [
       { title: 'One', href: 'https://nuget.org/packages/One', description: '' },
