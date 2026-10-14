@@ -17,7 +17,7 @@ import LiveSvg from '@assets/icons/live.svg';
   class="live-source-menu not-content"
   role="dialog"
   aria-labelledby="aspire-live-source-menu-title"
-  hidden
+  popover="manual"
 >
   <div class="live-source-menu__header">
     <div>
@@ -157,6 +157,7 @@ import LiveSvg from '@assets/icons/live.svg';
 
   let current = getCurrent();
   let sourcePickerAnchor: HTMLElement | null = null;
+  let sourcePickerHome: { parent: HTMLElement; nextSibling: ChildNode | null } | null = null;
   let pickerListeners: AbortController | undefined;
 
   function getState(): LivePipState {
@@ -392,6 +393,30 @@ import LiveSvg from '@assets/icons/live.svg';
     return document.getElementById(SOURCE_PICKER_ID);
   }
 
+  function isSourcePickerOpen(picker = getSourcePicker()): picker is HTMLElement {
+    return picker?.matches(':popover-open') ?? false;
+  }
+
+  function nestSourcePicker(picker: HTMLElement, anchor: HTMLElement): void {
+    const sidebar = anchor.closest<HTMLElement>('#starlight__sidebar:popover-open');
+    if (!sidebar) return;
+
+    const parent = picker.parentElement;
+    if (!parent) return;
+    sourcePickerHome = { parent, nextSibling: picker.nextSibling };
+    sidebar.append(picker);
+  }
+
+  function restoreSourcePicker(picker: HTMLElement): void {
+    const home = sourcePickerHome;
+    sourcePickerHome = null;
+    if (!home?.parent.isConnected) return;
+
+    const nextSibling =
+      home.nextSibling?.parentNode === home.parent ? home.nextSibling : null;
+    home.parent.insertBefore(picker, nextSibling);
+  }
+
   function setPipStatus(message = ''): void {
     const status = getSourcePicker()?.querySelector<HTMLElement>('[data-live-pip-status]');
     if (status) {
@@ -404,8 +429,9 @@ import LiveSvg from '@assets/icons/live.svg';
     const picker = getSourcePicker();
     const anchor = sourcePickerAnchor;
     sourcePickerAnchor = null;
-    if (picker) {
-      picker.hidden = true;
+    if (isSourcePickerOpen(picker)) {
+      picker.hidePopover();
+      restoreSourcePicker(picker);
     }
     document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
       btn.setAttribute('aria-expanded', 'false');
@@ -525,7 +551,7 @@ import LiveSvg from '@assets/icons/live.svg';
     const picker = getSourcePicker();
     if (!picker) return;
 
-    if (!picker.hidden && anchor.getAttribute('aria-expanded') === 'true') {
+    if (isSourcePickerOpen(picker) && anchor.getAttribute('aria-expanded') === 'true') {
       closeSourcePicker();
       return;
     }
@@ -533,7 +559,8 @@ import LiveSvg from '@assets/icons/live.svg';
     sourcePickerAnchor = anchor;
     syncSourcePickerControls();
     setPipStatus();
-    picker.hidden = false;
+    nestSourcePicker(picker, anchor);
+    picker.showPopover();
     positionSourcePicker(anchor, picker);
     document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
       btn.setAttribute('aria-expanded', String(btn === anchor));
@@ -606,7 +633,7 @@ import LiveSvg from '@assets/icons/live.svg';
     document.addEventListener(
       'click',
       (evt) => {
-        if (picker.hidden) return;
+        if (!isSourcePickerOpen(picker)) return;
         const target = evt.target;
         if (!(target instanceof Node)) return;
         if (picker.contains(target) || (target instanceof Element && target.closest('.live-btn')))
@@ -618,7 +645,7 @@ import LiveSvg from '@assets/icons/live.svg';
     document.addEventListener(
       'keydown',
       (evt) => {
-        if (evt.key === 'Escape' && !picker.hidden) {
+        if (evt.key === 'Escape' && isSourcePickerOpen(picker)) {
           evt.preventDefault();
           closeSourcePicker(true);
         }
@@ -631,7 +658,7 @@ import LiveSvg from '@assets/icons/live.svg';
         const expandedButton = document.querySelector<HTMLElement>(
           '.live-btn[aria-expanded="true"]'
         );
-        if (!picker.hidden && expandedButton) {
+        if (isSourcePickerOpen(picker) && expandedButton) {
           positionSourcePicker(expandedButton, picker);
         }
       },
@@ -647,7 +674,7 @@ import LiveSvg from '@assets/icons/live.svg';
         btn.setAttribute('aria-controls', SOURCE_PICKER_ID);
         btn.setAttribute(
           'aria-expanded',
-          String(!getSourcePicker()?.hidden && btn.getAttribute('aria-expanded') === 'true')
+          String(isSourcePickerOpen() && btn.getAttribute('aria-expanded') === 'true')
         );
       } else {
         btn.removeAttribute('aria-haspopup');
@@ -697,6 +724,7 @@ import LiveSvg from '@assets/icons/live.svg';
       pickerListeners?.abort();
       pickerListeners = undefined;
       sourcePickerAnchor = null;
+      sourcePickerHome = null;
     });
   }
 </script>
@@ -712,6 +740,7 @@ import LiveSvg from '@assets/icons/live.svg';
     max-height: calc(100dvh - 1.5rem);
     flex-direction: column;
     min-width: 18rem;
+    margin: 0;
     padding: 0;
     color: var(--sl-color-text);
     background: var(--sl-color-bg);
@@ -721,7 +750,7 @@ import LiveSvg from '@assets/icons/live.svg';
     overflow: hidden;
   }
 
-  .live-source-menu[hidden] {
+  .live-source-menu:not(:popover-open) {
     display: none;
   }
 
