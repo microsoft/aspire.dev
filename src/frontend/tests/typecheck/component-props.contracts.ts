@@ -63,7 +63,6 @@ import { brandAssets, brandColors } from '@data/brand';
 
 type PropsOf<T extends (...args: never[]) => unknown> = ComponentProps<T>;
 
-<<<<<<< HEAD
 const validBrandAssetProps = { assets: brandAssets } satisfies PropsOf<typeof BrandAssetGallery>;
 const validBrandPaletteProps = { colors: brandColors } satisfies PropsOf<typeof BrandPalette>;
 const validBrandWordmarkProps = { asset: brandAssets[0] } satisfies PropsOf<typeof BrandWordmark>;
@@ -78,13 +77,12 @@ void validBrandPaletteProps;
 void validBrandWordmarkProps;
 void validBrandDownloadProps;
 void validBrandCopyProps;
-=======
+
 const validReadableTextProps = { text: 'RedisResource.withModule' } satisfies PropsOf<typeof ReadableText>;
 void validReadableTextProps;
 // @ts-expect-error Identifier content is required and must remain a string.
 const invalidReadableTextProps = { text: 123 } satisfies PropsOf<typeof ReadableText>;
 void invalidReadableTextProps;
->>>>>>> e95a50157ffa8b660f17e6f5cf83c95f34ba2c9c
 
 const validSearchFieldProps = {
   id: 'api-query', label: 'Search API entries', placeholder: 'Try Redis',
