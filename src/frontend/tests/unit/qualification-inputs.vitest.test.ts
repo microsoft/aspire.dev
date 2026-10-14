@@ -111,6 +111,13 @@ it('captures only successful public bodies and never persists request credential
         ([input]) => typeof input === 'string' && new URL(input).origin === 'https://api.github.com'
       )
     ).toHaveLength(5);
+    expect(
+      fetch.mock.calls
+        .map(([input]) => (typeof input === 'string' ? input : ''))
+        .filter((input) => input.startsWith('https://api.github.com/'))
+    ).toContain(
+      'https://api.github.com/repos/communitytoolkit/aspire/contributors?per_page=100&page=1'
+    );
     fetch.mockResolvedValue(new Response('Unavailable', { status: 503 }));
     await expect(captureQualificationInputs(path)).rejects.toThrow(
       'Qualification input failed: 503'

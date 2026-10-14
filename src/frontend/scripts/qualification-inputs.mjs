@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 const repositories = [
   'microsoft/aspire',
   'microsoft/aspire-samples',
-  'CommunityToolkit/Aspire',
+  'communitytoolkit/aspire',
   'microsoft/aspire.dev',
   'microsoft/dcp',
 ];
