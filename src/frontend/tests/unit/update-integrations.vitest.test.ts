@@ -10,6 +10,8 @@ import integrationDocs from '@data/integration-docs.json';
 import {
   DEFAULT_NUGET_ICON_URL,
   ASPIRE_RELEASE_ICON_URL,
+  THIRD_PARTY_PACKAGES,
+  filterAndTransform,
   getOfficialAspireDefaultIconPackages,
   reconcileIntegrationDocs,
   reconcileReleaseBranchCatalog,
@@ -407,6 +409,40 @@ describe('Community Toolkit documentation mappings', () => {
       .map(({ match, href }) => `${match}: ${href}`);
 
     expect(invalidDestinations).toEqual([]);
+  });
+});
+
+describe('third-party integration allow list', () => {
+  const record = (id: string, overrides: Record<string, unknown> = {}) => ({
+    id,
+    version: '1.0.0',
+    verified: true,
+    ...overrides,
+  });
+
+  test('keeps allow-listed packages outside the Aspire ID prefixes', () => {
+    const titles = filterAndTransform([
+      record('Particular.Aspire.Hosting.ServicePlatform'),
+      record('Contoso.Aspire.Hosting.Other'),
+    ]).map(({ title }) => title);
+
+    expect(titles).toEqual(['Particular.Aspire.Hosting.ServicePlatform']);
+  });
+
+  test('still rejects allow-listed packages that are unverified or deprecated', () => {
+    const titles = filterAndTransform([
+      record('Particular.Aspire.Hosting.ServicePlatform', { verified: false }),
+      record('Particular.Aspire.Hosting.ServicePlatform', { deprecated: true }),
+    ]);
+
+    expect(titles).toEqual([]);
+  });
+
+  test.each(THIRD_PARTY_PACKAGES)('catalogs %s and links its card to external docs', (id) => {
+    expect(aspireIntegrations.some(({ title }) => title === id)).toBe(true);
+
+    const mapping = integrationDocs.find(({ match }) => match === id);
+    expect(mapping?.href).toMatch(/^https:\/\//);
   });
 });
 
