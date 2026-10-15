@@ -450,12 +450,13 @@ describe('third-party integration allow list', () => {
     expect(redis).not.toHaveProperty('apiReference');
   });
 
-  test('sums the version history downloads from the nuget.org package page', () => {
-    const row = (version: string, downloads: string) =>
-      `<tr class="version-row"><td><a href="/packages/x/${version}">${version}</a></td><td> ${downloads} </td><td>6/16/2026</td></tr>`;
-    const html = `<table><tbody>${row('1.1.0', '5,313')}${row('1.0.1', '138')}${row('1.0.0', '157')}</tbody></table>`;
+  test('sums the per-version downloads listed on the nuget.org package page', () => {
+    const perVersion = [4200, 90, 3];
+    const row = (downloads: number, index: number) =>
+      `<tr class="version-row"><td><a href="/packages/x/${index}">${index}</a></td><td> ${downloads.toLocaleString('en-US')} </td><td>6/16/2026</td></tr>`;
+    const html = `<table><tbody>${perVersion.map(row).join('')}</tbody></table>`;
 
-    expect(parseNuGetPageDownloads(html)).toBe(5608);
+    expect(parseNuGetPageDownloads(html)).toBe(perVersion.reduce((a, b) => a + b, 0));
     expect(parseNuGetPageDownloads('<html></html>')).toBeNull();
   });
 
