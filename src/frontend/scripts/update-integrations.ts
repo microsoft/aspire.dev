@@ -745,6 +745,50 @@ export function reconcileReleaseBranchCatalog(
   return [...reconciled, ...carriedForward].sort((a, b) => a.title.localeCompare(b.title));
 }
 
+// The nuget.org search replicas lag the package page's download stats, so third-party
+// packages take their total from the package page's version history table instead.
+export function parseNuGetPageDownloads(html: string): number | null {
+  const rows = html.match(/<tr[^>]*\bversion-row\b[\s\S]*?<\/tr>/g) ?? [];
+  let total = 0;
+  let counted = 0;
+
+  for (const row of rows) {
+    const cells = [...row.matchAll(/<td[^>]*>\s*([\d,]+)\s*<\/td>/g)];
+    if (cells.length > 0) {
+      total += Number(cells[0][1].replace(/,/g, ''));
+      counted++;
+    }
+  }
+
+  return counted > 0 ? total : null;
+}
+
+async function applyNuGetPageDownloads(output: IntegrationOutput[]): Promise<IntegrationOutput[]> {
+  const thirdPartyLower = new Set(THIRD_PARTY_PACKAGES.map((id) => id.toLowerCase()));
+
+  return Promise.all(
+    output.map(async (entry) => {
+      if (!thirdPartyLower.has(entry.title.toLowerCase())) {
+        return entry;
+      }
+
+      try {
+        const res = await fetch(`https://www.nuget.org/packages/${encodeURIComponent(entry.title)}`);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const downloads = parseNuGetPageDownloads(await res.text());
+        return downloads === null ? entry : { ...entry, downloads };
+      } catch (error: unknown) {
+        console.warn(
+          `⚠️ Could not read the nuget.org page download count for ${entry.title}: ${getErrorMessage(error)}`
+        );
+        return entry;
+      }
+    })
+  );
+}
+
 export async function updateIntegrations(): Promise<void> {
   const officialSource = resolveOfficialAspirePackageSource();
   const releaseVersion = getPinnedReleaseVersion(officialSource.branchName);
@@ -847,6 +891,7 @@ export async function updateIntegrations(): Promise<void> {
   if (officialSource.isReleaseBranch) {
     output = reconcileReleaseBranchCatalog(output, fetchedPackageIds);
   }
+  output = await applyNuGetPageDownloads(output);
   const defaultIconPackages = getOfficialAspireDefaultIconPackages(output);
   const releaseIconPackages = output.filter((pkg) => pkg.icon === ASPIRE_RELEASE_ICON_URL);
   if (releaseIconPackages.length > 0) {

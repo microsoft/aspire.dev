@@ -13,6 +13,7 @@ import {
   THIRD_PARTY_PACKAGES,
   filterAndTransform,
   getOfficialAspireDefaultIconPackages,
+  parseNuGetPageDownloads,
   reconcileIntegrationDocs,
   reconcileReleaseBranchCatalog,
   resolveIconUrl,
@@ -436,6 +437,15 @@ describe('third-party integration allow list', () => {
     ]);
 
     expect(titles).toEqual([]);
+  });
+
+  test('sums the version history downloads from the nuget.org package page', () => {
+    const row = (version: string, downloads: string) =>
+      `<tr class="version-row"><td><a href="/packages/x/${version}">${version}</a></td><td> ${downloads} </td><td>6/16/2026</td></tr>`;
+    const html = `<table><tbody>${row('1.1.0', '5,313')}${row('1.0.1', '138')}${row('1.0.0', '157')}</tbody></table>`;
+
+    expect(parseNuGetPageDownloads(html)).toBe(5608);
+    expect(parseNuGetPageDownloads('<html></html>')).toBeNull();
   });
 
   test.each(THIRD_PARTY_PACKAGES)('catalogs %s and links its card to external docs', (id) => {
