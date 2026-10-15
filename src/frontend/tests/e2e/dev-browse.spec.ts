@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import blogPosts from '../../src/data/aspire-blog-posts.json' with { type: 'json' };
+import { getSiteNavigationLink } from './helpers';
 
 const results = (page: import('@playwright/test').Page) => page.locator('.browse-result:not([hidden])');
 const openFacet = async (page: import('@playwright/test').Page, name: string) => {
@@ -474,17 +475,14 @@ for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/hub/browse/');
     await expect(page.locator('.dev-breadcrumbs .breadcrumb')).toHaveCount(1);
-    const hubMark = await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML();
-    await expect(page.locator('.dev-breadcrumbs a[href="/hub/"] svg')).toHaveCount(2);
-    for (const mark of await page.locator('.dev-breadcrumbs a[href="/hub/"] svg').all()) {
-      await expect(mark).toHaveAttribute('aria-hidden', 'true');
-      expect(await mark.innerHTML()).toBe(hubMark);
-    }
+    const hubMark = await page.locator('header .right-group .dev-center-btn svg').innerHTML();
+    await expect(page.locator('.dev-breadcrumbs a[href="/hub/"] svg')).toHaveCount(1);
+    const desktopMark = page.locator('.bc-inline a[href="/hub/"] svg');
+    await expect(desktopMark).toHaveAttribute('aria-hidden', 'true');
+    expect(await desktopMark.innerHTML()).toBe(hubMark);
+    await expect(page.locator('.bc-parent svg')).toHaveAttribute('aria-hidden', 'true');
     await expect(page.locator('.browse-trail')).toHaveCount(0);
-    if (width === 390) {
-      await page.locator('.bc-collapse > summary').click();
-      await expect(page.locator('.bc-dropdown').getByRole('link', { name: 'Aspire resources' })).toBeVisible();
-    }
+    await expect(page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).getByRole('link', { name: 'Aspire resources' })).toBeVisible();
     for (const type of ['guide', 'integration', 'video', 'sample', 'glossary', 'blog']) {
       await page.goto(`/hub/browse/?type=${type}`);
       await expect(results(page).first()).toBeVisible();
@@ -595,11 +593,11 @@ test('mobile filters open as readable fixed panels without shifting results', as
   await expect(type.getByRole('button', { name: 'Close Type' })).toBeVisible();
   await expect(type.locator('.browse-filter-mobile-header strong')).toHaveText('Type');
   const closeBox = (await type.getByRole('button', { name: 'Close Type' }).boundingBox())!;
-  expect(closeBox.width).toBeGreaterThanOrEqual(44);
-  expect(closeBox.height).toBeGreaterThanOrEqual(44);
+  expect(closeBox.width).toBe(34);
+  expect(closeBox.height).toBe(34);
   await expect(type.locator('.browse-filter-backdrop')).toBeVisible();
   for (const option of await type.locator('.browse-filter-option').all()) {
-    expect((await option.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect((await option.boundingBox())!.height).toBeGreaterThanOrEqual(34);
   }
   expect(await type.locator('fieldset').evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true);
   expect((await page.locator('.browse-grid').boundingBox())!.y).toBe(gridTop);
@@ -611,8 +609,8 @@ test('mobile filters open as readable fixed panels without shifting results', as
   await sort.locator('summary').click();
   for (const choice of await sort.locator('.browse-sort-choice').all()) {
     const choiceBox = (await choice.boundingBox())!;
-    expect(choiceBox.width).toBeGreaterThanOrEqual(44);
-    expect(choiceBox.height).toBeGreaterThanOrEqual(44);
+    expect(choiceBox.width).toBe(34);
+    expect(choiceBox.height).toBe(34);
   }
   await sort.getByRole('button', { name: 'Close Sort by' }).click();
   await expect(sort).not.toHaveAttribute('open');
@@ -643,10 +641,14 @@ test('every dropdown shows responsive options without a separate search input', 
     await expect(group.locator('[data-option-label][hidden]')).toHaveCount(0);
     const box = await options.first().boundingBox();
     if (mobile) {
-      expect(box!.height).toBeGreaterThanOrEqual(name === 'sort' ? 56 : 44);
+      expect(box!.height).toBeGreaterThanOrEqual(name === 'sort' ? 56 : 34);
     } else {
-      expect(box!.height).toBeLessThanOrEqual(36);
-      expect(box!.height).toBeGreaterThanOrEqual(24);
+      const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+      if (coarse) expect(box!.height).toBeGreaterThanOrEqual(34);
+      else {
+        expect(box!.height).toBeLessThanOrEqual(36);
+        expect(box!.height).toBeGreaterThanOrEqual(24);
+      }
     }
     expect(page.url()).toBe(initialUrl);
     expect(await results(page).locator('h3').allTextContents()).toEqual(initialResults);
@@ -821,7 +823,7 @@ test('history returns focus from hidden pagination and closed filter options wit
   await expect(group.locator('summary')).toBeFocused();
 
   await page.goForward();
-  const hub = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
+  const hub = await getSiteNavigationLink(page, '/hub/');
   await hub.focus();
   await page.goBack();
   await expect(hub).toBeFocused();

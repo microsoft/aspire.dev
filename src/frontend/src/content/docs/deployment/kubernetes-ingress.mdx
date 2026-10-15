@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 When you deploy an Aspire application to Kubernetes, your services are accessible only within the cluster by default. To expose services to external traffic — such as a web frontend that users access from the internet — you need to configure an **Ingress** or **Gateway** resource that routes traffic from outside the cluster to your services.
 
@@ -29,7 +30,7 @@ Aspire provides first-class APIs for defining Ingress and Gateway API resources 
   new traffic-routing capabilities are landing in Gateway API instead. For new
   Aspire deployments, prefer
   [`AddGateway(...)`](/deployment/kubernetes-gateway-aks/) over
-  `AddIngress(...)` unless your cluster or controller doesn't yet support
+  <ApiReference name="Aspire.Hosting.KubernetesIngressExtensions.AddIngress" /> unless your cluster or controller doesn't yet support
   Gateway API. See [Gateway API
   concepts](https://gateway-api.sigs.k8s.io/concepts/api-overview/) for the
   upstream design rationale.
@@ -47,7 +48,7 @@ Kubernetes offers two approaches for routing external traffic to your services:
 | **Routing features** | Host and path matching | Host, path, header, query, method matching |
 | **Extensibility** | Controller-specific annotations | Standardized filters and policies |
 | **Traffic splitting** | Not standardized | First-class weighted backends |
-| **Aspire API** | `AddIngress()` | `AddGateway()` |
+| **Aspire API** | `AddIngress()` | <ApiReference name="Aspire.Hosting.KubernetesGatewayExtensions.AddGateway" /> |
 
 **Recommendation:** Use **Gateway API** for new deployments. It's the future direction of Kubernetes traffic management and offers richer routing capabilities with better portability across providers. Use **Ingress** when your cluster or ingress controller doesn't support the Gateway API yet.
 
@@ -146,7 +147,7 @@ If you call `WithHostname` more than once, each hostless path or route applies t
 
 A Gateway API `HTTPRoute` supports at most 16 hostnames. If a Gateway has more than 16 hostnames and any hostless routes, publishing fails; define explicit host-scoped routes instead.
 
-An Ingress default backend (`WithDefaultBackend`) doesn't inherit the hostname and remains a catch-all for any traffic that doesn't match a more specific rule. When TLS is also configured, Aspire adds a rule that forwards each TLS hostname without its own rule to the default backend, because some ingress controllers require every TLS host to have a matching rule.
+An Ingress default backend (<ApiReference name="Aspire.Hosting.KubernetesIngressExtensions.WithDefaultBackend" />) doesn't inherit the hostname and remains a catch-all for any traffic that doesn't match a more specific rule. When TLS is also configured, Aspire adds a rule that forwards each TLS hostname without its own rule to the default backend, because some ingress controllers require every TLS host to have a matching rule.
 
 <Aside type="note">
   This inheritance behavior applies from Aspire 13.6 onward. In earlier

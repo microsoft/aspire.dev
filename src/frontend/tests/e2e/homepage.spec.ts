@@ -41,7 +41,7 @@ test('section 08 pairs getting started with Dev Hub discovery and stacks on mobi
   await expect(section.getByRole('link', { name: 'View on GitHub', exact: true })).toHaveAttribute('href', 'https://github.com/microsoft/aspire');
   await expect(section.getByRole('heading', { level: 3, name: 'Find your next step.' })).toBeVisible();
   expect(await link.locator('.dev-hub-mark').innerHTML()).toBe(
-    await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML(),
+    await page.locator('header .right-group .dev-center-btn svg').innerHTML(),
   );
   for (const width of [320, 390, 768, 1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -313,7 +313,9 @@ test('uses concise section copy and a compact editorial rhythm', async ({ page }
 
     return {
       width: window.innerWidth,
-      pageHeight: document.documentElement.scrollHeight,
+      // Release announcements vary independently of the homepage's editorial spacing.
+      pageHeight: document.documentElement.scrollHeight -
+        (document.querySelector('[data-aspire-banner]')?.getBoundingClientRect().height ?? 0),
       headingLines,
       modelHeadingOffset:
         sectionIndex && sectionHeading
@@ -1411,6 +1413,36 @@ test('reflows to 320 CSS pixels without clipping the page', async ({ page }) => 
   expect(dimensions.heroCopyFits).toBe(true);
   expect(dimensions.agentNetworkFits).toBe(true);
   expect(dimensions.footerFits).toBe(true);
+});
+
+test('loads icons hidden behind tabs and language toggles before they are revealed', async ({
+  page,
+}) => {
+  // The dev server transforms every icon on request, which takes tens of seconds when parallel
+  // workers share it, so the loaded checks below wait far longer than the 5 s default.
+  test.slow();
+
+  // Native lazy loading never starts for `display: none` images, so these only load because their
+  // sections fetch them as they near the viewport.
+  const allLoaded = (images: Element[]) =>
+    images.length > 0 &&
+    images.every(
+      (image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0
+    );
+
+  const environment = page.locator('[data-home-environments]');
+  await environment.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => environment.locator('img').evaluateAll(allLoaded), { timeout: 60_000 })
+    .toBe(true);
+  // The point of the test: some of those images sit in panels that are not displayed.
+  await expect(environment.locator('[data-environment-panel][hidden] img').first()).toBeAttached();
+
+  const model = page.locator('[data-model-story]');
+  await model.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => model.locator('.model-tab-lang-icon').evaluateAll(allLoaded), { timeout: 60_000 })
+    .toBe(true);
 });
 
 test('keeps the environment frame stable while each topology changes', async ({ page }) => {

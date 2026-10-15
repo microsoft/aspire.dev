@@ -48,9 +48,9 @@ run_helper() {
 }
 
 expect_failure() {
-  if bash "$HELPER" main release/test > "$TEST_ROOT/output" 2>&1; then
-    fail "Expected merge failure."
-  fi
+  helper_status=0
+  bash "$HELPER" main release/test > "$TEST_ROOT/output" 2>&1 || helper_status=$?
+  [[ "$helper_status" -ne 0 ]] || fail "Expected merge failure."
   grep -q "$1" "$TEST_ROOT/output" || { cat "$TEST_ROOT/output"; fail "Missing expected diagnostic: $1"; }
   [[ "$(git rev-parse HEAD)" == "$release_sha" ]] || fail "Failed merge changed release HEAD."
   [[ -z "$(git status --porcelain)" ]] || fail "Failed merge left a dirty checkout."
@@ -147,10 +147,92 @@ commit_all main
 git switch -q release/test
 export GITHUB_STEP_SUMMARY="$TEST_ROOT/summary"
 expect_failure "conflicts require human review"
+[[ "$helper_status" == 3 ]] || fail "Conflicts must exit 3, got $helper_status."
 grep -q 'shared.txt' "$GITHUB_STEP_SUMMARY" || fail "Summary omitted conflict path."
 grep -q 'never squash or rebase' "$GITHUB_STEP_SUMMARY" || fail "Summary omitted ancestry guidance."
 unset GITHUB_STEP_SUMMARY
 echo "PASS: unknown conflict aborts with recovery instructions"
+
+# Same fixture: --commit-conflicts keeps both parents and leaves markers for a repair PR.
+generated=src/frontend/src/data/samples.json
+write_file "$generated" release
+commit_all release-generated
+git switch -q main
+write_file "$generated" main
+commit_all main-generated
+git switch -q release/test
+release_sha="$(git rev-parse HEAD)"
+export RELEASE_SYNC_CONFLICTS_FILE="$TEST_ROOT/conflicts"
+bash "$HELPER" main release/test --commit-conflicts > "$TEST_ROOT/output" 2>&1 \
+  || { cat "$TEST_ROOT/output"; fail "--commit-conflicts failed."; }
+unset RELEASE_SYNC_CONFLICTS_FILE
+assert_parents
+[[ "$(cat "$TEST_ROOT/conflicts")" == $'text\tshared.txt' ]] || fail "Conflict list is wrong."
+grep -q '^<<<<<<<' shared.txt || fail "Repair commit lost conflict markers."
+[[ -z "$(git status --porcelain)" ]] || fail "Repair commit left a dirty checkout."
+git diff --exit-code main HEAD -- "$generated" || fail "Generated data was not mirrored from main."
+echo "PASS: --commit-conflicts commits markers with both parents"
+
+new_repo commit-conflicts-clean
+write_file release.txt release
+commit_all release
+release_sha="$(git rev-parse HEAD)"
+git switch -q main
+write_file main.txt main
+commit_all main
+git switch -q release/test
+rm -f -- "$TEST_ROOT/conflicts"
+RELEASE_SYNC_CONFLICTS_FILE="$TEST_ROOT/conflicts" bash "$HELPER" main release/test --commit-conflicts > "$TEST_ROOT/output" 2>&1 \
+  || { cat "$TEST_ROOT/output"; fail "--commit-conflicts failed on a clean merge."; }
+assert_parents
+[[ ! -e "$TEST_ROOT/conflicts" ]] || fail "Clean merge wrote a conflict list."
+echo "PASS: --commit-conflicts is a plain merge when nothing conflicts"
+
+new_repo non-text-conflicts
+write_file gone-on-main.txt base
+write_file gone-on-release.txt base
+printf 'base\0bin' > blob.bin
+commit_all non-text-base
+git switch -q main
+git merge -q --ff-only release/test
+git rm -q gone-on-main.txt
+write_file gone-on-release.txt main-edit
+printf 'main\0bin' > blob.bin
+commit_all main-non-text
+git switch -q release/test
+write_file gone-on-main.txt release-edit
+git rm -q gone-on-release.txt
+printf 'release\0bin' > blob.bin
+commit_all release-non-text
+release_sha="$(git rev-parse HEAD)"
+rm -f -- "$TEST_ROOT/conflicts"
+expect_failure "conflicts require human review"
+[[ "$helper_status" == 3 ]] || fail "Non-text conflicts must exit 3."
+RELEASE_SYNC_CONFLICTS_FILE="$TEST_ROOT/conflicts" bash "$HELPER" main release/test --commit-conflicts > "$TEST_ROOT/output" 2>&1 \
+  || { cat "$TEST_ROOT/output"; fail "--commit-conflicts failed on non-text conflicts."; }
+assert_parents
+sort "$TEST_ROOT/conflicts" > "$TEST_ROOT/conflicts.sorted"
+printf 'binary\tblob.bin\ndeleted-on-main\tgone-on-main.txt\ndeleted-on-release\tgone-on-release.txt\n' > "$TEST_ROOT/conflicts.expected"
+cmp -s "$TEST_ROOT/conflicts.sorted" "$TEST_ROOT/conflicts.expected" \
+  || { cat "$TEST_ROOT/conflicts"; fail "Non-text conflicts were not classified."; }
+echo "PASS: --commit-conflicts flags binary and modify/delete conflicts"
+
+# A marker-like line in a non-conflicted file must still be rejected in repair mode.
+new_repo marker-in-clean-file
+write_file shared.txt release
+commit_all release
+release_sha="$(git rev-parse HEAD)"
+git switch -q main
+write_file shared.txt main
+write_file stray.txt '<<<<<<< stray'
+commit_all main-conflict-and-marker
+git switch -q release/test
+if bash "$HELPER" main release/test --commit-conflicts > "$TEST_ROOT/output" 2>&1; then
+  fail "Stray marker in a non-conflicted file was accepted."
+fi
+grep -q "Conflict markers detected" "$TEST_ROOT/output" || { cat "$TEST_ROOT/output"; fail "Missing marker diagnostic."; }
+[[ "$(git rev-parse HEAD)" == "$release_sha" && -z "$(git status --porcelain)" ]] || fail "Rejected repair left changes."
+echo "PASS: repair mode still rejects markers outside the conflicted paths"
 
 new_repo fatal-merge
 release_sha="$(git rev-parse HEAD)"

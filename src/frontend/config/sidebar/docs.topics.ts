@@ -910,6 +910,14 @@ export const docsTopics = {
                 ja: '証明書の構成',
               },
             },
+            {
+              label: 'CORS configuration',
+              slug: 'app-host/cors-configuration',
+              translations: {
+                en: 'CORS configuration',
+                ja: 'CORS の構成',
+              },
+            },
           ],
         },
         {
@@ -981,7 +989,23 @@ export const docsTopics = {
                 ja: '実行可能リソース',
               },
             },
+            {
+              label: 'Console and worker apps',
+              slug: 'app-host/console-apps',
+              translations: {
+                en: 'Console and worker apps',
+                ja: 'コンソール アプリとワーカー アプリ',
+              },
+            },
           ],
+        },
+        {
+          label: 'Resource naming',
+          slug: 'app-host/resource-naming',
+          translations: {
+            en: 'Resource naming',
+            ja: 'リソースの名前付け',
+          },
         },
         {
           label: 'Project structure',

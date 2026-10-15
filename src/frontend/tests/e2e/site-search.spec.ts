@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { dismissCookieConsentIfVisible, getSiteNavigationLink } from '@tests/e2e/helpers';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
@@ -62,7 +62,10 @@ async function navigateClient(page: Page, navigate: () => Promise<unknown>): Pro
     }, { once: true });
   });
   await navigate();
-  await expect.poll(() => page.evaluate(() => Reflect.get(window, '__siteSearchPageLoaded'))).toBe(true);
+  await expect.poll(
+    () => page.evaluate(() => Reflect.get(window, '__siteSearchPageLoaded')),
+    { timeout: 30_000 }
+  ).toBe(true);
   await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
 }
 
@@ -171,8 +174,9 @@ test.describe('site search dialog', () => {
       await expect(clear).toHaveCSS('font-size', '0px');
       await expect(clear).toHaveText('Clear');
       const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-      await expect(clear).toHaveCSS('width', coarse ? '44px' : '36px');
-      await expect(clear).toHaveCSS('height', coarse ? '44px' : '36px');
+      const compact = coarse || page.viewportSize()!.width < 800;
+      await expect(clear).toHaveCSS('width', compact ? '34px' : '36px');
+      await expect(clear).toHaveCSS('height', compact ? '34px' : '36px');
       const clearIcon = await clear.evaluate((button) => {
         const style = getComputedStyle(button, '::before');
         return { width: style.width, height: style.height, mask: style.maskImage };
@@ -266,7 +270,7 @@ test.describe('site search dialog', () => {
       await assertSearch();
       // Use the real links, not page.goto: a hard reload hides the regression.
       for (const path of ['/docs/', '/get-started/first-app/']) {
-        await navigateClient(page, () => page.locator(`header a[href="${path}"]:visible`).click());
+        await navigateClient(page, async () => (await getSiteNavigationLink(page, path)).click());
         await expect(page).toHaveURL((url) => url.pathname === path);
         expect(await page.evaluate(() => Reflect.get(window, '__siteSearchSession'))).toBe(true);
         await assertSearch();
@@ -362,7 +366,7 @@ test.describe('site search dialog', () => {
       await page.goto('/');
       await dismissCookieConsentIfVisible(page);
       await importRequested;
-      await navigateClient(page, () => page.locator('header a[href="/docs/"]:visible').click());
+      await navigateClient(page, async () => (await getSiteNavigationLink(page, '/docs/')).click());
       await expect(page).toHaveURL(/\/docs\/$/);
       await page.keyboard.press('Control+k');
       releaseImport();

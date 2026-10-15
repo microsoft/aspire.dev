@@ -15,6 +15,7 @@ import dashboardFilter from '@assets/whats-new/aspire-9.3/dashboard-filter.png';
 import dashboardMetricsWarning from '@assets/whats-new/aspire-9.3/dashboard-metrics-warning.png';
 import dashboardTracesUninstrumentedResources from '@assets/whats-new/aspire-9.3/dashboard-traces-uninstrumented-resources.png';
 import dashboardContextMenu from '@assets/whats-new/aspire-9.3/dashboard-context-menu.png';
+import ApiReference from '@components/ApiReference.astro';
 
 📢 Aspire 9.3 is the next minor version release of Aspire. It supports:
 
@@ -51,7 +52,7 @@ The new `WithHostPort`, `WithPassword`, and `WithUserName` (or equivalent per-se
 
 - **Pick where a link appears** – each link now carries a `UrlDisplayLocation` (`SummaryAndDetails` or `DetailsOnly`), so you can keep diagnostic links out of the main grid yet still see them in the details pane.
 - **Relative paths are auto-resolved** – hand the helper `"/health"` and Aspire rewrites it to the full host-qualified URL when the endpoint is allocated.
-- **Multiple links per endpoint** – an overload of `WithUrlForEndpoint` lets you attach extra URLs (docs, admin UIs, probes) to the same endpoint without redefining it.
+- **Multiple links per endpoint** – an overload of <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithUrlForEndpoint" /> lets you attach extra URLs (docs, admin UIs, probes) to the same endpoint without redefining it.
 - **Endpoint helper inside callbacks** – `context.GetEndpoint("https")` fetches the fully-resolved endpoint so you can build custom links programmatically.
 - **Custom URLs for any resource** – `WithUrl*` also works for custom resources.
 
@@ -77,7 +78,7 @@ With these tweaks you can further customize your local dev stack by surfacing th
 
 Historically the only way to keep a resource out of the Dashboard was to put it in the **`Hidden`** *state*—a hack that also made the resource look "terminal" to APIs such as `WaitForResourceAsync`. In 9.3 every snapshot now carries a **boolean `IsHidden` flag**, completely decoupling *visibility* from *lifecycle state*.
 
-- **Cleaner defaults** – low-level helpers like `AddParameter` and `AddConnectionString` mark themselves hidden so they don't clutter the UI:
+- **Cleaner defaults** – low-level helpers like <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddParameter" /> and <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" /> mark themselves hidden so they don't clutter the UI:
 
   ```csharp
   var apiKey = builder.AddParameter("api-key", secret: true);   // IsHidden = true ✔
@@ -202,7 +203,7 @@ The `.WithReference(...)` calls automatically ensure that the proxy container ca
 
 ### 🐬 MySQL `AddDatabase` now creates the database
 
-In Aspire 9.3, the MySQL integration now supports **automatic database creation** via the `AddDatabase` API—matching the behavior already available for SQL Server and PostgreSQL.
+In Aspire 9.3, the MySQL integration now supports **automatic database creation** via the <ApiReference name="Aspire.Hosting.AzureSqlExtensions.AddDatabase" /> API—matching the behavior already available for SQL Server and PostgreSQL.
 
 Previously, calling `.AddDatabase("dbname")` on a MySQL resource only created a logical reference in Aspire's app model—it did **not** create the database on the server. This mismatch caused confusion, especially when users expected Aspire to provision the database like it does for other integrations.
 
@@ -345,7 +346,7 @@ In this case, Aspire applies the correct publishing behavior to all compute reso
 
 If you add **multiple compute environments**, Aspire needs to know which resource goes where. Compute environments apply their transformations to **all applicable compute resources** (projects, containers, executables). If more than one environment matches a given resource, Aspire throws an **ambiguous environment exception** at publish time.
 
-You can resolve this by using `WithComputeEnvironment(...)`:
+You can resolve this by using <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithComputeEnvironment" />:
 
 ```csharp
 var k8s = builder.AddKubernetesEnvironment("k8s-env");
@@ -370,10 +371,10 @@ This (contrived) example shows how you could explicitly map services to differen
 
 Aspire 9.3 has preview support for the following environment resources:
 
-- `AddDockerComposeEnvironment(...)`
-- `AddKubernetesEnvironment(...)`
-- `AddAzureContainerAppEnvironment(...)`
-- `AddAzureAppServiceEnvironment(...)` — [see new App Service support →](#-azure-app-service-preview-support)
+- <ApiReference name="Aspire.Hosting.DockerComposeEnvironmentExtensions.AddDockerComposeEnvironment" />
+- <ApiReference name="Aspire.Hosting.KubernetesEnvironmentExtensions.AddKubernetesEnvironment" />
+- <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.AddAzureContainerAppEnvironment" />
+- <ApiReference name="Aspire.Hosting.AzureAppServiceEnvironmentExtensions.AddAzureAppServiceEnvironment" /> — [see new App Service support →](#-azure-app-service-preview-support)
 
 These represent deployment targets that can transform and emit infrastructure-specific artifacts from your app model.
 
@@ -385,8 +386,8 @@ Aspire 9.3 introduces powerful new capabilities for customizing Docker Compose o
 
 You can now programmatically configure the top-level Compose file and the behavior of each individual service using two new APIs:
 
-- `ConfigureComposeFile(...)` — customize the `docker-compose.yml` metadata
-- `PublishAsDockerComposeService(...)` — modify the generated service for any compute resource (like a container or project)
+- <ApiReference name="Aspire.Hosting.DockerComposeEnvironmentExtensions.ConfigureComposeFile" /> — customize the `docker-compose.yml` metadata
+- <ApiReference name="Aspire.Hosting.DockerComposeServiceExtensions.PublishAsDockerComposeService" /> — modify the generated service for any compute resource (like a container or project)
 
 ```csharp
 builder.AddDockerComposeEnvironment("env")
@@ -450,7 +451,7 @@ Like Docker Compose, Aspire now supports both **global environment-level setting
 You can use the following APIs to configure Kubernetes output in C#:
 
 - `WithProperties(...)` on the compute environment to set global behaviors
-- `PublishAsKubernetesService(...)` on compute resources to modify their specific Kubernetes resources
+- <ApiReference name="Aspire.Hosting.KubernetesServiceExtensions.PublishAsKubernetesService" /> on compute resources to modify their specific Kubernetes resources
 
 ```csharp
 builder.AddKubernetesEnvironment("env")
@@ -524,7 +525,7 @@ This integration lets you deploy your project as a **containerized Linux Web App
 
 This first release is scoped to the most common use cases:
 
-- Supports **.NET projects only** (via `AddProject(...)`)
+- Supports **.NET projects only** (via <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" />)
 - Each project must expose a **single public HTTP endpoint**
 - **Projects are published as containers** to Azure Container Registry
 - **Containers within the AppHost** are not supported
@@ -554,13 +555,13 @@ In this example:
 - Your project is built as a container and published to **Azure Container Registry**
 - The container is deployed to App Service with the configuration you provide
 
-> 🧠 Use `PublishAsAzureAppServiceWebsite(...)` to customize settings like site config, authentication, or SKU.
+> 🧠 Use <ApiReference name="Aspire.Hosting.AzureAppServiceComputeResourceExtensions.PublishAsAzureAppServiceWebsite" /> to customize settings like site config, authentication, or SKU.
 
 💬 This feature is in **preview**—we're looking for your feedback as we expand support!
 
 ### 📤 Use an existing Azure Container Registry (ACR)
 
-Aspire 9.3 adds support for modeling an existing **Azure Container Registry (ACR)** using the new `AddAzureContainerRegistry(...)` API. This enables you to **push images to an ACR you already manage**—without Aspire provisioning a new one.
+Aspire 9.3 adds support for modeling an existing **Azure Container Registry (ACR)** using the new <ApiReference name="Aspire.Hosting.AzureContainerRegistryExtensions.AddAzureContainerRegistry" /> API. This enables you to **push images to an ACR you already manage**—without Aspire provisioning a new one.
 
 This is ideal for teams that:
 
@@ -696,7 +697,7 @@ builder.AddContainer("myContainer", "nginx")
 
 #### 🧩 Reference secrets from existing Key Vaults
 
-You can also use this with **existing Azure Key Vaults** by marking the resource with `AsExisting(...)`, `RunAsExisting(...)`, or `PublishAsExisting(...)`. This lets you consume secrets from **already-provisioned vaults**—perfect for shared environments or team-managed infrastructure.
+You can also use this with **existing Azure Key Vaults** by marking the resource with <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" />, <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.RunAsExisting" />, or <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" />. This lets you consume secrets from **already-provisioned vaults**—perfect for shared environments or team-managed infrastructure.
 
 ```csharp
 var keyVaultNameParam = builder.AddParameter("key-vault-name");
@@ -860,7 +861,7 @@ sql.AddDatabase("appdb")
    .WithDefaultAzureSku(); // Uses the previous (General Purpose) default
 ```
 
-If you want to specify what SKU to use, you the `ConfigureInfrastructure` method as explained here: [Setting a specific SKU](https://github.com/microsoft/aspire/tree/main/src/Aspire.Hosting.Azure.Sql#setting-a-specific-sku).
+If you want to specify what SKU to use, you the <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> method as explained here: [Setting a specific SKU](https://github.com/microsoft/aspire/tree/main/src/Aspire.Hosting.Azure.Sql#setting-a-specific-sku).
 
 #### ⚠️ Breaking change
 

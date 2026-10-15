@@ -120,6 +120,8 @@ export default defineConfig({
           Header: './src/components/starlight/Header.astro',
           Hero: './src/components/starlight/Hero.astro',
           MarkdownContent: './src/components/starlight/MarkdownContent.astro',
+          MobileMenuToggle: './src/components/starlight/MobileMenuToggle.astro',
+          PageFrame: './src/components/starlight/PageFrame.astro',
           PageTitle: './src/components/starlight/PageTitle.astro',
           Search: './src/components/starlight/Search.astro',
           Sidebar: './src/components/starlight/Sidebar.astro',

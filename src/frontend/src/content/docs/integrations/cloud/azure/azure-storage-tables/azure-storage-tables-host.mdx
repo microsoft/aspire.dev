@@ -9,6 +9,7 @@ import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import tableIcon from '@assets/icons/azure-table-icon.png';
 import storageExplorerImage from '@assets/integrations/cloud/azure/storage/azure-storage-explorer.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={tableIcon}
@@ -115,16 +116,16 @@ await builder.build().run();
 
 1. An Azure Storage resource named `storage` is added to the AppHost.
 
-1. A table storage resource named `tables` is added to the storage resource by chaining a call to `AddTables` (or `addTables`).
+1. A table storage resource named `tables` is added to the storage resource by chaining a call to <ApiReference name="Aspire.Hosting.AzureStorageExtensions.AddTables" />.
 
-1. The table storage resource is referenced from the consuming project with `WithReference` (or `withReference`), which injects connection properties as environment variables.
+1. The table storage resource is referenced from the consuming project with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" />, which injects connection properties as environment variables.
 
-1. `WaitFor` (or `waitFor`) ensures the consuming project waits until the table storage resource is ready before starting.
+1. <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> ensures the consuming project waits until the table storage resource is ready before starting.
 
 </Steps>
 
 <Aside type="caution">
-When you call `AddAzureStorage` (or `addAzureStorage`), it implicitly calls `AddAzureProvisioning` (or `addAzureProvisioning`) — which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+When you call <ApiReference name="Aspire.Hosting.AzureStorageExtensions.AddAzureStorage" />, it implicitly calls <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" /> — which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 <Aside type="note">
@@ -133,7 +134,7 @@ When you reference an Azure Table Storage resource from the AppHost, Aspire inje
 
 ## Run as emulator (Azurite)
 
-For local development, configure the storage resource to use the [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) emulator instead of a real Azure Storage account. Call `RunAsEmulator` (or `runAsEmulator`) on the storage resource:
+For local development, configure the storage resource to use the [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) emulator instead of a real Azure Storage account. Call <ApiReference name="Aspire.Hosting.AzureStorageExtensions.RunAsEmulator" /> on the storage resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -239,7 +240,7 @@ The preceding code configures the Azurite container ports as follows:
 
 ## Configure Azurite container with persistent lifetime
 
-To configure the Azurite container with a persistent lifetime so it survives app restarts, call `WithLifetime` (or `withLifetime`) with `ContainerLifetime.Persistent`:
+To configure the Azurite container with a persistent lifetime so it survives app restarts, call <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithLifetime" /> with `ContainerLifetime.Persistent`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -277,7 +278,7 @@ await builder.build().run();
 
 ## Configure Azurite container with data volume
 
-To persist Azurite data across container restarts with a data volume, call `WithDataVolume` (or `withDataVolume`) on the emulator resource:
+To persist Azurite data across container restarts with a data volume, call <ApiReference name="Aspire.Hosting.AzureStorageExtensions.WithDataVolume" /> on the emulator resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -317,7 +318,7 @@ The data volume is mounted at the `/data` path in the Azurite container and when
 
 ## Configure Azurite container with data bind mount
 
-To add a data bind mount to the Azurite container instead of a named volume, call `WithDataBindMount` (or `withDataBindMount`):
+To add a data bind mount to the Azurite container instead of a named volume, call <ApiReference name="Aspire.Hosting.AzureStorageExtensions.WithDataBindMount" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -389,7 +390,7 @@ For more information on using the Azure Storage Explorer, see [Get started with 
 
 ## Connect to an existing Azure Storage account
 
-If you have an existing Azure Storage account, you can connect to it using the `AsExisting` (or `asExisting`) method instead of provisioning a new one:
+If you have an existing Azure Storage account, you can connect to it using the <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" /> method instead of provisioning a new one:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -435,7 +436,7 @@ await builder.build().run();
 </Tabs>
 
 :::important
-When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` methods to work with resources that are already present in your Azure subscription, you must add certain configuration values to your AppHost to ensure that Aspire can locate them. The necessary configuration values include **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you don't set them, "Missing configuration" errors appear in the Aspire dashboard. For more information, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+When you call <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.RunAsExisting" />, <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" />, or `AsExisting` methods to work with resources that are already present in your Azure subscription, you must add certain configuration values to your AppHost to ensure that Aspire can locate them. The necessary configuration values include **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you don't set them, "Missing configuration" errors appear in the Aspire dashboard. For more information, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 :::
 
 ## Connection properties

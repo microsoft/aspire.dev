@@ -1234,6 +1234,18 @@ describe('API reference authoring validator', () => {
     ]);
   });
 
+  it.each([
+    ['whats-new/aspire-9-2.mdx', '- `run`'],
+    ['integrations/cloud/azure/customize-resources.mdx', '`addBicepTemplateString` (TypeScript)'],
+    [
+      'deployment/kubernetes/persistent-volumes.mdx',
+      '`withKubernetesPersistentVolume` and `withKubernetesPersistentVolumeMount`',
+    ],
+  ])('keeps command and language-specific identifiers literal in %s', (file, identifier) => {
+    const docsRoot = fileURLToPath(new URL('../../src/content/docs/', import.meta.url));
+    expect(fs.readFileSync(path.join(docsRoot, file), 'utf8')).toContain(identifier);
+  });
+
   it('resolves every authored API reference against the generated catalogs', () => {
     const frontendRoot = fileURLToPath(new URL('../..', import.meta.url));
     const readJsonDocuments = <T>(directory: string): T[] =>
