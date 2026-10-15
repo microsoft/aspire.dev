@@ -107,11 +107,14 @@ jobs:
           bot_email="aspire-repo-bot[bot]@users.noreply.github.com"
 
           # Refuse to replace a rolling branch that contains maintainer changes.
+          # Merge commits are ignored: clicking "Update branch" on the PR adds a
+          # human-authored merge of main, which carries no maintainer changes and
+          # would otherwise block every later run until someone force-pushed.
           # The exact lease below also protects commits pushed after this check.
           remote_tip=$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')
           if [ -n "$remote_tip" ]; then
             git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
-            non_bot_commits=$(git log --format='%H %ae %ce' "origin/main..origin/$branch" |
+            non_bot_commits=$(git log --no-merges --format='%H %ae %ce' "origin/main..origin/$branch" |
               awk -v bot="$bot_email" '$2 != bot || $3 != bot')
             if [ -n "$non_bot_commits" ]; then
               echo "::error::Refusing to replace $branch because it contains non-bot commits:"
