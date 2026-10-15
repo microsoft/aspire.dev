@@ -439,6 +439,17 @@ describe('third-party integration allow list', () => {
     expect(titles).toEqual([]);
   });
 
+  test('marks allow-listed packages as excluded from API reference generation', () => {
+    const [entry] = filterAndTransform([
+      record('Particular.Aspire.Hosting.ServicePlatform'),
+      record('Aspire.Hosting.Redis'),
+    ]);
+    const redis = filterAndTransform([record('Aspire.Hosting.Redis')])[0];
+
+    expect(entry.apiReference).toBe(false);
+    expect(redis).not.toHaveProperty('apiReference');
+  });
+
   test('sums the version history downloads from the nuget.org package page', () => {
     const row = (version: string, downloads: string) =>
       `<tr class="version-row"><td><a href="/packages/x/${version}">${version}</a></td><td> ${downloads} </td><td>6/16/2026</td></tr>`;

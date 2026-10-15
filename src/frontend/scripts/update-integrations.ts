@@ -123,6 +123,8 @@ export interface IntegrationOutput {
   tags: string[];
   downloads?: number;
   version?: string;
+  // `false` for third-party packages, whose API reference is owned by their authors.
+  apiReference?: false;
 }
 
 interface IntegrationDoc {
@@ -335,6 +337,7 @@ export function filterAndTransform(pkgs: PackageRecord[]): IntegrationOutput[] {
       tags: pkg.tags?.map((tag) => tag.toLowerCase()) ?? [],
       downloads: pkg.totalDownloads,
       version: pkg.version,
+      ...(thirdPartyLower.includes(pkg.id.toLowerCase()) && { apiReference: false as const }),
     }));
 }
 
