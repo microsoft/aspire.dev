@@ -578,13 +578,26 @@ function skipped(host: string, note: string): RunResult {
   return { outcome: 'skipped', submitted: 0, stateChanged: false, summary };
 }
 
+/**
+ * IndexNow answers 403 with this errorCode while it is still verifying a new or rotated key, even
+ * though the key file is live. The run fails on purpose, so a green run always means the URLs were
+ * accepted.
+ */
+const KEY_NOT_VERIFIED_CODE = 'SiteVerificationNotCompleted';
+
+function rejectionAdvice(detail: string): string {
+  return detail.includes(KEY_NOT_VERIFIED_CODE)
+    ? 'IndexNow is still verifying the key, which is expected after the first submission with a new or rotated key and clears on its own. This run already confirmed that the key file is live and matches config/indexnow.json.'
+    : 'For 403 or 422, check that the key file is live and matches config/indexnow.json.';
+}
+
 function failureMessage(submission: { status: number; detail: string }, mode: RunMode): string {
   const reason =
     submission.status === 429
       ? 'IndexNow answered 429 (too many requests), so nothing was submitted. If this keeps happening, lower the budgets in config/indexnow.json.'
       : `IndexNow rejected the submission with HTTP ${submission.status || 'a network error'}` +
         `${submission.detail ? `: ${submission.detail}` : ''}. ` +
-        'For 403 or 422, check that the key file is live and matches config/indexnow.json.';
+        rejectionAdvice(submission.detail);
   return mode === 'flush'
     ? `${reason} The release pass was started, so the next run sends it from the top.`
     : `${reason} The next run tries again.`;
