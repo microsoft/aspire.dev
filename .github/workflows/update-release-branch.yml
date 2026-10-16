@@ -101,6 +101,43 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: Record main history from a landed repair PR
+        if: ${{ steps.find-branch.outputs.branch != '' && steps.repair-pr.outputs.url == '' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.find-branch.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Squashing a repair PR copies its content but drops the main history
+          # it merged, so the next sync would re-conflict on content that was
+          # already resolved. Only the newest merged repair PR matters: main only
+          # moves forward, so the commit it carries includes every older one.
+          pr=$(gh api --method GET "repos/$GH_REPO/pulls" \
+            -f state=closed \
+            -f head="${GH_REPO%%/*}:release-sync/${BRANCH#release/}" \
+            -f base="$BRANCH" \
+            -f per_page=100 \
+            --jq 'map(select(.merged_at != null)) | sort_by(.merged_at) | last | .number // empty')
+
+          if [[ -z "$pr" ]]; then
+            echo "No merged repair PR for $BRANCH; nothing to record."
+            exit 0
+          fi
+          echo "Newest merged repair PR: #$pr"
+
+          git fetch origin main
+          MAIN_SHA="$(git rev-parse origin/main)"
+          git fetch origin "refs/pull/$pr/head"
+          REPAIR_HEAD="$(git rev-parse FETCH_HEAD)"
+
+          # Any commit stays local: the merge step below pushes it with the sync,
+          # so release sees a single push (and a single CI run).
+          git show "$MAIN_SHA:.github/scripts/repair-release-sync-ancestry.sh" > "$RUNNER_TEMP/repair-release-sync-ancestry.sh"
+          bash "$RUNNER_TEMP/repair-release-sync-ancestry.sh" "$MAIN_SHA" "$BRANCH" "$REPAIR_HEAD"
+
       - name: Merge main into release branch
         id: merge
         if: ${{ steps.find-branch.outputs.branch != '' && steps.repair-pr.outputs.url == '' }}
@@ -156,7 +193,8 @@ jobs:
           repair_branch="release-sync/${BRANCH#release/}"
           conflicts_file="$RUNNER_TEMP/release-sync-conflicts.txt"
 
-          # The failed attempt was aborted, so HEAD is still the release tip.
+          # The failed attempt was aborted, so HEAD is unchanged: the release tip,
+          # plus any history-repair commit recorded above.
           # The repair branch is bot-owned and rolling: reset any stale leftover.
           git checkout -B "$repair_branch"
           RELEASE_SYNC_CONFLICTS_FILE="$conflicts_file" \
@@ -188,9 +226,9 @@ jobs:
             echo
             echo "1. Check out \`$repair_branch\` and resolve each item above without discarding release-only work."
             echo "2. Push the fix, mark the PR ready for review, and wait for checks."
-            echo "3. Merge with **Create a merge commit**, never squash or rebase. Copying content alone doesn't repair ancestry."
+            echo "3. Prefer **Create a merge commit**. If it's squashed instead, the next sync still records \`main\` as merged, so it won't re-conflict."
             echo
-            echo "Release sync is paused while this PR is open. After it merges, verify \`git merge-base --is-ancestor $MAIN_SHA origin/$BRANCH\`; the next push to main resumes syncing."
+            echo "Release sync is paused while this PR is open. After it merges, the next push to main resumes syncing."
             echo
             echo "## Third-party links and affiliations"
             echo
