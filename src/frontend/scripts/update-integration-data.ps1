@@ -504,7 +504,7 @@ if ($versionsChanged -and -not $SkipRegen) {
     }
     if ($tsToleratedPackages) {
         $toleratedWarning = "TypeScript modules were generated despite known ATS scanner diagnostics for: $tsToleratedPackages. " +
-            "Their APIs may be incomplete until the Aspire CLI includes microsoft/aspire#20443; review them before merging."
+            "Their APIs may be incomplete until the Aspire CLI includes microsoft/aspire#20443. The automation PR auto-merges once CI passes. Remove its auto-merge label to review these modules first."
         Write-Warning $toleratedWarning
         foreach ($diagnostic in $tsToleratedDiagnostics) {
             Write-Warning "  $diagnostic"
@@ -617,6 +617,8 @@ $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("Generated deterministically by ``src/frontend/scripts/update-integration-data.ps1`` (no agent inference).")
 [void]$sb.AppendLine("")
+[void]$sb.AppendLine("This PR is approved and squash-merged automatically once ``ci-gate`` passes, as configured in ``.github/policies/auto-merge.yml``. Remove the ``:octocat: auto-merge`` label to hold it for manual review.")
+[void]$sb.AppendLine("")
 [void]$sb.AppendLine("### What's updated")
 [void]$sb.AppendLine("- ``src/frontend/src/data/aspire-integrations.json`` — latest package information")
 [void]$sb.AppendLine("- ``src/frontend/src/data/integration-docs.json`` — documentation mappings, when packages are removed")
@@ -664,7 +666,7 @@ if ($regenRan) {
         [void]$sb.AppendLine("")
         [void]$sb.AppendLine("### :warning: Tolerated ATS scanner diagnostics")
         [void]$sb.AppendLine("")
-        [void]$sb.AppendLine("The Aspire CLI reported known duplicate inherited-capability diagnostics for the packages below. Their TypeScript modules were generated anyway, so the APIs named in these diagnostics may be incomplete until the CLI includes the scanner fix from microsoft/aspire#20443. **Review these modules before merging.**")
+        [void]$sb.AppendLine("The Aspire CLI reported known duplicate inherited-capability diagnostics for the packages below. Their TypeScript modules were generated anyway, so the APIs named in these diagnostics may be incomplete until the CLI includes the scanner fix from microsoft/aspire#20443. **Remove the ``:octocat: auto-merge`` label to review these modules before this PR merges.**")
         [void]$sb.AppendLine("")
         foreach ($packageName in $tsToleratedPackages -split ',\s*') {
             [void]$sb.AppendLine("- ``$packageName``")
@@ -694,7 +696,7 @@ if ($iconWarnings) {
     [void]$sb.AppendLine("``$iconWarnings``")
     [void]$sb.AppendLine("")
 }
-[void]$sb.AppendLine("### Review checklist")
+[void]$sb.AppendLine("### Manual review checklist")
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("- [ ] Integration data looks reasonable (no suspicious anomalies)")
 [void]$sb.AppendLine("- [ ] Package counts and versions updated appropriately")

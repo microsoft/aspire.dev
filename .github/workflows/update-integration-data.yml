@@ -4,6 +4,12 @@ name: Integration Data Updater
 # update scripts directly (no LLM inference, no agent timeout, no PAT auth) and
 # opens a PR through the Aspire bot GitHub App when the generated data changes.
 #
+# The bot owns the rolling `chore/update-integration-data` branch and force-pushes
+# it on every run, so nobody should commit to it. The PR is labeled
+# `:octocat: auto-merge`, which .github/policies/auto-merge.yml turns into an
+# approval and a squash auto-merge once the required `ci-gate` check passes.
+# Remove the label to hold a PR for manual review.
+#
 # All logic lives in src/frontend/scripts/update-integration-data.ps1 so the
 # exact same flow can be reproduced locally:
 #   pwsh src/frontend/scripts/update-integration-data.ps1
@@ -84,13 +90,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: ./src/frontend/scripts/update-integration-data.ps1
 
-      - name: Configure git identity
-        if: ${{ steps.update.outputs.changed == 'true' }}
-        shell: bash
-        run: |
-          git config user.name "aspire-repo-bot[bot]"
-          git config user.email "aspire-repo-bot[bot]@users.noreply.github.com"
-
       - name: Commit and refresh automation branch
         if: ${{ steps.update.outputs.changed == 'true' }}
         id: push
@@ -101,26 +100,11 @@ jobs:
           set -euo pipefail
 
           # Single long-lived automation branch. Each run force-pushes one commit
-          # with the latest generated data on top of the freshest main, so an
-          # unreviewed PR is refreshed in place instead of piling up a new PR (and
-          # a new branch) every day. The rolling commit is always a single snapshot
+          # with the latest generated data on top of the freshest main, so the
+          # open PR is refreshed in place instead of piling up a new PR (and a new
+          # branch) every day. The rolling commit is always a single snapshot
           # rebased onto current main, which also keeps the PR conflict-free.
           branch="chore/update-integration-data"
-          bot_email="aspire-repo-bot[bot]@users.noreply.github.com"
-
-          # Refuse to replace a rolling branch that contains maintainer changes.
-          # The exact lease below also protects commits pushed after this check.
-          remote_tip=$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')
-          if [ -n "$remote_tip" ]; then
-            git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
-            non_bot_commits=$(git log --format='%H %ae %ce' "origin/main..origin/$branch" |
-              awk -v bot="$bot_email" '$2 != bot || $3 != bot')
-            if [ -n "$non_bot_commits" ]; then
-              echo "::error::Refusing to replace $branch because it contains non-bot commits:"
-              echo "$non_bot_commits"
-              exit 1
-            fi
-          fi
 
           # Stage only the allowed generated data files — never workflow files,
           # source, manifests, or docs. Directories with no changes are no-ops.
@@ -144,16 +128,16 @@ jobs:
           fi
 
           # Reset the branch to a single fresh commit on top of the current main
-          # and force-push, so the open PR (if any) updates in place.
+          # and force-push, so the open PR (if any) updates in place. The lease
+          # fails the push if the branch moved since checkout instead of
+          # overwriting it.
+          git config user.name "aspire-repo-bot[bot]"
+          git config user.email "aspire-repo-bot[bot]@users.noreply.github.com"
           git checkout -B "$branch"
           git commit \
             -m "$PR_TITLE" \
             -m "Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>"
-          if [ -n "$remote_tip" ]; then
-            git push --force-with-lease="refs/heads/$branch:$remote_tip" origin "HEAD:refs/heads/$branch"
-          else
-            git push origin "HEAD:refs/heads/$branch"
-          fi
+          git push --force-with-lease origin "HEAD:refs/heads/$branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           echo "pushed=true" >> "$GITHUB_OUTPUT"
 
@@ -171,6 +155,7 @@ jobs:
 
           # Reuse the existing open PR for the rolling branch if there is one, so
           # its review threads and history carry over; otherwise open a fresh PR.
+          # Adding the label at creation is what triggers the auto-merge policy.
           existing=$(gh pr list \
             --state open \
             --head "$BRANCH" \
@@ -191,21 +176,6 @@ jobs:
               --label ":octocat: auto-merge")
             echo "Created $new_pr"
           fi
-
-          # Close any stray older automation PRs (e.g. legacy timestamped branches
-          # from before the rolling-branch model) so only the single PR remains.
-          strays=$(gh pr list \
-            --state open \
-            --limit 30 \
-            --json number,headRefName \
-            --jq '.[] | select(.headRefName | startswith("chore/update-integration-data-")) | select(.headRefName != env.BRANCH) | .number')
-
-          for pr in $strays; do
-            echo "Closing stray automation PR #$pr"
-            gh pr close "$pr" \
-              --delete-branch \
-              --comment "Superseded by the rolling Integration Data Updater PR."
-          done
 
       - name: Summary
         if: ${{ always() }}
