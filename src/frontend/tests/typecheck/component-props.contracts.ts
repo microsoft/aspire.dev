@@ -77,6 +77,11 @@ void validBrandPaletteProps;
 void validBrandWordmarkProps;
 void validBrandDownloadProps;
 void validBrandCopyProps;
+const validReadableTextProps = { text: 'RedisResource.withModule' } satisfies PropsOf<typeof ReadableText>;
+void validReadableTextProps;
+// @ts-expect-error Identifier content is required and must remain a string.
+const invalidReadableTextProps = { text: 123 } satisfies PropsOf<typeof ReadableText>;
+void invalidReadableTextProps;
 
 const validReadableTextProps = { text: 'RedisResource.withModule' } satisfies PropsOf<typeof ReadableText>;
 void validReadableTextProps;
