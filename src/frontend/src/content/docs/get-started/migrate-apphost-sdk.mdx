@@ -1,0 +1,140 @@
+---
+title: Migrate from the AppHost SDK
+description: Migrate a C# AppHost to Microsoft.NET.Sdk, explicit Aspire packages, AddDotnetProject resources, and the required Aspire CLI bundle.
+---
+
+Starting in Aspire 17.0, `Aspire.AppHost.Sdk` is obsolete and reports warning [ASPIRE012](/diagnostics/aspire012/). It remains functional for staged migration, including existing `ProjectReference` and `AddProject` resources. No removal date has been agreed. SDK obsoletion does **not** deprecate `AddProject`.
+
+The default C# experience uses `Microsoft.NET.Sdk`, explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` packages, and `AddDotnetProject`. The AppHost package supplies the AppHost build targets; the Dotnet package supplies `AddDotnetProject`. The required Aspire CLI bundle supplies the dashboard and developer control plane (DCP).
+
+## Change the project SDK and packages
+
+Replace the `Aspire.AppHost.Sdk` SDK attribute (or nested `<Sdk Name="Aspire.AppHost.Sdk" ... />` element) with `Microsoft.NET.Sdk`. Add explicit references to both packages at compatible versions from a release supporting `AddDotnetProject`:
+
+This guide describes Aspire 17.0, which is upcoming. Replace `17.x.x` in the examples with an available compatible version from that release or its prerelease channel; `17.x.x` isn't a literal package version. Don't use the site's current stable 13.6 version for this SDK-removal migration.
+
+```xml title="MyApp.AppHost.csproj"
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="17.x.x" />
+    <PackageReference Include="Aspire.Hosting.Dotnet" Version="17.x.x" />
+  </ItemGroup>
+</Project>
+```
+
+Keep your existing target framework, user secrets, launch settings, and other integration packages unless they separately need updating. `Aspire.Hosting.AppHost` sets `IsAspireHost`; an SDK reference is no longer required.
+
+### Central Package Management
+
+If `ManagePackageVersionsCentrally` is enabled, omit `Version` from the AppHost's `PackageReference` items and declare matching `PackageVersion` items in `Directory.Packages.props`. Keep the explicit AppHost package reference.
+
+```xml title="Directory.Packages.props (inside Project)"
+<ItemGroup>
+  <PackageVersion Include="Aspire.Hosting.AppHost" Version="17.x.x" />
+  <PackageVersion Include="Aspire.Hosting.Dotnet" Version="17.x.x" />
+</ItemGroup>
+```
+
+```xml title="MyApp.AppHost.csproj (inside Project)"
+<ItemGroup>
+  <PackageReference Include="Aspire.Hosting.AppHost" />
+  <PackageReference Include="Aspire.Hosting.Dotnet" />
+</ItemGroup>
+```
+
+Templates that emit inline package versions require this manual adjustment when created under a central package management root. Otherwise restore reports `NU1008`, even if the central versions already exist. Review service projects and optional integrations for inline versions too; don't assume creating or updating an AppHost automatically centralizes them.
+
+## Migrate project resources
+
+Replace each generated-metadata resource declaration with a path-based declaration:
+
+```csharp title="Before"
+var service = builder.AddProject<Projects.MyService>("myservice");
+```
+
+```csharp title="After"
+var service = builder.AddDotnetProject("myservice", "../MyService/");
+```
+
+Use a trailing slash for a project directory containing a single project. An explicit project-file path, such as `"../MyService/MyService.csproj"`, remains supported when you need to select a particular project. Preserve resource names and chained endpoint settings, health checks, references, and waits. Review launch-profile options and excluded endpoints individually rather than mechanically replacing every overload.
+
+Remove the service's `ProjectReference` from the AppHost after converting its resource declaration. `AddDotnetProject` discovers and builds the service when starting it; it doesn't require an AppHost project reference.
+
+:::caution[Keep services in solution and CI builds]
+After removing service project references, building the AppHost alone no longer builds those services. Keep service projects in the solution and in CI build and publish inputs. Build the solution separately; successful AppHost compilation isn't evidence that all service projects compile.
+:::
+
+### Retain AddProject during staged migration
+
+You can remove the obsolete SDK without converting every `AddProject` resource at once. Under `Microsoft.NET.Sdk`, ordinary project references aren't automatically Aspire resources. Explicitly mark retained resources and prevent their output assemblies from becoming AppHost assembly references:
+
+```xml title="MyApp.AppHost.csproj (inside Project)"
+<ItemGroup>
+  <ProjectReference Include="..\MyService\MyService.csproj"
+                    IsAspireProjectResource="true"
+                    ReferenceOutputAssembly="false" />
+</ItemGroup>
+```
+
+This keeps the generated `Projects.MyService` metadata available for `AddProject<Projects.MyService>`. An unannotated reference doesn't generate that resource metadata and can cause `CS0234` for the missing `Projects` type. Preserve any custom `AspireProjectMetadataTypeName` metadata.
+
+Keep genuine shared-library references as ordinary `ProjectReference` items. If you retain the obsolete SDK, set `IsAspireProjectResource="false"` on references that aren't orchestrated resources.
+
+## Use the required CLI bundle
+
+[Install a compatible Aspire CLI](/get-started/install-cli/). `AspireUseCliBundle` defaults to `true` for C# AppHosts, so you can omit it or set it explicitly:
+
+```xml
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+</PropertyGroup>
+```
+
+In Aspire 17.0, setting it to `false` produces error [ASPIRE010](/diagnostics/aspire010/). `NoWarn=ASPIRE010` doesn't make opting out valid. An unresolved or invalid bundle produces [ASPIRE009](/diagnostics/aspire009/); correct the installation or explicit paths instead of disabling the bundle.
+
+See [CLI bundle resolution and invocation modes](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies). Pinned DNX invocation uses the CLI version paired with `Aspire.Hosting.AppHost`, independently of an older SDK retained during staged migration.
+
+## Migrate a file-based AppHost
+
+Replace the obsolete `#:sdk Aspire.AppHost.Sdk@...` directive with explicit package directives:
+
+```csharp title="apphost.cs"
+#:package Aspire.Hosting.AppHost@17.x.x
+#:package Aspire.Hosting.Dotnet@17.x.x
+
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddDotnetProject("myservice", "../MyService/");
+builder.Build().Run();
+```
+
+Retain run configuration, user secrets, and other package directives. The CLI bundle is enabled by default; an explicit `#:property AspireUseCliBundle=true` is optional. The AppHost package sets `PublishAot=false` for file-based AppHosts, preserving the former SDK behavior. This doesn't change Native AOT settings for your service projects.
+
+## Verify the migration
+
+Restore and build the AppHost and the solution, then start the AppHost with the matching Aspire CLI. Verify that the dashboard starts, resource names and endpoints are unchanged, services return expected responses, and Restart/Rebuild work. Check service-to-service references and waits, not just AppHost compilation. Review IDE behavior separately; successful command-line builds don't qualify Visual Studio behavior.
+
+## Temporarily suppress ASPIRE012
+
+If you keep the functional obsolete SDK while migrating, either suppression is supported:
+
+```xml
+<PropertyGroup>
+  <SuppressAspireAppHostSdkObsoleteWarning>true</SuppressAspireAppHostSdkObsoleteWarning>
+</PropertyGroup>
+```
+
+Or append the diagnostic to the existing warning list:
+
+```xml
+<PropertyGroup>
+  <NoWarn>$(NoWarn);ASPIRE012</NoWarn>
+</PropertyGroup>
+```
+
+Suppression doesn't migrate resources or remove the requirement for a working CLI bundle.
