@@ -367,6 +367,7 @@ Sidebar topics are defined in `config/sidebar/` as separate modules and aggregat
 | `samples.json` | Sample app definitions with tags and thumbnails |
 | `testimonials.json` | Developer testimonials |
 | `github-stats.json` | GitHub repository statistics |
+| `github-contributors.json` | Contributors page avatars (`pnpm update:contributors`); the build never calls the GitHub API |
 | `pkgs/*.json` | Per-package API reference schemas |
 
 ## Cookie Consent
@@ -435,4 +436,5 @@ If a banner is present, dismiss it before any screenshot or visual verification.
 | `pnpm format` | Prettier formatting |
 | `pnpm update:integrations` | Sync NuGet integration data |
 | `pnpm update:samples` | Sync sample data from GitHub |
+| `pnpm update:contributors` | Refresh Contributors page data from GitHub |
 | `pnpm update:all` | Run all data updates |

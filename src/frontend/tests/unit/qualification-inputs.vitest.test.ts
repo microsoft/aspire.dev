@@ -13,18 +13,19 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-const url = 'https://api.github.com/repos/microsoft/aspire/contributors?per_page=100&page=1';
+const url =
+  'https://raw.githubusercontent.com/Rettend/github-material-icon-theme/main/download/version.txt';
 
 it('replays independent responses without requesting or changing captured content', async () => {
   const fallback = vi.fn<typeof fetch>();
   const snapshot = {
-    [url]: { body: '[{"id":1,"login":"fixture"}]', contentType: 'application/json' },
+    [url]: { body: 'fixture', contentType: 'text/plain' },
   };
   const replay = replayQualificationInputs(snapshot, fallback);
   for (let index = 0; index < 2; index++) {
     const response = await replay(new Request(url));
     expect(response.status).toBe(200);
-    expect(response.headers.get('content-type')).toBe('application/json');
+    expect(response.headers.get('content-type')).toBe('text/plain');
     expect(await response.text()).toBe(snapshot[url].body);
   }
   expect(fallback).not.toHaveBeenCalled();
@@ -74,7 +75,7 @@ it('preloads recorded inputs and fails even when a dependency catches a missing 
         '--import',
         preload,
         '-e',
-        `fetch(${JSON.stringify(url.replace('&page=1', '&page=2'))}).catch(() => process.exit(0))`,
+        `fetch(${JSON.stringify(url.replace('version.txt', 'language-map.json'))}).catch(() => process.exit(0))`,
       ],
       options
     );
@@ -84,40 +85,23 @@ it('preloads recorded inputs and fails even when a dependency catches a missing 
   }
 });
 
-it('captures only successful public bodies and never persists request credentials', async () => {
+it('captures only successful public bodies', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'aspire-inputs-'));
   const path = join(directory, 'snapshot.json');
   vi.stubEnv('CI', 'true');
-  vi.stubEnv('GH_TOKEN', 'fixture-credential-not-for-storage');
   const fetch = vi
     .fn<typeof globalThis.fetch>()
-    .mockImplementation((input) =>
-      Promise.resolve(
-        new Response(
-          typeof input === 'string' && new URL(input).origin === 'https://api.github.com'
-            ? '[]'
-            : '{}'
-        )
-      )
-    );
+    .mockImplementation(() => Promise.resolve(new Response('{}')));
   vi.stubGlobal('fetch', fetch);
   try {
     await captureQualificationInputs(path);
     const text = await readFile(path, 'utf8');
-    expect(Object.keys(JSON.parse(text))).toHaveLength(8);
-    expect(text).not.toContain('fixture-credential-not-for-storage');
-    expect(
-      fetch.mock.calls.filter(
-        ([input]) => typeof input === 'string' && new URL(input).origin === 'https://api.github.com'
-      )
-    ).toHaveLength(5);
+    expect(Object.keys(JSON.parse(text))).toHaveLength(3);
     expect(
       fetch.mock.calls
         .map(([input]) => (typeof input === 'string' ? input : ''))
-        .filter((input) => input.startsWith('https://api.github.com/'))
-    ).toContain(
-      'https://api.github.com/repos/communitytoolkit/aspire/contributors?per_page=100&page=1'
-    );
+        .filter((input) => input.startsWith('https://raw.githubusercontent.com/'))
+    ).toHaveLength(3);
     fetch.mockResolvedValue(new Response('Unavailable', { status: 503 }));
     await expect(captureQualificationInputs(path)).rejects.toThrow(
       'Qualification input failed: 503'
