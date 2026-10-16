@@ -565,6 +565,21 @@ You can choose from two dependency types to fix the step order:
 - **`dependsOn`**: This step runs after the specified steps complete.
 - **`requiredBy`**: This step must complete before the specified steps run.
 
+### Inspecting the selected execution graph
+
+`PipelineContext.SelectedSteps` lists the steps the current command resolved for execution, including transitive dependencies. The list is empty until the pipeline starts executing, then stays fixed for the rest of the run. Use it when a step needs to react to what else is actually running instead of duplicating the dependency graph filtering the executor already performs:
+
+```csharp title="Reading the selected steps"
+builder.Pipeline.AddStep("inspect-deployment", context =>
+{
+    foreach (var step in context.PipelineContext.SelectedSteps)
+    {
+        context.Logger.LogInformation("Selected step: {StepName}", step.Name);
+    }
+    return Task.CompletedTask;
+}, requiredBy: WellKnownPipelineSteps.Deploy);
+```
+
 ### Pipeline configuration
 
 Resources can also customize how they participate in the pipeline using <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineConfiguration" />, which provides control over step ordering and resource-specific pipeline behavior.
