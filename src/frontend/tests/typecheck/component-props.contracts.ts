@@ -83,6 +83,12 @@ void validReadableTextProps;
 const invalidReadableTextProps = { text: 123 } satisfies PropsOf<typeof ReadableText>;
 void invalidReadableTextProps;
 
+const validReadableTextProps = { text: 'RedisResource.withModule' } satisfies PropsOf<typeof ReadableText>;
+void validReadableTextProps;
+// @ts-expect-error Identifier content is required and must remain a string.
+const invalidReadableTextProps = { text: 123 } satisfies PropsOf<typeof ReadableText>;
+void invalidReadableTextProps;
+
 const validSearchFieldProps = {
   id: 'api-query', label: 'Search API entries', placeholder: 'Try Redis',
   clearId: 'api-clear', describedBy: 'api-status', size: 'sm', visibleLabel: true,

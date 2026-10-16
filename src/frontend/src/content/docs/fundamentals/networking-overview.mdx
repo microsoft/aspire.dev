@@ -573,19 +573,6 @@ Configure a proxyless endpoint whose public and target ports match, and set its 
 The examples assume an existing `Api` project, referenced by the C# AppHost or located at the path shown for the TypeScript AppHost.
 
 <Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var api = builder.AddProject<Projects.Api>("api")
-    .WithHttpEndpoint(port: 5000, targetPort: 5000, isProxied: false)
-    .WithEndpoint("http", endpoint => endpoint.TargetHost = "0.0.0.0");
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
@@ -606,31 +593,30 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpEndpoint(port: 5000, targetPort: 5000, isProxied: false)
+    .WithEndpoint("http", endpoint => endpoint.TargetHost = "0.0.0.0");
+
+builder.Build().Run();
+```
+
+</TabItem>
 </Tabs>
 
 If the API explicitly configures `Kestrel:Endpoints`, changing only the AppHost endpoint's `TargetHost` doesn't replace those configured listener hosts. Update the API's Kestrel endpoint configuration to bind to the intended interfaces as well.
 
 ### For container resources
 
-For container resources, configure a proxyless host-to-container port mapping and make the application inside the container listen on `0.0.0.0`:
+For container resources, configure a proxyless host-to-container port mapping, set the endpoint's target host to `0.0.0.0` so the host port isn't limited to loopback, and make the application inside the container listen on `0.0.0.0`:
 
 This example uses the public ASP.NET Core sample image and requires a running [container runtime](/get-started/prerequisites/). `ASPNETCORE_URLS` configures ASP.NET Core workloads; configure the equivalent listener setting when using an image for another runtime.
 
 <Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-// Map host port 8080 to container port 80, and configure the app inside to bind on all interfaces
-builder.AddContainer("myapp", "mcr.microsoft.com/dotnet/samples", "aspnetapp")
-    .WithHttpEndpoint(port: 8080, targetPort: 80, isProxied: false)
-    .WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:80");
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
@@ -638,15 +624,38 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-// Map host port 8080 to container port 80, and configure the app inside to bind on all interfaces
+// Map host port 8080 to container port 80, bind the host port on all interfaces,
+// and configure the app inside to bind on all interfaces
 const myapp = await builder.addContainer('myapp', {
   image: 'mcr.microsoft.com/dotnet/samples',
   tag: 'aspnetapp',
 });
 await myapp.withHttpEndpoint({ port: 8080, targetPort: 80, isProxied: false });
+await myapp.withHttpEndpointCallback(
+  async (endpoint) => {
+    await endpoint.targetHost.set('0.0.0.0');
+  },
+  { createIfNotExists: false }
+);
 await myapp.withEnvironment('ASPNETCORE_URLS', 'http://0.0.0.0:80');
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Map host port 8080 to container port 80, bind the host port on all interfaces,
+// and configure the app inside to bind on all interfaces
+builder.AddContainer("myapp", "mcr.microsoft.com/dotnet/samples", "aspnetapp")
+    .WithHttpEndpoint(port: 8080, targetPort: 80, isProxied: false)
+    .WithEndpoint("http", endpoint => endpoint.TargetHost = "0.0.0.0")
+    .WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:80");
+
+builder.Build().Run();
 ```
 
 </TabItem>
@@ -654,7 +663,7 @@ await builder.build().run();
 
 ### For executable resources
 
-For executable resources, pass `0.0.0.0` as the bind address and configure a proxyless endpoint whose public and target ports match:
+For executable resources, pass `0.0.0.0` as the bind address, configure a proxyless endpoint whose public and target ports match, and set the endpoint's target host to `0.0.0.0`:
 
 The following example runs a Python ASGI application. Install its dependencies in the Python environment used by the AppHost:
 
@@ -677,18 +686,6 @@ async def root():
 The snippets invoke uvicorn as a Python module, so a separate `uvicorn` executable doesn't need to be on `PATH`. If your environment uses `python3` instead of `python`, use that command in both the installation step and the AppHost.
 
 <Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-builder.AddExecutable("api", "python", ".", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000")
-    .WithHttpEndpoint(port: 8000, targetPort: 8000, isProxied: false);
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
@@ -706,8 +703,27 @@ const api = await builder.addExecutable('api', 'python', '.', [
   '8000',
 ]);
 await api.withHttpEndpoint({ port: 8000, targetPort: 8000, isProxied: false });
+await api.withHttpEndpointCallback(
+  async (endpoint) => {
+    await endpoint.targetHost.set('0.0.0.0');
+  },
+  { createIfNotExists: false }
+);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddExecutable("api", "python", ".", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000")
+    .WithHttpEndpoint(port: 8000, targetPort: 8000, isProxied: false)
+    .WithEndpoint("http", endpoint => endpoint.TargetHost = "0.0.0.0");
+
+builder.Build().Run();
 ```
 
 </TabItem>
