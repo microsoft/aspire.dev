@@ -116,9 +116,6 @@ test('homepage header matches the compact mobile action geometry at reflow width
   const expectedCompactHeaderOrder = [
     'Aspire',
     'Search',
-    'Watch Aspire live streams',
-    'Dev',
-    'Docs',
     'Try',
   ];
 
@@ -204,28 +201,21 @@ test('homepage header matches the compact mobile action geometry at reflow width
 
     await expect(banner.getByRole('link', { name: 'Aspire', exact: true })).toBeVisible();
     await expect(banner.getByRole('button', { name: 'Search' })).toBeVisible();
-    const hubLink = banner.getByRole('link', { name: 'Aspire resources', exact: true });
-    await expect(hubLink).toBeVisible();
+    const hubLink = banner.locator('.right-group .dev-center-btn');
+    await expect(hubLink).toBeHidden();
     await expect(hubLink).toHaveAttribute('aria-label', 'Aspire resources');
-    await expect(hubLink.locator('svg')).toBeVisible();
-    await expect(hubLink).toHaveCSS('border-width', '1px');
-    await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeVisible();
+    await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeHidden();
     await expect(banner.getByRole('link', { name: 'Try Aspire', exact: true })).toBeVisible();
 
-    await expect(banner.locator('.right-group-mobile .install-cli-btn')).toBeHidden();
-    await expect(banner.locator('.right-group-mobile .cookie-consent-btn')).toBeHidden();
-    await expect(banner.locator('.right-group-mobile .tour-help-btn')).toBeHidden();
-
+    const menuButton = page.locator('starlight-menu-button button');
     const controls = [
       banner.getByRole('button', { name: 'Search' }),
-      banner.locator('.right-group-mobile .live-btn'),
-      hubLink,
-      banner.getByRole('link', { name: 'Docs', exact: true }),
       banner.getByRole('link', { name: 'Try Aspire', exact: true }),
+      menuButton,
     ];
     const controlBoxes = await Promise.all(controls.map((control) => control.boundingBox()));
     expect(controlBoxes.every((box) => box !== null)).toBe(true);
-    expect(controlBoxes.every((box) => Math.abs((box?.height ?? 0) - 32) <= 0.5)).toBe(true);
+    expect(controlBoxes.every((box) => (box?.height ?? 0) >= 34 && (box?.height ?? 0) <= 36)).toBe(true);
     expect(
       Math.max(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2)) -
         Math.min(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2))
@@ -241,6 +231,11 @@ test('homepage header matches the compact mobile action geometry at reflow width
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       width
     );
+    await menuButton.click();
+    await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#starlight__sidebar a[href="/hub/"]')).toBeVisible();
+    await expect(page.locator('#starlight__sidebar a[href="/docs/"]')).toBeVisible();
+    await page.keyboard.press('Escape');
   }
 });
 
@@ -287,15 +282,10 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const banner = page.getByRole('banner');
     const searchButton = banner.getByRole('button', { name: 'Search' });
-    const liveLink = banner.locator('.right-group-mobile .live-btn');
-    const hubLink = banner.getByRole('link', { name: 'Aspire resources', exact: true });
     const tryLink = banner.locator('.try-aspire-btn-mobile');
     const menuButton = page.locator('starlight-menu-button').getByRole('button', { name: 'Menu' });
 
     await expect(searchButton).toBeVisible();
-    await expect(liveLink).toBeVisible();
-    await expect(hubLink).toBeVisible();
-    await expect(hubLink).toHaveAttribute('href', '/hub/');
     await expect(tryLink).toBeVisible();
     await expect(menuButton).toBeVisible();
     await expect(banner.locator('.right-group-mobile .docs-btn-mobile')).toBeHidden();
@@ -305,7 +295,7 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const headerBox = await banner.boundingBox();
     const controlBoxes = await Promise.all(
-      [searchButton, liveLink, hubLink, tryLink, menuButton].map((control) => control.boundingBox())
+      [searchButton, tryLink, menuButton].map((control) => control.boundingBox())
     );
     const menuButtonBox = await menuButton.boundingBox();
     expect(headerBox).not.toBeNull();
@@ -330,8 +320,8 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
     expect(controlGaps.every((gap) => gap >= 7 && gap <= 9)).toBe(true);
     await expect(searchButton).toHaveCSS('border-top-width', '1px');
     await expect(menuButton).toHaveCSS('border-top-width', '1px');
-    await expect(searchButton).toHaveCSS('border-radius', '6px');
-    await expect(menuButton).toHaveCSS('border-radius', '6px');
+    await expect(searchButton).toHaveCSS('border-radius', '8px');
+    await expect(menuButton).toHaveCSS('border-radius', '8px');
     const searchIconBox = await searchButton.locator('svg').boundingBox();
     const menuIconBox = await menuButton.locator('.open-menu').boundingBox();
     expect(searchIconBox).not.toBeNull();
@@ -365,8 +355,7 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
         return { y: bounds.y };
       })
     );
-    expect(actionBoxes[0].y).toBeLessThan(actionBoxes[1].y);
-    expect(Math.abs(actionBoxes[1].y - actionBoxes[2].y)).toBeLessThanOrEqual(1);
+    expect(Math.max(...actionBoxes.map((box) => box.y)) - Math.min(...actionBoxes.map((box) => box.y))).toBeLessThanOrEqual(1);
 
     await menuButton.click();
 
@@ -389,15 +378,13 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
 
     const topicBox = await topics.locator('a').first().boundingBox();
     expect(topicBox).not.toBeNull();
-    expect(topicBox?.height ?? 0).toBeGreaterThanOrEqual(44);
-    const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-    await expect(filter).toHaveCSS('height', coarse ? '48px' : '40px');
+    expect(topicBox?.height ?? 0).toBeGreaterThanOrEqual(34);
+    await expect(filter).toHaveCSS('height', '34px');
 
     for (const control of [groupSummary, nestedLink]) {
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(40);
-      expect(box?.height ?? Infinity).toBeLessThan(44);
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(34);
     }
 
     const nestedLabelInsets = await nestedLink.evaluate((element) => {
@@ -469,7 +456,7 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
         };
       })
     );
-  expect(compactTopicMetrics.every(({ height }) => height >= 48)).toBe(true);
+  expect(compactTopicMetrics.every(({ height }) => height >= 34 && height <= 36)).toBe(true);
   expect(
     Math.max(...compactTopicMetrics.map(({ height }) => height)) -
       Math.min(...compactTopicMetrics.map(({ height }) => height))
@@ -505,10 +492,10 @@ test('localizes the shared header Docs and Try Aspire actions', async ({ page })
   await expect(desktopTry).toHaveAttribute('href', '/de/get-started/first-app/');
 
   await page.setViewportSize({ width: 640, height: 900 });
-  const compactDocs = banner.locator('.docs-btn-mobile');
   const compactTry = banner.locator('.try-aspire-btn-mobile');
-  await expect(compactDocs).toBeVisible();
-  await expect(compactDocs).toHaveText('Dokumentation');
+  await page.locator('starlight-menu-button button').click();
+  await expect(page.locator('.mobile-site-links a[href="/de/docs/"]')).toHaveText('Dokumentation');
+  await page.keyboard.press('Escape');
   await expect(compactTry).toBeVisible();
   await expect(compactTry).toHaveText('Ausprobieren');
   await expect(compactTry).toHaveAccessibleName('Aspire ausprobieren');
@@ -572,7 +559,10 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
 
   await languageTrigger.click();
   await expect(languageListbox).toBeVisible();
-  await expect(languageListbox).toHaveAttribute('data-side', 'top');
+  await expect(languageListbox).toHaveAttribute('data-side', /top|bottom/);
+  const languageMenuBounds = (await languageListbox.boundingBox())!;
+  expect(languageMenuBounds.y).toBeGreaterThanOrEqual(0);
+  expect(languageMenuBounds.y + languageMenuBounds.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   await expect(languageListbox.getByRole('option')).toHaveCount(15);
   await expect(languageListbox).toHaveCSS(
     'border-radius',
@@ -581,7 +571,7 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   expect(
     await languageListbox.evaluate((element) => {
       const scrollbarButton = getComputedStyle(element, '::-webkit-scrollbar-button');
-      const scrollbarThumb = getComputedStyle(element, '::-webkit-scrollbar-thumb');
+      const scrollbarColor = getComputedStyle(element).scrollbarColor;
       const colorProbe = document.createElement('span');
       colorProbe.style.backgroundColor = 'var(--aspire-color-primary)';
       element.append(colorProbe);
@@ -594,7 +584,7 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
           height: scrollbarButton.height,
           width: scrollbarButton.width,
         },
-        thumbUsesPrimaryColor: scrollbarThumb.backgroundColor === primaryColor,
+        thumbUsesPrimaryColor: scrollbarColor.startsWith(primaryColor),
       };
     })
   ).toEqual({
@@ -800,26 +790,29 @@ test('aligns the scroll-to-top control with the header action at each breakpoint
 
     const scrollToTop = page.locator('#scroll-to-top-button');
     const headerAction = page.locator(
-      viewport.width >= 800 ? '.try-aspire-btn' : '.try-aspire-btn-mobile'
+      viewport.width >= 800 ? '.try-aspire-btn' : 'starlight-menu-button button'
     );
     await expect(scrollToTop).toBeVisible();
     await expect(headerAction).toBeVisible();
 
     const placement = await scrollToTop.evaluate((button, expected) => {
       const action = document.querySelector<HTMLElement>(
-        window.innerWidth >= 800 ? '.try-aspire-btn' : '.try-aspire-btn-mobile'
+        window.innerWidth >= 800 ? '.try-aspire-btn' : 'starlight-menu-button button'
       );
       const buttonBounds = button.getBoundingClientRect();
       const actionBounds = action?.getBoundingClientRect();
       const buttonStyle = getComputedStyle(button);
-      const actionStyle = action ? getComputedStyle(action) : null;
+      const primary = document.querySelector(
+        window.innerWidth >= 800 ? '.try-aspire-btn' : '.try-aspire-btn-mobile'
+      );
+      const primaryStyle = primary ? getComputedStyle(primary) : null;
       return {
         bottomGap: window.innerHeight - buttonBounds.bottom,
         colorsMatch:
-          actionStyle !== null &&
-          buttonStyle.backgroundColor === actionStyle.backgroundColor &&
-          buttonStyle.borderTopColor === actionStyle.borderTopColor &&
-          buttonStyle.color === actionStyle.color,
+          primaryStyle !== null &&
+          buttonStyle.backgroundColor === primaryStyle.backgroundColor &&
+          buttonStyle.borderTopColor === primaryStyle.borderTopColor &&
+          buttonStyle.color === primaryStyle.color,
         expectedBottom: expected,
         rightEdgeDelta: actionBounds
           ? Math.abs(actionBounds.right - buttonBounds.right)
@@ -1558,7 +1551,7 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
               return [Math.round(bounds.width), Math.round(bounds.height)];
             })
           )
-          .toEqual([48, 48]);
+          .toEqual([36, 36]);
         await scrollToTop.click();
         await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(0);
       }

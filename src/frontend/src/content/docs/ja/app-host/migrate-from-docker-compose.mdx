@@ -5,6 +5,7 @@ description: Docker Compose アプリケーションを Aspire に移行する�
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 本ガイドは、Docker Compose から Aspire へのアプリケーション移行方法を理解し、主要な概念的違いを強調し、一般的な移行シナリオに対する正確で実践的な例を提供します。
 
@@ -31,7 +32,7 @@ Docker Compose から Aspire に移行する際は、以下の概念的違いを
 - **コンテナからリソースへ** — Aspire はコンテナだけでなく、.NET プロジェクト、実行可能ファイル、パラメーター、クラウドリソースを管理します
 - **手動ネットワークから自動サービス検知へ** — Aspire は自動的にサービス検知と接続文字列を構成します
 - **開発ギャップから統合体験へ** — Aspire はダッシュボード、テレメトリー、デバッグ統合を提供します
-- **スタートアップオーケストレーションの違い** — Docker Compose の `depends_on` はスタートアップ順序を制御しますが、Aspire の `WithReference` はサービス検知のみを構成します。スタートアップ順序には `WaitFor` を使用してください
+- **スタートアップオーケストレーションの違い** — Docker Compose の `depends_on` はスタートアップ順序を制御しますが、Aspire の <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> はサービス検知のみを構成します。スタートアップ順序には <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> を使用してください
 
 <LearnMore>
 詳細な API マッピングについては、[Docker Compose to Aspire AppHost API reference](/ja/app-host/docker-compose-to-apphost-reference/) を参照してください。
@@ -155,7 +156,7 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="note" title="build: サービスはプロジェクトまたは Dockerfile リソースに変わります">
-Docker Compose では、`build:` ディレクティブは Dockerfile からコンテナイメージを作成します。Aspire では、.NET サービスは `AddProject<T>()` で直接プロジェクト参照として追加され、より優れたデバッグ、ホットリロード、テレメトリー統合を提供します。それでも Dockerfile からビルドするサービスについては、既存の Dockerfile に `AddDockerfile()` を使用するか、AppHost が Dockerfile をプログラムで生成する必要がある場合は `AddDockerfileBuilder()` を使用します。
+Docker Compose では、`build:` ディレクティブは Dockerfile からコンテナイメージを作成します。Aspire では、.NET サービスは <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> で直接プロジェクト参照として追加され、より優れたデバッグ、ホットリロード、テレメトリー統合を提供します。それでも Dockerfile からビルドするサービスについては、既存の Dockerfile に <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfile" /> を使用するか、AppHost が Dockerfile をプログラムで生成する必要がある場合は <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfileBuilder" /> を使用します。
 </Aside>
 
 **主な違いの説明:**
@@ -164,8 +165,8 @@ Docker Compose では、`build:` ディレクティブは Dockerfile からコ�
 - **ポート** — どちらの例もポート (3000 と 5000) を明示的にマップします
 - **スタートアップ順序** — Docker Compose は正常性チェック条件付きの `depends_on` を使用します。Aspire はスタートアップ順序に `WaitFor()` を使用します
 - **サービス検知** — `WithReference()` はサービス検知と接続文字列のみを構成します。スタートアップ順序を制御しません
-- **接続文字列** — デフォルトでは、`WithReference(database)` は `AddDatabase()` のリソース名を使用して `ConnectionStrings__myapp` を提供します。`DefaultConnection` などの異なる名前に一致させるには、名前付き参照を使用します: `.WithReference(database, "DefaultConnection")`
-- **ボリューム** — `WithDataVolume()` は明示的に呼び出す必要があります。自動的ではありません
+- **接続文字列** — デフォルトでは、`WithReference(database)` は <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.AddDatabase" /> のリソース名を使用して `ConnectionStrings__myapp` を提供します。`DefaultConnection` などの異なる名前に一致させるには、名前付き参照を使用します: `.WithReference(database, "DefaultConnection")`
+- **ボリューム** — <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithDataVolume" /> は明示的に呼び出す必要があります。自動的ではありません
 - **イメージバージョン** — `WithImageTag("15")` は PostgreSQL をバージョン 15 にピン止めします
 
 ### コンテナベースのサービス
@@ -275,13 +276,13 @@ Aspire は .NET フォーマットの接続文字列を生成しており、Dock
 - Docker Compose: `DATABASE_URL=postgresql://postgres:secret@postgres:5432/main`
 - Aspire: `ConnectionStrings__main=Host=localhost;Port=12345;Username=postgres;Password=<generated>;Database=main`
 
-アプリケーションが URL フォーマットの環境変数を期待する場合は、`WithEnvironment()` で手動で構築してください。詳細は [環境変数と構成](#環境変数と構成) を参照してください。
+アプリケーションが URL フォーマットの環境変数を期待する場合は、<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> で手動で構築してください。詳細は [環境変数と構成](#環境変数と構成) を参照してください。
 </Aside>
 
 **主な違いの説明:**
 
-- **イメージバージョン** — `WithImageTag()` で明示的に指定して Docker Compose と一致させます
-- **Dockerfile ビルド** — Docker Compose の `build: .` は `AddDockerfile("web", ".")` にマップしており、Dockerfile からコンテナイメージをビルドします。Docker Compose で `image:` を使用する事前ビルドイメージには `AddContainer()` を使用します
+- **イメージバージョン** — <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithImageTag" /> で明示的に指定して Docker Compose と一致させます
+- **Dockerfile ビルド** — Docker Compose の `build: .` は `AddDockerfile("web", ".")` にマップしており、Dockerfile からコンテナイメージをビルドします。Docker Compose で `image:` を使用する事前ビルドイメージには <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddContainer" /> を使用します
 - **ポート** — `WithHostPort()` は静的ホストポートにマップしており、なければ Aspire がランダムポートを割り当てます
 - **ボリューム** — `WithDataVolume()` は明示的に呼び出す必要があります
 - **スタートアップ順序** — `WaitFor()` はスタートアップ順序を制御し、Docker Compose の `depends_on` の条件に似ています
@@ -460,7 +461,7 @@ await builder.build().run();
 **主な違い:**
 
 - **名前付きボリューム** — `AddVolume()` で作成され、コンテナ間で共有されます
-- **バインドマウント** — ホストディレクトリアクセス用に `WithBindMount()` を使用します
+- **バインドマウント** — ホストディレクトリアクセス用に <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithBindMount" /> を使用します
 
 ### ネットワーキング
 
@@ -530,14 +531,14 @@ Docker Compose から Aspire への正常な移行には体系的なアプロー
    - **`WithReference()` で依存関係を構成** してサービス検知のために
    - **`WaitFor()` でスタートアップ順序を追加** して `depends_on` の動作と一致させます
    - **環境変数を設定** — 接続文字列フォーマットが異なることに注意してください
-   - **正常性チェックを移行** — `WithHttpHealthCheck()` またはカスタムチェック用 `WithHealthCheck()` を使用します
+   - **正常性チェックを移行** — <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> またはカスタムチェック用 <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHealthCheck" /> を使用します
 
 4. ### データ移行を処理する
 
    永続データについて:
 
    - `WithDataVolume()` をインテグレーションで自動ボリューム管理に使用します
-   - `WithVolume()` をデータを永続化する必要があるという名前付きボリュームに使用します
+   - <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithVolume" /> をデータを永続化する必要があるという名前付きボリュームに使用します
    - `WithBindMount()` をホスト直接アクセスが必要な場合のホストディレクトリマウントに使用します
 
 5. ### テストと検証

@@ -9,6 +9,7 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import postgresIcon from '@assets/icons/postgresql-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={postgresIcon}
@@ -408,7 +409,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-The data volume is used to persist the PostgreSQL server data outside the lifecycle of its container. The container data directory depends on the PostgreSQL image version: PostgreSQL 17 and earlier use `/var/lib/postgresql/data`, while PostgreSQL 18 and later use `/var/lib/postgresql`. `WithDataVolume(...)` selects the correct path automatically based on the configured image tag. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-postgresql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+The data volume is used to persist the PostgreSQL server data outside the lifecycle of its container. The container data directory depends on the PostgreSQL image version: PostgreSQL 17 and earlier use `/var/lib/postgresql/data`, while PostgreSQL 18 and later use `/var/lib/postgresql`. <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithDataVolume" /> selects the correct path automatically based on the configured image tag. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-postgresql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 <Aside type="caution">
   Aspire 13.4 bumped the default PostgreSQL image to 18, which uses a different on-disk data layout than PostgreSQL 17. A data volume or data bind mount created on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible after upgrading. See [PostgreSQL 18 data directory change](#postgresql-18-data-directory-change) for recovery options.
@@ -504,7 +505,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 
-The TypeScript AppHost doesn't currently expose a `withInitBindMount(...)` API for PostgreSQL. Use `withInitFiles(...)` when you want to copy initialization files into the container instead.
+The TypeScript AppHost doesn't currently expose a `withInitBindMount(...)` API for PostgreSQL. Use <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithInitFiles" /> when you want to copy initialization files into the container instead.
 </TabItem>
 </Tabs>
 
@@ -604,9 +605,9 @@ await builder.build().run();
 
 ## PostgreSQL 18 data directory change
 
-Starting with Aspire 13.4, the default PostgreSQL container image used by `AddPostgres` is **18.3** (previously 17.6). PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`. For upstream details, see [docker-library/postgres#1259](https://github.com/docker-library/postgres/issues/1259) and [docker-library/postgres#37](https://github.com/docker-library/postgres/issues/37).
+Starting with Aspire 13.4, the default PostgreSQL container image used by <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.AddPostgres" /> is **18.3** (previously 17.6). PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`. For upstream details, see [docker-library/postgres#1259](https://github.com/docker-library/postgres/issues/1259) and [docker-library/postgres#37](https://github.com/docker-library/postgres/issues/37).
 
-`WithDataVolume(...)` and `WithDataBindMount(...)` are version-aware: Aspire chooses the container data directory from the configured image tag at the time the method is called. PostgreSQL 17 and earlier map to `/var/lib/postgresql/data`; PostgreSQL 18 and later map to `/var/lib/postgresql`.
+`WithDataVolume(...)` and <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithDataBindMount" /> are version-aware: Aspire chooses the container data directory from the configured image tag at the time the method is called. PostgreSQL 17 and earlier map to `/var/lib/postgresql/data`; PostgreSQL 18 and later map to `/var/lib/postgresql`.
 
 Because of this layout change, PostgreSQL 17 data persisted with `WithDataVolume(...)` or `WithDataBindMount(...)` (Aspire 13.3 or earlier) is incompatible with PostgreSQL 18 after upgrading to Aspire 13.4. The container fails to start with an error similar to:
 
@@ -618,7 +619,7 @@ You have two ways to recover.
 
 ### Option 1: Stay on PostgreSQL 17 (recommended, no migration)
 
-Pin the image back to a PostgreSQL 17 tag with `WithImageTag(...)` **before** calling `WithDataVolume(...)`. Aspire then selects the legacy `/var/lib/postgresql/data` path and your existing volume keeps working with no migration:
+Pin the image back to a PostgreSQL 17 tag with <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithImageTag" /> **before** calling `WithDataVolume(...)`. Aspire then selects the legacy `/var/lib/postgresql/data` path and your existing volume keeps working with no migration:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -668,7 +669,7 @@ docker volume rm <old-volume-name>
 
 ## Open an interactive REPL
 
-In Aspire 13.6 or later, add `WithRepl()` to the PostgreSQL server resource to enable a **REPL** command that opens `psql` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+In Aspire 13.6 or later, add <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithRepl" /> to the PostgreSQL server resource to enable a **REPL** command that opens `psql` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>

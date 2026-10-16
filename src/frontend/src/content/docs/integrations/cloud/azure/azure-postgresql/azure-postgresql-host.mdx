@@ -7,6 +7,7 @@ import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import postgresqlIcon from '@assets/icons/azure-postgresql-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={postgresqlIcon}
@@ -113,12 +114,12 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-The preceding code adds an Azure PostgreSQL flexible server resource named `postgres` with a database named `postgresdb`. The `withReference` / `WithReference` call injects the connection information into the consuming project.
+The preceding code adds an Azure PostgreSQL flexible server resource named `postgres` with a database named `postgresdb`. The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> call injects the connection information into the consuming project.
 
 <Aside type="caution">
-  When you call `AddAzurePostgresFlexibleServer` /
+  When you call <ApiReference name="Aspire.Hosting.AzurePostgresExtensions.AddAzurePostgresFlexibleServer" /> /
   `addAzurePostgresFlexibleServer`, it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
+  <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" />—which adds support for generating Azure resources
   dynamically during app startup. The app must configure the appropriate
   subscription and location. For more information, see [Local provisioning:
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -241,7 +242,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-When `RunAsContainer` / `runAsContainer` is called, Aspire uses the [`docker.io/library/postgres`](https://hub.docker.com/_/postgres) container image and generates credentials automatically. The same consuming app code and environment variable names work in both local-container and Azure modes.
+When <ApiReference name="Aspire.Hosting.AzurePostgresExtensions.RunAsContainer" /> is called, Aspire uses the [`docker.io/library/postgres`](https://hub.docker.com/_/postgres) container image and generates credentials automatically. The same consuming app code and environment variable names work in both local-container and Azure modes.
 
 <Aside type="tip">
   The `RunAsContainer` / `runAsContainer` API exposes an optional delegate
@@ -254,13 +255,13 @@ When `RunAsContainer` / `runAsContainer` is called, Aspire uses the [`docker.io/
 
 ### Cross-reference: local-container vs Azure PostgreSQL
 
-If you are developing against a local container and want to switch to Azure PostgreSQL for staging or production, change `AddPostgres` to `AddAzurePostgresFlexibleServer` in the AppHost. The connection information injected into consuming apps uses the same environment variable names, so no application code changes are required.
+If you are developing against a local container and want to switch to Azure PostgreSQL for staging or production, change <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.AddPostgres" /> to `AddAzurePostgresFlexibleServer` in the AppHost. The connection information injected into consuming apps uses the same environment variable names, so no application code changes are required.
 
 For a comparison of the two hosting integrations, see [PostgreSQL Hosting integration](/integrations/databases/postgres/postgres-host/).
 
 ## Connect to an existing Azure PostgreSQL flexible server
 
-If you have an existing Azure Database for PostgreSQL Flexible Server that you want to connect to rather than provisioning a new one, use `AsExisting` / `asExisting`:
+If you have an existing Azure Database for PostgreSQL Flexible Server that you want to connect to rather than provisioning a new one, use <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -307,7 +308,7 @@ For more information on treating Azure resources as existing, see [Use existing 
 
 ## Configure password authentication
 
-By default, the Azure PostgreSQL flexible server is configured to use [Microsoft Entra ID](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-azure-ad-authentication) authentication — no username or password is stored in your app configuration. If you need password authentication (for example, to connect with a legacy client that doesn't support Entra tokens), call `WithPasswordAuthentication` / `withPasswordAuthentication`:
+By default, the Azure PostgreSQL flexible server is configured to use [Microsoft Entra ID](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-azure-ad-authentication) authentication — no username or password is stored in your app configuration. If you need password authentication (for example, to connect with a legacy client that doesn't support Entra tokens), call <ApiReference name="Aspire.Hosting.AzurePostgresExtensions.WithPasswordAuthentication" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -450,7 +451,7 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 
 ## Customize provisioning infrastructure
 
-All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> API:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -500,7 +501,7 @@ There are many more configuration options available to customize the PostgreSQL 
 
 ## Database creation after initial deployment
 
-When you call `AddDatabase` / `addDatabase` on an Azure PostgreSQL resource, Aspire provisions the database during the **first** deployment. On subsequent deployments with `azd up`, only the server-level Bicep is redeployed — databases that already exist are not recreated or deleted.
+When you call <ApiReference name="Aspire.Hosting.AzurePostgresExtensions.AddDatabase" /> on an Azure PostgreSQL resource, Aspire provisions the database during the **first** deployment. On subsequent deployments with `azd up`, only the server-level Bicep is redeployed — databases that already exist are not recreated or deleted.
 
 <Aside type="note">
   If a database does not appear after redeployment, verify that the

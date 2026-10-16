@@ -10,6 +10,7 @@ import InstallPackage from '@components/InstallPackage.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 import sqlIcon from '@assets/icons/sql-database-projects-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -58,7 +59,7 @@ Run `aspire restore` after changing a TypeScript AppHost package configuration t
 
 ## Add a project or DACPAC resource
 
-`AddSqlProject` creates a `SqlProject` dashboard resource in the waiting state. It is a deployment resource, so it has no endpoint, environment variables, connection string, or health check. It implements standard wait support, which lets other resources use `WaitForCompletion`.
+<ApiReference name="Aspire.Hosting.SqlProjectBuilderExtensions.AddSqlProject" /> creates a `SqlProject` dashboard resource in the waiting state. It is a deployment resource, so it has no endpoint, environment variables, connection string, or health check. It implements standard wait support, which lets other resources use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitForCompletion" />.
 
 In a C# AppHost, use `AddSqlProject<TProject>` when the AppHost references an MSBuild SQL project. The generic project metadata overload resolves the project's `SqlTargetPath` or `TargetPath` output. Use the non-generic overload with `WithDacpac` when you already have a DACPAC.
 
@@ -112,7 +113,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`WithDacpac` accepts a path to a `.dacpac` file. At deployment time, a relative DACPAC path is resolved against the AppHost content root. The integration does not set a working directory.
+<ApiReference name="Aspire.Hosting.SqlProjectBuilderExtensions.WithDacpac" /> accepts a path to a `.dacpac` file. At deployment time, a relative DACPAC path is resolved against the AppHost content root. The integration does not set a working directory.
 
 :::note
 The generic `AddSqlProject<TProject>` overload is C# only. It requires `IProjectMetadata`, so TypeScript uses `addSqlProject(name)` and `withDacpac(path)` instead.
@@ -138,7 +139,7 @@ The package resource uses `tools/<package-id>.dacpac` by default; `WithDacpac` s
 
 ## Configure deployment
 
-Use a DACFx publish profile with `WithDacDeployOptions`, or configure `DacDeployOptions` directly in a C# AppHost. A publish-profile path is loaded as supplied, so use a path that is valid for the AppHost process.
+Use a DACFx publish profile with <ApiReference name="Aspire.Hosting.SqlProjectBuilderExtensions.WithDacDeployOptions" />, or configure `DacDeployOptions` directly in a C# AppHost. A publish-profile path is loaded as supplied, so use a path that is valid for the AppHost process.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -177,7 +178,7 @@ await databaseProject.withReference(database);
 
 ## Avoid unchanged deployments
 
-`WithSkipWhenDeployed` records a DACPAC checksum in the target database. On later deployments, the integration skips the DACPAC if the checksum is unchanged. It sets `DropExtendedPropertiesNotInSource` to `false` while this option is active.
+<ApiReference name="Aspire.Hosting.SqlProjectBuilderExtensions.WithSkipWhenDeployed" /> records a DACPAC checksum in the target database. On later deployments, the integration skips the DACPAC if the checksum is unchanged. It sets `DropExtendedPropertiesNotInSource` to `false` while this option is active.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -215,7 +216,7 @@ Use this with a persistent database when avoiding an unchanged schema deployment
 
 ## Target a database
 
-`WithReference` establishes a parent relationship to the target, waits for that target to be ready, and then deploys the DACPAC. A SQL Server database target supplies the database name automatically. You can instead target any connection-string resource; its connection string must contain `Database` or `Initial Catalog` so DACFx can infer the target database.
+<ApiReference name="Aspire.Hosting.SqlProjectBuilderExtensions.WithReference" /> establishes a parent relationship to the target, waits for that target to be ready, and then deploys the DACPAC. A SQL Server database target supplies the database name automatically. You can instead target any connection-string resource; its connection string must contain `Database` or `Initial Catalog` so DACFx can infer the target database.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -246,7 +247,7 @@ The SQL Server database overload is `withReference` in TypeScript. The connectio
 
 ## Dashboard behavior and resource properties
 
-When a referenced target becomes ready, the integration publishes the DACPAC and reports the deployment resource as `Running`, then `Finished` with exit code `0`; failures are reported in the resource logs and state. Use standard `WithExplicitStart` on a project or package resource to prevent that automatic deployment, then invoke its highlighted **Deploy** dashboard command. The command also deploys a schema again manually and is disabled while the resource is starting or running.
+When a referenced target becomes ready, the integration publishes the DACPAC and reports the deployment resource as `Running`, then `Finished` with exit code `0`; failures are reported in the resource logs and state. Use standard <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExplicitStart" /> on a project or package resource to prevent that automatic deployment, then invoke its highlighted **Deploy** dashboard command. The command also deploys a schema again manually and is disabled while the resource is starting or running.
 
 The preceding synchronized examples also show the `SqlProjectResource` properties exported to TypeScript AppHosts:
 

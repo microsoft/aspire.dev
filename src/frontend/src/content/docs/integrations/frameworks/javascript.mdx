@@ -8,6 +8,7 @@ import { Image } from 'astro:assets';
 import InstallPackage from '@components/InstallPackage.astro';
 import LearnMore from '@components/LearnMore.astro';
 import jsIcon from '@assets/icons/javascript.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={jsIcon}
@@ -29,11 +30,11 @@ To start building an Aspire app that uses JavaScript and TypeScript, install the
 
 The integration exposes a number of app resource types:
 
-- `JavaScriptAppResource`: Added with `AddJavaScriptApp` / `addJavaScriptApp` for general JavaScript applications
-- `NodeAppResource`: Added with `AddNodeApp` / `addNodeApp` for running specific JavaScript files with Node.js
-- `ViteAppResource`: Added with `AddViteApp` / `addViteApp` for Vite applications with Vite-specific defaults
-- `NextJsAppResource`: Added with `AddNextJsApp` / `addNextJsApp` for Next.js applications with Next.js-specific run and publish defaults
-- `BunAppResource`: Added with `AddBunApp` / `addBunApp` for applications running on the [Bun](https://bun.sh/) runtime — see the [Bun integration](/integrations/frameworks/bun-apps/) for details
+- `JavaScriptAppResource`: Added with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddJavaScriptApp" /> for general JavaScript applications
+- `NodeAppResource`: Added with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddNodeApp" /> for running specific JavaScript files with Node.js
+- `ViteAppResource`: Added with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" /> for Vite applications with Vite-specific defaults
+- `NextJsAppResource`: Added with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddNextJsApp" /> for Next.js applications with Next.js-specific run and publish defaults
+- `BunAppResource`: Added with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddBunApp" /> for applications running on the [Bun](https://bun.sh/) runtime — see the [Bun integration](/integrations/frameworks/bun-apps/) for details
 
 ## Framework examples
 
@@ -41,7 +42,7 @@ The following TypeScript AppHost examples show validated ways to wire common Jav
 
 - A backend API app lives in `./frameworks/api` and listens on the `PORT` environment variable.
 - The framework app lives in `./frameworks/<framework-name>`.
-- Docker Compose is shown as an example deployment target with `addDockerComposeEnvironment`.
+- Docker Compose is shown as an example deployment target with <ApiReference name="Aspire.Hosting.DockerComposeEnvironmentExtensions.AddDockerComposeEnvironment" />.
 
 For production deployment choices, see [Deploy JavaScript apps](/deployment/javascript-apps/).
 
@@ -63,7 +64,7 @@ const apiEndpoint = await api.getEndpoint('http');
 
 ### Vite
 
-Plain Vite apps that produce static browser files use `addViteApp` and `publishAsStaticWebsite`. The `apiPath` / `apiTarget` options configure the deployed static website to proxy `/api` requests to the backend.
+Plain Vite apps that produce static browser files use `addViteApp` and <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsStaticWebsite" />. The `apiPath` / `apiTarget` options configure the deployed static website to proxy `/api` requests to the backend.
 
 ```typescript title="apphost.mts"
 await builder
@@ -196,7 +197,7 @@ export default async function Home() {
 
 ### Nuxt
 
-Nuxt apps need `node_modules` at runtime for server-side rendering, so publish them with `publishAsPackageScript`. Set both `API_URL` for direct server-side code and `NUXT_API_URL` for Nuxt runtime config.
+Nuxt apps need `node_modules` at runtime for server-side rendering, so publish them with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsPackageScript" />. Set both `API_URL` for direct server-side code and `NUXT_API_URL` for Nuxt runtime config.
 
 ```typescript title="apphost.mts"
 await builder
@@ -233,7 +234,7 @@ export default defineEventHandler(async () => {
 
 ### SvelteKit
 
-SvelteKit with `@sveltejs/adapter-node` produces a self-contained Node server artifact, so publish it with `publishAsNodeServer`.
+SvelteKit with `@sveltejs/adapter-node` produces a self-contained Node server artifact, so publish it with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsNodeServer" />.
 
 ```typescript title="apphost.mts"
 await builder
@@ -489,7 +490,7 @@ module.exports = nextConfig;
 
 :::
 
-To opt out of the configuration validation step, call `DisableBuildValidation` / `disableBuildValidation`:
+To opt out of the configuration validation step, call <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.DisableBuildValidation" />:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -565,10 +566,10 @@ const viteApp = await builder
 
 `AddViteApp` automatically configures:
 
-- **HTTP endpoint**: Registers an `http` endpoint and sets the `PORT` environment variable — you don't need to call `WithHttpEndpoint` yourself
+- **HTTP endpoint**: Registers an `http` endpoint and sets the `PORT` environment variable — you don't need to call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpEndpoint" /> yourself
 - **Development script**: Runs the "dev" script (typically `vite`) during local development
 - **Build script**: Runs the "build" script (typically `vite build`) when publishing
-- **Package manager**: Uses npm by default, but can be customized with `WithYarn()`, `WithPnpm()`, or `WithBun()`
+- **Package manager**: Uses npm by default, but can be customized with <ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.WithYarn" />, <ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.WithPnpm" />, or <ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.WithBun" />
 
 :::caution
 Do _not_ call `.WithHttpEndpoint()` on a Vite resource. `AddViteApp` already registers an `http` endpoint with the `PORT` environment variable, and adding another causes a duplicate endpoint error at runtime.
@@ -863,7 +864,7 @@ const app = await builder
 
 ### Pass arguments to scripts
 
-To pass command-line arguments to your scripts, use `WithArgs` / `withArgs`:
+To pass command-line arguments to your scripts, use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithArgs" />:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -1075,7 +1076,7 @@ const viteApp = await builder
 
 </Tabs>
 
-The `WithViteConfig` / `withViteConfig` configuration accepts:
+The <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithViteConfig" /> configuration accepts:
 
 - **configPath**: The path to the Vite configuration file, relative to the Vite service project root.
 
@@ -1126,7 +1127,7 @@ The HTTPS configuration is automatically applied without modifying your `vite.co
 
 When your Vite app needs to communicate with a backend API, pass the API URL via an environment variable. Vite only exposes variables prefixed with `VITE_` to client-side code.
 
-In your AppHost, expose the API URL to the Vite app using `WithEnvironment` / `withEnvironment`:
+In your AppHost, expose the API URL to the Vite app using <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" />:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>

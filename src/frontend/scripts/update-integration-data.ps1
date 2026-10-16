@@ -316,6 +316,9 @@ function Get-VersionMap {
     if ([string]::IsNullOrWhiteSpace($JsonText)) { return $map }
     $entries = $JsonText | ConvertFrom-Json
     foreach ($entry in @($entries)) {
+        if ($entry.PSObject.Properties.Name -contains 'apiReference' -and $entry.apiReference -eq $false) {
+            continue
+        }
         if ($entry.PSObject.Properties.Name -contains 'title' -and
             $entry.PSObject.Properties.Name -contains 'version') {
             $title = [string]$entry.title

@@ -457,6 +457,8 @@ test('samples grid hydrates filters from the URL and syncs them back on change',
   // back/forward stack, so a shared link reflects current state but
   // browser history stays clean.
   const redisChip = page.locator('[data-tag="redis"]');
+  if (!await redisChip.isVisible()) await page.locator('[data-tag-toggle]').click();
+  await expect(redisChip).toBeVisible();
   await redisChip.click();
   await expect.poll(() => page.url()).toMatch(/tags=databases%2Credis|tags=databases,redis/);
 

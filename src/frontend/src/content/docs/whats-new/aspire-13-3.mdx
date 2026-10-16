@@ -18,6 +18,7 @@ import {
   Tabs,
   TabItem,
 } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 import { Image } from 'astro:assets';
 import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 import LearnMore from '@components/LearnMore.astro';
@@ -37,8 +38,8 @@ This release introduces:
 
 - The new `aspire destroy` command tears down provisioned resources across Azure, Kubernetes, and Compose, while `aspire dashboard` runs the dashboard standalone. The Aspire CLI is also now available as a `dotnet tool`.
 - The new `Aspire.Hosting.Browsers` integration captures frontend console logs, network requests, and screenshots and surfaces them in the dashboard next to server-side telemetry.
-- Preview support for `aspire deploy` to Kubernetes generates a Helm chart and runs an end-to-end deployment pipeline from an `AddKubernetesEnvironment`. New Ingress and Gateway API routing resources describe traffic at the AppHost level.
-- Preview JavaScript publish methods provide a unified `PublishAs*` family for static SPAs, SSR Node servers, and npm-script-based deployments, plus the new `AddNextJsApp` helper and first-class support for Bun, Yarn, and pnpm.
+- Preview support for `aspire deploy` to Kubernetes generates a Helm chart and runs an end-to-end deployment pipeline from an <ApiReference name="Aspire.Hosting.KubernetesEnvironmentExtensions.AddKubernetesEnvironment" />. New Ingress and Gateway API routing resources describe traffic at the AppHost level.
+- Preview JavaScript publish methods provide a unified `PublishAs*` family for static SPAs, SSR Node servers, and npm-script-based deployments, plus the new <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddNextJsApp" /> helper and first-class support for Bun, Yarn, and pnpm.
 - The container tunnel is enabled by default, providing uniform host connectivity across Docker Desktop, Docker Engine, and Podman.
 - TypeScript AppHost improvements close most of the remaining gap with C# AppHosts.
 - The preview `aspire init` command bootstraps an AppHost into an existing repository with the new `aspireify` agent skill.
@@ -636,11 +637,11 @@ Thanks to community contributor [@afscrome](https://github.com/afscrome) for thi
 
 ### `WithEndpoint` updates existing endpoints
 
-`WithEndpoint` no longer throws when an endpoint of the same name already exists. Calling it a second time updates the existing endpoint instead — making it easier to layer endpoint configuration across extension methods.
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEndpoint" /> no longer throws when an endpoint of the same name already exists. Calling it a second time updates the existing endpoint instead — making it easier to layer endpoint configuration across extension methods.
 
 ### Exclude management endpoints from `WithReference()`
 
-Endpoint annotations now have an `ExcludeReferenceEndpoint` flag. Setting it to `true` excludes the endpoint (e.g. management or health endpoints) from the default `WithReference()` injection, so consumers don't accidentally receive admin URLs:
+Endpoint annotations now have an `ExcludeReferenceEndpoint` flag. Setting it to `true` excludes the endpoint (e.g. management or health endpoints) from the default <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> injection, so consumers don't accidentally receive admin URLs:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='AppHost.cs'>
@@ -681,9 +682,9 @@ The Aspire trusted developer certificate is now used in more places — includin
 
 Aspire 13.3 closes most of the remaining functional gap between C# AppHosts and the TypeScript AppHost SDK:
 
-- A unified `withEnvironment` API handles all environment variable value kinds, including endpoints, parameters, connection strings, and expressions. Apps using the earlier per-kind helpers must migrate to the unified method.
+- A unified <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> API handles all environment variable value kinds, including endpoints, parameters, connection strings, and expressions. Apps using the earlier per-kind helpers must migrate to the unified method.
 - Endpoint property expressions (`endpoint.url`, `endpoint.host`, `endpoint.port`) are now usable inside TypeScript AppHost expressions.
-- `PublishAsDockerComposeService`-equivalent hooks and post-processing provide Docker Compose API parity.
+- <ApiReference name="Aspire.Hosting.DockerComposeServiceExtensions.PublishAsDockerComposeService" />-equivalent hooks and post-processing provide Docker Compose API parity.
 - Azure Container Apps custom domain configuration is now exposed in the TypeScript AppHost SDK.
 - Unified YARP TypeScript route helpers, `addRoute(...)` and `addCatchAllRoute(...)`, replace several earlier ad-hoc helpers.
 - `WithAdminDeploymentScriptSubnet` is now exported for TypeScript AppHosts.
@@ -715,11 +716,11 @@ The 13.3 TypeScript SDK doesn't generate the earlier per-kind helper aliases. Up
 
 Aspire 13.3 brings first-class JavaScript publishing to both C# and TypeScript AppHosts. A new family of `PublishAs*` extension methods replaces hand-rolled `Dockerfile` plumbing for the most common JS deployment shapes:
 
-- `PublishAsStaticWebsite` (preview) publishes a JS app as a static website served by a YARP image, with an optional API reverse proxy to a backend resource. It is intended for SPAs such as Vite and plain Next.js exports.
-- `PublishAsNodeServer` publishes a self-contained Node entry point such as `server.js` without copying `node_modules` at runtime. It is intended for pre-bundled Node servers.
+- <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsStaticWebsite" /> (preview) publishes a JS app as a static website served by a YARP image, with an optional API reverse proxy to a backend resource. It is intended for SPAs such as Vite and plain Next.js exports.
+- <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsNodeServer" /> publishes a self-contained Node entry point such as `server.js` without copying `node_modules` at runtime. It is intended for pre-bundled Node servers.
 - `PublishAsNpmScript` publishes a Node app that runs an npm script (`start` or `serve`) at runtime, copying `package.json` and production dependencies. It is intended for full Nitro Next.js, Remix, and Astro SSR apps.
 
-Aspire 13.3 also adds `AddNextJsApp` as a first-class Next.js helper alongside the existing `AddViteApp` and `AddNodeApp`, plus first-class support for Bun, Yarn, and pnpm in TypeScript AppHosts (npm remains the default).
+Aspire 13.3 also adds `AddNextJsApp` as a first-class Next.js helper alongside the existing <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" /> and <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddNodeApp" />, plus first-class support for Bun, Yarn, and pnpm in TypeScript AppHosts (npm remains the default).
 
 <Aside type="caution">
   The `PublishAsStaticWebsite` method is experimental in 13.3. Use diagnostic
@@ -911,7 +912,7 @@ The extension now renders live resource state in the editor. CodeLens above each
 
 ### 🔍 Browser logs and screenshots
 
-The new `Aspire.Hosting.Browsers` integration captures browser console logs, network requests, and screenshots from your frontend resources during development, surfacing them in the dashboard alongside server-side telemetry. Add `WithBrowserLogs()` to any frontend resource to enable it.
+The new `Aspire.Hosting.Browsers` integration captures browser console logs, network requests, and screenshots from your frontend resources during development, surfacing them in the dashboard alongside server-side telemetry. Add <ApiReference name="Aspire.Hosting.BrowserLogsBuilderExtensions.WithBrowserLogs" /> to any frontend resource to enable it.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='AppHost.cs'>
@@ -986,7 +987,7 @@ The Npgsql client integration emits OpenTelemetry metrics that align with the .N
   data-zoom-off
 />
 
-You no longer need to stitch together ARM templates or click through portal blades to get a CDN in front of your app. Aspire 13.3 adds a new hosting integration for [Azure Front Door](https://learn.microsoft.com/azure/frontdoor/), Microsoft's global edge network for fast, secure, and highly available web apps. Add a Front Door profile in front of your backends with `AddAzureFrontDoor` and attach origins with `WithOrigin`:
+You no longer need to stitch together ARM templates or click through portal blades to get a CDN in front of your app. Aspire 13.3 adds a new hosting integration for [Azure Front Door](https://learn.microsoft.com/azure/frontdoor/), Microsoft's global edge network for fast, secure, and highly available web apps. Add a Front Door profile in front of your backends with <ApiReference name="Aspire.Hosting.AzureFrontDoorExtensions.AddAzureFrontDoor" /> and attach origins with <ApiReference name="Aspire.Hosting.AzureFrontDoorExtensions.WithOrigin" />:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='AppHost.cs'>
@@ -1033,7 +1034,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-Each `withOrigin` call provisions its own Front Door endpoint, origin group, origin, and route, so every backend is independently routable through its own `*.azurefd.net` hostname. The integration provisions Front Door in the Standard SKU by default; use `ConfigureInfrastructure` to customize the Front Door, for example to change SKUs, attach a Web Application Firewall (WAF) policy, enable caching, and more.
+Each `withOrigin` call provisions its own Front Door endpoint, origin group, origin, and route, so every backend is independently routable through its own `*.azurefd.net` hostname. The integration provisions Front Door in the Standard SKU by default; use <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> to customize the Front Door, for example to change SKUs, attach a Web Application Firewall (WAF) policy, enable caching, and more.
 
 <LearnMore>
   For more details, see [Azure Front Door
@@ -1111,7 +1112,7 @@ NSPs support **Enforced** mode (blocks traffic that violates the rules) and **Le
   marked stable.
 </Aside>
 
-Aspire 13.3 adds first-class support for provisioning and deploying to Azure Kubernetes Service without writing manifests by hand. Use `AddAzureKubernetesEnvironment` to declare an AKS environment, customize node pools, and generate a type-safe Bicep and Helm deployment pipeline from your AppHost.
+Aspire 13.3 adds first-class support for provisioning and deploying to Azure Kubernetes Service without writing manifests by hand. Use <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.AddAzureKubernetesEnvironment" /> to declare an AKS environment, customize node pools, and generate a type-safe Bicep and Helm deployment pipeline from your AppHost.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='AppHost.cs'>
@@ -1148,7 +1149,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`WithSystemNodePool` lets you customize the system node pool's VM size and autoscaling bounds. By default the AKS cluster uses the **Free** control-plane SKU; the `AksSkuTier` enum is no longer part of the public API.
+<ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.WithSystemNodePool" /> lets you customize the system node pool's VM size and autoscaling bounds. By default the AKS cluster uses the **Free** control-plane SKU; the `AksSkuTier` enum is no longer part of the public API.
 
 <LearnMore>
   For more details, see [Azure Kubernetes Service
@@ -1162,7 +1163,7 @@ await builder.build().run();
 
 ### Azure AI Foundry Prompt Agent
 
-Aspire 13.3 ships a new working implementation of Azure AI Foundry Prompt Agent support through `AddPromptAgent`. The previous `AddAndPublishPromptAgent` API and the original shape of `AzurePromptAgentResource` (which never functioned end-to-end) have been replaced. `AddPromptAgent` now returns a working `AzurePromptAgentResource`.
+Aspire 13.3 ships a new working implementation of Azure AI Foundry Prompt Agent support through <ApiReference name="Aspire.Hosting.PromptAgentBuilderExtensions.AddPromptAgent" />. The previous `AddAndPublishPromptAgent` API and the original shape of `AzurePromptAgentResource` (which never functioned end-to-end) have been replaced. `AddPromptAgent` now returns a working `AzurePromptAgentResource`.
 
 The Foundry model catalog also gained two new models: GPT-5.4 and Qwen3 VL.
 
@@ -1237,7 +1238,7 @@ Aspire is built in the open, and this release wouldn't be what it is without you
 | Change                                                                                                           | Migration                                                                                           |
 | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `--log-level` renamed to `--pipeline-log-level` on `aspire publish` and `aspire deploy`                          | Update scripts/CI to use `--pipeline-log-level`.                                                    |
-| `package.json` `engines.node` is no longer used to select Node images for generated Dockerfiles                  | Specify the Node version explicitly via `WithDockerfile` or your project's Dockerfile base image.   |
+| `package.json` `engines.node` is no longer used to select Node images for generated Dockerfiles                  | Specify the Node version explicitly via <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithDockerfile" /> or your project's Dockerfile base image.   |
 | `NameOutput` renamed to `NameOutputReference` in Azure Network resources                                         | Replace any usage of `*.NameOutput` with `*.NameOutputReference`.                                   |
 | `OtlpEndpointEnvironmentVariableName` property removed                                                           | Remove references; the OTLP endpoint env var is now managed automatically.                          |
 | **Dashboard MCP server removed** (along with `ASPIRE_DASHBOARD_MCP_ENDPOINT_URL`)                                | Use the AppHost-level MCP server with `aspire agent init`.                                          |

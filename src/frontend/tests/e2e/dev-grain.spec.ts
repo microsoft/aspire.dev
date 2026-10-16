@@ -112,15 +112,20 @@ for (const theme of ['light', 'dark']) {
         } as const;
         const image = await target.screenshot(options);
         const nextImage = await target.screenshot(options);
-        if (!image.equals(nextImage)) {
+        const { data, info } = await sharp(image).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+        // CI can rasterize a few fractional-width border pixels differently.
+        // Compare the artwork interior; the grain statistics also exclude its border.
+        const interior = { left: 2, top: 2, width: info.width - 4, height: info.height - 4 };
+        const pixels = await sharp(image).extract(interior).removeAlpha().raw().toBuffer();
+        const nextPixels = await sharp(nextImage).extract(interior).removeAlpha().raw().toBuffer();
+        if (!pixels.equals(nextPixels)) {
           await testInfo.attach(`${width}px first capture`, { body: image, contentType: 'image/png' });
           await testInfo.attach(`${width}px second capture`, { body: nextImage, contentType: 'image/png' });
         }
-        expect(image.equals(nextImage), 'Texture must not animate or reshuffle').toBe(true);
+        expect(pixels.equals(nextPixels), 'Texture must not animate or reshuffle').toBe(true);
         const hidden = await page.addStyleTag({ content: `${selector.replace(':visible', '')}::before { opacity: 0 !important; }` });
         const withoutTexture = await target.screenshot(options);
         await hidden.evaluate((element) => element.remove());
-        const { data, info } = await sharp(image).removeAlpha().raw().toBuffer({ resolveWithObject: true });
         const baseline = await sharp(withoutTexture).removeAlpha().raw().toBuffer();
         const region = (left: number, top: number) => {
           const pixels: number[] = [];

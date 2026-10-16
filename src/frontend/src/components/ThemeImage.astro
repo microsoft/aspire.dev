@@ -21,7 +21,8 @@ async function versionDevelopmentImage(image: ImageMetadata): Promise<ImageMetad
   if (!import.meta.env.DEV || !image.src.startsWith('/@fs/')) return image;
 
   const source = new URL(image.src, Astro.url);
-  const path = normalize(decodeURIComponent(source.pathname.slice('/@fs/'.length)));
+  const filePath = decodeURIComponent(source.pathname.slice('/@fs/'.length));
+  const path = normalize(/^[a-zA-Z]:/.test(filePath) ? filePath : `/${filePath}`);
   const revision = createHash('sha256')
     .update(await readFile(path))
     .digest('hex')

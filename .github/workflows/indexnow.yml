@@ -1,0 +1,185 @@
+name: IndexNow
+
+# Tells IndexNow search engines (Bing, Yandex, Naver, Seznam, Yep, Amazon) about aspire.dev URLs.
+#
+# - Daily: submits URLs that are new or removed in the sitemap since the previous run, then the next
+#   window of a slow rotation through the whole sitemap.
+# - Release: when a release/X.Y pull request is merged into main, waits for that release's "What's
+#   new" page to be live (the docs slot swap) and then starts a full-sitemap burst that the daily
+#   runs finish. The sitemap has no lastmod, so the burst sends the English pages first (where the
+#   new and updated docs are), then the generated API reference, then the localized pages.
+# - Manual: run it from the Actions tab (mode, limit, release, dry run). A flush restarts the
+#   full-sitemap burst, the same way a release does.
+#
+# All logic lives in src/frontend/scripts/indexnow.ts so the same flow can be reproduced locally:
+#   cd src/frontend && pnpm indexnow --state-dir /tmp/indexnow --dry-run
+# The budgets and the key are in src/frontend/config/indexnow.json, and the key file is served from
+# src/frontend/public/<key>.txt. IndexNow keys are public by design: the key file has to be
+# downloadable so search engines can verify ownership. To rotate the key, add the new key file and
+# update config/indexnow.json in the same change, and delete the old key file once it has deployed.
+#
+# What has already been submitted is kept in the "indexnow-state" artifact (refreshed by every run).
+# Losing it only causes a cold start that re-seeds the known URL list without submitting everything.
+
+on:
+  schedule:
+    # Once a day at 06:43 UTC (the fields are minute, hour, day of month, month and day of week).
+    # Each run submits the new and removed URLs, then the next window of the rotation through the
+    # whole sitemap. The window size is in config/indexnow.json: at 1,000 URLs a run, a sitemap of
+    # about 32,000 URLs takes about a month to cover. If GitHub skips a day, the rotation only
+    # slips by a day, because its position is saved in the state artifact. The odd minute avoids
+    # the top of the hour, when GitHub delays scheduled runs the most. Scheduled runs use the
+    # workflow on the default branch, so this starts once the pull request is merged.
+    - cron: "43 6 * * *"
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "daily: new and removed URLs plus the next rotation window. flush: restart the full-sitemap cycle at the release budget."
+        type: choice
+        options:
+          - daily
+          - flush
+        default: daily
+      limit:
+        description: "Number of URLs to submit in this run (1-10000). Leave empty to use the configured budget."
+        type: string
+        required: false
+      release:
+        description: "Release such as 13.6. Waits for that release's What's new page to be live before submitting."
+        type: string
+        required: false
+      dry_run:
+        description: "Only print what would be submitted. Nothing is sent and the state is not saved."
+        type: boolean
+        default: false
+      allow_shrink:
+        description: "Continue even if the sitemap lists more than 20% fewer URLs than the last run."
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  submit:
+    name: Submit URLs to IndexNow
+    # Pull requests only matter when they are merged release pull requests from this repository. The
+    # script checks the exact branch format again.
+    if: >-
+      ${{ github.repository == 'microsoft/aspire.dev' &&
+      (github.event_name != 'pull_request' ||
+      (github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'release/'))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    # The group is on the job, not the workflow, so the many pull requests that are closed without
+    # being a release merge (their job is skipped above) never join it. A workflow-level group would
+    # let each of them replace a run that is waiting its turn. "queue: max" lets the daily run, a
+    # release run and a manual run wait in line instead of replacing each other.
+    concurrency:
+      group: indexnow
+      cancel-in-progress: false
+      queue: max
+    # The workflow-level "permissions: {}" gives every job no access by default. A job's own block
+    # replaces that default instead of adding to it, so this job gets exactly these two: contents to
+    # check out the repository, and actions to list and download the state artifact. Uploading the
+    # artifact needs no token permission.
+    permissions:
+      contents: read
+      actions: read
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A release merge runs the merged script from main, not the pull request's merge ref.
+          ref: ${{ github.event_name == 'pull_request' && github.event.repository.default_branch || github.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.x"
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Restore state from the previous run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          state_dir="$RUNNER_TEMP/indexnow-state"
+          mkdir -p "$state_dir"
+
+          # `gh run download` lists every artifact in the repository and fails with HTTP 500 here, so
+          # ask for this artifact by name and take the newest one that has not expired. Runs from
+          # forks are listed in this repository too and could upload an artifact with this name, so
+          # only artifacts from runs of this repository are trusted. The script validates the state
+          # again when it reads it.
+          artifact_id=""
+          for attempt in 1 2 3; do
+            if artifact_id=$(gh api "repos/$GH_REPO/actions/artifacts?name=indexnow-state&per_page=100" \
+              --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_repository_id == .workflow_run.repository_id)] | sort_by(.created_at) | last | .id // empty'); then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Could not list the indexnow-state artifacts."
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
+
+          if [ -z "$artifact_id" ]; then
+            echo "No previous state found; this run starts cold."
+            exit 0
+          fi
+
+          echo "Restoring artifact $artifact_id."
+          gh api "repos/$GH_REPO/actions/artifacts/$artifact_id/zip" > "$RUNNER_TEMP/indexnow-state.zip"
+          unzip -q -o "$RUNNER_TEMP/indexnow-state.zip" -d "$state_dir"
+
+      - name: Submit URLs
+        id: submit
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_MODE: ${{ inputs.mode }}
+          INPUT_LIMIT: ${{ inputs.limit }}
+          INPUT_RELEASE: ${{ inputs.release }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_ALLOW_SHRINK: ${{ inputs.allow_shrink }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--state-dir "$RUNNER_TEMP/indexnow-state" --trigger "$EVENT_NAME")
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            args+=(--mode "$INPUT_MODE")
+            [ -z "$INPUT_LIMIT" ] || args+=(--limit "$INPUT_LIMIT")
+            [ -z "$INPUT_RELEASE" ] || args+=(--release "$INPUT_RELEASE")
+            [ "$INPUT_DRY_RUN" != "true" ] || args+=(--dry-run)
+            [ "$INPUT_ALLOW_SHRINK" != "true" ] || args+=(--allow-shrink)
+          fi
+          pnpm indexnow "${args[@]}"
+
+      # Runs after a failure too, because a failed cold start or flush still saves what it started.
+      - name: Save state for the next run
+        if: ${{ !cancelled() && steps.submit.outputs.state_changed == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: indexnow-state
+          path: ${{ runner.temp }}/indexnow-state
+          retention-days: 90
+          if-no-files-found: error

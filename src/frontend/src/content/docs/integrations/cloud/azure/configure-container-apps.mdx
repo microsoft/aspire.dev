@@ -6,6 +6,7 @@ description: Learn how to configure Azure Container Apps environment settings, s
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import containerAppsIcon from '@assets/icons/azure-container-apps-environments.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={containerAppsIcon}
@@ -18,7 +19,7 @@ import containerAppsIcon from '@assets/icons/azure-container-apps-environments.s
 
 The [Aspire AppHost](/get-started/app-host/) simplifies infrastructure provisioning by generating code to create Azure resources for your applications. This approach lets you model and configure deployment-related aspects directly in your AppHost, reducing the need to rely on tools like Bicep. These aspects include configuring ACA environments, which provide a serverless platform for running containerized applications.
 
-Using the `Aspire.Hosting.Azure.AppContainers` integration, you can deploy compute resources to Azure Container Apps by adding an ACA environment with `AddAzureContainerAppEnvironment`. Use `PublishAsAzureContainerApp` only when you want to customize the generated Container App resource for a project, container, or executable — it does not create the ACA environment. Add an ACA environment first, then use the callback to customize the generated Container App resource.
+Using the `Aspire.Hosting.Azure.AppContainers` integration, you can deploy compute resources to Azure Container Apps by adding an ACA environment with <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.AddAzureContainerAppEnvironment" />. Use `PublishAsAzureContainerApp` only when you want to customize the generated Container App resource for a project, container, or executable — it does not create the ACA environment. Add an ACA environment first, then use the callback to customize the generated Container App resource.
 
 By using the `Azure.Provisioning` APIs (explained in [Customize Azure resources](/integrations/cloud/azure/customize-resources/)), you can configure and customize ACA environments along with related resources, such as container registries and file share volumes. Any available deployment setting can be configured. For more information on the available settings, see [Microsoft.App managedEnvironments](https://learn.microsoft.com/azure/templates/microsoft.app/managedenvironments).
 
@@ -188,11 +189,11 @@ This module configures:
 - A role assignment for the user principal ID to the ACA environment.
 - Various outputs for the ACA environment.
 
-Using the `acaEnv` variable, you can chain a call to the `ConfigureInfrastructure` API to customize the ACA environment to your liking. For more information, see [Configure infrastructure](/integrations/cloud/azure/customize-resources/).
+Using the `acaEnv` variable, you can chain a call to the <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> API to customize the ACA environment to your liking. For more information, see [Configure infrastructure](/integrations/cloud/azure/customize-resources/).
 
 ## Use an existing ACA environment
 
-If you've already provisioned an Azure Container Apps environment, chain `AsExisting` (or `asExisting`) on `AddAzureContainerAppEnvironment` to deploy your container apps into it instead of creating a new one:
+If you've already provisioned an Azure Container Apps environment, chain <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" /> on `AddAzureContainerAppEnvironment` to deploy your container apps into it instead of creating a new one:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -233,13 +234,13 @@ When the environment is marked as existing, Aspire generates a thin Bicep module
 
 Some configurations are incompatible with an existing environment and are rejected at publish time:
 
-- `WithDelegatedSubnet` — VNet integration is a property of the managed environment and can't be reconfigured on an existing one.
-- `WithAzureLogAnalyticsWorkspace` — the existing environment already owns its workspace.
+- <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.WithDelegatedSubnet" /> — VNet integration is a property of the managed environment and can't be reconfigured on an existing one.
+- <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.WithAzureLogAnalyticsWorkspace" /> — the existing environment already owns its workspace.
 - Volume mounts on container apps targeting the environment — Azure Files storage attaches to the managed environment, which Aspire can't change on an existing environment.
 
 ### Bring your own ACR pull identity
 
-By default, even when the environment is existing, Aspire still emits a new user-assigned managed identity and an `AcrPull` role assignment on the container registry so that newly deployed container apps can pull their images. If your deployment principal can't create identities or role assignments, or if you have an existing identity that you want to reuse, supply a pre-existing identity with `WithAcrPullIdentity` (or `withAcrPullIdentity`):
+By default, even when the environment is existing, Aspire still emits a new user-assigned managed identity and an `AcrPull` role assignment on the container registry so that newly deployed container apps can pull their images. If your deployment principal can't create identities or role assignments, or if you have an existing identity that you want to reuse, supply a pre-existing identity with <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.WithAcrPullIdentity" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -362,7 +363,7 @@ builder.Build().Run();
 
 ## Handle naming conventions
 
-By default, `AddAzureContainerAppEnvironment` uses a different Azure resource naming scheme than the [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/). If you're upgrading an existing deployment that previously used `azd`, you might see duplicate Azure resources. To avoid this issue, call the `WithAzdResourceNaming` method to revert to the naming convention used by `azd`:
+By default, `AddAzureContainerAppEnvironment` uses a different Azure resource naming scheme than the [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/). If you're upgrading an existing deployment that previously used `azd`, you might see duplicate Azure resources. To avoid this issue, call the <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.WithAzdResourceNaming" /> method to revert to the naming convention used by `azd`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -397,7 +398,7 @@ Calling this API ensures your existing Azure resources remain consistent and pre
 
 By default, the generated managed environment `name` keeps only lowercase letters from the resource name, so `AddAzureContainerAppEnvironment("cae1")` and `AddAzureContainerAppEnvironment("cae2")` both produce the same Bicep expression once digits are stripped. If you deploy both environments to the *same resource group*, they collapse onto a single physical Azure Container Apps environment and concurrent deployments can fail with `ManagedEnvironmentOperationInProgress`.
 
-Publish and deploy detect this collision up front and fail with guidance to call `WithUniqueResourceNaming` on the colliding environments:
+Publish and deploy detect this collision up front and fail with guidance to call <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.WithUniqueResourceNaming" /> on the colliding environments:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">

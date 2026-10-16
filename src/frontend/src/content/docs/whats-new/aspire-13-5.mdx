@@ -19,6 +19,7 @@ import {
   Tabs,
   TabItem,
 } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import ReleaseCommunity from '@components/ReleaseCommunity.astro';
@@ -153,7 +154,7 @@ The AppHost is where 13.5 invests most heavily. These additions make local devel
 
 ### 🖥️ Interactive terminal sessions with WithTerminal()
 
-AppHost authors can now call `WithTerminal()` on a resource to enable an interactive terminal session. The dashboard can attach to and detach from the session at will, so you can drive REPLs, shells, and other terminal programs that run as Aspire resources — right from the dashboard's terminal view. Terminal dimensions are configurable through `TerminalOptions`, which exposes `Columns` (default `120`), `Rows` (default `30`), and `ShowTerminalHost`.
+AppHost authors can now call <ApiReference name="Aspire.Hosting.TerminalResourceBuilderExtensions.WithTerminal" /> on a resource to enable an interactive terminal session. The dashboard can attach to and detach from the session at will, so you can drive REPLs, shells, and other terminal programs that run as Aspire resources — right from the dashboard's terminal view. Terminal dimensions are configurable through `TerminalOptions`, which exposes `Columns` (default `120`), `Rows` (default `30`), and `ShowTerminalHost`.
 
 <Aside type="caution">
   `WithTerminal()` and `TerminalOptions` are experimental. C# callers must suppress the `ASPIRETERMINAL001` diagnostic to use them, and the API may change in a future release. The matching `aspire terminal` CLI command is hidden behind a feature flag while the feature is experimental — enable it with `aspire config set features.terminalCommandsEnabled true`.
@@ -534,7 +535,7 @@ await builder.build().run();
 
 ### 🔐 HTTPS certificates for project resources
 
-Project and executable resources can now be configured with HTTPS certificates directly from the AppHost. Use `WithHttpsDeveloperCertificate()` to inject the local ASP.NET Core developer certificate, `WithHttpsCertificate(certificate, password)` to supply an explicit `X509Certificate2`, or `WithHttpsCertificateConfiguration(...)` for full control. `WithoutHttpsCertificate()` opts a resource out.
+Project and executable resources can now be configured with HTTPS certificates directly from the AppHost. Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpsDeveloperCertificate" /> to inject the local ASP.NET Core developer certificate, `WithHttpsCertificate(certificate, password)` to supply an explicit `X509Certificate2`, or <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpsCertificateConfiguration" /> for full control. <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithoutHttpsCertificate" /> opts a resource out.
 
 <Aside type="caution">
   The HTTPS certificate APIs are experimental. C# callers must suppress [`ASPIRECERTIFICATES001`](/diagnostics/aspirecertificates001/) to use them.
@@ -684,7 +685,7 @@ await builder.build().run();
 TypeScript AppHost startup no longer waits a fixed delay before the CLI attempts to connect; the CLI now races the RPC connection retry loop against process exit, reducing the time from `aspire run` to an active AppHost. This release also fixes several reliability issues:
 
 - A deadlock where async callbacks stored in `IOptions.Configure` were invoked during `BeforeStartEvent`.
-- A startup reliability issue with `WithBrowserLogs()` where tracked browser sessions could fail even when the browser eventually became responsive; the CDP startup timeout has been increased.
+- A startup reliability issue with <ApiReference name="Aspire.Hosting.BrowserLogsBuilderExtensions.WithBrowserLogs" /> where tracked browser sessions could fail even when the browser eventually became responsive; the CDP startup timeout has been increased.
 - Failures when proxyless container endpoint references were accessed before the container was created.
 - `aspire run` failing for polyglot AppHosts that use `*.dev.localhost` resource service URLs.
 
@@ -781,7 +782,7 @@ Getting from local development to a deployed environment keeps getting smoother.
 
 ### 📦 Persistent volumes for Kubernetes and AKS
 
-You can now model Kubernetes `PersistentVolumeClaim`s as first-class resources. Call `AddPersistentVolume(name)` on a Kubernetes environment, configure it with `WithStorageClass`, `WithCapacity`, and `WithAccessMode`, and bind it to a workload with `WithPersistentVolume(...)`. Any workload bound to a persistent volume is rendered as a `StatefulSet` rather than a `Deployment`. The same `AddPersistentVolume` API is available on the AKS environment via `Aspire.Hosting.Azure.Kubernetes`.
+You can now model Kubernetes `PersistentVolumeClaim`s as first-class resources. Call `AddPersistentVolume(name)` on a Kubernetes environment, configure it with <ApiReference name="Aspire.Hosting.KubernetesPersistentVolumeExtensions.WithStorageClass" />, <ApiReference name="Aspire.Hosting.KubernetesPersistentVolumeExtensions.WithCapacity" />, and <ApiReference name="Aspire.Hosting.KubernetesPersistentVolumeExtensions.WithAccessMode" />, and bind it to a workload with <ApiReference name="Aspire.Hosting.KubernetesPersistentVolumeExtensions.WithPersistentVolume" />. Any workload bound to a persistent volume is rendered as a `StatefulSet` rather than a `Deployment`. The same <ApiReference name="Aspire.Hosting.AzureKubernetesPersistentVolumeExtensions.AddPersistentVolume" /> API is available on the AKS environment via `Aspire.Hosting.Azure.Kubernetes`.
 
 <Aside type="caution">
   The compute-environment volume APIs are experimental and emit [`ASPIRECOMPUTE002`](/diagnostics/aspirecompute002/), which C# callers must suppress to use them.
@@ -844,7 +845,7 @@ await builder.build().run();
 
 ### 🏷️ Unique resource naming for Azure Container Apps
 
-Azure Container Apps environments can opt into deterministic, collision-resistant resource names with `WithUniqueResourceNaming()`, which is useful when you deploy more than one environment into the same resource group. Names incorporate a `uniqueString(resourceGroup().id)` suffix while preserving each environment's digits, so `cae1` and `cae2` stay distinct.
+Azure Container Apps environments can opt into deterministic, collision-resistant resource names with <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.WithUniqueResourceNaming" />, which is useful when you deploy more than one environment into the same resource group. Names incorporate a `uniqueString(resourceGroup().id)` suffix while preserving each environment's digits, so `cae1` and `cae2` stay distinct.
 
 <Aside type="caution">
   `WithUniqueResourceNaming()` is experimental and emits [`ASPIREACANAMING002`](/diagnostics/aspireacanaming002/), which C# callers must suppress to use it. Enabling it on an already-deployed environment changes the environment's `name`, which causes Azure to recreate it — apply it to new deployments, or to environments that specifically need distinct names.
@@ -897,13 +898,13 @@ Azure Container Apps and Azure App Service environments can now be placed into a
 
 <span id="new-and-updated-integrations"></span>
 
-Aspire 13.5 adds a preview [Radius](https://radapp.io/) deployment target through the new `Aspire.Hosting.Radius` package. Use `AddRadiusEnvironment(name)` with `WithNamespace(...)` to publish your app to a Radius environment. Publish-time infrastructure configuration (`ConfigureRadiusInfrastructure`) and project container-image overrides are gated behind experimental diagnostics.
+Aspire 13.5 adds a preview [Radius](https://radapp.io/) deployment target through the new `Aspire.Hosting.Radius` package. Use `AddRadiusEnvironment(name)` with <ApiReference name="Aspire.Hosting.RadiusExtensions.WithNamespace" /> to publish your app to a Radius environment. Publish-time infrastructure configuration (`ConfigureRadiusInfrastructure`) and project container-image overrides are gated behind experimental diagnostics.
 
 ## 📦 Integration updates
 
 Existing integrations pick up new capabilities:
 
-- **Foundry Local.** `AddFoundry(name).RunAsFoundryLocal()` now drives the installed **foundry CLI** for lifecycle management, and resources can be exposed as hosted agents with `AsHostedAgent(...)`, where `HostedAgentProtocol` is `Responses` or `Invocations`.
+- **Foundry Local.** `AddFoundry(name).RunAsFoundryLocal()` now drives the installed **foundry CLI** for lifecycle management, and resources can be exposed as hosted agents with <ApiReference name="Aspire.Hosting.HostedAgentResourceBuilderExtensions.AsHostedAgent" />, where `HostedAgentProtocol` is `Responses` or `Invocations`.
 - **Redis modules.** `AddRedis(...).WithModule(path)` loads a Redis module into the container, with `RedisModules` constants (`Json`, `Search`, `BloomFilter`, `TimeSeries`) pointing at the modules shipped in Redis 8+ images — see the sample below.
 - **Dev tunnels regions.** `DevTunnelOptions.Region` (a `DevTunnelRegion?` enum) lets you pin the region a tunnel is created in.
 - **Blazor gateway on Docker Compose.** Blazor gateway resources now support Docker Compose publishing.
@@ -955,7 +956,7 @@ The following breaking changes are included in Aspire 13.5:
 
 1. **`ServiceProvider` renamed to `Services`.** The `ServiceProvider` property on hosting context types is now `Services`. Update your code to use the new property name.
 
-2. **`PublishAsConnectionString` marked obsolete.** Switch to `AddConnectionString` in publish-mode app model code.
+2. **<ApiReference name="Aspire.Hosting.AzureResourceExtensions.PublishAsConnectionString" /> marked obsolete.** Switch to <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" /> in publish-mode app model code.
 
 3. **`aspire ps --resources` and `--include-hidden` removed.** `aspire ps` now focuses on AppHost-level summaries; use `aspire describe` for detailed resource data. (`--include-hidden` remains on the `aspire resource` subcommand.)
 
@@ -975,7 +976,7 @@ The following breaking changes are included in Aspire 13.5:
 
 11. **Orleans provider annotation is internal.** `OrleansProviderTypeAnnotation` and `ProviderConfiguration` are now internal.
 
-12. **`DotnetProjectResource` moved to `Aspire.Hosting.Dotnet` and made experimental.** It now lives in the `Aspire.Hosting.Dotnet` namespace and emits the `ASPIREDOTNETPROJECT001` diagnostic. The related `AddDotnetProject` API for modeling .NET projects by path is covered by the same diagnostic.
+12. **`DotnetProjectResource` moved to `Aspire.Hosting.Dotnet` and made experimental.** It now lives in the `Aspire.Hosting.Dotnet` namespace and emits the `ASPIREDOTNETPROJECT001` diagnostic. The related <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" /> API for modeling .NET projects by path is covered by the same diagnostic.
 
 <Aside type="caution" title="Review deprecated APIs">
   Review your code for uses of `ServiceProvider` on hosting context types and `PublishAsConnectionString` extension methods. These generate compiler warnings in Aspire 13.5 and may become harder errors in future releases. If you use the `Aspire.Hosting.GitHub.Models` integration, plan to migrate off it before the package is removed.
