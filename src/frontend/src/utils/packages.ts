@@ -5,6 +5,9 @@
 import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
 import { shortTypeName } from './api-member-anchors';
+import { genericArity, slugify, packageSlug, memberKindOrder, memberKindSlugs } from './csharp-route-identity';
+
+export { genericArity, slugify, packageSlug, memberKindOrder, memberKindSlugs };
 
 export {
   memberAnchorAliases,
@@ -84,11 +87,6 @@ export function getPackages(): Promise<PackageCollectionEntry[]> {
   return packagesPromise;
 }
 
-/** Count generic type parameters on a type object. */
-export function genericArity(type: { genericParameters?: GenericParameter[] }): number {
-  return type.genericParameters?.length ?? 0;
-}
-
 /** Display name including generic type parameters (e.g. `InteractionResult<T>`). */
 export function typeDisplayName(type: {
   name: string;
@@ -98,21 +96,6 @@ export function typeDisplayName(type: {
   return type.isGeneric && type.genericParameters?.length
     ? `${type.name}<${type.genericParameters.map((g) => g.name).join(', ')}>`
     : type.name;
-}
-
-/**
- * Convert a PascalCase type name to a lowercase URL slug.
- * When `arity` > 0, appends `-N` to disambiguate generic types
- * (e.g. `InteractionResult<T>` → `interactionresult-1`).
- */
-export function slugify(name: string, arity: number = 0): string {
-  const slug = name.toLowerCase();
-  return arity > 0 ? `${slug}-${arity}` : slug;
-}
-
-/** Normalize a NuGet package name for use in a URL path segment. */
-export function packageSlug(name: string): string {
-  return name.toLowerCase();
 }
 
 /* ---- kind helpers ------------------------------------------------ */
@@ -137,15 +120,6 @@ export const kindLabels: Record<string, string> = {
   delegate: 'Delegates',
 };
 
-export const memberKindOrder = [
-  'constructor',
-  'property',
-  'method',
-  'field',
-  'event',
-  'indexer',
-] as const;
-
 export const memberKindLabels: Record<string, string> = {
   constructor: 'Constructors',
   property: 'Properties',
@@ -153,16 +127,6 @@ export const memberKindLabels: Record<string, string> = {
   field: 'Fields',
   event: 'Events',
   indexer: 'Indexers',
-};
-
-/** URL-safe plural slug for each member kind. */
-export const memberKindSlugs: Record<string, string> = {
-  constructor: 'constructors',
-  property: 'properties',
-  method: 'methods',
-  field: 'fields',
-  event: 'events',
-  indexer: 'indexers',
 };
 
 /* ---- type helpers ------------------------------------------------ */

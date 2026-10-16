@@ -90,6 +90,20 @@ const typeScriptItemRoute = getRouteModule('../../src/pages/reference/api/typesc
 const typeScriptMemberRoute = getRouteModule('../../src/pages/reference/api/typescript/[module]/[item]/[member].md.ts');
 
 describe('API markdown routes', () => {
+  it('resolves request-time Markdown without static props and rejects unknown API URLs', async () => {
+    const paths = await csharpTypeRoute.getStaticPaths?.();
+    const route = paths?.[0];
+    if (!route) throw new Error('Expected a C# static fixture route.');
+    const pathname = `/reference/api/csharp/${route.params.package}/${route.params.type}.md`;
+    const response = await csharpTypeRoute.GET?.({ props: {}, url: new URL(pathname, 'https://aspire.dev') });
+    expect(response?.status).toBe(200);
+    expect(await response?.text()).toContain(`# ${route.props.type.name}`);
+    const missing = await csharpTypeRoute.GET?.({
+      props: {}, url: new URL('/reference/api/csharp/missing/type.md', 'https://aspire.dev'),
+    });
+    expect(missing?.status).toBe(404);
+  });
+
   it('returns markdown for the C# API index route', async () => {
     const markdown = await readMarkdown(csharpIndexRoute.GET?.({} as any));
 

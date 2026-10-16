@@ -7,6 +7,9 @@
     <PublishAot>false</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <ContainerFamily>noble-chiseled</ContainerFamily>
+    <IntermediateOutputPath Condition="'$(ASPIRE_HYBRID_API_DOCS)' == '1'">obj/$(Configuration)/hybrid/</IntermediateOutputPath>
+    <DefineConstants Condition="'$(ASPIRE_HYBRID_API_DOCS)' == '1'">$(DefineConstants);HYBRID_API_DOCS_BUILD</DefineConstants>
+    <HybridApiDocsArtifactDirectory Condition="'$(HybridApiDocsArtifactDirectory)' == ''">$(MSBuildProjectDirectory)/../../frontend/dist-hybrid</HybridApiDocsArtifactDirectory>
 
     <!-- Disable default compression formats to specify only brotli. -->
     <EnableDefaultCompressionFormats>false</EnableDefaultCompressionFormats>
@@ -36,6 +39,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="wwwroot\**" Condition="'$(ASPIRE_HYBRID_API_DOCS)' == '1'" />
+    <Content Include="$(HybridApiDocsArtifactDirectory)/client/**/*"
+             Link="hybrid/client/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToPublishDirectory="PreserveNewest"
+             Condition="'$(ASPIRE_HYBRID_API_DOCS)' == '1'" />
+    <Content Include="$(HybridApiDocsArtifactDirectory)/hybrid-api-docs.json"
+             Link="hybrid/hybrid-api-docs.json"
+             CopyToPublishDirectory="PreserveNewest"
+             Condition="'$(ASPIRE_HYBRID_API_DOCS)' == '1'" />
     <!--
       The frontend ESProj produces wwwroot static assets at build time.
       PrivateAssets="all" prevents MSBuild from propagating its output (the
@@ -45,7 +57,8 @@
       fails with `error CS0006: Metadata file '.../frontend/dist' could not
       be found` unless the frontend has already been built.
     -->
-    <ProjectReference Include="../../frontend/frontend.esproj" PrivateAssets="all" />
+    <ProjectReference Include="../../frontend/frontend.esproj" PrivateAssets="all"
+                      Condition="'$(ASPIRE_HYBRID_API_DOCS)' != '1'" />
   </ItemGroup>
 
   <Import Project="Caching.targets" />

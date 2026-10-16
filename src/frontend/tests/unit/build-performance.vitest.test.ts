@@ -61,7 +61,7 @@ test('frontend workflow keeps validation parallel and every shard required', asy
   expect(job('e2e')).toContain('--shard=${{ matrix.shard }}/2');
   expect(job('e2e')).toContain('frontend-blob-report-${{ matrix.project }}-${{ matrix.shard }}');
   expect(job('e2e')).toContain('frontend-test-results-${{ matrix.project }}-${{ matrix.shard }}');
-  expect(job('frontend-gate')).toContain('needs: [build, validation, e2e, report]');
+  expect(job('frontend-gate')).toContain('needs: [build, validation, e2e, report, hybrid-api-poc]');
   expect(job('frontend-gate')).toContain('for result in "$BUILD" "$VALIDATION" "$E2E" "$REPORT"');
   expect(job('frontend-gate')).toContain('if [[ "$result" != "success" ]]');
   expect(job('frontend-gate')).toContain('exit 1');

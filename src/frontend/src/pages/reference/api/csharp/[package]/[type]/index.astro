@@ -16,6 +16,7 @@ import AnchorHeading from '@components/api-reference/AnchorHeading.astro';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import PolyglotAttributePanel from '@components/api-reference/PolyglotAttributePanel.astro';
 import { findAttribute, hasAttribute, resolveDiagnosticSlug } from '@utils/api-attributes';
+import { resolveCSharpApiRoute } from '@utils/api-route-data';
 import {
   slugify,
   genericArity,
@@ -54,7 +55,9 @@ export async function getStaticPaths() {
   return paths;
 }
 
-const { pkg, type, allTypes } = Astro.props;
+const routeProps = Astro.props.pkg ? Astro.props : await resolveCSharpApiRoute(Astro.url.pathname);
+if (!routeProps?.type) return new Response('API type not found', { status: 404 });
+const { pkg, type, allTypes } = routeProps;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const apiSidebar = await getApiReferenceSidebar({ packageName: pkg.package.name });
 

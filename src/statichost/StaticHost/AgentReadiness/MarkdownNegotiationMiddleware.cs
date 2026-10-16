@@ -50,6 +50,11 @@ internal sealed class MarkdownNegotiationMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        if (context.Features.Get<HybridApiDocs.HybridApiDocsRequest>() is not null)
+        {
+            await _next(context);
+            return;
+        }
         if (!ShouldHandle(context.Request))
         {
             await _next(context);

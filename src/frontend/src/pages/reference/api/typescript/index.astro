@@ -9,6 +9,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { tsModuleSlug, getTsModules, simplifyType } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
 import { buildTsApiSearchIndex } from '@utils/ts-api-search';
+import { apiSearchIndexUrl } from '@utils/api-search-index';
 import { formatTsApiSearchStats, getTsApiSearchStats } from '@utils/ts-api-search-stats';
 import ApiSearchBar from '@components/api-reference/ApiSearchBar.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
@@ -29,7 +30,6 @@ const index = buildTsApiSearchIndex(sorted, base);
 const defaultStats = getTsApiSearchStats(index);
 
 const allKinds = [...new Set(index.map(e => e.k))].sort();
-const indexJson = JSON.stringify(index);
 ---
 
 <StarlightPage
@@ -51,8 +51,7 @@ const indexJson = JSON.stringify(index);
     { label: 'Search TypeScript APIs' },
   ]} />
 
-  <div class="api-ref-landing not-content" data-api-search-language="typescript" data-api-search-kind="landing">
-    <script is:inline type="application/json" data-api-search-index set:html={indexJson.replace(/</g, '\\u003c')} />
+  <div class="api-ref-landing not-content" data-api-search-language="typescript" data-api-search-kind="landing" data-api-search-index-url={apiSearchIndexUrl(base, 'typescript')}>
     <p class="ts-api-intro">
       Browse the TypeScript APIs available when writing an
       <a href={`${base}/get-started/first-app/?lang=typescript`}>Aspire TypeScript AppHost</a>.
@@ -97,7 +96,7 @@ const indexJson = JSON.stringify(index);
 
 <script>
   import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
-  import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+  import { loadApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
   import { ApiSearchPresentation, withApiSearchFallback } from '../_search-presentation';
   import { formatTsApiSearchStats, getTsApiSearchStats } from '@utils/ts-api-search-stats';
 
@@ -145,7 +144,7 @@ const indexJson = JSON.stringify(index);
     private sync: InpageSearchSync;
     private presentation: ApiSearchPresentation;
 
-    constructor(private root: HTMLElement, private signal: AbortSignal) {
+    constructor(private root: HTMLElement, private signal: AbortSignal, index: IndexEntry[]) {
       this.input = root.querySelector<HTMLInputElement>('#ts-api-search-input')!;
       this.resultsEl = root.querySelector<HTMLElement>('#ts-api-search-results')!;
       this.packageList = root.querySelector<HTMLElement>('#ts-api-package-list')!;
@@ -153,7 +152,7 @@ const indexJson = JSON.stringify(index);
       this.countEl = root.querySelector<HTMLElement>('#ts-api-search-count')!;
       this.filtersEl = root.querySelector<HTMLElement>('#ts-api-kind-filters')!;
       this.clearFiltersBtn = root.querySelector<HTMLElement>('#ts-api-clear-filters')!;
-      this.index = readApiSearchIndex<IndexEntry>(root);
+      this.index = index;
 
       this.sync = new InpageSearchSync('ts-api', () => this.clear(), root, signal);
       this.presentation = new ApiSearchPresentation(root, this.input, () => this.clear(), signal);
@@ -489,8 +488,10 @@ const indexJson = JSON.stringify(index);
     }
   }
 
-  registerApiSearch('typescript', 'landing', withApiSearchFallback((root, signal) => {
-    new TsApiSearchController(root, signal);
+  registerApiSearch('typescript', 'landing', withApiSearchFallback(async (root, signal) => {
+    const index = await loadApiSearchIndex<IndexEntry>(root, signal);
+    if (signal.aborted) return;
+    new TsApiSearchController(root, signal, index);
     const input = root.querySelector<HTMLInputElement>('#ts-api-search-input');
     input?.focus();
   }));

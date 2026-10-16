@@ -16,6 +16,7 @@ export default [
       '**/*.test-d.ts',
       '**/examples/',
       '**/dist/',
+      '**/dist-hybrid/',
       '**/build/',
       '**/examples/',
     ],

@@ -1,5 +1,8 @@
 import { defineMiddleware } from 'astro:middleware';
 import { stripApiReferenceLocale } from './utils/api-reference-routes';
+import { withHybridApiCache } from './utils/hybrid-api-cache';
+
+declare const __ASPIRE_HYBRID_API_DOCS__: boolean;
 
 const nestedApiMarkdownPattern =
   /^\/reference\/(?:api\/(?:csharp|typescript)|samples)\/.+\.md$/;
@@ -28,10 +31,14 @@ export const onRequest = defineMiddleware((context, next) => {
       return redirect(`${canonicalApiPath}${search}`);
     }
 
-    if (nestedApiMarkdownPattern.test(pathname) || cliConfigSchemaPattern.test(pathname)) {
+    const hybridApiMarkdown = __ASPIRE_HYBRID_API_DOCS__ && pathname.startsWith('/reference/api/');
+    if ((!hybridApiMarkdown && nestedApiMarkdownPattern.test(pathname)) || cliConfigSchemaPattern.test(pathname)) {
       return redirect(`${pathname}/${search}`);
     }
   }
 
-  return next();
+  const pathname = context.url?.pathname ?? new URL(context.request.url).pathname;
+  return __ASPIRE_HYBRID_API_DOCS__ && !context.isPrerendered &&
+    (pathname.startsWith('/reference/api/') || pathname === '/_image' || pathname === '/_image/')
+    ? withHybridApiCache(context, next) : next();
 });

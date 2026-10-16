@@ -4,6 +4,9 @@ import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 test.setTimeout(120_000);
 
+// The index is a separate download; the dev server regenerates the TypeScript one per request (~3 s).
+const indexReady = { timeout: 30_000 };
+
 const surfaces = [
   { path: 'csharp/', prefix: 'api' },
   { path: 'csharp/aspire.hosting.redis/', prefix: 'pkg' },
@@ -129,29 +132,36 @@ for (const { path, prefix } of surfaces) {
 
   test(`API recovery preserves a useful query outside the selected kinds: ${path}`, async ({ page }) => {
     let otherKind = '';
+    const recoveryIndex = (serialized: string) => {
+      const entries = JSON.parse(serialized) as { k: string; v?: string }[];
+      const kinds = [...new Set(entries.map(entry => entry.k))];
+      expect(kinds.length).toBeGreaterThan(1);
+      otherKind = kinds[1];
+      const entry = {
+        f: 'Example.RecoveryNeedle', ns: 'Example', p: 'Package', s: '', r: '',
+        v: entries[0].v, h: '/reference/overview/',
+      };
+      return JSON.stringify([
+        { ...entry, n: 'RecoveryNeedle', k: kinds[0] },
+        { ...entry, n: 'OtherEntry', f: 'Example.OtherEntry', k: otherKind },
+      ]);
+    };
+    await page.route('**/reference/api-search/**', async route => {
+      const response = await route.fetch();
+      await route.fulfill({ response, body: recoveryIndex(await response.text()) });
+    });
     await page.route(`**/reference/api/${path}?recovery-fixture=1`, async route => {
       const response = await route.fetch();
       const body = (await response.text()).replace(
         /(<script[^>]*data-api-search-index[^>]*>)([\s\S]*?)(<\/script>)/,
-        (_match: string, open: string, serialized: string, close: string) => {
-          const entries = JSON.parse(serialized) as { k: string; v?: string }[];
-          const kinds = [...new Set(entries.map(entry => entry.k))];
-          expect(kinds.length).toBeGreaterThan(1);
-          otherKind = kinds[1];
-          const entry = {
-            f: 'Example.RecoveryNeedle', ns: 'Example', p: 'Package', s: '', r: '',
-            v: entries[0].v, h: '/reference/overview/',
-          };
-          return `${open}${JSON.stringify([
-            { ...entry, n: 'RecoveryNeedle', k: kinds[0] },
-            { ...entry, n: 'OtherEntry', f: 'Example.OtherEntry', k: otherKind },
-          ])}${close}`;
-        },
+        (_match: string, open: string, serialized: string, close: string) =>
+          `${open}${recoveryIndex(serialized)}${close}`,
       );
       await route.fulfill({ response, body });
     });
     await page.goto(`/reference/api/${path}?recovery-fixture=1`);
     await dismissCookieConsentIfVisible(page);
+    await expect.poll(() => otherKind, { timeout: 30_000 }).not.toBe('');
     const input = page.locator(`#${prefix}-search-input`);
     const chip = page.locator(`#${prefix}-kind-filters .api-filter-chip`).filter({ hasText: new RegExp(`^${otherKind}$`, 'i') });
     const filters = page.locator(`#${prefix}-clear-filters`);
@@ -197,11 +207,12 @@ for (const { path, prefix } of [surfaces[0], surfaces[3]]) {
     await page.goto(`/reference/api/${path}?versions=&keep=1`);
     await dismissCookieConsentIfVisible(page);
     const empty = page.locator(`#${prefix}-search-results .search-empty`);
-    await expect(empty.getByRole('button', { name: 'Clear filters', exact: true })).toBeVisible();
+    await expect(empty.getByRole('button', { name: 'Clear filters', exact: true })).toBeVisible(indexReady);
     await expect(page.locator('.version-filter-btn')).toHaveClass(/none-selected/);
     await empty.getByRole('button', { name: 'Clear filters', exact: true }).click();
     await expect(page).not.toHaveURL(/[?&]versions=/);
     await page.reload();
+    await expect(page.locator(`#${prefix}-search-count`)).not.toHaveText(/Loading/, indexReady);
     await expect(page.locator('.version-filter-btn')).not.toHaveClass(/filtered/);
     await expect(page.locator(`#${prefix}-search-count`)).not.toHaveText(/^0 /);
 
@@ -258,7 +269,7 @@ test('API clear remains available when text is entered before controller mountin
   }
   await page.waitForLoadState('load');
   const empty = page.locator('#ts-api-search-results .search-empty');
-  await expect(empty.locator('.search-empty-query')).toHaveText('Search: "Redis"');
+  await expect(empty.locator('.search-empty-query')).toHaveText('Search: "Redis"', indexReady);
   await expect(empty.getByRole('button', { name: 'Clear filters', exact: true })).toBeVisible();
   await expect(page.locator('#ts-api-search-clear')).toBeVisible();
   await page.locator('#ts-api-search-clear').click();
@@ -284,8 +295,28 @@ test('shared API controls reflow and retain accessible states in both themes', a
   }
 });
 
-test('an unavailable API index has an error/reload state, not zero-match recovery', async ({ page }) => {
-  await page.route('**/reference/api/typescript/?broken-index=1', async route => {
+test('an unavailable API index has an error/retry state, not zero-match recovery', async ({ page }) => {
+  let available = false;
+  await page.route('**/reference/api-search/typescript.json', route =>
+    available ? route.continue() : route.fulfill({ status: 503, body: 'unavailable' }));
+  await page.goto('/reference/api/typescript/');
+  await dismissCookieConsentIfVisible(page);
+  const state = page.locator('#ts-api-search-results .search-empty');
+  await expect(state).toContainText('Search unavailable');
+  await expect(state.getByRole('button')).toHaveCount(1);
+  await expect(page.locator('#ts-api-search-input')).toBeDisabled();
+  await expect(page.locator('#ts-api-package-list')).toBeVisible();
+
+  available = true;
+  await state.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(page.locator('#ts-api-search-input')).toBeEnabled();
+  await page.locator('#ts-api-search-input').fill('Redis');
+  await expect(page.locator('#ts-api-search-results .api-search-result').first()).toBeVisible(indexReady);
+  await expect(state).toHaveCount(0);
+});
+
+test('a corrupt embedded API index asks for a reload', async ({ page }) => {
+  await page.route('**/reference/api/typescript/aspire.hosting/idistributedapplicationbuilder/?broken-index=1', async route => {
     const response = await route.fetch();
     const body = (await response.text()).replace(
       /(<script[^>]*data-api-search-index[^>]*>)[\s\S]*?(<\/script>)/,
@@ -293,12 +324,9 @@ test('an unavailable API index has an error/reload state, not zero-match recover
     );
     await route.fulfill({ response, body });
   });
-  await page.goto('/reference/api/typescript/?broken-index=1');
+  await page.goto('/reference/api/typescript/aspire.hosting/idistributedapplicationbuilder/?broken-index=1');
   await dismissCookieConsentIfVisible(page);
-  const state = page.locator('#ts-api-search-results .search-empty');
+  const state = page.locator('#type-search-results .search-empty');
   await expect(state).toContainText('Search unavailable');
-  await expect(state.getByRole('button')).toHaveCount(1);
   await expect(state.getByRole('button', { name: 'Reload page', exact: true })).toBeVisible();
-  await expect(page.locator('#ts-api-search-input')).toBeDisabled();
-  await expect(page.locator('#ts-api-package-list')).toBeVisible();
 });

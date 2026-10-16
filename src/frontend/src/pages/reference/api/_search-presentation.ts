@@ -1,28 +1,87 @@
 import { createSearchEmptyState, searchRecoveryAction } from '@components/search/search-empty-state';
+import { ApiSearchIndexLoadError } from '@components/api-reference/search-lifecycle';
 
-/** A corrupt/unavailable embedded index is not a valid zero-result response. */
-export function withApiSearchFallback(mount: (root: HTMLElement, signal: AbortSignal) => void) {
+const LOADING_TEXT = 'Loading search index…';
+const LOADING_DELAY_MS = 150;
+
+/**
+ * A corrupt or unavailable index is not a valid zero-result response. Downloaded
+ * indexes can be retried in place; anything else needs a page reload. A slow
+ * download shows a loading message only after a short delay, to avoid flashing.
+ */
+export function withApiSearchFallback(mount: (root: HTMLElement, signal: AbortSignal) => unknown) {
   return (root: HTMLElement, signal: AbortSignal) => {
-    const controller = new AbortController();
-    signal.addEventListener('abort', () => controller.abort(), { once: true });
-    try {
-      mount(root, controller.signal);
-    } catch (error) {
-      controller.abort();
-      console.error('API search unavailable', error);
+    const statusElements = [...root.querySelectorAll<HTMLElement>('[id$="-search-status"], [id$="-search-count"]')];
+    const originalText = new Map(statusElements.map(element => [element, element.textContent]));
+    const disabled: (HTMLInputElement | HTMLButtonElement)[] = [];
+
+    const showLoading = (attemptSignal: AbortSignal) => {
+      const timer = setTimeout(() => {
+        root.dataset.apiSearchState = 'loading';
+        statusElements.forEach(element => { element.textContent = LOADING_TEXT; });
+      }, LOADING_DELAY_MS);
+      attemptSignal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+      return () => {
+        clearTimeout(timer);
+        delete root.dataset.apiSearchState;
+        statusElements.forEach(element => {
+          if (element.textContent === LOADING_TEXT) element.textContent = originalText.get(element) ?? '';
+        });
+      };
+    };
+
+    const retry = (results: HTMLElement) => {
+      results.replaceChildren();
+      results.style.display = 'none';
+      statusElements.forEach(element => { element.textContent = originalText.get(element) ?? ''; });
+      disabled.splice(0).forEach(element => { element.disabled = false; });
+      start();
+    };
+
+    const showUnavailable = (retryable: boolean) => {
       const results = root.querySelector<HTMLElement>('[id$="-search-results"]');
       if (!results) return;
       results.style.display = '';
       results.replaceChildren(createSearchEmptyState({
         title: 'Search unavailable',
-        hint: 'Reload this page to try again. You can still browse the API reference below.',
-        action: { label: 'Reload page', run: () => { if (!signal.aborted) window.location.reload(); } },
+        hint: retryable
+          ? 'The search index could not be loaded. You can still browse the API reference below.'
+          : 'Reload this page to try again. You can still browse the API reference below.',
+        action: retryable
+          ? { label: 'Try again', run: () => { if (!signal.aborted) retry(results); } }
+          : { label: 'Reload page', run: () => { if (!signal.aborted) window.location.reload(); } },
       }));
-      root.querySelectorAll<HTMLElement>('[id$="-search-status"], [id$="-search-count"]')
-        .forEach(element => { element.textContent = 'Search unavailable'; });
+      statusElements.forEach(element => { element.textContent = 'Search unavailable'; });
       root.querySelectorAll<HTMLInputElement | HTMLButtonElement>('.inpage-search input, .inpage-search button')
-        .forEach(element => { if (!results.contains(element)) element.disabled = true; });
+        .forEach(element => {
+          if (results.contains(element)) return;
+          element.disabled = true;
+          disabled.push(element);
+        });
+    };
+
+    function start() {
+      const controller = new AbortController();
+      signal.addEventListener('abort', () => controller.abort(), { once: true });
+      const stopLoading = showLoading(controller.signal);
+      const fail = (error: unknown) => {
+        stopLoading();
+        controller.abort();
+        if (signal.aborted) return;
+        console.error('API search unavailable', error);
+        showUnavailable(error instanceof ApiSearchIndexLoadError);
+      };
+      try {
+        const pending = mount(root, controller.signal);
+        if (typeof (pending as PromiseLike<unknown> | undefined)?.then === 'function') {
+          (pending as PromiseLike<unknown>).then(stopLoading, fail);
+        } else stopLoading();
+      } catch (error) {
+        fail(error);
+      }
     }
+
+    start();
   };
 }
 

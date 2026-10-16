@@ -6,6 +6,8 @@ const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Needs the real StaticHost; it runs through playwright.hybrid.config.mjs.
+  testIgnore: 'hybrid-api-docs.spec.ts',
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,

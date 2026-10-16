@@ -48,3 +48,43 @@ export function readApiSearchIndex<T>(root: HTMLElement): T[] {
   }
   return JSON.parse(indexJson) as T[];
 }
+
+/** The index could not be downloaded or understood, so trying again may succeed. */
+export class ApiSearchIndexLoadError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'ApiSearchIndexLoadError';
+  }
+}
+
+/**
+ * Large indexes are served as a separate JSON file named by `data-api-search-index-url`.
+ * Small ones are still embedded in the page and read synchronously.
+ */
+export async function loadApiSearchIndex<T>(root: HTMLElement, signal: AbortSignal): Promise<T[]> {
+  const url = root.dataset.apiSearchIndexUrl;
+  if (!url) return readApiSearchIndex<T>(root);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new ApiSearchIndexLoadError('API search: the search index could not be downloaded', { cause: error });
+  }
+  if (!response.ok) {
+    throw new ApiSearchIndexLoadError(`API search: the search index request failed (HTTP ${response.status})`);
+  }
+
+  let index: unknown;
+  try {
+    index = await response.json();
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new ApiSearchIndexLoadError('API search: the search index is not valid JSON', { cause: error });
+  }
+  if (!Array.isArray(index)) {
+    throw new ApiSearchIndexLoadError('API search: the search index is not a list');
+  }
+  return index as T[];
+}

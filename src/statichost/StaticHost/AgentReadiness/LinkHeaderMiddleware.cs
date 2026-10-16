@@ -59,9 +59,9 @@ internal sealed class LinkHeaderMiddleware
 
         // Resolve the markdown companion against the ORIGINAL request path,
         // before UseDefaultFiles rewrites it to /foo/index.html.
-        var companionPath = MarkdownPathMapper.TryGetMarkdownCompanion(
-            context.Request.Path,
-            _fileProvider);
+        var hybrid = context.Features.Get<HybridApiDocs.HybridApiDocsRequest>();
+        var companionPath = hybrid is not null ? hybrid.MarkdownPeer
+            : MarkdownPathMapper.TryGetMarkdownCompanion(context.Request.Path, _fileProvider);
 
         context.Response.OnStarting(static state =>
         {

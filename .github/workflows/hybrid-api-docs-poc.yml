@@ -1,0 +1,171 @@
+name: Hybrid API docs POC
+
+on:
+  workflow_call:
+    inputs:
+      artifact_run_id:
+        description: Recheck container packaging using an existing Linux hybrid artifact
+        required: false
+        default: ''
+        type: string
+  workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: Recheck container packaging using an existing Linux hybrid artifact
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  windows-artifact:
+    if: ${{ inputs.artifact_run_id == '' }}
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.x
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Build Windows hybrid artifact
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+          NODE_OPTIONS: --max-old-space-size=8192
+          ASPIRE_HYBRID_API_DOCS: '1'
+        run: pnpm build:production
+      - name: Verify Windows StaticHost contracts
+        env:
+          ASPIRE_HYBRID_API_DOCS: '1'
+        run: dotnet test ../../tests/StaticHost.Tests/StaticHost.Tests.csproj --filter 'FullyQualifiedName~HybridApiDocs' --nologo
+      - name: Upload Windows POC artifact
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hybrid-api-docs-poc-windows
+          path: src/frontend/dist-hybrid
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.x
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Download existing Linux hybrid artifact for packaging verification
+        if: ${{ inputs.artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: hybrid-api-docs-poc
+          path: src/frontend/dist-hybrid
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.artifact_run_id }}
+      - name: Verify POC unit contracts
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+        run: |
+          pnpm exec astro sync
+          pnpm exec eslint . --max-warnings 0
+          pnpm exec vitest run --config vitest.config.ts tests/unit/hybrid-api-docs.vitest.test.ts tests/unit/hybrid-native-cache.vitest.test.ts tests/unit/api-markdown.vitest.test.ts tests/unit/ts-api-route-catalog.vitest.test.ts tests/unit/build-performance.vitest.test.ts
+          dotnet test ../../tests/StaticHost.Tests/StaticHost.Tests.csproj --filter 'FullyQualifiedName~HybridApiDocs' --nologo
+          dotnet test ../../tests/Aspire.Dev.AppHost.Tests/Aspire.Dev.AppHost.Tests.csproj --filter 'FullyQualifiedName~HybridApiDocs' --nologo
+      - name: Build static baseline
+        if: ${{ inputs.artifact_run_id == '' }}
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+          NODE_OPTIONS: --max-old-space-size=8192
+          BUILD_TIMING: '1'
+          BUILD_TIMING_OUT: ${{ runner.temp }}/hybrid-poc/static-timing.jsonl
+        run: |
+          mkdir -p "$RUNNER_TEMP/hybrid-poc"
+          /usr/bin/time -v -o "$RUNNER_TEMP/hybrid-poc/static-resources.txt" pnpm build:production
+      - name: Build opted-in hybrid artifact
+        if: ${{ inputs.artifact_run_id == '' }}
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+          NODE_OPTIONS: --max-old-space-size=8192
+          ASPIRE_HYBRID_API_DOCS: '1'
+          BUILD_TIMING: '1'
+          BUILD_TIMING_OUT: ${{ runner.temp }}/hybrid-poc/hybrid-timing.jsonl
+        run: /usr/bin/time -v -o "$RUNNER_TEMP/hybrid-poc/hybrid-resources.txt" pnpm build:production
+      - name: Verify output and non-API parity
+        if: ${{ inputs.artifact_run_id == '' }}
+        run: |
+          node scripts/verify-hybrid-output.mjs
+          rm -r dist
+      - name: Build independent StaticHost and Astro images
+        env:
+          ASPIRE_HYBRID_API_DOCS: '1'
+        run: |
+          dotnet publish ../statichost/StaticHost/StaticHost.csproj -c Release --os linux --arch x64 \
+            -t:PublishContainer -p:ContainerRepository=hybrid-poc-host -p:ContainerImageTag=test --nologo
+          docker build -f Dockerfile.hybrid -t hybrid-poc-renderer:test .
+      - name: Verify rendering, caching and worker outages
+        env:
+          ConnectionStrings__cache: localhost:6379,abortConnect=false
+          HYBRID_TEST_BROWSER: '1'
+          HYBRID_TEST_CONTAINERS: '1'
+        run: node scripts/test-hybrid-host.mjs
+      - name: Upload private POC artifact
+        if: ${{ always() && inputs.artifact_run_id == '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hybrid-api-docs-poc
+          path: src/frontend/dist-hybrid
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload POC measurements
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hybrid-api-docs-results
+          path: |
+            src/frontend/hybrid-output-results.json
+            src/frontend/hybrid-host-results.json
+            src/frontend/hybrid-host-processes.log
+            ${{ runner.temp }}/hybrid-poc
+          if-no-files-found: warn
+          retention-days: 7
