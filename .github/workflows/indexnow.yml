@@ -18,6 +18,11 @@ name: IndexNow
 # downloadable so search engines can verify ownership. To rotate the key, add the new key file and
 # update config/indexnow.json in the same change, and delete the old key file once it has deployed.
 #
+# IndexNow verifies a new or rotated key after the first submission that uses it, and until then it
+# answers 403 SiteVerificationNotCompleted even though the key file is live. The run fails on
+# purpose, so a green run always means the URLs were accepted. The next run tries again, or run
+# the workflow again from the Actions tab to retry sooner.
+#
 # What has already been submitted is kept in the "indexnow-state" artifact (refreshed by every run).
 # Losing it only causes a cold start that re-seeds the known URL list without submitting everything.
 
@@ -25,8 +30,8 @@ on:
   schedule:
     # Once a day at 06:43 UTC (the fields are minute, hour, day of month, month and day of week).
     # Each run submits the new and removed URLs, then the next window of the rotation through the
-    # whole sitemap. The window size is in config/indexnow.json: at 1,000 URLs a run, a sitemap of
-    # about 32,000 URLs takes about a month to cover. If GitHub skips a day, the rotation only
+    # whole sitemap. The window size is in config/indexnow.json: at 5,000 URLs a run, a sitemap of
+    # about 32,000 URLs takes about a week to cover. If GitHub skips a day, the rotation only
     # slips by a day, because its position is saved in the state artifact. The odd minute avoids
     # the top of the hour, when GitHub delays scheduled runs the most. Scheduled runs use the
     # workflow on the default branch, so this starts once the pull request is merged.
@@ -183,3 +188,6 @@ jobs:
           path: ${{ runner.temp }}/indexnow-state
           retention-days: 90
           if-no-files-found: error
+          # A re-run keeps the artifact its first attempt uploaded, and uploading the same name
+          # again fails with a conflict unless it replaces that artifact.
+          overwrite: true
