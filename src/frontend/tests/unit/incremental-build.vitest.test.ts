@@ -20,6 +20,7 @@ import { buildManifest, compareManifests } from '../../scripts/compare-builds.mj
 import {
   buildArguments,
   changedIdentity,
+  compareIncrementalDiagnostics,
   identityFinalization,
   restoredPaths,
   restoredRouteCounts,
@@ -754,6 +755,50 @@ describe('whole-output equivalence', () => {
     for (const path of ['/docs/index.html', '/og/index.html', '/og/image.png/other']) {
       expect(() => restoredRouteCounts(`${path} (restored)`)).toThrow('outside the API/OG pilot');
     }
+  });
+
+  it('reports changed route and module dependency records without flooding CI logs', () => {
+    const record = (value: string) => ({ codeHash: value, importsHash: value });
+    expect(
+      compareIncrementalDiagnostics(
+        {
+          routes: {
+            html: { dependencyHash: 'before', pathCount: 2 },
+            removed: { dependencyHash: 'same', pathCount: 1 },
+          },
+          modules: {
+            client: { stable: record('same'), volatile: record('before') },
+            prerender: {},
+          },
+        },
+        {
+          routes: {
+            html: { dependencyHash: 'after', pathCount: 2 },
+            added: { dependencyHash: 'same', pathCount: 1 },
+          },
+          modules: {
+            client: { stable: record('same'), volatile: record('after') },
+            prerender: { new: record('new') },
+          },
+        }
+      )
+    ).toEqual({
+      routes: {
+        added: { count: 1, items: ['added'] },
+        removed: { count: 1, items: ['removed'] },
+        changed: { count: 1, items: ['html'] },
+      },
+      clientModules: {
+        added: { count: 0, items: [] },
+        removed: { count: 0, items: [] },
+        changed: { count: 1, items: ['volatile'] },
+      },
+      prerenderModules: {
+        added: { count: 1, items: ['new'] },
+        removed: { count: 0, items: [] },
+        changed: { count: 0, items: [] },
+      },
+    });
   });
 
   it('detects missing, added and changed files without filtering output types', async () => {

@@ -243,7 +243,14 @@ export default defineConfig({
       __ASPIRE_REDIRECT_PATHS__: JSON.stringify(Object.keys(redirects)),
       ...(incremental?.define ?? {}),
     },
-    ...(incremental ? { plugins: [incremental.privateIdentityPlugin] } : {}),
+    ...(incremental
+      ? {
+          plugins: [
+            incremental.privateIdentityPlugin,
+            ...(incremental.dependencyDiagnostics ? [incremental.dependencyDiagnostics] : []),
+          ],
+        }
+      : {}),
     ...(staticHostUrl
       ? {
           server: {

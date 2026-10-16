@@ -11,6 +11,72 @@ const shortCommitPlaceholder = commitPlaceholder.slice(0, 7);
 const commitPlaceholderBytes = Buffer.from(commitPlaceholder);
 const shortCommitPlaceholderBytes = Buffer.from(shortCommitPlaceholder);
 const cacheEpoch = 'api-v1';
+const assetPlaceholders = [
+  /__ASTRO_ASSET_IMAGE__([\w$]+)__(?:_(.*?)__)?/g,
+  /__VITE_ASSET__([\w$]+)__(?:\$_(.*?)__)?/g,
+];
+const fontsAddressDeclaration = /(?:const|let|var)\s+__ASTRO_FONTS_SERVER_ADDRESS__\s*=[^;]+;/;
+
+/**
+ * @param {import('vite').PluginContext} graph
+ * @param {string} code
+ */
+function normalizeDiagnosticCode(graph, code) {
+  let normalized = code;
+  for (const pattern of assetPlaceholders) {
+    normalized = normalized.replace(pattern, (placeholder, handle, postfix = '') => {
+      try {
+        return graph.getFileName(handle) + postfix;
+      } catch {
+        return placeholder;
+      }
+    });
+  }
+  return normalized.replace(fontsAddressDeclaration, '');
+}
+
+/**
+ * Record the same module inputs Astro folds into route dependency hashes.
+ * This is pilot-only evidence for diagnosing unexpected cache misses.
+ *
+ * @param {string} root
+ * @param {URL} cacheDir
+ * @returns {import('vite').Plugin}
+ */
+function dependencyDiagnosticsPlugin(root, cacheDir) {
+  return {
+    name: 'aspire-incremental-dependency-diagnostics',
+    async generateBundle() {
+      const environment = this.environment?.name;
+      if (!['client', 'prerender'].includes(environment)) return;
+      const records = [...this.getModuleIds()]
+        .sort((a, b) => a.localeCompare(b, 'en'))
+        .map((id) => {
+          const info = this.getModuleInfo(id);
+          const normalizedId = id
+            .replaceAll('\\', '/')
+            .replace(root.replaceAll('\\', '/'), '<root>');
+          const code =
+            typeof info?.code === 'string' ? normalizeDiagnosticCode(this, info.code) : '';
+          const imports = [...(info?.importedIds ?? []), ...(info?.dynamicallyImportedIds ?? [])]
+            .map((dependency) =>
+              dependency.replaceAll('\\', '/').replace(root.replaceAll('\\', '/'), '<root>')
+            )
+            .sort((a, b) => a.localeCompare(b, 'en'));
+          return {
+            id: normalizedId,
+            codeHash: createHash('sha256').update(code).digest('hex'),
+            importsHash: createHash('sha256').update(JSON.stringify(imports)).digest('hex'),
+          };
+        });
+      await mkdir(cacheDir, { recursive: true });
+      const path = new URL(`dependency-modules-${environment}.json`, cacheDir);
+      const temporary = new URL(`dependency-modules-${environment}.${process.pid}.tmp`, cacheDir);
+      await writeFile(temporary, JSON.stringify(records));
+      await rename(temporary, path);
+    },
+  };
+}
 
 /**
  * @param {import('astro').AstroPrerenderer} prerenderer
@@ -304,6 +370,10 @@ export function incrementalBuildSettings({ root, mode, env, force = false }) {
   );
   const compatibility = incrementalCompatibility(directory, mode, publicEnv);
   const cacheDir = new URL(`node_modules/.astro-incremental/${mode}/${compatibility}/`, root);
+  const dependencyDiagnostics =
+    process.env.ASPIRE_INCREMENTAL_DIAGNOSTICS === '1'
+      ? dependencyDiagnosticsPlugin(directory, cacheDir)
+      : undefined;
   /** @type {import('vite').Plugin} */
   const privateIdentityPlugin = {
     name: 'aspire-incremental-private-identity',
@@ -318,6 +388,7 @@ export function incrementalBuildSettings({ root, mode, env, force = false }) {
   };
   return {
     compatibility,
+    dependencyDiagnostics,
     privateIdentityPlugin,
     cacheDir,
     define: {

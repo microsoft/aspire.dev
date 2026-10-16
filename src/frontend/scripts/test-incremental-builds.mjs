@@ -49,6 +49,68 @@ export function restoredRouteCounts(log) {
   };
 }
 
+function compactChanges(items, limit = 20) {
+  return { count: items.length, items: items.slice(0, limit) };
+}
+
+function compareRecords(previous = {}, current = {}) {
+  const previousKeys = new Set(Object.keys(previous));
+  const currentKeys = new Set(Object.keys(current));
+  const added = [...currentKeys].filter((key) => !previousKeys.has(key)).sort();
+  const removed = [...previousKeys].filter((key) => !currentKeys.has(key)).sort();
+  const changed = [...currentKeys]
+    .filter(
+      (key) =>
+        previousKeys.has(key) && JSON.stringify(previous[key]) !== JSON.stringify(current[key])
+    )
+    .sort();
+  return {
+    added: compactChanges(added),
+    removed: compactChanges(removed),
+    changed: compactChanges(changed),
+  };
+}
+
+export function compareIncrementalDiagnostics(previous, current) {
+  return {
+    routes: compareRecords(previous?.routes, current?.routes),
+    clientModules: compareRecords(previous?.modules?.client, current?.modules?.client),
+    prerenderModules: compareRecords(previous?.modules?.prerender, current?.modules?.prerender),
+  };
+}
+
+async function readJson(path) {
+  try {
+    return JSON.parse(await readFile(path, 'utf8'));
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+async function readIncrementalDiagnostics(cacheDir) {
+  const manifest = await readJson(new URL('incremental-build.json', cacheDir));
+  const routes = Object.fromEntries(
+    Object.entries(manifest?.routes ?? {})
+      .sort(([a], [b]) => a.localeCompare(b, 'en'))
+      .map(([component, route]) => [
+        component,
+        {
+          dependencyHash: route.dependencyHash,
+          pathCount: Object.keys(route.paths).length,
+        },
+      ])
+  );
+  const modules = {};
+  for (const environment of ['client', 'prerender']) {
+    const records = await readJson(new URL(`dependency-modules-${environment}.json`, cacheDir));
+    modules[environment] = Object.fromEntries(
+      (records ?? []).map(({ id, codeHash, importsHash }) => [id, { codeHash, importsHash }])
+    );
+  }
+  return { routes, modules };
+}
+
 /**
  * @param {string} log
  * @returns {{htmlFiles: number, parsedPages: number, reusedPages: number, wallMs: number}}
@@ -108,6 +170,10 @@ async function runPilot(scenario) {
 
   async function build(label, kind, env = {}, requireReuse = false) {
     const incremental = kind === 'incremental';
+    const cacheDir = incremental
+      ? (await loadIncrementalBuildSettings(rootUrl, 'production')).cacheDir
+      : undefined;
+    const previousDiagnostics = cacheDir ? await readIncrementalDiagnostics(cacheDir) : undefined;
     const logPath = join(reportDirectory, `${label}.log`);
     const log = createWriteStream(logPath);
     const started = performance.now();
@@ -129,6 +195,7 @@ async function runPilot(scenario) {
               ASPIRE_QUALIFICATION_INPUTS: inputSnapshot,
               SOURCE_DATE_EPOCH: sourceDateEpoch,
               ASPIRE_INCREMENTAL_BUILD: incremental ? '1' : '0',
+              ASPIRE_INCREMENTAL_DIAGNOSTICS: incremental ? '1' : '0',
               ASTRO_TELEMETRY_DISABLED: '1',
               BUILD_TIMING: '1',
               BUILD_TIMING_LABEL: label,
@@ -157,6 +224,21 @@ async function runPilot(scenario) {
     const output = await readFile(logPath, 'utf8');
     const { htmlRestored, markdownRestored, ogRestored } = restoredRouteCounts(output);
     const identity = incremental ? identityFinalization(output) : undefined;
+    const diagnostics = cacheDir
+      ? compareIncrementalDiagnostics(
+          previousDiagnostics,
+          await readIncrementalDiagnostics(cacheDir)
+        )
+      : undefined;
+    if (diagnostics) {
+      console.log(
+        `[incremental-build] cache diagnostics ${JSON.stringify({ label, ...diagnostics })}`
+      );
+      await writeFile(
+        join(reportDirectory, `${label}-cache-diagnostics.json`),
+        JSON.stringify(diagnostics, null, 2)
+      );
+    }
     measurements.push({
       label,
       kind,
