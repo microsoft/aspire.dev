@@ -665,6 +665,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspireacanaming001',
             },
             {
+              label: 'ASPIREAZUREFUNCTIONS001',
+              link: '/diagnostics/aspireazurefunctions001',
+            },
+            {
               label: 'ASPIREBLAZOR001',
               link: '/diagnostics/aspireblazor001',
             },
