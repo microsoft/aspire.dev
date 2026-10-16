@@ -290,6 +290,45 @@ it('breadcrumbs retain the nearest linked parent and semantic current page', asy
 });
 
 it.each([
+  ['ResourceNotificationService', ['Resource', 'Notification', 'Service']],
+  ['RedisResource.withModule', ['Redis', 'Resource.', 'with', 'Module']],
+  ['SQLServerResource', ['SQL', 'Server', 'Resource']],
+  ['IResourceBuilder<RedisResource>', ['I', 'Resource', 'Builder', '<Redis', 'Resource>']],
+])('identifiers expose readable wrap boundaries without changing their text: %s', async (text, parts) => {
+  const html = await renderComponent(ReadableText, { props: { text } });
+  const rendered = html.trim();
+  expect(rendered.replaceAll('<wbr>', '')).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  expect(rendered.split('<wbr>')).toEqual(parts.map((part) => part.replaceAll('<', '&lt;').replaceAll('>', '&gt;')));
+});
+
+it.each(['Install Aspire CLI', 'Aspire 13.6', '日本語', 'plain text <script>'])(
+  'readable text preserves ordinary copy and escapes markup: %s',
+  async (text) => {
+    const html = await renderComponent(ReadableText, { props: { text } });
+    expect(html).not.toContain('<script>');
+    expect(html.replaceAll('<wbr>', '').trim()).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  }
+);
+
+it.each([
+  { Component: YouTubeEmbed, props: { videoId: 'test', title: null }, name: 'YouTube video player' },
+  { Component: TwitchEmbed, props: { channel: 'aspiredotdev', title: ' ' }, name: 'Twitch stream player' },
+])('media embeds retain an accessible name when the title is empty: $name', async ({ Component, props, name }) => {
+  expect(await renderComponent(Component, { props })).toContain(`aria-label="${name}"`);
+});
+
+it('breadcrumbs retain the nearest linked parent and semantic current page', async () => {
+  const html = await renderComponent(Breadcrumb, { props: { crumbs: [
+    { label: 'Docs', href: '/docs/' }, { label: 'Reference' }, { label: 'Current type' },
+  ] } });
+  expect(html).toMatch(/class="bc-parent\b[^"]*" href="\/docs\/"/);
+  expect(html).toMatch(/<ol class="bc-inline\b/);
+  expect(html).not.toContain('<details');
+  expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+  expect(html).toContain('aria-current="page"');
+});
+
+it.each([
   ['en', 'Scroll to top'], ['fr', 'Retour en haut'], ['pt-BR', 'Voltar ao topo'],
   ['zh-CN', '回到顶部'], ['es-ES', 'Ir arriba'], ['unknown', 'Scroll to top'],
 ])('ScrollToTop renders the existing label for %s', async (lang, label) => {

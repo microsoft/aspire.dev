@@ -12357,57 +12357,6 @@ export declare const FoundryRole: {
 };
 
 /**
- * Enum Aspire.Hosting.GitHub.GitHubModelName
- */
-
-export type GitHubModelName = "AI21Jamba15Large" | "CohereCommandA" | "CohereCommandR082024" | "CohereCommandRPlus082024" | "DeepSeekR1" | "DeepSeekR10528" | "DeepSeekV30324" | "Llama4Maverick17B128EInstructFP8" | "Llama4Scout17B16EInstruct" | "Llama3211BVisionInstruct" | "Llama3290BVisionInstruct" | "Llama3370BInstruct" | "MetaLlama31405BInstruct" | "MetaLlama318BInstruct" | "MaiDSR1" | "Phi4" | "Phi4MiniInstruct" | "Phi4MiniReasoning" | "Phi4MultimodalInstruct" | "Phi4Reasoning" | "Codestral2501" | "Ministral3B" | "MistralMedium32505" | "MistralSmall31" | "OpenAIGpt41" | "OpenAIGpt41Mini" | "OpenAIGpt41Nano" | "OpenAIGpt4o" | "OpenAIGpt4oMini" | "OpenAIGpt5" | "OpenAIGpt5ChatPreview" | "OpenAIGpt5Mini" | "OpenAIGpt5Nano" | "OpenAIO1" | "OpenAIO1Mini" | "OpenAIO1Preview" | "OpenAIO3" | "OpenAIO3Mini" | "OpenAIO4Mini" | "OpenAITextEmbedding3Large" | "OpenAITextEmbedding3Small" | "Grok3" | "Grok3Mini";
-export declare const GitHubModelName: {
-  readonly AI21Jamba15Large: "AI21Jamba15Large";
-  readonly CohereCommandA: "CohereCommandA";
-  readonly CohereCommandR082024: "CohereCommandR082024";
-  readonly CohereCommandRPlus082024: "CohereCommandRPlus082024";
-  readonly DeepSeekR1: "DeepSeekR1";
-  readonly DeepSeekR10528: "DeepSeekR10528";
-  readonly DeepSeekV30324: "DeepSeekV30324";
-  readonly Llama4Maverick17B128EInstructFP8: "Llama4Maverick17B128EInstructFP8";
-  readonly Llama4Scout17B16EInstruct: "Llama4Scout17B16EInstruct";
-  readonly Llama3211BVisionInstruct: "Llama3211BVisionInstruct";
-  readonly Llama3290BVisionInstruct: "Llama3290BVisionInstruct";
-  readonly Llama3370BInstruct: "Llama3370BInstruct";
-  readonly MetaLlama31405BInstruct: "MetaLlama31405BInstruct";
-  readonly MetaLlama318BInstruct: "MetaLlama318BInstruct";
-  readonly MaiDSR1: "MaiDSR1";
-  readonly Phi4: "Phi4";
-  readonly Phi4MiniInstruct: "Phi4MiniInstruct";
-  readonly Phi4MiniReasoning: "Phi4MiniReasoning";
-  readonly Phi4MultimodalInstruct: "Phi4MultimodalInstruct";
-  readonly Phi4Reasoning: "Phi4Reasoning";
-  readonly Codestral2501: "Codestral2501";
-  readonly Ministral3B: "Ministral3B";
-  readonly MistralMedium32505: "MistralMedium32505";
-  readonly MistralSmall31: "MistralSmall31";
-  readonly OpenAIGpt41: "OpenAIGpt41";
-  readonly OpenAIGpt41Mini: "OpenAIGpt41Mini";
-  readonly OpenAIGpt41Nano: "OpenAIGpt41Nano";
-  readonly OpenAIGpt4o: "OpenAIGpt4o";
-  readonly OpenAIGpt4oMini: "OpenAIGpt4oMini";
-  readonly OpenAIGpt5: "OpenAIGpt5";
-  readonly OpenAIGpt5ChatPreview: "OpenAIGpt5ChatPreview";
-  readonly OpenAIGpt5Mini: "OpenAIGpt5Mini";
-  readonly OpenAIGpt5Nano: "OpenAIGpt5Nano";
-  readonly OpenAIO1: "OpenAIO1";
-  readonly OpenAIO1Mini: "OpenAIO1Mini";
-  readonly OpenAIO1Preview: "OpenAIO1Preview";
-  readonly OpenAIO3: "OpenAIO3";
-  readonly OpenAIO3Mini: "OpenAIO3Mini";
-  readonly OpenAIO4Mini: "OpenAIO4Mini";
-  readonly OpenAITextEmbedding3Large: "OpenAITextEmbedding3Large";
-  readonly OpenAITextEmbedding3Small: "OpenAITextEmbedding3Small";
-  readonly Grok3: "Grok3";
-  readonly Grok3Mini: "Grok3Mini";
-};
-
-/**
  * Enum Aspire.Hosting.JavaScript.DenoInspectMode
  */
 
@@ -190175,23 +190124,6 @@ export interface GarnetResource extends ContainerResource, IComputeResource, IEx
 }
 
 /**
- * Handle Aspire.Hosting.GitHub.Models.GitHubModelResource
- */
-
-export interface GitHubModelResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IValueProvider, IValueWithReferences {
-  /**
-   * Adds a health check to the GitHub Model resource.
-   */
-
-  enableHealthCheck(): GitHubModelResource;
-  /**
-   * Configures the API key for the GitHub Model resource from a parameter.
-   */
-
-  withApiKey(apiKey: string | ParameterResource): this;
-}
-
-/**
  * Handle Aspire.Hosting.Go.GoAppResource
  */
 
@@ -194189,55 +194121,6 @@ export interface GoFeatureFlagResource extends ContainerResource, IComputeResour
 }
 
 /**
- * Handle Aspire.Hosting.ApplicationModel.JavaAppContainerResource
- */
-
-export interface JavaAppContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
-}
-
-/**
- * Handle Aspire.Hosting.ApplicationModel.JavaAppExecutableResource
- */
-
-export interface JavaAppExecutableResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
-  /**
-   * Gets or sets the path to the JAR file to execute.
-   */
-
-  jarPath: PropertyAccessor<string>;
-  /**
-   * Gets or sets the path to the JAR file to execute.
-   */
-
-  setJarPath(value: string): JavaAppExecutableResource;
-  /**
-   * Adds a Gradle build step to the Java application
-   */
-
-  withGradleBuild(args: string[]): this;
-  /**
-   * Configures the Java application to run using a Gradle task
-   */
-
-  withGradleTask(task: string, args: string[]): this;
-  /**
-   * Adds a Maven build step to the Java application
-   */
-
-  withMavenBuild(args: string[]): this;
-  /**
-   * Configures the Java application to run using a Maven goal
-   */
-
-  withMavenGoal(goal: string, args: string[]): this;
-  /**
-   * Configures a custom build tool wrapper script path. This is useful when the wrapper script is not in the default location or has a non-standard name.
-   */
-
-  withWrapperPath(wrapperScript: string): this;
-}
-
-/**
  * Handle Aspire.Hosting.ApplicationModel.NxAppResource
  */
 
@@ -195078,88 +194961,6 @@ export interface MeilisearchResource extends ContainerResource, IComputeResource
 }
 
 /**
- * Handle Aspire.Hosting.ApplicationModel.MinioContainerResource
- */
-
-export interface MinioContainerResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
-  /**
-   * Gets the connection string expression for the Minio
-   */
-
-  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
-  /**
-   * Gets the host endpoint reference for this resource.
-   */
-
-  host: PropertyAccessor<EndpointReferenceExpression>;
-  /**
-   * The MinIO root password.
-   */
-
-  passwordParameter: PropertyAccessor<ParameterResource>;
-  /**
-   * Gets the port endpoint reference for this resource.
-   */
-
-  port: PropertyAccessor<EndpointReferenceExpression>;
-  /**
-   * Gets the primary endpoint for the MinIO. This endpoint is used for all API calls over HTTP.
-   */
-
-  primaryEndpoint: PropertyAccessor<EndpointReference>;
-  /**
-   * The MinIO root user.
-   */
-
-  rootUser: PropertyAccessor<ParameterResource>;
-  /**
-   * The MinIO root password.
-   */
-
-  setPasswordParameter(value: string | ParameterResource): MinioContainerResource;
-  /**
-   * The MinIO root user.
-   */
-
-  setRootUser(value: string | ParameterResource): MinioContainerResource;
-  /**
-   * Gets the connection URI expression for the MinIO server.
-   */
-
-  uriExpression: PropertyAccessor<ReferenceExpression>;
-  /**
-   * Adds a bind mount for the data folder to a MinIO container resource.
-   */
-
-  withDataBindMount(source: string): this;
-  /**
-   * Adds a named volume for the data folder to a MinIO container resource.
-   */
-
-  withDataVolume(options?: { name?: string }): this;
-  /**
-   * Adds a named volume for the data folder to a MinIO container resource.
-   */
-
-  withDataVolume(name?: string): this;
-  /**
-   * Configures the host port that the MinIO resource is exposed on instead of using randomly assigned port.
-   */
-
-  withHostPort(port: number | null): this;
-  /**
-   * Configures the password that the MinIO resource uses.
-   */
-
-  withPassword(password: string | ParameterResource): this;
-  /**
-   * Configures the user name that the MinIO resource uses.
-   */
-
-  withUserName(userName: string | ParameterResource): this;
-}
-
-/**
  * Handle Aspire.Hosting.ApplicationModel.MosquittoServerResource
  */
 
@@ -195762,13 +195563,6 @@ export interface PowerShellScriptResource extends IResource, IResourceWithArgs, 
 }
 
 /**
- * Handle Aspire.Hosting.ApplicationModel.StreamlitAppResource
- */
-
-export interface StreamlitAppResource extends ExecutableResource, PythonAppResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
-}
-
-/**
  * Handle Aspire.Hosting.ApplicationModel.RavenDBDatabaseResource
  */
 
@@ -195981,13 +195775,6 @@ export interface RedPandaServerResource extends ContainerResource, IComputeResou
    */
 
   withKafkaUI(configureContainer?: (obj: RedPandaKafkaUiContainerResource) => Promise<void>, containerName?: string): this;
-}
-
-/**
- * Handle Aspire.Hosting.ApplicationModel.RustAppExecutableResource
- */
-
-export interface RustAppExecutableResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
 }
 
 /**
@@ -196957,26 +196744,6 @@ export interface IDistributedApplicationBuilder {
 
   addGarnet(name: string, port?: number, password?: string | ParameterResource): GarnetResource;
   /**
-   * Adds a GitHub Model resource to the distributed application model.
-   */
-
-  addGitHubModel(name: string, model: GitHubModelName, options?: { organization?: string | ParameterResource }): GitHubModelResource;
-  /**
-   * Adds a GitHub Model resource to the distributed application model.
-   */
-
-  addGitHubModel(name: string, model: GitHubModelName, organization?: string | ParameterResource): GitHubModelResource;
-  /**
-   * Adds a GitHub Model resource to the application model using a model identifier string.
-   */
-
-  addGitHubModelById(name: string, modelId: string, options?: { organization?: string | ParameterResource }): GitHubModelResource;
-  /**
-   * Adds a GitHub Model resource to the application model using a model identifier string.
-   */
-
-  addGitHubModelById(name: string, modelId: string, organization?: string | ParameterResource): GitHubModelResource;
-  /**
    * Adds a Go application to the application model. The Go toolchain must be available on the PATH.
    */
 
@@ -197312,16 +197079,6 @@ export interface IDistributedApplicationBuilder {
 
   addBitwardenSecretManager(name: string, projectNameOrId: string | ParameterResource, organizationId: string | ParameterResource, accessToken: string | ParameterResource): BitwardenSecretManagerResource;
   /**
-   * Adds a Bun app to the builder.
-   */
-
-  addBunApp(name: string, options?: { workingDirectory?: string; entryPoint?: string; watch?: boolean }): BunAppResource;
-  /**
-   * Adds a Bun app to the builder.
-   */
-
-  addBunApp(name: string, workingDirectory?: string, entryPoint?: string, watch?: boolean): BunAppResource;
-  /**
    * Adds a DbGate container resource to the application.
    */
 
@@ -197423,31 +197180,6 @@ export interface IDistributedApplicationBuilder {
    */
 
   addGoFeatureFlag(name: string, pathToConfigFile?: string, port?: number): GoFeatureFlagResource;
-  /**
-   * Adds a Java application to the application model. Executes the executable Java app.
-   */
-
-  addJavaApp(name: string, workingDirectory: string): JavaAppExecutableResource;
-  /**
-   * Adds a Java application to the application model. Executes the executable Java app.
-   */
-
-  addJavaAppWithJar(name: string, workingDirectory: string, jarPath: string, options?: { args?: string[] }): JavaAppExecutableResource;
-  /**
-   * Adds a Java application to the application model. Executes the executable Java app.
-   */
-
-  addJavaAppWithJar(name: string, workingDirectory: string, jarPath: string, args?: string[]): JavaAppExecutableResource;
-  /**
-   * Adds a Java application to the application model. Executes the containerized Java app.
-   */
-
-  addJavaContainerApp(name: string, image: string, options?: { imageTag?: string }): JavaAppContainerResource;
-  /**
-   * Adds a Java application to the application model. Executes the containerized Java app.
-   */
-
-  addJavaContainerApp(name: string, image: string, imageTag?: string): JavaAppContainerResource;
   /**
    * Adds an Nx monorepo workspace to the distributed application builder.
    */
@@ -197554,16 +197286,6 @@ export interface IDistributedApplicationBuilder {
 
   addMeilisearch(name: string, masterKey?: string | ParameterResource, port?: number): MeilisearchResource;
   /**
-   * Adds a MinIO container to the application model. The default image is "minio/minio" and the tag is "latest".
-   */
-
-  addMinioContainer(name: string, options?: { rootUser?: string | ParameterResource; rootPassword?: string | ParameterResource; port?: number }): MinioContainerResource;
-  /**
-   * Adds a MinIO container to the application model. The default image is "minio/minio" and the tag is "latest".
-   */
-
-  addMinioContainer(name: string, rootUser?: string | ParameterResource, rootPassword?: string | ParameterResource, port?: number): MinioContainerResource;
-  /**
    * Adds a Mosquitto container resource to the application. Mosquitto is an open source MQTT message broker, so the resource can be referenced by any MQTT client integration.
    */
 
@@ -197653,11 +197375,6 @@ export interface IDistributedApplicationBuilder {
 
   addPowerShell(name: string, languageMode?: string, minRunspaces?: number, maxRunspaces?: number): PowerShellRunspacePoolResource;
   /**
-   * Adds a Streamlit application to the application model.
-   */
-
-  addStreamlitApp(name: string, appDirectory: string, scriptPath: string): StreamlitAppResource;
-  /**
    * Adds a RavenDB server resource to the application model. A container is used for local development. This overload simplifies the configuration by creating an unsecured RavenDB server resource with default settings.
    */
 
@@ -197672,26 +197389,6 @@ export interface IDistributedApplicationBuilder {
    */
 
   addRedPanda(name: string, port?: number): RedPandaServerResource;
-  /**
-   * Adds a Rust application to the application model, using the bacon cli.
-   */
-
-  addBaconApp(name: string, workingDirectory: string, options?: { args?: string[] }): RustAppExecutableResource;
-  /**
-   * Adds a Rust application to the application model, using the bacon cli.
-   */
-
-  addBaconApp(name: string, workingDirectory: string, args?: string[]): RustAppExecutableResource;
-  /**
-   * Adds a Rust application to the application model, using the cargo cli.
-   */
-
-  addRustApp(name: string, workingDirectory: string, options?: { args?: string[] }): RustAppExecutableResource;
-  /**
-   * Adds a Rust application to the application model, using the cargo cli.
-   */
-
-  addRustApp(name: string, workingDirectory: string, args?: string[]): RustAppExecutableResource;
   /**
    * Adds a RustFs container to the application model. The default image is "rustfs/rustfs".
    */
@@ -218662,11 +218359,6 @@ export interface BunAppResource {
 
   withYarn(install?: boolean, installArgs?: string[]): this;
   /**
-   * Ensures the Bun packages are installed before the application starts using Bun as the package manager.
-   */
-
-  withBunPackageInstallation(): this;
-  /**
    * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
    */
 
@@ -220222,21 +219914,6 @@ export interface ContainerResource {
 
   withFlociGcpReference(floci: FlociGcpContainerResource): this;
   /**
-   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
-   */
-
-  withJvmArgs(args: string[]): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(options?: { agentPath?: string }): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(agentPath?: string): this;
-  /**
    * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
    */
 
@@ -221193,21 +220870,6 @@ export interface CSharpAppResource {
    */
 
   withFlociGcpReference(floci: FlociGcpContainerResource): this;
-  /**
-   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
-   */
-
-  withJvmArgs(args: string[]): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(options?: { agentPath?: string }): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(agentPath?: string): this;
   /**
    * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
    */
@@ -222287,21 +221949,6 @@ export interface DotnetToolResource {
 
   withFlociGcpReference(floci: FlociGcpContainerResource): this;
   /**
-   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
-   */
-
-  withJvmArgs(args: string[]): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(options?: { agentPath?: string }): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(agentPath?: string): this;
-  /**
    * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
    */
 
@@ -223049,21 +222696,6 @@ export interface ExecutableResource {
    */
 
   withFlociGcpReference(floci: FlociGcpContainerResource): this;
-  /**
-   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
-   */
-
-  withJvmArgs(args: string[]): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(options?: { agentPath?: string }): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(agentPath?: string): this;
   /**
    * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
    */
@@ -224728,21 +224360,6 @@ export interface IResourceWithEnvironment {
 
   withFlociGcpReference(floci: FlociGcpContainerResource): this;
   /**
-   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
-   */
-
-  withJvmArgs(args: string[]): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(options?: { agentPath?: string }): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(agentPath?: string): this;
-  /**
    * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
    */
 
@@ -224810,44 +224427,6 @@ export interface IServiceProvider {
    */
 
   getUserSecretsManager(): IUserSecretsManager;
-}
-
-// augments handle type JavaAppContainerResource with extension methods
-export interface JavaAppContainerResource {
-  /**
-   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
-   */
-
-  withJvmArgs(args: string[]): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(options?: { agentPath?: string }): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(agentPath?: string): this;
-}
-
-// augments handle type JavaAppExecutableResource with extension methods
-export interface JavaAppExecutableResource {
-  /**
-   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
-   */
-
-  withJvmArgs(args: string[]): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(options?: { agentPath?: string }): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(agentPath?: string): this;
 }
 
 // augments handle type JavaAppResource with extension methods
@@ -228308,21 +227887,6 @@ export interface ProjectResource {
    */
 
   withFlociGcpReference(floci: FlociGcpContainerResource): this;
-  /**
-   * Configures the Java Virtual Machine arguments for the Java application. The arguments are set via the `JAVA_TOOL_OPTIONS` environment variable, which is recognized by the JVM regardless of how the application is launched (e.g., `java -jar`, Maven wrapper, or Gradle wrapper).
-   */
-
-  withJvmArgs(args: string[]): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(options?: { agentPath?: string }): this;
-  /**
-   * Configures the OpenTelemetry Java Agent for the Java application.
-   */
-
-  withOtelAgent(agentPath?: string): this;
   /**
    * Configures a non-container resource to reference the Kind cluster by injecting kubeconfig environment variables.
    */

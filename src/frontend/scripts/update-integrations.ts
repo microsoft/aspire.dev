@@ -17,6 +17,7 @@ const COMMUNITY_TOOLKIT_QUERIES = ['CommunityToolkit.Aspire'];
 const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
   'Aspire.Hosting.Azure.AIFoundry',
+  'Aspire.Hosting.GitHub.Models',
   'Aspire.Hosting.IncrementalMigration',
   'Aspire.Hosting.NodeJs',
   'Aspire.Hosting.Testing',
@@ -24,9 +25,16 @@ const EXCLUDED_PACKAGES = [
   'Aspire.MongoDB.Driver.v3',
   'Aspire.RabbitMQ.Client.v7',
   'CommunityToolkit.Aspire.Hosting.Azure.StaticWebApps',
+  'CommunityToolkit.Aspire.Hosting.Bun',
+  'CommunityToolkit.Aspire.Hosting.Dapr.AzureRedis',
   'CommunityToolkit.Aspire.Hosting.EventStore',
   'CommunityToolkit.Aspire.Hosting.Golang',
+  'CommunityToolkit.Aspire.Hosting.Java',
+  'CommunityToolkit.Aspire.Hosting.Minio',
+  'CommunityToolkit.Aspire.Hosting.Python.Extensions',
+  'CommunityToolkit.Aspire.Hosting.Rust',
   'CommunityToolkit.Aspire.EventStore',
+  'CommunityToolkit.Aspire.Minio.Client',
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
 const DOCS_OUTPUT_PATH = './src/data/integration-docs.json';
