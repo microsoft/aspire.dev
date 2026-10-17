@@ -14,7 +14,6 @@ export interface CatalogDoc {
   data: {
     title: string;
     description?: string;
-    slug?: string;
     category?: string;
     topic?: string;
     draft?: boolean;
@@ -80,8 +79,7 @@ export function isEnglishResourcePath(value: string): boolean {
 
 /** Starlight's content ID already includes a frontmatter slug override. */
 export function docHref(doc: CatalogDoc): string {
-  const slug = doc.data.slug ?? doc.id;
-  const path = routePath(slug);
+  const path = routePath(doc.id);
   return path ? `/${path}/` : '/';
 }
 

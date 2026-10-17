@@ -1,5 +1,6 @@
 ﻿// @ts-check
 import { defineConfig } from 'astro/config';
+import { fileURLToPath } from 'node:url';
 import { unified } from '@astrojs/markdown-remark';
 import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
@@ -22,6 +23,8 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import buildTiming from './config/build-timing.mjs';
+import { loadIncrementalBuildSettings } from './config/incremental-build.mjs';
+import { pagefindManifestIntegration } from './config/pagefind-manifest.mjs';
 import UnoCSS from 'unocss/astro';
 import Icons from 'starlight-plugin-icons';
 
@@ -29,6 +32,12 @@ const modeArgIndex = process.argv.indexOf('--mode');
 const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
 const outDir = process.env.ASTRO_OUT_DIR;
 const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
+const isIncrementalBuild =
+  process.env.ASPIRE_INCREMENTAL_BUILD === '1' && process.argv.includes('build');
+const mode = modeArgIndex >= 0 ? process.argv[modeArgIndex + 1] : 'production';
+const incremental = isIncrementalBuild
+  ? await loadIncrementalBuildSettings(new URL('.', import.meta.url), mode)
+  : undefined;
 const siteDescription = aspireProject.description;
 
 // Under `aspire run` the frontend dev server (Vite) and StaticHost are separate
@@ -54,34 +63,19 @@ const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
 // https://astro.build/config
 export default defineConfig({
-  cacheDir: './node_modules/.astro',
+  cacheDir: incremental ? fileURLToPath(incremental.cacheDir) : './node_modules/.astro',
   ...(outDir ? { outDir } : {}),
-  vite: {
-    define: {
-      // Resolve filesystem-backed redirects before prerender modules are bundled.
-      __ASPIRE_REDIRECT_PATHS__: JSON.stringify(Object.keys(redirects)),
-    },
-    ...(staticHostUrl
-      ? {
-          server: {
-            proxy: {
-              // Bypass Astro's trailing-slash routing for JSON and SSE.
-              '^/api/live(?:/.*)?$': {
-                target: staticHostUrl,
-                changeOrigin: true,
-                secure: false,
-              },
-            },
-          },
-        }
-      : {}),
-  },
+  ...(incremental ? { experimental: { incrementalBuild: true } } : {}),
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',
   markdown: {
     processor: unified({
-      remarkPlugins: [remarkTypeScriptFirstAppHostTabs, remarkAspireVersionPlaceholders, remarkMermaid],
+      remarkPlugins: [
+        remarkTypeScriptFirstAppHostTabs,
+        remarkAspireVersionPlaceholders,
+        remarkMermaid,
+      ],
     }),
   },
   redirects: redirects,
@@ -106,10 +100,7 @@ export default defineConfig({
         favicon: 'favicon.svg',
         head: headAttrs,
         social: socialConfig,
-        customCss: [
-          'starlight-plugin-icons/styles/main.css',
-          './src/styles/site.css',
-        ],
+        customCss: ['starlight-plugin-icons/styles/main.css', './src/styles/site.css'],
         components: {
           Banner: './src/components/starlight/Banner.astro',
           EditLink: './src/components/starlight/EditLink.astro',
@@ -154,9 +145,13 @@ export default defineConfig({
             errorOnRelativeLinks: false,
             errorOnFallbackPages: false,
             exclude: [
-              '/i18n/', '/reference/api', '/reference/api/**',
+              '/i18n/',
+              '/reference/api',
+              '/reference/api/**',
               // Custom Astro destinations checked by the Dev Hub browser tests.
-              '/hub/', '/hub/glossary/ats/', '/get-started/glossary/#polyglot',
+              '/hub/',
+              '/hub/glossary/ats/',
+              '/get-started/glossary/#polyglot',
             ],
           }),
           starlightGitHubAlerts(),
@@ -236,8 +231,39 @@ export default defineConfig({
     }),
     ...(isBuildTimingEnabled ? [buildTiming()] : []),
     aspireVersionPlaceholdersIntegration(),
+    ...(!isSkipSearchBuild ? [pagefindManifestIntegration()] : []),
+    ...(incremental ? [incremental.integration] : []),
   ],
   build: {
     concurrency: buildConcurrency,
+  },
+  vite: {
+    define: {
+      // Resolve filesystem-backed redirects before prerender modules are bundled.
+      __ASPIRE_REDIRECT_PATHS__: JSON.stringify(Object.keys(redirects)),
+      ...(incremental?.define ?? {}),
+    },
+    ...(incremental
+      ? {
+          plugins: [
+            incremental.privateIdentityPlugin,
+            ...(incremental.dependencyDiagnostics ? [incremental.dependencyDiagnostics] : []),
+          ],
+        }
+      : {}),
+    ...(staticHostUrl
+      ? {
+          server: {
+            proxy: {
+              // Bypass Astro's trailing-slash routing for JSON and SSE.
+              '^/api/live(?:/.*)?$': {
+                target: staticHostUrl,
+                changeOrigin: true,
+                secure: false,
+              },
+            },
+          },
+        }
+      : {}),
   },
 });

@@ -16,22 +16,15 @@ type Props = BaseProps &
 
 const { src, light, dark, alt, ...rest } = Astro.props as Props;
 const image = src ?? dark;
-// A per-component unique id so multiple LoopingImage instances can coexist safely
-const uid = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
 // Get image dimensions for placeholder
 const width = image.width;
 const height = image.height;
 ---
 
-<div
-  class="looping-image-wrapper not-content"
-  data-looping-image-id={uid}
-  data-themed-animation={light ? '' : undefined}
->
+<div class="looping-image-wrapper not-content" data-themed-animation={light ? '' : undefined}>
   <img
     class="looping-image-placeholder"
-    data-looping-image-id={uid}
     data-width={width}
     data-height={height}
     alt=""
@@ -45,47 +38,44 @@ const height = image.height;
     data-light-src={light?.src}
     data-dark-src={dark?.src}
     alt={alt}
-    data-looping-image-id={uid}
     width={width}
     height={height}
     {...rest}
   />
-  <canvas
-    class="looping-image-canvas not-content"
-    data-looping-image-id={uid}
-    style="display: none;"></canvas>
+  <canvas class="looping-image-canvas not-content" style="display: none;"></canvas>
   <button
     type="button"
     class="looping-image-toggle"
     aria-label="Pause animation"
     data-state="playing"
-    data-looping-image-id={uid}
     style="display: none;"
   >
-    <span class="icon icon-pause" aria-hidden="true"><PauseIcon width="80" height="80" /></span>
-    <span class="icon icon-play" aria-hidden="true"><PlayIcon width="80" height="80" /></span>
+    <span class="icon icon-pause" aria-hidden="true">
+      <PauseIcon width="80" height="80" />
+    </span>
+    <span class="icon icon-play" aria-hidden="true">
+      <PlayIcon width="80" height="80" />
+    </span>
     <span class="sr-only">Pause animation</span>
   </button>
 </div>
 
-{
-  light && (
-    <noscript>
-      <style
-        is:inline
-        set:html=".looping-image-wrapper[data-themed-animation] { display: none; }"
-      />
-      <img
-        class="looping-image-fallback"
-        src={light.src}
-        alt={alt}
-        width={width}
-        height={height}
-        {...rest}
-      />
-    </noscript>
-  )
-}
+{light && (
+  <noscript>
+    <style
+      is:inline
+      set:html=".looping-image-wrapper[data-themed-animation] { display: none; }"
+    ></style>
+    <img
+      class="looping-image-fallback"
+      src={light.src}
+      alt={alt}
+      width={width}
+      height={height}
+      {...rest}
+    />
+  </noscript>
+)}
 
 <script>
   // @ts-nocheck -- Client-side DOM manipulation with runtime casts; suppress to avoid implicit any noise.

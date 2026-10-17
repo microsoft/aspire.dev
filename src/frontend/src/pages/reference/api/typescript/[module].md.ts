@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { apiCacheKey } from '@utils/api-build-cache';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
 import { renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
@@ -12,6 +13,7 @@ type RouteProps = {
 };
 
 type StaticPath = {
+  cacheKey?: string;
   params: { module: string };
   props: RouteProps;
 };
@@ -20,6 +22,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   const packages = await getTsModules();
 
   return packages.map((entry) => ({
+    cacheKey: apiCacheKey(entry.data),
     params: { module: tsModuleSlug(entry.data.package.name) },
     props: {
       pkg: entry.data,

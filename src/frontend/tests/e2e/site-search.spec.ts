@@ -3,8 +3,7 @@ import { dismissCookieConsentIfVisible, getSiteNavigationLink } from '@tests/e2e
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
-const require = createRequire(import.meta.url);
-const pagefindRequire = createRequire(require.resolve('@astrojs/starlight'));
+const pagefindRequire = createRequire(import.meta.resolve('@astrojs/starlight'));
 // Native prefix expansion can match an indexed "Z" for an unquoted nonsense
 // term. Exact-phrase syntax makes these tests exercise a genuinely empty search.
 const missingSearchQuery = '"zzzznonexistentcatalogquery"';

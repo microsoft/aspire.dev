@@ -1,6 +1,8 @@
 import { createRenderer } from 'astro-expressive-code';
+import { readFileSync } from 'node:fs';
 import { selectAll } from 'hast-util-select';
-import { describe, expect, test } from 'vitest';
+import { toHtml } from 'hast-util-to-html';
+import { describe, expect, test, vi } from 'vitest';
 import ecConfig from '../../ec.config.mjs';
 
 describe('two-slash site-owned popup runtime', () => {
@@ -30,15 +32,59 @@ describe('two-slash site-owned popup runtime', () => {
     expect(modules).toContain('clipboard');
   });
 
+  test('renders eventing code blocks consistently across repeated passes', async () => {
+    const source = readFileSync(
+      new URL('../../src/content/docs/app-host/eventing.mdx', import.meta.url),
+      'utf8'
+    ).replaceAll('\r\n', '\n');
+    const blocks = [...source.matchAll(/^```(\S+)([^\n]*)\n([\s\S]*?)^```$/gm)].map(
+      ([, language, meta, code]) => ({ language, meta: meta.trim(), code: code.trimEnd() })
+    );
+    const renderer = await createRenderer(ecConfig);
+    const render = async () =>
+      Promise.all(
+        blocks.map(async (block) => toHtml((await renderer.ec.render(block)).renderedGroupAst))
+      );
+    const first = await render();
+    for (let pass = 0; pass < 3; pass++) expect(await render()).toEqual(first);
+  });
+
+  test.each([
+    {
+      name: 'code',
+      code: 'function createBuilder(): IDistributedApplicationBuilder',
+      language: 'ts',
+      meta: '',
+    },
+    {
+      name: 'nested hover',
+      code: "import { createBuilder } from './.aspire/modules/aspire.mjs';\nconst builder = await createBuilder();",
+      language: 'ts',
+      meta: 'twoslash',
+    },
+  ])('does not truncate $name highlighting when the build runner is slow', async (block) => {
+    const renderer = await createRenderer(ecConfig);
+    const expected = toHtml((await renderer.ec.render(block)).renderedGroupAst);
+    let clock = Date.now();
+    const now = vi.spyOn(Date, 'now').mockImplementation(() => (clock += 1000));
+    try {
+      expect(toHtml((await renderer.ec.render(block)).renderedGroupAst)).toBe(expected);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
   test('concurrent SDK blocks retain typed hovers without sharing sample declarations', async () => {
     const renderer = await createRenderer(ecConfig);
-    const rendered = await Promise.all(['Redis', 'Postgres'].map((resource) =>
-      renderer.ec.render({
-        code: `import { createBuilder } from './.aspire/modules/aspire.mjs';\nconst builder = await createBuilder();\nconst resource = await builder.add${resource}('resource');`,
-        language: 'typescript',
-        meta: 'twoslash',
-      }),
-    ));
+    const rendered = await Promise.all(
+      ['Redis', 'Postgres'].map((resource) =>
+        renderer.ec.render({
+          code: `import { createBuilder } from './.aspire/modules/aspire.mjs';\nconst builder = await createBuilder();\nconst resource = await builder.add${resource}('resource');`,
+          language: 'typescript',
+          meta: 'twoslash',
+        })
+      )
+    );
     for (const result of rendered) {
       expect(selectAll('.twoslash-hover', result.renderedGroupAst).length).toBeGreaterThan(0);
       expect(selectAll('.twoslash-error-box', result.renderedGroupAst)).toEqual([]);

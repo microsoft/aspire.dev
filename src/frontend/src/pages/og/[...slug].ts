@@ -6,6 +6,7 @@ import {
   shouldSkipDynamicOgImage,
 } from '@utils/page-metadata';
 import { renderOgImagePng } from '@utils/og-image-renderer';
+import { ogCacheKey } from '@utils/og-build-cache';
 import { getTopicForEntry } from '@utils/topic-resolver';
 
 /**
@@ -35,7 +36,7 @@ interface OgEntryProps {
 
 export async function getStaticPaths() {
   const docs = await getCollection('docs');
-  const paths: Array<{ params: { slug: string }; props: OgEntryProps }> = [];
+  const paths: Array<{ params: { slug: string }; props: OgEntryProps; cacheKey?: string }> = [];
 
   for (const entry of docs) {
     if (!isDefaultLocaleEntry(entry.id)) continue;
@@ -57,15 +58,17 @@ export async function getStaticPaths() {
 
     const topic = getTopicForEntry(contentBasePath);
 
+    const props: OgEntryProps = {
+      title: entry.data.title,
+      description: entry.data.description,
+      topicId: topic.id,
+      topicLabel: topic.label,
+      topicIconSvg: topic.iconSvg,
+    };
     paths.push({
       params: { slug: `${contentBasePath}.png` },
-      props: {
-        title: entry.data.title,
-        description: entry.data.description,
-        topicId: topic.id,
-        topicLabel: topic.label,
-        topicIconSvg: topic.iconSvg,
-      },
+      props,
+      cacheKey: ogCacheKey(props, [props.title, props.description, props.topicLabel].join('\n')),
     });
   }
 

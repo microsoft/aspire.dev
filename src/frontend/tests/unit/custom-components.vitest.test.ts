@@ -99,37 +99,80 @@ type BasicRenderCase = {
 };
 
 it.each([
+  {
+    name: 'LoopingImage',
+    Component: LoopingImage,
+    props: { src: heroImage, alt: 'Looping image' },
+  },
+  {
+    name: 'LoopingVideo',
+    Component: LoopingVideo,
+    props: { sources: [{ src: '/demo.webm', type: 'video/webm' }] },
+  },
+])('$name renders deterministic media markup', async ({ Component, props }) => {
+  const first = await renderComponent(Component, { props });
+  const second = await renderComponent(Component, { props });
+  expect(second).toBe(first);
+});
+
+it.each([
   ['ResourceNotificationService', ['Resource', 'Notification', 'Service']],
   ['RedisResource.withModule', ['Redis', 'Resource.', 'with', 'Module']],
   ['SQLServerResource', ['SQL', 'Server', 'Resource']],
   ['IResourceBuilder<RedisResource>', ['I', 'Resource', 'Builder', '<Redis', 'Resource>']],
-])('identifiers expose readable wrap boundaries without changing their text: %s', async (text, parts) => {
-  const html = await renderComponent(ReadableText, { props: { text } });
-  const rendered = html.trim();
-  expect(rendered.replaceAll('<wbr>', '')).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
-  expect(rendered.split('<wbr>')).toEqual(parts.map((part) => part.replaceAll('<', '&lt;').replaceAll('>', '&gt;')));
-});
+])(
+  'identifiers expose readable wrap boundaries without changing their text: %s',
+  async (text, parts) => {
+    const html = await renderComponent(ReadableText, { props: { text } });
+    const rendered = html.trim();
+    expect(rendered.replaceAll('<wbr>', '')).toBe(
+      text.replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    );
+    expect(rendered.split('<wbr>')).toEqual(
+      parts.map((part) => part.replaceAll('<', '&lt;').replaceAll('>', '&gt;'))
+    );
+  }
+);
 
 it.each(['Install Aspire CLI', 'Aspire 13.6', '日本語', 'plain text <script>'])(
   'readable text preserves ordinary copy and escapes markup: %s',
   async (text) => {
     const html = await renderComponent(ReadableText, { props: { text } });
     expect(html).not.toContain('<script>');
-    expect(html.replaceAll('<wbr>', '').trim()).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+    expect(html.replaceAll('<wbr>', '').trim()).toBe(
+      text.replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    );
   }
 );
 
 it.each([
-  { Component: YouTubeEmbed, props: { videoId: 'test', title: null }, name: 'YouTube video player' },
-  { Component: TwitchEmbed, props: { channel: 'aspiredotdev', title: ' ' }, name: 'Twitch stream player' },
-])('media embeds retain an accessible name when the title is empty: $name', async ({ Component, props, name }) => {
-  expect(await renderComponent(Component, { props })).toContain(`aria-label="${name}"`);
-});
+  {
+    Component: YouTubeEmbed,
+    props: { videoId: 'test', title: null },
+    name: 'YouTube video player',
+  },
+  {
+    Component: TwitchEmbed,
+    props: { channel: 'aspiredotdev', title: ' ' },
+    name: 'Twitch stream player',
+  },
+])(
+  'media embeds retain an accessible name when the title is empty: $name',
+  async ({ Component, props, name }) => {
+    expect(await renderComponent(Component, { props })).toContain(`aria-label="${name}"`);
+  }
+);
 
 it('breadcrumbs retain the nearest linked parent and semantic current page', async () => {
-  const html = await renderComponent(Breadcrumb, { props: { crumbs: [
-    { label: 'Docs', href: '/docs/' }, { label: 'Reference' }, { label: 'Current type' },
-  ] } });
+  const html = await renderComponent(Breadcrumb, {
+    props: {
+      crumbs: [
+        { label: 'Docs', href: '/docs/' },
+        { label: 'Reference' },
+        { label: 'Current type' },
+      ],
+    },
+  });
   expect(html).toMatch(/class="bc-parent\b[^"]*" href="\/docs\/"/);
   expect(html).toMatch(/<ol class="bc-inline\b/);
   expect(html).not.toContain('<details');
@@ -138,11 +181,16 @@ it('breadcrumbs retain the nearest linked parent and semantic current page', asy
 });
 
 it.each([
-  ['en', 'Scroll to top'], ['fr', 'Retour en haut'], ['pt-BR', 'Voltar ao topo'],
-  ['zh-CN', '回到顶部'], ['es-ES', 'Ir arriba'], ['unknown', 'Scroll to top'],
+  ['en', 'Scroll to top'],
+  ['fr', 'Retour en haut'],
+  ['pt-BR', 'Voltar ao topo'],
+  ['zh-CN', '回到顶部'],
+  ['es-ES', 'Ir arriba'],
+  ['unknown', 'Scroll to top'],
 ])('ScrollToTop renders the existing label for %s', async (lang, label) => {
   const route = {
-    lang, editUrl: '',
+    lang,
+    editUrl: '',
     entry: { id: 'docs/test', slug: 'docs/test', filePath: '', data: {} },
   };
   const html = await renderComponent(ScrollToTop, { locals: { starlightRoute: route } });
@@ -319,23 +367,48 @@ const basicRenderCases: BasicRenderCase[] = [
     name: 'CatalogSearchActiveFilters preserves the localized label for its bundled renderer',
     Component: CatalogSearchActiveFilters,
     props: { label: 'Filtres actifs' },
-    includes: ['<catalog-search-active-filters', 'data-label="Filtres actifs"', 'data-labels="[]"', 'hidden'],
+    includes: [
+      '<catalog-search-active-filters',
+      'data-label="Filtres actifs"',
+      'data-labels="[]"',
+      'hidden',
+    ],
   },
   {
     name: 'InpageSearch keeps its API defaults',
     Component: InpageSearch,
-    props: { id: 'api', placeholder: 'Search API', kinds: ['class', 'interface'], defaultStatsText: '20 types' },
-    includes: ['id="api-search-input"', '<label class="search-sr-only', 'Search API', 'data-kind="class"', '20 types'],
+    props: {
+      id: 'api',
+      placeholder: 'Search API',
+      kinds: ['class', 'interface'],
+      defaultStatsText: '20 types',
+    },
+    includes: [
+      'id="api-search-input"',
+      '<label class="search-sr-only',
+      'Search API',
+      'data-kind="class"',
+      '20 types',
+    ],
   },
   {
     name: 'InpageSearch supports labeled discovery search and colored topic toggles',
     Component: InpageSearch,
     props: {
-      id: 'glossary', label: 'Find a term', placeholder: 'Try AppHost',
-      kinds: ['Foundations', 'Reference'], kindColors: { Foundations: 'var(--sl-color-purple)' },
+      id: 'glossary',
+      label: 'Find a term',
+      placeholder: 'Try AppHost',
+      kinds: ['Foundations', 'Reference'],
+      kindColors: { Foundations: 'var(--sl-color-purple)' },
       defaultStatsText: '32 terms',
     },
-    includes: ['<label class="search-field-label', 'Find a term', 'data-kind="Foundations"', '--filter-color: var(--sl-color-purple)', 'aria-pressed="false"'],
+    includes: [
+      '<label class="search-field-label',
+      'Find a term',
+      'data-kind="Foundations"',
+      '--filter-color: var(--sl-color-purple)',
+      'aria-pressed="false"',
+    ],
   },
   {
     name: 'CTABanner renders calls to action',
@@ -452,10 +525,7 @@ const basicRenderCases: BasicRenderCase[] = [
     name: 'Breadcrumb renders the shared Dev Hub logo',
     Component: Breadcrumb,
     props: {
-      crumbs: [
-        { label: 'Dev Hub', href: '/hub/', icon: 'dev-hub' },
-        { label: 'Glossary' },
-      ],
+      crumbs: [{ label: 'Dev Hub', href: '/hub/', icon: 'dev-hub' }, { label: 'Glossary' }],
     },
     includes: ['Dev Hub', '/hub/', 'M3.875 22.125', 'bc-inline'],
   },
@@ -497,7 +567,12 @@ const basicRenderCases: BasicRenderCase[] = [
     name: 'YouTubeEmbed renders a non-autoplaying playlist',
     Component: YouTubeEmbed,
     props: { playlistId: 'UUW_UJkc7RhM_NPcDXnOCfrQ', title: 'Aspire uploads' },
-    includes: ['youtube-nocookie.com/embed/videoseries', 'list=UUW_UJkc7RhM_NPcDXnOCfrQ', 'autoplay=0', 'Aspire uploads'],
+    includes: [
+      'youtube-nocookie.com/embed/videoseries',
+      'list=UUW_UJkc7RhM_NPcDXnOCfrQ',
+      'autoplay=0',
+      'Aspire uploads',
+    ],
   },
   {
     name: 'TwitchEmbed defers its URL until the browser hostname is known',
@@ -661,7 +736,13 @@ const basicRenderCases: BasicRenderCase[] = [
     name: 'LoopingImage renders paired animation sources and a no-script fallback',
     Component: LoopingImage,
     props: { light: heroImage, dark: heroImage, alt: 'Themed animated dashboard' },
-    includes: ['data-light-src=', 'data-dark-src=', 'data-themed-animation', '<noscript>', 'Pause animation'],
+    includes: [
+      'data-light-src=',
+      'data-dark-src=',
+      'data-themed-animation',
+      '<noscript>',
+      'Pause animation',
+    ],
   },
   {
     name: 'LoopingVideo renders sources and toggle button state',
@@ -1303,9 +1384,15 @@ describe('custom Astro component render coverage', () => {
     const html = normalizeHtml(
       await renderComponent(SampleGrid, {
         props: { samples: sampleGridSamples },
-        locals: { t: Object.assign((key: string) =>
-          enTranslations.catalogSearch[key.replace('catalogSearch.', '') as keyof typeof enTranslations.catalogSearch] ?? key,
-          { dir: () => 'ltr' as const }) },
+        locals: {
+          t: Object.assign(
+            (key: string) =>
+              enTranslations.catalogSearch[
+                key.replace('catalogSearch.', '') as keyof typeof enTranslations.catalogSearch
+              ] ?? key,
+            { dir: () => 'ltr' as const }
+          ),
+        },
       })
     );
 
@@ -1538,7 +1625,9 @@ describe('custom Astro component render coverage', () => {
     const { sampleDescriptionText } = await import('@utils/samples');
 
     expect(
-      sampleDescriptionText('Intro paragraph.\n\nSample | AppHost\n--- | ---\nC# basics | C#\n\nClosing paragraph.')
+      sampleDescriptionText(
+        'Intro paragraph.\n\nSample | AppHost\n--- | ---\nC# basics | C#\n\nClosing paragraph.'
+      )
     ).toBe('Intro paragraph.\n\nClosing paragraph.');
   });
 

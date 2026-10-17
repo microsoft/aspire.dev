@@ -196,6 +196,7 @@ function emitReport(samples, meta, kind = 'final') {
         totalCpuUserMs: totalUser,
         totalCpuSysMs: totalSys,
         totalCpuPct,
+        peakRssMB: process.resourceUsage().maxRSS / 1024,
       });
       appendFileSync(resolve(out), line + '\n');
     } catch (err) {

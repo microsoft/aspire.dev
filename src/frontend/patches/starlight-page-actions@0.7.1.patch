@@ -1,62 +1,31 @@
 diff --git a/components/Dropdown.astro b/components/Dropdown.astro
-index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe04644ab5 100644
+index c31f778410a76ce5187699e52d76ee7a88ad3c9a..5425648356ccb77ba5b91e7df4b4cb6b502b6062 100644
 --- a/components/Dropdown.astro
 +++ b/components/Dropdown.astro
-@@ -19,13 +19,13 @@ const { label, options, id } = Astro.props;
- const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
- ---
- 
+@@ -22,2 +22,2 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
 -<div class="dropdown" id={dropdownId}>
 -  <Button id="dropdown-toggle">
 +<div class="dropdown" id={dropdownId} data-page-action-dropdown>
 +  <Button id={`${dropdownId}-toggle`} aria-expanded="false" aria-controls={`${dropdownId}-menu`}>
-     <span>{label}</span>
-     <Icon name="down-caret" size="1rem" />
-   </Button>
- 
+@@ -28 +28 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
 -  <div id="dropdown-menu">
 +  <div id={`${dropdownId}-menu`} class="dropdown-menu" role="group" aria-label={label} hidden>
-     {
-       options.map((option) => {
-         const OptionIcon = option.icon;
-@@ -53,8 +53,8 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
-     position: relative;
-   }
- 
+@@ -56,2 +56,2 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
 -  #dropdown-menu {
 -    position: absolute;
 +  .dropdown-menu {
 +    position: fixed;
-     top: calc(100% + 0.5rem);
-     left: 0;
-     right: auto;
-@@ -68,9 +68,12 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
-       0 2px 4px -1px rgba(0, 0, 0, 0.2);
-     display: none;
-     z-index: 10;
+@@ -70,0 +71,3 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
 +    max-height: calc(100dvh - 2rem);
 +    overflow-y: auto;
 +    overscroll-behavior: contain;
-   }
- 
+@@ -73 +76 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
 -  #dropdown-menu.show {
 +  .dropdown-menu.show {
-     display: block;
-   }
- 
-@@ -159,7 +162,7 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
-   }
- 
-   @media (min-width: 425px) {
+@@ -162 +165 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
 -    #dropdown-menu {
 +    .dropdown-menu {
-       right: 0;
-       left: auto;
-       width: 236px;
-@@ -168,34 +171,66 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
- </style>
- 
- <script>
+@@ -171,18 +174,53 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
 -  const allDropdownIds = ["dropdown-0", "dropdown-1"];
 -
 -  const handleDropdownToggle = (dropdownId: string) => {
@@ -128,8 +97,7 @@ index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe
 +      root.addEventListener("focusout", (event) => {
 +        if (event.relatedTarget instanceof Node && !root.contains(event.relatedTarget)) close();
 +      }, { signal });
-     });
- 
+@@ -191,8 +229,3 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
 -    document.addEventListener("click", () => {
 -      dropdownMenu?.classList.remove("show");
 -    });
@@ -141,24 +109,22 @@ index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe
 +    document.addEventListener("click", () => closeAll.forEach((close) => close()), { signal });
 +    window.addEventListener("resize", () => closeAll.forEach((close) => close()), { signal });
 +  }
- 
+@@ -200 +233,3 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
 -  allDropdownIds.map((id) => handleDropdownToggle(id));
 +  initializeDropdowns();
 +  document.addEventListener("astro:page-load", initializeDropdowns);
 +  document.addEventListener("astro:before-swap", () => listeners?.abort());
- </script>
 diff --git a/components/PageActions.astro b/components/PageActions.astro
-index c431e5f8076182c5dbca12de6a441dbc30cf9c21..9d3c3f2a04e5a73fbb6127f56602632bd5bd45a3 100644
+index 1668dc7151da37d426d60986b5d9391897fc90cc..7b014824b71e2d50c14a1387075c270a2e11780b 100644
 --- a/components/PageActions.astro
 +++ b/components/PageActions.astro
-@@ -446,38 +446,48 @@ const shareOptions = [
- </style>
- 
- <script>
+@@ -449,3 +449,2 @@ const shareOptions = [
 -  const copyButtons = document.querySelectorAll<HTMLButtonElement>(
 -    '[data-page-action="copy-markdown"]'
 -  );
--
++  let listeners: AbortController | undefined;
++  const resetTimers = new Set<ReturnType<typeof setTimeout>>();
+@@ -453,12 +452,5 @@ const shareOptions = [
 -  copyButtons.forEach((copyButton) => {
 -    if (copyButton.dataset.pageActionReady === "true") return;
 -    copyButton.dataset.pageActionReady = "true";
@@ -171,31 +137,15 @@ index c431e5f8076182c5dbca12de6a441dbc30cf9c21..9d3c3f2a04e5a73fbb6127f56602632b
 -
 -        const currentPath = copyButton.dataset.path;
 -        const mdPath = `${currentPath}.md`;
--
--        const res = await fetch(mdPath);
--        const contentForClipboard = await res.text();
--
--        await navigator.clipboard.writeText(contentForClipboard);
--      } catch (error) {
--        console.error(error);
--        copyButtonClass = "error";
--      } finally {
--        copyButton.classList.add(copyButtonClass);
--        copyButton.disabled = false;
--
--        setTimeout(() => {
--          copyButton.classList.remove(copyButtonClass);
--        }, 3000);
--      }
-+  let listeners: AbortController | undefined;
-+  const resetTimers = new Set<ReturnType<typeof setTimeout>>();
-+
 +  function disposeCopyButtons() {
 +    listeners?.abort();
 +    resetTimers.forEach(clearTimeout);
 +    resetTimers.clear();
 +  }
-+
+@@ -466,3 +458,28 @@ const shareOptions = [
+-        const res = await fetch(mdPath);
+-        if (!res.ok) {
+-          throw new Error(`Failed to fetch Markdown: ${res.status}`);
 +  function initializeCopyButtons() {
 +    disposeCopyButtons();
 +    listeners = new AbortController();
@@ -224,25 +174,33 @@ index c431e5f8076182c5dbca12de6a441dbc30cf9c21..9d3c3f2a04e5a73fbb6127f56602632b
 +            }, 3000);
 +            resetTimers.add(timer);
 +          }
-+        }
+@@ -470,15 +487 @@ const shareOptions = [
+-
+-        const contentForClipboard = await res.text();
+-
+-        await navigator.clipboard.writeText(contentForClipboard);
+-      } catch (error) {
+-        console.error(error);
+-        copyButtonClass = "error";
+-      } finally {
+-        copyButton.classList.add(copyButtonClass);
+-        copyButton.disabled = false;
+-
+-        setTimeout(() => {
+-          copyButton.classList.remove(copyButtonClass);
+-        }, 3000);
+-      }
 +      }, { signal });
-     });
+@@ -486 +489,4 @@ const shareOptions = [
 -  });
 +  }
 +  initializeCopyButtons();
 +  document.addEventListener("astro:page-load", initializeCopyButtons);
 +  document.addEventListener("astro:before-swap", disposeCopyButtons);
- </script>
 diff --git a/overrides/PageTitle.astro b/overrides/PageTitle.astro
-index c88f3530ff02325bd1fb3d923e48da9729f14ee9..5ef5ffde253aac8a7fdcc6f0868cda002f1fa7c8 100644
+index 87cee3fd768596f069325f619ea72e58ff874c61..e08a713b7339d2cfc5e4d5c29e160b7637303e60 100644
 --- a/overrides/PageTitle.astro
 +++ b/overrides/PageTitle.astro
-@@ -4,7 +4,7 @@ import config from "virtual:config";
- import PageActions from "../components/PageActions.astro";
- ---
- 
+@@ -7 +7 @@ import PageActions from "../components/PageActions.astro";
 -<DefaultPageTitle />
 +{Astro.slots.has("title") ? <slot name="title" /> : <DefaultPageTitle />}
- {config.position === "page-title" && <PageActions />}
- {
-   config.position === "table-of-contents" && (

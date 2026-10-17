@@ -6,6 +6,7 @@ import sharp from 'sharp';
 
 import samplesJson from '@data/samples.json';
 import { renderOgImagePng } from '@utils/og-image-renderer';
+import { ogCacheKey } from '@utils/og-build-cache';
 import { DEFAULT_OG_IMAGE_HEIGHT, DEFAULT_OG_IMAGE_WIDTH } from '@utils/page-metadata';
 import {
   isThemeAwareSampleImage,
@@ -50,6 +51,7 @@ interface RouteProps {
 interface StaticPath {
   params: { sample: string };
   props: RouteProps;
+  cacheKey?: string;
 }
 
 /**
@@ -108,6 +110,16 @@ export function getStaticPaths(): StaticPath[] {
   return (samplesJson as Sample[]).map((sample) => ({
     params: { sample: sampleSlug(sample.name) },
     props: { sample },
+    cacheKey: ogCacheKey(
+      sample,
+      primaryThumbnail(sample.thumbnail)
+        ? ''
+        : [
+            sample.title,
+            sampleCardDescription(sample),
+            getTopicForEntry(`reference/samples/${sampleSlug(sample.name)}`).label,
+          ].join('\n')
+    ),
   }));
 }
 
