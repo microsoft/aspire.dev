@@ -698,6 +698,23 @@ describe('incremental compatibility and package keys', () => {
 });
 
 describe('whole-output equivalence', () => {
+  it('normalizes Rolldown asset handles in Astro incremental dependency hashes', async () => {
+    const source = await readFile(
+      join(
+        process.cwd(),
+        'node_modules',
+        'astro',
+        'dist',
+        'core',
+        'build',
+        'plugins',
+        'plugin-incremental.js'
+      ),
+      'utf8'
+    );
+    expect(source).toContain('import.meta.ROLLDOWN_FILE_URL_');
+  });
+
   it('keeps ordinary full-build controls distinct from the forced-clean oracle', () => {
     expect(buildArguments('clean')).toEqual(['build', '--mode', 'production', '--force']);
     expect(buildArguments('full')).toEqual(['build', '--mode', 'production']);

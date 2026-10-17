@@ -14,6 +14,7 @@ const cacheEpoch = 'api-v1';
 const assetPlaceholders = [
   /__ASTRO_ASSET_IMAGE__([\w$]+)__(?:_(.*?)__)?/g,
   /__VITE_ASSET__([\w$]+)__(?:\$_(.*?)__)?/g,
+  /import\.meta\.ROLLDOWN_FILE_URL_([\w$]+)/g,
 ];
 const fontsAddressDeclaration = /(?:const|let|var)\s+__ASTRO_FONTS_SERVER_ADDRESS__\s*=[^;]+;/;
 
