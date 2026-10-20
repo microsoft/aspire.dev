@@ -126,7 +126,7 @@ The program has three parts:
 
 1. `aspire.CreateBuilder()` connects to the AppHost server that the CLI starts and returns the builder.
 2. `AddRedis` and `AddGoApp` add resources. Each call returns a handle, so `WithReference`, `WaitFor`, and the other configuration methods chain onto it.
-3. `builder.Build()` creates the application, and `app.Run()` blocks until the AppHost stops. Both return an error, and the program also checks `builder.Err()`, which holds the first error recorded by a builder call.
+3. `builder.Build()` creates the application, and `app.Run()` blocks until the AppHost stops. Both return an error. Methods that add and configure resources return a handle instead of an error: the handle records the first failure, and `Err()` returns it. `builder.Err()` is the same check for the builder itself.
 
 ## aspire.config.json
 
@@ -204,6 +204,144 @@ aspire restore --apphost apphost.go
 ```
 
 Restore after you clone a repository, switch branches, or edit the `packages` section by hand. In CI, restore before any step that compiles the AppHost, such as `go build` or `go vet`.
+
+## Add integrations
+
+Use `aspire add` from the AppHost directory to add a hosting integration. The CLI adds the package to `aspire.config.json` and regenerates the Go SDK in `.aspire/modules/`:
+
+```bash title="Aspire CLI"
+aspire add postgresql
+```
+
+The `packages` section now lists the PostgreSQL integration:
+
+```json title="aspire.config.json" ins={5}
+{
+  "packages": {
+    "Aspire.Hosting.Go": "%ASPIRE_VERSION%",
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%",
+    "Aspire.Hosting.PostgreSQL": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+The regenerated SDK has an `AddPostgres` method. This AppHost adds a PostgreSQL server with one database and gives the API access to it:
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.AddRedis("cache")
+	db := builder.AddPostgres("postgres").AddDatabase("postgresdb")
+
+	api := builder.AddGoApp("api", "./api").
+		WithModTidy().
+		WithReference(cache).
+		WithReference(db).
+		WaitFor(cache).
+		WaitFor(db).
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithExternalHttpEndpoints().
+		WithOtlpExporter()
+
+	// Each call records its failure on the handle that it returns, so check every resource.
+	for _, resource := range []aspire.Resource{cache, db, api} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+- `AddPostgres` adds the PostgreSQL server, and `AddDatabase` returns a handle for a database on that server.
+- `WithReference(db)` passes the connection details to the API as environment variables named after the resource, such as `POSTGRESDB_URI`. See [Connect to PostgreSQL](/integrations/databases/postgres/postgres-connect/) for a Go example that reads them.
+- `WaitFor(db)` starts the API after the database is ready.
+- The loop checks each handle with `Err()` before `Build`, because a failed call records its error on the handle that it returns.
+
+## Orchestrate apps in other languages
+
+A Go AppHost can run resources written in other languages next to your Go apps. Add the integration for each language that you use. Python and Node.js must also be installed, because these resources run on your machine:
+
+```bash title="Aspire CLI"
+aspire add python
+aspire add javascript
+```
+
+This AppHost runs a Go API and a Python recommendation service that share a Redis cache, and a Vite frontend that calls both:
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.AddRedis("cache")
+
+	api := builder.AddGoApp("api", "./api").
+		WithReference(cache).
+		WaitFor(cache).
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+	recommender := builder.AddUvicornApp("recommender", "./recommender", "main:app").
+		WithReference(cache).
+		WaitFor(cache)
+
+	web := builder.AddViteApp("web", "./web").
+		WithReference(api).
+		WithReference(recommender).
+		WaitFor(api)
+
+	for _, resource := range []aspire.Resource{cache, api, recommender, web} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+- `AddUvicornApp` runs a Python ASGI app. The `main:app` argument names the Python module and the application object in it.
+- `AddViteApp` runs a Vite frontend. `AddUvicornApp` and `AddViteApp` already register an `http` endpoint that reads its port from `PORT`, so only the Go API calls `WithHttpEndpoint`.
+- `WithReference` and `WaitFor` work the same for every resource type. The frontend receives the endpoints of the API and the recommender, and it starts after the API is ready.
+
+<LearnMore>
+  See [Set up JavaScript apps in the AppHost](/integrations/frameworks/javascript/) and [Python integration](/integrations/frameworks/python/) for the options of each integration.
+</LearnMore>
 
 ## Debug a Go AppHost
 
