@@ -12,21 +12,39 @@ public static class Extensions
     /// </summary>
     public const string FrontDoorClientIpHeader = "X-Azure-ClientIP";
 
+    /// <summary>
+    /// Configuration key for the hosts honored in <c>X-Forwarded-Host</c>, separated by <c>;</c>
+    /// or <c>,</c> (for example <c>aspire.dev;*.aspire.dev</c>). The AppHost sets it for deployments.
+    /// Forwarded hosts are ignored when it is empty, as in local runs.
+    /// </summary>
+    public const string ForwardedHostsConfigKey = "ForwardedHeaders:AllowedHosts";
+
     public static TBuilder AddForwardedClientIp<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
-        builder.Services.Configure<ForwardedHeadersOptions>(static options =>
+        builder.Services.AddOptions<ForwardedHeadersOptions>().Configure<IConfiguration>(static (options, configuration) =>
         {
-            options.ForwardedHeaders |= ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost;
+            options.ForwardedHeaders |= ForwardedHeaders.XForwardedFor;
             options.ForwardedForHeaderName = FrontDoorClientIpHeader;
             options.ForwardLimit = 1;
+
             // Front Door calls the App Service origin with the origin's own host name and sends the
             // requested host in X-Forwarded-Host. Without it, absolute URLs (such as the trailing
             // slash redirect from UseDefaultFiles) and the download telemetry origin check use the
             // *.azurewebsites.net host instead of aspire.dev. The origin is also reachable
-            // directly, so only honor hosts this site serves.
-            options.AllowedHosts = ["aspire.dev", "*.aspire.dev"];
+            // directly, so only honor the configured hosts. The middleware treats an empty
+            // AllowedHosts as "any host", so leave the header off when nothing is configured.
+            var allowedHosts = configuration[ForwardedHostsConfigKey]?.Split(
+                [';', ','],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            if (allowedHosts is { Length: > 0 })
+            {
+                options.ForwardedHeaders |= ForwardedHeaders.XForwardedHost;
+                options.AllowedHosts = allowedHosts;
+            }
+
             // Front Door and App Service front-end addresses are not fixed. A request that
-            // bypasses Front Door can spoof this header, so use the value for telemetry and
+            // bypasses Front Door can spoof these headers, so use the values for telemetry and
             // diagnostics, not for authorization.
             options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();

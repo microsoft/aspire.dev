@@ -23,20 +23,38 @@ internal sealed class ForwardedHeadersTestServer : IAsyncDisposable
         _client = app.GetTestClient();
     }
 
+    /// <summary>
+    /// What the AppHost sets for deployments. The tests pin the key and value instead of
+    /// referencing StaticHost, because they are the contract between the two.
+    /// </summary>
+    public const string DeployedForwardedHosts = "aspire.dev;*.aspire.dev";
+
     /// <param name="frameworkForwardedHeaders">
     /// Mirrors ASPNETCORE_FORWARDEDHEADERS_ENABLED, which App Service and Aspire set in production.
     /// </param>
-    public static async Task<ForwardedHeadersTestServer> StartAsync(bool frameworkForwardedHeaders = false)
+    /// <param name="forwardedHosts">
+    /// The <c>ForwardedHeaders:AllowedHosts</c> value, set through the <c>ForwardedHeaders__AllowedHosts</c>
+    /// environment variable in deployments. Pass <see langword="null"/> to leave it unset, as in local runs.
+    /// </param>
+    public static async Task<ForwardedHeadersTestServer> StartAsync(
+        bool frameworkForwardedHeaders = false,
+        string? forwardedHosts = DeployedForwardedHosts)
     {
         var wwwroot = new TempWebRoot();
         try
         {
             wwwroot.WriteFile("docs/index.html", SamplePages.Html);
 
+            // An explicit value also overrides ASPNETCORE_FORWARDEDHEADERS_ENABLED in the environment.
+            var args = new List<string> { $"--FORWARDEDHEADERS_ENABLED={(frameworkForwardedHeaders ? "true" : "false")}" };
+            if (forwardedHosts is not null)
+            {
+                args.Add($"--ForwardedHeaders:AllowedHosts={forwardedHosts}");
+            }
+
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions
             {
-                // An explicit value also overrides ASPNETCORE_FORWARDEDHEADERS_ENABLED in the environment.
-                Args = [$"--FORWARDEDHEADERS_ENABLED={(frameworkForwardedHeaders ? "true" : "false")}"],
+                Args = [.. args],
                 ContentRootPath = wwwroot.Path,
                 WebRootPath = wwwroot.Path,
             });

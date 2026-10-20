@@ -25,6 +25,8 @@ public sealed class ForwardedHostTests
     [InlineData("www.aspire.dev", true)]
     [InlineData("dev.aspire.dev", false)]
     [InlineData("dev.aspire.dev", true)]
+    [InlineData("www.dev.aspire.dev", false)]
+    [InlineData("www.dev.aspire.dev", true)]
     public async Task Directory_redirect_uses_the_host_forwarded_by_front_door(
         string forwardedHost,
         bool frameworkForwardedHeaders)
@@ -70,6 +72,91 @@ public sealed class ForwardedHostTests
 
         Assert.Equal(HttpStatusCode.MovedPermanently, response.StatusCode);
         Assert.Equal($"https://{OriginHost}/docs/", response.Headers.Location?.OriginalString);
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData(null, true)]
+    [InlineData("", false)]
+    [InlineData(" ; , ", true)]
+    public async Task Forwarded_host_is_ignored_when_no_hosts_are_configured(
+        string? configuredHosts,
+        bool frameworkForwardedHeaders)
+    {
+        await using var server = await ForwardedHeadersTestServer.StartAsync(frameworkForwardedHeaders, configuredHosts);
+
+        using var response = await server.GetAsync(
+            $"https://{OriginHost}/docs",
+            forwardedHost: "aspire.dev");
+
+        Assert.Equal(HttpStatusCode.MovedPermanently, response.StatusCode);
+        Assert.Equal($"https://{OriginHost}/docs/", response.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
+    public async Task Client_ip_applies_when_no_hosts_are_configured()
+    {
+        await using var server = await ForwardedHeadersTestServer.StartAsync(forwardedHosts: null);
+
+        using var response = await server.GetAsync(
+            $"https://{OriginHost}/echo",
+            forwardedHost: "aspire.dev",
+            clientIp: "203.0.113.7");
+
+        Assert.Equal($"https://{OriginHost}|203.0.113.7", await response.Content.ReadAsStringAsync());
+    }
+
+    [Theory]
+    [InlineData("example.org", "example.org")]
+    [InlineData("example.org;www.example.org", "www.example.org")]
+    [InlineData("example.org, www.example.org", "www.example.org")]
+    [InlineData(" ;example.org; ", "example.org")]
+    [InlineData("*.example.org", "www.dev.example.org")]
+    public async Task Directory_redirect_honors_the_configured_hosts(string configuredHosts, string forwardedHost)
+    {
+        await using var server = await ForwardedHeadersTestServer.StartAsync(forwardedHosts: configuredHosts);
+
+        using var response = await server.GetAsync(
+            $"https://{OriginHost}/docs",
+            forwardedHost);
+
+        Assert.Equal(HttpStatusCode.MovedPermanently, response.StatusCode);
+        Assert.Equal($"https://{forwardedHost}/docs/", response.Headers.Location?.OriginalString);
+    }
+
+    [Theory]
+    [InlineData("example.org", "aspire.dev")]
+    [InlineData("*.example.org", "example.org")]
+    public async Task Directory_redirect_ignores_hosts_outside_the_configured_list(
+        string configuredHosts,
+        string forwardedHost)
+    {
+        await using var server = await ForwardedHeadersTestServer.StartAsync(forwardedHosts: configuredHosts);
+
+        using var response = await server.GetAsync(
+            $"https://{OriginHost}/docs",
+            forwardedHost);
+
+        Assert.Equal(HttpStatusCode.MovedPermanently, response.StatusCode);
+        Assert.Equal($"https://{OriginHost}/docs/", response.Headers.Location?.OriginalString);
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData(null, "localhost:8080")]
+    [InlineData(ForwardedHeadersTestServer.DeployedForwardedHosts, null)]
+    [InlineData(ForwardedHeadersTestServer.DeployedForwardedHosts, "localhost:8080")]
+    public async Task Localhost_requests_keep_the_request_host(string? configuredHosts, string? forwardedHost)
+    {
+        await using var server = await ForwardedHeadersTestServer.StartAsync(forwardedHosts: configuredHosts);
+
+        using var response = await server.GetAsync(
+            "http://localhost:5000/docs",
+            forwardedHost,
+            clientIp: null);
+
+        Assert.Equal(HttpStatusCode.MovedPermanently, response.StatusCode);
+        Assert.Equal("http://localhost:5000/docs/", response.Headers.Location?.OriginalString);
     }
 
     [Fact]

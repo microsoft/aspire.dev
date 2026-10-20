@@ -38,6 +38,8 @@ if (builder.ExecutionContext.IsRunMode)
 }
 else
 {
+    staticHostWebsite.WithProductionForwardedHosts(builder);
+
     var secrets = builder.AddAzureKeyVault("secrets");
     staticHostWebsite.WithProductionLiveStatus(builder, secrets);
 
