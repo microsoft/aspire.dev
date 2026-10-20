@@ -100,7 +100,7 @@ func main() {
 	//   - "ConnectionStrings__cache" so the API can dial Redis.
 	//   - "OTEL_EXPORTER_OTLP_*" env vars (via WithOtlpExporter) so traces,
 	//     metrics, and logs flow to the Aspire dashboard.
-	builder.AddGoApp("api", "./api").
+	api := builder.AddGoApp("api", "./api").
 		WithModTidy().
 		WithReference(cache).
 		WaitFor(cache).
@@ -108,8 +108,11 @@ func main() {
 		WithExternalHttpEndpoints().
 		WithOtlpExporter()
 
-	if err := builder.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
+	// Each call records its failure on the handle that it returns, so check every resource.
+	for _, resource := range []aspire.Resource{cache, api} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
 	}
 
 	app, err := builder.Build()
@@ -126,7 +129,7 @@ The program has three parts:
 
 1. `aspire.CreateBuilder()` connects to the AppHost server that the CLI starts and returns the builder.
 2. `AddRedis` and `AddGoApp` add resources. Each call returns a handle, so `WithReference`, `WaitFor`, and the other configuration methods chain onto it.
-3. `builder.Build()` creates the application, and `app.Run()` blocks until the AppHost stops. Both return an error. Methods that add and configure resources return a handle instead of an error: the handle records the first failure, and `Err()` returns it. `builder.Err()` is the same check for the builder itself. See [Go AppHost API conventions](/app-host/go-apphost-conventions/#errors) for how to check handles and format errors.
+3. A loop checks the handle of each resource with `Err()`, because a failed call records its error on the handle that it returns, not on the builder. `builder.Build()` creates the application, and `app.Run()` blocks until the AppHost stops. Both return an error. See [Go AppHost API conventions](/app-host/go-apphost-conventions/#errors) for how to check handles and format errors.
 
 ## aspire.config.json
 
