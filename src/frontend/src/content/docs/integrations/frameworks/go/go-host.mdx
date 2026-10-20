@@ -21,7 +21,7 @@ import ApiReference from '@components/ApiReference.astro';
   classOverride="float-inline-left icon"
 />
 
-This article is the reference for the Aspire Go hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to orchestrate Go applications in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Go hosting integration. It enumerates the AppHost APIs that you use to orchestrate Go applications in your [`AppHost`](/get-started/app-host/) project, with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go`.
 
 If you're new to the Go integration, start with the [Get started with the Go integration](/integrations/frameworks/go/go-get-started/) guide.
 
@@ -82,6 +82,28 @@ This updates your `aspire.config.json` with the Go hosting integration package:
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add go
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Go hosting integration package and regenerates the Go SDK in `.aspire/modules/`:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Go": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Migrate from the Community Toolkit package
@@ -127,7 +149,41 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	builder.AddGoApp("api", "./api").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8080), Env: aspire.StringPtr("PORT")}).
+		WithExternalHttpEndpoints()
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
+
+The other Go examples on this page show only the lines that go between `aspire.CreateBuilder()` and `builder.Build()`.
 
 The method accepts the following common parameters:
 
@@ -211,6 +267,16 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddGoApp("api", "./api", &aspire.AddGoAppOptions{
+	PackagePath: aspire.StringPtr("./cmd/server"),
+}).
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+```
+
+</TabItem>
 </Tabs>
 
 The same `packagePath` is used for local run mode, headless Delve debugging, and publish-time `go build`.
@@ -257,6 +323,19 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddGoApp("api", "./api", &aspire.AddGoAppOptions{
+	PackagePath:  aspire.StringPtr("./cmd/server"),
+	BuildTags:    []string{"netgo", "integration"},
+	LdFlags:      aspire.StringPtr("-X main.version=1.2.3 -s -w"),
+	GcFlags:      aspire.StringPtr("all=-N -l"),
+	RaceDetector: aspire.BoolPtr(true),
+})
+```
+
+</TabItem>
 </Tabs>
 
 The options map to Go command-line flags:
@@ -296,6 +375,15 @@ await api.withAppArgs(['--config', 'dev.yaml']);
 await api.withHttpEndpoint({ env: 'PORT' });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddGoApp("api", "./api").
+	WithAppArgs([]any{"--config", "dev.yaml"}).
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
 ```
 
 </TabItem>
@@ -339,6 +427,18 @@ await api.withVetTool();
 await api.withHttpEndpoint({ env: 'PORT' });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddGoApp("api", "./api").
+	WithModTidy().
+	WithModVendor().
+	WithModDownload().
+	WithVetTool().
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
 ```
 
 </TabItem>
@@ -398,6 +498,15 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddGoApp("api", "./api").
+	WithDelveServer().
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8080), Env: aspire.StringPtr("PORT")})
+```
+
+</TabItem>
 </Tabs>
 
 By default the Delve server accepts a single debugger client on port `2345`. To accept multiple
@@ -430,6 +539,19 @@ await api.withDelveServer({
     log: true,
     logOutput: 'rpc,dap,debugger',
 });
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddGoApp("api", "./api").
+	WithDelveServer(&aspire.DelveServerOptions{
+		AcceptMultiClient: aspire.BoolPtr(true),
+		ContinueOnStart:   aspire.BoolPtr(true),
+		Log:               aspire.BoolPtr(true),
+		LogOutput:         aspire.StringPtr("rpc,dap,debugger"),
+	})
 ```
 
 </TabItem>
@@ -503,6 +625,14 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddGoApp("api", "./api").
+	WithGoPrivate([]string{"github.com/myorg"}, "github.com")
+```
+
+</TabItem>
 </Tabs>
 
 <LearnMore>
@@ -510,25 +640,15 @@ await builder.build().run();
   overview](/deployment/overview/).
 </LearnMore>
 
-## Experimental Go AppHost templates
+## Write the AppHost in Go
 
-The `Aspire.Hosting.Go` integration can be used from C# and TypeScript AppHosts. Aspire also includes experimental Go AppHost and Go starter template support in the Aspire CLI. The Go AppHost templates use experimental Go AppHost APIs instead of the `Aspire.Hosting.Go` package. To enable Go AppHost language support for CLI templates, enable the Go feature flag:
-
-```bash title="Aspire CLI"
-aspire config set features:experimentalPolyglot:go true --global
-```
-
-After enabling the feature, you can create a Go starter app with:
-
-```bash title="Aspire CLI"
-aspire new aspire-go-starter
-```
+The `Aspire.Hosting.Go` integration works from C#, TypeScript, and Go AppHosts. A Go AppHost calls `AddGoApp` through the Go SDK that the Aspire CLI generates from your `aspire.config.json` file.
 
 <LearnMore>
-  For more information about feature flags, see [Aspire CLI
-  configuration](/reference/cli/configuration/#toggle-preview-feature-experiences).
-  For template command details, see [`aspire
-  new`](/reference/cli/commands/aspire-new/).
+  To create a Go AppHost, see [Get started with the Go
+  AppHost](/app-host/go-apphost/). For the Go error model and optional
+  parameters, see [Go AppHost API
+  conventions](/app-host/go-apphost-conventions/).
 </LearnMore>
 
 ## See also
@@ -536,5 +656,6 @@ aspire new aspire-go-starter
 - [Go documentation](https://go.dev/doc/)
 - [Delve debugger](https://github.com/go-delve/delve)
 - [Get started with the Go integration](/integrations/frameworks/go/go-get-started/)
+- [Get started with the Go AppHost](/app-host/go-apphost/)
 - [Aspire integrations overview](/integrations/overview/)
 - [Aspire GitHub repo](https://github.com/microsoft/aspire)
