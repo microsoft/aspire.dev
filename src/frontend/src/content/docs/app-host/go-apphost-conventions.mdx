@@ -14,7 +14,9 @@ Methods that add a resource, such as `AddRedis` and `AddGoApp`, return a _handle
 
 ## Optional parameters
 
-Optional parameters go in a trailing variadic options struct that is named after the method, such as `*aspire.WithHttpEndpointOptions`. Leave the argument out to use the defaults. The fields of an options struct are pointers, so a field that you don't set stays `nil`. Use `aspire.StringPtr`, `aspire.BoolPtr`, and `aspire.Float64Ptr` to create the values. Numeric fields are `*float64`.
+Optional parameters go in a trailing variadic options argument. Leave it out to use the defaults. The argument is usually a struct named `<Method>Options`, such as `*aspire.WithHttpEndpointOptions`. Methods with the same name share one struct when their optional parameters match. If they don't match, or if another type already has the name, the name starts with the type that defines the method, such as `*aspire.ExecutableResourceWithVolumeOptions` for `WithVolume` on a Go app. A few methods take an existing type instead, such as `*aspire.DelveServerOptions` for `WithDelveServer`, and that type declares its own field types.
+
+In a `<Method>Options` struct, scalar fields (string, number, bool, and enum) are pointers, so a field that you don't set stays `nil`. Use `aspire.StringPtr`, `aspire.BoolPtr`, and `aspire.Float64Ptr` to create the values. Numeric fields are `*float64`. Slice, map, callback, and `any` fields can already be `nil`, so they aren't pointers. For example, `AddGoAppOptions.BuildTags` is a `[]string`.
 
 ```go title="apphost.go"
 builder.AddGoApp("api", "./api").
