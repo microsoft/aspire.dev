@@ -166,9 +166,13 @@ func main() {
 		log.Fatal(aspire.FormatError(err))
 	}
 
-	builder.AddGoApp("api", "./api").
+	api := builder.AddGoApp("api", "./api").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.Float64Ptr(8080), Env: aspire.StringPtr("PORT")}).
 		WithExternalHttpEndpoints()
+
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
 
 	app, err := builder.Build()
 	if err != nil {
