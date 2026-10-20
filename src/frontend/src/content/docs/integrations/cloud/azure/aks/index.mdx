@@ -67,7 +67,7 @@ When an AKS environment is present, all compute resources are automatically depl
 
 ## Configure the system node pool
 
-Customize the system node pool VM size and scaling using <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.WithSystemNodePool" />:
+Customize the system node pool VM size, scaling, and OS SKU using <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.WithSystemNodePool" />. The C# parameter overload remains supported for VM size and scaling:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -79,14 +79,48 @@ builder.AddAzureKubernetesEnvironment("aks")
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
-await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
+await aks.withSystemNodePool(async pool => {
+    pool.vmSize = 'Standard_D4s_v5';
+    pool.minCount = 1;
+    pool.maxCount = 5;
+});
 ```
 </TabItem>
 </Tabs>
 
+To configure the OS SKU, use the configuration callback overload. The callback receives an <ApiReference name="Aspire.Hosting.Azure.Kubernetes.AksNodePoolConfig" /> with a default VM size of `Standard_D2s_v5` and an autoscaling range of 1-3 nodes:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+    .WithSystemNodePool(pool =>
+    {
+        pool.VmSize = "Standard_D2as_v5";
+        pool.OsSku = "AzureLinux";
+    });
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+await aks.withSystemNodePool(async pool => {
+    pool.vmSize = 'Standard_D2as_v5';
+    pool.osSku = 'AzureLinux';
+});
+```
+</TabItem>
+</Tabs>
+
+Leaving `OsSku`/`osSku` unset omits it from the generated Bicep and preserves the AKS default. Values such as `AzureLinux` and `Ubuntu` select the OS SKU, not a specific OS image version; Azure validates availability and compatibility for the node pool. Changing the OS SKU of an existing pool can reimage nodes and disrupt workloads — see the [AKS OS SKU migration guidance](https://learn.microsoft.com/azure/aks/upgrade-os-version). Each `WithSystemNodePool`/`withSystemNodePool` call replaces the previous system pool configuration, including its OS SKU.
+
+<Aside type="caution">
+  TypeScript, Java, and Python AppHosts must use the configuration callback overload shown above. The scalar-options overloads (for example, `await aks.withSystemNodePool({ vmSize: 'Standard_D4s_v5' })`) are no longer supported for these languages. Existing parameter-based C# calls are unaffected.
+</Aside>
+
 ## Add node pools
 
-Add additional node pools for workload isolation, GPU workloads, or specialized hardware requirements using <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.AddNodePool" />:
+Add additional node pools for workload isolation, GPU workloads, or specialized hardware requirements using <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.AddNodePool" />. The C# parameter overload remains supported:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -101,13 +135,47 @@ builder.AddContainer("ml-worker", "my-ml-image")
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
-const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
+const gpuPool = await aks.addNodePool('gpupool', async pool => {
+    pool.vmSize = 'Standard_NC6s_v3';
+    pool.minCount = 0;
+    pool.maxCount = 5;
+});
 
 const worker = await builder.addContainer('ml-worker', 'my-ml-image');
 await worker.withNodePool(gpuPool);
 ```
 </TabItem>
 </Tabs>
+
+Use the configuration callback overload to also set the OS SKU:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var workers = aks.AddNodePool("workers", pool =>
+{
+    pool.MinCount = 0;
+    pool.MaxCount = 5;
+    pool.OsSku = "AzureLinux";
+});
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const workers = await aks.addNodePool('workers', async pool => {
+    pool.minCount = 0;
+    pool.maxCount = 5;
+    pool.osSku = 'AzureLinux';
+});
+```
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  TypeScript, Java, and Python AppHosts must use the configuration callback overload for `AddNodePool`/`addNodePool`. The scalar-options overloads (for example, `await aks.addNodePool('workers', { minCount: 0 })`) are no longer supported for these languages. Existing parameter-based C# calls are unaffected.
+</Aside>
+
+The C# callback receives the configuration stored in the app model, not a copy. Extensions can compose further changes through the retained configuration (or `workers.Resource.Config`) until infrastructure generation, when the final values are validated and applied to the generated Bicep. Later mutations don't change artifacts that were already generated.
 
 ## Add a persistent volume
 
