@@ -1,0 +1,221 @@
+---
+title: Get started with the Go AppHost
+seoTitle: Get started with the Aspire Go AppHost and generated SDK
+description: Create an Aspire Go AppHost with the Aspire CLI, learn the project layout and generated SDK, add integrations, and orchestrate apps in other languages.
+---
+
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
+import LearnMore from '@components/LearnMore.astro';
+
+:::caution[Enable Go AppHost support]
+Go AppHost support is controlled by the `experimentalPolyglotGo` feature flag. Turn it on before you create or run a Go AppHost:
+
+```bash title="Aspire CLI"
+aspire config set features.experimentalPolyglotGo true --global
+```
+
+To enable it for a single AppHost, add `"features": { "experimentalPolyglotGo": true }` to its `aspire.config.json` file.
+:::
+
+A Go AppHost is a Go program that defines the resources in your application and how they connect. It uses the same app model as a C# AppHost, through a Go SDK that the Aspire CLI generates from the hosting integrations you install.
+
+## Prerequisites
+
+- [Go](https://go.dev/dl/) 1.26 or later, with `go` on your `PATH`
+- The [Aspire CLI](/get-started/install-cli/)
+- A container runtime for the Redis container in the starter template. See [Aspire prerequisites](/get-started/prerequisites/) for the supported options.
+
+## Create a Go AppHost
+
+Create a new app from the Go starter template:
+
+```bash title="Aspire CLI"
+aspire new aspire-go-starter -n aspire-app -o aspire-app
+```
+
+The template creates a Go AppHost, a Go API that uses a Redis cache, and the generated SDK. To choose from the templates that support Go, run `aspire new --language go` instead.
+
+<LearnMore>
+  See the [`aspire new` command reference](/reference/cli/commands/aspire-new/) for all options.
+</LearnMore>
+
+The project has the following structure:
+
+<FileTree>
+
+- aspire-app/
+  - .aspire/modules/  Generated Go SDK (do not edit)
+    - aspire.go
+    - base.go
+    - go.mod
+    - transport.go
+  - api/  Go API that the AppHost runs
+    - go.mod
+    - main.go
+    - telemetry.go
+  - apphost.go  Your AppHost entry point
+  - aspire.config.json  Aspire configuration
+  - go.mod  Go module for the AppHost
+
+</FileTree>
+
+## Run the AppHost
+
+From the project directory, start the AppHost with the Aspire CLI:
+
+```bash title="Aspire CLI"
+aspire run
+```
+
+The CLI regenerates the SDK when the `packages` list has changed, starts the AppHost with `go run .`, and prints the dashboard URL. Open the dashboard to see the `cache` and `api` resources with their logs, traces, and metrics.
+
+:::note
+Always start the AppHost with `aspire run`. The CLI sets the environment variables that the SDK uses to connect to the AppHost server, so running `go run .` on its own fails with `REMOTE_APP_HOST_SOCKET_PATH environment variable not set`.
+:::
+
+## apphost.go
+
+The AppHost is a `package main` Go program. The starter template defines a Redis cache and a Go API that references it:
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// A Redis cache the API will use for read-through caching.
+	cache := builder.AddRedis("cache")
+
+	// The Go HTTP API. WithModTidy runs "go mod tidy" before launching so that
+	// go.sum is always up to date. Aspire injects:
+	//   - "ConnectionStrings__cache" so the API can dial Redis.
+	//   - "OTEL_EXPORTER_OTLP_*" env vars (via WithOtlpExporter) so traces,
+	//     metrics, and logs flow to the Aspire dashboard.
+	builder.AddGoApp("api", "./api").
+		WithModTidy().
+		WithReference(cache).
+		WaitFor(cache).
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithExternalHttpEndpoints().
+		WithOtlpExporter()
+
+	if err := builder.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+The program has three parts:
+
+1. `aspire.CreateBuilder()` connects to the AppHost server that the CLI starts and returns the builder.
+2. `AddRedis` and `AddGoApp` add resources. Each call returns a handle, so `WithReference`, `WaitFor`, and the other configuration methods chain onto it.
+3. `builder.Build()` creates the application, and `app.Run()` blocks until the AppHost stops. Both return an error, and the program also checks `builder.Err()`, which holds the first error recorded by a builder call.
+
+## aspire.config.json
+
+The `aspire.config.json` file is the central configuration for your AppHost:
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.go",
+    "language": "go"
+  },
+  "packages": {
+    "Aspire.Hosting.Go": "%ASPIRE_VERSION%",
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
+  },
+  "profiles": {
+    "https": {
+      "applicationUrl": "https://localhost:17127;http://localhost:15118",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21169",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22260"
+      }
+    }
+  }
+}
+```
+
+### Key sections
+
+| Section | Description |
+|---------|-------------|
+| `appHost.path` | Path to the AppHost entry point (`apphost.go`) |
+| `appHost.language` | The AppHost language (`go`) |
+| `packages` | Hosting integration packages and their versions. `aspire add` updates this section. |
+| `profiles` | Launch profiles with dashboard URLs and environment variables |
+
+## Generated SDK
+
+The `.aspire/modules/` directory holds the Go SDK that the CLI generates from the packages in `aspire.config.json`. The CLI creates and updates it, so don't edit these files.
+
+| File | Purpose |
+|------|---------|
+| `aspire.go` | Typed API for the installed integrations |
+| `base.go` | Handle, option, and error infrastructure |
+| `transport.go` | JSON-RPC transport to the AppHost server |
+
+The SDK is one Go package for all integrations. The AppHost's `go.mod` file maps the `apphost/modules/aspire` import path to the `.aspire/modules/` directory, so `apphost.go` imports it like any other package:
+
+```text title="go.mod"
+module apphost
+
+go 1.26
+
+require apphost/modules/aspire v0.0.0
+
+replace apphost/modules/aspire => ./.aspire/modules
+```
+
+The SDK regenerates when:
+
+- You run `aspire add` to add or update an integration
+- You run `aspire run` or `aspire start` and the package list has changed
+- You run `aspire restore`
+
+:::tip
+Add `.aspire/` to your `.gitignore` file. It holds generated files that the CLI recreates from `aspire.config.json`.
+:::
+
+### Restore the SDK
+
+Run `aspire restore` to regenerate the SDK without starting the AppHost:
+
+```bash title="Aspire CLI"
+aspire restore --apphost apphost.go
+```
+
+Restore after you clone a repository, switch branches, or edit the `packages` section by hand. In CI, restore before any step that compiles the AppHost, such as `go build` or `go vet`.
+
+## Debug a Go AppHost
+
+{/* PLACEHOLDER: replace the link below with the Go AppHost debugging guide when it is published. */}
+
+To debug AppHosts and their resources in Visual Studio Code, see [Run, debug, and deploy](/get-started/aspire-vscode-extension/#run-debug-and-deploy).
+
+## See also
+
+- [Go API reference](/reference/api/go/)
+- [Set up Go apps in the AppHost](/integrations/frameworks/go/go-host/)
+- [Multi-language architecture](/architecture/multi-language-architecture/)
+- [aspire new command](/reference/cli/commands/aspire-new/)
+- [aspire run command](/reference/cli/commands/aspire-run/)
+- [aspire restore command](/reference/cli/commands/aspire-restore/)
