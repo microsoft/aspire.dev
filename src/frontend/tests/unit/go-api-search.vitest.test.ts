@@ -239,6 +239,25 @@ test('buildGoApiSearchIndex handles a standalone function without a receiver', (
   expect(index[0]).not.toHaveProperty('t');
 });
 
+test('buildGoApiSearchIndex keeps code spans in summaries and flattens references and links', () => {
+  const index = buildGoApiSearchIndex([
+    {
+      package: { name: 'Aspire.Hosting', version: '13.6.0' },
+      functions: [
+        {
+          name: 'AddThing',
+          kind: 'Method',
+          signature: 'AddThing(name string) Thing',
+          description:
+            'Wraps `IResourceBuilder`1` values for {@ats-ref type:IResource}. See [RFC 7239](https://tools.ietf.org/html/rfc7239).',
+        },
+      ],
+    },
+  ]);
+
+  expect(index[0].s).toBe('Wraps `IResourceBuilder` values for `IResource`. See RFC 7239.');
+});
+
 test('getGoApiSearchStats counts capabilities from indexed members and properties', () => {
   const index = buildGoApiSearchIndex([redisDocument]);
 

@@ -15,12 +15,6 @@ import {
 export { goSlugify };
 
 /**
- * Preview notice shown on the Go API index and module pages (HTML and markdown).
- * Set this to an empty string when the Go AppHost SDK leaves preview to remove it everywhere.
- */
-export const GO_EXPERIMENTAL_NOTE: string = 'The Go AppHost SDK is experimental.';
-
-/**
  * Shown where a marker interface lists functions. A marker declares no methods of its own in Go:
  * each function is declared on the concrete types it applies to, so these entries are
  * applicability metadata rather than members of the marker.

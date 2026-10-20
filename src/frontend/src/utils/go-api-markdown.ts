@@ -1,5 +1,4 @@
 import {
-  GO_EXPERIMENTAL_NOTE,
   GO_MARKER_NOTE,
   buildGoDtoDefinition,
   buildGoEnumDefinition,
@@ -40,6 +39,7 @@ import {
   section,
 } from '@utils/api-markdown-shared';
 import { getGoFunctionDisplayKind, getGoFunctionDisplayLabel } from '@utils/go-api-function-kind';
+import { normalizeGoDocMarkdown } from '@utils/go-doc-text';
 import {
   getGoItemSlug,
   getGoMethods,
@@ -73,10 +73,6 @@ export function goMemberMdHref(
   return `${normalizeBase(base)}/reference/api/go/${goModuleSlug(moduleName)}/${itemSlug}/${memberSlug}.md`;
 }
 
-function experimentalNoteMarkdown(): string {
-  return GO_EXPERIMENTAL_NOTE ? `> ${GO_EXPERIMENTAL_NOTE}` : '';
-}
-
 export function renderGoIndexMarkdown(modules: GoApiDocument[], base: string): string {
   const sorted = [...modules].sort((left, right) => left.package.name.localeCompare(right.package.name));
 
@@ -100,7 +96,6 @@ export function renderGoIndexMarkdown(modules: GoApiDocument[], base: string): s
   return finalizeMarkdown([
     '# Go API Reference',
     `Browse the Go APIs available when writing an Aspire Go AppHost. ${importSentence}`,
-    experimentalNoteMarkdown(),
     section('Modules', bulletList(lines)),
   ]);
 }
@@ -145,7 +140,6 @@ export function renderGoModuleMarkdown(pkg: GoApiDocument, base: string): string
 
   return finalizeMarkdown([
     `# ${pkg.package.name}`,
-    experimentalNoteMarkdown(),
     metadata,
     section('Handles', bulletList(handleLines)),
     section('DTOs', bulletList(dtoLines)),
@@ -440,12 +434,12 @@ function formatGoTypeReferenceMarkdown(typeRef: string | undefined, pkg: GoApiDo
 
 /** Description and remarks can hold an unterminated ``` fence; close it so later sections survive. */
 function describe(text: string | undefined): string {
-  return text ? closeUnclosedCodeFences(dedentText(text)) : '';
+  return text ? closeUnclosedCodeFences(dedentText(normalizeGoDocMarkdown(text))) : '';
 }
 
 /** Single-line ` — description` suffix for list entries. */
 function summaryOf(text: string | undefined): string {
-  const oneLine = text?.replace(/\s+/g, ' ').trim();
+  const oneLine = text ? normalizeGoDocMarkdown(text).replace(/\s+/g, ' ').trim() : '';
   return oneLine ? ` — ${oneLine}` : '';
 }
 

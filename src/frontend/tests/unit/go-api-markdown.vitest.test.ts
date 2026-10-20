@@ -14,7 +14,7 @@ import {
   renderGoModuleMarkdown,
 } from '@utils/go-api-markdown';
 import { prepareGoApiRoutes } from '@utils/go-api-routes';
-import { GO_EXPERIMENTAL_NOTE, GO_MARKER_NOTE } from '@utils/go-modules';
+import { GO_MARKER_NOTE } from '@utils/go-modules';
 import type {
   GoApiDocument,
   GoDtoType,
@@ -441,11 +441,10 @@ describe('Go markdown hrefs', () => {
 describe('Go index markdown', () => {
   const markdown = renderGoIndexMarkdown([redisDoc, hostingDoc], base);
 
-  test('introduces the flat import path and the experimental note', () => {
+  test('introduces the flat import path without a preview notice', () => {
     expect(markdown.startsWith('# Go API Reference\n')).toBe(true);
     expect(markdown).toContain('imported as `apphost/modules/aspire`.');
-    expect(markdown).toContain(`> ${GO_EXPERIMENTAL_NOTE}`);
-    expect(GO_EXPERIMENTAL_NOTE).toBe('The Go AppHost SDK is experimental.');
+    expect(markdown).not.toContain('experimental');
   });
 
   test('lists modules as "- [Name](href) -- detail" bullets sorted by name', () => {
@@ -488,9 +487,9 @@ describe('Go index markdown', () => {
 describe('Go module markdown', () => {
   const markdown = renderGoModuleMarkdown(redisDoc, base);
 
-  test('states the module metadata, import path and experimental note', () => {
+  test('states the module metadata and import path without a preview notice', () => {
     expect(markdown.startsWith('# Aspire.Hosting.Redis\n')).toBe(true);
-    expect(markdown).toContain(`> ${GO_EXPERIMENTAL_NOTE}`);
+    expect(markdown).not.toContain('experimental');
     expect(markdown).toContain('- Module: `Aspire.Hosting.Redis`');
     expect(markdown).toContain('- Version: `13.6.0`');
     expect(markdown).toContain('- Import path: `apphost/modules/aspire`');
@@ -614,23 +613,6 @@ describe('Go module markdown', () => {
       expect(entry.href.startsWith('/docs/reference/api/go/aspire.hosting.redis/')).toBe(true);
     }
   });
-
-  test('drops the experimental note when the shared constant is emptied', async () => {
-    vi.resetModules();
-    vi.doMock('@utils/go-modules', async (importOriginal) => ({
-      ...(await importOriginal<typeof import('@utils/go-modules')>()),
-      GO_EXPERIMENTAL_NOTE: '',
-    }));
-
-    try {
-      const markdownModule = await import('@utils/go-api-markdown');
-      expect(markdownModule.renderGoIndexMarkdown([redisDoc], base)).not.toContain('experimental');
-      expect(markdownModule.renderGoModuleMarkdown(redisDoc, base)).not.toContain('experimental');
-    } finally {
-      vi.doUnmock('@utils/go-modules');
-      vi.resetModules();
-    }
-  });
 });
 
 /* ---- Item pages -------------------------------------------------------- */
@@ -663,7 +645,6 @@ describe('Go handle markdown', () => {
     ]);
     expect(markdown).toContain('- Module: [Aspire.Hosting.Redis](/reference/api/go/aspire.hosting.redis.md)');
     expect(markdown).toContain('- Kind: `handle`');
-    expect(markdown).not.toContain(GO_EXPERIMENTAL_NOTE);
   });
 
   test('links embedded interfaces declared in the same module and leaves others as code', () => {
@@ -940,7 +921,6 @@ describe('Go member markdown', () => {
     expect(sectionOf(markdown, 'Signature')).toBe('```go\nWithModule(path string) RedisResource\n```');
     expect(sectionOf(markdown, 'Parameters')).toBe('- `path` (`string`) -- The module path.');
     expect(sectionOf(markdown, 'Defined on')).toBe(`- [RedisResource](${redisModuleHref}/redisresource.md) -- \`handle\``);
-    expect(markdown).not.toContain(GO_EXPERIMENTAL_NOTE);
   });
 
   test('lists optional parameters as an options struct with callback signatures', () => {
@@ -1076,10 +1056,10 @@ async function memberProps(moduleSlug: string, itemSlug: string, memberSlug: str
 }
 
 describe('Go markdown routes (real seed anchors)', () => {
-  test('the index route lists modules and the experimental note', async () => {
+  test('the index route lists modules', async () => {
     const markdown = await read(getIndex(context()));
     expect(markdown).toContain('# Go API Reference');
-    expect(markdown).toContain(`> ${GO_EXPERIMENTAL_NOTE}`);
+    expect(markdown).not.toContain('experimental');
     expect(markdown).toContain('(/reference/api/go/aspire.hosting.redis.md)');
     expect(markdown).not.toMatch(/[·—]/);
   });
@@ -1088,7 +1068,7 @@ describe('Go markdown routes (real seed anchors)', () => {
     const markdown = await read(getModule(context(await moduleProps('aspire.hosting.redis'))));
     expect(markdown).toContain('# Aspire.Hosting.Redis');
     expect(markdown).toContain('- Import path: `apphost/modules/aspire`');
-    expect(markdown).toContain(`> ${GO_EXPERIMENTAL_NOTE}`);
+    expect(markdown).not.toContain('experimental');
     expect(markdown).toContain('[RedisResource](/reference/api/go/aspire.hosting.redis/redisresource.md)');
     expect(markdown).toContain('[AddRedis](/reference/api/go/aspire.hosting.redis/addredis.md)');
     expect(markdown).toContain('## Exported values');

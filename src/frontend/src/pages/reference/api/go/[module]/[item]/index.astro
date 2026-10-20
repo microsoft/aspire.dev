@@ -32,7 +32,9 @@ import {
 } from '@utils/go-api-routes';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import GoDocText from '@components/api-reference/GoDocText.astro';
 import GoMemberCard from '@components/api-reference/GoMemberCard.astro';
+import { toSearchGoDocText } from '@utils/go-doc-text';
 
 export async function getStaticPaths() {
   const packages = await getGoModules();
@@ -184,15 +186,16 @@ const appliesToKind = fn ? getGoFunctionDisplayKind(fn) : (handle?.isMarker && !
 
 /* ── Build type-scoped search index for complex types ─────────── */
 interface TypeIndexEntry { n: string; k: string; s: string; r?: string; a: string; }
+const searchText = (description?: string | null) => toSearchGoDocText(description ?? '');
 const typeIndex: TypeIndexEntry[] = [];
 if (handle) {
-  for (const p of properties) typeIndex.push({ n: p.name, k: 'property', s: p.description ?? '', r: p.valueType, a: getGoMemberAnchor(p.name) });
-  for (const m of methods) typeIndex.push({ n: m.name, k: 'method', s: m.description ?? '', r: m.returnType, a: getGoMethodSlug(m, methods, handle.name) });
-  for (const m of synthesizedMembers) typeIndex.push({ n: m.name, k: 'method', s: m.description ?? '', a: getGoMemberAnchor(m.name) });
+  for (const p of properties) typeIndex.push({ n: p.name, k: 'property', s: searchText(p.description), r: p.valueType, a: getGoMemberAnchor(p.name) });
+  for (const m of methods) typeIndex.push({ n: m.name, k: 'method', s: searchText(m.description), r: m.returnType, a: getGoMethodSlug(m, methods, handle.name) });
+  for (const m of synthesizedMembers) typeIndex.push({ n: m.name, k: 'method', s: searchText(m.description), a: getGoMemberAnchor(m.name) });
 } else if (dto) {
-  for (const f of fields) typeIndex.push({ n: f.name, k: 'field', s: f.description ?? '', r: f.type, a: getGoMemberAnchor(f.name) });
+  for (const f of fields) typeIndex.push({ n: f.name, k: 'field', s: searchText(f.description), r: f.type, a: getGoMemberAnchor(f.name) });
 } else if (enumType) {
-  for (const m of enumMembers) typeIndex.push({ n: m.name, k: 'enum member', s: m.description ?? '', r: m.value, a: getGoMemberAnchor(m.name) });
+  for (const m of enumMembers) typeIndex.push({ n: m.name, k: 'enum member', s: searchText(m.description), r: m.value, a: getGoMemberAnchor(m.name) });
 }
 const memberCount = typeIndex.length;
 const hasSearchableMembers = memberCount >= 5;
@@ -253,7 +256,7 @@ const goSidebar = await getGoApiReferenceSidebar({
 
       <span class="type-hero-pkg">📦 {pkg.package.name} {pkg.package.version && <span class="type-hero-ver">v{pkg.package.version}</span>}</span>
 
-      {heroDescription && <p class="type-hero-desc">{heroDescription}</p>}
+      {heroDescription && <p class="type-hero-desc"><GoDocText text={heroDescription} module={pkg} base={base} /></p>}
 
       {/* Definition (Go declaration) */}
       {definition && (
@@ -318,6 +321,8 @@ const goSidebar = await getGoApiReferenceSidebar({
                     relatedSignatures={property.signatures.slice(1)}
                     badges={[property.access]}
                     variant="property"
+                    module={pkg}
+                    base={base}
                   />
                 </div>
               ))}
@@ -339,13 +344,15 @@ const goSidebar = await getGoApiReferenceSidebar({
                       member={m}
                       variant="method"
                       href={`${base}/reference/api/go/${pkgSlug}/${currentItemSlug}/${methodSlug}/`}
+                      module={pkg}
+                      base={base}
                     />
                   </div>
                 );
               })}
               {synthesizedMembers.map((member) => (
                 <div id={getGoMemberAnchor(member.name)}>
-                  <GoMemberCard member={member} variant="method" />
+                  <GoMemberCard member={member} variant="method" module={pkg} base={base} />
                 </div>
               ))}
             </div>
@@ -365,6 +372,8 @@ const goSidebar = await getGoApiReferenceSidebar({
                 member={{ name: f.name, returnType: f.type, description: f.description }}
                 badges={[...(f.isOptional ? ['optional'] : []), ...(f.isCallback ? ['callback'] : [])]}
                 variant="field"
+                module={pkg}
+                base={base}
               />
             </div>
           ))}
@@ -384,7 +393,9 @@ const goSidebar = await getGoApiReferenceSidebar({
                   <code class="mc-param-name">{member.name}</code>
                   <span class="mc-param-type mc-param-type-1"><code>{JSON.stringify(member.value)}</code></span>
                 </div>
-                {member.description && <div class="api-list-desc">{member.description}</div>}
+                {member.description && (
+                  <div class="api-list-desc"><GoDocText text={member.description} module={pkg} base={base} /></div>
+                )}
               </div>
             </div>
           ))}
@@ -397,7 +408,7 @@ const goSidebar = await getGoApiReferenceSidebar({
       <section>
         <h2 id="signature">Signature</h2>
         <div class="api-list go-member-stack">
-          <GoMemberCard member={fn} variant={getGoFunctionDisplayKind(fn)} />
+          <GoMemberCard member={fn} variant={getGoFunctionDisplayKind(fn)} module={pkg} base={base} />
         </div>
       </section>
     )}
@@ -433,6 +444,7 @@ const goSidebar = await getGoApiReferenceSidebar({
   <script>
     import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
     import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+    import { renderGoDocTextHtml } from '@utils/go-doc-text';
     import { ApiSearchPresentation, withApiSearchFallback } from '../../../_search-presentation';
 
     interface TypeIndexEntry {
@@ -742,7 +754,7 @@ const goSidebar = await getGoApiReferenceSidebar({
               ${returnInfo}
             </div>
           </div>
-          ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
+          ${entry.s ? `<div class="api-list-desc">${renderGoDocTextHtml(entry.s)}</div>` : ''}
         </a>`;
       }
 

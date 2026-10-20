@@ -13,9 +13,11 @@ import {
   describeGoErrorModel,
   formatGoSignature,
   getGoOptionsParameterName,
+  type GoApiDocument,
   type GoCallableOptions,
   type GoFunctionParameter,
 } from '@utils/go-modules';
+import GoDocText from './GoDocText.astro';
 
 interface CardMember {
   name: string;
@@ -41,6 +43,9 @@ interface Props {
   badges?: string[];
   /** Further signatures shown under the primary one, such as a property's setter. */
   relatedSignatures?: string[];
+  /** Module whose pages references in descriptions link to. */
+  module?: GoApiDocument;
+  base?: string;
 }
 
 const {
@@ -50,6 +55,8 @@ const {
   href,
   badges: extraBadges = [],
   relatedSignatures = [],
+  module,
+  base,
 } = Astro.props;
 
 /** Simple string hash → 0–3 for type color assignment. */
@@ -128,7 +135,7 @@ const errorModelSegments =
   </div>
 
   {/* Description */}
-  {member.description && <div class="mc-summary">{member.description}</div>}
+  {member.description && <div class="mc-summary"><GoDocText text={member.description} module={module} base={base} /></div>}
 
   {/* Signature, in Go syntax without the `func` keyword */}
   {
@@ -154,7 +161,9 @@ const errorModelSegments =
                 </span>
                 {parameter.isCallback && <span class="api-mod-badge">callback</span>}
               </span>
-              {parameter.description && <span class="mc-param-desc">{parameter.description}</span>}
+              {parameter.description && (
+                <span class="mc-param-desc"><GoDocText text={parameter.description} module={module} base={base} /></span>
+              )}
             </div>
           ))}
         </div>
@@ -191,7 +200,9 @@ const errorModelSegments =
                     </span>
                     {field.isCallback && <span class="api-mod-badge">callback</span>}
                   </span>
-                  {field.description && <span class="mc-param-desc">{field.description}</span>}
+                  {field.description && (
+                    <span class="mc-param-desc"><GoDocText text={field.description} module={module} base={base} /></span>
+                  )}
                 </div>
               );
             })}
@@ -212,7 +223,7 @@ const errorModelSegments =
               <code class="mc-return-inline"><ReadableText text={returnType} /></code>
             </span>
           )}
-          {member.returns && <p class="mc-go-note">{member.returns}</p>}
+          {member.returns && <p class="mc-go-note"><GoDocText text={member.returns} module={module} base={base} /></p>}
           {errorModelSegments.length > 0 && (
             <p class="mc-go-note mc-go-error-model">
               {errorModelSegments.map((segment, index) => (index % 2 === 1 ? <code>{segment}</code> : segment))}

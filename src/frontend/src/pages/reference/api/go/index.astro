@@ -6,8 +6,7 @@
  * users filter across functions, methods, properties, handles, structs, and enums.
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import { Aside } from '@astrojs/starlight/components';
-import { GO_EXPERIMENTAL_NOTE, getGoImportPaths, getGoModules, goModuleSlug } from '@utils/go-modules';
+import { getGoImportPaths, getGoModules, goModuleSlug } from '@utils/go-modules';
 import { getGoApiReferenceSidebar } from '@utils/go-api-sidebar';
 import { buildGoApiSearchIndex } from '@utils/go-api-search';
 import { formatGoApiSearchStats, getGoApiSearchStats } from '@utils/go-api-search-stats';
@@ -60,21 +59,13 @@ const importPaths = getGoImportPaths(sorted);
       Browse the Go APIs available when writing an Aspire Go AppHost.
       {importPaths.length > 0 && (
         <>
-          These are the capabilities exposed by the Aspire hosting modules, all part of one flat Go package imported as
+          {' '}These are the capabilities exposed by the Aspire hosting modules, all part of one flat Go package imported as
           {' '}{importPaths.map((importPath, position) => (
             <>{position > 0 && ', '}<code>{importPath}</code></>
           ))}.
         </>
       )}
     </p>
-
-    {GO_EXPERIMENTAL_NOTE && (
-      <div class="go-api-note">
-        <Aside type="caution" title="Experimental">
-          {GO_EXPERIMENTAL_NOTE}
-        </Aside>
-      </div>
-    )}
 
     <ApiSearchBar
       id="go-api"
@@ -116,6 +107,7 @@ const importPaths = getGoImportPaths(sorted);
   import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
   import { ApiSearchPresentation, withApiSearchFallback } from '../_search-presentation';
   import { formatGoApiSearchStats, getGoApiSearchStats } from '@utils/go-api-search-stats';
+  import { renderGoDocTextHtml } from '@utils/go-doc-text';
 
   interface IndexEntry {
     n: string;
@@ -481,7 +473,7 @@ const importPaths = getGoImportPaths(sorted);
             <span class="api-list-meta" title="${this.esc(entry.p)}">${this.esc(entry.p)}</span>
           </div>
         </div>
-        ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
+        ${entry.s ? `<div class="api-list-desc">${renderGoDocTextHtml(entry.s)}</div>` : ''}
       </a>`;
     }
 
@@ -517,8 +509,5 @@ const importPaths = getGoImportPaths(sorted);
     margin-bottom: 1.5rem;
     color: var(--sl-color-gray-2);
     font-size: var(--sl-text-base);
-  }
-  .go-api-note {
-    margin-bottom: 1.5rem;
   }
 </style>

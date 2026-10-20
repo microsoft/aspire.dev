@@ -192,4 +192,54 @@ describe('GoMemberCard', () => {
     // Expressive Code renders one element per source line.
     expect(html.match(/class="ec-line"/g)?.length).toBe(4);
   });
+
+  test('renders code spans in the description, parameters, option fields and returns without raw backticks', async () => {
+    const html = await render({
+      member: {
+        name: 'WithPort',
+        description: 'Sets the `Port` option.',
+        signature: 'WithPort(port int, options ...*WithPortOptions) RedisResource',
+        parameters: [{ name: 'port', type: 'int', description: 'Use `0` for a random port.' }],
+        options: {
+          typeName: 'WithPortOptions',
+          fields: [{ name: 'Name', type: '*string', description: 'Overrides the `name` annotation.' }],
+        },
+        returnType: 'RedisResource',
+        returns: 'The `RedisResource` builder.',
+        errorModel: 'deferred',
+      },
+    });
+
+    expect(html).toContain('Sets the <code class="go-doc-code">Port</code> option.');
+    expect(html).toContain('Use <code class="go-doc-code">0</code> for a random port.');
+    expect(html).toContain('Overrides the <code class="go-doc-code">name</code> annotation.');
+    expect(html).toContain('The <code class="go-doc-code">RedisResource</code> builder.');
+    expect(html).not.toContain('`');
+  });
+
+  test('keeps the space around a code span at the end of a sentence', async () => {
+    const html = await render({ member: { name: 'Do', signature: 'Do() error', description: 'Returns `error`.' } });
+
+    expect(html).toContain('Returns <code class="go-doc-code">error</code>.');
+  });
+
+  test('links references to pages of the module and falls back to code without a module', async () => {
+    const member = {
+      name: 'AddRedis',
+      description: 'Adds a {@ats-ref type:IResource} and a {@ats-ref type:IHost}.',
+      signature: 'AddRedis() RedisResource',
+    };
+    const module = {
+      package: { name: 'Aspire.Hosting' },
+      handleTypes: [{ name: 'Resource', fullName: 'Aspire.Hosting.ApplicationModel.IResource' }],
+    };
+
+    expect(await render({ member, module, base: '/docs' })).toContain(
+      'Adds a <a href="/docs/reference/api/go/aspire.hosting/resource/" class="go-doc-link">' +
+        '<code class="go-doc-ref-link">Resource</code></a> and a <code class="go-doc-ref">IHost</code>.'
+    );
+    expect(await render({ member })).toContain(
+      'Adds a <code class="go-doc-ref">IResource</code> and a <code class="go-doc-ref">IHost</code>.'
+    );
+  });
 });

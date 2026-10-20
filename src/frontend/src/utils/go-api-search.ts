@@ -1,6 +1,7 @@
 import type { GoApiDocument, GoFunction, GoHandleType } from './go-modules';
 import type { GoApiSearchIndexEntry } from './go-api-search-stats';
 import { goModuleSlug } from './go-modules';
+import { toSearchGoDocText } from './go-doc-text';
 import {
   getGoCallableIdentityKey,
   getGoFunctionDisplayKind,
@@ -45,7 +46,7 @@ export function buildGoApiSearchIndex(packages: GoApiDocument[], base = ''): GoA
         f: fn.receiver ? `${fn.receiver}.${signature}` : signature,
         k: getGoFunctionDisplayKind(fn),
         p: pkgName,
-        s: fn.description ?? '',
+        s: toSearchGoDocText(fn.description ?? ''),
         h: `${normalizedBase}/reference/api/go/${pkgSlug}/${itemSlug}/`,
         ...(fn.receiver ? { t: fn.receiver } : {}),
         ...withVersion,
@@ -64,7 +65,7 @@ export function buildGoApiSearchIndex(packages: GoApiDocument[], base = ''): GoA
         f: handle.fullName ?? handle.name,
         k: handle.isInterface ? 'interface' : 'handle',
         p: pkgName,
-        s: handle.description ?? `Handle type${qualifiers.length > 0 ? ` (${qualifiers.join(', ')})` : ''}`,
+        s: toSearchGoDocText(handle.description ?? `Handle type${qualifiers.length > 0 ? ` (${qualifiers.join(', ')})` : ''}`),
         h: `${normalizedBase}/reference/api/go/${pkgSlug}/${itemSlug}/`,
         ...withVersion,
       });
@@ -83,7 +84,7 @@ export function buildGoApiSearchIndex(packages: GoApiDocument[], base = ''): GoA
         f: dto.fullName ?? dto.name,
         k: 'struct',
         p: pkgName,
-        s: dto.description ?? `Struct with ${dto.fields?.length ?? 0} fields`,
+        s: toSearchGoDocText(dto.description ?? `Struct with ${dto.fields?.length ?? 0} fields`),
         h: `${normalizedBase}/reference/api/go/${pkgSlug}/${itemSlug}/`,
         ...withVersion,
       });
@@ -100,7 +101,7 @@ export function buildGoApiSearchIndex(packages: GoApiDocument[], base = ''): GoA
         f: enumType.fullName ?? enumType.name,
         k: 'enum',
         p: pkgName,
-        s: enumType.description ?? `Enum: ${(enumType.members ?? []).map((member) => member.name).join(', ')}`,
+        s: toSearchGoDocText(enumType.description ?? `Enum: ${(enumType.members ?? []).map((member) => member.name).join(', ')}`),
         h: `${normalizedBase}/reference/api/go/${pkgSlug}/${itemSlug}/`,
         ...withVersion,
       });
@@ -140,7 +141,7 @@ function addHandleMemberEntries(
       f: `${handle.name}.${getter.signature ?? getter.name}`,
       k: 'property',
       p: pkgName,
-      s: getter.description ?? `Property on ${handle.name}${hasSetter ? ' (get/set)' : ''}`,
+      s: toSearchGoDocText(getter.description ?? `Property on ${handle.name}${hasSetter ? ' (get/set)' : ''}`),
       t: handle.name,
       h: `${normalizedBase}/reference/api/go/${pkgSlug}/${itemSlug}/#${getGoMemberAnchor(getter.name)}`,
       m: true,
@@ -162,7 +163,7 @@ function addHandleMemberEntries(
       f: `${handle.name}.${setter.signature ?? setter.name}`,
       k: 'property',
       p: pkgName,
-      s: setter.description ?? `Write-only property on ${handle.name}`,
+      s: toSearchGoDocText(setter.description ?? `Write-only property on ${handle.name}`),
       t: handle.name,
       h: `${normalizedBase}/reference/api/go/${pkgSlug}/${itemSlug}/#${getGoMemberAnchor(setter.name)}`,
       m: true,
@@ -202,7 +203,7 @@ function addHandleMethodEntry(
     f: `${handle.name}.${method.signature ?? method.qualifiedName ?? method.name}`,
     k: 'method',
     p: pkgName,
-    s: method.description ?? '',
+    s: toSearchGoDocText(method.description ?? ''),
     t: handle.name,
     h: `${normalizedBase}/reference/api/go/${pkgSlug}/${itemSlug}/${memberSlug}/`,
     m: true,

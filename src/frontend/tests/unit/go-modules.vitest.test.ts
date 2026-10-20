@@ -1,6 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
-  GO_EXPERIMENTAL_NOTE,
   GO_PACKAGE_FUNCTIONS_GROUP,
   buildGoDtoDefinition,
   buildGoEnumDefinition,
@@ -428,9 +427,5 @@ describe('Go links and shared constants', () => {
     expect(getGoTypeHref('/docs', doc, 'RedisResource')).toBe(
       '/docs/reference/api/go/aspire.hosting.redis/redisresource/'
     );
-  });
-
-  test('the experimental note is one shared sentence', () => {
-    expect(GO_EXPERIMENTAL_NOTE).toBe('The Go AppHost SDK is experimental.');
   });
 });

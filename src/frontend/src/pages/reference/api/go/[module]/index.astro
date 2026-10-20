@@ -6,9 +6,7 @@
  * declared by one contributing package, with an in-page search scoped to that module.
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import { Aside } from '@astrojs/starlight/components';
 import {
-  GO_EXPERIMENTAL_NOTE,
   countGoHandleMembers,
   getGoModules,
   goModuleSlug,
@@ -16,6 +14,7 @@ import {
 } from '@utils/go-modules';
 import { getGoApiReferenceSidebar } from '@utils/go-api-sidebar';
 import { buildGoApiSearchIndex } from '@utils/go-api-search';
+import { truncateGoDocText } from '@utils/go-doc-text';
 import { getGoFunctionDisplayLabel } from '@utils/go-api-function-kind';
 import {
   getGoItemSlug,
@@ -24,6 +23,7 @@ import {
   goSlugify,
 } from '@utils/go-api-routes';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import GoDocText from '@components/api-reference/GoDocText.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 
 export async function getStaticPaths() {
@@ -71,7 +71,7 @@ const pkgIndex = globalEntries.map(({ n, f, k, s, t, h }) => ({
   n,
   f,
   k,
-  s: s.slice(0, 160),
+  s: truncateGoDocText(s, 160),
   h,
   ...(t ? { t } : {}),
 }));
@@ -133,12 +133,6 @@ const defaultStatsText = `${totalTypeCount.toLocaleString()} types, ${functionCo
       </div>
     </div>
   </div>
-
-  {GO_EXPERIMENTAL_NOTE && (
-    <Aside type="caution" title="Experimental">
-      {GO_EXPERIMENTAL_NOTE}
-    </Aside>
-  )}
 
   <!-- Module-scoped search -->
   <div class="pkg-search-section not-content" data-api-search-language="go" data-api-search-kind="module" data-base={base} data-package-name={pkg.package.name} data-type-count={totalTypeCount} data-function-count={functionCount} data-member-count={memberCount}>
@@ -231,7 +225,7 @@ const defaultStatsText = `${totalTypeCount.toLocaleString()} types, ${functionCo
                     <code class="api-type-link">{f.name}</code>
                     {f.returnsBuilder && <span class="api-mini-badge">builder</span>}
                   </div>
-                  {f.description && <div class="api-list-desc">{f.description}</div>}
+                  {f.description && <div class="api-list-desc"><GoDocText text={f.description} module={pkg} link={false} /></div>}
                   {f.signature && (
                     <div class="api-fn-signature">
                       <code>{f.signature}</code>
@@ -261,7 +255,9 @@ const defaultStatsText = `${totalTypeCount.toLocaleString()} types, ${functionCo
                   <code>= {entry.value}</code>
                 </div>
               )}
-              {entry.description && <div class="api-list-desc">{entry.description}</div>}
+              {entry.description && (
+                <div class="api-list-desc"><GoDocText text={entry.description} module={pkg} base={base} /></div>
+              )}
             </div>
           ))}
         </div>
@@ -273,6 +269,7 @@ const defaultStatsText = `${totalTypeCount.toLocaleString()} types, ${functionCo
 <script>
   import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
   import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+  import { renderGoDocTextHtml } from '@utils/go-doc-text';
   import { ApiSearchPresentation, withApiSearchFallback } from '../../_search-presentation';
 
   interface PkgIndexEntry {
@@ -583,7 +580,7 @@ const defaultStatsText = `${totalTypeCount.toLocaleString()} types, ${functionCo
           </span>
           <span class="api-kind-micro ${kindClass}">${this.esc(entry.k)}</span>
         </div>
-        ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
+        ${entry.s ? `<div class="api-list-desc">${renderGoDocTextHtml(entry.s)}</div>` : ''}
       </${tag}>`;
     }
 
