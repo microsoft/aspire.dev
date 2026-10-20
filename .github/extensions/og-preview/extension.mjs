@@ -4,9 +4,10 @@
 // raw-metadata and diagnostics view.
 //
 // Each open canvas instance gets its own loopback HTTP server (ephemeral port)
-// that serves the static UI and a small JSON API. The canvas also exposes two
-// agent-callable actions: `preview_url` (drive the open canvas to a URL) and
-// `get_metadata` (fetch + parse without a canvas, returning raw metadata).
+// that serves the static UI and a small JSON API. The canvas also exposes three
+// agent-callable actions: `preview_url` (drive the open canvas to a URL),
+// `get_metadata` (fetch + parse without a canvas, returning raw metadata) and
+// `get_prompt` (a composed AI prompt with a full JSON payload for a URL).
 
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -19,8 +20,21 @@ import { fetchUrl, normalizeUrl, authorizePreview } from "./lib/http-fetch.mjs";
 import { createAccess, requestAccess } from "./lib/request-access.mjs";
 import { parseMetadata } from "./lib/parse-og.mjs";
 import { checkAgentReadiness } from "./lib/agent-readiness.mjs";
+import {
+    DEFAULT_MODULE_IDS,
+    MAX_INSTRUCTIONS_CHARS,
+    PROMPT_MODULES,
+    buildPayload,
+    composePrompt,
+    normalizeModuleIds,
+} from "./lib/build-prompt.mjs";
 
 const UI_DIR = new URL("./ui/", import.meta.url);
+// The prompt builder is shared with the UI, which loads it from this folder.
+const LIB_DIR = new URL("./lib/", import.meta.url);
+
+// Response headers that matter for SEO; forwarded into the prompt payload.
+const SEO_HEADERS = ["x-robots-tag", "link", "content-language", "last-modified"];
 
 // GitHub "blob" (and "raw") web URLs render an HTML page, not the file itself.
 // Rewrite them to raw.githubusercontent.com so /api/raw fetches the actual
@@ -50,6 +64,7 @@ const CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
     ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
 };
 
 // instanceId -> { instanceId, server, url, currentUrl, titleKey, clients:Set<res> }
@@ -68,9 +83,9 @@ function log(message, level = "info") {
     }
 }
 
-async function serveAsset(res, name) {
+async function serveAsset(res, name, dir = UI_DIR) {
     try {
-        const buf = await readFile(fileURLToPath(new URL(name, UI_DIR)));
+        const buf = await readFile(fileURLToPath(new URL(name, dir)));
         res.setHeader("Content-Type", CONTENT_TYPES[extname(name)] || "application/octet-stream");
         res.end(buf);
     } catch {
@@ -95,6 +110,17 @@ async function loadMetadata(rawUrl, policy) {
     data.requestedUrl = result.url;
     data.httpStatus = result.status;
     data.truncated = result.truncated;
+    data.http = {
+        inputUrl: target,
+        status: result.status,
+        contentType: result.contentType || "",
+        headers: Object.fromEntries(
+            SEO_HEADERS.filter((name) => result.headers?.[name] != null).map((name) => [
+                name,
+                String(result.headers[name]),
+            ]),
+        ),
+    };
     return data;
 }
 
@@ -463,6 +489,9 @@ async function handleRequest(entry, req, res) {
     }
     if (path === "/styles.css" || path === "/app.js") {
         return serveAsset(res, path.slice(1));
+    }
+    if (path === "/build-prompt.mjs") {
+        return serveAsset(res, "build-prompt.mjs", LIB_DIR);
     }
 
     const access = requestAccess(entry, req, reqUrl);
@@ -843,6 +872,72 @@ const ogCanvas = createCanvas({
                     resolved: data.resolved,
                     raw: data.raw,
                     diagnostics: data.diagnostics,
+                };
+            },
+        },
+        {
+            name: "get_prompt",
+            description:
+                "Build a ready-to-use AI prompt for a URL: a full JSON payload of its SEO and social metadata (URL and redirects, HTTP headers, title, description, canonical, robots, hreflang, structured data, Open Graph, Twitter, diagnostics, agent readiness) wrapped in composable task prompts. Works without the canvas being open. Supports localhost.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    url: { type: "string", description: "URL to inspect." },
+                    modules: {
+                        type: "array",
+                        items: { type: "string", enum: PROMPT_MODULES.map((module) => module.id) },
+                        description: `Task modules to include. Defaults to: ${DEFAULT_MODULE_IDS.join(", ")}. An empty list returns only the context and the JSON payload.`,
+                    },
+                    instructions: {
+                        type: "string",
+                        maxLength: MAX_INSTRUCTIONS_CHARS,
+                        description: "Extra instructions to include in the prompt.",
+                    },
+                    includeAgentReadiness: {
+                        type: "boolean",
+                        description: "Also run the agent-readiness checks (about 17 extra requests). Defaults to true.",
+                    },
+                },
+                required: ["url"],
+                additionalProperties: false,
+            },
+            handler: async (ctx) => {
+                const { url, modules, instructions, includeAgentReadiness } = ctx.input ?? {};
+                if (!url) throw new CanvasError("invalid_input", "An 'url' value is required.");
+                if (modules !== undefined && !Array.isArray(modules)) {
+                    throw new CanvasError("invalid_input", "'modules' must be an array of module ids.");
+                }
+                const selection = normalizeModuleIds(modules ?? DEFAULT_MODULE_IDS);
+                if (selection.unknown.length) {
+                    const unknown = selection.unknown.map((id) => String(id).slice(0, 40)).join(", ");
+                    const valid = PROMPT_MODULES.map((module) => module.id).join(", ");
+                    throw new CanvasError("invalid_input", `Unknown prompt module(s): ${unknown}. Valid modules: ${valid}.`);
+                }
+                if (
+                    instructions !== undefined &&
+                    (typeof instructions !== "string" || instructions.length > MAX_INSTRUCTIONS_CHARS)
+                ) {
+                    throw new CanvasError(
+                        "invalid_input",
+                        `'instructions' must be a string of at most ${MAX_INSTRUCTIONS_CHARS} characters.`,
+                    );
+                }
+                const policy = await authorizePreview(url);
+                const data = await loadMetadata(url, policy);
+                let agentReadiness = null;
+                if (includeAgentReadiness !== false) {
+                    try {
+                        agentReadiness = await checkAgentReadiness(data.requestedUrl, policy);
+                    } catch {
+                        /* optional: the payload reports agentReadiness as null when the probes didn't run */
+                    }
+                }
+                const payload = buildPayload({ data, agentReadiness });
+                return {
+                    url: payload.url.final,
+                    modules: selection.ids,
+                    prompt: composePrompt({ payload, moduleIds: selection.ids, instructions }),
+                    payload,
                 };
             },
         },

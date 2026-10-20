@@ -255,3 +255,116 @@ test("standalone get_metadata action explicitly authorizes localhost", async () 
     const named = await action.handler({ input: { url: targetUrl.replace("127.0.0.1", "localhost") } });
     assert.equal(named.resolved.title, "Local preview");
 });
+
+test("/api/fetch reports the HTTP details and SEO signals the prompt payload needs", async () => {
+    const res = await fetch(api("/api/fetch?u=" + encodeURIComponent(targetUrl)));
+    const data = await res.json();
+    assert.equal(data.http.inputUrl, `${targetUrl}/`);
+    assert.equal(data.http.status, 200);
+    assert.match(data.http.contentType, /^text\/html/);
+    assert.deepEqual(data.http.headers, {});
+    assert.deepEqual([data.canonical, data.lang, data.h1, data.alternates, data.structuredData, data.capped], ["", "", [], [], [], []]);
+});
+
+test("serves the shared prompt builder to the UI without the private key", async () => {
+    const res = await fetch(new URL("/build-prompt.mjs", canvasUrl));
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type"), /^text\/javascript/);
+    const body = await res.text();
+    assert.match(body, /export function composePrompt/);
+    assert.ok(!/^import /m.test(body), "no Node imports, so a browser can load it");
+});
+
+async function withSeoPage(run) {
+    const server = createServer((req, res) => {
+        if (req.url === "/old") {
+            res.writeHead(301, { Location: "/landed" });
+            return res.end();
+        }
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("X-Robots-Tag", "noindex");
+        res.setHeader("Content-Language", "en");
+        res.end(`<!doctype html><html lang="en"><head><title>SEO page</title>
+<meta name="description" content="A page about SEO"><link rel="canonical" href="/canonical">
+</head><body><h1>Heading</h1></body></html>`);
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    try {
+        await run(`http://127.0.0.1:${server.address().port}`);
+    } finally {
+        server.closeAllConnections();
+        await new Promise((resolve) => server.close(resolve));
+    }
+}
+
+test("get_prompt returns a composed prompt and the full JSON payload", async () => {
+    const action = canvas.actions.find((action) => action.name === "get_prompt");
+    await withSeoPage(async (origin) => {
+        const result = await action.handler({ input: { url: origin, includeAgentReadiness: false } });
+        assert.equal(result.url, `${origin}/`);
+        assert.deepEqual(result.modules, ["audit", "fix-tags"]);
+        const { payload } = result;
+        assert.equal(payload.url.canonical, `${origin}/canonical`);
+        assert.equal(payload.http.status, 200);
+        assert.equal(payload.http.headers["x-robots-tag"], "noindex");
+        assert.equal(payload.http.headers["content-language"], "en");
+        assert.equal(payload.seo.robots.xRobotsTag, "noindex");
+        assert.equal(payload.seo.title.value, "SEO page");
+        assert.equal(payload.seo.description.value, "A page about SEO");
+        assert.equal(payload.seo.lang, "en");
+        assert.deepEqual(payload.seo.h1, ["Heading"]);
+        assert.equal(payload.agentReadiness, null);
+        assert.ok(result.prompt.includes(`Page: ${origin}/`));
+        assert.ok(result.prompt.includes("## Page data"));
+    });
+});
+
+test("get_prompt names a redirect target only inside the page data", async () => {
+    const action = canvas.actions.find((action) => action.name === "get_prompt");
+    await withSeoPage(async (origin) => {
+        const result = await action.handler({ input: { url: `${origin}/old`, includeAgentReadiness: false } });
+        assert.equal(result.url, `${origin}/landed`);
+        assert.equal(result.payload.url.final, `${origin}/landed`);
+        assert.equal(result.payload.url.redirected, true);
+        const instructions = result.prompt.slice(0, result.prompt.indexOf("## Page data"));
+        assert.ok(instructions.includes(`Page: ${origin}/old\n`));
+        assert.ok(!instructions.includes("/landed"));
+    });
+});
+
+test("get_prompt composes only the requested modules and instructions", async () => {
+    const action = canvas.actions.find((action) => action.name === "get_prompt");
+    await withSeoPage(async (origin) => {
+        const result = await action.handler({
+            input: { url: origin, modules: ["verify", "copy"], instructions: "Be terse.", includeAgentReadiness: false },
+        });
+        assert.deepEqual(result.modules, ["copy", "verify"]);
+        assert.match(
+            result.prompt,
+            /1\. \*\*Rewrite the title and description\.\*\*[\s\S]*2\. \*\*Verify the result\.\*\*/,
+        );
+        assert.ok(result.prompt.includes("## Additional instructions from the user\nBe terse."));
+        assert.ok(!result.prompt.includes("Audit"));
+    });
+});
+
+test("get_prompt rejects bad input before fetching anything", async () => {
+    const action = canvas.actions.find((action) => action.name === "get_prompt");
+    const beforeHits = hits;
+    const inputs = [
+        {},
+        { url: targetUrl, modules: ["nope"] },
+        { url: targetUrl, modules: "audit" },
+        { url: targetUrl, instructions: "x".repeat(8001) },
+        { url: targetUrl, instructions: 5 },
+    ];
+    for (const input of inputs) {
+        await assert.rejects(action.handler({ input }), (error) => error.code === "invalid_input");
+    }
+    await assert.rejects(
+        action.handler({ input: { url: targetUrl, modules: ["nope"] } }),
+        /Unknown prompt module\(s\): nope\. Valid modules: audit,/,
+    );
+    assert.equal(hits, beforeHits);
+});
