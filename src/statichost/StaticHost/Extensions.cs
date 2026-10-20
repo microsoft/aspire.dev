@@ -16,9 +16,15 @@ public static class Extensions
     {
         builder.Services.Configure<ForwardedHeadersOptions>(static options =>
         {
-            options.ForwardedHeaders |= ForwardedHeaders.XForwardedFor;
+            options.ForwardedHeaders |= ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost;
             options.ForwardedForHeaderName = FrontDoorClientIpHeader;
             options.ForwardLimit = 1;
+            // Front Door calls the App Service origin with the origin's own host name and sends the
+            // requested host in X-Forwarded-Host. Without it, absolute URLs (such as the trailing
+            // slash redirect from UseDefaultFiles) and the download telemetry origin check use the
+            // *.azurewebsites.net host instead of aspire.dev. The origin is also reachable
+            // directly, so only honor hosts this site serves.
+            options.AllowedHosts = ["aspire.dev", "*.aspire.dev"];
             // Front Door and App Service front-end addresses are not fixed. A request that
             // bypasses Front Door can spoof this header, so use the value for telemetry and
             // diagnostics, not for authorization.
