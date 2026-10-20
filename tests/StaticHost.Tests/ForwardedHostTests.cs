@@ -142,6 +142,22 @@ public sealed class ForwardedHostTests
     }
 
     [Theory]
+    [InlineData("aspire.dev")]
+    [InlineData("example.org")]
+    public async Task Hosts_added_by_other_startup_code_are_kept_alongside_the_configured_hosts(string forwardedHost)
+    {
+        await using var server = await ForwardedHeadersTestServer.StartAsync(
+            configureForwardedHeaders: static options => options.AllowedHosts.Add("example.org"));
+
+        using var response = await server.GetAsync(
+            $"https://{OriginHost}/docs",
+            forwardedHost);
+
+        Assert.Equal(HttpStatusCode.MovedPermanently, response.StatusCode);
+        Assert.Equal($"https://{forwardedHost}/docs/", response.Headers.Location?.OriginalString);
+    }
+
+    [Theory]
     [InlineData(null, null)]
     [InlineData(null, "localhost:8080")]
     [InlineData(ForwardedHeadersTestServer.DeployedForwardedHosts, null)]

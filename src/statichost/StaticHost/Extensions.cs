@@ -31,16 +31,21 @@ public static class Extensions
             // requested host in X-Forwarded-Host. Without it, absolute URLs (such as the trailing
             // slash redirect from UseDefaultFiles) and the download telemetry origin check use the
             // *.azurewebsites.net host instead of aspire.dev. The origin is also reachable
-            // directly, so only honor the configured hosts. The middleware treats an empty
-            // AllowedHosts as "any host", so leave the header off when nothing is configured.
-            var allowedHosts = configuration[ForwardedHostsConfigKey]?.Split(
+            // directly, so only honor the configured hosts.
+            var configuredHosts = configuration[ForwardedHostsConfigKey]?.Split(
                 [';', ','],
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
 
-            if (allowedHosts is { Length: > 0 })
+            foreach (var host in configuredHosts)
+            {
+                options.AllowedHosts.Add(host);
+            }
+
+            // The middleware treats an empty AllowedHosts as "any host", so leave the header off
+            // until at least one host is allowed.
+            if (options.AllowedHosts.Count > 0)
             {
                 options.ForwardedHeaders |= ForwardedHeaders.XForwardedHost;
-                options.AllowedHosts = allowedHosts;
             }
 
             // Front Door and App Service front-end addresses are not fixed. A request that

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -36,9 +37,13 @@ internal sealed class ForwardedHeadersTestServer : IAsyncDisposable
     /// The <c>ForwardedHeaders:AllowedHosts</c> value, set through the <c>ForwardedHeaders__AllowedHosts</c>
     /// environment variable in deployments. Pass <see langword="null"/> to leave it unset, as in local runs.
     /// </param>
+    /// <param name="configureForwardedHeaders">
+    /// Options set by other startup code before the production wiring runs.
+    /// </param>
     public static async Task<ForwardedHeadersTestServer> StartAsync(
         bool frameworkForwardedHeaders = false,
-        string? forwardedHosts = DeployedForwardedHosts)
+        string? forwardedHosts = DeployedForwardedHosts,
+        Action<ForwardedHeadersOptions>? configureForwardedHeaders = null)
     {
         var wwwroot = new TempWebRoot();
         try
@@ -60,6 +65,11 @@ internal sealed class ForwardedHeadersTestServer : IAsyncDisposable
             });
             builder.WebHost.UseTestServer();
             builder.Logging.ClearProviders();
+            if (configureForwardedHeaders is not null)
+            {
+                builder.Services.Configure(configureForwardedHeaders);
+            }
+
             builder.AddForwardedClientIp();
 
             var app = builder.Build();
