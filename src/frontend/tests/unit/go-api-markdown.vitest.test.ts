@@ -14,7 +14,7 @@ import {
   renderGoModuleMarkdown,
 } from '@utils/go-api-markdown';
 import { prepareGoApiRoutes } from '@utils/go-api-routes';
-import { GO_EXPERIMENTAL_NOTE } from '@utils/go-modules';
+import { GO_EXPERIMENTAL_NOTE, GO_MARKER_NOTE } from '@utils/go-modules';
 import type {
   GoApiDocument,
   GoDtoType,
@@ -254,6 +254,23 @@ const resource: GoHandleType = {
   capabilities: [],
 };
 
+const excludeFromManifest: GoFunction = {
+  name: 'ExcludeFromManifest',
+  capabilityId: 'Aspire.Hosting/excludeFromManifest',
+  qualifiedName: 'excludeFromManifest',
+  kind: 'Method',
+  signature: 'ExcludeFromManifest() Resource',
+  receiver: 'Resource',
+  returnType: 'Resource',
+  returnsReceiver: true,
+  errorModel: 'deferred',
+  appliesTo: ['ContainerResource', 'RedisResource'],
+  description: 'Excludes the resource from the deployment manifest.',
+};
+
+// Markers declare no methods in Go; the generator still attaches the functions that apply to every resource.
+const markerWithFunctions: GoHandleType = { ...resource, capabilities: [excludeFromManifest] };
+
 const inputCollection: GoHandleType = {
   name: 'InputCollection',
   kind: 'handle',
@@ -333,6 +350,12 @@ const hostingDoc: GoApiDocument = {
   package: { name: 'Aspire.Hosting', version: '13.6.0', language: 'go', importPath: 'apphost/modules/aspire' },
   functions: [{ name: 'CreateBuilder', signature: 'CreateBuilder() error', returnType: 'error' }],
   handleTypes: [{ name: 'DistributedApplicationBuilder' }],
+};
+
+const markerDoc: GoApiDocument = {
+  ...redisDoc,
+  functions: [...(redisDoc.functions ?? []), excludeFromManifest],
+  handleTypes: [redisResource, resourceWithEnvironment, markerWithFunctions, inputCollection],
 };
 
 /* ---- Helpers --------------------------------------------------------- */
@@ -728,6 +751,39 @@ describe('Go handle markdown', () => {
     expect(sectionOf(page, 'Definition')).toBe('```go\ntype Resource interface{}\n```');
     expect(page).toContain('- Kind: `interface`');
   });
+
+  test('marker handles that list functions keep an empty definition and present them as applicability metadata', () => {
+    const page = renderGoItemMarkdown(markerDoc, markerWithFunctions, 'handle', base);
+    expect(headingsOutsideFences(page)).toEqual(['# Resource', '## Definition', '## Methods', '## Applies to']);
+    expect(sectionOf(page, 'Definition')).toBe('```go\ntype Resource interface{}\n```');
+    expect(sectionOf(page, 'Methods')).toBe(
+      [
+        GO_MARKER_NOTE,
+        '',
+        `- [ExcludeFromManifest](${redisModuleHref}/resource/excludefrommanifest.md) -- \`method\` -- Excludes the resource from the deployment manifest.`,
+        '  ```go',
+        '  ExcludeFromManifest() Resource',
+        '  ```',
+      ].join('\n')
+    );
+    expect(sectionOf(page, 'Applies to')).toBe(
+      ['- `ContainerResource`', `- [\`RedisResource\`](${redisModuleHref}/redisresource.md)`].join('\n')
+    );
+  });
+
+  test('the marker note leaves the method bullets parseable by the CLI', () => {
+    const entries = bulletEntries(renderGoItemMarkdown(markerDoc, markerWithFunctions, 'handle', base), 'Methods');
+    expect(entries.map((entry) => [entry.name, entry.href])).toEqual([
+      ['ExcludeFromManifest', `${redisModuleHref}/resource/excludefrommanifest.md`],
+    ]);
+    expect(entries[0].tail.startsWith(' -- ')).toBe(true);
+  });
+
+  test('handles that are not markers never carry the marker note', () => {
+    for (const handle of [redisResource, resourceWithEnvironment, inputCollection]) {
+      expect(renderGoItemMarkdown(markerDoc, handle, 'handle', base)).not.toContain(GO_MARKER_NOTE);
+    }
+  });
 });
 
 describe('Go DTO and enum markdown', () => {
@@ -945,6 +1001,39 @@ describe('Go member markdown', () => {
     expect(headingsOutsideFences(markdown)).toContain('## Defined on');
   });
 
+  test('a marker function is defined with its receiver and lists the types it applies to', () => {
+    const markdown = renderGoMemberMarkdownPage(markerDoc, markerWithFunctions, excludeFromManifest, base);
+    expect(headingsOutsideFences(markdown)).toEqual([
+      '# Resource.ExcludeFromManifest',
+      '## Definition',
+      '## Signature',
+      '## Returns',
+      '## Defined on',
+      '## Applies to',
+    ]);
+    expect(sectionOf(markdown, 'Definition')).toBe('```go\nfunc (Resource) ExcludeFromManifest() Resource\n```');
+    expect(sectionOf(markdown, 'Signature')).toBe('```go\nExcludeFromManifest() Resource\n```');
+    expect(sectionOf(markdown, 'Defined on')).toBe(
+      [GO_MARKER_NOTE, '', `- [Resource](${redisModuleHref}/resource.md) -- \`marker\``].join('\n')
+    );
+    expect(sectionOf(markdown, 'Applies to')).toBe(
+      ['- `ContainerResource`', `- [\`RedisResource\`](${redisModuleHref}/redisresource.md)`].join('\n')
+    );
+    expect(markdown).not.toContain('omitted for brevity');
+  });
+
+  test('functions on handles and interfaces that are not markers keep the interface definition', () => {
+    for (const [parent, method] of [
+      [redisResource, withModule],
+      [resourceWithEnvironment, withEnvironment],
+    ] as Array<[GoHandleType, GoFunction]>) {
+      const markdown = renderGoMemberMarkdownPage(markerDoc, parent, method, base);
+      expect(sectionOf(markdown, 'Definition')).toContain(`type ${parent.name} interface {`);
+      expect(markdown).not.toContain(GO_MARKER_NOTE);
+      expect(headingsOutsideFences(markdown)).not.toContain('## Applies to');
+    }
+  });
+
   test('prefixes every link with the site base', () => {
     const markdown = renderGoMemberMarkdownPage(redisDoc, redisResource, withModule, '/docs/');
     expect(markdown).toContain('- Module: [Aspire.Hosting.Redis](/docs/reference/api/go/aspire.hosting.redis.md)');
@@ -1056,6 +1145,23 @@ describe('Go markdown routes (real seed anchors)', () => {
     expect(markdown).toContain('## Signature');
     expect(markdown).toContain('- Defined on: [RedisResource](/reference/api/go/aspire.hosting.redis/redisresource.md)');
     expect(markdown).toContain('Returns a handle; failures surface later via `Err()`.');
+  });
+
+  test('the Aspire.Hosting Resource marker presents its functions as applicability metadata', async () => {
+    const page = await read(getItem(context(await itemProps('aspire.hosting', 'resource'))));
+    expect(sectionOf(page, 'Definition')).toBe('```go\ntype Resource interface{}\n```');
+    expect(sectionOf(page, 'Methods').startsWith(`${GO_MARKER_NOTE}\n\n- [`)).toBe(true);
+    expect(headingsOutsideFences(page)).toContain('## Applies to');
+
+    const memberRoutes = (await memberPaths()).filter(
+      ({ params }) => params.module === 'aspire.hosting' && params.item === 'resource'
+    );
+    expect(memberRoutes.length).toBeGreaterThan(0);
+    for (const { props } of memberRoutes) {
+      const markdown = await read(getMember(context(props)));
+      expect(sectionOf(markdown, 'Definition').startsWith('```go\nfunc (Resource) ')).toBe(true);
+      expect(sectionOf(markdown, 'Defined on').startsWith(GO_MARKER_NOTE)).toBe(true);
+    }
   });
 });
 

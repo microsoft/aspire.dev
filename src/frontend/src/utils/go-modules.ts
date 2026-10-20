@@ -20,6 +20,14 @@ export { goSlugify };
  */
 export const GO_EXPERIMENTAL_NOTE: string = 'The Go AppHost SDK is experimental.';
 
+/**
+ * Shown where a marker interface lists functions. A marker declares no methods of its own in Go:
+ * each function is declared on the concrete types it applies to, so these entries are
+ * applicability metadata rather than members of the marker.
+ */
+export const GO_MARKER_NOTE: string =
+  'A marker interface declares no methods of its own in Go. Its functions are declared on the concrete types they apply to.';
+
 /** Group name for functions that have no receiver, such as `CreateBuilder`. */
 export const GO_PACKAGE_FUNCTIONS_GROUP = 'Package functions';
 
@@ -573,4 +581,16 @@ export function buildGoMemberDefinition(
     signature,
     '}',
   ].join('\n');
+}
+
+/**
+ * Definition shown on a handle's method page. Marker interfaces declare no methods in Go
+ * (their definition is `type X interface{}`), so their functions use the same receiver
+ * notation as standalone functions instead of appearing inside the marker interface.
+ */
+export function buildGoHandleMemberDefinition(
+  handle: Pick<GoHandleType, 'name' | 'isMarker'>,
+  method: Pick<GoFunction, 'name' | 'receiver' | 'signature'>
+): string {
+  return handle.isMarker ? buildGoFunctionDefinition(method) : buildGoMemberDefinition(handle.name, method);
 }

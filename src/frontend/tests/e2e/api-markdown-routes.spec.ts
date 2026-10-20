@@ -93,6 +93,16 @@ const markdownRoutes = [
     path: '/reference/api/go/aspire.hosting/distributedapplicationbuilder/addconnectionstring.md',
   },
   {
+    expectedText: 'A marker interface declares no methods of its own in Go.',
+    name: 'Go marker route',
+    path: '/reference/api/go/aspire.hosting/resource.md',
+  },
+  {
+    expectedText: 'func (Resource) ExcludeFromManifest() Resource',
+    name: 'Go marker member route',
+    path: '/reference/api/go/aspire.hosting/resource/excludefrommanifest.md',
+  },
+  {
     // Samples reuse the same shared `markdownResponse` helper as the API
     // routes and have the same trailing-slash redirect treatment from
     // `src/middleware.ts`. The picked sample is stable in

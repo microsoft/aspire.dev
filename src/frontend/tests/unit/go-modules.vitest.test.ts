@@ -6,6 +6,7 @@ import {
   buildGoEnumDefinition,
   buildGoFunctionDefinition,
   buildGoHandleDefinition,
+  buildGoHandleMemberDefinition,
   buildGoMemberDefinition,
   closeUnclosedCodeFences,
   countGoHandleMembers,
@@ -238,6 +239,43 @@ describe('Go definition snippets', () => {
         '    ) RedisResource',
         '}',
       ].join('\n')
+    );
+  });
+
+  test('a method page shows a marker function with its receiver instead of inside the empty marker', () => {
+    const marker = { name: 'Resource', isMarker: true };
+
+    expect(
+      buildGoHandleMemberDefinition(marker, {
+        name: 'ExcludeFromManifest',
+        receiver: 'Resource',
+        signature: 'ExcludeFromManifest() Resource',
+      })
+    ).toBe('func (Resource) ExcludeFromManifest() Resource');
+    expect(
+      buildGoHandleMemberDefinition(marker, {
+        name: 'WithRoleAssignments',
+        receiver: 'Resource',
+        signature: 'WithRoleAssignments(target AzureSearchResource, roles []AzureSearchRole) Resource',
+      })
+    ).toBe(
+      [
+        'func (Resource) WithRoleAssignments(',
+        '    target AzureSearchResource,',
+        '    roles []AzureSearchRole,',
+        ') Resource',
+      ].join('\n')
+    );
+  });
+
+  test('a method page keeps the interface fence for handles that are not markers', () => {
+    const method = { name: 'WithModule', receiver: 'RedisResource', signature: 'WithModule(path string) RedisResource' };
+
+    expect(buildGoHandleMemberDefinition({ name: 'RedisResource' }, method)).toBe(
+      buildGoMemberDefinition('RedisResource', method)
+    );
+    expect(buildGoHandleMemberDefinition({ name: 'RedisResource', isMarker: false }, method)).toBe(
+      ['type RedisResource interface {', '    // ... omitted for brevity', '    WithModule(path string) RedisResource', '}'].join('\n')
     );
   });
 });

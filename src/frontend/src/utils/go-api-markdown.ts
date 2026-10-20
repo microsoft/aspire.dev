@@ -1,10 +1,11 @@
 import {
   GO_EXPERIMENTAL_NOTE,
+  GO_MARKER_NOTE,
   buildGoDtoDefinition,
   buildGoEnumDefinition,
   buildGoFunctionDefinition,
   buildGoHandleDefinition,
-  buildGoMemberDefinition,
+  buildGoHandleMemberDefinition,
   closeUnclosedCodeFences,
   countGoHandleMembers,
   describeGoErrorModel,
@@ -214,24 +215,24 @@ export function renderGoMemberMarkdownPage(
     { label: 'Kind', value: inlineCode('method') },
   ]);
 
+  const definedOn = bulletList([
+    `- ${link(parentType.name, goItemMdHref(base, pkg.package.name, parentSlug))} — ${inlineCode(
+      parentType.isMarker ? 'marker' : parentType.isInterface ? 'interface' : 'handle'
+    )}`,
+  ]);
+
   return finalizeMarkdown([
     `# ${parentType.name}.${method.name}`,
     metadata,
     describe(method.description),
     section('Remarks', describe(method.remarks)),
-    section('Definition', codeBlock(buildGoMemberDefinition(parentType.name, method), 'go')),
+    section('Definition', codeBlock(buildGoHandleMemberDefinition(parentType, method), 'go')),
     section('Signature', codeBlock(formatGoSignature(method.signature ?? ''), 'go')),
     section('Parameters', renderGoParametersMarkdown(method, pkg, base)),
     section('Options', renderGoOptionsMarkdown(method, pkg, base)),
     section('Returns', renderGoReturnMarkdown(method, pkg, base)),
-    section(
-      'Defined on',
-      bulletList([
-        `- ${link(parentType.name, goItemMdHref(base, pkg.package.name, parentSlug))} — ${inlineCode(
-          parentType.isInterface ? 'interface' : 'handle'
-        )}`,
-      ])
-    ),
+    section('Defined on', parentType.isMarker ? `${GO_MARKER_NOTE}\n\n${definedOn}` : definedOn),
+    parentType.isMarker ? section('Applies to', renderAppliesToMarkdown(method.appliesTo ?? [], pkg, base)) : '',
   ]);
 }
 
@@ -317,7 +318,8 @@ function renderHandleMethodsMarkdown(item: GoHandleType, pkg: GoApiDocument, bas
     }`
   );
 
-  return bulletList([...methodLines, ...synthesizedLines]);
+  const entries = bulletList([...methodLines, ...synthesizedLines]);
+  return item.isMarker && methods.length > 0 ? `${GO_MARKER_NOTE}\n\n${entries}` : entries;
 }
 
 function renderDtoFieldsMarkdown(item: GoDtoType, pkg: GoApiDocument, base: string): string {

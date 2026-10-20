@@ -9,9 +9,11 @@
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
 import {
-  buildGoMemberDefinition,
+  GO_MARKER_NOTE,
+  buildGoHandleMemberDefinition,
   countGoHandleMembers,
   getGoModules,
+  getGoTypeHref,
   goModuleSlug,
 } from '@utils/go-modules';
 import type { GoApiDocument, GoFunction, GoHandleType } from '@utils/go-modules';
@@ -65,12 +67,19 @@ const parentHref = `${base}/reference/api/go/${pkgSlug}/${parentSlug}/`;
 const memberCount = countGoHandleMembers(parentType);
 
 /* ── Hero declaration showing the method in its parent interface ── */
-const heroDeclaration = buildGoMemberDefinition(parentType.name, method);
+const heroDeclaration = buildGoHandleMemberDefinition(parentType, method);
+
+// A marker interface declares no methods in Go; its functions belong to the concrete types they apply to.
+const isMarker = parentType.isMarker === true;
+const appliesTo = isMarker
+  ? (method.appliesTo ?? []).map((name) => ({ name, href: getGoTypeHref(base, pkg, name) }))
+  : [];
 
 /* ── Headings for right-side TOC ─────────────────────────────── */
 const headings: { depth: 2; slug: string; text: string }[] = [
   { depth: 2, slug: 'signature', text: 'Signature' },
   { depth: 2, slug: 'defined-on', text: 'Defined on' },
+  ...(appliesTo.length > 0 ? [{ depth: 2 as const, slug: 'applies-to', text: 'Applies to' }] : []),
 ];
 const goSidebar = await getGoApiReferenceSidebar({
   packageName: pkg.package.name,
@@ -133,19 +142,44 @@ const goSidebar = await getGoApiReferenceSidebar({
       {/* ── Defined on ─────────────────────────────────────────── */}
       <section>
         <h2 id="defined-on">Defined on</h2>
-        <p class="member-defined-desc">This method is defined on the following type:</p>
+        <p class="member-defined-desc">{isMarker ? GO_MARKER_NOTE : 'This method is defined on the following type:'}</p>
         <div class="api-list not-content">
           <a href={parentHref} class="api-list-item">
             <div class="api-list-header">
               <span class={`api-kind-pill ${parentType.isInterface ? 'kind-interface' : 'kind-handle'}`}>
-                {parentType.isInterface ? 'interface' : 'handle'}
+                {isMarker ? 'marker' : parentType.isInterface ? 'interface' : 'handle'}
               </span>
               <code class="api-type-link">{parentType.name}</code>
-              <span class="api-mini-badge">{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
+              {!isMarker && <span class="api-mini-badge">{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>}
             </div>
           </a>
         </div>
       </section>
+
+      {/* ── Applies to (marker functions) ─────────────────────── */}
+      {appliesTo.length > 0 && (
+        <section>
+          <h2 id="applies-to">Applies to</h2>
+          <p class="member-defined-desc">This function applies to the following types:</p>
+          <div class="api-list not-content">
+            {appliesTo.map(({ name, href }) => href ? (
+              <a href={href} class="api-list-item">
+                <div class="api-list-header">
+                  <span class="api-kind-pill kind-interface">type</span>
+                  <code class="api-type-link">{name}</code>
+                </div>
+              </a>
+            ) : (
+              <div class="api-list-item">
+                <div class="api-list-header">
+                  <span class="api-kind-pill kind-interface">type</span>
+                  <code>{name}</code>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   </div>
 </StarlightPage>
