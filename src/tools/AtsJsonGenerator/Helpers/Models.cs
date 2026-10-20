@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace AtsJsonGenerator;
@@ -23,8 +24,34 @@ internal sealed class AtsDumpRoot
     [JsonPropertyName("EnumTypes")]
     public List<AtsDumpEnumType> EnumTypes { get; init; } = [];
 
+    [JsonPropertyName("ExportedValues")]
+    public List<AtsDumpExportedValue> ExportedValues { get; init; } = [];
+
     [JsonPropertyName("Diagnostics")]
     public List<AtsDumpDiagnostic> Diagnostics { get; init; } = [];
+}
+
+/// <summary>
+/// A constant exported by an integration (for example <c>WellKnownPipelineSteps.Publish</c>).
+/// </summary>
+internal sealed class AtsDumpExportedValue
+{
+    // The first segment is the exported root (for example "WellKnownPipelineSteps"); later
+    // segments describe nested members.
+    [JsonPropertyName("PathSegments")]
+    public List<string> PathSegments { get; init; } = [];
+
+    [JsonPropertyName("Type")]
+    public required AtsDumpTypeRef Type { get; init; }
+
+    [JsonPropertyName("Value")]
+    public JsonElement? Value { get; init; }
+
+    [JsonPropertyName("Description")]
+    public string? Description { get; init; }
+
+    [JsonPropertyName("Documentation")]
+    public AtsDumpDocumentation? Documentation { get; init; }
 }
 
 internal sealed class AtsDumpDiagnostic
@@ -73,6 +100,9 @@ internal sealed class AtsDumpCapability
 
     [JsonPropertyName("ReturnsBuilder")]
     public bool ReturnsBuilder { get; init; }
+
+    [JsonPropertyName("IsExperimental")]
+    public bool IsExperimental { get; init; }
 
     [JsonPropertyName("Parameters")]
     public List<AtsDumpParameter> Parameters { get; init; } = [];
@@ -139,6 +169,9 @@ internal sealed class AtsDumpParameter
 
     [JsonPropertyName("CallbackReturnType")]
     public AtsDumpTypeRef? CallbackReturnType { get; init; }
+
+    [JsonPropertyName("Documentation")]
+    public AtsDumpDocumentation? Documentation { get; init; }
 }
 
 internal sealed class AtsDumpCallbackParam
@@ -164,8 +197,17 @@ internal sealed class AtsDumpTypeRef
     [JsonPropertyName("IsReadOnly")]
     public bool IsReadOnly { get; init; }
 
+    [JsonPropertyName("IsNullable")]
+    public bool IsNullable { get; init; }
+
     [JsonPropertyName("ElementType")]
     public AtsDumpTypeRef? ElementType { get; init; }
+
+    [JsonPropertyName("KeyType")]
+    public AtsDumpTypeRef? KeyType { get; init; }
+
+    [JsonPropertyName("ValueType")]
+    public AtsDumpTypeRef? ValueType { get; init; }
 
     [JsonPropertyName("UnionTypes")]
     public List<AtsDumpTypeRef> UnionTypes { get; init; } = [];
