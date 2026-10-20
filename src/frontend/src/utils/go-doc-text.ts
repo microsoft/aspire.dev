@@ -5,7 +5,8 @@
  * plain text they carry:
  *
  *   `error`                          inline code
- *   `IResourceBuilder`1`             CLR generic arity: one code span, shown without the arity
+ *   `IResourceBuilder`1`             CLR type arity: one code span, shown without the arity
+ *   `WithModTidy``1`                 CLR method arity: one code span, shown without the arity
  *   ``` var x = 1; ```               a code sample flattened onto one line
  *   {@ats-ref type:Resource}         a reference to another API item
  *   {@ats-ref method:Owner.member}   a reference to a method
@@ -24,9 +25,10 @@ export type GoDocSegment =
   | { kind: 'link'; text: string; href: string };
 
 const FENCE = /```([^`]+)```/;
-// The arity form `Name`1` contains a backtick that is part of the name, so a backtick
-// followed by digits and another backtick does not end the span.
-const INLINE_CODE = /`((?:[^`\n]|`\d+(?=`))+)`/;
+// The CLR arity suffix is part of the name and contains backticks: one for a type
+// (`Name`1`) and two for a method (`Name``1`). A run of one or two backticks followed
+// by digits and another backtick therefore does not end the span.
+const INLINE_CODE = /`((?:[^`\n]|`{1,2}\d+(?=`))+)`/;
 const REF = /\{@ats-ref\s+(type|method|field):([^\s|}]+)(?:\|([^}]*))?\}/;
 // Only http(s) targets become links, so a description cannot smuggle in a javascript: URL.
 const LINK = /\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/;
@@ -38,7 +40,7 @@ const TOKEN_PATTERN = new RegExp(
   'g'
 );
 const REF_PATTERN = new RegExp(REF.source, 'g');
-const ARITY_CODE_PATTERN = /`([^`\s]+)`\d+`/g;
+const ARITY_CODE_PATTERN = /`([^`\s]+)`{1,2}\d+`/g;
 
 const HTML_ESCAPES: Record<string, string> = {
   '&': '&amp;',
@@ -53,7 +55,7 @@ function escapeHtml(text: string): string {
 }
 
 function stripClrArity(name: string): string {
-  return name.replace(/`\d+$/, '');
+  return name.replace(/`{1,2}\d+$/, '');
 }
 
 export function parseGoDocText(text: string): GoDocSegment[] {

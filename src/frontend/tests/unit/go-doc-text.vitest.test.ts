@@ -31,6 +31,18 @@ describe('parseGoDocText', () => {
     ]);
   });
 
+  test('reads a method arity suffix, which uses two backticks, the same way', () => {
+    expect(parseGoDocText('Use `WithModTidy``1`, `WithModVendor``2`, or `Plain`.')).toEqual([
+      { kind: 'text', text: 'Use ' },
+      { kind: 'code', text: 'WithModTidy' },
+      { kind: 'text', text: ', ' },
+      { kind: 'code', text: 'WithModVendor' },
+      { kind: 'text', text: ', or ' },
+      { kind: 'code', text: 'Plain' },
+      { kind: 'text', text: '.' },
+    ]);
+  });
+
   test('reads several adjacent code spans separately', () => {
     expect(parseGoDocText('`a` and `b`')).toEqual([
       { kind: 'code', text: 'a' },
@@ -105,6 +117,10 @@ describe('toSearchGoDocText', () => {
       'Property on RedisResource (get/set)'
     );
   });
+
+  test('drops the arity of a method name so the text can be cut and matched', () => {
+    expect(toSearchGoDocText('Call `WithModTidy``1` first.')).toBe('Call `WithModTidy` first.');
+  });
 });
 
 describe('truncateGoDocText', () => {
@@ -155,6 +171,12 @@ describe('normalizeGoDocMarkdown', () => {
         'Wraps `IResourceBuilder`1` for {@ats-ref type:Resource} and {@ats-ref method:A.b|b}.'
       )
     ).toBe('Wraps `IResourceBuilder` for `Resource` and `b`.');
+  });
+
+  test('drops the arity of a method name', () => {
+    expect(normalizeGoDocMarkdown('Call `WithModTidy``1` then `WithModVendor``2`.')).toBe(
+      'Call `WithModTidy` then `WithModVendor`.'
+    );
   });
 
   test('keeps markdown code, fences and links as they are', () => {
