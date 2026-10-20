@@ -77,6 +77,10 @@ const pageFamilies = [
   '/reference/api/typescript/aspire.hosting.redis/',
   '/reference/api/typescript/aspire.hosting.redis/redisresource/',
   '/reference/api/typescript/aspire.hosting.redis/redisresource/withmodule/',
+  '/reference/api/go/',
+  '/reference/api/go/aspire.hosting.redis/',
+  '/reference/api/go/aspire.hosting.redis/redisresource/',
+  '/reference/api/go/aspire.hosting.redis/redisresource/withmodule/',
 ];
 
 test('all page families stay within their phone, tablet and desktop viewport', async ({ page }) => {
@@ -129,7 +133,7 @@ test('shared menus announce state, keep filters usable and restore focus after n
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const path of ['/', '/hub/', '/get-started/install-cli/', '/reference/api/typescript/']) {
+  for (const path of ['/', '/hub/', '/get-started/install-cli/', '/reference/api/typescript/', '/reference/api/go/']) {
     await open(page, path);
     const menu = page.locator('starlight-menu-button button');
     await menu.click();
@@ -260,6 +264,7 @@ test('technical titles and breadcrumbs wrap whole identifier segments', async ({
     ['/hub/glossary/resourcenotificationservice/', 'ResourceNotificationService'],
     ['/reference/api/csharp/aspire.hosting.redis/redisbuilderextensions/methods/', 'RedisBuilderExtensions Methods'],
     ['/reference/api/typescript/aspire.hosting.redis/redisresource/withmodule/', 'RedisResource.withModule'],
+    ['/reference/api/go/aspire.hosting.redis/redisresource/withmodule/', 'RedisResource.WithModule'],
   ]) {
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 });
@@ -407,6 +412,7 @@ test('API identifiers and the translation table reflow without clipping content'
     '/reference/api/csharp/aspire.hosting.redis/redisresource/',
     '/reference/api/csharp/aspire.hosting.redis/redisbuilderextensions/methods/',
     '/reference/api/typescript/aspire.hosting.redis/redisresource/',
+    '/reference/api/go/aspire.hosting.redis/redisresource/',
   ]) {
     await open(page, path);
     for (const width of [320, 390, 768]) {

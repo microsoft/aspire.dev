@@ -11,6 +11,9 @@ const surfaces = [
   { path: 'typescript/', prefix: 'ts-api' },
   { path: 'typescript/aspire.hosting/', prefix: 'pkg' },
   { path: 'typescript/aspire.hosting/idistributedapplicationbuilder/', prefix: 'type' },
+  { path: 'go/', prefix: 'go-api' },
+  { path: 'go/aspire.hosting/', prefix: 'pkg' },
+  { path: 'go/aspire.hosting/distributedapplicationbuilder/', prefix: 'type' },
 ];
 
 async function navigateAwayAndBack(page: Page) {
@@ -192,7 +195,7 @@ for (const { path, prefix } of surfaces) {
   });
 }
 
-for (const { path, prefix } of [surfaces[0], surfaces[3]]) {
+for (const { path, prefix } of [surfaces[0], surfaces[3], surfaces[6]]) {
   test(`API version-only empty recovery persists defaults: ${path}`, async ({ page }) => {
     await page.goto(`/reference/api/${path}?versions=&keep=1`);
     await dismissCookieConsentIfVisible(page);

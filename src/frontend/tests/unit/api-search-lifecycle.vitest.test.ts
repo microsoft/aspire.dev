@@ -9,6 +9,7 @@ import rehypeParse from 'rehype-parse';
 import { unified } from 'unified';
 import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
 import * as searchStats from '@utils/ts-api-search-stats';
+import * as goSearchStats from '@utils/go-api-search-stats';
 import { ApiSearchPresentation, withApiSearchFallback } from '../../src/pages/reference/api/_search-presentation';
 
 const surfaces = [
@@ -18,6 +19,9 @@ const surfaces = [
   ['typescript', 'landing'],
   ['typescript', 'module'],
   ['typescript', 'item'],
+  ['go', 'landing'],
+  ['go', 'module'],
+  ['go', 'item'],
 ] as const;
 
 type MountSearch = (root: HTMLElement, signal: AbortSignal) => void;
@@ -176,7 +180,7 @@ describe('API search navigation lifecycle', () => {
       vi.useFakeTimers();
       const events = new EventTarget();
       const root = new SearchElement();
-      const prefix = kind === 'landing' ? language === 'csharp' ? 'api' : 'ts-api'
+      const prefix = kind === 'landing' ? language === 'csharp' ? 'api' : language === 'go' ? 'go-api' : 'ts-api'
         : kind === 'type' || kind === 'item' ? 'type' : 'pkg';
       for (const suffix of ['search-input', 'search-clear', 'search-results', 'search-status',
         'search-count', 'kind-filters', 'clear-filters', 'package-list']) {
@@ -227,6 +231,7 @@ describe('API search navigation lifecycle', () => {
           },
         },
         '@utils/ts-api-search-stats': searchStats,
+        '@utils/go-api-search-stats': goSearchStats,
         '../_search-presentation': { ApiSearchPresentation, withApiSearchFallback },
         '../../_search-presentation': { ApiSearchPresentation, withApiSearchFallback },
         '../../../_search-presentation': { ApiSearchPresentation, withApiSearchFallback },

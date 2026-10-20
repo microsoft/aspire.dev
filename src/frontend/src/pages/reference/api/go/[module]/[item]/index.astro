@@ -1,0 +1,915 @@
+---
+/**
+ * /reference/api/go/[module]/[item]/ — Individual item detail page.
+ *
+ * Renders detail for a handle (Go interface), DTO (struct), enum or standalone function
+ * of one module, matching the TypeScript item page pattern.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { Code } from '@astrojs/starlight/components';
+import {
+  buildGoDtoDefinition,
+  buildGoEnumDefinition,
+  buildGoFunctionDefinition,
+  buildGoHandleDefinition,
+  getGoHandleAppliesTo,
+  getGoModules,
+  getGoPropertyValueType,
+  getGoTypeHref,
+  goModuleSlug,
+} from '@utils/go-modules';
+import type { GoApiDocument, GoDtoType, GoEnumType, GoFunction, GoHandleType } from '@utils/go-modules';
+import { getGoApiReferenceSidebar } from '@utils/go-api-sidebar';
+import { getGoFunctionDisplayKind, getGoFunctionDisplayLabel } from '@utils/go-api-function-kind';
+import {
+  getGoItemSlug,
+  getGoMemberAnchor,
+  getGoMethods,
+  getGoMethodSlug,
+  getGoStandaloneFunctions,
+  getGoTopLevelRouteItems,
+} from '@utils/go-api-routes';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import GoMemberCard from '@components/api-reference/GoMemberCard.astro';
+
+export async function getStaticPaths() {
+  const packages = await getGoModules();
+  const paths: any[] = [];
+
+  for (const pkg of packages) {
+    const pkgSlug = goModuleSlug(pkg.data.package.name);
+    const topLevelItems = getGoTopLevelRouteItems(pkg.data);
+
+    // Handle types
+    for (const handle of pkg.data.handleTypes ?? []) {
+      const slug = getGoItemSlug(handle, topLevelItems);
+      if (!slug) continue;
+      paths.push({
+        params: { module: pkgSlug, item: slug },
+        props: { pkg: pkg.data, item: handle, itemKind: 'handle' },
+      });
+    }
+
+    // DTO types
+    for (const dto of pkg.data.dtoTypes ?? []) {
+      const slug = getGoItemSlug(dto, topLevelItems);
+      if (!slug) continue;
+      paths.push({
+        params: { module: pkgSlug, item: slug },
+        props: { pkg: pkg.data, item: dto, itemKind: 'dto' },
+      });
+    }
+
+    // Enum types
+    for (const enumType of pkg.data.enumTypes ?? []) {
+      const slug = getGoItemSlug(enumType, topLevelItems);
+      if (!slug) continue;
+      paths.push({
+        params: { module: pkgSlug, item: slug },
+        props: { pkg: pkg.data, item: enumType, itemKind: 'enum' },
+      });
+    }
+
+    // Standalone functions (no dot in qualifiedName)
+    for (const fn of getGoStandaloneFunctions(pkg.data)) {
+      const slug = getGoItemSlug(fn, topLevelItems);
+      if (!slug) continue;
+      paths.push({
+        params: { module: pkgSlug, item: slug },
+        props: { pkg: pkg.data, item: fn, itemKind: 'function' },
+      });
+    }
+  }
+
+  return paths;
+}
+
+const { pkg, item, itemKind } = Astro.props as {
+  pkg: GoApiDocument;
+  item: GoHandleType | GoDtoType | GoEnumType | GoFunction;
+  itemKind: 'handle' | 'dto' | 'enum' | 'function';
+};
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const pkgSlug = goModuleSlug(pkg.package.name);
+const topLevelItems = getGoTopLevelRouteItems(pkg);
+const currentItemSlug = Astro.params.item ?? getGoItemSlug(item, topLevelItems);
+
+const handle = itemKind === 'handle' ? (item as GoHandleType) : undefined;
+const dto = itemKind === 'dto' ? (item as GoDtoType) : undefined;
+const enumType = itemKind === 'enum' ? (item as GoEnumType) : undefined;
+const fn = itemKind === 'function' ? (item as GoFunction) : undefined;
+
+/* ── Handle: group capabilities into properties & methods ────── */
+const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+const setterBaseName = (setter: GoFunction) => setter.name.replace(/^Set/, '').toLowerCase();
+
+const capabilities = handle?.capabilities ?? [];
+const getters = capabilities.filter((c) => c.kind === 'PropertyGetter').sort(byName);
+const setters = capabilities.filter((c) => c.kind === 'PropertySetter').sort(byName);
+const methods = handle ? getGoMethods<GoFunction>(handle, true) : [];
+// Hand-written SDK helpers have no capability behind them, so they get no pages of their own.
+const synthesizedMembers = handle?.synthesizedMembers ?? [];
+
+// A Go property is a getter plus an optional `SetX` setter; setter-only properties keep the setter's name.
+const properties = [
+  ...getters.map((getter) => {
+    const setter = setters.find((candidate) => setterBaseName(candidate) === getter.name.toLowerCase());
+    return {
+      name: getter.name,
+      description: getter.description ?? setter?.description,
+      valueType: getGoPropertyValueType(getter),
+      signatures: [getter.signature, setter?.signature].filter((signature): signature is string => Boolean(signature)),
+      access: setter ? 'get · set' : 'get',
+    };
+  }),
+  ...setters
+    .filter((setter) => !getters.some((getter) => getter.name.toLowerCase() === setterBaseName(setter)))
+    .map((setter) => ({
+      name: setter.name,
+      description: setter.description,
+      valueType: getGoPropertyValueType(setter),
+      signatures: setter.signature ? [setter.signature] : [],
+      access: 'set',
+    })),
+];
+
+const fields = dto?.fields ?? [];
+const enumMembers = enumType?.members ?? [];
+
+/* ── Kind labels and CSS ─────────────────────────────────────── */
+
+const kindLabel = handle ? (handle.isInterface ? 'Interface' : 'Handle')
+               : dto ? 'Struct'
+               : fn ? getGoFunctionDisplayLabel(fn)
+               : 'Enum';
+
+const kindPillClass = handle
+  ? (handle.isInterface ? 'kind-interface' : 'kind-handle')
+  : dto ? 'kind-struct'
+  : fn ? 'kind-method'
+  : 'kind-enum';
+
+const kindTint = handle
+  ? (handle.isInterface ? 'interface' : 'handle')
+  : dto ? 'type'
+  : fn ? 'function'
+  : 'enum';
+
+/* ── Go definition for the Code block ────────────────────────── */
+const definition = handle ? buildGoHandleDefinition(handle)
+                 : dto ? buildGoDtoDefinition(dto)
+                 : enumType ? buildGoEnumDefinition(enumType)
+                 : fn ? buildGoFunctionDefinition(fn)
+                 : '';
+
+// A function card already shows its own description, so only types describe themselves in the hero.
+const heroDescription = fn ? undefined : item.description;
+
+// Embedded interfaces link to their page when the module declares them.
+const embeds = (handle?.implementedInterfaces ?? []).map((name) => ({
+  name,
+  href: getGoTypeHref(base, pkg, name),
+}));
+
+// Concrete types the capabilities apply to; types from other modules have no page here.
+const appliesToNames = fn
+  ? (fn.appliesTo ?? [])
+  : handle && (handle.isInterface || handle.isMarker)
+    ? getGoHandleAppliesTo(handle)
+    : [];
+const appliesTo = appliesToNames.map((name) => ({ name, href: getGoTypeHref(base, pkg, name) }));
+const appliesToKind = fn ? getGoFunctionDisplayKind(fn) : (handle?.isMarker && !handle.isInterface ? 'marker' : 'interface');
+
+/* ── Build type-scoped search index for complex types ─────────── */
+interface TypeIndexEntry { n: string; k: string; s: string; r?: string; a: string; }
+const typeIndex: TypeIndexEntry[] = [];
+if (handle) {
+  for (const p of properties) typeIndex.push({ n: p.name, k: 'property', s: p.description ?? '', r: p.valueType, a: getGoMemberAnchor(p.name) });
+  for (const m of methods) typeIndex.push({ n: m.name, k: 'method', s: m.description ?? '', r: m.returnType, a: getGoMethodSlug(m, methods, handle.name) });
+  for (const m of synthesizedMembers) typeIndex.push({ n: m.name, k: 'method', s: m.description ?? '', a: getGoMemberAnchor(m.name) });
+} else if (dto) {
+  for (const f of fields) typeIndex.push({ n: f.name, k: 'field', s: f.description ?? '', r: f.type, a: getGoMemberAnchor(f.name) });
+} else if (enumType) {
+  for (const m of enumMembers) typeIndex.push({ n: m.name, k: 'enum member', s: m.description ?? '', r: m.value, a: getGoMemberAnchor(m.name) });
+}
+const memberCount = typeIndex.length;
+const hasSearchableMembers = memberCount >= 5;
+const typeSearchKinds = [...new Set(typeIndex.map((e: TypeIndexEntry) => e.k))].sort();
+const typeIndexJson = JSON.stringify(typeIndex);
+
+/* ── Headings for right-side TOC ─────────────────────────────── */
+const headings: { depth: 2; slug: string; text: string }[] = [];
+if (handle) {
+  if (properties.length > 0) headings.push({ depth: 2, slug: 'properties', text: 'Properties' });
+  if (methods.length > 0 || synthesizedMembers.length > 0) headings.push({ depth: 2, slug: 'methods', text: 'Methods' });
+} else if (dto) {
+  if (fields.length > 0) headings.push({ depth: 2, slug: 'fields', text: 'Fields' });
+} else if (enumType) {
+  if (enumMembers.length > 0) headings.push({ depth: 2, slug: 'values', text: 'Values' });
+} else if (fn) {
+  headings.push({ depth: 2, slug: 'signature', text: 'Signature' });
+}
+if (appliesTo.length > 0) headings.push({ depth: 2, slug: 'applies-to', text: 'Applies to' });
+
+const goSidebar = await getGoApiReferenceSidebar({
+  packageName: pkg.package.name,
+  item: { name: item.name, slug: currentItemSlug },
+  headings,
+});
+---
+
+<StarlightPage
+  frontmatter={{
+    title: item.name,
+    description: `${kindLabel} — Go API reference for ${item.name} in ${pkg.package.name}`,
+    tableOfContents: false,
+    prev: false,
+    next: false,
+    pagefind: false,
+    pageActions: true,
+  }}
+  sidebar={goSidebar}
+  headings={headings}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search Go APIs', href: `${base}/reference/api/go/` },
+    { label: pkg.package.name, href: `${base}/reference/api/go/${pkgSlug}/` },
+    { label: item.name },
+  ]} />
+
+  <div class={`not-content kind-tint-${kindTint}`}>
+    {/* ── Type Hero (matches the TypeScript and C# hero pattern) ── */}
+    <div class="api-hero type-hero not-content">
+      <div class="type-hero-top">
+        <div class="type-hero-badges">
+          <span class={`api-kind-pill ${kindPillClass}`}>{kindLabel}</span>
+          {handle?.isMarker && <span class="api-mini-badge">marker</span>}
+        </div>
+      </div>
+
+      <span class="type-hero-pkg">📦 {pkg.package.name} {pkg.package.version && <span class="type-hero-ver">v{pkg.package.version}</span>}</span>
+
+      {heroDescription && <p class="type-hero-desc">{heroDescription}</p>}
+
+      {/* Definition (Go declaration) */}
+      {definition && (
+        <div class="ts not-content">
+          <div class="ts-code">
+            <Code code={definition} lang="go" showLineNumbers={false} />
+          </div>
+        </div>
+      )}
+
+      {/* Embeds footer */}
+      {embeds.length > 0 && (
+        <div class="type-hero-footer">
+          <div class="type-hero-footer-left">
+            <div class="type-hero-implements">
+              <span class="api-meta-label type-hero-section-label">Embeds</span>
+              <ul class="impl-list">
+                {embeds.map(({ name, href }) => (
+                  <li>{href ? <a href={href}><code>{name}</code></a> : <code>{name}</code>}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* ── Type-scoped search (for complex types) ──────────────── */}
+    {hasSearchableMembers && (
+      <div class="type-search-section not-content" data-api-search-language="go" data-api-search-kind="item" data-member-count={memberCount}>
+        <script is:inline type="application/json" data-api-search-index set:html={typeIndexJson.replace(/</g, '\\u003c')} />
+        <InpageSearch
+          id="type"
+          placeholder={`Search members of ${item.name}…`}
+          kinds={typeSearchKinds}
+          defaultStatsText={`${memberCount} member${memberCount !== 1 ? 's' : ''}`}
+          size="lg"
+        />
+      </div>
+    )}
+
+    {/* ── Type content sections ───────────────────────────────── */}
+    <div id="type-content-sections">
+
+    {/* ── Handle Detail ──────────────────────────────────────── */}
+    {handle && (
+      <>
+        {/* Properties (getters paired with matching setters) */}
+        {properties.length > 0 && (
+          <section>
+            <h2 id="properties">Properties</h2>
+            <div class="api-list go-member-stack">
+              {properties.map((property) => (
+                <div id={getGoMemberAnchor(property.name)}>
+                  <GoMemberCard
+                    member={{
+                      name: property.name,
+                      description: property.description,
+                      signature: property.signatures[0],
+                      returnType: property.valueType,
+                    }}
+                    relatedSignatures={property.signatures.slice(1)}
+                    badges={[property.access]}
+                    variant="property"
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Methods */}
+        {(methods.length > 0 || synthesizedMembers.length > 0) && (
+          <section>
+            <h2 id="methods">Methods</h2>
+            <div class="api-list go-member-stack">
+              {methods.map((m) => {
+                const methodSlug = getGoMethodSlug(m, methods, handle.name);
+                return (
+                  <div id={methodSlug}>
+                    <GoMemberCard
+                      member={m}
+                      variant="method"
+                      href={`${base}/reference/api/go/${pkgSlug}/${currentItemSlug}/${methodSlug}/`}
+                    />
+                  </div>
+                );
+              })}
+              {synthesizedMembers.map((member) => (
+                <div id={getGoMemberAnchor(member.name)}>
+                  <GoMemberCard member={member} variant="method" />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </>
+    )}
+
+    {/* ── DTO Detail ─────────────────────────────────────────── */}
+    {dto && fields.length > 0 && (
+      <section>
+        <h2 id="fields">Fields</h2>
+        <div class="api-list go-member-stack">
+          {fields.map((f) => (
+            <div id={getGoMemberAnchor(f.name)}>
+              <GoMemberCard
+                member={{ name: f.name, returnType: f.type, description: f.description }}
+                badges={[...(f.isOptional ? ['optional'] : []), ...(f.isCallback ? ['callback'] : [])]}
+                variant="field"
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {/* ── Enum Detail ────────────────────────────────────────── */}
+    {enumType && enumMembers.length > 0 && (
+      <section>
+        <h2 id="values">Values</h2>
+        <div class="api-list go-member-stack">
+          {enumMembers.map((member) => (
+            <div id={getGoMemberAnchor(member.name)}>
+              <div class="api-list-item mc">
+                <div class="api-list-header">
+                  <code class="mc-param-name">{member.name}</code>
+                  <span class="mc-param-type mc-param-type-1"><code>{JSON.stringify(member.value)}</code></span>
+                </div>
+                {member.description && <div class="api-list-desc">{member.description}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {/* ── Function Detail ────────────────────────────────────── */}
+    {fn && (
+      <section>
+        <h2 id="signature">Signature</h2>
+        <div class="api-list go-member-stack">
+          <GoMemberCard member={fn} variant={getGoFunctionDisplayKind(fn)} />
+        </div>
+      </section>
+    )}
+
+    {/* ── Applies to (interface/marker handles and standalone functions) ── */}
+    {appliesTo.length > 0 && (
+      <section>
+        <h2 id="applies-to">Applies to</h2>
+        <p class="fn-applies-desc">This {appliesToKind} applies to the following types:</p>
+        <div class="api-list not-content">
+          {appliesTo.map(({ name, href }) => href ? (
+            <a href={href} class="api-list-item">
+              <div class="api-list-header">
+                <span class="api-kind-pill kind-interface">type</span>
+                <code class="api-type-link">{name}</code>
+              </div>
+            </a>
+          ) : (
+            <div class="api-list-item">
+              <div class="api-list-header">
+                <span class="api-kind-pill kind-interface">type</span>
+                <code>{name}</code>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+    </div>{/* close type-content-sections */}
+  </div>{/* close not-content kind-tint */}
+</StarlightPage>
+
+  <script>
+    import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
+    import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+    import { ApiSearchPresentation, withApiSearchFallback } from '../../../_search-presentation';
+
+    interface TypeIndexEntry {
+      n: string;
+      k: string;
+      s: string;
+      r?: string;
+      a: string;
+    }
+
+    const PAGE_SIZE = 10;
+    const DEBOUNCE_MS = 200;
+
+    function fmtNum(n: number): string { return n.toLocaleString(); }
+
+    const KIND_COLORS: Record<string, string> = {
+      'method': '#3b82f6',
+      'property': '#10b981',
+      'field': '#f59e0b',
+      'enum member': '#d97706',
+    };
+
+    class TypeSearchController {
+      private input: HTMLInputElement;
+      private resultsEl: HTMLElement;
+      private status: HTMLElement;
+      private countEl: HTMLElement;
+      private filtersEl: HTMLElement;
+      private clearFiltersBtn: HTMLElement;
+      private index: TypeIndexEntry[];
+      private memberCount: number;
+      private activeKinds = new Set<string>();
+      private debounceTimer: number | null = null;
+      private highlightTimers = new Set<number>();
+      private lastScored: { entry: TypeIndexEntry; score: number }[] = [];
+      private lastTokens: string[] = [];
+      private visibleCount = 0;
+      private sync: InpageSearchSync;
+      private presentation: ApiSearchPresentation;
+
+      constructor(root: HTMLElement, private signal: AbortSignal) {
+        this.input = root.querySelector<HTMLInputElement>('#type-search-input')!;
+        this.resultsEl = root.querySelector<HTMLElement>('#type-search-results')!;
+        this.status = root.querySelector<HTMLElement>('#type-search-status')!;
+        this.countEl = root.querySelector<HTMLElement>('#type-search-count')!;
+        this.filtersEl = root.querySelector<HTMLElement>('#type-kind-filters')!;
+        this.clearFiltersBtn = root.querySelector<HTMLElement>('#type-clear-filters')!;
+        this.index = readApiSearchIndex<TypeIndexEntry>(root);
+        this.memberCount = Number(root.dataset.memberCount ?? 0);
+
+        this.sync = new InpageSearchSync('type', () => this.clear(), root, signal);
+        this.presentation = new ApiSearchPresentation(root, this.input, () => this.clear(), signal);
+        signal.addEventListener('abort', () => {
+          if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+          this.highlightTimers.forEach(timer => clearTimeout(timer));
+          this.highlightTimers.clear();
+        }, { once: true });
+
+        this.init();
+        this.restoreFromUrl();
+      }
+
+      private init(): void {
+        this.input.addEventListener('input', () => this.handleInput(), { signal: this.signal });
+        this.input.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') this.clear();
+        }, { signal: this.signal });
+
+        this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            const kind = (chip as HTMLElement).dataset.kind!;
+            if (this.activeKinds.has(kind)) {
+              this.activeKinds.delete(kind);
+              chip.classList.remove('active');
+              chip.setAttribute('aria-pressed', 'false');
+            } else {
+              this.activeKinds.add(kind);
+              chip.classList.add('active');
+              chip.setAttribute('aria-pressed', 'true');
+            }
+            this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
+            this.syncUrl();
+            this.applySearch();
+          }, { signal: this.signal });
+        });
+
+        this.clearFiltersBtn?.addEventListener('click', () => {
+          this.activeKinds.clear();
+          this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(c => {
+            c.classList.remove('active');
+            c.setAttribute('aria-pressed', 'false');
+          });
+          this.clearFiltersBtn.style.display = 'none';
+          this.syncUrl();
+          this.applySearch();
+          this.input.focus();
+        }, { signal: this.signal });
+
+        this.resultsEl.addEventListener('click', (e) => {
+          const link = (e.target as HTMLElement).closest('a.api-search-result');
+          if (!link) return;
+          const href = link.getAttribute('href');
+          if (!href || !href.startsWith('#')) return;
+          e.preventDefault();
+          const target = document.getElementById(href.slice(1));
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            target.classList.add('search-highlight');
+            const timer = window.setTimeout(() => {
+              target.classList.remove('search-highlight');
+              this.highlightTimers.delete(timer);
+            }, 1500);
+            this.highlightTimers.add(timer);
+            history.replaceState(history.state, '', href);
+          }
+        }, { signal: this.signal });
+      }
+
+      private clear(): void {
+        this.input.value = '';
+        this.sync.updateClearButton();
+        this.syncUrl();
+        this.applySearch();
+        this.input.focus();
+      }
+
+      private showContent(): void {
+        if (this.activeKinds.size > 0 || this.index.length === 0) {
+          this.search('');
+          return;
+        }
+        this.resultsEl.style.display = 'none';
+        this.resultsEl.innerHTML = '';
+        this.countEl.textContent = `${fmtNum(this.memberCount)} member${this.memberCount !== 1 ? 's' : ''}`;
+        this.status.textContent = this.countEl.textContent;
+      }
+
+      private handleInput(): void {
+        if (this.debounceTimer) clearTimeout(this.debounceTimer);
+        this.debounceTimer = window.setTimeout(() => {
+          this.syncUrl();
+          this.applySearch();
+        }, DEBOUNCE_MS);
+      }
+
+      private syncUrl(): void {
+        this.sync.writeUrl(this.input.value.trim(), this.activeKinds);
+      }
+
+      private restoreFromUrl(): void {
+        const q = this.sync.readQuery();
+        const validKinds = new Set(
+          Array.from(this.filtersEl?.querySelectorAll('.api-filter-chip') ?? [])
+            .map(c => (c as HTMLElement).dataset.kind!)
+        );
+        const kinds = this.sync.readKinds(validKinds);
+
+        if (q) {
+          this.input.value = q;
+          this.sync.updateClearButton();
+        }
+
+        if (kinds.size > 0) {
+          this.activeKinds = kinds;
+          this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(chip => {
+            const kind = (chip as HTMLElement).dataset.kind!;
+            if (kinds.has(kind)) {
+              chip.classList.add('active');
+              chip.setAttribute('aria-pressed', 'true');
+            }
+          });
+          this.clearFiltersBtn.style.display = '';
+        }
+
+        this.applySearch();
+      }
+
+      private applySearch(): void {
+        if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+        this.presentation.update(this.activeKinds.size > 0);
+        const q = this.input.value.trim();
+        if (!q && this.activeKinds.size === 0) {
+          this.showContent();
+          return;
+        }
+        this.search(q);
+      }
+
+      private findMatches(query: string, kinds = this.activeKinds) {
+        const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+        const hasKindFilter = kinds.size > 0;
+
+        type Scored = { entry: TypeIndexEntry; score: number };
+        const scored: Scored[] = [];
+
+        for (const entry of this.index) {
+          if (hasKindFilter && !kinds.has(entry.k)) continue;
+
+          if (tokens.length === 0) {
+            scored.push({ entry, score: 50 });
+            continue;
+          }
+
+          const nameLower = entry.n.toLowerCase();
+          const summaryLower = entry.s.toLowerCase();
+          const returnLower = (entry.r ?? '').toLowerCase();
+
+          let score = 0;
+          for (const token of tokens) {
+            if (nameLower === token) {
+              score += 100;
+            } else if (nameLower.startsWith(token)) {
+              score += 60;
+            } else if (nameLower.includes(token)) {
+              score += 40;
+            } else if (this.camelMatch(entry.n, token)) {
+              score += 55;
+            } else if (returnLower.includes(token)) {
+              score += 25;
+            } else if (summaryLower.includes(token)) {
+              score += 10;
+            } else {
+              score = 0;
+              break;
+            }
+          }
+
+          if (score > 0) scored.push({ entry, score });
+        }
+
+        return scored;
+      }
+
+      private search(query: string): void {
+        const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+        const hasKindFilter = this.activeKinds.size > 0;
+        const scored = this.findMatches(query);
+        scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
+
+        this.lastScored = scored;
+        this.lastTokens = tokens;
+        this.visibleCount = 0;
+
+        const total = scored.length;
+
+        this.resultsEl.style.display = '';
+
+        if (total === 0) {
+          this.presentation.renderEmpty(this.resultsEl, hasKindFilter, this.index.length === 0, {
+            withoutQuery: this.findMatches('').length,
+            withoutFilters: this.findMatches(query, new Set()).length,
+          }, this.activeKinds);
+          this.countEl.textContent = '0 results';
+          this.status.textContent = 'No results';
+          return;
+        }
+
+        this.resultsEl.innerHTML = '';
+        this.loadMore();
+      }
+
+      private loadMore(): void {
+        const total = this.lastScored.length;
+        const nextBatch = this.lastScored.slice(this.visibleCount, this.visibleCount + PAGE_SIZE);
+        this.visibleCount += nextBatch.length;
+
+        const existingBtn = this.resultsEl.querySelector('.api-load-more');
+        if (existingBtn) existingBtn.remove();
+
+        const fragment = document.createDocumentFragment();
+        for (const s of nextBatch) {
+          const div = document.createElement('div');
+          div.innerHTML = this.renderResult(s.entry, this.lastTokens);
+          while (div.firstChild) fragment.appendChild(div.firstChild);
+        }
+        this.resultsEl.appendChild(fragment);
+
+        this.countEl.textContent = this.visibleCount < total
+          ? `Showing ${fmtNum(this.visibleCount)} of ${fmtNum(total)} results`
+          : `${fmtNum(total)} result${total !== 1 ? 's' : ''}`;
+        this.status.textContent = this.countEl.textContent ?? '';
+
+        const remaining = total - this.visibleCount;
+        if (remaining > 0) {
+          const btn = document.createElement('button');
+          btn.className = 'api-load-more';
+          btn.type = 'button';
+          const nextCount = Math.min(remaining, PAGE_SIZE);
+          btn.textContent = `Show ${fmtNum(nextCount)} more of ${fmtNum(remaining)} remaining`;
+          btn.addEventListener('click', () => this.loadMore(), { signal: this.signal });
+          this.resultsEl.appendChild(btn);
+        }
+      }
+
+      private renderResult(entry: TypeIndexEntry, tokens: string[]): string {
+        const kindClass = `kind-${entry.k.replace(/\s+/g, '-')}`;
+        const kindColor = KIND_COLORS[entry.k] ?? KIND_COLORS.method;
+        const returnInfo = entry.r
+          ? `<span class="api-list-meta"><code>${this.esc(entry.r)}</code></span>`
+          : '';
+
+        return `<a href="#${entry.a}" class="api-list-item api-search-result" title="${this.esc(entry.n)}">
+          <div class="api-list-header">
+            <span class="api-search-result-name" style="color: ${kindColor}">${this.highlight(entry.n, tokens)}</span>
+            <span class="api-kind-micro ${kindClass}">${this.esc(entry.k)}</span>
+            <div class="trailing">
+              ${returnInfo}
+            </div>
+          </div>
+          ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
+        </a>`;
+      }
+
+      private highlight(text: string, tokens: string[]): string {
+        if (!tokens.length) return this.esc(text);
+        const escaped = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+        return text.replace(/[&<>"']/g, ch =>
+          ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch))
+          .replace(re, '<mark>$1</mark>');
+      }
+
+      private camelMatch(name: string, token: string): boolean {
+        const uppers = name.replace(/[^A-Z]/g, '').toLowerCase();
+        if (uppers.length < 2) return false;
+        return uppers.startsWith(token) || uppers.includes(token);
+      }
+
+      private esc(text: string): string {
+        return text.replace(/[&<>"']/g, ch =>
+          ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch));
+      }
+    }
+
+    registerApiSearch('go', 'item', withApiSearchFallback((root, signal) => new TypeSearchController(root, signal)));
+  </script>
+
+<style>
+  /* Kind-tinted page wrapper — sets --kind-tint for the top border accent */
+  .kind-tint-handle    { --kind-tint: var(--api-kind-class); }
+  .kind-tint-interface { --kind-tint: var(--api-kind-interface); }
+  .kind-tint-type      { --kind-tint: var(--api-kind-struct); }
+  .kind-tint-enum      { --kind-tint: var(--api-kind-enum); }
+  .kind-tint-function  { --kind-tint: #3b82f6; }
+
+  /* Type hero layout — consistent vertical rhythm matching C# TypeHero */
+  .type-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border-color: transparent;
+    border-top: 3px solid var(--kind-tint, var(--api-border));
+    position: relative;
+  }
+
+  .type-hero-top {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .type-hero-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .type-hero-pkg {
+    font-size: var(--api-text-sm);
+    color: var(--sl-color-gray-3);
+    font-family: var(--sl-font-system-mono, monospace);
+    overflow-wrap: anywhere;
+  }
+
+  .type-hero-ver {
+    color: var(--sl-color-gray-3);
+    font-weight: 600;
+  }
+
+  .type-hero-desc {
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: var(--api-text-base);
+    line-height: 1.6;
+  }
+
+  /* Remove default margins from the signature code wrapper inside hero */
+  .type-hero :global(.ts) {
+    margin: 0;
+  }
+  .type-hero :global(.ts-code) {
+    margin: 0;
+  }
+  .type-hero :global(.ts-code .astro-code) {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    font-size: var(--api-text-base);
+    line-height: 1.55;
+  }
+  .type-hero :global(.ts-code pre) {
+    margin: 0;
+  }
+  .type-hero :global(.ts-code figure.frame) {
+    margin: 0;
+    border: none;
+  }
+
+  /* Footer: embedded interfaces */
+  .type-hero-footer {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+  .type-hero-footer-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .type-hero-section-label {
+    color: var(--api-accent-text);
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  .impl-list {
+    list-style: disc;
+    padding-left: 1.5rem;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .impl-list li {
+    font-size: var(--api-text-base);
+    min-width: 0;
+  }
+  /* Long embedded interface names (e.g. ResourceWithConnectionString) must wrap on narrow viewports. */
+  .impl-list li,
+  .impl-list code {
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 768px) {
+    .type-hero-top {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .type-hero-footer {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
+
+  /* Type-scoped search */
+  .type-search-section {
+    margin-bottom: 1.5rem;
+  }
+
+  /* Highlight flash when jumping to a member via search */
+  :global(.search-highlight) {
+    animation: search-flash 1.5s ease-out;
+  }
+  @keyframes search-flash {
+    0%   { outline: 2px solid var(--sl-color-accent); outline-offset: 4px; }
+    100% { outline: 2px solid transparent; outline-offset: 4px; }
+  }
+
+  .fn-applies-desc {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+    margin-bottom: 0.75rem;
+  }
+
+  .go-member-stack {
+    gap: 1rem;
+  }
+</style>

@@ -58,6 +58,41 @@ const markdownRoutes = [
     path: '/reference/api/typescript/aspire.hosting/idistributedapplicationbuilder/addconnectionstring.md',
   },
   {
+    expectedText: '# Go API Reference',
+    name: 'Go API index',
+    path: '/reference/api/go.md',
+  },
+  {
+    expectedText: '# Aspire.Hosting',
+    name: 'Go module route',
+    path: '/reference/api/go/aspire.hosting.md',
+  },
+  {
+    expectedText: '# DistributedApplicationBuilder',
+    name: 'Go handle route',
+    path: '/reference/api/go/aspire.hosting/distributedapplicationbuilder.md',
+  },
+  {
+    expectedText: '# CommandOptions',
+    name: 'Go DTO route',
+    path: '/reference/api/go/aspire.hosting/commandoptions.md',
+  },
+  {
+    expectedText: '# CertificateTrustScope',
+    name: 'Go enum route',
+    path: '/reference/api/go/aspire.hosting/certificatetrustscope.md',
+  },
+  {
+    expectedText: '# AddConnectionString',
+    name: 'Go function route',
+    path: '/reference/api/go/aspire.hosting/addconnectionstring.md',
+  },
+  {
+    expectedText: '# DistributedApplicationBuilder.AddConnectionString',
+    name: 'Go member route',
+    path: '/reference/api/go/aspire.hosting/distributedapplicationbuilder/addconnectionstring.md',
+  },
+  {
     // Samples reuse the same shared `markdownResponse` helper as the API
     // routes and have the same trailing-slash redirect treatment from
     // `src/middleware.ts`. The picked sample is stable in

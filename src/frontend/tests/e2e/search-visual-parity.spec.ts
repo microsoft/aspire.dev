@@ -70,6 +70,7 @@ test.beforeEach(async ({ page }) => {
 
 for (const route of [
   '/reference/api/typescript/',
+  '/reference/api/go/',
   '/reference/api/csharp/',
   '/integrations/gallery/',
   '/reference/samples/',

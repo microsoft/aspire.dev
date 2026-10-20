@@ -1,0 +1,524 @@
+---
+/**
+ * /reference/api/go/ — Go API Reference landing page with search.
+ *
+ * Lists all Go API modules with a client-side search bar that lets
+ * users filter across functions, methods, properties, handles, structs, and enums.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { GO_EXPERIMENTAL_NOTE, getGoImportPaths, getGoModules, goModuleSlug } from '@utils/go-modules';
+import { getGoApiReferenceSidebar } from '@utils/go-api-sidebar';
+import { buildGoApiSearchIndex } from '@utils/go-api-search';
+import { formatGoApiSearchStats, getGoApiSearchStats } from '@utils/go-api-search-stats';
+import { getGoStandaloneFunctions } from '@utils/go-api-routes';
+import ApiSearchBar from '@components/api-reference/ApiSearchBar.astro';
+import Breadcrumb from '@components/Breadcrumb.astro';
+
+const goSidebar = await getGoApiReferenceSidebar();
+const packages = await getGoModules();
+const sorted = packages
+  .map(p => p.data)
+  .sort((a, b) => a.package.name.localeCompare(b.package.name));
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+/* ── Collect unique versions for the filter ─────────────────────── */
+const allGoVersions = [...new Set(sorted.map(p => p.package.version).filter(Boolean))] as string[];
+
+/* ── Build the search index ─────────────────────────────────────── */
+const index = buildGoApiSearchIndex(sorted, base);
+const defaultStats = getGoApiSearchStats(index);
+
+const allKinds = [...new Set(index.map(e => e.k))].sort();
+const indexJson = JSON.stringify(index);
+const importPaths = getGoImportPaths(sorted);
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Go API Reference',
+    description: 'Search and browse all Go APIs available in the Aspire AppHost SDK.',
+    prev: false,
+    next: false,
+    tableOfContents: false,
+    pagefind: false,
+    pageActions: true,
+  }}
+  sidebar={goSidebar}
+  headings={[]}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search Go APIs' },
+  ]} />
+
+  <div class="api-ref-landing not-content" data-api-search-language="go" data-api-search-kind="landing">
+    <script is:inline type="application/json" data-api-search-index set:html={indexJson.replace(/</g, '\\u003c')} />
+    <p class="go-api-intro">
+      Browse the Go APIs available when writing an Aspire Go AppHost.
+      {importPaths.length > 0 && (
+        <>
+          These are the capabilities exposed by the Aspire hosting modules, all part of one flat Go package imported as
+          {' '}{importPaths.map((importPath, position) => (
+            <>{position > 0 && ', '}<code>{importPath}</code></>
+          ))}.
+        </>
+      )}
+    </p>
+
+    {GO_EXPERIMENTAL_NOTE && (
+      <div class="go-api-note">
+        <Aside type="caution" title="Experimental">
+          {GO_EXPERIMENTAL_NOTE}
+        </Aside>
+      </div>
+    )}
+
+    <ApiSearchBar
+      id="go-api"
+      placeholder="Search functions, methods, properties, types…"
+      kinds={allKinds}
+      versions={allGoVersions}
+      defaultStatsText={formatGoApiSearchStats(defaultStats)}
+      size="lg"
+    />
+
+    <!-- Default: package listing (shown when not searching) -->
+    <div id="go-api-package-list" class="api-list">
+      {sorted.map(pkg => {
+        const funcCount = getGoStandaloneFunctions(pkg).length;
+        const handleCount = (pkg.handleTypes ?? []).length;
+        const dtoCount = (pkg.dtoTypes ?? []).length;
+        const enumCount = (pkg.enumTypes ?? []).length;
+        return (
+          <a href={`${base}/reference/api/go/${goModuleSlug(pkg.package.name)}/`} class="api-list-item" data-version={pkg.package.version}>
+            <div class="api-list-header">
+              <span class="api-pkg-link" title={pkg.package.name}>{pkg.package.name}</span>
+              <div class="trailing">
+                {pkg.package.version && (
+                  <span class="api-list-meta" title={pkg.package.version}><code>{pkg.package.version}</code></span>
+                )}
+                <span class="api-mini-badge">{funcCount} functions</span>
+                <span class="api-mini-badge">{handleCount + dtoCount + enumCount} types</span>
+              </div>
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  </div>
+</StarlightPage>
+
+<script>
+  import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
+  import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+  import { ApiSearchPresentation, withApiSearchFallback } from '../_search-presentation';
+  import { formatGoApiSearchStats, getGoApiSearchStats } from '@utils/go-api-search-stats';
+
+  interface IndexEntry {
+    n: string;
+    f: string;
+    k: string;
+    p: string;
+    s: string;
+    h: string;
+    t?: string;
+    v?: string;
+    m?: boolean;
+  }
+
+  const PAGE_SIZE = 10;
+  const DEBOUNCE_MS = 250;
+  function fmtNum(n: number): string { return n.toLocaleString(); }
+
+  const KIND_COLORS: Record<string, string> = {
+    function: '#3b82f6',
+    method: '#3b82f6',
+    property: '#10b981',
+    handle: '#8b5cf6',
+    interface: '#06b6d4',
+    struct: 'var(--api-kind-struct)',
+    enum: '#ef4444',
+  };
+
+  class GoApiSearchController {
+    private input: HTMLInputElement;
+    private resultsEl: HTMLElement;
+    private packageList: HTMLElement;
+    private status: HTMLElement;
+    private countEl: HTMLElement;
+    private filtersEl: HTMLElement;
+    private clearFiltersBtn: HTMLElement;
+    private index: IndexEntry[];
+    private debounceTimer: number | null = null;
+    private activeKinds = new Set<string>();
+    private activeVersions: Set<string> | null = null;
+    private lastScored: { entry: IndexEntry; score: number }[] = [];
+    private lastTokens: string[] = [];
+    private visibleCount = 0;
+    private sync: InpageSearchSync;
+    private presentation: ApiSearchPresentation;
+
+    constructor(private root: HTMLElement, private signal: AbortSignal) {
+      this.input = root.querySelector<HTMLInputElement>('#go-api-search-input')!;
+      this.resultsEl = root.querySelector<HTMLElement>('#go-api-search-results')!;
+      this.packageList = root.querySelector<HTMLElement>('#go-api-package-list')!;
+      this.status = root.querySelector<HTMLElement>('#go-api-search-status')!;
+      this.countEl = root.querySelector<HTMLElement>('#go-api-search-count')!;
+      this.filtersEl = root.querySelector<HTMLElement>('#go-api-kind-filters')!;
+      this.clearFiltersBtn = root.querySelector<HTMLElement>('#go-api-clear-filters')!;
+      this.index = readApiSearchIndex<IndexEntry>(root);
+
+      this.sync = new InpageSearchSync('go-api', () => this.clear(), root, signal);
+      this.presentation = new ApiSearchPresentation(root, this.input, () => this.clear(), signal);
+      signal.addEventListener('abort', () => {
+        if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      }, { once: true });
+
+      this.init();
+      this.restoreFromUrl();
+      this.syncVersionStateFromDom();
+      this.filterPackageList();
+      this.applySearch();
+
+      // Listen for version filter changes
+      root.addEventListener('version-filter-change', (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        if (detail.all) {
+          this.activeVersions = null;
+        } else if (detail.none) {
+          this.activeVersions = new Set();
+        } else {
+          this.activeVersions = new Set(detail.selected);
+        }
+        this.filterPackageList();
+
+        // Show clear-filters when versions are filtered
+        if (!detail.all) {
+          this.clearFiltersBtn.style.display = '';
+        } else if (this.activeKinds.size === 0) {
+          this.clearFiltersBtn.style.display = 'none';
+        }
+
+        this.applySearch();
+      }, { signal });
+    }
+
+    private syncVersionStateFromDom(): void {
+      const vfContainer = this.root.querySelector('.version-filter');
+      if (!vfContainer) {
+        this.activeVersions = null;
+        return;
+      }
+
+      const versionCheckboxes = Array.from(
+        vfContainer.querySelectorAll<HTMLInputElement>('.version-filter-cb:not([data-version="__all__"])')
+      );
+      const selected = versionCheckboxes.filter(cb => cb.checked).map(cb => cb.dataset.version!).filter(Boolean);
+
+      this.activeVersions = selected.length === versionCheckboxes.length
+        ? null
+        : new Set(selected);
+
+      if (this.activeVersions !== null || this.activeKinds.size > 0) {
+        this.clearFiltersBtn.style.display = '';
+      }
+    }
+
+    private getVisiblePackageStats(): { packageCount: number; capabilityCount: number; typeCount: number } {
+      return getGoApiSearchStats(this.index, this.activeVersions);
+    }
+
+    private init(): void {
+      this.input.addEventListener('input', () => this.handleInput(), { signal: this.signal });
+      this.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') this.clear();
+      }, { signal: this.signal });
+
+      this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const kind = (chip as HTMLElement).dataset.kind!;
+          if (this.activeKinds.has(kind)) {
+            this.activeKinds.delete(kind);
+            chip.classList.remove('active');
+            chip.setAttribute('aria-pressed', 'false');
+          } else {
+            this.activeKinds.add(kind);
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+          this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
+          this.syncUrl();
+          this.applySearch();
+        }, { signal: this.signal });
+      });
+
+      // Clear filters (kinds + versions)
+      this.clearFiltersBtn.addEventListener('click', () => {
+        this.activeKinds.clear();
+        this.filtersEl.querySelectorAll('.api-filter-chip').forEach(c => {
+          c.classList.remove('active');
+          c.setAttribute('aria-pressed', 'false');
+        });
+
+        // Let the version controller restore and persist its own defaults.
+        this.activeVersions = null;
+        const vfContainer = this.root.querySelector('.version-filter');
+        vfContainer?.dispatchEvent(new Event('version-filter-reset'));
+        this.filterPackageList();
+
+        this.clearFiltersBtn.style.display = 'none';
+        this.syncUrl();
+        this.applySearch();
+        this.input.focus();
+      }, { signal: this.signal });
+    }
+
+    private clear(): void {
+      this.input.value = '';
+      this.sync.updateClearButton();
+      this.syncUrl();
+      this.applySearch();
+      this.input.focus();
+    }
+
+    private showPackages(): void {
+      if (this.activeKinds.size > 0 || this.getVisiblePackageStats().packageCount === 0) {
+        this.search('');
+        return;
+      }
+      this.resultsEl.style.display = 'none';
+      this.resultsEl.innerHTML = '';
+      this.packageList.style.display = '';
+
+      this.countEl.textContent = formatGoApiSearchStats(this.getVisiblePackageStats());
+      this.status.textContent = this.countEl.textContent;
+    }
+
+    private handleInput(): void {
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
+      this.debounceTimer = window.setTimeout(() => {
+        this.syncUrl();
+        this.applySearch();
+      }, DEBOUNCE_MS);
+    }
+
+    private syncUrl(): void {
+      this.sync.writeUrl(this.input.value.trim(), this.activeKinds);
+    }
+
+    private restoreFromUrl(): void {
+      const q = this.sync.readQuery();
+      const validKinds = new Set(
+        Array.from(this.filtersEl.querySelectorAll('.api-filter-chip'))
+          .map(c => (c as HTMLElement).dataset.kind!)
+      );
+      const kinds = this.sync.readKinds(validKinds);
+
+      if (q) {
+        this.input.value = q;
+        this.sync.updateClearButton();
+      }
+
+      if (kinds.size > 0) {
+        this.activeKinds = kinds;
+        this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
+          const kind = (chip as HTMLElement).dataset.kind!;
+          if (kinds.has(kind)) {
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+        });
+        this.clearFiltersBtn.style.display = '';
+      }
+
+    }
+
+    private applySearch(): void {
+      if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      this.presentation.update(this.activeKinds.size > 0 || this.activeVersions !== null);
+      const q = this.input.value.trim();
+      if (!q && this.activeKinds.size === 0) {
+        this.showPackages();
+        return;
+      }
+      this.search(q);
+    }
+
+    private showSearchResults(): void {
+      this.packageList.style.display = 'none';
+      this.resultsEl.style.display = '';
+      this.search(this.input.value.trim());
+    }
+
+    private filterPackageList(): void {
+      if (!this.packageList) return;
+      const items = this.packageList.querySelectorAll('.api-list-item[data-version]');
+      for (const item of items) {
+        const version = (item as HTMLElement).dataset.version;
+        if (this.activeVersions && version && !this.activeVersions.has(version)) {
+          (item as HTMLElement).style.display = 'none';
+        } else {
+          (item as HTMLElement).style.display = '';
+        }
+      }
+    }
+
+    private findMatches(query: string, kinds = this.activeKinds, versions = this.activeVersions) {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = kinds.size > 0;
+      const hasVersionFilter = versions !== null;
+      const scored: { entry: IndexEntry; score: number }[] = [];
+
+      for (const entry of this.index) {
+        if (hasKindFilter && !kinds.has(entry.k)) continue;
+        if (hasVersionFilter && entry.v && !versions!.has(entry.v)) continue;
+
+        if (tokens.length === 0) {
+          scored.push({ entry, score: 50 });
+          continue;
+        }
+
+        const nameLower = entry.n.toLowerCase();
+        const fullLower = entry.f.toLowerCase();
+        const descLower = entry.s.toLowerCase();
+        const pkgLower = entry.p.toLowerCase();
+        const parentLower = entry.t?.toLowerCase() ?? '';
+
+        let score = 0;
+        for (const token of tokens) {
+          if (nameLower === token) score += 100;
+          else if (nameLower.startsWith(token)) score += 60;
+          else if (nameLower.includes(token)) score += 40;
+          else if (this.camelMatch(entry.n, token)) score += 55;
+          else if (fullLower.includes(token)) score += 30;
+          else if (parentLower.includes(token)) score += 25;
+          else if (pkgLower.includes(token)) score += 15;
+          else if (descLower.includes(token)) score += 10;
+          else { score = 0; break; }
+        }
+
+        if (score > 0) scored.push({ entry, score });
+      }
+
+      return scored;
+    }
+
+    private search(query: string): void {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = this.activeKinds.size > 0;
+      const hasVersionFilter = this.activeVersions !== null;
+      const scored = this.findMatches(query);
+      scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
+
+      this.lastScored = scored;
+      this.lastTokens = tokens;
+      this.visibleCount = 0;
+
+      this.packageList.style.display = 'none';
+      this.resultsEl.style.display = '';
+
+      if (scored.length === 0) {
+        this.presentation.renderEmpty(this.resultsEl, hasKindFilter || hasVersionFilter, this.index.length === 0, {
+          withoutQuery: this.findMatches('').length,
+          // Clear filters restores the version controller's all-supported-versions default.
+          withoutFilters: this.findMatches(query, new Set(), null).length,
+        }, this.activeKinds, this.activeVersions);
+        this.countEl.textContent = '0 results';
+        this.status.textContent = this.countEl.textContent;
+        return;
+      }
+
+      this.resultsEl.innerHTML = '';
+      this.loadMore();
+    }
+
+    private loadMore(): void {
+      const total = this.lastScored.length;
+      const nextBatch = this.lastScored.slice(this.visibleCount, this.visibleCount + PAGE_SIZE);
+      this.visibleCount += nextBatch.length;
+
+      const existingBtn = this.resultsEl.querySelector('.api-load-more');
+      if (existingBtn) existingBtn.remove();
+
+      const fragment = document.createDocumentFragment();
+      for (const s of nextBatch) {
+        const div = document.createElement('div');
+        div.innerHTML = this.renderResult(s.entry, this.lastTokens);
+        while (div.firstChild) fragment.appendChild(div.firstChild);
+      }
+      this.resultsEl.appendChild(fragment);
+
+      this.countEl.textContent = this.visibleCount < total
+        ? `Showing ${fmtNum(this.visibleCount)} of ${fmtNum(total)} results`
+        : `${fmtNum(total)} result${total !== 1 ? 's' : ''}`;
+
+      const remaining = total - this.visibleCount;
+      if (remaining > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'api-load-more';
+        btn.type = 'button';
+        btn.textContent = `Show ${fmtNum(Math.min(remaining, PAGE_SIZE))} more of ${fmtNum(remaining)} remaining`;
+        btn.addEventListener('click', () => this.loadMore(), { signal: this.signal });
+        this.resultsEl.appendChild(btn);
+      }
+    }
+
+    private renderResult(entry: IndexEntry, tokens: string[]): string {
+      const kindColor = KIND_COLORS[entry.k] ?? KIND_COLORS['method'];
+      const kindClass = entry.k.replace(/\s+/g, '-');
+
+      return `<a href="${this.esc(entry.h)}" class="api-list-item api-search-result" title="${this.esc(entry.f)} — ${this.esc(entry.p)}${entry.t ? ` (${this.esc(entry.t)})` : ''}">
+        <div class="api-list-header">
+          <span class="api-result-name-wrap">
+            <span class="api-search-result-name" style="color: ${kindColor}">${this.highlight(entry.n, tokens)}</span>
+            ${entry.t ? `<span class="api-result-dot">&nbsp;·&nbsp;</span><span class="api-result-parent">${this.esc(entry.t)}</span>` : ''}
+          </span>
+          <span class="api-kind-micro kind-${kindClass}">${this.esc(entry.k)}</span>
+          <div class="trailing">
+            <span class="api-list-meta" title="${this.esc(entry.p)}">${this.esc(entry.p)}</span>
+          </div>
+        </div>
+        ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
+      </a>`;
+    }
+
+    private highlight(text: string, tokens: string[]): string {
+      if (!tokens.length) return this.esc(text);
+      const escaped = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+      return text.replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch))
+        .replace(re, '<mark>$1</mark>');
+    }
+
+    private camelMatch(name: string, token: string): boolean {
+      const uppers = name.replace(/[^A-Z]/g, '').toLowerCase();
+      return uppers.length >= 2 && (uppers.startsWith(token) || uppers.includes(token));
+    }
+
+    private esc(text: string): string {
+      return text.replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch));
+    }
+  }
+
+  registerApiSearch('go', 'landing', withApiSearchFallback((root, signal) => {
+    new GoApiSearchController(root, signal);
+    const input = root.querySelector<HTMLInputElement>('#go-api-search-input');
+    input?.focus();
+  }));
+</script>
+
+<style>
+  .go-api-intro {
+    margin-bottom: 1.5rem;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-base);
+  }
+  .go-api-note {
+    margin-bottom: 1.5rem;
+  }
+</style>

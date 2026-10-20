@@ -1106,7 +1106,7 @@ test('Developer Hub remains browsable without JavaScript and reflows at narrow w
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   const staticPage = await context.newPage();
   await staticPage.goto('/hub/');
-  await expect(staticPage.locator('.onboarding-options > li, .language-links > li, .cloud-links > li, .featured-samples > li, .reference-links > li, #dashboard, .video-links > li, .blog-links > li')).toHaveCount(30);
+  await expect(staticPage.locator('.onboarding-options > li, .language-links > li, .cloud-links > li, .featured-samples > li, .reference-links > li, #dashboard, .video-links > li, .blog-links > li')).toHaveCount(31);
   await expect(staticPage.getByRole('button', { name: 'Search Aspire documentation' })).toBeDisabled();
   await context.close();
   for (const width of [320, 390, 640, 1024, 1440]) {

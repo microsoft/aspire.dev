@@ -273,3 +273,23 @@ test('falls back to the site-wide image for generated API reference pages', asyn
   const imageResponse = await request.get(new URL('/og-image.png', baseURL).toString());
   expect(imageResponse.ok(), 'the fallback /og-image.png must exist').toBe(true);
 });
+
+test('falls back to the site-wide image for generated Go API reference pages', async ({
+  request,
+  baseURL,
+}) => {
+  const response = await request.get('/reference/api/go/aspire.hosting.redis/');
+  expect(response.ok(), 'Go API reference page should return 200').toBe(true);
+  const html = await response.text();
+
+  expect(html).toMatch(
+    new RegExp(
+      `<meta\\b[^>]*property="og:image"[^>]*content="[^"]*${escape('/og-image.png')}"`,
+      'i'
+    )
+  );
+  expect(html).not.toMatch(/\/og\/reference\/api\/go\//i);
+
+  const imageResponse = await request.get(new URL('/og-image.png', baseURL).toString());
+  expect(imageResponse.ok(), 'the fallback /og-image.png must exist').toBe(true);
+});

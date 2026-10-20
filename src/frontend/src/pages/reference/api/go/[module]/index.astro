@@ -1,0 +1,784 @@
+---
+/**
+ * /reference/api/go/[module]/ — Go module landing page.
+ *
+ * Lists the handles, structs (DTOs), enums, standalone functions and exported values
+ * declared by one contributing package, with an in-page search scoped to that module.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import {
+  GO_EXPERIMENTAL_NOTE,
+  countGoHandleMembers,
+  getGoModules,
+  goModuleSlug,
+  groupGoFunctionsByReceiver,
+} from '@utils/go-modules';
+import { getGoApiReferenceSidebar } from '@utils/go-api-sidebar';
+import { buildGoApiSearchIndex } from '@utils/go-api-search';
+import { getGoFunctionDisplayLabel } from '@utils/go-api-function-kind';
+import {
+  getGoItemSlug,
+  getGoStandaloneFunctions,
+  getGoTopLevelRouteItems,
+  goSlugify,
+} from '@utils/go-api-routes';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import Breadcrumb from '@components/Breadcrumb.astro';
+
+export async function getStaticPaths() {
+  const packages = await getGoModules();
+  return packages.map(pkg => ({
+    params: { module: goModuleSlug(pkg.data.package.name) },
+    props: { pkg: pkg.data },
+  }));
+}
+
+const { pkg } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const pkgSlug = goModuleSlug(pkg.package.name);
+const isOfficial = pkg.package.name.startsWith('Aspire.');
+const topLevelItems = getGoTopLevelRouteItems(pkg);
+
+const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+const handles = [...(pkg.handleTypes ?? [])].sort(byName);
+const dtos = [...(pkg.dtoTypes ?? [])].sort(byName);
+const enums = [...(pkg.enumTypes ?? [])].sort(byName);
+const functionGroups = [...groupGoFunctionsByReceiver(getGoStandaloneFunctions(pkg))];
+const functionCount = functionGroups.reduce((total, [, functions]) => total + functions.length, 0);
+const exportedValues = (pkg.exportedValues ?? []).flatMap(group =>
+  (group.values ?? []).map(entry => ({ ...entry, label: `${group.name}.${entry.path}` }))
+);
+
+/* ── Stats ───────────────────────────────────────────────────── */
+const totalTypeCount = handles.length + dtos.length + enums.length;
+
+/* ── Headings for the sidebar section links ──────────────────── */
+const headings: { depth: 2; slug: string; text: string }[] = [];
+if (handles.length > 0) headings.push({ depth: 2, slug: 'handles', text: 'Handles' });
+if (dtos.length > 0) headings.push({ depth: 2, slug: 'dtos', text: 'DTOs' });
+if (enums.length > 0) headings.push({ depth: 2, slug: 'enums', text: 'Enums' });
+if (functionCount > 0) headings.push({ depth: 2, slug: 'functions', text: 'Functions' });
+if (exportedValues.length > 0) headings.push({ depth: 2, slug: 'exported-values', text: 'Exported values' });
+const goSidebar = await getGoApiReferenceSidebar({ packageName: pkg.package.name, headings });
+
+/* ── Module-scoped search index ──────────────────────────────── */
+// The module index is the global index narrowed to one module, so both searches agree on
+// which entries exist and where they link. `m` marks members declared on a handle.
+const globalEntries = buildGoApiSearchIndex([pkg], base);
+const memberCount = globalEntries.filter(entry => entry.m).length;
+const pkgIndex = globalEntries.map(({ n, f, k, s, t, h }) => ({
+  n,
+  f,
+  k,
+  s: s.slice(0, 160),
+  h,
+  ...(t ? { t } : {}),
+}));
+
+const allKinds = [...new Set(pkgIndex.map(e => e.k))].sort();
+const pkgIndexJson = JSON.stringify(pkgIndex);
+const defaultStatsText = `${totalTypeCount.toLocaleString()} types, ${functionCount.toLocaleString()} functions and ${memberCount.toLocaleString()} members`;
+---
+
+<StarlightPage
+  frontmatter={{
+    title: pkg.package.name,
+    description: `Go API reference for ${pkg.package.name}`,
+    tableOfContents: false,
+    prev: false,
+    next: false,
+    pagefind: false,
+    pageActions: true,
+  }}
+  sidebar={goSidebar}
+  headings={headings}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search Go APIs', href: `${base}/reference/api/go/` },
+    { label: pkg.package.name },
+  ]} />
+
+  <div class="api-hero pkg-hero not-content">
+    {isOfficial && (
+      <div class="pkg-official-badge">
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.521 2.624a2 2 0 0 1 2.958 0l1.02 1.12a2 2 0 0 0 1.572.651l1.513-.07a2 2 0 0 1 2.092 2.09l-.071 1.514a2 2 0 0 0 .651 1.572l1.12 1.02a2 2 0 0 1 0 2.958l-1.12 1.02a2 2 0 0 0-.651 1.572l.07 1.513a2 2 0 0 1-2.09 2.092l-1.514-.071a2 2 0 0 0-1.572.651l-1.02 1.12a2 2 0 0 1-2.958 0l-1.02-1.12a2 2 0 0 0-1.572-.651l-1.513.07a2 2 0 0 1-2.092-2.09l.071-1.514a2 2 0 0 0-.651-1.572l-1.12-1.02a2 2 0 0 1 0-2.958l1.12-1.02a2 2 0 0 0 .651-1.572l-.07-1.513a2 2 0 0 1 2.09-2.092l1.514.071a2 2 0 0 0 1.572-.651z"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 12l2 2l4-4"/></svg>
+        Official
+      </div>
+    )}
+    <div class="pkg-hero-top">
+      <div class="pkg-hero-badges">
+        <code class="pkg-name">📦 {pkg.package.name}</code>
+        {pkg.package.version && <code class="pkg-version">v{pkg.package.version}</code>}
+      </div>
+    </div>
+    {pkg.package.importPath && (
+      <div class="pkg-import-path">
+        <span class="pkg-stat-label">Import path</span>
+        <code>{pkg.package.importPath}</code>
+      </div>
+    )}
+    <div class="pkg-hero-bottom">
+      <div class="pkg-hero-stats">
+        <div class="pkg-stat">
+          <span class="pkg-stat-value">{functionCount}</span>
+          <span class="pkg-stat-label">Functions</span>
+        </div>
+        <div class="pkg-stat">
+          <span class="pkg-stat-value">{totalTypeCount}</span>
+          <span class="pkg-stat-label">Types</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {GO_EXPERIMENTAL_NOTE && (
+    <Aside type="caution" title="Experimental">
+      {GO_EXPERIMENTAL_NOTE}
+    </Aside>
+  )}
+
+  <!-- Module-scoped search -->
+  <div class="pkg-search-section not-content" data-api-search-language="go" data-api-search-kind="module" data-base={base} data-package-name={pkg.package.name} data-type-count={totalTypeCount} data-function-count={functionCount} data-member-count={memberCount}>
+    <script is:inline type="application/json" data-api-search-index set:html={pkgIndexJson.replace(/</g, '\\u003c')} />
+    <InpageSearch
+      id="pkg"
+      placeholder={`Search types, functions, members in ${pkg.package.name}...`}
+      kinds={allKinds}
+      defaultStatsText={defaultStatsText}
+      size="lg"
+    />
+  </div>
+
+  <!-- Flat listing (shown when not searching) -->
+  <div id="pkg-namespace-list" class="pkg-ns-list">
+    {/* Handles */}
+    {handles.length > 0 && (
+      <section>
+        <h2 id="handles">Handles</h2>
+        <div class="api-list not-content">
+          {handles.map(h => {
+            const memberTotal = countGoHandleMembers(h);
+            return (
+              <a href={`${base}/reference/api/go/${pkgSlug}/${getGoItemSlug(h, topLevelItems)}/`} class="api-list-item">
+                <div class="api-list-header">
+                  <span class={`api-kind-pill ${h.isInterface ? 'kind-interface' : 'kind-handle'}`}>
+                    {h.isInterface ? 'interface' : 'handle'}
+                  </span>
+                  <code class="api-type-link">{h.name}</code>
+                  {h.isMarker && <span class="api-mini-badge">marker</span>}
+                  {memberTotal > 0 && <span class="api-mini-badge">{memberTotal} members</span>}
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+    )}
+
+    {/* DTOs (Go structs) */}
+    {dtos.length > 0 && (
+      <section>
+        <h2 id="dtos">DTOs</h2>
+        <div class="api-list not-content">
+          {dtos.map(d => (
+            <a href={`${base}/reference/api/go/${pkgSlug}/${getGoItemSlug(d, topLevelItems)}/`} class="api-list-item">
+              <div class="api-list-header">
+                <span class="api-kind-pill kind-struct">struct</span>
+                <code class="api-type-link">{d.name}</code>
+                <span class="api-mini-badge">{d.fields?.length ?? 0} fields</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {/* Enums */}
+    {enums.length > 0 && (
+      <section>
+        <h2 id="enums">Enums</h2>
+        <div class="api-list not-content">
+          {enums.map(e => (
+            <a href={`${base}/reference/api/go/${pkgSlug}/${getGoItemSlug(e, topLevelItems)}/`} class="api-list-item">
+              <div class="api-list-header">
+                <span class="api-kind-pill kind-enum">enum</span>
+                <code class="api-type-link">{e.name}</code>
+                <span class="api-mini-badge">{(e.members ?? []).length} values</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {/* Standalone functions, grouped by the Go type that carries them */}
+    {functionCount > 0 && (
+      <section>
+        <h2 id="functions">Functions</h2>
+        {functionGroups.map(([receiver, functions]) => (
+          <div class="go-fn-group">
+            <h3 id={`functions-${goSlugify(receiver)}`}>
+              {functions[0].receiver ? <code>{receiver}</code> : receiver}
+            </h3>
+            <div class="api-list not-content">
+              {functions.map(f => (
+                <a href={`${base}/reference/api/go/${pkgSlug}/${getGoItemSlug(f, topLevelItems)}/`} class="api-list-item">
+                  <div class="api-list-header">
+                    <span class="api-kind-pill kind-method">{getGoFunctionDisplayLabel(f).toLowerCase()}</span>
+                    <code class="api-type-link">{f.name}</code>
+                    {f.returnsBuilder && <span class="api-mini-badge">builder</span>}
+                  </div>
+                  {f.description && <div class="api-list-desc">{f.description}</div>}
+                  {f.signature && (
+                    <div class="api-fn-signature">
+                      <code>{f.signature}</code>
+                    </div>
+                  )}
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+    )}
+
+    {/* Exported values have no pages of their own */}
+    {exportedValues.length > 0 && (
+      <section>
+        <h2 id="exported-values">Exported values</h2>
+        <div class="api-list not-content">
+          {exportedValues.map(entry => (
+            <div class="api-list-item">
+              <div class="api-list-header">
+                <code class="api-exported-name">{entry.label}</code>
+                {entry.type && <span class="api-mini-badge">{entry.type}</span>}
+              </div>
+              {entry.value && (
+                <div class="api-fn-signature">
+                  <code>= {entry.value}</code>
+                </div>
+              )}
+              {entry.description && <div class="api-list-desc">{entry.description}</div>}
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+  </div>
+</StarlightPage>
+
+<script>
+  import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
+  import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+  import { ApiSearchPresentation, withApiSearchFallback } from '../../_search-presentation';
+
+  interface PkgIndexEntry {
+    n: string;
+    f: string;
+    k: string;
+    s: string;
+    t?: string;
+    h?: string;
+  }
+
+  const PAGE_SIZE = 10;
+  const DEBOUNCE_MS = 200;
+
+  /** Format a number with locale-aware grouping (e.g. 1,234). */
+  function fmtNum(n: number): string { return n.toLocaleString(); }
+
+  const KIND_COLORS: Record<string, string> = {
+    'handle': 'var(--api-kind-class)',
+    'interface': 'var(--api-kind-interface)',
+    'struct': 'var(--api-kind-struct)',
+    'enum': 'var(--api-kind-enum)',
+    'function': '#3b82f6',
+    'method': '#3b82f6',
+    'property': '#10b981',
+  };
+
+  class PkgSearchController {
+    private input: HTMLInputElement;
+    private resultsEl: HTMLElement;
+    private nsList: HTMLElement;
+    private status: HTMLElement;
+    private countEl: HTMLElement;
+    private filtersEl: HTMLElement;
+    private clearFiltersBtn: HTMLElement;
+    private index: PkgIndexEntry[];
+    private debounceTimer: number | null = null;
+    private typeCount: number;
+    private functionCount: number;
+    private memberCount: number;
+    private activeKinds = new Set<string>();
+    private lastScored: { entry: PkgIndexEntry; score: number }[] = [];
+    private lastTokens: string[] = [];
+    private visibleCount = 0;
+    private sync: InpageSearchSync;
+    private presentation: ApiSearchPresentation;
+
+    constructor(root: HTMLElement, private signal: AbortSignal) {
+      this.input = root.querySelector<HTMLInputElement>('#pkg-search-input')!;
+      this.resultsEl = root.querySelector<HTMLElement>('#pkg-search-results')!;
+      this.nsList = document.getElementById('pkg-namespace-list') as HTMLElement;
+      this.status = root.querySelector<HTMLElement>('#pkg-search-status')!;
+      this.countEl = root.querySelector<HTMLElement>('#pkg-search-count')!;
+      this.filtersEl = root.querySelector<HTMLElement>('#pkg-kind-filters')!;
+      this.clearFiltersBtn = root.querySelector<HTMLElement>('#pkg-clear-filters')!;
+      this.index = readApiSearchIndex<PkgIndexEntry>(root);
+      this.typeCount = Number(root.dataset.typeCount ?? 0);
+      this.functionCount = Number(root.dataset.functionCount ?? 0);
+      this.memberCount = Number(root.dataset.memberCount ?? 0);
+
+      this.sync = new InpageSearchSync('pkg', () => this.clear(), root, signal);
+      this.presentation = new ApiSearchPresentation(root, this.input, () => this.clear(), signal);
+      signal.addEventListener('abort', () => {
+        if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      }, { once: true });
+
+      this.init();
+      this.restoreFromUrl();
+    }
+
+    private init(): void {
+      this.input.addEventListener('input', () => this.handleInput(), { signal: this.signal });
+      this.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') this.clear();
+      }, { signal: this.signal });
+
+      this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const kind = (chip as HTMLElement).dataset.kind!;
+          if (this.activeKinds.has(kind)) {
+            this.activeKinds.delete(kind);
+            chip.classList.remove('active');
+            chip.setAttribute('aria-pressed', 'false');
+          } else {
+            this.activeKinds.add(kind);
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+          this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
+          this.syncUrl();
+          this.applySearch();
+        }, { signal: this.signal });
+      });
+
+      this.clearFiltersBtn.addEventListener('click', () => {
+        this.activeKinds.clear();
+        this.filtersEl.querySelectorAll('.api-filter-chip').forEach(c => {
+          c.classList.remove('active');
+          c.setAttribute('aria-pressed', 'false');
+        });
+        this.clearFiltersBtn.style.display = 'none';
+        this.syncUrl();
+        this.applySearch();
+        this.input.focus();
+      }, { signal: this.signal });
+    }
+
+    private clear(): void {
+      this.input.value = '';
+      this.sync.updateClearButton();
+      this.syncUrl();
+      this.applySearch();
+      this.input.focus();
+    }
+
+    private showNamespaces(): void {
+      if (this.activeKinds.size > 0 || this.index.length === 0) {
+        this.search('');
+        return;
+      }
+      this.resultsEl.style.display = 'none';
+      this.resultsEl.innerHTML = '';
+      this.nsList.style.display = '';
+      this.countEl.textContent = `${fmtNum(this.typeCount)} types, ${fmtNum(this.functionCount)} functions and ${fmtNum(this.memberCount)} members`;
+      this.status.textContent = this.countEl.textContent;
+    }
+
+    private handleInput(): void {
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
+      this.debounceTimer = window.setTimeout(() => {
+        this.syncUrl();
+        this.applySearch();
+      }, DEBOUNCE_MS);
+    }
+
+    private syncUrl(): void {
+      this.sync.writeUrl(this.input.value.trim(), this.activeKinds);
+    }
+
+    private restoreFromUrl(): void {
+      const q = this.sync.readQuery();
+      const validKinds = new Set(
+        Array.from(this.filtersEl.querySelectorAll('.api-filter-chip'))
+          .map(c => (c as HTMLElement).dataset.kind!)
+      );
+      const kinds = this.sync.readKinds(validKinds);
+
+      if (q) {
+        this.input.value = q;
+        this.sync.updateClearButton();
+      }
+
+      if (kinds.size > 0) {
+        this.activeKinds = kinds;
+        this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
+          const kind = (chip as HTMLElement).dataset.kind!;
+          if (kinds.has(kind)) {
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+        });
+        this.clearFiltersBtn.style.display = '';
+      }
+
+      this.applySearch();
+    }
+
+    private applySearch(): void {
+      if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      this.presentation.update(this.activeKinds.size > 0);
+      const q = this.input.value.trim();
+      if (!q && this.activeKinds.size === 0) {
+        this.showNamespaces();
+        return;
+      }
+      this.search(q);
+    }
+
+    private findMatches(query: string, kinds = this.activeKinds) {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = kinds.size > 0;
+
+      type Scored = { entry: PkgIndexEntry; score: number };
+      const scored: Scored[] = [];
+
+      for (const entry of this.index) {
+        if (hasKindFilter && !kinds.has(entry.k)) continue;
+
+        if (tokens.length === 0) {
+          scored.push({ entry, score: 50 });
+          continue;
+        }
+
+        const nameLower = entry.n.toLowerCase();
+        const fullLower = entry.f.toLowerCase();
+        const summaryLower = entry.s.toLowerCase();
+        const parentLower = entry.t?.toLowerCase() ?? '';
+
+        let score = 0;
+        for (const token of tokens) {
+          if (nameLower === token) {
+            score += 100;
+          } else if (nameLower.startsWith(token)) {
+            score += 60;
+          } else if (nameLower.includes(token)) {
+            score += 40;
+          } else if (this.camelMatch(entry.n, token)) {
+            score += 55;
+          } else if (fullLower.includes(token)) {
+            score += 30;
+          } else if (parentLower.includes(token)) {
+            score += 25;
+          } else if (summaryLower.includes(token)) {
+            score += 10;
+          } else {
+            score = 0;
+            break;
+          }
+        }
+
+        if (score > 0 && !entry.t) score += 5;
+        if (score > 0) scored.push({ entry, score });
+      }
+
+      return scored;
+    }
+
+    private search(query: string): void {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = this.activeKinds.size > 0;
+      const scored = this.findMatches(query);
+      scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
+
+      this.lastScored = scored;
+      this.lastTokens = tokens;
+      this.visibleCount = 0;
+
+      const total = scored.length;
+
+      this.nsList.style.display = 'none';
+      this.resultsEl.style.display = '';
+
+      if (total === 0) {
+        this.presentation.renderEmpty(this.resultsEl, hasKindFilter, this.index.length === 0, {
+          withoutQuery: this.findMatches('').length,
+          withoutFilters: this.findMatches(query, new Set()).length,
+        }, this.activeKinds);
+        this.countEl.textContent = '0 results';
+        this.status.textContent = 'No results';
+        return;
+      }
+
+      this.resultsEl.innerHTML = '';
+      this.loadMore();
+    }
+
+    private loadMore(): void {
+      const total = this.lastScored.length;
+      const nextBatch = this.lastScored.slice(this.visibleCount, this.visibleCount + PAGE_SIZE);
+      this.visibleCount += nextBatch.length;
+
+      const existingBtn = this.resultsEl.querySelector('.api-load-more');
+      if (existingBtn) existingBtn.remove();
+
+      const fragment = document.createDocumentFragment();
+      for (const s of nextBatch) {
+        const div = document.createElement('div');
+        div.innerHTML = this.renderResult(s.entry, this.lastTokens);
+        while (div.firstChild) fragment.appendChild(div.firstChild);
+      }
+      this.resultsEl.appendChild(fragment);
+
+      this.countEl.textContent = this.visibleCount < total
+        ? `Showing ${fmtNum(this.visibleCount)} of ${fmtNum(total)} results`
+        : `${fmtNum(total)} result${total !== 1 ? 's' : ''}`;
+      this.status.textContent = this.countEl.textContent ?? '';
+
+      const remaining = total - this.visibleCount;
+      if (remaining > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'api-load-more';
+        btn.type = 'button';
+        const nextCount = Math.min(remaining, PAGE_SIZE);
+        btn.textContent = `Show ${fmtNum(nextCount)} more of ${fmtNum(remaining)} remaining`;
+        btn.addEventListener('click', () => this.loadMore(), { signal: this.signal });
+        this.resultsEl.appendChild(btn);
+      }
+    }
+
+    private renderResult(entry: PkgIndexEntry, tokens: string[]): string {
+      const isMember = !!entry.t;
+      const kindClass = `kind-${entry.k.replace(/\s+/g, '-')}`;
+      const kindColor = KIND_COLORS[entry.k] ?? KIND_COLORS['handle'];
+
+      const href = entry.h ?? null;
+
+      const parentInfo = isMember
+        ? `<span class="api-result-parent">${this.esc(entry.t!)}</span><span class="api-result-dot">.</span>`
+        : '';
+
+      const fullName = isMember ? `${entry.t}.${entry.n}` : entry.n;
+      const tag = href ? 'a' : 'div';
+      const hrefAttr = href ? ` href="${this.esc(href)}"` : '';
+      return `<${tag}${hrefAttr} class="api-list-item api-search-result" title="${this.esc(fullName)}">
+        <div class="api-list-header">
+          <span class="api-result-name-wrap" title="${this.esc(fullName)}">
+            ${parentInfo}<span class="api-search-result-name" style="color: ${kindColor}">${this.highlight(entry.n, tokens)}</span>
+          </span>
+          <span class="api-kind-micro ${kindClass}">${this.esc(entry.k)}</span>
+        </div>
+        ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
+      </${tag}>`;
+    }
+
+    private highlight(text: string, tokens: string[]): string {
+      if (!tokens.length) return this.esc(text);
+      const escaped = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+      return text.replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch))
+        .replace(re, '<mark>$1</mark>');
+    }
+
+    private camelMatch(name: string, token: string): boolean {
+      const uppers = name.replace(/[^A-Z]/g, '').toLowerCase();
+      if (uppers.length < 2) return false;
+      return uppers.startsWith(token) || uppers.includes(token);
+    }
+
+    private esc(text: string): string {
+      return text.replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch));
+    }
+  }
+
+  registerApiSearch('go', 'module', withApiSearchFallback((root, signal) => new PkgSearchController(root, signal)));
+</script>
+
+<style>
+  /* ── Function signature ─────────────────────────────────────── */
+  .api-fn-signature {
+    margin-top: 0.35rem;
+    font-size: var(--api-text-sm, 0.8rem);
+    color: var(--sl-color-gray-3);
+  }
+  .api-fn-signature code {
+    font-size: inherit;
+    background: none;
+    padding: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .api-exported-name {
+    font-weight: 500;
+    color: var(--sl-color-white);
+    overflow-wrap: anywhere;
+  }
+
+  /* ── Function groups (one per receiver) ─────────────────────── */
+  .go-fn-group + .go-fn-group {
+    margin-top: 1.5rem;
+  }
+  .go-fn-group h3 {
+    margin-bottom: 0.25rem;
+  }
+
+  /* ── Hero card ──────────────────────────────────────────────── */
+  .pkg-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    position: relative;
+  }
+  .pkg-official-badge {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem 0.35rem 0.55rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #fff;
+    background: var(--aspire-color-purple, #512bd4);
+    border-radius: 2rem;
+    z-index: 1;
+    line-height: 1;
+  }
+  .pkg-official-badge svg {
+    width: 1.15rem;
+    height: 1.15rem;
+    stroke: #fff;
+    flex-shrink: 0;
+  }
+  .pkg-hero-top {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .pkg-hero-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .pkg-version {
+    font-size: var(--api-text-sm);
+    font-weight: 600;
+    color: var(--sl-color-gray-2);
+    font-family: var(--sl-font-system-mono, monospace);
+  }
+  .pkg-name {
+    font-size: var(--api-text-md);
+    font-weight: 700;
+    color: var(--sl-color-text);
+    background: none;
+    padding: 0;
+    overflow-wrap: anywhere;
+  }
+  .pkg-import-path {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .pkg-import-path code {
+    font-size: var(--api-text-sm);
+    color: var(--sl-color-gray-1);
+    background: none;
+    padding: 0;
+    overflow-wrap: anywhere;
+  }
+  .pkg-hero-bottom {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .pkg-hero-stats {
+    display: flex;
+    gap: 2rem;
+  }
+  .pkg-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+  }
+  .pkg-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--sl-color-text);
+    line-height: 1;
+  }
+  .pkg-stat-label {
+    font-size: var(--api-text-sm);
+    color: var(--sl-color-gray-3);
+    font-weight: 500;
+  }
+
+  /* ── Module search section ───────────────────────────────────── */
+  .pkg-search-section {
+    margin-bottom: 1.5rem;
+  }
+
+  /* ── Listing ─────────────────────────────────────────────────── */
+  .pkg-ns-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  /* ── Responsive ──────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .pkg-official-badge {
+      top: 1rem;
+      right: 1rem;
+    }
+    .pkg-name {
+      width: 100%;
+    }
+    .pkg-hero-top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .pkg-hero-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .pkg-hero-stats {
+      gap: 1.5rem;
+    }
+  }
+  @media (max-width: 480px) {
+    .pkg-official-badge {
+      top: 0.75rem;
+      right: 0.75rem;
+    }
+    .pkg-stat-value {
+      font-size: 1.25rem;
+    }
+    .pkg-hero-stats {
+      gap: 1rem;
+    }
+  }
+</style>

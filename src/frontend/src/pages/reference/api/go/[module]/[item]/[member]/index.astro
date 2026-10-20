@@ -1,0 +1,218 @@
+---
+/**
+ * /reference/api/go/[module]/[item]/[member]/ — Method detail page.
+ *
+ * Renders a single method (capability) of a handle type, showing its signature
+ * in the context of the parent interface, parameters, options, return type and
+ * error model, and a link back to the parent type.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { Code } from '@astrojs/starlight/components';
+import {
+  buildGoMemberDefinition,
+  countGoHandleMembers,
+  getGoModules,
+  goModuleSlug,
+} from '@utils/go-modules';
+import type { GoApiDocument, GoFunction, GoHandleType } from '@utils/go-modules';
+import { getGoApiReferenceSidebar } from '@utils/go-api-sidebar';
+import { getGoItemSlug, getGoMethods, getGoMethodSlug, getGoTopLevelRouteItems } from '@utils/go-api-routes';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import GoMemberCard from '@components/api-reference/GoMemberCard.astro';
+
+export async function getStaticPaths() {
+  const packages = await getGoModules();
+  const paths: any[] = [];
+
+  for (const pkg of packages) {
+    const pkgSlug = goModuleSlug(pkg.data.package.name);
+    const topLevelItems = getGoTopLevelRouteItems(pkg.data);
+    const handles = (pkg.data.handleTypes ?? []) as GoHandleType[];
+
+    for (const handle of handles) {
+      const itemSlug = getGoItemSlug(handle, topLevelItems);
+      if (!itemSlug) continue;
+
+      const methods = getGoMethods<GoFunction>(handle);
+
+      for (const method of methods) {
+        const memberSlug = getGoMethodSlug(method, methods, handle.name);
+        if (!memberSlug) continue;
+        paths.push({
+          params: { module: pkgSlug, item: itemSlug, member: memberSlug },
+          props: {
+            pkg: pkg.data,
+            parentType: handle,
+            method,
+          },
+        });
+      }
+    }
+  }
+
+  return paths;
+}
+
+const { pkg, parentType, method } = Astro.props as {
+  pkg: GoApiDocument;
+  parentType: GoHandleType;
+  method: GoFunction;
+};
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const pkgSlug = goModuleSlug(pkg.package.name);
+const parentSlug = Astro.params.item ?? getGoItemSlug(parentType, getGoTopLevelRouteItems(pkg));
+const parentHref = `${base}/reference/api/go/${pkgSlug}/${parentSlug}/`;
+const memberCount = countGoHandleMembers(parentType);
+
+/* ── Hero declaration showing the method in its parent interface ── */
+const heroDeclaration = buildGoMemberDefinition(parentType.name, method);
+
+/* ── Headings for right-side TOC ─────────────────────────────── */
+const headings: { depth: 2; slug: string; text: string }[] = [
+  { depth: 2, slug: 'signature', text: 'Signature' },
+  { depth: 2, slug: 'defined-on', text: 'Defined on' },
+];
+const goSidebar = await getGoApiReferenceSidebar({
+  packageName: pkg.package.name,
+  item: { name: parentType.name, slug: parentSlug },
+  member: { name: method.name, slug: Astro.params.member! },
+  headings,
+});
+---
+
+<StarlightPage
+  frontmatter={{
+    title: `${parentType.name}.${method.name}`,
+    description: `Method — Go API reference for ${method.name} on ${parentType.name} in ${pkg.package.name}`,
+    tableOfContents: false,
+    prev: false,
+    next: false,
+    pagefind: false,
+    pageActions: true,
+  }}
+  sidebar={goSidebar}
+  headings={headings}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search Go APIs', href: `${base}/reference/api/go/` },
+    { label: pkg.package.name, href: `${base}/reference/api/go/${pkgSlug}/` },
+    { label: parentType.name, href: parentHref },
+    { label: method.name },
+  ]} />
+
+  <div class="not-content kind-tint-method">
+    {/* ── Hero ────────────────────────────────────────────────── */}
+    <div class="api-hero type-hero not-content">
+      <div class="type-hero-top">
+        <div class="type-hero-badges">
+          <span class="api-kind-pill kind-method">Method</span>
+        </div>
+      </div>
+
+      <span class="type-hero-pkg">📦 {pkg.package.name} {pkg.package.version && <span class="type-hero-ver">v{pkg.package.version}</span>}</span>
+
+      {/* Declaration showing method in context of parent interface */}
+      <div class="ts not-content">
+        <div class="ts-code">
+          <Code code={heroDeclaration} lang="go" showLineNumbers={false} />
+        </div>
+      </div>
+    </div>
+
+    {/* ── Signature section with full GoMemberCard ────────────── */}
+    <div id="type-content-sections">
+      <section>
+        <h2 id="signature">Signature</h2>
+        <div class="api-list">
+          <GoMemberCard member={method} variant="method" />
+        </div>
+      </section>
+
+      {/* ── Defined on ─────────────────────────────────────────── */}
+      <section>
+        <h2 id="defined-on">Defined on</h2>
+        <p class="member-defined-desc">This method is defined on the following type:</p>
+        <div class="api-list not-content">
+          <a href={parentHref} class="api-list-item">
+            <div class="api-list-header">
+              <span class={`api-kind-pill ${parentType.isInterface ? 'kind-interface' : 'kind-handle'}`}>
+                {parentType.isInterface ? 'interface' : 'handle'}
+              </span>
+              <code class="api-type-link">{parentType.name}</code>
+              <span class="api-mini-badge">{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
+            </div>
+          </a>
+        </div>
+      </section>
+    </div>
+  </div>
+</StarlightPage>
+
+<style>
+  .kind-tint-method { --kind-tint: #3b82f6; }
+
+  .type-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border-color: transparent;
+    border-top: 3px solid var(--kind-tint, var(--api-border));
+    position: relative;
+  }
+
+  .type-hero-top {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .type-hero-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .type-hero-pkg {
+    font-size: var(--api-text-sm);
+    color: var(--sl-color-gray-3);
+    font-family: var(--sl-font-system-mono, monospace);
+    overflow-wrap: anywhere;
+  }
+
+  .type-hero-ver {
+    color: var(--sl-color-gray-3);
+    font-weight: 600;
+  }
+
+  .type-hero :global(.ts) { margin: 0; }
+  .type-hero :global(.ts-code) { margin: 0; }
+  .type-hero :global(.ts-code .astro-code) {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    font-size: var(--api-text-base);
+    line-height: 1.55;
+  }
+  .type-hero :global(.ts-code pre) { margin: 0; }
+  .type-hero :global(.ts-code figure.frame) {
+    margin: 0;
+    border: none;
+  }
+
+  .member-defined-desc {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+    margin-bottom: 0.75rem;
+  }
+
+  @media (max-width: 768px) {
+    .type-hero-top {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+  }
+</style>

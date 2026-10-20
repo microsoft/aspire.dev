@@ -150,4 +150,30 @@ export const collections = {
       })
       .passthrough(),
   }),
+
+  /**
+   * Go API module schemas — drop `{Package}.{version}.json` files into
+   * `src/data/go-modules/` and the Go API reference pages are generated
+   * automatically.
+   */
+  goModules: defineCollection({
+    loader: glob({ pattern: '**/*.json', base: './src/data/go-modules' }),
+    schema: z
+      .object({
+        package: z.object({
+          name: z.string(),
+          version: z.string().optional(),
+          language: z.string().optional(),
+          importPath: z.string().optional(),
+          sourceRepository: z.string().optional(),
+          sourceCommit: z.string().optional(),
+        }),
+        functions: z.array(z.any()).default([]),
+        handleTypes: z.array(z.any()).default([]),
+        dtoTypes: z.array(z.any()).default([]),
+        enumTypes: z.array(z.any()).default([]),
+        exportedValues: z.array(z.any()).default([]),
+      })
+      .passthrough(),
+  }),
 };

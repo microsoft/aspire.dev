@@ -1,0 +1,297 @@
+---
+/**
+ * GoMemberCard — renders a single Go callable, property or struct field.
+ *
+ * Mirrors the MemberCardBase layout (header, description, signature, parameters,
+ * returns) and adds the two pieces only Go has: the trailing options struct and the
+ * error model. MemberCardBase is shared by the C# and TypeScript references, so the
+ * Go card lives beside it instead of widening that component.
+ */
+import { Code } from '@astrojs/starlight/components';
+import ReadableText from '@components/ReadableText.astro';
+import {
+  describeGoErrorModel,
+  formatGoSignature,
+  getGoOptionsParameterName,
+  type GoCallableOptions,
+  type GoFunctionParameter,
+} from '@utils/go-modules';
+
+interface CardMember {
+  name: string;
+  description?: string | null;
+  signature?: string | null;
+  parameters?: GoFunctionParameter[];
+  options?: GoCallableOptions | null;
+  /** Result type of a callable, or the value type of a property or field. */
+  returnType?: string | null;
+  returns?: string | null;
+  errorModel?: string;
+  returnsBuilder?: boolean;
+}
+
+interface Props {
+  member: CardMember;
+  variant?: 'method' | 'function' | 'property' | 'field';
+  /** Replaces the kind pill text, e.g. `method` or `function` on a standalone function page. */
+  kindLabel?: string;
+  /** Makes the member name a link. */
+  href?: string | null;
+  /** Modifier badges such as `get · set`, `optional` or `callback`. */
+  badges?: string[];
+  /** Further signatures shown under the primary one, such as a property's setter. */
+  relatedSignatures?: string[];
+}
+
+const {
+  member,
+  variant = 'method',
+  kindLabel: kindLabelOverride,
+  href,
+  badges: extraBadges = [],
+  relatedSignatures = [],
+} = Astro.props;
+
+/** Simple string hash → 0–3 for type color assignment. */
+function typeColorIndex(s: string): number {
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0;
+  return Math.abs(h) % 4;
+}
+
+const isCallable = variant === 'method' || variant === 'function';
+const kindLabel = variant === 'field' ? undefined : (kindLabelOverride ?? variant);
+const kindClass =
+  variant === 'property' ? 'kind-property' : variant === 'field' ? 'kind-field' : 'kind-method';
+const badges = [...(member.returnsBuilder ? ['builder'] : []), ...extraBadges];
+
+// A property is a getter plus an optional setter in Go, so show both accessor signatures.
+const signatureCode =
+  variant === 'field'
+    ? ''
+    : [member.signature, ...relatedSignatures]
+        .filter((signature): signature is string => Boolean(signature))
+        .map(formatGoSignature)
+        .join('\n');
+
+const parameters: { name: string; type: string; description?: string | null; isCallback?: boolean }[] = isCallable
+  ? (member.parameters ?? []).map((parameter) => ({
+      name: parameter.name,
+      type: parameter.type ?? 'any',
+      description: parameter.description,
+      isCallback: parameter.isCallback,
+    }))
+  : [];
+const options = isCallable ? member.options : undefined;
+if (options?.typeName) {
+  parameters.push({
+    name: getGoOptionsParameterName({ signature: member.signature ?? undefined, options }),
+    type: `...*${options.typeName}`,
+    description: 'Optional settings, described under Options.',
+  });
+}
+
+const optionFields = options?.fields ?? [];
+const returnType = member.returnType?.trim() || undefined;
+const returnTypeColorIdx = returnType ? typeColorIndex(returnType) : 0;
+const showReturnInHeader = !isCallable && returnType !== undefined;
+const hasReturnSection = isCallable && (returnType !== undefined || member.errorModel !== undefined);
+
+// describeGoErrorModel quotes code with backticks; odd segments after splitting are code.
+const errorModelSegments =
+  hasReturnSection && member.errorModel !== undefined
+    ? describeGoErrorModel({ errorModel: member.errorModel, returnType }).split('`')
+    : [];
+---
+
+<div class="mc mcb not-content">
+  {/* Header */}
+  <div class="mc-header">
+    {kindLabel && <span class={`api-kind-pill ${kindClass}`}>{kindLabel}</span>}
+    {
+      href ? (
+        <a href={href} class="mc-name-link">
+          <code class="mc-param-name"><ReadableText text={member.name} /></code>
+        </a>
+      ) : (
+        <code class="mc-param-name"><ReadableText text={member.name} /></code>
+      )
+    }
+    {
+      showReturnInHeader && returnType && (
+        <span class={`mc-param-type mc-param-type-${returnTypeColorIdx}`}>
+          <code><ReadableText text={returnType} /></code>
+        </span>
+      )
+    }
+    {badges.map((badge) => <span class="api-mod-badge">{badge}</span>)}
+  </div>
+
+  {/* Description */}
+  {member.description && <div class="mc-summary">{member.description}</div>}
+
+  {/* Signature, in Go syntax without the `func` keyword */}
+  {
+    signatureCode && (
+      <div class="mc-sig">
+        <Code code={signatureCode} lang="go" showLineNumbers={false} />
+      </div>
+    )
+  }
+
+  {/* Parameters: required parameters plus the trailing options struct */}
+  {
+    parameters.length > 0 && (
+      <div class="mc-section">
+        <p class="api-section-label">Parameters</p>
+        <div class="mc-params">
+          {parameters.map((parameter) => (
+            <div class="mc-param">
+              <span class="mc-param-header">
+                <code class="mc-param-name"><ReadableText text={parameter.name} /></code>
+                <span class={`mc-param-type mc-param-type-${typeColorIndex(parameter.type)}`}>
+                  <code><ReadableText text={parameter.type} /></code>
+                </span>
+                {parameter.isCallback && <span class="api-mod-badge">callback</span>}
+              </span>
+              {parameter.description && <span class="mc-param-desc">{parameter.description}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  {/* Options: fields of the trailing options struct */}
+  {
+    options?.typeName && (
+      <div class="mc-section">
+        <p class="api-section-label">Options</p>
+        {options.isDirect ? (
+          <p class="mc-go-note">
+            Optional parameters are passed as the existing <code>*{options.typeName}</code> struct.
+          </p>
+        ) : (
+          <p class="mc-go-note">
+            Optional parameters are passed in a trailing{' '}
+            <code>{getGoOptionsParameterName({ signature: member.signature ?? undefined, options })} ...*{options.typeName}</code>{' '}
+            argument.
+          </p>
+        )}
+        {optionFields.length > 0 && (
+          <div class="mc-params">
+            {optionFields.map((field) => {
+              const fieldType = field.isCallback && field.callbackSignature ? field.callbackSignature : (field.type ?? 'any');
+              return (
+                <div class="mc-param">
+                  <span class="mc-param-header">
+                    <code class="mc-param-name"><ReadableText text={field.name} /></code>
+                    <span class={`mc-param-type mc-param-type-${typeColorIndex(fieldType)}`}>
+                      <code><ReadableText text={fieldType} /></code>
+                    </span>
+                    {field.isCallback && <span class="api-mod-badge">callback</span>}
+                  </span>
+                  {field.description && <span class="mc-param-desc">{field.description}</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  {/* Returns: result type, its description and the error model */}
+  {
+    hasReturnSection && (
+      <div class="mc-section">
+        <p class="api-section-label">Returns</p>
+        <div class="mc-section-body mc-returns">
+          {returnType && (
+            <span class={`mc-param-type mc-param-type-${returnTypeColorIdx}`}>
+              <code class="mc-return-inline"><ReadableText text={returnType} /></code>
+            </span>
+          )}
+          {member.returns && <p class="mc-go-note">{member.returns}</p>}
+          {errorModelSegments.length > 0 && (
+            <p class="mc-go-note mc-go-error-model">
+              {errorModelSegments.map((segment, index) => (index % 2 === 1 ? <code>{segment}</code> : segment))}
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+</div>
+
+<style>
+  .mcb {
+    position: relative;
+    padding: 1.1rem 1.2rem 1.2rem;
+    border: 1px solid var(--api-border);
+    border-radius: var(--api-radius-lg);
+    background: var(--api-surface);
+    transition:
+      border-color 0.18s ease,
+      background 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .mcb:hover {
+    border-color: var(--api-border-hover);
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
+  }
+
+  .mcb .mc-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--api-border-subtle);
+  }
+
+  .mcb .mc-name-link {
+    text-decoration: none;
+  }
+
+  .mcb .mc-name-link:hover {
+    text-decoration: underline;
+  }
+
+  .mcb .mc-summary {
+    margin-top: 0.75rem;
+    font-size: var(--api-text-base);
+    color: var(--sl-color-gray-2);
+    line-height: 1.6;
+  }
+
+  .mc-header > :is(code, a),
+  .mc-param-header {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .mcb .mc-section-body {
+    padding: 0.3rem 0.6rem;
+  }
+
+  .mcb .mc-go-note {
+    margin: 0.35rem 0 0.15rem;
+    padding: 0 0.6rem;
+    font-size: var(--api-text-sm);
+    color: var(--sl-color-gray-2);
+    line-height: 1.5;
+  }
+
+  .mcb .mc-section-body .mc-go-note {
+    padding: 0;
+  }
+
+  @media (max-width: 480px) {
+    .mcb {
+      padding: 0.95rem 0.9rem 1rem;
+    }
+  }
+</style>

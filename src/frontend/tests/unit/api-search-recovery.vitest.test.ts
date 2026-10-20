@@ -11,6 +11,9 @@ const routes = [
   'typescript/index.astro',
   'typescript/[module]/index.astro',
   'typescript/[module]/[item]/index.astro',
+  'go/index.astro',
+  'go/[module]/index.astro',
+  'go/[module]/[item]/index.astro',
 ];
 
 interface Entry {
@@ -75,7 +78,7 @@ describe.each(routes)('API recovery uses actual matching predicates: %s', route 
     expect(controller.activeKinds).toEqual(new Set(['property']));
   });
 
-  if (route === 'csharp/index.astro' || route === 'typescript/index.astro') {
+  if (route === 'csharp/index.astro' || route === 'typescript/index.astro' || route === 'go/index.astro') {
     it('restores the supported catalog version default instead of retaining selected versions', () => {
       const { controller, renderEmpty } = createController(route);
       controller.activeVersions = new Set(['13.5.0']);
