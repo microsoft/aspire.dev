@@ -1,9 +1,10 @@
 /**
  * normalize-generated-api-data.ts — Enforces Aspire terminology in the generated
- * C#/TypeScript API reference JSON (`src/data/pkgs/*.json`, `src/data/ts-modules/*.json`).
+ * C#/TypeScript/Go API reference JSON (`src/data/pkgs/*.json`, `src/data/ts-modules/*.json`,
+ * `src/data/go-modules/*.json`).
  *
- * The C# API JSON is produced by the .NET `PackageJsonGenerator`; the TS API JSON
- * by `AtsJsonGenerator`. Both copy XML/JSDoc documentation text verbatim from the
+ * The C# API JSON is produced by the .NET `PackageJsonGenerator`; the TS and Go API
+ * JSON by `AtsJsonGenerator`. All copy XML/JSDoc documentation text verbatim from the
  * upstream packages, so deprecated Aspire terminology leaks into the committed
  * data and trips the Forbidden Words CI check (see `.github/forbidden-words.json`).
  * This pass rewrites only prose fields, reusing the single source of truth in
@@ -18,9 +19,10 @@
  * escaped string content yields exactly the correctly-escaped normalized value.
  *
  * Usage:
- *   tsx ./scripts/normalize-generated-api-data.ts                 # both areas
+ *   tsx ./scripts/normalize-generated-api-data.ts                 # all areas
  *   tsx ./scripts/normalize-generated-api-data.ts --pkgs          # C# API only
  *   tsx ./scripts/normalize-generated-api-data.ts --ts-modules    # TS API only
+ *   tsx ./scripts/normalize-generated-api-data.ts --go-modules    # Go API only
  */
 
 import fs from 'fs';
@@ -33,6 +35,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, '..', 'src', 'data');
 export const PKGS_DIR = path.join(DATA_DIR, 'pkgs');
 export const TS_MODULES_DIR = path.join(DATA_DIR, 'ts-modules');
+export const GO_MODULES_DIR = path.join(DATA_DIR, 'go-modules');
 
 // Per-line matcher (multiline) for EITHER a documentation node's `kind` marker
 // OR a prose string field. Groups:
@@ -133,7 +136,8 @@ export function normalizeApiDir(dir: string): {
 
 function main(): void {
   const args = process.argv.slice(2);
-  const explicit = args.includes('--pkgs') || args.includes('--ts-modules');
+  const explicit =
+    args.includes('--pkgs') || args.includes('--ts-modules') || args.includes('--go-modules');
   const targets: Array<{ label: string; dir: string }> = [];
   if (!explicit || args.includes('--pkgs')) {
     targets.push({
@@ -149,6 +153,14 @@ function main(): void {
       dir: process.env.ASPIRE_API_TS_MODULES_DIR
         ? path.resolve(process.env.ASPIRE_API_TS_MODULES_DIR)
         : TS_MODULES_DIR,
+    });
+  }
+  if (!explicit || args.includes('--go-modules')) {
+    targets.push({
+      label: 'go-modules',
+      dir: process.env.ASPIRE_API_GO_MODULES_DIR
+        ? path.resolve(process.env.ASPIRE_API_GO_MODULES_DIR)
+        : GO_MODULES_DIR,
     });
   }
 

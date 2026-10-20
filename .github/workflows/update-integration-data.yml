@@ -24,7 +24,10 @@ jobs:
   update:
     name: Update integration data
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Three generation passes (C#, TypeScript, Go) each scan every package, so
+    # the runtime scales with the number of languages. The TypeScript pass alone
+    # takes about ten minutes on a hosted runner.
+    timeout-minutes: 75
     permissions:
       contents: read
     steps:
@@ -132,6 +135,7 @@ jobs:
             src/frontend/src/assets/samples \
             src/frontend/src/data/pkgs \
             src/frontend/src/data/ts-modules \
+            src/frontend/src/data/go-modules \
             src/frontend/src/data/twoslash/aspire.d.ts
 
           if git diff --cached --quiet; then

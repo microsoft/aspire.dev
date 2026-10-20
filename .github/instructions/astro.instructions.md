@@ -148,6 +148,7 @@ Defined in `src/content.config.ts`:
 - **i18n** — Starlight i18n loader for 15 locales
 - **packages** — auto-generated API reference JSON from `src/data/pkgs/`
 - **tsModules** — auto-generated TypeScript API reference JSON from `src/data/ts-modules/`
+- **goModules** — auto-generated Go API reference JSON from `src/data/go-modules/`
 
 Preserve Starlight's `docsLoader()`, `i18nLoader()`, `docsSchema()`, and `i18nSchema()` when extending content. Use `glob()` or `file()` from `astro/loaders` for additional file-backed collections, and query entries with type-safe `getCollection()` and `getEntry()` from `astro:content`. Import `z` from `astro/zod`, not `astro:content`; use Zod 4 helpers such as `z.email()` and `z.url()` for new email and URL schemas.
 
