@@ -23,11 +23,11 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
   icon: 'rocket',
   items: [
     {
-      label: 'Aspire Deployment',
+      label: 'Aspire deployment',
       translations: {
         da: 'Aspire-udrulning',
         de: 'Aspire-Bereitstellung',
-        en: 'Aspire Deployment',
+        en: 'Aspire deployment',
         es: 'Despliegue de Aspire',
         fr: 'Déploiement Aspire',
         hi: 'Aspire तैनाती',
