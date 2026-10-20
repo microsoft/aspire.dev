@@ -544,6 +544,31 @@ public sealed class GoTransformerTests
         Assert.Equal("\"1.0+build<5>\"", current.Value);
     }
 
+    [Theory]
+    [InlineData("\r\n")]
+    [InlineData("\n")]
+    public void Transform_RendersCompositeExportedValuesAsSingleLineJson(string newLine)
+    {
+        var dump = CreateDump();
+        AddWidgetOptionsDtos(dump);
+
+        // The dump is indented, so the raw text of a composite value spans several lines.
+        var indented = string.Join(newLine, "{", "  \"Name\": \"fast+<1>\",", "  \"Tags\": [", "    1,", "    2", "  ]", "}");
+        using var document = JsonDocument.Parse(indented);
+        dump.ExportedValues.Add(new AtsDumpExportedValue
+        {
+            PathSegments = ["Presets", "Fast"],
+            Type = DtoRef(WidgetOptionsTypeId),
+            Value = document.RootElement.Clone(),
+        });
+
+        var model = GoTransformer.Transform(dump, PackageName);
+
+        var presets = Assert.Single(model.ExportedValues);
+        var fast = Assert.Single(presets.Values);
+        Assert.Equal("{\"Name\":\"fast+<1>\",\"Tags\":[1,2]}", fast.Value);
+    }
+
     [Fact]
     public void Transform_ReportsCapabilitiesWithoutAConcreteTypeAsSkipped()
     {

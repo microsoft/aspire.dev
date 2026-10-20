@@ -450,6 +450,9 @@ internal static class GoTransformer
 
     // Scalars render as Go literals. Anything else (DTOs, collections) renders as its JSON text because
     // the reference only needs to show what the value is, not reproduce the SDK's composite literal.
+    // Composites are re-serialized rather than copied with GetRawText(): the dump keeps its indentation and
+    // the line endings of the OS that produced it, which would make the generated data differ per platform
+    // and split a value across several lines of the one-line-per-value markdown lists.
     private static string FormatExportedValue(AtsDumpExportedValue exported, GoSdkResolver resolver)
     {
         if (exported.Value is not { } json || json.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
@@ -462,6 +465,7 @@ internal static class GoTransformer
             JsonValueKind.String => JsonSerializer.Serialize(json.GetString(), s_literalOptions),
             JsonValueKind.True => "true",
             JsonValueKind.False => "false",
+            JsonValueKind.Object or JsonValueKind.Array => JsonSerializer.Serialize(json, s_literalOptions),
             _ => json.GetRawText()
         };
 

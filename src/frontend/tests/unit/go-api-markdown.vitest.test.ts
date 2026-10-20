@@ -1105,4 +1105,23 @@ describe('Go markdown pages across the whole seed', () => {
     expect(missingTitle).toEqual([]);
     expect(brokenLinks.slice(0, 10)).toEqual([]);
   });
+
+  test('every exported value renders as a single bullet line without carriage returns', async () => {
+    const withCarriageReturn: string[] = [];
+    const notSingleLine: string[] = [];
+    let checkedValues = 0;
+    for (const { params, props } of await modulePaths()) {
+      const markdown = renderGoModuleMarkdown(props.pkg, base);
+      if (markdown.includes('\r')) withCarriageReturn.push(params.module);
+      if (!markdown.includes('\n## Exported values\n')) continue;
+      for (const line of sectionOf(markdown, 'Exported values').split('\n')) {
+        checkedValues++;
+        if (!line.startsWith('- ')) notSingleLine.push(`${params.module}: ${line}`);
+      }
+    }
+
+    expect(checkedValues).toBeGreaterThan(0);
+    expect(withCarriageReturn).toEqual([]);
+    expect(notSingleLine.slice(0, 5)).toEqual([]);
+  });
 });
