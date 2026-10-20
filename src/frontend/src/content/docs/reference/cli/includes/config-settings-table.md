@@ -11,7 +11,6 @@ title: Config Settings Table
 | `docs.api.sitemapUrl`                        | `https://aspire.dev/sitemap-0.xml` | API reference sitemap used by `aspire docs api`. Leave it unset to use the built-in aspire.dev source. |
 | `docs.llmsTxtUrl`                            | `https://aspire.dev/llms-full.txt` | `llms.txt` documentation source used by `aspire docs`. Leave it unset to use the built-in aspire.dev source. |
 | `features.defaultWatchEnabled`               | `false`                            | Enable or disable watch mode by default when running Aspire applications for automatic restarts on file changes. |
-| `features.experimentalPolyglot:go`           | `false`                            | Enable or disable experimental Go AppHost support. |
 | `features.experimentalPolyglot:java`         | `false`                            | Enable or disable experimental Java AppHost support. |
 | `features.experimentalPolyglot:python`       | `false`                            | Enable or disable experimental Python AppHost support. |
 | `features.experimentalPolyglot:rust`         | `false`                            | Enable or disable experimental Rust AppHost support. |
@@ -32,6 +31,6 @@ Each `.` in a key maps to a nested object in `aspire.config.json`. For example, 
 :::caution
 `aspire config set` treats every `.` and `:` in a key as a nesting separator, so it can't write keys whose names contain those characters:
 
-- In `features.experimentalPolyglot:<language>`, `experimentalPolyglot:<language>` is a single feature name. Without `--global`, the CLI writes a nested `experimentalPolyglot` object to the local `aspire.config.json` file, and later commands fail to load the file. Set these flags with `--global`, or add them to the local file by hand, for example `"experimentalPolyglot:go": true` in the `features` object.
+- In `features.experimentalPolyglot:<language>`, `experimentalPolyglot:<language>` is a single feature name. Without `--global`, the CLI writes a nested `experimentalPolyglot` object to the local `aspire.config.json` file, and later commands fail to load the file. Set these flags with `--global`, or add them to the local file by hand, for example `"experimentalPolyglot:rust": true` in the `features` object.
 - Package IDs such as `Aspire.Hosting.Redis` contain dots. Use `aspire add` to add packages, or edit the `packages` object by hand.
 :::
