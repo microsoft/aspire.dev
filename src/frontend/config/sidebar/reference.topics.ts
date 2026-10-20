@@ -23,11 +23,11 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
   icon: 'seti:json',
   items: [
     {
-      label: 'Aspire Reference',
+      label: 'Aspire reference',
       translations: {
         da: 'Aspire-reference',
         de: 'Aspire-Referenz',
-        en: 'Aspire Reference',
+        en: 'Aspire reference',
         es: 'Referencia de Aspire',
         fr: 'Référence Aspire',
         hi: 'Aspire संदर्भ',
