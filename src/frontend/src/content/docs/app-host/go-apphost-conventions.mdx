@@ -1,0 +1,92 @@
+---
+title: Go AppHost API conventions
+seoTitle: Go AppHost API conventions for the Aspire SDK
+description: Learn how the generated Aspire Go SDK names methods, passes optional parameters with options structs, reports errors through handles, and cancels a running AppHost.
+---
+
+The Aspire CLI generates the Go SDK from the integrations in your `aspire.config.json` file, and every integration follows the same conventions. The examples on this page use a `builder` from `aspire.CreateBuilder()`, as in [Get started with the Go AppHost](/app-host/go-apphost/).
+
+## Names and handles
+
+Every integration adds its methods to the `aspire` package, and method names are PascalCase. The TypeScript method `addRedis` is `AddRedis` in Go.
+
+Methods that add a resource, such as `AddRedis` and `AddGoApp`, return a _handle_. A handle is a Go interface that stands for the resource in the app model, for example `aspire.RedisResource`. Methods that configure a resource return the same handle type, so calls chain. Every handle has an `Err() error` method, which is described in [Errors](#errors).
+
+## Optional parameters
+
+Optional parameters go in a trailing variadic options struct that is named after the method, such as `*aspire.WithHttpEndpointOptions`. Leave the argument out to use the defaults. The fields of an options struct are pointers, so a field that you don't set stays `nil`. Use `aspire.StringPtr`, `aspire.BoolPtr`, and `aspire.Float64Ptr` to create the values. Numeric fields are `*float64`.
+
+```go title="apphost.go"
+builder.AddGoApp("api", "./api").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
+		Port: aspire.Float64Ptr(8080),
+		Env:  aspire.StringPtr("PORT"),
+	})
+```
+
+The [`WithHttpEndpoint` API reference](/reference/api/go/aspire.hosting/withhttpendpoint/) describes each field of `WithHttpEndpointOptions`.
+
+## Errors
+
+The SDK reports errors in two ways.
+
+Methods that add or configure a resource return a handle instead of an error. The handle records the first failure, later calls on it do nothing, and `Err()` returns the recorded error. A child resource, such as a database that you add to a server, inherits the error of its parent, so checking the last handle in a chain is enough:
+
+```go title="apphost.go"
+db := builder.AddPostgres("postgres").AddDatabase("postgresdb")
+if err := db.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+A failed `Add` call records its error on the handle that it returns, not on the builder, so `builder.Err()` doesn't report it. To check several resources at once, put them in a slice of `aspire.Resource`:
+
+```go title="apphost.go"
+cache := builder.AddRedis("cache")
+api := builder.AddGoApp("api", "./api").WithReference(cache)
+
+for _, resource := range []aspire.Resource{cache, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+Methods that return a value return a `(T, error)` pair, and `Build` and `Run` return an `error`:
+
+```go title="apphost.go"
+dir, err := builder.AppHostDirectory()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+log.Println("AppHost directory:", dir)
+```
+
+`aspire.FormatError` turns an error into a message that is ready to log. When the AppHost server returns an error for a call, the error is an `*aspire.CapabilityError`, and `FormatError` adds its error code and the capability that failed. Use `errors.As` and the `Code`, `Message`, and `Capability` methods to read these values yourself. For any other error, `FormatError` returns `err.Error()`.
+
+## Cancellation
+
+A method that accepts a cancellation token takes it in its options struct. For example, `aspire.RunOptions` has a `CancellationToken` field. Create a token with `aspire.NewCancellationToken`, pass it in the options, and call its `Cancel` method to cancel the call:
+
+```go title="apphost.go"
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+// Cancel the Run call if the AppHost is still running after an hour.
+token := aspire.NewCancellationToken()
+time.AfterFunc(time.Hour, token.Cancel)
+
+if err := app.Run(&aspire.RunOptions{CancellationToken: token}); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+You can't create a token from a `context.Context`. To cancel a token when an existing context ends, call `context.AfterFunc(ctx, token.Cancel)`. The token's `Context` method returns a `context.Context` that ends when the token is canceled, so you can use the same token with other Go APIs.
+
+## See also
+
+- [Get started with the Go AppHost](/app-host/go-apphost/)
+- [Go API reference](/reference/api/go/)

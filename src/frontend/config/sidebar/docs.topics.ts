@@ -1052,7 +1052,17 @@ export const docsTopics = {
             },
             {
               label: 'Go',
-              slug: 'app-host/go-apphost',
+              collapsed: false,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'app-host/go-apphost',
+                },
+                {
+                  label: 'API conventions',
+                  slug: 'app-host/go-apphost-conventions',
+                },
+              ],
             },
           ],
         },
