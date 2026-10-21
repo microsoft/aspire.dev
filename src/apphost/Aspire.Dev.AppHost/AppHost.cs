@@ -18,6 +18,10 @@ var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
         // connections per origin. The landing page loads dozens of small assets, so multiplexing
         // them over one connection matters most on slow, high-latency links.
         website.SiteConfig.IsHttp20Enabled = true;
+
+        // Without Always On, App Service unloads the site after about 20 minutes without requests,
+        // and the next request pays for a cold start.
+        website.SiteConfig.IsAlwaysOn = true;
     });
 
 var frontDoor = builder.AddAzureFrontDoor(staticHostWebsite);

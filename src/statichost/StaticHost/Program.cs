@@ -92,7 +92,12 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.MapGet("/healthz", () => Results.Ok());
+app.MapGet("/healthz", (HttpContext context) =>
+{
+    // A health probe must always reach the origin, never a cached copy.
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok();
+});
 
 // Live-status API + SSE + webhooks.
 app.MapLiveStatus();
