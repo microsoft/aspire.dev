@@ -35,7 +35,9 @@ internal static class DeploymentExtensions
                             "image/svg+xml"
                         }
                     },
-                    QueryStringCachingBehavior = FrontDoorQueryStringCachingBehavior.IgnoreQueryString
+                    // StaticHost's slashless-directory 301s echo the query string in Location. Ignoring the
+                    // query string would replay the first requester's query string to every visitor.
+                    QueryStringCachingBehavior = FrontDoorQueryStringCachingBehavior.UseQueryString
                 };
             });
     }
