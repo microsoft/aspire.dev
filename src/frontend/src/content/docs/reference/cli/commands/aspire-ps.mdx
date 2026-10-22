@@ -54,6 +54,10 @@ The following options are available:
 
   Output result format. Use `Json` for machine-readable output suitable for scripting and automation. The JSON output includes an array of AppHost objects with `appHostPath`, `appHostPid`, `cliPid`, `logFilePath`, and `dashboardUrl` properties. The `logFilePath` field is `null` when no log path is available. Defaults to `Table`.
 
+- **`--output <Default|Snapshot>`**
+
+  Output mode for `--follow` streaming. `Default` emits one changed AppHost record per NDJSON line, as described for `--follow` above. `Snapshot` emits full AppHost snapshots that also include resource health and heartbeat updates, intended for monitoring tools and the native tray rather than interactive use. `Snapshot` requires both `--follow` and `--format Json`. Defaults to `Default`.
+
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
 - <Include relativePath="reference/cli/includes/option-log-level.md" />
@@ -109,6 +113,14 @@ The following options are available:
   ```bash title="Aspire CLI"
   aspire ps --follow --format Json | jq -c '{ appHostPath, status }'
   ```
+
+- Stream full AppHost snapshots, including resource health and heartbeats, for a monitoring tool:
+
+  ```bash title="Aspire CLI"
+  aspire ps --output Snapshot --follow --format Json --non-interactive --nologo
+  ```
+
+  Normal shutdown of this stream (including the consumer disconnecting or the command being canceled) exits with code `0`. Only an actual AppHost discovery failure exits with a non-zero code.
 
 ## See also
 
