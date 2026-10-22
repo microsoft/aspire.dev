@@ -32,8 +32,8 @@ const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
 const siteDescription = aspireProject.description;
 
 // Under `aspire run` the frontend dev server (Vite) and StaticHost are separate
-// origins. The live-status client fetches same-origin `/api/live` and streams
-// `/api/live/stream`, so in dev those must be proxied to StaticHost. The AppHost
+// origins. The live-status client fetches same-origin `/api/live` and opens a
+// WebSocket to `/api/live/ws`, so in dev those must be proxied to StaticHost. The AppHost
 // injects its origin as ASPIRE_STATICHOST_URL; unset in CI/production builds
 // (where StaticHost serves both the site and the API from one origin), so the
 // proxy is simply omitted then.
@@ -65,11 +65,12 @@ export default defineConfig({
       ? {
           server: {
             proxy: {
-              // Bypass Astro's trailing-slash routing for JSON and SSE.
+              // Bypass Astro's trailing-slash routing for JSON and the WebSocket.
               '^/api/live(?:/.*)?$': {
                 target: staticHostUrl,
                 changeOrigin: true,
                 secure: false,
+                ws: true,
               },
             },
           },

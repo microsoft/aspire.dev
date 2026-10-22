@@ -24,20 +24,19 @@ declare global {
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.removeItem('starlight-synced-tabs__stream-source');
-    class MockEventSource {
+    class MockWebSocket {
       onopen: (() => void) | null = null;
+      onmessage: ((event: MessageEvent<string>) => void) | null = null;
       constructor() {
         setTimeout(() => this.onopen?.(), 0);
-      }
-      addEventListener(type: string, listener: (event: MessageEvent<string>) => void) {
-        if (type === 'state') {
-          window.__emitLiveEmbedState = (snapshot) =>
-            listener(new MessageEvent('state', { data: JSON.stringify(snapshot) }));
-        }
+        window.__emitLiveEmbedState = (snapshot) =>
+          this.onmessage?.(
+            new MessageEvent('message', { data: JSON.stringify({ type: 'state', data: snapshot }) })
+          );
       }
       close() {}
     }
-    Object.defineProperty(window, 'EventSource', { configurable: true, value: MockEventSource });
+    Object.defineProperty(window, 'WebSocket', { configurable: true, value: MockWebSocket });
     window.__youtubeEmbedWrites = 0;
     const src = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src')!;
     Object.defineProperty(HTMLIFrameElement.prototype, 'src', {

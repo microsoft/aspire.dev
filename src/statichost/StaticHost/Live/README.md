@@ -17,13 +17,13 @@ can watch immediately.
                     leases, replay keys, and pub/sub
                                 |
                                 v
-                    per-worker SSE fan-out + coalescing
+                    per-worker WebSocket fan-out + coalescing
 ```
 
 The App Service can use its normal horizontal scaling. Every worker can serve
-snapshot, SSE, and webhook requests because Redis holds the canonical state and
+snapshot, WebSocket, and webhook requests because Redis holds the canonical state and
 coordination data. Redis pub/sub replicates each versioned snapshot to the
-per-process broadcaster that serves that worker's SSE clients.
+per-process broadcaster that serves that worker's WebSocket clients.
 
 Two `BackgroundService` workers keep the state current:
 
@@ -209,7 +209,7 @@ alter polling intervals, retry policies, or leader coordination.
 
 Bind from the `Live` section of configuration. In unconfigured local runs,
 the corresponding worker logs a warning at startup and remains idle.
-The SSE endpoint reports offline unless a local simulation sets live state.
+The WebSocket endpoint reports offline unless a local simulation sets live state.
 
 ```json
 "Live": {
@@ -301,7 +301,7 @@ Vault. Every StaticHost worker loads the same configuration because any worker
 can accept and verify a webhook callback.
 
 StaticHost loads Key Vault configuration at startup; it does not contact Key
-Vault for each snapshot, SSE connection, or provider request. Missing provider
+Vault for each snapshot, WebSocket connection, or provider request. Missing provider
 credentials leave that provider idle, and missing signing secrets cause its
 webhook endpoint to reject requests. After changing a value, restart the App
 Service so its bound configuration is reloaded. Rotating webhook signing
@@ -316,7 +316,7 @@ testing, and the production host never enables the dev endpoint.
 | Method | Path                            | Description                                                          |
 |--------|---------------------------------|----------------------------------------------------------------------|
 | GET    | `/api/live`                     | Current snapshot, `Cache-Control: no-store`                          |
-| GET    | `/api/live/stream`              | Server-Sent Events: `state` events, 15s heartbeat        |
+| GET    | `/api/live/ws`                  | WebSocket upgrade: JSON `state` messages, 15s `hb` heartbeat. Plain HTTP requests get `400`. |
 | POST   | `/api/live/twitch/webhook`      | Twitch EventSub callback. HMAC-SHA256 verified.                      |
 | GET    | `/api/live/youtube/webhook`     | WebSub verification (`hub.challenge`)                                |
 | POST   | `/api/live/youtube/webhook`     | WebSub notification. HMAC-SHA1 verified, then confirming poll. In AppHost dev mode without a YouTube API key, signed local notifications update from the Atom payload. |
@@ -357,16 +357,18 @@ short record updates.
 
 Each worker's local broadcaster:
 
-- Coalesces outgoing SSE events with a configurable window
+- Coalesces outgoing state messages with a configurable window
   (default 750 ms). If both sources flip in that window the subscriber
   receives **one** combined update.
-- Serializes each published snapshot into one UTF-8 `state` frame, shared by
+- Serializes each published snapshot into one UTF-8 JSON `state` message
+  (`{"type":"state","data":{...}}`), shared by
   existing and newly connected subscribers. Unchanged snapshots do not
   allocate another frame or restart the coalescing timer.
-- Uses one periodic heartbeat timer per SSE connection and retains the
+- Uses one periodic heartbeat timer per WebSocket connection (`{"type":"hb"}`
+  every 15 s) and retains the
   outstanding channel read between ticks, rather than cancelling a read
   for every idle heartbeat.
-- Reloads canonical state before seeding a new SSE subscriber and every 30
+- Reloads canonical state before seeding a new WebSocket subscriber and every 30
   seconds, recovering updates missed during a Redis reconnect.
 
 The videos page shows the YouTube channel's uploads playlist without autoplay
@@ -417,8 +419,8 @@ curl -Method POST http://localhost:5000/api/live/_dev/set `
   -ContentType 'application/json' `
   -Body '{ "twitch": { "live": true, "channel": "aspiredotdev", "title": "Local test" }, "youtube": { "live": false, "videoId": null } }'
 
-# Inspect the SSE stream:
-curl -N http://localhost:5000/api/live/stream
+# Inspect the WebSocket stream (any WebSocket client works, for example):
+npx wscat -c ws://localhost:5000/api/live/ws
 ```
 
 The dev endpoint is gated on `IsDevelopment` AND
@@ -433,16 +435,17 @@ must opt in explicitly.
   using `FakeTimeProvider`, named-HttpClient clients with fake
   `HttpMessageHandler`.
 - **HTTP integration**: ASP.NET Core `TestServer` exercises mapped endpoints
-  with signed webhook callbacks, snapshots, and SSE assertions. These backend
+  with signed webhook callbacks, snapshots, and WebSocket assertions. These backend
   tests do not build or start the frontend and do not require Redis.
 - **Redis integration**: independent StackExchange.Redis connections exercise
   production Lua compare-and-set, provider leadership and takeover, Twitch
   replay/retry leases, pub/sub delivery and periodic recovery, shared YouTube
   offline evidence, and cross-worker WebSub verification retries.
-- **Frontend unit (vitest)**: SSE-mocked `live-status.ts` + PiP component
+- **Frontend unit (vitest)**: WebSocket-mocked `live-status.ts` (reconnect,
+  polling fallback, heartbeat watchdog) + PiP component
   reactions to `aspire:live-change` events.
-- **E2E (Playwright)**: route-mocked `/api/live` + custom SSE handler
-  drives the full UX: icon strobing, PiP appearance, tab switching,
+- **E2E (Playwright)**: route-mocked `/api/live` + mocked `/api/live/ws`
+  WebSocket drives the full UX: icon strobing, PiP appearance, tab switching,
   close-to-videos navigation, reconnect after network drop.
 
 ### Backend test commands
@@ -518,8 +521,8 @@ project or `Aspire.Dev.slnx` trigger that job.
 - If state persistence succeeds but pub/sub publication fails, the writer logs
   the failure. Other workers recover from canonical state during their
   periodic resynchronization.
-- Existing SSE connections retain the last local snapshot during a temporary
-  Redis interruption. New snapshot and SSE requests require canonical Redis
+- Existing WebSocket connections retain the last local snapshot during a temporary
+  Redis interruption. New snapshot and WebSocket requests require canonical Redis
   state.
 - Provider loops log failures and retry on their configured intervals, with
   separate shared backoff for failed YouTube subscription requests.
@@ -527,20 +530,34 @@ project or `Aspire.Dev.slnx` trigger that job.
   YouTube subscription POSTs use the bounded timeout and shared retry schedule
   described above.
 - Reconciliation timers are the safety net for missed individual webhooks.
-- SSE heartbeats every 15 s defeat proxy idle-timeouts; the client uses
+- Azure Front Door does not relay Server-Sent Events
+  ([docs](https://learn.microsoft.com/en-us/azure/frontdoor/standard-premium/websocket)),
+  which is why live updates use a WebSocket. Front Door allows WebSocket
+  connections only on routes with caching disabled (the route has no cache
+  configuration), closes idle ones after 5 minutes and any connection after at most
+  2 hours, supports 3,000 concurrent connections per profile, and inspects only the
+  handshake with WAF. The App Service must have WebSockets enabled; the AppHost
+  sets this on the site config.
+- The server sends a `{"type":"hb"}` message every 15 s and the
+  ASP.NET Core WebSocket middleware pings every 30 s, so a healthy connection is
+  never idle for anything close to the 5-minute limit. The client treats 45 s without
+  any message as a dead socket and reconnects. It uses
   jittered exponential backoff (50–150% of each step) with a
-  `visibilitychange`-aware reconnect.
-- Each SSE stream ends after a random 80–100% of `StreamMaxLifetimeSeconds`
-  (default 10 minutes), and the client reconnects. Without this cap, one
+  `visibilitychange`- and `online`-aware reconnect.
+- While the socket is not open (connecting, backing off, or blocked by a proxy),
+  the client polls `/api/live/` every 30 s so the icon cannot go stale.
+- Each WebSocket ends after a random 80–100% of `StreamMaxLifetimeSeconds`
+  (default 10 minutes) with a normal close, and the client reconnects. Without this cap, one
   request could stay open for days and inflate request-duration telemetry
-  until the next restart.
-- A tab that stays hidden for 60 s closes its stream; the stream reconnects
+  until the next restart. It also keeps clients well inside Front Door's
+  2-hour connection limit.
+- A tab that stays hidden for 60 s closes its socket; the socket reconnects
   when the tab becomes visible and receives the current snapshot.
-- `/api/live/stream` is excluded from ASP.NET Core request traces, so App
-  Insights server response time reflects page and API latency, not stream
+- `/api/live/ws` is excluded from ASP.NET Core request traces, so App
+  Insights server response time reflects page and API latency, not socket
   lifetimes.
-- A `404` from the initial `/api/live/` snapshot request closes the event stream
-  and cancels reconnects until a full page reload. Tab visibility changes and
+- A `404` from a `/api/live/` snapshot request closes the socket
+  and cancels reconnects and polling until a full page reload. Tab visibility changes and
   Astro navigation do not restart it. This avoids repeated missing-endpoint
   errors in frontend-only previews; transient failures still use backoff.
 - Frontend client is re-entrant, idempotent, and survives Astro view

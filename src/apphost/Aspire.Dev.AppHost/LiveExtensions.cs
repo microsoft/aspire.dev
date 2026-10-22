@@ -102,7 +102,7 @@ internal static class LiveExtensions
             }
 
             ctx.Urls.Add(new() { Url = "/api/live", DisplayText = "Live status (JSON)", Endpoint = endpoint });
-            ctx.Urls.Add(new() { Url = "/api/live/stream", DisplayText = "Live status (SSE stream)", Endpoint = endpoint });
+            ctx.Urls.Add(new() { Url = "/api/live/ws", DisplayText = "Live status (WebSocket)", Endpoint = endpoint });
             ctx.Urls.Add(new() { Url = "/api/live/twitch/webhook", DisplayText = "Twitch EventSub webhook (POST)", Endpoint = endpoint });
             ctx.Urls.Add(new() { Url = "/api/live/youtube/webhook", DisplayText = "YouTube WebSub webhook (GET/POST)", Endpoint = endpoint });
             ctx.Urls.Add(new() { Url = "/api/live/_dev/set", DisplayText = "Live dev override", Endpoint = endpoint });

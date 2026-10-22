@@ -3,10 +3,13 @@
  *
  * Wires the header `.live-btn` icon and dispatches a typed
  * `aspire:live-change` CustomEvent on `document` whenever the snapshot
- * actually changes. Reconnects on errors with jittered exponential backoff,
- * releases the stream after a tab stays hidden, and reconnects when the tab
- * becomes visible again. A missing snapshot
- * endpoint disables live updates until a full page reload.
+ * actually changes. State arrives over a WebSocket (`/api/live/ws`); Azure Front
+ * Door does not relay Server-Sent Events, so SSE is not used. The socket
+ * reconnects with jittered exponential backoff, is released after a tab stays
+ * hidden, and reconnects when the tab becomes visible or the browser comes back
+ * online. Whenever the socket is not open the JSON snapshot (`/api/live/`) is
+ * polled, so the icon cannot go stale if WebSockets are blocked. A missing
+ * snapshot endpoint disables live updates until a full page reload.
  */
 
 export interface LiveSnapshot {
@@ -38,18 +41,27 @@ const EMPTY: LiveSnapshot = {
 };
 
 const BACKOFF_MS = [1_000, 2_000, 5_000, 15_000, 30_000];
-// Hidden tabs release their stream after this grace period; visibility reconnects.
+// Hidden tabs release their socket after this grace period; visibility reconnects.
 const HIDDEN_CLOSE_DELAY_MS = 60_000;
+// While the socket is not open, re-fetch the JSON snapshot this often.
+const POLL_INTERVAL_MS = 30_000;
+// The server sends a heartbeat every 15 s; three missed beats means a dead socket.
+const STALE_SOCKET_MS = 45_000;
 
 let started = false;
 let unavailable = false;
 let current: LiveSnapshot = EMPTY;
-let source: EventSource | null = null;
+let socket: WebSocket | null = null;
+let socketOpen = false;
 let backoffIndex = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let hiddenCloseTimer: ReturnType<typeof setTimeout> | null = null;
+let pollTimer: ReturnType<typeof setTimeout> | null = null;
+let staleTimer: ReturnType<typeof setTimeout> | null = null;
 let pipOpen = false;
 const listeners = new Set<(s: LiveSnapshot) => void>();
+
+type LiveMessage = { type: 'state'; data: LiveSnapshot } | { type: 'hb' };
 
 function snapshotsEqual(a: LiveSnapshot, b: LiveSnapshot): boolean {
   return (
@@ -125,26 +137,80 @@ async function seed(): Promise<void> {
     const res = await fetch('/api/live/', { headers: { Accept: 'application/json' } });
     if (res.status === 404) {
       unavailable = true;
-      closeSource();
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
+      closeSocket();
+      clearReconnectTimer();
+      clearPollTimer();
       console.warn('[live-status] Live API not found (404); live updates disabled until reload.');
       return;
     }
     if (res.ok) {
       const json = (await res.json()) as LiveSnapshot;
-      // A `state` SSE event can arrive while this request is in flight. Only apply
+      // A `state` message can arrive while this request is in flight. Only apply
       // the seed if it isn't older than what we've already rendered, so a slow
-      // snapshot response can't clobber fresher live state pushed over SSE.
+      // snapshot response can't clobber fresher live state pushed over the socket.
       if (Date.parse(json.updatedAt) >= Date.parse(current.updatedAt)) {
         applySnapshot(json);
       }
     }
   } catch {
-    /* fine — SSE will catch up */
+    /* fine — the socket or the poller will catch up */
   }
+}
+
+function clearPollTimer(): void {
+  if (pollTimer) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+}
+
+// Fallback while the socket is not open (blocked by a proxy, reconnecting, ...).
+function schedulePoll(): void {
+  if (unavailable || pollTimer || socketOpen) return;
+  pollTimer = setTimeout(() => {
+    pollTimer = null;
+    if (unavailable || socketOpen || document.visibilityState === 'hidden') return;
+    void seed().finally(schedulePoll);
+  }, POLL_INTERVAL_MS);
+}
+
+function clearStaleTimer(): void {
+  if (staleTimer) {
+    clearTimeout(staleTimer);
+    staleTimer = null;
+  }
+}
+
+// Any message, including heartbeats, proves the socket is alive.
+function armStaleTimer(): void {
+  clearStaleTimer();
+  staleTimer = setTimeout(() => {
+    staleTimer = null;
+    handleSocketLost();
+  }, STALE_SOCKET_MS);
+}
+
+function handleSocketLost(): void {
+  closeSocket();
+  scheduleReconnect();
+  schedulePoll();
+}
+
+function liveSocketUrl(): string {
+  const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${scheme}//${window.location.host}/api/live/ws`;
+}
+
+function onSocketMessage(evt: MessageEvent): void {
+  armStaleTimer();
+  let message: LiveMessage;
+  try {
+    message = JSON.parse(evt.data as string) as LiveMessage;
+  } catch (err) {
+    console.warn('[live-status] failed to parse live message', err);
+    return;
+  }
+  if (message.type === 'state') applySnapshot(message.data);
 }
 
 function scheduleReconnect(): void {
@@ -160,52 +226,49 @@ function scheduleReconnect(): void {
 
 function connect(): void {
   if (unavailable) return;
-  closeSource();
+  closeSocket();
+  let ws: WebSocket;
   try {
-    source = new EventSource('/api/live/stream/');
+    ws = new WebSocket(liveSocketUrl());
   } catch (err) {
-    console.warn('[live-status] EventSource unavailable', err);
+    console.warn('[live-status] WebSocket unavailable', err);
     scheduleReconnect();
+    schedulePoll();
     return;
   }
+  socket = ws;
+  // Until the socket opens, the snapshot poller covers for it.
+  schedulePoll();
 
-  source.onopen = () => {
+  ws.onopen = () => {
+    if (socket !== ws) return;
+    socketOpen = true;
     backoffIndex = 0;
+    clearPollTimer();
+    armStaleTimer();
   };
-
-  source.addEventListener('state', (evt) => {
-    try {
-      const data = JSON.parse((evt as MessageEvent<string>).data) as LiveSnapshot;
-      applySnapshot(data);
-    } catch (err) {
-      console.warn('[live-status] failed to parse state event', err);
-    }
-  });
-
-  source.addEventListener('meta', (evt) => {
-    try {
-      const data = JSON.parse((evt as MessageEvent<string>).data) as LiveSnapshot;
-      // Ignore title/timestamp-only changes, but deliver a changed stream ID.
-      applySnapshot(data);
-    } catch (err) {
-      console.warn('[live-status] failed to parse meta event', err);
-    }
-  });
-
-  source.onerror = () => {
-    closeSource();
-    scheduleReconnect();
+  ws.onmessage = (evt) => {
+    if (socket === ws) onSocketMessage(evt);
+  };
+  // `error` is always followed by `close`, so reconnect handling lives in one place.
+  ws.onclose = () => {
+    if (socket === ws) handleSocketLost();
   };
 }
 
-function closeSource(): void {
-  if (source) {
+// Detach handlers first so an intentional close never triggers a reconnect.
+function closeSocket(): void {
+  clearStaleTimer();
+  socketOpen = false;
+  if (socket) {
+    const ws = socket;
+    socket = null;
+    ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
     try {
-      source.close();
+      ws.close();
     } catch {
       /* ignore */
     }
-    source = null;
   }
 }
 
@@ -229,8 +292,18 @@ function scheduleHiddenClose(): void {
     hiddenCloseTimer = null;
     if (document.visibilityState !== 'hidden') return;
     clearReconnectTimer();
-    closeSource();
+    clearPollTimer();
+    closeSocket();
   }, HIDDEN_CLOSE_DELAY_MS);
+}
+
+function reconnectNow(): void {
+  if (unavailable) return;
+  backoffIndex = 0;
+  clearReconnectTimer();
+  connect();
+  // A fresh snapshot immediately covers whatever was missed while disconnected.
+  void seed();
 }
 
 function onVisibilityChange(): void {
@@ -239,11 +312,12 @@ function onVisibilityChange(): void {
     return;
   }
   clearHiddenCloseTimer();
-  if (document.visibilityState === 'visible' && !source) {
-    backoffIndex = 0;
-    clearReconnectTimer();
-    connect();
-  }
+  if (document.visibilityState === 'visible' && !socket) reconnectNow();
+  else schedulePoll();
+}
+
+function onOnline(): void {
+  if (document.visibilityState !== 'hidden' && !socketOpen) reconnectNow();
 }
 
 export function getCurrent(): LiveSnapshot {
@@ -301,6 +375,7 @@ export function init(): void {
   if (document.visibilityState === 'hidden') scheduleHiddenClose();
   document.addEventListener('visibilitychange', onVisibilityChange);
   document.addEventListener('aspire:live-pip-change', onLivePipChange);
+  window.addEventListener('online', onOnline);
 }
 
 if (typeof window !== 'undefined') {

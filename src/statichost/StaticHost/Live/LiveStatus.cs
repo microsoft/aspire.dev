@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace StaticHost.Live;
 
 /// <summary>
-/// Aggregate live-status snapshot broadcast to all SSE subscribers.
+/// Aggregate live-status snapshot broadcast to all WebSocket subscribers.
 /// </summary>
 /// <param name="IsLive">True when at least one upstream source is live.</param>
 /// <param name="PrimarySource">

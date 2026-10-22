@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { dismissCookieConsentIfVisible, isNarrowViewport, revealMobileSiteMenu } from '@tests/e2e/helpers';
 
@@ -6,11 +6,10 @@ import { dismissCookieConsentIfVisible, isNarrowViewport, revealMobileSiteMenu }
  * E2E coverage for the live-status feature.
  *
  * The frontend always points at `/api/live/` (JSON seed) and
- * `/api/live/stream/` (SSE). In the e2e environment there is no StaticHost
- * backend, so we mock both — the JSON for the initial seed and a long-lived
- * streaming response for SSE. The streaming body is split into chunks the
- * test can flush at will, so we can assert the icon transitions deterministic-
- * ally.
+ * `/api/live/ws` (WebSocket). In the e2e environment there is no StaticHost
+ * backend, so we mock both — the JSON for the initial seed and either a routed
+ * WebSocket or an in-page mock WebSocket the test can push messages through at
+ * will, so we can assert the icon transitions deterministically.
  */
 test.describe('live status', () => {
   type LiveSnapshot = {
@@ -31,7 +30,7 @@ test.describe('live status', () => {
     updatedAt: new Date(0).toISOString(),
   };
   const snapshotEndpoint = /\/api\/live\/?$/;
-  const streamEndpoint = /\/api\/live\/stream\/?$/;
+  const socketEndpoint = /\/api\/live\/ws$/;
 
   async function visibleLiveButton(page: Page) {
     await revealMobileSiteMenu(page);
@@ -42,26 +41,54 @@ test.describe('live status', () => {
     return page.evaluate(() => window.matchMedia('(hover: none) and (pointer: coarse)').matches);
   }
 
-  // Playwright's route.fulfill cannot stream a live connection: the body must be a
-  // complete string/Buffer (a ReadableStream silently serialises to garbage). Fulfil
-  // the SSE endpoint with one complete `state` frame so the real EventSource fires
-  // once. Tests that need to push further frames install a mock EventSource and use
-  // window.__aspireLiveSseEmit instead.
-  function fulfillSseState(route: Route, snapshot: LiveSnapshot) {
-    return route.fulfill({
-      status: 200,
-      headers: {
-        'content-type': 'text/event-stream',
-        'cache-control': 'no-store',
-        connection: 'keep-alive',
-      },
-      body: `event: state\ndata: ${JSON.stringify(snapshot)}\n\n`,
+  // Serve the live socket with one `state` message so the real WebSocket client
+  // connects and receives it. Tests that need to push further messages install a mock
+  // WebSocket with installMockLiveSocket and use window.__aspireLiveEmit instead.
+  function routeLiveSocket(page: Page, snapshot: LiveSnapshot, onConnect?: () => void) {
+    return page.routeWebSocket(socketEndpoint, (ws) => {
+      onConnect?.();
+      ws.send(JSON.stringify({ type: 'state', data: snapshot }));
+    });
+  }
+
+  // Replace WebSocket with an in-page mock that opens immediately and exposes
+  // window.__aspireLiveEmit(snapshot) to push `state` messages.
+  function installMockLiveSocket(page: Page) {
+    return page.addInitScript(() => {
+      class MockWebSocket {
+        static current: MockWebSocket | null = null;
+        onopen: (() => void) | null = null;
+        onmessage: ((evt: MessageEvent<string>) => void) | null = null;
+        onclose: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+
+        constructor() {
+          MockWebSocket.current = this;
+          setTimeout(() => this.onopen?.(), 0);
+        }
+
+        close(): void {
+          /* no-op */
+        }
+      }
+
+      Object.defineProperty(window, 'WebSocket', {
+        configurable: true,
+        value: MockWebSocket,
+      });
+      Object.defineProperty(window, '__aspireLiveEmit', {
+        configurable: true,
+        value(snapshot: LiveSnapshot) {
+          const data = JSON.stringify({ type: 'state', data: snapshot });
+          MockWebSocket.current?.onmessage?.(new MessageEvent('message', { data }));
+        },
+      });
     });
   }
 
   test('a missing live API stays disabled across navigation and visibility changes until reload', async ({ page }) => {
     let snapshotRequests = 0;
-    let streamRequests = 0;
+    let socketRequests = 0;
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.clock.install();
@@ -69,9 +96,9 @@ test.describe('live status', () => {
       snapshotRequests++;
       return route.fulfill({ status: 404 });
     });
-    await page.route(streamEndpoint, (route) => {
-      streamRequests++;
-      return route.fulfill({ status: 404 });
+    await page.routeWebSocket(socketEndpoint, (ws) => {
+      socketRequests++;
+      ws.close();
     });
     const disabled = page.waitForEvent('console', {
       predicate: (message) => message.text().includes('live updates disabled until reload'),
@@ -81,8 +108,8 @@ test.describe('live status', () => {
     await dismissCookieConsentIfVisible(page);
     await page.clock.fastForward(120_000);
     expect(snapshotRequests).toBe(1);
-    expect(streamRequests).toBeLessThanOrEqual(1);
-    const initialStreamRequests = streamRequests;
+    expect(socketRequests).toBeLessThanOrEqual(1);
+    const initialSocketRequests = socketRequests;
 
     const videos = await visibleLiveButton(page);
     await expect(videos).toHaveAttribute('href', '/community/videos/');
@@ -91,7 +118,7 @@ test.describe('live status', () => {
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await page.clock.fastForward(120_000);
     expect(snapshotRequests).toBe(1);
-    expect(streamRequests).toBe(initialStreamRequests);
+    expect(socketRequests).toBe(initialSocketRequests);
 
     const disabledAgain = page.waitForEvent('console', {
       predicate: (message) => message.text().includes('live updates disabled until reload'),
@@ -99,7 +126,7 @@ test.describe('live status', () => {
     await page.reload();
     await disabledAgain;
     expect(snapshotRequests).toBe(2);
-    expect(streamRequests).toBeLessThanOrEqual(initialStreamRequests + 1);
+    expect(socketRequests).toBeLessThanOrEqual(initialSocketRequests + 1);
     expect(errors).toEqual([]);
   });
 
@@ -117,28 +144,8 @@ test.describe('live status', () => {
       updatedAt: new Date().toISOString(),
     };
 
-    await page.addInitScript(() => {
-      class MockEventSource {
-        onopen: (() => void) | null = null;
-
-        constructor() {
-          setTimeout(() => this.onopen?.(), 0);
-        }
-
-        addEventListener(): void {
-          /* no-op: this layout test is seeded by the mocked JSON endpoint. */
-        }
-
-        close(): void {
-          /* no-op */
-        }
-      }
-
-      Object.defineProperty(window, 'EventSource', {
-        configurable: true,
-        value: MockEventSource,
-      });
-    });
+    // This layout test is seeded by the mocked JSON endpoint.
+    await installMockLiveSocket(page);
 
     await page.route(snapshotEndpoint, (route) =>
       route.fulfill({
@@ -224,27 +231,9 @@ test.describe('live status', () => {
       updatedAt: new Date().toISOString(),
     };
 
+    // This layout test is seeded by the mocked JSON endpoint.
+    await installMockLiveSocket(page);
     await page.addInitScript(() => {
-      class MockEventSource {
-        onopen: (() => void) | null = null;
-
-        constructor() {
-          setTimeout(() => this.onopen?.(), 0);
-        }
-
-        addEventListener(): void {
-          /* no-op: this layout test is seeded by the mocked JSON endpoint. */
-        }
-
-        close(): void {
-          /* no-op */
-        }
-      }
-
-      Object.defineProperty(window, 'EventSource', {
-        configurable: true,
-        value: MockEventSource,
-      });
       Object.defineProperty(window, 'documentPictureInPicture', {
         configurable: true,
         value: {
@@ -325,40 +314,8 @@ test.describe('live status', () => {
     await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/);
   });
 
-  test('header icon strobes when an SSE state event flips to live', async ({ page }) => {
-    await page.addInitScript(() => {
-      type StateListener = (evt: MessageEvent<string>) => void;
-      const listeners = new Set<StateListener>();
-
-      class MockEventSource {
-        onopen: (() => void) | null = null;
-        onerror: (() => void) | null = null;
-
-        constructor() {
-          setTimeout(() => this.onopen?.(), 0);
-        }
-
-        addEventListener(type: string, listener: StateListener): void {
-          if (type === 'state') listeners.add(listener);
-        }
-
-        close(): void {
-          listeners.clear();
-        }
-      }
-
-      Object.defineProperty(window, 'EventSource', {
-        configurable: true,
-        value: MockEventSource,
-      });
-      Object.defineProperty(window, '__aspireLiveSseEmit', {
-        configurable: true,
-        value(snapshot: LiveSnapshot) {
-          const evt = new MessageEvent('state', { data: JSON.stringify(snapshot) });
-          listeners.forEach((listener) => listener(evt));
-        },
-      });
-    });
+  test('header icon strobes when a state message flips to live', async ({ page }) => {
+    await installMockLiveSocket(page);
 
     await page.route(snapshotEndpoint, async (route) => {
       await route.fulfill({
@@ -384,8 +341,8 @@ test.describe('live status', () => {
     };
     await page.evaluate((snapshot) => {
       (
-        window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
-      ).__aspireLiveSseEmit?.(snapshot);
+        window as Window & { __aspireLiveEmit?: (s: LiveSnapshot) => void }
+      ).__aspireLiveEmit?.(snapshot);
     }, liveSnapshot);
 
     await expect(liveBtn).toHaveAttribute('data-live', 'true', { timeout: 10_000 });
@@ -401,38 +358,7 @@ test.describe('live status', () => {
   });
 
   test('dismissed live session stays dismissed when a second provider joins', async ({ page }) => {
-    await page.addInitScript(() => {
-      type StateListener = (evt: MessageEvent<string>) => void;
-      const listeners = new Set<StateListener>();
-
-      class MockEventSource {
-        onopen: (() => void) | null = null;
-
-        constructor() {
-          setTimeout(() => this.onopen?.(), 0);
-        }
-
-        addEventListener(type: string, listener: StateListener): void {
-          if (type === 'state') listeners.add(listener);
-        }
-
-        close(): void {
-          listeners.clear();
-        }
-      }
-
-      Object.defineProperty(window, 'EventSource', {
-        configurable: true,
-        value: MockEventSource,
-      });
-      Object.defineProperty(window, '__aspireLiveSseEmit', {
-        configurable: true,
-        value(snapshot: LiveSnapshot) {
-          const evt = new MessageEvent('state', { data: JSON.stringify(snapshot) });
-          listeners.forEach((listener) => listener(evt));
-        },
-      });
-    });
+    await installMockLiveSocket(page);
 
     await page.route(snapshotEndpoint, (route) =>
       route.fulfill({
@@ -458,8 +384,8 @@ test.describe('live status', () => {
     };
     await page.evaluate((snapshot) => {
       (
-        window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
-      ).__aspireLiveSseEmit?.(snapshot);
+        window as Window & { __aspireLiveEmit?: (s: LiveSnapshot) => void }
+      ).__aspireLiveEmit?.(snapshot);
     }, firstProviderLive);
 
     await expect(liveBtn).toHaveAttribute('data-live', 'true');
@@ -477,8 +403,8 @@ test.describe('live status', () => {
     };
     await page.evaluate((snapshot) => {
       (
-        window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
-      ).__aspireLiveSseEmit?.(snapshot);
+        window as Window & { __aspireLiveEmit?: (s: LiveSnapshot) => void }
+      ).__aspireLiveEmit?.(snapshot);
     }, secondProviderJoined);
 
     await expect(liveBtn).toHaveAttribute('data-live', 'false');
@@ -486,16 +412,16 @@ test.describe('live status', () => {
 
     await page.evaluate((snapshot) => {
       (
-        window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
-      ).__aspireLiveSseEmit?.(snapshot);
+        window as Window & { __aspireLiveEmit?: (s: LiveSnapshot) => void }
+      ).__aspireLiveEmit?.(snapshot);
     }, idleSnapshot);
     await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'false');
 
     await page.evaluate(
       (snapshot) => {
         (
-          window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
-        ).__aspireLiveSseEmit?.(snapshot);
+          window as Window & { __aspireLiveEmit?: (s: LiveSnapshot) => void }
+        ).__aspireLiveEmit?.(snapshot);
       },
       { ...firstProviderLive, liveSessionId: 'live-session-2' }
     );
@@ -519,7 +445,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route(streamEndpoint, (route) => fulfillSseState(route, liveSnapshot));
+    await routeLiveSocket(page, liveSnapshot);
 
     await page.goto('/community/videos/');
     await dismissCookieConsentIfVisible(page);
@@ -595,7 +521,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route(streamEndpoint, (route) => fulfillSseState(route, liveSnapshot));
+    await routeLiveSocket(page, liveSnapshot);
 
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
@@ -759,7 +685,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route(streamEndpoint, (route) => fulfillSseState(route, liveSnapshot));
+    await routeLiveSocket(page, liveSnapshot);
 
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
@@ -855,7 +781,7 @@ test.describe('live status', () => {
       })
     );
 
-    await page.route(streamEndpoint, (route) => fulfillSseState(route, idleSnapshot));
+    await routeLiveSocket(page, idleSnapshot);
     await page.addInitScript(() => {
       let srcWrites = 0;
       const src = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src')!;
@@ -913,7 +839,7 @@ test.describe('live status', () => {
         body: JSON.stringify(liveSnapshot),
       })
     );
-    await page.route(streamEndpoint, (route) => fulfillSseState(route, liveSnapshot));
+    await routeLiveSocket(page, liveSnapshot);
 
     await page.goto('/community/videos/');
     await dismissCookieConsentIfVisible(page);
@@ -934,7 +860,7 @@ test.describe('live status', () => {
       updatedAt: new Date().toISOString(),
     };
     await page.route(snapshotEndpoint, (route) => route.fulfill({ json: liveSnapshot }));
-    await page.route(streamEndpoint, (route) => fulfillSseState(route, liveSnapshot));
+    await routeLiveSocket(page, liveSnapshot);
     await page.route(/^https:\/\/(?:player\.twitch\.tv|www\.youtube-nocookie\.com)\//, (route) =>
       route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Test player</title>' })
     );

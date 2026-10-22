@@ -21,19 +21,20 @@ public sealed class LiveStatusUpdate
     public YouTubeObservation? YouTubeObservation { get; set; }
 }
 
-/// <summary>A snapshot and its serialized SSE frame, shared by all subscribers.</summary>
+/// <summary>A snapshot and its serialized WebSocket text message, shared by all subscribers.</summary>
 public sealed class LiveStatusEvent(LiveStatus snapshot)
 {
     /// <summary>The immutable live-status snapshot.</summary>
     public LiveStatus Snapshot { get; } = snapshot;
 
+    /// <summary>UTF-8 JSON text message: <c>{"type":"state","data":{...snapshot...}}</c>.</summary>
     internal ReadOnlyMemory<byte> Frame { get; } = Encoding.UTF8.GetBytes(
-        $"event: state\ndata: {JsonSerializer.Serialize(snapshot, LiveStatusJsonContext.Default.LiveStatus)}\n\n");
+        $$"""{"type":"state","data":{{JsonSerializer.Serialize(snapshot, LiveStatusJsonContext.Default.LiveStatus)}}}""");
 }
 
 /// <summary>
 /// Per-process replica of the current <see cref="LiveStatus"/> that fans
-/// distributed changes out to local SSE subscribers.
+/// distributed changes out to local WebSocket subscribers.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -53,7 +54,7 @@ public sealed class LiveStatusEvent(LiveStatus snapshot)
 /// Outgoing events are coalesced over a configurable window
 /// (<see cref="LiveStatusOptions.CoalesceWindowMs"/>, default 750ms) so a
 /// near-simultaneous Twitch + YouTube going-live race produces exactly
-/// one SSE update.
+/// one WebSocket update.
 /// </para>
 /// <para>Subscriber registration and fan-out share a lock; snapshots remain lock-free to read.</para>
 /// </remarks>
@@ -88,7 +89,7 @@ public sealed class LiveStatusBroadcaster(
         _store.GetAsync(cancellationToken);
 
     /// <summary>
-    /// Reloads the authoritative state into this process before an SSE client
+    /// Reloads the authoritative state into this process     before a WebSocket client
     /// subscribes, recovering any pub/sub messages missed during reconnection.
     /// </summary>
     internal async ValueTask RefreshAsync(CancellationToken cancellationToken = default)

@@ -165,7 +165,7 @@ public sealed class LiveStatusBroadcasterTests
     public async Task Update_WithIdenticalSubstantiveState_DoesNotBroadcastAgain()
     {
         // Regression: an ever-advancing UpdatedAt must not turn a no-change reconcile
-        // into a redundant SSE event.
+        // into a redundant WebSocket message.
         var (b, time) = Create(coalesceMs: 0);
         var (reader, sub) = b.Subscribe();
 
@@ -325,7 +325,7 @@ public sealed class LiveStatusBroadcasterTests
         var update = await first.ReadAsync();
         Assert.Same(update, await second.ReadAsync());
         Assert.NotSame(idle, update);
-        var expected = $"event: state\ndata: {JsonSerializer.Serialize(broadcaster.Current, LiveStatusJsonContext.Default.LiveStatus)}\n\n";
+        var expected = $$"""{"type":"state","data":{{JsonSerializer.Serialize(broadcaster.Current, LiveStatusJsonContext.Default.LiveStatus)}}}""";
         Assert.Equal(expected, Encoding.UTF8.GetString(update.Frame.Span));
 
         var (late, lateSubscription) = broadcaster.Subscribe();

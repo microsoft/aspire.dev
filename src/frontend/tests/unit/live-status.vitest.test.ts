@@ -1,11 +1,47 @@
-// Tests live-status.ts with lightweight DOM/SSE mocks.
+// Tests live-status.ts with lightweight DOM/WebSocket mocks.
 // Full browser coverage is in the Playwright e2e spec.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getCurrent, subscribe, type LiveSnapshot } from '../../src/components/live-status.ts';
 
+class MockWebSocket extends EventTarget {
+  static instances: MockWebSocket[] = [];
+  onopen: (() => void) | null = null;
+  onmessage: ((evt: MessageEvent) => void) | null = null;
+  onclose: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  close = vi.fn();
+
+  constructor(public url: string) {
+    super();
+    MockWebSocket.instances.push(this);
+  }
+
+  open() {
+    this.onopen?.();
+  }
+
+  send(message: unknown) {
+    this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(message) }));
+  }
+
+  drop() {
+    this.onerror?.();
+    this.onclose?.();
+  }
+}
+
+const liveSnapshot: LiveSnapshot = {
+  isLive: true,
+  primarySource: 'youtube',
+  twitch: { live: false, channel: null },
+  youtube: { live: true, videoId: 'first-video' },
+  liveSessionId: 'session-1',
+  updatedAt: '2026-09-08T12:00:00Z',
+};
+
 describe('live-status module', () => {
-  it('exposes an empty snapshot before any SSE traffic arrives', () => {
+  it('exposes an empty snapshot before any live traffic arrives', () => {
     const snap = getCurrent();
     expect(snap.isLive).toBe(false);
     expect(snap.primarySource).toBeNull();
@@ -18,25 +54,21 @@ describe('live-status module', () => {
       vi.unstubAllGlobals();
     });
 
-    it('ignores a duplicate seed and title-only metadata, but delivers changed video IDs', async () => {
+    it('ignores a duplicate seed and title-only updates, but delivers changed video IDs', async () => {
       vi.resetModules();
+      MockWebSocket.instances = [];
       const document = Object.assign(new EventTarget(), {
         readyState: 'complete',
         querySelectorAll: () => [],
       });
-      const sources: EventTarget[] = [];
       vi.stubGlobal('document', document);
-      vi.stubGlobal('window', { location: { pathname: '/docs/' } });
       vi.stubGlobal(
-        'EventSource',
-        class extends EventTarget {
-          constructor() {
-            super();
-            sources.push(this);
-          }
-          close() {}
-        }
+        'window',
+        Object.assign(new EventTarget(), {
+          location: { pathname: '/docs/', protocol: 'https:', host: 'aspire.dev' },
+        })
       );
+      vi.stubGlobal('WebSocket', MockWebSocket);
       const seed = Promise.withResolvers<Response>();
       vi.stubGlobal(
         'fetch',
@@ -45,43 +77,36 @@ describe('live-status module', () => {
       const live = await import('../../src/components/live-status.ts');
       const received: LiveSnapshot[] = [];
       const unsubscribe = live.subscribe((snapshot) => received.push(snapshot));
-      const snapshot: LiveSnapshot = {
-        isLive: true,
-        primarySource: 'youtube',
-        twitch: { live: false, channel: null },
-        youtube: { live: true, videoId: 'first-video' },
-        liveSessionId: 'session-1',
-        updatedAt: '2026-09-08T12:00:00Z',
-      };
-      expect(sources).toHaveLength(1);
-      sources[0].dispatchEvent(new MessageEvent('state', { data: JSON.stringify(snapshot) }));
-      const newerSeed = { ...snapshot, updatedAt: '2026-09-08T12:00:01Z' };
+      const sockets = MockWebSocket.instances;
+      expect(sockets).toHaveLength(1);
+      expect(sockets[0].url).toBe('wss://aspire.dev/api/live/ws');
+      sockets[0].open();
+      sockets[0].send({ type: 'state', data: liveSnapshot });
+      const newerSeed = { ...liveSnapshot, updatedAt: '2026-09-08T12:00:01Z' };
       seed.resolve(Response.json(newerSeed));
       await vi.waitFor(() => expect(live.getCurrent().updatedAt).toBe(newerSeed.updatedAt));
       expect(received).toHaveLength(2);
 
-      sources[0].dispatchEvent(
-        new MessageEvent('meta', {
-          data: JSON.stringify({
-            ...newerSeed,
-            twitch: { ...snapshot.twitch, title: 'New title' },
-          }),
-        })
-      );
+      sockets[0].send({
+        type: 'state',
+        data: { ...newerSeed, twitch: { ...liveSnapshot.twitch, title: 'New title' } },
+      });
       expect(received).toHaveLength(2);
 
-      sources[0].dispatchEvent(
-        new MessageEvent('meta', {
-          data: JSON.stringify({ ...newerSeed, youtube: { live: true, videoId: 'second-video' } }),
-        })
-      );
+      sockets[0].send({ type: 'hb' });
+      expect(received).toHaveLength(2);
+
+      sockets[0].send({
+        type: 'state',
+        data: { ...newerSeed, youtube: { live: true, videoId: 'second-video' } },
+      });
       expect(received).toHaveLength(3);
       expect(received[2].youtube.videoId).toBe('second-video');
       unsubscribe();
     });
   });
 
-  describe('live-status reconnects', () => {
+  describe('live-status reconnects and polling fallback', () => {
     afterEach(() => {
       vi.clearAllTimers();
       vi.useRealTimers();
@@ -89,126 +114,212 @@ describe('live-status module', () => {
       vi.restoreAllMocks();
     });
 
-    async function setup() {
+    async function setup(protocol = 'http:') {
       vi.resetModules();
       vi.useFakeTimers();
+      MockWebSocket.instances = [];
       const document = Object.assign(new EventTarget(), {
         readyState: 'complete',
         visibilityState: 'visible',
         querySelectorAll: () => [],
       });
-      const sources: MockEventSource[] = [];
-      class MockEventSource extends EventTarget {
-        onopen: (() => void) | null = null;
-        onerror: (() => void) | null = null;
-        close = vi.fn();
-
-        constructor() {
-          super();
-          sources.push(this);
-        }
-      }
+      const window = Object.assign(new EventTarget(), {
+        location: { pathname: '/docs/', protocol, host: 'localhost:4321' },
+      });
       const seed = Promise.withResolvers<Response>();
-      const fetch = vi.fn(() => seed.promise);
+      const fetch = vi.fn<() => Promise<Response>>(() => seed.promise);
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       // Center the reconnect jitter so delays equal the base backoff.
       vi.spyOn(Math, 'random').mockReturnValue(0.5);
       vi.stubGlobal('document', document);
-      vi.stubGlobal('window', { location: { pathname: '/docs/' } });
-      vi.stubGlobal('EventSource', MockEventSource);
+      vi.stubGlobal('window', window);
+      vi.stubGlobal('WebSocket', MockWebSocket);
       vi.stubGlobal('fetch', fetch);
       const live = await import('../../src/components/live-status.ts');
-      return { document, sources, seed, fetch, warn, live };
+      return { document, window, sockets: MockWebSocket.instances, seed, fetch, warn, live };
     }
 
+    it.each([
+      ['http:', 'ws://localhost:4321/api/live/ws'],
+      ['https:', 'wss://localhost:4321/api/live/ws'],
+    ])('derives the socket URL from %s', async (protocol, expected) => {
+      const { sockets } = await setup(protocol);
+      expect(sockets[0].url).toBe(expected);
+    });
+
     it.each([false, true])('stops after a 404 with a pending reconnect: %s', async (pending) => {
-      const { document, sources, seed, fetch, warn, live } = await setup();
-      expect(sources).toHaveLength(1);
-      if (pending) sources[0].onerror?.();
-      expect(vi.getTimerCount()).toBe(pending ? 1 : 0);
+      const { document, window, sockets, seed, fetch, warn, live } = await setup();
+      expect(sockets).toHaveLength(1);
+      if (pending) sockets[0].drop();
+      // reconnect timer (when pending) plus the polling fallback timer
+      expect(vi.getTimerCount()).toBe(pending ? 2 : 1);
 
       seed.resolve(new Response(null, { status: 404 }));
       await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());
       expect(warn).toHaveBeenCalledWith(
         '[live-status] Live API not found (404); live updates disabled until reload.'
       );
-      expect(sources[0].close).toHaveBeenCalledOnce();
+      expect(sockets[0].close).toHaveBeenCalledOnce();
       expect(vi.getTimerCount()).toBe(0);
 
-      sources[0].onerror?.();
+      sockets[0].drop();
       document.dispatchEvent(new Event('visibilitychange'));
       document.dispatchEvent(new Event('astro:after-swap'));
+      window.dispatchEvent(new Event('online'));
       live.init();
       await vi.advanceTimersByTimeAsync(300_000);
-      expect(sources).toHaveLength(1);
+      expect(sockets).toHaveLength(1);
       expect(fetch).toHaveBeenCalledOnce();
       expect(warn).toHaveBeenCalledOnce();
       expect(vi.getTimerCount()).toBe(0);
     });
 
     it.each([500, 503, 'network'])('preserves reconnect backoff after a %s failure', async (failure) => {
-      const { sources, seed, warn } = await setup();
+      const { sockets, seed, warn } = await setup();
       if (typeof failure === 'number') {
         seed.resolve(new Response(null, { status: failure }));
       } else {
         seed.reject(new TypeError('Failed to fetch'));
       }
       await vi.advanceTimersByTimeAsync(0);
-      sources[0].onerror?.();
+      sockets[0].drop();
       await vi.advanceTimersByTimeAsync(999);
-      expect(sources).toHaveLength(1);
+      expect(sockets).toHaveLength(1);
       await vi.advanceTimersByTimeAsync(1);
-      expect(sources).toHaveLength(2);
-      sources[1].onerror?.();
+      expect(sockets).toHaveLength(2);
+      sockets[1].drop();
       await vi.advanceTimersByTimeAsync(1_999);
-      expect(sources).toHaveLength(2);
+      expect(sockets).toHaveLength(2);
       await vi.advanceTimersByTimeAsync(1);
-      expect(sources).toHaveLength(3);
-      sources[2].onopen?.();
-      sources[2].onerror?.();
+      expect(sockets).toHaveLength(3);
+      sockets[2].open();
+      sockets[2].drop();
       await vi.advanceTimersByTimeAsync(1_000);
-      expect(sources).toHaveLength(4);
+      expect(sockets).toHaveLength(4);
       expect(warn).not.toHaveBeenCalled();
     });
 
     it('jitters reconnect delays around the base backoff', async () => {
-      const { sources } = await setup();
+      const { sockets } = await setup();
       vi.mocked(Math.random).mockReturnValue(0);
-      sources[0].onerror?.();
+      sockets[0].drop();
       await vi.advanceTimersByTimeAsync(499);
-      expect(sources).toHaveLength(1);
+      expect(sockets).toHaveLength(1);
       await vi.advanceTimersByTimeAsync(1);
-      expect(sources).toHaveLength(2);
+      expect(sockets).toHaveLength(2);
     });
 
-    it('closes the stream in hidden tabs and reconnects when visible', async () => {
-      const { document, sources } = await setup();
+    it('polls the snapshot every 30 seconds while the socket is not open', async () => {
+      const { sockets, seed, fetch } = await setup();
+      seed.resolve(Response.json({ ...liveSnapshot, isLive: false }));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      sockets[0].drop();
+
+      fetch.mockImplementation(() => Promise.resolve(Response.json(liveSnapshot)));
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetch).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('delivers polled snapshots when the socket never opens', async () => {
+      const { seed, fetch, live } = await setup();
+      seed.resolve(
+        Response.json({ ...liveSnapshot, isLive: false, updatedAt: '2026-09-08T11:00:00Z' })
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(live.getCurrent().isLive).toBe(false);
+
+      fetch.mockImplementation(() => Promise.resolve(Response.json(liveSnapshot)));
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(live.getCurrent().isLive).toBe(true);
+    });
+
+    it('stops polling while the socket is open and resumes when it drops', async () => {
+      const { sockets, seed, fetch } = await setup();
+      seed.resolve(Response.json({ ...liveSnapshot, isLive: false }));
+      await vi.advanceTimersByTimeAsync(0);
+      sockets[0].open();
+      for (let i = 0; i < 20; i++) {
+        await vi.advanceTimersByTimeAsync(15_000);
+        sockets[0].send({ type: 'hb' });
+      }
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(sockets).toHaveLength(1);
+
+      sockets[0].drop();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(fetch.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    it('reconnects when no heartbeat arrives for 45 seconds', async () => {
+      const { sockets } = await setup();
+      sockets[0].open();
+      await vi.advanceTimersByTimeAsync(44_999);
+      expect(sockets).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(sockets[0].close).toHaveBeenCalledOnce();
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(sockets).toHaveLength(2);
+    });
+
+    it('treats heartbeats as liveness and does not reconnect', async () => {
+      const { sockets } = await setup();
+      sockets[0].open();
+      for (let i = 0; i < 10; i++) {
+        await vi.advanceTimersByTimeAsync(15_000);
+        sockets[0].send({ type: 'hb' });
+      }
+      expect(sockets).toHaveLength(1);
+      expect(sockets[0].close).not.toHaveBeenCalled();
+    });
+
+    it('closes the socket in hidden tabs and reconnects when visible', async () => {
+      const { document, sockets, fetch } = await setup();
       document.visibilityState = 'hidden';
       document.dispatchEvent(new Event('visibilitychange'));
-      sources[0].onerror?.();
+      sockets[0].drop();
       await vi.advanceTimersByTimeAsync(59_999);
-      expect(sources).toHaveLength(2);
-      expect(sources[1].close).not.toHaveBeenCalled();
+      expect(sockets).toHaveLength(2);
+      expect(sockets[1].close).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(1);
-      expect(sources[1].close).toHaveBeenCalledOnce();
+      expect(sockets[1].close).toHaveBeenCalledOnce();
+      const fetches = fetch.mock.calls.length;
       await vi.advanceTimersByTimeAsync(300_000);
-      expect(sources).toHaveLength(2);
+      expect(sockets).toHaveLength(2);
+      expect(fetch).toHaveBeenCalledTimes(fetches);
 
       document.visibilityState = 'visible';
       document.dispatchEvent(new Event('visibilitychange'));
-      expect(sources).toHaveLength(3);
+      expect(sockets).toHaveLength(3);
     });
 
-    it('keeps the stream when a tab becomes visible within the grace period', async () => {
-      const { document, sources } = await setup();
+    it('keeps the socket when a tab becomes visible within the grace period', async () => {
+      const { document, sockets } = await setup();
+      sockets[0].open();
       document.visibilityState = 'hidden';
       document.dispatchEvent(new Event('visibilitychange'));
       await vi.advanceTimersByTimeAsync(30_000);
+      sockets[0].send({ type: 'hb' });
       document.visibilityState = 'visible';
       document.dispatchEvent(new Event('visibilitychange'));
-      await vi.advanceTimersByTimeAsync(60_000);
-      expect(sources).toHaveLength(1);
-      expect(sources[0].close).not.toHaveBeenCalled();
+      for (let i = 0; i < 4; i++) {
+        await vi.advanceTimersByTimeAsync(15_000);
+        sockets[0].send({ type: 'hb' });
+      }
+      expect(sockets).toHaveLength(1);
+      expect(sockets[0].close).not.toHaveBeenCalled();
+    });
+
+    it('reconnects immediately when the browser comes back online', async () => {
+      const { window, sockets } = await setup();
+      sockets[0].drop();
+      expect(sockets).toHaveLength(1);
+      window.dispatchEvent(new Event('online'));
+      expect(sockets).toHaveLength(2);
     });
   });
 

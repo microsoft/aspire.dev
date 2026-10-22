@@ -18,6 +18,11 @@ var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
         // connections per origin. The landing page loads dozens of small assets, so multiplexing
         // them over one connection matters most on slow, high-latency links.
         website.SiteConfig.IsHttp20Enabled = true;
+
+        // The live-status client streams over a WebSocket (/api/live/ws). App Service rejects
+        // WebSocket upgrades unless this is enabled. Azure Front Door relays them without extra
+        // configuration, as long as the route has no caching.
+        website.SiteConfig.IsWebSocketsEnabled = true;
     });
 
 var frontDoor = builder.AddAzureFrontDoor(staticHostWebsite);
@@ -27,7 +32,7 @@ if (builder.ExecutionContext.IsRunMode)
     staticHostWebsite.WithLocalLiveStatusDevCommands();
 
     // For local development: Use ViteApp for hot reload and development experience.
-    // The live-status client calls same-origin /api/live[/stream]; inject StaticHost's
+    // The live-status client calls same-origin /api/live[/ws]; inject StaticHost's
     // origin so the Vite dev server can proxy those to the API (see astro.config.mjs).
     // Without this, /api/live 404s against the Vite origin under `aspire run`.
     builder.AddViteApp("frontend", "../../frontend")
