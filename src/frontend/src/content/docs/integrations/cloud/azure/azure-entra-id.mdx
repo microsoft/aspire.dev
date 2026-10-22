@@ -1,0 +1,61 @@
+---
+title: Microsoft Entra ID integration
+description: Learn how to register Microsoft Entra ID applications from your AppHost and derive their redirect URIs from resource endpoints.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The Aspire Microsoft Entra ID hosting integration creates Entra application registrations from your [`AppHost`](/get-started/app-host/) project. This article describes how to configure the redirect URIs (callback URIs) for a registration that Aspire creates.
+
+## Installation
+
+To get started with the Aspire Microsoft Entra ID integration, install the [📦 Aspire.Hosting.Azure.EntraId](https://www.nuget.org/packages/Aspire.Hosting.Azure.EntraId) NuGet package in the AppHost project:
+
+```bash title="Terminal"
+dotnet add package Aspire.Hosting.Azure.EntraId
+```
+
+## Configure redirect URIs
+
+Aspire doesn't discover redirect URIs automatically. Use `WithRedirectUris` on the application resource to register them.
+
+### Derive redirect URIs from an endpoint
+
+Pass an `EndpointReference` and one or more callback paths, so the redirect URIs follow the resource's endpoint instead of hard-coded literals:
+
+```csharp title="C# — AppHost.cs"
+var web = builder.AddProject<Projects.Web>("web")
+    .WithExternalHttpEndpoints();
+
+var entraWeb = builder.AddEntraIdApplication("entra-web")
+    .WithRedirectUris(web.GetEndpoint("https"), "/signin-oidc", "/signout-callback-oidc");
+```
+
+The scheme, host, and port come from the endpoint:
+
+- **Run mode:** The allocated endpoint URL plus the callback path is used. Aspire allocates endpoints before any workload starts, so Entra is provisioned with the real URLs, including randomly assigned ports that change between runs.
+- **Publish and deploy:** The URI is `https://` plus the host address of the resource's compute environment, plus the callback path.
+
+The callback path can't be discovered from the endpoint. It's configured by the consuming app, so you supply it in the AppHost and it must match that app's configuration. Each path must start with `/`, and at least one path is required.
+
+<Aside type="note">
+  When running locally, the URL shown as the endpoint's primary URL is used, so a
+  friendly `*.dev.localhost` name is registered when the dashboard uses one. That URL
+  is read when the registration's URL callback runs. A `WithUrlForEndpoint` or
+  `WithUrls` callback added after `WithRedirectUris` that changes the endpoint's host
+  isn't reflected, so add such callbacks before calling `WithRedirectUris`.
+</Aside>
+
+### Use a host parameter
+
+When only the host name varies per environment (for example, a custom domain supplied at deployment time), pass a parameter for the host and the fixed callback paths. Each URI is `https://{host}{path}`. Don't include a scheme or path in the parameter value:
+
+```csharp title="C# — AppHost.cs"
+var host = builder.AddParameter("web-host");
+
+entraWeb.WithRedirectUris(host, "/signin-oidc", "/signout-callback-oidc");
+```
+
+### Use literal or parameter URIs
+
+When the externally visible URL differs from the endpoint (for example, behind a gateway, reverse proxy, or custom domain), supply the full URLs with the literal or parameter-based `WithRedirectUris` overloads instead. Existing registrations aren't modified.

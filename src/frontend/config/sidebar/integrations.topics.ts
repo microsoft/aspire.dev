@@ -324,6 +324,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/azure-default-credential',
             },
             {
+              label: 'Microsoft Entra ID',
+              slug: 'integrations/cloud/azure/azure-entra-id',
+            },
+            {
               label: 'Azure AI',
               collapsed: true,
               items: [
