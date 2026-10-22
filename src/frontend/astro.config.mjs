@@ -52,6 +52,11 @@ const staticHostUrl = process.env.ASPIRE_STATICHOST_URL;
 // different vCPU count.
 const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
+// `experimental.parallelPrerender` renders pages in worker threads. Each worker
+// loads its own copy of the site modules, so the count is capped to keep memory
+// bounded. Override via `ASPIRE_PRERENDER_WORKERS`.
+const prerenderWorkers = Number(process.env.ASPIRE_PRERENDER_WORKERS) || 4;
+
 // https://astro.build/config
 export default defineConfig({
   cacheDir: './node_modules/.astro',
@@ -239,5 +244,11 @@ export default defineConfig({
   ],
   build: {
     concurrency: buildConcurrency,
+  },
+  experimental: {
+    parallelPrerender: { workers: prerenderWorkers },
+    // API reference routes return a `cacheKey`, so unchanged pages are reused from
+    // `node_modules/.astro` when that cache is restored between builds.
+    incrementalBuild: true,
   },
 });

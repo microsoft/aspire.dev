@@ -85,6 +85,23 @@ export function getTsMethods<T extends TsRouteCallableLike>(
   return methods;
 }
 
+/**
+ * Resolve a handle and one of its methods from their positions. Member routes
+ * pass indexes through `props` so the handle is not cloned for every method.
+ */
+export function getTsHandleMethod<M extends TsRouteCallableLike, H extends { capabilities?: M[] }>(
+  handles: H[] | undefined,
+  handleIndex: number,
+  methodIndex: number
+): { parentType: H; method: M } {
+  const parentType = handles?.[handleIndex];
+  const method = parentType ? getTsMethods<M>(parentType)[methodIndex] : undefined;
+  if (!parentType || !method) {
+    throw new Error(`TypeScript method ${handleIndex}/${methodIndex} was not found.`);
+  }
+  return { parentType, method };
+}
+
 export function tsSlugify(name: string): string {
   return name
     .toLowerCase()

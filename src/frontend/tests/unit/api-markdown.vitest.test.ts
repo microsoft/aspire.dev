@@ -19,9 +19,10 @@ import {
   renderCSharpTypeMarkdown,
 } from '@utils/csharp-api-markdown';
 import { memberKindSlugs, resolveMemberAnchors } from '@utils/packages';
-import { tsSlugify } from '@utils/ts-modules';
+import { getTsModuleDocument, tsSlugify } from '@utils/ts-modules';
+import { getTsHandleMethod } from '@utils/ts-api-routes';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
-import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
+import type { TsApiDocument, TsFunction, TsHandleType } from '@utils/ts-modules';
 
 vi.mock('astro:content', async (importOriginal) => {
   const actual = await importOriginal<typeof import('astro:content')>();
@@ -235,7 +236,14 @@ describe('API markdown routes', () => {
     );
     const markdown = await readMarkdown(typeScriptMemberRoute.GET?.({ props: route.props } as any));
 
-    expect(markdown).toContain(`# ${route.props.parentType.name}.${route.props.method.name}`);
+    const pkg = await getTsModuleDocument(route.props.packageName);
+    const { parentType, method } = getTsHandleMethod<TsFunction, TsHandleType>(
+      pkg.handleTypes,
+      route.props.handleIndex,
+      route.props.methodIndex
+    );
+
+    expect(markdown).toContain(`# ${parentType.name}.${method.name}`);
     expect(markdown).toContain('## Signature');
     expect(markdown).toContain(`/reference/api/typescript/${route.params.module}/${route.params.item}.md`);
   });

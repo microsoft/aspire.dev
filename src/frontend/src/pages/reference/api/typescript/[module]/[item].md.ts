@@ -1,9 +1,10 @@
 import type { APIRoute } from 'astro';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
+import { withApiCacheKeys } from '@utils/api-cache-key';
 import { renderTypeScriptItemMarkdown } from '@utils/typescript-api-markdown';
-import type { TsApiDocument, TsDtoType, TsEnumType, TsFunction, TsHandleType } from '@utils/ts-modules';
-import { getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
+import type { TsDtoType, TsEnumType, TsFunction, TsHandleType } from '@utils/ts-modules';
+import { getTsModuleDocument, getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
 import { getTsItemSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 
 export const prerender = true;
@@ -14,7 +15,7 @@ type TypeScriptItem = TsHandleType | TsDtoType | TsEnumType | TsFunction;
 type RouteProps = {
   item: TypeScriptItem;
   itemKind: TypeScriptItemKind;
-  pkg: TsApiDocument;
+  packageName: string;
 };
 
 type StaticPath = {
@@ -22,7 +23,7 @@ type StaticPath = {
   props: RouteProps;
 };
 
-export async function getStaticPaths(): Promise<StaticPath[]> {
+export async function getStaticPaths(): Promise<Array<StaticPath & { cacheKey: string }>> {
   const packages = await getTsModules();
   const paths: StaticPath[] = [];
 
@@ -45,7 +46,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
         props: {
           item: handle,
           itemKind: 'handle',
-          pkg,
+          packageName: pkg.package.name,
         },
       });
     }
@@ -64,7 +65,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
         props: {
           item: dto,
           itemKind: 'dto',
-          pkg,
+          packageName: pkg.package.name,
         },
       });
     }
@@ -83,7 +84,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
         props: {
           item: enumType,
           itemKind: 'enum',
-          pkg,
+          packageName: pkg.package.name,
         },
       });
     }
@@ -102,7 +103,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
         props: {
           item: fn,
           itemKind: 'function',
-          pkg,
+          packageName: pkg.package.name,
         },
       });
     }
@@ -118,14 +119,15 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
       legacy.set(key, { ...path, params: { ...path.params, item } });
     }
   }
-  return [...paths, ...legacy.values()];
+  return withApiCacheKeys([...paths, ...legacy.values()], packages);
 }
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = async ({ props }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const routeProps = props as RouteProps;
+  const pkg = await getTsModuleDocument(routeProps.packageName);
 
   return markdownResponse(
-    renderTypeScriptItemMarkdown(routeProps.pkg, routeProps.item, routeProps.itemKind, base)
+    renderTypeScriptItemMarkdown(pkg, routeProps.item, routeProps.itemKind, base)
   );
 };
