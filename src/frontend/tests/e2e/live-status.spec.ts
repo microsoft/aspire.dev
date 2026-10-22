@@ -6,8 +6,8 @@ import { dismissCookieConsentIfVisible, isNarrowViewport, revealMobileSiteMenu }
  * E2E coverage for the live-status feature.
  *
  * The frontend always points at `/api/live/` (JSON seed) and
- * `/api/live/stream/` (SSE). In the e2e environment there is no StaticHost
- * backend, so we mock both — the JSON for the initial seed and a long-lived
+ * `/api/live/stream/` (SSE). The e2e environment's StaticHost has no live
+ * providers configured, so we mock both — the JSON for the initial seed and a long-lived
  * streaming response for SSE. The streaming body is split into chunks the
  * test can flush at will, so we can assert the icon transitions deterministic-
  * ally.

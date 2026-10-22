@@ -1,0 +1,25 @@
+FROM node:24-bookworm-slim AS dependencies
+WORKDIR /app
+RUN npm install --global pnpm@11.9.0
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches
+RUN pnpm install --frozen-lockfile --prod
+
+FROM node:24-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production \
+    NODE_OPTIONS=--max-old-space-size=1024 \
+    HOST=127.0.0.1 \
+    PORT=4323 \
+    HYBRID_API_DOCS_MANIFEST=/app/hybrid-api-docs.json
+COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node package.json tsconfig.json ./
+COPY --chown=node:node dist-hybrid/server ./server
+COPY --chown=node:node dist-hybrid/renderer/client ./client
+COPY --chown=node:node dist-hybrid/renderer/.starlight-icons ./.starlight-icons
+COPY --chown=node:node dist-hybrid/hybrid-api-docs.json ./
+COPY --chown=node:node scripts/serve-api-docs.mjs ./scripts/serve-api-docs.mjs
+USER node
+HEALTHCHECK --interval=10s --timeout=3s --start-period=60s \
+    CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/__hybrid-api-docs/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "scripts/serve-api-docs.mjs"]

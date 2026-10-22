@@ -434,7 +434,7 @@ test.describe('site search dialog', () => {
     await dismissCookieConsentIfVisible(page);
 
     const ready = await openSearchDialog(page);
-    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against astro preview.');
+    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against the built site.');
 
     const footer = page.locator('[data-testid="search-keyboard-footer"]');
     await expect(footer).toBeVisible();
@@ -457,7 +457,7 @@ test.describe('site search dialog', () => {
     await dismissCookieConsentIfVisible(page);
 
     const ready = await openSearchDialog(page);
-    test.skip(!ready, 'Pagefind is not available in dev mode; keyboard nav runs against astro preview.');
+    test.skip(!ready, 'Pagefind is not available in dev mode; keyboard nav runs against the built site.');
 
     // Use a query that consistently returns multiple Pagefind hits across
     // the docs index. "aspire" is referenced by virtually every doc page.
@@ -518,7 +518,7 @@ test.describe('site search dialog', () => {
     await dismissCookieConsentIfVisible(page);
 
     const ready = await openSearchDialog(page);
-    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against astro preview.');
+    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against the built site.');
 
     await typeSearchQuery(page, 'aspire');
 
@@ -569,7 +569,7 @@ test.describe('site search dialog', () => {
     await dismissCookieConsentIfVisible(page);
 
     const ready = await openSearchDialog(page);
-    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against astro preview.');
+    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against the built site.');
 
     await typeSearchQuery(page, 'aspire');
 
@@ -609,7 +609,7 @@ test.describe('site search dialog', () => {
     await dismissCookieConsentIfVisible(page);
 
     const ready = await openSearchDialog(page);
-    test.skip(!ready, 'Pagefind input is required to type into; runs against astro preview.');
+    test.skip(!ready, 'Pagefind input is required to type into; runs against the built site.');
 
     const dialog = page.locator('site-search dialog[open]');
     const csharpBtn = dialog.locator('a[data-api-search-link][data-api-lang="csharp"]');
@@ -675,7 +675,7 @@ test.describe('site search dialog', () => {
     await dismissCookieConsentIfVisible(page);
 
     const ready = await openSearchDialog(page);
-    test.skip(!ready, 'Pagefind input is required to type into; runs against astro preview.');
+    test.skip(!ready, 'Pagefind input is required to type into; runs against the built site.');
 
     const dialog = page.locator('site-search dialog[open]');
     const csharpBtn = dialog.locator('a[data-api-search-link][data-api-lang="csharp"]');

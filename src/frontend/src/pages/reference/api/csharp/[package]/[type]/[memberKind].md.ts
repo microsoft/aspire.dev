@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
 import { renderCSharpMemberKindMarkdown } from '@utils/csharp-api-markdown';
+import { resolveCSharpApiRoute } from '@utils/api-route-data';
 import type { PackageApiDocument, PackageMember, PackageType } from '@utils/packages';
 import {
   genericArity,
@@ -67,9 +68,10 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   return paths;
 }
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = async ({ props, url }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  const routeProps = props as RouteProps;
+  const routeProps = (props.pkg ? props : await resolveCSharpApiRoute(url.pathname)) as RouteProps | undefined;
+  if (!routeProps?.type || !routeProps.memberKind) return new Response('API member group not found', { status: 404 });
 
   return markdownResponse(
     renderCSharpMemberKindMarkdown(

@@ -1,6 +1,16 @@
 using Scalar.AspNetCore;
+using StaticHost.HybridApiDocs;
+using Microsoft.Extensions.FileProviders;
 
-var builder = WebApplication.CreateBuilder(args);
+var hybridArtifactPath = new ConfigurationBuilder()
+    .AddEnvironmentVariables().AddCommandLine(args).Build()["HybridApiDocs:ArtifactPath"];
+var hybridArtifact = hybridArtifactPath is null ? null : HybridApiDocsArtifact.Load(hybridArtifactPath);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    WebRootPath = hybridArtifact?.ClientDirectory,
+});
+builder.Environment.RequireArtifact(builder.Configuration, hybridArtifact);
 
 builder.AddServiceDefaults();
 builder.AddForwardedClientIp();
@@ -12,6 +22,13 @@ if (builder.Configuration.GetConnectionString("secrets") is not null)
 }
 
 builder.AddLiveStatus();
+
+if (hybridArtifact is not null)
+{
+    var rendererUrls = builder.Configuration.GetSection("HybridApiDocs:RendererUrls").Get<string[]>()
+        ?? [builder.Configuration["HybridApiDocs:RendererUrl"] ?? ""];
+    builder.Services.AddHybridApiDocs(hybridArtifact, rendererUrls);
+}
 
 builder.Services.AddHsts(options =>
 {
@@ -26,6 +43,12 @@ if (builder.Environment.IsDevelopment())
 }
 
 await using var app = builder.Build();
+if (hybridArtifact is not null)
+{
+    var clientFiles = new PhysicalFileProvider(hybridArtifact.ClientDirectory);
+    app.Environment.WebRootFileProvider = clientFiles;
+    app.Lifetime.ApplicationStopped.Register(clientFiles.Dispose);
+}
 
 // Restore the Front Door client IP before telemetry or any middleware reads it.
 app.UseForwardedClientIp();
@@ -39,6 +62,11 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // Resolve request casing before any middleware rewrites or matches the static path.
+if (hybridArtifact is not null)
+{
+    app.UseResponseCompression();
+    app.UseHybridApiDocsRouting();
+}
 app.UseCanonicalPathRedirects();
 
 // Agent-readiness middlewares MUST run before UseDefaultFiles + UseRouting:
@@ -50,31 +78,15 @@ app.UseCanonicalPathRedirects();
 app.UseAgentReadiness();
 
 app.UseDefaultFiles();
+if (hybridArtifact is not null)
+{
+    app.UseStaticFiles(HybridApiDocsExtensions.HybridStaticFileOptions());
+}
 
 // add routing after default files, so the default file middleware can modify the path first
 app.UseRouting();
 
-app.UseStatusCodePages(async context =>
-{
-    var response = context.HttpContext.Response;
-    if (response is { StatusCode: 404, HasStarted: false })
-    {
-        var env = context.HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
-
-        var notFoundPath = Path.Combine(env.WebRootPath ?? string.Empty, "404.html");
-
-        if (File.Exists(notFoundPath))
-        {
-            // Ensure the 404 page itself is not cached aggressively so new deployments update quickly
-            response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
-            response.Headers.Pragma = "no-cache";
-            response.Headers.Expires = "0";
-            response.ContentType = "text/html; charset=utf-8";
-
-            await response.SendFileAsync(notFoundPath);
-        }
-    }
-});
+app.UseStatusCodePages(context => NotFoundPage.WriteAsync(context.HttpContext));
 
 // Ensure text/plain responses include UTF-8 charset to fix encoding issues with .txt files
 app.Use(async (context, next) =>
@@ -130,5 +142,6 @@ app.MapGet("/install.sh", (HttpContext context, OneDSTelemetryService telemetry)
 });
 
 app.MapStaticAssets();
+if (hybridArtifact is not null) app.MapHybridApiDocs();
 
 await app.RunAsync();

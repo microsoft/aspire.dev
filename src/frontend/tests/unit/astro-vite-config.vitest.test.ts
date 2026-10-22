@@ -29,3 +29,14 @@ test.each([undefined, 'http://127.0.0.1:54321'])(
     );
   }
 );
+
+test('builds the hybrid architecture by default and ignores the retired opt-in flag', async () => {
+  vi.stubEnv('ASPIRE_HYBRID_API_DOCS', '0');
+  vi.stubEnv('ASTRO_OUT_DIR', undefined);
+  vi.resetModules();
+  const { default: config } = await import('../../astro.config.mjs');
+
+  expect(config.adapter?.name).toBe('@astrojs/node');
+  expect(String(config.outDir)).toMatch(/[\\/]dist-hybrid$/);
+  expect(config.cacheDir).toBe('./node_modules/.astro');
+});

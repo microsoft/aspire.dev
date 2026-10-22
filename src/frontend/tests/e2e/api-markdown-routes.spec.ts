@@ -119,7 +119,7 @@ for (const route of markdownRoutes) {
     const response = await request.get(route.path);
 
     expect(response.ok(), `${route.path} should return 200.`).toBe(true);
-    // The static preview server infers Content-Type from the `.md`
+    // The static file server infers Content-Type from the `.md`
     // extension as `text/markdown`. The page-actions Copy Markdown fetch
     // does not depend on the Content-Type — it consumes the body text
     // directly — so this is purely an assertion that the route serves

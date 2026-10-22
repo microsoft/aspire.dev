@@ -15,11 +15,12 @@ interface SchemaIndex {
 
 const index = JSON.parse(readFileSync(indexFile, 'utf-8')) as SchemaIndex;
 
-// These tests run against `astro dev` locally and `astro preview` in CI, so:
-// - Under preview, prerendered endpoint `Response` headers (e.g.
+// These tests run against `astro dev` locally and the built site served by
+// StaticHost in CI, so:
+// - On the built site, prerendered endpoint `Response` headers (e.g.
 //   `application/schema+json`) are not preserved; the static server MIME-types
 //   by extension (`application/json`).
-// - Under preview, the dev-only middleware that redirects slashless `.json`
+// - On the built site, the dev-only middleware that redirects slashless `.json`
 //   paths to their slashed form does not run; the static server serves the
 //   file directly at the slashless URL.
 // We therefore assert the canonical slashless URL is reachable and returns the
@@ -31,7 +32,7 @@ const versionedPath = (version: string): string =>
 
 function expectJsonContentType(headerValue: string | undefined): void {
   // Matches both our endpoint's `application/schema+json` and the static
-  // preview server's default `application/json`.
+  // server's default `application/json`.
   expect(headerValue, 'expected a JSON-family content type').toMatch(
     /application\/(?:schema\+)?json/
   );

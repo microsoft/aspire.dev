@@ -7,7 +7,7 @@ import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 import { selectAll } from 'hast-util-select';
 import rehypeParse from 'rehype-parse';
 import { unified } from 'unified';
-import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+import { loadApiSearchIndex, readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
 import * as searchStats from '@utils/ts-api-search-stats';
 import * as goSearchStats from '@utils/go-api-search-stats';
 import { ApiSearchPresentation, withApiSearchFallback } from '../../src/pages/reference/api/_search-presentation';
@@ -186,9 +186,15 @@ describe('API search navigation lifecycle', () => {
         'search-count', 'kind-filters', 'clear-filters', 'package-list']) {
         root.children.set(`#${prefix}-${suffix}`, new SearchElement());
       }
-      const index = new SearchElement();
-      index.textContent = '[]';
-      root.children.set('[data-api-search-index]', index);
+      const external = kind === 'landing' || kind === 'package' || kind === 'module';
+      if (external) {
+        root.dataset.apiSearchIndexUrl = '/reference/api-search/example.json';
+        vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })));
+      } else {
+        const index = new SearchElement();
+        index.textContent = '[]';
+        root.children.set('[data-api-search-index]', index);
+      }
       root.children.set('[id$="-clear-filters"]', root.children.get(`#${prefix}-clear-filters`)!);
       const selector = `[data-api-search-language="${language}"][data-api-search-kind="${kind}"]`;
       const document = {
@@ -226,6 +232,7 @@ describe('API search navigation lifecycle', () => {
         '@components/api-reference/inpage-search-sync': { InpageSearchSync },
         '@components/api-reference/search-lifecycle': {
           readApiSearchIndex,
+          loadApiSearchIndex,
           registerApiSearch: (...args: Parameters<typeof registerApiSearch>) => {
             cleanup = registerApiSearch(...args);
           },
@@ -240,6 +247,7 @@ describe('API search navigation lifecycle', () => {
         exports: {}, require: (id: string) => modules[id], document, window, clearTimeout,
       });
       events.dispatchEvent(new Event('astro:page-load'));
+      for (let turn = 0; turn < 10; turn++) await Promise.resolve();
       const results = root.querySelector(`#${prefix}-search-results`)!;
       const content = results.rendered[0].rendered[0];
       expect(content.className).toBe('search-empty-content');

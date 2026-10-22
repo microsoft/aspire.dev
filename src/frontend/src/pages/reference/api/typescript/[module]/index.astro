@@ -9,12 +9,10 @@
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { tsModuleSlug, getTsModules, simplifyType } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
-import {
-  getTsCallableIdentityKey,
-  getTsFunctionDisplayKind,
-  getTsFunctionDisplayLabel,
-} from '@utils/ts-api-function-kind';
-import { getTsItemSlug, getTsMethods, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import { resolveTypeScriptApiRoute } from '@utils/api-route-data';
+import { getTsFunctionDisplayLabel } from '@utils/ts-api-function-kind';
+import { getTsItemSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import { apiSearchIndexUrl, buildTsModuleSearchIndex } from '@utils/api-search-index';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 
@@ -26,7 +24,9 @@ export async function getStaticPaths() {
   }));
 }
 
-const { pkg } = Astro.props;
+const routeProps = Astro.props.pkg ? Astro.props : await resolveTypeScriptApiRoute(Astro.url.pathname);
+if (!routeProps) return new Response('API module not found', { status: 404 });
+const { pkg } = routeProps;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pkgSlug = tsModuleSlug(pkg.package.name);
 const isOfficial = pkg.package.name.startsWith('Aspire.');
@@ -57,128 +57,9 @@ const tsSidebar = await getTsApiReferenceSidebar({ packageName: pkg.package.name
 
 /* ── Build package-scoped search index ───────────────────────── */
 
-/** Extract namespace from a fully-qualified name. */
-function nsOf(fullName: string): string {
-  const lastDot = fullName.lastIndexOf('.');
-  return lastDot > 0 ? fullName.slice(0, lastDot) : fullName;
-}
-
-/** Extract module from a capabilityId. */
-function modOf(capId: string): string {
-  const slashIdx = capId.indexOf('/');
-  return slashIdx > 0 ? capId.slice(0, slashIdx) : capId;
-}
-
-interface PkgIndexEntry {
-  /** Short name */
-  n: string;
-  /** Fully-qualified name */
-  f: string;
-  /** Namespace / module */
-  ns: string;
-  /** Kind (handle, interface, dto, enum, function, method, property) */
-  k: string;
-  /** Summary text (first ~160 chars) */
-  s: string;
-  /** Parent type name (for members only) */
-  t?: string;
-  /** Resolved destination for the search result */
-  h?: string;
-}
-
-const pkgIndex: PkgIndexEntry[] = [];
-let memberCount = 0;
-const standaloneFunctionKeys = new Set(standaloneFunctions.map((fn: any) => getTsCallableIdentityKey(fn)));
-
-function capabilityKindToSearchKind(capKind: string): string {
-  switch (capKind) {
-    case 'PropertyGetter':
-    case 'PropertySetter':
-      return 'property';
-    case 'Method':
-    case 'InstanceMethod':
-      return 'method';
-    default:
-      return capKind.toLowerCase();
-  }
-}
-
-// Handle types
-for (const h of ((pkg.handleTypes ?? []) as any[])) {
-  const kind = h.isInterface ? 'interface' : 'handle';
-  const typeHref = `${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(h, topLevelItems)}/`;
-  const methods = getTsMethods(h);
-
-  pkgIndex.push({
-    n: h.name,
-    f: h.fullName ?? h.name,
-    ns: nsOf(h.fullName ?? h.name),
-    k: kind,
-    s: (h.description ?? '').slice(0, 160),
-    h: typeHref,
-  });
-  // Index members from capabilities
-  for (const cap of (h.capabilities ?? [])) {
-    if ((cap.kind === 'Method' || cap.kind === 'InstanceMethod') && standaloneFunctionKeys.has(getTsCallableIdentityKey(cap))) {
-      continue;
-    }
-
-    memberCount++;
-    const memberName = cap.name ?? cap.capabilityId?.split('/').pop() ?? '';
-    const memberHref = cap.kind === 'Method' || cap.kind === 'InstanceMethod'
-      ? `${typeHref}${getTsMethodSlug(cap, methods, h.name)}/`
-      : typeHref;
-
-    pkgIndex.push({
-      n: memberName,
-      f: `${h.fullName ?? h.name}.${memberName}`,
-      ns: nsOf(h.fullName ?? h.name),
-      k: capabilityKindToSearchKind(cap.kind ?? 'method'),
-      s: (cap.description ?? '').slice(0, 160),
-      t: h.name,
-      h: memberHref,
-    });
-  }
-}
-
-// DTO types
-for (const d of ((pkg.dtoTypes ?? []) as any[])) {
-  pkgIndex.push({
-    n: d.name,
-    f: d.fullName ?? d.name,
-    ns: nsOf(d.fullName ?? d.name),
-    k: 'type',
-    s: (d.description ?? '').slice(0, 160),
-    h: `${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(d, topLevelItems)}/`,
-  });
-}
-
-// Enum types
-for (const e of ((pkg.enumTypes ?? []) as any[])) {
-  pkgIndex.push({
-    n: e.name,
-    f: e.fullName ?? e.name,
-    ns: nsOf(e.fullName ?? e.name),
-    k: 'enum',
-    s: (e.description ?? '').slice(0, 160),
-    h: `${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(e, topLevelItems)}/`,
-  });
-}
-
-// Standalone functions
-for (const f of (getTsStandaloneFunctions(pkg) as any[])) {
-  pkgIndex.push({
-    n: f.name,
-    f: f.qualifiedName ?? f.name,
-    ns: modOf(f.capabilityId ?? f.name),
-    k: getTsFunctionDisplayKind(f),
-    s: (f.description ?? '').slice(0, 160),
-    h: `${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(f, topLevelItems)}/`,
-  });
-}
+const { index: pkgIndex, memberCount } = buildTsModuleSearchIndex(pkg, base);
 
 const allKinds = [...new Set(pkgIndex.map(e => e.k))].sort();
-const pkgIndexJson = JSON.stringify(pkgIndex);
 const pkgName = pkg.package.name;
 ---
 
@@ -230,8 +111,7 @@ const pkgName = pkg.package.name;
   </div>
 
   <!-- Package-scoped search -->
-  <div class="pkg-search-section not-content" data-api-search-language="typescript" data-api-search-kind="module" data-base={base} data-package-name={pkgName} data-type-count={totalTypeCount} data-member-count={memberCount}>
-    <script is:inline type="application/json" data-api-search-index set:html={pkgIndexJson.replace(/</g, '\\u003c')} />
+  <div class="pkg-search-section not-content" data-api-search-language="typescript" data-api-search-kind="module" data-base={base} data-package-name={pkgName} data-type-count={totalTypeCount} data-member-count={memberCount} data-api-search-index-url={apiSearchIndexUrl(base, 'typescript', pkgSlug)}>
     <InpageSearch
       id="pkg"
       placeholder={`Search types, functions, members in ${pkg.package.name}...`}
@@ -314,7 +194,7 @@ const pkgName = pkg.package.name;
 
 <script>
   import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
-  import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+  import { loadApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
   import { ApiSearchPresentation, withApiSearchFallback } from '../../_search-presentation';
 
   interface PkgIndexEntry {
@@ -366,7 +246,7 @@ const pkgName = pkg.package.name;
     private sync: InpageSearchSync;
     private presentation: ApiSearchPresentation;
 
-    constructor(root: HTMLElement, private signal: AbortSignal) {
+    constructor(root: HTMLElement, private signal: AbortSignal, index: PkgIndexEntry[]) {
       this.input = root.querySelector<HTMLInputElement>('#pkg-search-input')!;
       this.resultsEl = root.querySelector<HTMLElement>('#pkg-search-results')!;
       this.nsList = document.getElementById('pkg-namespace-list') as HTMLElement;
@@ -374,7 +254,7 @@ const pkgName = pkg.package.name;
       this.countEl = root.querySelector<HTMLElement>('#pkg-search-count')!;
       this.filtersEl = root.querySelector<HTMLElement>('#pkg-kind-filters')!;
       this.clearFiltersBtn = root.querySelector<HTMLElement>('#pkg-clear-filters')!;
-      this.index = readApiSearchIndex<PkgIndexEntry>(root);
+      this.index = index;
       this.base = root.dataset.base ?? '';
       this.pkgName = root.dataset.packageName ?? '';
       this.typeCount = Number(root.dataset.typeCount ?? 0);
@@ -662,7 +542,11 @@ const pkgName = pkg.package.name;
     }
   }
 
-  registerApiSearch('typescript', 'module', withApiSearchFallback((root, signal) => new PkgSearchController(root, signal)));
+  registerApiSearch('typescript', 'module', withApiSearchFallback(async (root, signal) => {
+    const index = await loadApiSearchIndex<PkgIndexEntry>(root, signal);
+    if (signal.aborted) return;
+    new PkgSearchController(root, signal, index);
+  }));
 </script>
 
 <style>
