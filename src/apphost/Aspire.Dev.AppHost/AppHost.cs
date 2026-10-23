@@ -36,7 +36,7 @@ if (builder.ExecutionContext.IsRunMode)
     // origin so the Vite dev server can proxy those to the API (see astro.config.mjs).
     // Without this, /api/live 404s against the Vite origin under `aspire run`.
     builder.AddViteApp("frontend", "../../frontend")
-           .WithPnpm()
+           .WithBun()
            .WithEnvironment("ASPIRE_STATICHOST_URL", staticHostWebsite.GetEndpoint("https"))
            .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (Local)")
            .WithExternalHttpEndpoints();

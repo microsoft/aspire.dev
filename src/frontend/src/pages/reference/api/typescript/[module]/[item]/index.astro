@@ -7,8 +7,9 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
-import { tsModuleSlug, getTsModules, simplifyType, formatTsSignature, type TsFunction } from '@utils/ts-modules';
+import { tsModuleSlug, getTsModules, getTsModuleDocument, simplifyType, formatTsSignature, type TsFunction } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
+import { withApiCacheKeys } from '@utils/api-cache-key';
 import { getTsFunctionDisplayLabel, isTsExtensionStyleFunction } from '@utils/ts-api-function-kind';
 import { getTsItemSlug, getTsMemberAnchor, getTsMethods, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems, getTsTypeByName } from '@utils/ts-api-routes';
 import Breadcrumb from '@components/Breadcrumb.astro';
@@ -29,7 +30,7 @@ export async function getStaticPaths() {
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: handle, itemKind: 'handle' },
+        props: { packageName: pkg.data.package.name, item: handle, itemKind: 'handle' },
       });
     }
 
@@ -39,7 +40,7 @@ export async function getStaticPaths() {
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: dto, itemKind: 'dto' },
+        props: { packageName: pkg.data.package.name, item: dto, itemKind: 'dto' },
       });
     }
 
@@ -49,7 +50,7 @@ export async function getStaticPaths() {
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: enumType, itemKind: 'enum' },
+        props: { packageName: pkg.data.package.name, item: enumType, itemKind: 'enum' },
       });
     }
 
@@ -59,15 +60,16 @@ export async function getStaticPaths() {
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: fn, itemKind: 'function' },
+        props: { packageName: pkg.data.package.name, item: fn, itemKind: 'function' },
       });
     }
   }
 
-  return paths;
+  return withApiCacheKeys(paths, packages);
 }
 
-const { pkg, item, itemKind } = Astro.props;
+const { packageName, item, itemKind } = Astro.props;
+const pkg = await getTsModuleDocument(packageName);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pkgSlug = tsModuleSlug(pkg.package.name);
 const topLevelItems = getTsTopLevelRouteItems(pkg);

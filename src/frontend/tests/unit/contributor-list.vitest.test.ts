@@ -50,7 +50,7 @@ describe('ContributorList', () => {
   it('fails the build for a repository with no committed data', async () => {
     await expect(
       renderComponent(ContributorList, { props: { githubRepo: 'microsoft/not-a-repo' } }),
-    ).rejects.toThrow(/pnpm update:contributors/);
+    ).rejects.toThrow(/bun run update:contributors/);
   });
 
   it('retains wrapped 3rem avatars, overlap, forced-color boundaries, and visible keyboard focus', () => {

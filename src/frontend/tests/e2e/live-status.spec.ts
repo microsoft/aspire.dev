@@ -92,6 +92,9 @@ test.describe('live status', () => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.clock.install();
+    // The real WCP banner is geo-dependent. Rejecting it reloads the page, which
+    // seeds /api/live/ a second time and breaks the request counts below.
+    await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
     await page.route(snapshotEndpoint, (route) => {
       snapshotRequests++;
       return route.fulfill({ status: 404 });

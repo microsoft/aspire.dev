@@ -12,7 +12,7 @@ name: IndexNow
 #   full-sitemap burst, the same way a release does.
 #
 # All logic lives in src/frontend/scripts/indexnow.ts so the same flow can be reproduced locally:
-#   cd src/frontend && pnpm indexnow --state-dir /tmp/indexnow --dry-run
+#   cd src/frontend && bun run indexnow --state-dir /tmp/indexnow --dry-run
 # The budgets and the key are in src/frontend/config/indexnow.json, and the key file is served from
 # src/frontend/public/<key>.txt. IndexNow keys are public by design: the key file has to be
 # downloadable so search engines can verify ownership. To rotate the key, add the new key file and
@@ -107,18 +107,18 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24.x"
-          cache: pnpm
-          cache-dependency-path: src/frontend/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: bun install --frozen-lockfile
 
       - name: Restore state from the previous run
         env:
@@ -177,7 +177,7 @@ jobs:
             [ "$INPUT_DRY_RUN" != "true" ] || args+=(--dry-run)
             [ "$INPUT_ALLOW_SHRINK" != "true" ] || args+=(--allow-shrink)
           fi
-          pnpm indexnow "${args[@]}"
+          bun run indexnow "${args[@]}"
 
       # Runs after a failure too, because a failed cold start or flush still saves what it started.
       - name: Save state for the next run

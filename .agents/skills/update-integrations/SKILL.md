@@ -7,11 +7,11 @@ description: Update integration documentation links and API reference data by sy
 
 This skill synchronizes the integration package catalog with documentation URL mappings and generates per-package API reference schemas. It ensures every NuGet package listed in the integrations data file has a corresponding documentation link and an up-to-date API reference JSON file.
 
-> **Automation note:** The scheduled `update-integration-data` workflow (`.github/workflows/update-integration-data.yml`) runs this update deterministically — no agent/LLM. It executes `src/frontend/scripts/update-integration-data.ps1`, which runs `pnpm update:all`, detects `"version":` changes in `src/frontend/src/data/aspire-integrations.json`, and — only when a version actually moves — runs the C# and TypeScript API regeneration (and the twoslash bundle) before opening or refreshing a PR via the Aspire bot GitHub App. That PR is approved and squash-merged automatically by `.github/policies/auto-merge.yml` once the required `ci-gate` check passes; removing its `:octocat: auto-merge` label holds it for manual review. You can reproduce the full flow locally with `pwsh src/frontend/scripts/update-integration-data.ps1` (add `-SkipRegen` for a fast data-only run). Use this skill for **manual or one-off runs that need judgment** — for example: adding a new integration, reconciling `integration-docs.json`, validating release-branch feed resolution, troubleshooting a regen failure flagged by the workflow's PR, or regenerating data outside the scheduled cadence.
+> **Automation note:** The scheduled `update-integration-data` workflow (`.github/workflows/update-integration-data.yml`) runs this update deterministically — no agent/LLM. It executes `src/frontend/scripts/update-integration-data.ps1`, which runs `bun run update:all`, detects `"version":` changes in `src/frontend/src/data/aspire-integrations.json`, and — only when a version actually moves — runs the C# and TypeScript API regeneration (and the twoslash bundle) before opening or refreshing a PR via the Aspire bot GitHub App. That PR is approved and squash-merged automatically by `.github/policies/auto-merge.yml` once the required `ci-gate` check passes; removing its `:octocat: auto-merge` label holds it for manual review. You can reproduce the full flow locally with `pwsh src/frontend/scripts/update-integration-data.ps1` (add `-SkipRegen` for a fast data-only run). Use this skill for **manual or one-off runs that need judgment** — for example: adding a new integration, reconciling `integration-docs.json`, validating release-branch feed resolution, troubleshooting a regen failure flagged by the workflow's PR, or regenerating data outside the scheduled cadence.
 
 ## Overview
 
-The automated flow also reconciles documentation mappings and runs `pnpm test:unit:structured-data` before API regeneration or PR creation. This uses a data-only Vitest configuration so validation does not rewrite Astro's generated assets. Mapping changes are included in the generated PR.
+The automated flow also reconciles documentation mappings and runs `bun run test:unit:structured-data` before API regeneration or PR creation. This uses a data-only Vitest configuration so validation does not rewrite Astro's generated assets. Mapping changes are included in the generated PR.
 
 The aspire.dev site maintains three key data locations:
 
@@ -29,7 +29,7 @@ This skill keeps the documentation mappings in sync with the package catalog and
 - .NET SDK installed and available on `PATH` (required for the `PackageJsonGenerator` tool)
 - PowerShell (pwsh) available on `PATH` (for running the generation script)
 - Working directory is the repository root
-- The frontend project dependencies are installed (`pnpm install` in `src/frontend/`)
+- The frontend project dependencies are installed (`bun install` in `src/frontend/`)
 
 ### Release branch package source behavior
 
@@ -78,7 +78,7 @@ consume the resulting catalog's exact versions.
 Fetch the latest package data from the configured package feeds:
 
 ```bash
-pnpm --dir ./src/frontend update:integrations
+bun run --cwd ./src/frontend update:integrations
 ```
 
 This writes updated package metadata to `src/frontend/src/data/aspire-integrations.json`. The script queries the NuGet v3 API for packages matching `owner:aspire`, `Aspire.Hosting.`, and `CommunityToolkit.Aspire`, then filters out deprecated, unlisted, and excluded packages.
@@ -234,7 +234,7 @@ If an official release feed is required but not yet publicly reachable, rerun wi
 After updating `aspire-integrations.json`, regenerate the TypeScript API reference JSON files for the hosting packages that expose ATS capabilities:
 
 ```bash
-pnpm --filter ./src/frontend run update:ts-api
+bun run --cwd ./src/frontend update:ts-api
 ```
 
 The companion `generate-ts-api-json.ps1` script reads the generated C# package JSON files in `src/frontend/src/data/pkgs/`, selects `Aspire.Hosting`, `Aspire.Hosting.*`, and `CommunityToolkit.Aspire.Hosting.*` packages, and passes each package/version through to `aspire sdk dump`. This keeps `src/frontend/src/data/ts-modules/` aligned with the same package set and versions that already flowed through C# API generation.
@@ -287,7 +287,7 @@ When a TypeScript module is regenerated for a new package version, stale `ts-mod
 After the JSON is refreshed, `update-ts-api` automatically chains `generate-twoslash-types.ts` to rebuild `src/frontend/src/data/twoslash/aspire.d.ts`. This bundle is source-controlled and its diff must be committed alongside the `ts-modules` JSON changes — without it, docs hover tooltips fall back to `any`. If you only need to refresh the bundle (e.g. after a generator script change) without running the full SDK dump, use:
 
 ```bash
-cd src/frontend && pnpm twoslash-types
+cd src/frontend && bun run twoslash-types
 ```
 
 ### 6. Verify all links
@@ -307,7 +307,7 @@ Write the updated `integration-docs.json` maintaining consistent formatting (2-s
 Run the structured-data tests after changing the catalog or documentation map:
 
 ```bash
-pnpm --dir ./src/frontend test:unit:structured-data
+bun run --cwd ./src/frontend test:unit:structured-data
 ```
 
 ## Entry format

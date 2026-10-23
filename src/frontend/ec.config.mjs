@@ -29,12 +29,15 @@ import {
 const pluginIconSource = pathToFileURL(
   path.resolve(process.cwd(), 'node_modules/starlight-plugin-icons/src/lib/expressive-code.ts')
 ).href;
-const { pluginIcon } = await tsImport(pluginIconSource, import.meta.url);
+// Bun imports TypeScript natively and has no Node module hooks, which tsx relies on.
+const { pluginIcon } = process.versions.bun
+  ? await import(/* @vite-ignore */ pluginIconSource)
+  : await tsImport(pluginIconSource, import.meta.url);
 
 if (TWOSLASH_ENABLED && !readAspireTypes().exists) {
   // Non-fatal — twoslash blocks that import the SDK will just show `any`.
-  // Run `pnpm twoslash-types` to refresh.
-  console.warn(`[ec] ${ASPIRE_TYPES_PATH} missing — run \`pnpm twoslash-types\``);
+  // Run `bun run twoslash-types` to refresh.
+  console.warn(`[ec] ${ASPIRE_TYPES_PATH} missing — run \`bun run twoslash-types\``);
 }
 
 function cachedTwoslashPlugin() {

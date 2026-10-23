@@ -324,9 +324,9 @@ describe('integration update automation', () => {
   });
 
   test('validates updated mappings before checking for changes or regenerating APIs', () => {
-    const validationIndex = script.indexOf('& pnpm run test:unit:structured-data');
+    const validationIndex = script.indexOf('& bun run test:unit:structured-data');
 
-    expect(validationIndex).toBeGreaterThan(script.indexOf('& pnpm run update:all'));
+    expect(validationIndex).toBeGreaterThan(script.indexOf('& bun run update:all'));
     expect(validationIndex).toBeLessThan(script.indexOf('if (-not $anyChanges)'));
     expect(script.slice(validationIndex)).toMatch(
       /test:unit:structured-data\s+if \(\$LASTEXITCODE -ne 0\) \{[^}]*exit 1/
@@ -344,7 +344,7 @@ describe('integration update automation', () => {
     const allowedPaths = script.match(/\$AllowedPaths = @\(([\s\S]*?)\)/)?.[1];
     const stagedPaths = workflow.match(/git add -- \\[\s\S]*?\r?\n\r?\n/)?.[0];
 
-    expect(packageJson.scripts['update:all']).toContain('pnpm update:schemas');
+    expect(packageJson.scripts['update:all']).toContain('bun run update:schemas');
     expect(structuredDataConfig).toContain("'tests/unit/cli-config-schema.vitest.test.ts'");
     expect(allowedPaths).toContain("'src/frontend/src/data/schemas/'");
     expect(stagedPaths).toContain('src/frontend/src/data/schemas');

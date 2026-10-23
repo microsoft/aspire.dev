@@ -44,7 +44,7 @@ Once content has settled, regenerate the generated data from the `release/{N.N}`
 **staging feed** (`darc-pub-microsoft-aspire-{shortSha}` — resolves `Aspire.*` on
 `release/*` branches):
 
-- Run `src/frontend/scripts/update-integration-data.ps1` (`pnpm update:all`) to
+- Run `src/frontend/scripts/update-integration-data.ps1` (`bun run update:all`) to
   regenerate the **C#/TS API JSON** + the **twoslash bundle**.
 - Orchestrate the [`update-integrations`](../../update-integrations/SKILL.md),
   [`update-samples`](../../update-samples/SKILL.md), and

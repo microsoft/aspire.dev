@@ -8,9 +8,10 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
-import { tsModuleSlug, getTsModules, simplifyType, formatTsSignature } from '@utils/ts-modules';
+import { tsModuleSlug, getTsModules, getTsModuleDocument, simplifyType, formatTsSignature } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
-import { getTsItemSlug, getTsMethods, getTsMethodSlug, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import { withApiCacheKeys } from '@utils/api-cache-key';
+import { getTsHandleMethod, getTsItemSlug, getTsMethods, getTsMethodSlug, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import TsMemberCard from '@components/api-reference/TsMemberCard.astro';
 
@@ -23,31 +24,33 @@ export async function getStaticPaths() {
     const topLevelItems = getTsTopLevelRouteItems(pkg.data);
     const handles = (pkg.data.handleTypes ?? []) as any[];
 
-    for (const handle of handles) {
+    for (const [handleIndex, handle] of handles.entries()) {
       const itemSlug = getTsItemSlug(handle, topLevelItems);
       if (!itemSlug) continue;
 
       const methods = getTsMethods(handle);
 
-      for (const method of methods) {
+      for (const [methodIndex, method] of methods.entries()) {
         const memberSlug = getTsMethodSlug(method, methods, handle.name);
         if (!memberSlug) continue;
         paths.push({
           params: { module: pkgSlug, item: itemSlug, member: memberSlug },
           props: {
-            pkg: pkg.data,
-            parentType: handle,
-            method,
+            packageName: pkg.data.package.name,
+            handleIndex,
+            methodIndex,
           },
         });
       }
     }
   }
 
-  return paths;
+  return withApiCacheKeys(paths, packages);
 }
 
-const { pkg, parentType, method } = Astro.props;
+const { packageName, handleIndex, methodIndex } = Astro.props;
+const pkg = await getTsModuleDocument(packageName);
+const { parentType, method } = getTsHandleMethod<any, any>(pkg.handleTypes, handleIndex, methodIndex);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pkgSlug = tsModuleSlug(pkg.package.name);
 const parentSlug = Astro.params.item ?? getTsItemSlug(parentType, getTsTopLevelRouteItems(pkg));

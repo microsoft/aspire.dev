@@ -67,7 +67,7 @@ Route path segments can be lowercase (`pt-br`, `zh-cn`), but sidebar translation
 
 ## Astro and MDX Conventions
 
-When calling `pnpm dev` or `aspire run` to test documentation in the context of CI/CD, or from an LLM, call `astro telemetry disable` to disable telemetry.
+When calling `bun run dev` or `aspire run` to test documentation in the context of CI/CD, or from an LLM, call `astro telemetry disable` to disable telemetry.
 
 ### Frontmatter
 
@@ -585,11 +585,11 @@ For collapsed sections with children:
 
 After adding or moving integration documentation:
 
-1. Run `pnpm --dir ./src/frontend update:integrations` when the package catalog
+1. Run `bun run --cwd ./src/frontend update:integrations` when the package catalog
    needs to be refreshed from NuGet.
 2. Reconcile the exact package IDs and canonical documentation URLs in
    `src/frontend/src/data/integration-docs.json`.
-3. Run `pnpm --dir ./src/frontend test:unit:structured-data` to verify that the
+3. Run `bun run --cwd ./src/frontend test:unit:structured-data` to verify that the
    mappings are unique and resolve to real pages.
 
 ## Writing Style Guidelines

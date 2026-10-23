@@ -32,7 +32,7 @@ Set `PUBLIC_ENVIRONMENT_BADGE` to display a small text badge beside the header l
 and wordmark, for example `staging`, `test`, or `release/13.6`. The value is public
 and rendered as text when Astro builds the site.
 
-Local development (`pnpm dev`, including the frontend started by Aspire) defaults
+Local development (`bun run dev`, including the frontend started by Aspire) defaults
 to `localhost` when the variable is unset. An explicitly empty or whitespace-only
 value hides the badge. Production builds have no badge by default; leave the
 variable unset or empty for live deployments.

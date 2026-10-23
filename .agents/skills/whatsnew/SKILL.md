@@ -32,7 +32,7 @@ infer from context — e.g. a fresh release with no page → `draft`).
 | `draft` | `scaffold`, `init` | Stand up branch, draft PR, skeleton MDX, banner, sidebar, version constants. **Structure only.** | [`01-draft-scaffold.md`](./references/01-draft-scaffold.md) | Skeleton only |
 | `research` | — | Enumerate every change into an impact-focused **dossier**, then **author the first-draft prose** into the MDX from it. | [`02-research.md`](./references/02-research.md) | **Yes — drafts the body** |
 | `critique` | — | Content-quality **self-review** of draft vs dossier; severity-ranked findings. | [`03-critique.md`](./references/03-critique.md) | **No — reports only** |
-| `validate` | — | **Ralph loop** with `doc-pr-reviewer` until 100% factual; samples/links/assets. **No `pnpm build`.** | [`04-validate.md`](./references/04-validate.md) | Fixes only |
+| `validate` | — | **Ralph loop** with `doc-pr-reviewer` until 100% factual; samples/links/assets. **No `bun run build`.** | [`04-validate.md`](./references/04-validate.md) | Fixes only |
 | `polish` | — | Editorial pass + CI triage + diagnostics-author `@mentions` + **automated data ingestion**, then a **final `{validate}` pass**. | [`05-polish.md`](./references/05-polish.md) | **Yes** |
 | `review` | — | Undraft PR, description, reviewers + `doc-tester` **blind** run of every in-article scenario. | [`06-review.md`](./references/06-review.md) | No |
 
@@ -73,7 +73,7 @@ infer from context — e.g. a fresh release with no page → `draft`).
   and release metadata in the resource-catalog tests and browser preview.
 
 ### Safety / mechanics
-- **Never run `pnpm build` locally** — validate build-readiness by inspection.
+- **Never run `bun run build` locally** — validate build-readiness by inspection.
 - Each modality is **idempotent** — safe to re-run; `critique`/`validate` loop to
   convergence.
 - **Re-validate after polish.** Any edit `{polish}` makes lands *after* the
@@ -92,7 +92,7 @@ infer from context — e.g. a fresh release with no page → `draft`).
 | Assets | `src/frontend/src/assets/whats-new/aspire-<version>/` |
 | Container image data | `src/frontend/src/data/container-images.json` |
 | Diagnostics articles | `src/frontend/src/content/docs/diagnostics/aspire<area><NNN>.mdx` → `/diagnostics/aspire<NNN>/` |
-| Data ingestion | `src/frontend/scripts/update-integration-data.ps1` (`pnpm update:all`) |
+| Data ingestion | `src/frontend/scripts/update-integration-data.ps1` (`bun run update:all`) |
 
 ## Orchestrated skills
 

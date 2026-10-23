@@ -23,7 +23,7 @@ let output = '';
 beforeAll(() => {
   // The output is source-controlled, so don't unlink it. Re-run the generator
   // in place; subsequent assertions read the refreshed content.
-  // Invoke tsx directly via node to avoid cross-platform `pnpm`/`pnpm.cmd`
+  // Invoke tsx directly via node to avoid cross-platform package manager shim
   // resolution issues (and the DEP0190 warning from `shell: true`).
   const tsxBin = path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
   execFileSync(process.execPath, [tsxBin, generatorScript], { cwd: frontendRoot, stdio: 'pipe' });

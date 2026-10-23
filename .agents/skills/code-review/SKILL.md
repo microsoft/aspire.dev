@@ -222,19 +222,19 @@ Run frontend commands from `src/frontend`.
 
 ```powershell
 # Frontend unit tests (Vitest)
-pnpm test:unit
+bun run test:unit
 
 # Frontend e2e tests across desktop/tablet/mobile (Playwright)
-pnpm test:e2e
+bun run test:e2e
 
 # Single e2e project / spec
-pnpm exec playwright test --project=mobile-chromium tests/e2e/wcag-aa.spec.ts
+bun run playwright test --project=mobile-chromium tests/e2e/wcag-aa.spec.ts
 
 # C# tests (xUnit)
 dotnet test Aspire.Dev.slnx
 ```
 
-Lint/format (`pnpm lint`, `pnpm format`, `dotnet format`) already enforce style — don't re-report
+Lint/format (`bun run lint`, `bun run format`, `dotnet format`) already enforce style — don't re-report
 what they cover.
 
 ## Output format

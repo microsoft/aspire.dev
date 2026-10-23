@@ -3,9 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { expect, test, vi } from 'vitest';
-import type { TsApiDocument, TsFunction } from '@utils/ts-modules';
-import { formatTsSignature } from '@utils/ts-modules';
-import { getTsItemSlug, getTsMethods, getTsMethodSlug, getTsTopLevelRouteItems, prepareTsApiRoutes, tsSlugify } from '@utils/ts-api-routes';
+import type { TsApiDocument, TsFunction, TsHandleType } from '@utils/ts-modules';
+import { formatTsSignature, getTsModules } from '@utils/ts-modules';
+import { getTsHandleMethod, getTsItemSlug, getTsMethods, getTsMethodSlug, getTsRouteItem, getTsTopLevelRouteItems, prepareTsApiRoutes, tsSlugify } from '@utils/ts-api-routes';
+import type { TsTopLevelRouteItemLike } from '@utils/ts-api-routes';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import { getStaticPaths as itemPaths } from '../../src/pages/reference/api/typescript/[module]/[item].md';
 import { getStaticPaths as memberPaths } from '../../src/pages/reference/api/typescript/[module]/[item]/[member].md';
@@ -27,10 +28,18 @@ test('every catalog HTML item/member path has a Markdown peer and legacy exports
   const members = await memberPaths();
   const itemUrls = new Set(items.map(({ params }) => `${params.module}/${params.item}`));
   const memberUrls = new Set(members.map(({ params }) => `${params.module}/${params.item}/${params.member}`));
-  const itemProps = new Map(items.map(({ params, props }) => [`${params.module}/${params.item}`, props.item]));
-  const memberProps = new Map(members.map(({ params, props }) => [`${params.module}/${params.item}/${params.member}`, props.method]));
-  const docs = new Map(items.map(({ props }) => [props.pkg.package.name, props.pkg]));
-  const memberDocs = new Map(members.map(({ props }) => [props.pkg.package.name, props.pkg]));
+  const docs = new Map((await getTsModules()).map(({ data }) => [data.package.name, data]));
+  const memberDocs = docs;
+  const itemProps = new Map(items.map(({ params, props }) => [
+    `${params.module}/${params.item}`,
+    getTsRouteItem<TsTopLevelRouteItemLike>(docs.get(props.packageName)!, props.itemKind, props.itemIndex),
+  ]));
+  const memberProps = new Map(members.map(({ params, props }) => [
+    `${params.module}/${params.item}/${params.member}`,
+    getTsHandleMethod<TsFunction, TsHandleType>(docs.get(props.packageName)!.handleTypes, props.handleIndex, props.methodIndex).method,
+  ]));
+  // Props are resolved from freshly loaded documents, so compare by content rather than identity.
+  const sameData = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
   let canonicalCount = 0;
   let legacyCount = 0;
   const legacyMismatches: string[] = [];
@@ -70,13 +79,14 @@ test('every catalog HTML item/member path has a Markdown peer and legacy exports
           legacyCount++;
         }
       }
-      // Astro's keyed static-path cache resolves duplicate paths to the last entry.
-      for (const [url, item] of legacyItems) {
-        if (itemProps.get(url) !== item) legacyMismatches.push(url);
-      }
-      for (const [url, method] of legacyMembers) {
-        if (memberProps.get(url) !== method) legacyMismatches.push(url);
-      }
+    }
+    // Astro's keyed static-path cache resolves duplicate paths to the last entry.
+    // Compare once per module: content equality is too costly to repeat for every handle.
+    for (const [url, item] of legacyItems) {
+      if (!sameData(itemProps.get(url), item)) legacyMismatches.push(url);
+    }
+    for (const [url, method] of legacyMembers) {
+      if (!sameData(memberProps.get(url), method)) legacyMismatches.push(url);
     }
     expect(legacyMismatches).toEqual([]);
   }

@@ -39,7 +39,6 @@ export const licenseTitles = {
   expressiveCode: 'MIT: https://github.com/expressive-code/expressive-code/blob/main/LICENSE',
   mermaid: 'MIT: https://github.com/mermaid-js/mermaid/blob/develop/LICENSE',
   sharp: 'Apache-2.0: https://github.com/lovell/sharp/blob/main/LICENSE',
-  pnpm: 'MIT: https://github.com/pnpm/pnpm/blob/main/LICENSE',
   fluentUi: 'MIT: https://github.com/microsoft/fluentui/blob/master/LICENSE',
   spectreConsole: 'MIT: https://github.com/spectreconsole/spectre.console/blob/main/LICENSE.md',
   dotnet: 'MIT: https://github.com/dotnet/runtime/blob/main/LICENSE.TXT',

@@ -30,7 +30,9 @@ permissions:
 jobs:
   build:
     name: Frontend Build
-    runs-on: ubuntu-latest
+    # The heaviest job uses the larger runner. Forks cannot use that label, so
+    # they fall back to the standard runner.
+    runs-on: ${{ github.repository_owner == 'microsoft' && '8-core-ubuntu-latest' || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: src/frontend
@@ -63,28 +65,34 @@ jobs:
             git fetch --unshallow
           fi
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
 
+      # Bun installs packages and runs the Astro build; Vitest, ESLint,
+      # Playwright, and `astro preview` still run on Node.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ inputs.node_version }}
-          cache: pnpm
-          cache-dependency-path: src/frontend/pnpm-lock.yaml
 
       - name: Install deps
-        # `--prefer-offline` skips the registry staleness HEAD-request when
-        # the setup-node pnpm-store cache hits. pnpm falls back to network
-        # for anything missing, so cache misses still work.
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: bun install --frozen-lockfile
 
-      - name: Cache Astro content layer
+      # `incrementalBuild` keeps its state, including a copy of every
+      # prerendered route, under node_modules/.astro and decides for itself
+      # what is stale. The key only partitions by the inputs that invalidate
+      # all of it (lockfile, config, patches), so restore-keys always resolves
+      # to the newest compatible state. Pushes and a PR's first build save a
+      # new entry (below); later PR builds keep restoring it instead of
+      # writing another entry per commit.
+      - name: Restore Astro build state
         id: astro_cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: src/frontend/node_modules/.astro
-          key: astro-content-${{ runner.os }}-${{ hashFiles('src/frontend/src/content/**', 'src/frontend/src/content.config.*', 'src/frontend/astro.config.mjs') }}
+          key: astro-build-${{ runner.os }}-${{ hashFiles('src/frontend/bun.lock', 'src/frontend/astro.config.mjs', 'src/frontend/patches/*.patch') }}-${{ github.sha }}
           restore-keys: |
-            astro-content-${{ runner.os }}-
+            astro-build-${{ runner.os }}-${{ hashFiles('src/frontend/bun.lock', 'src/frontend/astro.config.mjs', 'src/frontend/patches/*.patch') }}-
 
       # Validation has its own checkout so astro sync cannot dirty Lunaria's tree.
       - name: Build frontend
@@ -101,21 +109,42 @@ jobs:
           set -euo pipefail
           if [[ "$PROFILE_BUILD" == "true" ]]; then
             mkdir -p "$RUNNER_TEMP/frontend-performance"
-            pnpm git-env
-            pnpm compute-skill-digests
+            bun run git-env
+            bun run compute-skill-digests
+            # CPU profiles come from Node's inspector, so profiling runs Astro on Node.
             /usr/bin/time -v node --cpu-prof \
               --cpu-prof-dir="$RUNNER_TEMP/frontend-performance" \
               ./node_modules/astro/bin/astro.mjs build --mode production \
               2>&1 | tee "$RUNNER_TEMP/frontend-performance/build.log"
           else
-            pnpm build:production
+            bun run build:production
           fi
+
+      - name: Save Astro build state
+        if: ${{ success() && (github.event_name == 'push' || steps.astro_cache.outputs.cache-matched-key == '') }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: src/frontend/node_modules/.astro
+          key: ${{ steps.astro_cache.outputs.cache-primary-key }}
+
+      - name: Report Astro build cache
+        if: ${{ always() }}
+        env:
+          CACHE_HIT: ${{ steps.astro_cache.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.astro_cache.outputs.cache-matched-key }}
+        run: |
+          {
+            echo '### Astro incremental build cache'
+            echo "- Restored key: \`${CACHE_MATCHED_KEY:-none}\`"
+            echo "- Exact hit: \`${CACHE_HIT:-false}\`"
+            echo "- Size: \`$(du -sh node_modules/.astro 2>/dev/null | cut -f1)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Measure frontend output
         if: ${{ inputs.profile_build }}
         env:
           BUILD_METRICS_DIR: ${{ runner.temp }}/frontend-performance
-          ASTRO_CACHE_HIT: ${{ steps.astro_cache.outputs.cache-hit }}
+          ASTRO_CACHE_HIT: ${{ steps.astro_cache.outputs.cache-matched-key != '' }}
           PROFILE_BUILD: ${{ inputs.profile_build }}
         run: node scripts/measure-build-output.mjs
 
@@ -256,23 +285,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ inputs.node_version }}
-          cache: pnpm
-          cache-dependency-path: src/frontend/pnpm-lock.yaml
       - name: Install deps
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: bun install --frozen-lockfile
       - name: Lint
         env:
           ASTRO_TELEMETRY_DISABLED: 1
-        run: pnpm lint
+        run: bun run lint
 
       - name: Run unit tests
         env:
           ASTRO_TELEMETRY_DISABLED: 1
-        run: pnpm test:unit
+        run: bun run test:unit
 
   e2e:
     name: E2E (${{ matrix.project }}, shard ${{ matrix.shard }}/2)
@@ -296,16 +325,16 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ inputs.node_version }}
-          cache: pnpm
-          cache-dependency-path: src/frontend/pnpm-lock.yaml
 
       - name: Install deps
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: bun install --frozen-lockfile
 
       - name: Download dist artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -314,7 +343,7 @@ jobs:
           path: src/frontend/dist
 
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: bun run playwright install --with-deps chromium
 
       # Reporters (blob, github, junit, list) are configured in
       # `playwright.config.mjs` so they apply to every shard. Avoid passing
@@ -323,7 +352,7 @@ jobs:
       - name: Run Playwright (${{ matrix.project }})
         env:
           ASTRO_TELEMETRY_DISABLED: 1
-        run: pnpm exec playwright test --project=${{ matrix.project }} --shard=${{ matrix.shard }}/2
+        run: bun run playwright test --project=${{ matrix.project }} --shard=${{ matrix.shard }}/2
 
       # Each shard publishes its blob report under a unique name so the
       # merge job below can stitch them back together into a single HTML
@@ -365,16 +394,16 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ inputs.node_version }}
-          cache: pnpm
-          cache-dependency-path: src/frontend/pnpm-lock.yaml
 
       - name: Install deps
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: bun install --frozen-lockfile
 
       - name: Download blob reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -388,7 +417,7 @@ jobs:
 
       - name: Merge into HTML report
         run: |
-          pnpm exec playwright merge-reports --reporter=html ./all-blob-reports
+          bun run playwright merge-reports --reporter=html ./all-blob-reports
 
       - name: Upload Playwright HTML report
         if: ${{ always() }}

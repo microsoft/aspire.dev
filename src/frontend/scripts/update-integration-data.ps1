@@ -10,7 +10,7 @@
     reliable scripting that runs identically in CI and locally.
 
     Phases:
-      1. `pnpm update:all` — integration metadata, GitHub stats, contributors, samples, official blog
+      1. `bun run update:all` — integration metadata, GitHub stats, contributors, samples, official blog
          archive, and Aspire CLI config schemas for new microsoft/aspire releases.
          Reconciles documentation mappings, then runs structured-data tests.
       2. Version-change detection — compares the committed
@@ -19,7 +19,7 @@
          counts) do NOT trigger regeneration.
       3. Conditional API-reference regeneration (only when a version changed):
            a. generate-package-json.ps1  -> src/data/pkgs/*.json (C# API)
-           b. pnpm update:ts-api         -> src/data/ts-modules/*.json (TS API)
+           b. bun run update:ts-api      -> src/data/ts-modules/*.json (TS API)
                                             + chains twoslash aspire.d.ts bundle
       4. Semantic validation — cross-checks generated identities, provenance,
          DTO optionality, inheritance, options shapes, and attribute payloads.
@@ -257,18 +257,18 @@ function Publish-GeneratedApiData {
 }
 
 # ── Phase 1: data update ────────────────────────────────────────────────────
-Write-Section 'Phase 1 — pnpm update:all'
+Write-Section 'Phase 1 — bun run update:all'
 Push-Location $FrontendDir
 try {
     # Capture combined output so icon-integrity warnings can be surfaced in the
     # PR body without re-running anything. Tee keeps the live log intact.
-    $updateLog = & pnpm run update:all 2>&1 | Tee-Object -Variable teed | Out-String
+    $updateLog = & bun run update:all 2>&1 | Tee-Object -Variable teed | Out-String
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "pnpm update:all failed (exit $LASTEXITCODE). Aborting; no PR will be opened."
+        Write-Error "bun run update:all failed (exit $LASTEXITCODE). Aborting; no PR will be opened."
         exit 1
     }
 
-    & pnpm run test:unit:structured-data
+    & bun run test:unit:structured-data
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Structured-data validation failed (exit $LASTEXITCODE). Aborting; no PR will be opened."
         exit 1
@@ -291,7 +291,7 @@ if ($iconLine) {
 
 # ── Detect any working-tree changes ─────────────────────────────────────────
 # Gate on the FULL working tree, not just the in-scope data paths. If
-# `pnpm run update:all` touched anything at all we must fall through to the
+# `bun run update:all` touched anything at all we must fall through to the
 # Phase 4 scope check, so that an out-of-scope-only change fails loudly there
 # instead of silently exiting 0 here.
 $statusLines = @(Invoke-Git @('status', '--porcelain') |
@@ -432,10 +432,10 @@ if ($versionsChanged -and -not $SkipRegen) {
     # JSON so regenerated pkgs/ prose never trips the Forbidden Words check. The
     # ts-modules JSON is normalized inside update:ts-api below (before its
     # twoslash bundle), so only pkgs/ is handled here.
-    Write-Host "→ pnpm normalize:api-data --pkgs (Aspire terminology → pkgs/)" -ForegroundColor Cyan
+    Write-Host "→ bun run normalize:api-data --pkgs (Aspire terminology → pkgs/)" -ForegroundColor Cyan
     Push-Location $FrontendDir
     try {
-        $pkgNormLog = & pnpm run normalize:api-data -- --pkgs 2>&1 | Tee-Object -Variable pkgNormTeed | Out-String
+        $pkgNormLog = & bun run normalize:api-data -- --pkgs 2>&1 | Tee-Object -Variable pkgNormTeed | Out-String
         $pkgNormExit = $LASTEXITCODE
     }
     finally {
@@ -448,10 +448,10 @@ if ($versionsChanged -and -not $SkipRegen) {
     # 3b. TS API JSON (+ chained twoslash bundle). Requires the Aspire CLI; the
     # script honours ASPIRE_CLI_PATH. A non-zero exit here IS fatal — we must not
     # ship a PR with C#-only pkgs updates.
-    Write-Host "→ pnpm update:ts-api (TS API → ts-modules/ + twoslash aspire.d.ts)" -ForegroundColor Cyan
+    Write-Host "→ bun run update:ts-api (TS API → ts-modules/ + twoslash aspire.d.ts)" -ForegroundColor Cyan
     Push-Location $FrontendDir
     try {
-        $tsLog = & pnpm run update:ts-api 2>&1 | Tee-Object -Variable tsTeed | Out-String
+        $tsLog = & bun run update:ts-api 2>&1 | Tee-Object -Variable tsTeed | Out-String
         $tsExit = $LASTEXITCODE
     }
     finally {
@@ -518,10 +518,10 @@ if ($versionsChanged -and -not $SkipRegen) {
 
     # 3c. Cross-artifact semantic validation. This runs only after every
     # generator has completed and must pass before the workflow can publish.
-    Write-Host "→ pnpm validate:api-data (semantic regression gate)" -ForegroundColor Cyan
+    Write-Host "→ bun run validate:api-data (semantic regression gate)" -ForegroundColor Cyan
     Push-Location $FrontendDir
     try {
-        $validationLog = & pnpm run validate:api-data 2>&1 | Tee-Object -Variable validationTeed | Out-String
+        $validationLog = & bun run validate:api-data 2>&1 | Tee-Object -Variable validationTeed | Out-String
         $validationExit = $LASTEXITCODE
     }
     finally {

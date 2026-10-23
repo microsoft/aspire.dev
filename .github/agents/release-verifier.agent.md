@@ -8,7 +8,7 @@ You are an agent responsible for verifying that a `release/*` branch of the aspi
 
 **Execution model:** This agent coordinates verification and inspects results
 through its read and search tools; it does not run shell commands itself. Every
-command shown below — `pnpm`, `curl`, `git`/`gh`, `playwright-cli`, and
+command shown below — `bun`, `curl`, `git`/`gh`, `playwright-cli`, and
 `dotnet hex1b` — is executed by the caller in the integrated terminal (directly
 or through the referenced skills), and the agent reads the output via the
 `read/terminalLastCommand` and `read/terminalSelection` tools. This includes the
@@ -55,11 +55,11 @@ Execute every phase below **in order**. Mark each phase as a todo item so progre
 2. Install frontend dependencies:
 
    ```bash
-   pnpm i
+   bun install
    ```
 
 3. Verify required tools are available:
-   - `pnpm` (for build / preview)
+   - `bun` (for build / preview)
    - `playwright-cli` (for site verification) — see the **playwright-cli** skill
    - `dotnet hex1b` (for terminal automation) — see the **hex1b** skill
    - `curl` (for live redirect verification)
@@ -70,7 +70,7 @@ Execute every phase below **in order**. Mark each phase as a todo item so progre
 A clean build **must succeed** with zero errors (this takes several minutes to build).
 
 ```bash
-pnpm build
+bun run build
 ```
 
 - If the build fails, capture the full error output and include it in the report.
@@ -78,10 +78,10 @@ pnpm build
 
 ### Phase 2 — Preview server
 
-Start `pnpm preview` as a background process so the site can be tested with Playwright.
+Start `bun run preview` as a background process so the site can be tested with Playwright.
 
 ```bash
-pnpm preview
+bun run preview
 ```
 
 Record the local URL (typically `http://localhost:4321`). Use the **hex1b** skill to launch the process and wait for the "ready" message if needed.
