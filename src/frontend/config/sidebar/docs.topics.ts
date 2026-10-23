@@ -868,6 +868,14 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
+        {
+          label: 'Debug Aspire apps',
+          slug: 'fundamentals/debug-aspire-apps',
+        },
+        {
+          label: 'Startup performance',
+          slug: 'fundamentals/startup-performance',
+        },
       ],
     },
     {
