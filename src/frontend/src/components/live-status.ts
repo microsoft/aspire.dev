@@ -187,6 +187,7 @@ function armStaleTimer(): void {
   staleTimer = setTimeout(() => {
     staleTimer = null;
     handleSocketLost();
+    if (document.visibilityState !== 'hidden') void seed();
   }, STALE_SOCKET_MS);
 }
 
