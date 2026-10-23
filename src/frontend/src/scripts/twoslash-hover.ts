@@ -20,6 +20,14 @@ function position(popup: HTMLElement, hover: HTMLElement, container: HTMLElement
   });
 }
 
+function hidePopup(popup: HTMLElement, container: HTMLElement) {
+  popup.style.display = 'none';
+  popup.setAttribute('aria-hidden', 'true');
+  if (!container.querySelector<HTMLElement>('.twoslash-popup-container[aria-hidden="false"]')) {
+    container.style.zIndex = '';
+  }
+}
+
 function initializeHovers() {
   for (const hover of document.querySelectorAll<HTMLElement>('.twoslash-hover')) {
     if (initializedHovers.has(hover)) continue;
@@ -43,6 +51,7 @@ function initializeHovers() {
 
     function show() {
       clearTimeout(hideTimer);
+      container!.style.zIndex = '1';
       popup!.style.display = 'block';
       popup!.setAttribute('aria-hidden', 'false');
       position(popup!, hover, container!);
@@ -52,8 +61,7 @@ function initializeHovers() {
       clearTimeout(hideTimer);
       hideTimer = setTimeout(() => {
         if (hoveringPopup || hover.matches(':hover, :focus-within')) return;
-        popup!.style.display = 'none';
-        popup!.setAttribute('aria-hidden', 'true');
+        hidePopup(popup!, container!);
       }, 100);
     }
 

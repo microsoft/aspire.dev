@@ -2,8 +2,14 @@ import { expect, test, type Page } from '@playwright/test';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 const typescriptPage = '/app-host/typescript-apphost/';
+const ollamaPage = '/integrations/ai/ollama/ollama-host/';
+
+async function waitForHovers(page: Page) {
+  await expect(page.locator('.twoslash-hover > .twoslash-popup-container')).toHaveCount(0);
+}
 
 async function assertHovers(page: Page) {
+  await waitForHovers(page);
   const hovers = page.locator('.twoslash-hover:visible');
   await expect(hovers.first()).toBeVisible();
   const count = await hovers.count();
@@ -55,6 +61,41 @@ async function followLink(page: Page, path: string) {
 
 test.describe('two-slash navigation', () => {
   test.skip(({ isMobile }) => isMobile, 'Mouse hover requires a desktop pointer');
+
+  test('paints popups above following content in both themes', async ({ page }) => {
+    await page.goto(ollamaPage);
+    await dismissCookieConsentIfVisible(page);
+    await waitForHovers(page);
+
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => {
+        document.documentElement.dataset.theme = value;
+      }, theme);
+      await page.locator('.twoslash-hover', { hasText: 'withReference' }).first().hover();
+
+      const popup = page.locator('.twoslash-popup-container:visible');
+      await expect(popup).toHaveCount(1);
+      await expect
+        .poll(() =>
+          popup.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + Math.min(24, rect.width / 2);
+            const y = rect.top + rect.height / 2;
+            const topElement = document.elementFromPoint(x, y);
+            return {
+              background: getComputedStyle(element).backgroundColor,
+              paintsOnTop: topElement === element || element.contains(topElement),
+            };
+          })
+        )
+        .toEqual({
+          background: theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(39, 33, 46)',
+          paintsOnTop: true,
+        });
+      await page.mouse.move(0, 0);
+      await expect(popup).toHaveCount(0);
+    }
+  });
 
   test('shows the correct popup on direct load, client navigation, and repeated visits', async ({
     page,
