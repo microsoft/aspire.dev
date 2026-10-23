@@ -109,7 +109,12 @@ const MAX_BYTES = 6 * 1024 * 1024; // 6 MB safety cap
 
 /**
  * Fetch a URL, following redirects. Resolves with
- * { url, status, headers, contentType, body: Buffer }.
+ * { url, status, headers, contentType, body: Buffer, truncated: boolean }.
+ *
+ * A body larger than `maxBytes` rejects by default. With `onLimit: "truncate"`
+ * it resolves with exactly the first `maxBytes` bytes and `truncated: true`
+ * instead. Only opt in for content that stays useful when cut short, such as an
+ * HTML document; a truncated image, script, or archive would be corrupt.
  */
 export function fetchUrl(rawUrl, options = {}) {
     const {
@@ -117,6 +122,7 @@ export function fetchUrl(rawUrl, options = {}) {
         timeoutMs = 15000,
         accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         maxBytes = MAX_BYTES,
+        onLimit = "error",
         allowPrivateNetwork = ALLOW_PRIVATE_NETWORK,
         authorizedOrigin = null,
     } = options;
@@ -193,27 +199,34 @@ export function fetchUrl(rawUrl, options = {}) {
                     const chunks = [];
                     let total = 0;
                     let aborted = false;
-                    res.on("data", (chunk) => {
-                        total += chunk.length;
-                        if (total > maxBytes) {
-                            aborted = true;
-                            req.destroy();
-                            res.destroy();
-                            return reject(
-                                new Error(`Response exceeded the ${maxBytes}-byte limit.`),
-                            );
-                        }
-                        chunks.push(chunk);
-                    });
-                    res.on("end", () => {
-                        if (aborted) return;
+                    const finish = (truncated) =>
                         resolve({
                             url: parsed.toString(),
                             status,
                             headers: res.headers,
                             contentType: String(res.headers["content-type"] || ""),
                             body: Buffer.concat(chunks),
+                            truncated,
                         });
+                    res.on("data", (chunk) => {
+                        if (aborted) return;
+                        if (total + chunk.length > maxBytes) {
+                            aborted = true;
+                            req.destroy();
+                            res.destroy();
+                            if (onLimit !== "truncate") {
+                                return reject(
+                                    new Error(`Response exceeded the ${maxBytes}-byte limit.`),
+                                );
+                            }
+                            chunks.push(chunk.subarray(0, maxBytes - total));
+                            return finish(true);
+                        }
+                        total += chunk.length;
+                        chunks.push(chunk);
+                    });
+                    res.on("end", () => {
+                        if (!aborted) finish(false);
                     });
                     res.on("error", (err) => {
                         if (!aborted) reject(err);

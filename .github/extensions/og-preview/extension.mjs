@@ -41,6 +41,11 @@ function githubBlobToRaw(value) {
     return value;
 }
 
+// The browse frame runs the whole document, so it gets more room than a metadata
+// read: API reference pages inline several MB of search data ahead of their
+// interactive content, which a 6 MiB cut would drop.
+const BROWSE_DOC_MAX_BYTES = 16 * 1024 * 1024;
+
 const CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
     ".css": "text/css; charset=utf-8",
@@ -77,7 +82,8 @@ async function serveAsset(res, name) {
 /** Fetch a target URL and parse its OpenGraph metadata. */
 async function loadMetadata(rawUrl, policy) {
     const target = normalizeUrl(rawUrl);
-    const result = await fetchUrl(target, policy);
+    // Metadata lives in the document head, so an oversized page is cut, not rejected.
+    const result = await fetchUrl(target, { ...policy, onLimit: "truncate" });
     if (result.status >= 400) {
         throw new Error(`Target responded with HTTP ${result.status}.`);
     }
@@ -88,6 +94,7 @@ async function loadMetadata(rawUrl, policy) {
     const data = parseMetadata(html, result.url);
     data.requestedUrl = result.url;
     data.httpStatus = result.status;
+    data.truncated = result.truncated;
     return data;
 }
 
@@ -666,6 +673,8 @@ async function handleRequest(entry, req, res) {
                 ...policy,
                 accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 timeoutMs: 15000,
+                maxBytes: BROWSE_DOC_MAX_BYTES,
+                onLimit: "truncate",
             });
             const ct = r.contentType || "";
             const isHtml = !ct || /text\/html|application\/xhtml\+xml|\/xml|text\/plain/i.test(ct);
@@ -673,6 +682,8 @@ async function handleRequest(entry, req, res) {
             res.setHeader("Access-Control-Allow-Origin", "*");
             const appOrigin = proxyOrigin;
             if (!isHtml) {
+                // A cut-off image or PDF would be corrupt; only documents may be partial.
+                if (r.truncated) throw new Error("Response exceeded the size limit.");
                 // Serve non-HTML targets (images, PDFs, …) verbatim so links to
                 // them still render inside the browse frame.
                 res.statusCode = r.status >= 400 ? r.status : 200;

@@ -2015,7 +2015,7 @@ async function refreshAgentReadiness(data) {
         if (seq !== arSeq) return;
         body.replaceChildren(
             el("div", { class: "ar-error" }, [
-                el("span", { text: `Couldn't run agent-readiness checks: ${err.message}` }),
+                el("span", { text: failureMessage("Couldn't run agent-readiness checks", err) }),
             ]),
         );
     }
@@ -2100,6 +2100,12 @@ function setFooterOpen(open) {
 }
 
 /* ---------------- Status + load ---------------- */
+
+/* Server errors are already complete sentences ("Couldn't load metadata. …"),
+   so only add context to messages that lack it, such as network failures. */
+function failureMessage(prefix, err) {
+    return /^Couldn't/.test(err.message) ? err.message : `${prefix}: ${err.message}`;
+}
 
 function setStatus(kind, message) {
     if (!kind) {
@@ -2196,7 +2202,7 @@ async function load(rawUrl, opts) {
         });
         setStatus(null);
     } catch (err) {
-        setStatus("error", `Couldn't load metadata: ${err.message}`);
+        setStatus("error", failureMessage("Couldn't load metadata", err));
         $("#footer-summary").textContent = `Failed to load ${url}`;
     } finally {
         finishProgress();

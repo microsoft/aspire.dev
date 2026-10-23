@@ -38,7 +38,12 @@ port) that serves the static UI from `ui/` and a JSON API:
 | `GET /events` | Server-Sent Events; agent-driven loads are pushed here |
 
 The target page is fetched and parsed server-side (no external dependencies),
-which sidesteps browser CORS and lets it reach `localhost`.
+which sidesteps browser CORS and lets it reach `localhost`. Page and resource
+fetches are capped at 6 MiB: an oversized HTML page is truncated rather than
+rejected (its metadata lives in the head), while oversized scripts, styles,
+images, and other files fail to load. The Browse tab runs the whole document,
+and large API reference pages put their interactive content after several MB of
+inline data, so the page it loads gets a 16 MiB cap; past that it is cut off.
 
 ## Network access and isolation
 
