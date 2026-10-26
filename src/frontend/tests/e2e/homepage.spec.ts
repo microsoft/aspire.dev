@@ -786,6 +786,24 @@ test('pauses and resumes the runtime story without restarting it', async ({ page
   await expect.poll(readState).not.toBe(pausedState);
 });
 
+test('interrupts a stale AppHost edit when the language changes', async ({ page }) => {
+  const builder = page.locator('.home-hero-product [data-apphost-builder]');
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const apiButton = builder.locator('.toggle[data-toggle="api"]');
+  const csharpButton = builder.locator('.lang-toggle[data-lang="csharp"]');
+
+  await apiButton.click();
+  await expect(codeDisplay).toHaveAttribute('aria-busy', 'true');
+  await csharpButton.click();
+
+  await expect(csharpButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(codeDisplay.locator('[data-editor-frame] .title')).toHaveText('AppHost.cs', {
+    timeout: 1_000,
+  });
+  await expect(codeDisplay).toHaveAttribute('aria-busy', 'false', { timeout: 1_000 });
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+});
+
 test('matches foreground Aspire CLI output and replaces startup statuses in place', async ({
   page,
 }) => {
