@@ -537,9 +537,21 @@ steps:
       root: content
   # The code of the chrome (the install CLI modal's commands, partials/code-plain.liquid): fences that the layouts write,
   # highlighted as `highlight` does; the fences of the content are highlighted already and left alone. Every page has
-  # the same few commands, whose tokens come from the cache.
+  # the same few commands, whose tokens come from the cache. One step per branch: a step reads the scopes, so it waits
+  # for every reduce step upstream of it, and one step after both layouts would hold the API pages until the articles'
+  # reduce steps (hover-typescript, collections) are done: about 15 GB of peak memory instead of 7.
   highlight-chrome:
-    needs: [layout, api-layout]
+    needs: layout
+    uses: highlight
+    match: "**/*.html"
+    with:
+      themes: [laserwave, slack-ochin]
+      tab-width: 2
+      templates:
+        block: code/block.liquid
+        popup: code/popup.liquid
+  highlight-api-chrome:
+    needs: api-layout
     uses: highlight
     match: "**/*.html"
     with:
@@ -549,7 +561,7 @@ steps:
         block: code/block.liquid
         popup: code/popup.liquid
   write:
-    needs: [highlight-chrome, assets, stylesheet, static]
+    needs: [highlight-chrome, highlight-api-chrome, assets, stylesheet, static]
     uses: write
   search-write:
     needs: search

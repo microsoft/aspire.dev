@@ -12,19 +12,18 @@ describes what is generated, the fidelity and the build times.
   CSS's native binaries on first use.
 - The .NET SDK 10 or later on `PATH`: the C# hovers of the code blocks (`hover-csharp` step).
 - Douze (below).
-- About 20 GB of memory for a clean build (a build with the disk cache warm needs about 2 GB): a container or VM
-  with less is killed while the API reference renders.
+- About 8 GB of memory for a clean build (a build with the disk cache warm needs about 2 GB). A lower `-p` holds less,
+  for a slower build: about 6.5 GB at `-p 4` (32 s instead of 19 s on a 14-core M4 Pro).
 
 ## Install Douze
 
-As a .NET tool (the native build), from Douze's preview feed:
+As a .NET tool (the native build), the version this site is built with, from nuget.org:
 
 ```bash
-dotnet tool install -g douze --prerelease --add-source https://f.feedz.io/sebastienros/douze/nuget/index.json
+dotnet tool install -g douze --version 0.3.0
 ```
 
-`dotnet tool update` with the same options updates it, and `douze --version` checks it. Douze's previews are published
-from its `main` branch.
+`dotnet tool update -g douze --version <version>` moves to another one, and `douze --version` checks it.
 
 ## Set up the repository once
 
