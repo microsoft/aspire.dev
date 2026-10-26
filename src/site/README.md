@@ -20,7 +20,7 @@ describes what is generated, the fidelity and the build times.
 As a .NET tool (the native build), the version this site is built with, from nuget.org:
 
 ```bash
-dotnet tool install -g douze --version 0.3.0
+dotnet tool install -g douze --version 0.3.1
 ```
 
 `dotnet tool update -g douze --version <version>` moves to another one, and `douze --version` checks it.
