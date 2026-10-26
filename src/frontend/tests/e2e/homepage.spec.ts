@@ -793,7 +793,7 @@ test('interrupts a stale AppHost edit when the language changes', async ({ page 
   const csharpButton = builder.locator('.lang-toggle[data-lang="csharp"]');
 
   await apiButton.click();
-  await expect(codeDisplay).toHaveAttribute('aria-busy', 'true');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'typing');
   await csharpButton.click();
 
   await expect(csharpButton).toHaveAttribute('aria-pressed', 'true');
