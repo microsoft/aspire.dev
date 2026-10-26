@@ -255,11 +255,14 @@ describe('live-status module', () => {
       expect(fetch.mock.calls.length).toBeGreaterThan(1);
     });
 
-    it('reconnects when no heartbeat arrives for 45 seconds', async () => {
+    it('allows heartbeat jitter before reconnecting a stale socket', async () => {
       const { sockets } = await setup();
       sockets[0].open();
-      await vi.advanceTimersByTimeAsync(44_999);
+      await vi.advanceTimersByTimeAsync(45_000);
       expect(sockets).toHaveLength(1);
+      expect(sockets[0].close).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(sockets[0].close).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(1);
       expect(sockets[0].close).toHaveBeenCalledOnce();
       await vi.advanceTimersByTimeAsync(1_000);

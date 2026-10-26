@@ -45,8 +45,10 @@ const BACKOFF_MS = [1_000, 2_000, 5_000, 15_000, 30_000];
 const HIDDEN_CLOSE_DELAY_MS = 60_000;
 // While the socket is not open, re-fetch the JSON snapshot this often.
 const POLL_INTERVAL_MS = 30_000;
-// The server sends a heartbeat every 15 s; three missed beats means a dead socket.
-const STALE_SOCKET_MS = 45_000;
+const HEARTBEAT_INTERVAL_MS = 15_000;
+// Allow normal timer and network jitter beyond three missed heartbeat intervals.
+const HEARTBEAT_GRACE_MS = 5_000;
+const STALE_SOCKET_MS = HEARTBEAT_INTERVAL_MS * 3 + HEARTBEAT_GRACE_MS;
 
 let started = false;
 let unavailable = false;
