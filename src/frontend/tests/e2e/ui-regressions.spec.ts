@@ -849,6 +849,69 @@ test('theme changes skip decorative motion when reduced motion is requested', as
   await expect(page.locator('.aspire-theme-artwork')).toHaveCount(0);
 });
 
+test('latest theme request wins when a skipped transition update runs late', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('starlight-theme', 'light');
+    Object.defineProperty(Document.prototype, 'startViewTransition', {
+      configurable: true,
+      value(update: () => void) {
+        const finished = new Promise<void>((resolve) => {
+          window.setTimeout(() => {
+            update();
+            resolve();
+          }, 100);
+        });
+
+        return {
+          ready: finished,
+          finished,
+          skipTransition() {},
+        };
+      },
+    });
+  });
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+
+  await page.evaluate(() => {
+    const transitionApi = (
+      window as Window & {
+        AspireThemeTransition: {
+          setTheme: (theme: 'light' | 'dark', origin: { x: number; y: number }) => void;
+        };
+      }
+    ).AspireThemeTransition;
+
+    transitionApi.setTheme('dark', { x: innerWidth / 2, y: innerHeight / 2 });
+    transitionApi.setTheme('light', { x: innerWidth / 2, y: innerHeight / 2 });
+  });
+
+  await page.waitForTimeout(200);
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('starlight-theme')))
+    .toBe('light');
+});
+
+test('enabling reduced motion removes visible Aspiry artwork', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() => {
+    localStorage.setItem('starlight-theme', 'light');
+  });
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+
+  const themeToggle = page.locator('#footer-theme-toggle');
+  await themeToggle.getByRole('radio', { name: 'Dark' }).click();
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+  await themeToggle.getByRole('radio', { name: 'Light' }).click();
+  await expect(page.locator('.aspire-theme-aspiry')).toHaveCount(1);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  await expect(page.locator('.aspire-theme-aspiry')).toHaveCount(0);
+});
+
 test('theme reveal masks both the root and named sidebar snapshots', async ({ page }) => {
   test.skip(
     page.viewportSize()?.width !== 1440,

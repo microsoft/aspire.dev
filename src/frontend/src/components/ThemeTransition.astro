@@ -40,6 +40,7 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
   const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   let activeTransition: ViewTransition | undefined;
   let aspiryGeneration = 0;
+  let themeGeneration = 0;
   let lastChange:
     | {
         from: ResolvedTheme;
@@ -173,6 +174,7 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     const to = resolveTheme(theme);
     const startedAt = performance.now();
     const currentAspiryGeneration = ++aspiryGeneration;
+    const currentThemeGeneration = ++themeGeneration;
     const showQuickToggleAspiry = from !== to && shouldShowAspiry(from, to, startedAt);
 
     activeTransition?.skipTransition();
@@ -195,7 +197,11 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     let transition: ViewTransition;
 
     try {
-      transition = themeTransitionDocument.startViewTransition(() => applyTheme(theme));
+      transition = themeTransitionDocument.startViewTransition(() => {
+        if (currentThemeGeneration === themeGeneration) {
+          applyTheme(theme);
+        }
+      });
     } catch (error) {
       delete root.dataset.aspireThemeTransition;
       applyTheme(theme);
@@ -238,6 +244,16 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     (window as Window & { AspireThemeTransition?: ThemeTransitionApi }).AspireThemeTransition = {
       setTheme,
     };
+
+    motionQuery.addEventListener('change', (event) => {
+      if (!event.matches) {
+        return;
+      }
+
+      aspiryGeneration++;
+      clearAspiry();
+      activeTransition?.skipTransition();
+    });
 
     document.addEventListener(
       'pointerdown',
