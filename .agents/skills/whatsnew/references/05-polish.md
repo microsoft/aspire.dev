@@ -62,8 +62,8 @@ handoff. **Re-run [`{validate}`](./04-validate.md)** on the changed article and 
 
 - `doc-pr-reviewer` surfaces **no** new factual findings on the edited prose.
 - `twoslash-validator` passes on any changed/regenerated `twoslash` blocks.
-- MDX/frontmatter still valid; all links/assets still resolve; sidebar/banner/version
-  wiring intact.
+- MDX/frontmatter still valid; all links/assets still resolve; sidebar/release-badge/
+  banner/version wiring intact.
 
 `{polish}` is **not done** until this final `{validate}` pass is green (`{review}`
 re-confirms it).

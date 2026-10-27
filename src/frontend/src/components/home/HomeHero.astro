@@ -6,9 +6,15 @@ import heroImage from '@assets/aspire-hero.png';
 import AppHostBuilder from '@components/AppHostBuilder.astro';
 import { localizedHref } from '@utils/helpers';
 import { getLocaleFromPath } from '@utils/locale-routes';
+import {
+  currentAspireMajorMinorVersion,
+  latestAspireReleaseVersion,
+} from '../../../config/aspire-versions.mjs';
 
 const t = Astro.locals.t;
 const locale = getLocaleFromPath(Astro.url.pathname);
+const releaseSlug = currentAspireMajorMinorVersion.replace('.', '-').replace(/-0$/, '');
+const releaseHref = `/whats-new/aspire-${releaseSlug}/`;
 ---
 
 <section
@@ -21,10 +27,17 @@ const locale = getLocaleFromPath(Astro.url.pathname);
     <div class="home-hero-grid" aria-hidden="true"></div>
 
     <div class="home-hero-copy">
-      <p class="home-hero-eyebrow">
-        <span aria-hidden="true"></span>
-        {t('home.hero.eyebrow')}
-      </p>
+      <nav class="home-hero-release" aria-label={`Aspire ${latestAspireReleaseVersion}`}>
+        <a
+          class="home-release-link"
+          href={releaseHref}
+          aria-label={`Aspire ${latestAspireReleaseVersion}`}
+        >
+          <span class="home-release-version">v{latestAspireReleaseVersion}</span>
+          <Icon name="right-arrow" size="0.9rem" />
+        </a>
+        <a class="home-release-support" href="/support/">{t('footer.support')}</a>
+      </nav>
       <h1 id="_top" set:html={t('home.hero.title')} />
       <p class="home-hero-summary">
         {t('home.hero.summary')}
@@ -231,23 +244,55 @@ const locale = getLocaleFromPath(Astro.url.pathname);
     will-change: transform, opacity;
   }
 
-  .home-hero-eyebrow {
+  .home-hero-release {
     display: inline-flex;
     align-items: center;
-    gap: 0.65rem;
     margin: 0 0 1.25rem;
+    overflow: hidden;
+    border: 1px solid var(--home-border);
+    border-radius: 0.65rem;
     color: var(--home-muted);
-    font: 600 0.76rem/1.2 var(--__sl-font-mono);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    background: color-mix(in srgb, var(--home-surface) 82%, transparent);
+    box-shadow: 0 0.55rem 1.4rem color-mix(in srgb, var(--home-purple) 9%, transparent);
+    font-size: 0.74rem;
+    font-weight: 650;
+    line-height: 1;
   }
 
-  .home-hero-eyebrow span {
-    width: 0.55rem;
-    height: 0.55rem;
-    border-radius: 50%;
-    background: #4cb782;
-    box-shadow: 0 0 0 0.3rem rgba(76, 183, 130, 0.14);
+  .home-hero-release a {
+    min-height: 2.2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.6rem 0.75rem;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .home-hero-release .home-release-link {
+    color: var(--home-text);
+  }
+
+  .home-release-version {
+    color: var(--home-purple);
+    font-family: var(--__sl-font-mono);
+    font-weight: 750;
+  }
+
+  .home-hero-release .home-release-support {
+    border-inline-start: 1px solid var(--home-border);
+    color: color-mix(in srgb, var(--home-muted) 78%, transparent);
+    font-weight: 500;
+  }
+
+  .home-hero-release a:hover {
+    color: var(--home-purple);
+    background: color-mix(in srgb, var(--home-purple) 8%, transparent);
+  }
+
+  .home-hero-release a:focus-visible {
+    outline: 0.1875rem solid var(--aspire-action-focus, var(--home-purple));
+    outline-offset: -0.1875rem;
   }
 
   .home-hero-copy h1 {
@@ -545,10 +590,9 @@ const locale = getLocaleFromPath(Astro.url.pathname);
       padding-top: 2rem;
     }
 
-    .home-hero-eyebrow {
+    .home-hero-release {
       margin-bottom: 1rem;
       font-size: var(--aspire-text-meta);
-      letter-spacing: 0.08em;
     }
 
     .home-hero-summary {
@@ -624,9 +668,8 @@ const locale = getLocaleFromPath(Astro.url.pathname);
       background: ButtonFace;
     }
 
-    .home-hero-eyebrow span {
-      background: Highlight;
-      box-shadow: none;
+    .home-hero-release {
+      border-color: CanvasText;
     }
   }
 </style>

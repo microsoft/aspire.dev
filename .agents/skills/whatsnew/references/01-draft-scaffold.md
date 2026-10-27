@@ -3,8 +3,9 @@
 > Aliases: `draft`, `scaffold`, `init`. **Structure only — no researched content.**
 
 Stand up everything a new "What's new in Aspire N.N" page needs so the team can
-start iterating: the release branch, the skeleton MDX, the site banner, the sidebar
-entry, and the version constants — all **committed**, and only then a **draft PR**.
+start iterating: the release branch, the skeleton MDX, the homepage release badge,
+the site banners, the sidebar entry, and the version constants — all **committed**,
+and only then a **draft PR**.
 Idempotent — safe to re-run; detect and update what already exists instead of
 duplicating.
 
@@ -45,33 +46,39 @@ duplicating.
    The resource directory automatically includes the page as `release-notes` and
    reads its image and `publishDate`; no separate catalog entry is needed.
 3. **Version constants.** Update `src/frontend/config/aspire-versions.mjs`:
-   `currentAspireMajorMinorVersion = 'N.N'`, `currentAspireVersion` to the latest
-   stable `N.N.PATCH`, `currentAspireReleaseDate` to that patch's NuGet publish
-   date (`YYYY-MM-DD`, shown in the Install CLI dialog), and `currentAspirePreviewVersion` to the matching full
-   `N.N.PATCH-preview.*` package version. Set both package versions to the initial
-   release patch when N.N becomes current, then keep them aligned with the site
-   AppHost during servicing updates. These drive the Aspire version remark
-   placeholders site-wide.
-4. **Site-wide announcement banner.** The banner is **per-page frontmatter**, not a
+   - Set `currentAspireMajorMinorVersion = 'N.N'`.
+   - Keep `currentAspireVersion` and `currentAspireReleaseDate` aligned with the
+     stable SDK/package version used by the site AppHost. This is not necessarily
+     the latest public GitHub patch release.
+   - Set `latestAspireReleaseVersion` to the latest public `N.N.PATCH` release tag.
+     The homepage badge reads this value and links to `/whats-new/{SLUG}/`.
+   - Set `currentAspirePreviewVersion` to the matching full
+     `N.N.PATCH-preview.*` package version used by the site AppHost.
+
+   The AppHost-aligned constants drive version placeholders and the Install CLI
+   dialog. `latestAspireReleaseVersion` independently drives the homepage badge.
+4. **Homepage release badge.** Do not hand-edit badge markup or copy. Confirm
+   `latestAspireReleaseVersion` renders as the full point release and that the badge
+   links to `/whats-new/{SLUG}/` and `/support/`.
+5. **Site-wide announcement banners.** The banner is **per-page frontmatter**, not a
    global config. Update the `banner.content` string **and its link** to point at
    `/whats-new/{SLUG}/` across every landing page that carries it, and set
    `bannerAutoDismissAfterDays: 14` (and `bannerExpiresOn` if used):
-   - English: `src/frontend/src/content/docs/index.mdx`, `docs.mdx`,
-     `community/index.mdx`.
+   - English: `src/frontend/src/content/docs/docs.mdx` and `community/index.mdx`.
    - Every locale: `src/frontend/src/content/docs/{locale}/index.mdx` (+
      `ja/docs.mdx`). Translate the announcement text per locale and point at the
      locale-appropriate whats-new path. (Grep `banner:` under
      `src/frontend/src/content/docs/` to enumerate current banner pages.)
-5. **Sidebar entry.** In `src/frontend/config/sidebar/docs.topics.ts`, add
+6. **Sidebar entry.** In `src/frontend/config/sidebar/docs.topics.ts`, add
    `{ label: 'Aspire N.N', slug: 'whats-new/{SLUG}' }` at the **top** of the What's-new
    `items`. Roll the now-older version into the "Previous versions" group per the
    existing pattern.
-6. **Assets.** Create `src/frontend/src/assets/whats-new/aspire-{VERSION_FULL}/`
+7. **Assets.** Create `src/frontend/src/assets/whats-new/aspire-{VERSION_FULL}/`
    only when adding actual screenshots. Do not create an empty directory or
    `.gitkeep`; reused shared artwork needs no release-specific folder.
-7. **Commit the scaffold.** Stage and commit all of the above on `release/{N.N}` so the
+8. **Commit the scaffold.** Stage and commit all of the above on `release/{N.N}` so the
    branch has a diff against the default branch (nothing to PR otherwise).
-8. **Draft PR.** *Now* open a **draft** PR from `release/{N.N}` into the repository's
+9. **Draft PR.** *Now* open a **draft** PR from `release/{N.N}` into the repository's
    **default branch** for the team to iterate on. Create it if missing; don't mark it
    ready here (that's {review}).
 
@@ -83,9 +90,10 @@ duplicating.
 ## Exit criteria
 
 - Page exists and is structurally sound (frontmatter + imports + section skeleton).
-- Sidebar resolves the new slug; banner points at the new article across locales.
+- Sidebar resolves the new slug; the homepage badge shows the full point release
+  and links to the new article; banners point at the new article across locales.
 - Release-specific screenshots exist and `resourceImage` resolves to them, or
   their capture is explicitly tracked as incomplete. The resource directory
   discovers one release-notes entry with the expected metadata.
-- Version constants updated; draft PR is open.
+- AppHost and latest-release version constants updated; draft PR is open.
 - **No researched prose yet** — only structure and placeholders.

@@ -32,8 +32,10 @@ then **fix → re-review → repeat** until it converges clean:
   image/asset reference exists. For links **into `release/{N.N}`** that may not be
   merged yet: **block on truly-broken**, **warn on not-yet-merged `docs-from-code`**
   targets.
-- **Banner + version wiring:** banner points at the new article across locales; version
-  constants in `aspire-versions.mjs` are correct.
+- **Release badge + banner + version wiring:** the homepage badge shows
+  `latestAspireReleaseVersion`, links to the current What's-new page and `/support/`,
+  banners point at the new article across locales, and AppHost-aligned version
+  constants remain correct.
 - **Resource directory:** `resourceImage` is present and every configured image
   resolves to a newly captured screenshot of a feature introduced in this release.
   Verify capture provenance (product version, scenario, and actual UI state);
@@ -58,4 +60,4 @@ good technical read.
 - `doc-pr-reviewer` converges with **no** factual findings.
 - All `twoslash` samples pass; all links/assets resolve (or are explicitly
   warn-listed as pending `docs-from-code`).
-- MDX/frontmatter valid; sidebar/banner/version wiring correct.
+- MDX/frontmatter valid; sidebar/release-badge/banner/version wiring correct.
