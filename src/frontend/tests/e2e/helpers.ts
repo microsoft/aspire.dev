@@ -1,16 +1,19 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
+
+export async function getSiteNavigationLink(page: Page, href: string): Promise<Locator> {
+  const headerLink = page.locator(`header a[href="${href}"]:visible`);
+  if (await headerLink.count()) return headerLink;
+
+  const menu = page.locator('starlight-menu-button button');
+  await expect(menu).toBeVisible();
+  if (await menu.getAttribute('aria-expanded') !== 'true') await menu.click();
+  const link = page.locator(`.mobile-site-links a[href="${href}"]`);
+  await expect(link).toBeVisible();
+  return link;
+}
 
 export async function resetCookieConsentState(page: Page): Promise<void> {
   await page.context().clearCookies();
-}
-
-export async function openCookiePreferences(page: Page): Promise<void> {
-  const openPreferencesButton = page.locator('.cookie-consent-btn:visible').first();
-  await expect(openPreferencesButton).toBeVisible({ timeout: 15000 });
-  await openPreferencesButton.click();
-  await expect(page.locator('#pm__title')).toBeVisible({
-    timeout: 15000,
-  });
 }
 
 export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
@@ -19,24 +22,19 @@ export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
     await siteTourDismissButton.click();
   }
 
-  const rejectAllButton = page.getByRole('button', { name: /reject all/i });
+  const rejectAllButton = page
+    .locator('#wcp-cookie-banner')
+    .getByRole('button', { name: /^reject(?: all)?$/i });
   if (await rejectAllButton.isVisible().catch(() => false)) {
     await rejectAllButton.click();
+    await expect(rejectAllButton).toBeHidden().catch(() => {});
   }
-}
-
-export async function clickCookiePreferencesAction(
-  page: Page,
-  actionName: RegExp
-): Promise<void> {
-  const actionButton = page.getByRole('button', { name: actionName }).last();
-  await Promise.all([
-    page.waitForEvent('framenavigated', {
-      predicate: (frame) => frame === page.mainFrame(),
-    }),
-    actionButton.click(),
-  ]);
-  await page.waitForLoadState('domcontentloaded');
+  // WCP can finish loading after the initial page render.
+  await page
+    .addLocatorHandler(rejectAllButton, async (button) => {
+      await button.click();
+    })
+    .catch(() => {});
 }
 
 export async function waitForAccessibilityEnhancements(page: Page): Promise<void> {
@@ -108,43 +106,9 @@ export function isNarrowViewport(page: Page): boolean {
   return Boolean(viewport && viewport.width < 800);
 }
 
-async function readConsentCategories(page: Page): Promise<string[] | null> {
-  try {
-    return await page.evaluate(() => {
-      const cookieEntry = document.cookie
-        .split('; ')
-        .find((entry) => entry.startsWith('cc_cookie='));
-
-      if (!cookieEntry) {
-        return null;
-      }
-
-      const [, rawValue = ''] = cookieEntry.split('=');
-      const parsed = JSON.parse(decodeURIComponent(rawValue));
-      return Array.isArray(parsed?.categories) ? parsed.categories.slice().sort() : null;
-    });
-  } catch {
-    return null;
+export async function revealMobileSiteMenu(page: Page): Promise<void> {
+  const button = page.locator('starlight-menu-button button');
+  if (await button.isVisible() && await button.getAttribute('aria-expanded') !== 'true') {
+    await button.click();
   }
-}
-
-export async function waitForConsentRecorded(page: Page): Promise<void> {
-  await expect.poll(() => readConsentCategories(page)).not.toBeNull();
-}
-
-export async function waitForAnalyticsConsent(page: Page, expected: boolean): Promise<void> {
-  await expect
-    .poll(async () => {
-      const categories = await readConsentCategories(page);
-      return categories ? categories.includes('analytics') : null;
-    })
-    .toBe(expected);
-}
-
-export async function waitForConsentCategories(
-  page: Page,
-  expectedCategories: string[]
-): Promise<void> {
-  const sortedExpectedCategories = [...expectedCategories].sort();
-  await expect.poll(() => readConsentCategories(page)).toEqual(sortedExpectedCategories);
 }

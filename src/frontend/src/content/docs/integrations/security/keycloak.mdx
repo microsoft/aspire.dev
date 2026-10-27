@@ -5,10 +5,17 @@ description: Learn how to use the Keycloak integration, which includes both host
 ---
 
 import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
 import { Image } from 'astro:assets';
 import keycloakIcon from '@assets/icons/keycloak-icon.svg';
+import ApiReference from '@components/ApiReference.astro';
+import authFlowDiagram from '@assets/integrations/security/keycloak/auth-flow-diagram.png';
+import authFlowDiagramLight from '@assets/integrations/security/keycloak/auth-flow-diagram-light.png';
+import simpleAuthFlowDiagram from '@assets/integrations/security/keycloak/simple-auth-flow-diagram.png';
+import simpleAuthFlowDiagramLight from '@assets/integrations/security/keycloak/simple-auth-flow-diagram-light.png';
 
 <Badge text="🧪 Preview" variant="note" size="large" />
 
@@ -17,6 +24,7 @@ import keycloakIcon from '@assets/icons/keycloak-icon.svg';
   alt="Keycloak logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
@@ -35,11 +43,11 @@ The Keycloak hosting integration models the server as the `KeycloakResource` typ
 
 ### Add Keycloak resource
 
-In your AppHost, call `AddKeycloak` to add and return a Keycloak resource builder:
+In your AppHost, call <ApiReference name="Aspire.Hosting.KeycloakResourceBuilderExtensions.AddKeycloak" /> to add and return a Keycloak resource builder:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080);
@@ -58,12 +66,12 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
@@ -102,17 +110,19 @@ When the AppHost runs, the password is stored in the AppHost's secret store in t
 
 <Aside type="tip">
   If you'd rather connect to an existing Keycloak instance, call
-  `AddConnectionString` instead. For more information, see [Reference existing
+  <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" /> instead. For more information, see [Reference existing
   resources](/get-started/resources/).
 </Aside>
 
+<ContainerImages package="Aspire.Hosting.Keycloak" />
+
 ### Add Keycloak resource with data volume
 
-To add a data volume to the Keycloak resource, call the `WithDataVolume` method on the Keycloak resource:
+To add a data volume to the Keycloak resource, call the <ApiReference name="Aspire.Hosting.KeycloakResourceBuilderExtensions.WithDataVolume" /> method on the Keycloak resource:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080)
@@ -126,12 +136,12 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withDataVolume();
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
@@ -152,11 +162,11 @@ The data volume is used to persist the Keycloak data outside the lifecycle of it
 
 ### Add Keycloak resource with data bind mount
 
-To add a data bind mount to the Keycloak resource, call the `WithDataBindMount` method:
+To add a data bind mount to the Keycloak resource, call the <ApiReference name="Aspire.Hosting.KeycloakResourceBuilderExtensions.WithDataBindMount" /> method:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080)
@@ -170,12 +180,12 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withDataBindMount("/path/to/keycloak/data");
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
@@ -190,7 +200,7 @@ await builder.build().run();
 <Aside>
   Data bind mounts have limited functionality compared to volumes, and when you
   use a bind mount, a file or directory on the host machine is mounted into a
-  container.
+  container. Bind mounts are best suited to local development and testing.
 </Aside>
 
 ### Add Keycloak resource with parameters
@@ -199,7 +209,7 @@ When you want to explicitly provide the admin username and password used by the 
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var username = builder.AddParameter("username");
@@ -215,7 +225,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -223,7 +233,11 @@ const builder = await createBuilder();
 const username = await builder.addParameter("username");
 const password = await builder.addParameter("password", { secret: true });
 
-const keycloak = await builder.addKeycloak("keycloak", 8080, username, password);
+const keycloak = await builder.addKeycloak("keycloak", {
+  port: 8080,
+  adminUsername: username,
+  adminPassword: password,
+});
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
@@ -238,11 +252,11 @@ For more information on providing parameters, see [External parameters](/get-sta
 
 ### Add Keycloak resource with realm import
 
-To import a realm into Keycloak, call the `WithRealmImport` method:
+To import a realm into Keycloak, call the <ApiReference name="Aspire.Hosting.KeycloakResourceBuilderExtensions.WithRealmImport" /> method:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080)
@@ -256,12 +270,12 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withRealmImport("./Realms");
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
@@ -273,15 +287,114 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-The realm import files are mounted at `/opt/keycloak/data/import` in the Keycloak container. Realm import files are JSON files that represent the realm configuration.
+The realm import files are copied to `/opt/keycloak/data/import` in the
+Keycloak container. Realm import files are JSON files that represent the realm
+configuration.
 
-### Export telemetry to <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> collector
+<Aside type="caution">
+  `WithRealmImport` is intended for local development. It uses development-time
+  container file injection and isn't supported when publishing or deploying the
+  AppHost with `aspire publish` or `aspire deploy`. For production deployments,
+  bake realm files into a custom image or seed Keycloak from an initialization
+  process. This is the current behavior for the Keycloak integration; check the
+  release notes for future changes.
+</Aside>
 
-Keycloak containers can export telemetry to your OTLP collector using the `WithOtlpExporter` method:
+#### Production alternatives for realm seeding
+
+For production environments, consider these alternatives to seed your Keycloak
+instance:
+
+**Custom Keycloak image**: Bake realm files into a custom image. Apply
+<ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithDockerfile" /> to the Keycloak resource instead of replacing `AddKeycloak`
+with <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddContainer" />:
+
+```dockerfile title="keycloak/Dockerfile"
+FROM quay.io/keycloak/keycloak:25.0.0
+COPY ./realms/*.json /opt/keycloak/data/import/
+```
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var keycloak = builder.AddKeycloak("keycloak", 8080)
+    .WithDockerfile("./keycloak");
+
+var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+    .WithReference(keycloak)
+    .WaitFor(keycloak);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
+await keycloak.withDockerfile("./keycloak");
+
+const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+await apiService.withReference(keycloak);
+await apiService.waitFor(keycloak);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```text title="Directory layout"
+AppHost.cs
+keycloak/
+  Dockerfile
+  realms/
+    demo-realm.json
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```text title="Directory layout"
+apphost.mts
+keycloak/
+  Dockerfile
+  realms/
+    demo-realm.json
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+  This approach keeps the defaults that `AddKeycloak` applies, including the
+  Keycloak startup arguments. You don't need an extra `WithArgs("start",
+  "--import-realm")` call when you keep using `AddKeycloak`.
+</Aside>
+
+**Initialization service**: Create a separate initialization service or job
+that uses the [Keycloak Admin REST API](https://www.keycloak.org/docs-api/latest/rest-api/index.html)
+or [Keycloak Admin Client](https://www.nuget.org/packages/Keycloak.AuthServices.Sdk.Admin)
+to create and configure realms, clients, and users when the Keycloak instance
+first starts.
+
+**Infrastructure as Code**: Use tools like Terraform with the
+[Keycloak provider](https://registry.terraform.io/providers/mrparkers/keycloak/latest/docs)
+to manage realm configuration separately from your application deployment.
+
+### Export telemetry to <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> collector
+
+Keycloak containers can export telemetry to your OTLP collector using the <ApiReference name="Aspire.Hosting.KeycloakResourceBuilderExtensions.WithOtlpExporter" /> method:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080)
@@ -295,12 +408,12 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const keycloak = await builder.addKeycloak("keycloak", 8080);
+const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withOtlpExporter();
 
 const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
@@ -314,9 +427,58 @@ await builder.build().run();
 
 This enables Keycloak to send traces, metrics, and logs to the Aspire dashboard, providing better observability for your authentication flows.
 
+### Use PostgreSQL with the Community Toolkit extension
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+The [📦 CommunityToolkit.Aspire.Hosting.Keycloak.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Keycloak.Extensions) package decorates the official `KeycloakResource` with <ApiReference name="Aspire.Hosting.KeycloakPostgresExtension.WithPostgres" />. It configures Keycloak to use an official `PostgresDatabaseResource`, supplies the JDBC URL and credentials, and makes Keycloak wait for the database.
+
+<InstallPackage
+  packageName="CommunityToolkit.Aspire.Hosting.Keycloak.Extensions"
+  prerelease={true}
+/>
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("keycloak-postgres");
+var database = postgres.AddDatabase("keycloakdb");
+
+var keycloak = builder.AddKeycloak("keycloak", 8080)
+    .WithPostgres(database);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('keycloak-postgres');
+const database = await postgres.addDatabase('keycloakdb');
+
+const keycloak = await builder.addKeycloak('keycloak', { port: 8080 });
+await keycloak.withPostgres(database);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+By default, `WithPostgres` uses the PostgreSQL server's username and password parameters. Its optional arguments let you supply different `username` and `password` parameter resources and set `xaEnabled` when Keycloak needs XA transactions.
+
 ### Hosting integration health checks
 
-The Keycloak hosting integration doesn't currently support health checks, nor does it automatically add them.
+The Keycloak hosting integration automatically adds an HTTP health check
+against the management endpoint's `/health/ready` path.
 
 ## Client integration
 
@@ -333,7 +495,7 @@ The Keycloak client integration registers JwtBearer and OpenId Connect authentic
 
 In the `Program.cs` file of your ASP.NET Core API project, call the `AddKeycloakJwtBearer` extension method to add JwtBearer authentication:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddAuthentication()
     .AddKeycloakJwtBearer(
         serviceName: "keycloak",
@@ -363,7 +525,7 @@ builder.Services.AddAuthentication()
 
 In the `Program.cs` file of your API-consuming project (for example, Blazor), call the `AddKeycloakOpenIdConnect` extension method to add OpenId Connect authentication:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .AddKeycloakOpenIdConnect(
         serviceName: "keycloak",
@@ -376,6 +538,24 @@ builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
         });
 ```
 
+### Authentication flows
+
+When the backend also serves the API, the browser signs in through Keycloak and uses an authentication cookie for subsequent requests to the backend:
+
+<ThemeImage
+  dark={simpleAuthFlowDiagram}
+  light={simpleAuthFlowDiagramLight}
+  alt="Authentication sequence with a combined backend and API: the browser is redirected to Keycloak to sign in, receives an authentication cookie from the backend, and uses that cookie to request API data."
+/>
+
+When the backend calls a separate API, it also obtains an access token from Keycloak and forwards that token to the API. The API validates the JWT bearer token before returning data:
+
+<ThemeImage
+  dark={authFlowDiagram}
+  light={authFlowDiagramLight}
+  alt="Authentication sequence with a separate API: the browser signs in through Keycloak, the backend obtains an access token and sets an authentication cookie, and the backend forwards the JWT bearer token to the API for validation."
+/>
+
 ## Production considerations
 
 When deploying Keycloak authentication to production environments, there are several important security considerations:
@@ -386,7 +566,7 @@ By default, JWT Bearer authentication in ASP.NET Core has `RequireHttpsMetadata 
 
 For production scenarios, configure the Authority URL explicitly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddAuthentication()
     .AddKeycloakJwtBearer(
         serviceName: "keycloak",
@@ -407,9 +587,34 @@ builder.Services.AddAuthentication()
 
 For production deployments, consider using connection strings:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 builder.AddConnectionString("keycloak", "https://your-keycloak-server.com");
+
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addConnectionString('keycloak', {
+  environmentVariableNameOrExpression: refExpr`https://your-keycloak-server.com`,
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ### Security best practices
 

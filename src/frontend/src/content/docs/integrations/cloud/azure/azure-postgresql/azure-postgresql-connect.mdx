@@ -7,6 +7,7 @@ import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import postgresqlIcon from '@assets/icons/azure-postgresql-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={postgresqlIcon}
@@ -78,17 +79,17 @@ For C# apps, the recommended approach is the Aspire PostgreSQL client integratio
   When targeting Azure with Entra ID (the default), use [📦 Aspire.Azure.Npgsql](https://www.nuget.org/packages/Aspire.Azure.Npgsql) instead of `Aspire.Npgsql`. It adds an Entra token provider so no password is needed. The examples below use `Aspire.Npgsql` which works for both local-container development and password-authenticated Azure deployments. See [Azure PostgreSQL client integration](/integrations/cloud/azure/azure-postgresql/azure-postgresql-connect/#use-the-azure-npgsql-integration-for-entra-id) below for the Entra ID variant.
 </Aside>
 
-#### Install the client integration
+### Install the client integration
 
 Install the [📦 Aspire.Npgsql](https://www.nuget.org/packages/Aspire.Npgsql) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.Npgsql" />
 
-#### Add the Npgsql data source
+### Add the Npgsql data source
 
 In _Program.cs_, call `AddNpgsqlDataSource` on your `IHostApplicationBuilder` to register an `NpgsqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDataSource(connectionName: "postgresdb");
 ```
 
@@ -98,25 +99,25 @@ The `connectionName` must match the Azure PostgreSQL database resource name from
 
 Resolve the data source through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(NpgsqlDataSource dataSource)
 {
     // Use dataSource...
 }
 ```
 
-#### Add keyed Npgsql clients
+### Add keyed Npgsql clients
 
 To register multiple `NpgsqlDataSource` instances with different connection names, use `AddKeyedNpgsqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedNpgsqlDataSource(name: "catalogdb");
 builder.AddKeyedNpgsqlDataSource(name: "ordersdb");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("catalogdb")] NpgsqlDataSource catalogDataSource,
     [FromKeyedServices("ordersdb")] NpgsqlDataSource ordersDataSource)
@@ -125,19 +126,19 @@ public class ExampleService(
 }
 ```
 
-#### Configuration
+### Configuration
 
 The Aspire PostgreSQL client integration offers multiple ways to provide configuration.
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddNpgsqlDataSource`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDataSource("postgresdb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "postgresdb": "Host=myserver.postgres.database.azure.com;Database=postgresdb"
@@ -147,7 +148,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `NpgsqlSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Npgsql` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Npgsql": {
@@ -162,20 +163,20 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an `Action<NpgsqlSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDataSource(
     "postgresdb",
      static settings => settings.DisableHealthChecks = true);
 ```
 
-#### Client integration health checks
+### Client integration health checks
 
 Aspire client integrations enable health checks by default. The PostgreSQL client integration adds:
 
 - The [`NpgSqlHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which verifies that commands can be successfully executed against the underlying PostgreSQL database.
 - Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
 
-#### Observability and telemetry
+### Observability and telemetry
 
 The Aspire PostgreSQL client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
 
@@ -207,13 +208,13 @@ The Aspire PostgreSQL client integration automatically configures logging, traci
 
 Any of these telemetry features can be disabled through the configuration options above.
 
-#### Use the Azure Npgsql integration for Entra ID
+### Use the Azure Npgsql integration for Entra ID
 
 When your app targets Azure and you want to use Entra ID (managed identity) authentication — the default for Azure Database for PostgreSQL — install [📦 Aspire.Azure.Npgsql](https://www.nuget.org/packages/Aspire.Azure.Npgsql) instead and call `AddAzureNpgsqlDataSource`:
 
 <InstallDotNetPackage packageName="Aspire.Azure.Npgsql" />
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureNpgsqlDataSource(connectionName: "postgresdb");
 ```
 
@@ -221,11 +222,11 @@ This registers an `NpgsqlDataSource` with an Entra token provider attached, so n
 
 For more information, see [PostgreSQL Entity Framework Core integrations](/integrations/databases/efcore/postgres/postgresql-get-started/) if you prefer an EF Core abstraction over raw `NpgsqlDataSource`.
 
-#### Read environment variables in C\#
+### Read environment variables in C\#
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to the [📦 Npgsql](https://www.nuget.org/packages/Npgsql/) NuGet package directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Npgsql;
 
 var connectionString = Environment.GetEnvironmentVariable("POSTGRESDB_URI");
@@ -251,7 +252,7 @@ go get github.com/jackc/pgx/v5
 
 Read the injected environment variable and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -287,7 +288,7 @@ pip install psycopg[binary]
 
 Read the injected environment variable and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import psycopg
 
@@ -307,7 +308,7 @@ You can also install `psycopg2-binary` if you prefer the psycopg2 API:
 pip install psycopg2-binary
 ```
 
-```python title="Python — app.py (psycopg2)"
+```python title="app.py (psycopg2)"
 import os
 import psycopg2
 
@@ -331,7 +332,7 @@ npm install --save-dev @types/pg
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { Client } from 'pg';
 
 // Read Aspire-injected connection properties
@@ -349,7 +350,7 @@ await client.connect();
 
 Or use the connection URI directly:
 
-```typescript title="TypeScript — Connect with URI"
+```typescript title="Connect with URI"
 import { Client } from 'pg';
 
 const client = new Client({
@@ -367,5 +368,5 @@ await client.connect();
 </Tabs>
 
 <Aside type="tip">
-    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost. See the [AppHost reference](/get-started/app-host/) for details on `WithEnvironment` and related APIs.
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost. See the [AppHost reference](/get-started/app-host/) for details on <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> and related APIs.
 </Aside>

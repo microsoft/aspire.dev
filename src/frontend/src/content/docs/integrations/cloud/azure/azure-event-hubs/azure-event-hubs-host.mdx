@@ -5,8 +5,10 @@ description: Learn how to use the Aspire Azure Event Hubs Hosting integration to
 
 import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import eventHubsIcon from '@assets/icons/azure-eventhubs-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={eventHubsIcon}
@@ -45,11 +47,11 @@ aspire add azure-event-hubs
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Azure.EventHubs@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Azure.EventHubs" Version="*" />
 ```
 
@@ -69,7 +71,7 @@ This updates your `aspire.config.json` with the Azure Event Hubs hosting integra
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.Azure.EventHubs": "13.3.0"
+    "Aspire.Hosting.Azure.EventHubs": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -79,11 +81,11 @@ This updates your `aspire.config.json` with the Azure Event Hubs hosting integra
 
 ## Add an Azure Event Hubs resource
 
-Once you've installed the hosting integration, call `AddAzureEventHubs` to declare a namespace, then call `AddHub` to declare one or more hubs inside it:
+Once you've installed the hosting integration, call <ApiReference name="Aspire.Hosting.AzureEventHubsExtensions.AddAzureEventHubs" /> to declare a namespace, then call <ApiReference name="Aspire.Hosting.AzureEventHubsExtensions.AddHub" /> to declare one or more hubs inside it:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs");
@@ -96,7 +98,7 @@ builder.AddProject<Projects.ExampleService>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -112,10 +114,10 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-The preceding code adds an Azure Event Hubs namespace named `event-hubs` with an Event Hub named `messages`. The `WithReference` (or `withReference`) method injects the connection information into the consuming project.
+The preceding code adds an Azure Event Hubs namespace named `event-hubs` with an Event Hub named `messages`. The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> method injects the connection information into the consuming project.
 
 <Aside type="caution">
-  When you call `AddAzureEventHubs`, it implicitly calls `AddAzureProvisioning` —
+  When you call `AddAzureEventHubs`, it implicitly calls <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" /> —
   which adds support for generating Azure resources dynamically during app startup.
   The app must configure the appropriate subscription and location. For more
   information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -130,11 +132,11 @@ The preceding code adds an Azure Event Hubs namespace named `event-hubs` with an
 
 ## Add an Event Hub consumer group
 
-To add a consumer group to a hub, call `AddConsumerGroup` (or `addConsumerGroup`) on the hub resource builder:
+To add a consumer group to a hub, call <ApiReference name="Aspire.Hosting.AzureEventHubsExtensions.AddConsumerGroup" /> on the hub resource builder:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs");
@@ -148,7 +150,7 @@ builder.AddProject<Projects.ExampleService>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -169,11 +171,11 @@ The `AddConsumerGroup` call registers a consumer group named `messagesConsumer` 
 
 ## Run as emulator
 
-The hosting integration supports running Event Hubs locally using the `mcr.microsoft.com/azure-messaging/eventhubs-emulator/latest` container image. This lets you develop and test without an Azure subscription or an existing Event Hubs namespace.
+The hosting integration supports running Event Hubs locally using the `mcr.microsoft.com/azure-messaging/eventhubs-emulator` container image. This lets you develop and test without an Azure subscription or an existing Event Hubs namespace.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
@@ -188,7 +190,7 @@ builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -208,19 +210,21 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 For more information, see [Azure Event Hubs Emulator](https://learn.microsoft.com/azure/event-hubs/overview-emulator).
 
+<ContainerImages package="Aspire.Hosting.Azure.EventHubs" />
+
 ### Configure the emulator host port
 
 By default, the emulator container exposes port `5672` mapped to a random host port:
 
 | Endpoint   | Container image                                                | Container port | Host port |
 | ---------- | -------------------------------------------------------------- | -------------- | --------- |
-| `emulator` | `mcr.microsoft.com/azure-messaging/eventhubs-emulator/latest`  | 5672           | dynamic   |
+| `emulator` | `mcr.microsoft.com/azure-messaging/eventhubs-emulator`         | 5672           | dynamic   |
 
-To fix the host port, pass a `configureContainer` callback and call `WithHostPort` (or `withHostPort`):
+To fix the host port, pass a `configureContainer` callback and call <ApiReference name="Aspire.Hosting.AzureEventHubsExtensions.WithHostPort" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
@@ -238,7 +242,7 @@ builder.AddProject<Projects.ExampleService>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -270,7 +274,7 @@ The emulator container's port mapping is then fixed:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
@@ -298,7 +302,7 @@ The data volume persists emulator state outside the container's lifecycle. The v
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
@@ -316,7 +320,7 @@ builder.AddProject<Projects.ExampleService>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-The TypeScript AppHost doesn't currently expose `withDataBindMount` on the Event Hubs emulator resource. Use a data volume via the C# AppHost or pre-configure hubs with `withConfigurationFile` instead.
+The TypeScript AppHost doesn't currently expose `withDataBindMount` on the Event Hubs emulator resource. Use a data volume via the C# AppHost or pre-configure hubs with <ApiReference name="Aspire.Hosting.AzureEventHubsExtensions.WithConfigurationFile" /> instead.
 </TabItem>
 </Tabs>
 
@@ -328,7 +332,7 @@ The Event Hubs emulator starts with a default [_Config.json_](https://github.com
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
@@ -346,7 +350,7 @@ builder.AddProject<Projects.ExampleService>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -374,7 +378,7 @@ The file is mounted at `/Eventhubs_Emulator/ConfigFiles/Config.json` in the cont
 
 To update individual properties in the default configuration rather than replacing the entire file, call `WithConfiguration` in C#:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
@@ -400,16 +404,16 @@ builder.AddProject<Projects.ExampleService>()
 ```
 
 <Aside type="note">
-  `WithConfiguration` is not available in the TypeScript AppHost. Use `withConfigurationFile` to supply a fully customized configuration file instead.
+  `withConfiguration` is not available in the TypeScript AppHost. Use `withConfigurationFile` to supply a fully customized configuration file instead.
 </Aside>
 
 ## Connect to an existing Azure Event Hubs namespace
 
-If you already have an Azure Event Hubs namespace, call `AsExisting` (or `asExisting`) instead of provisioning a new one:
+If you already have an Azure Event Hubs namespace, call <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" /> instead of provisioning a new one:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var existingName = builder.AddParameter("existingEventHubsName");
@@ -425,7 +429,7 @@ builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -460,7 +464,7 @@ To customise role assignments, call `withRoleAssignments`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs");
@@ -473,7 +477,7 @@ builder.AddProject<Projects.ExampleService>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder, AzureEventHubsRole } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -564,11 +568,11 @@ The generated Bicep is a starting point — customise it through the C# provisio
 
 ### Customize provisioning infrastructure
 
-All Aspire Azure resources subclass `AzureProvisioningResource`. The `ConfigureInfrastructure` (or `configureInfrastructure`) API lets you customise the generated Bicep with a fluent callback:
+All Aspire Azure resources subclass `AzureProvisioningResource`. The <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> API lets you customise the generated Bicep with a fluent callback:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureEventHubs("event-hubs")
@@ -590,7 +594,7 @@ builder.AddAzureEventHubs("event-hubs")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();

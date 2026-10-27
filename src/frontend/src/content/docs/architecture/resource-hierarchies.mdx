@@ -5,6 +5,7 @@ description: Model parent-child resource relationships in Aspire to express owne
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire supports modeling **parent-child relationships** between resources to express ownership, containment, and grouping.
 
@@ -13,7 +14,7 @@ Parent-child relationships serve two purposes:
 - **Lifecycle Containment**: The child's execution is tied to the parent's — starting, stopping, and failures cascade from parent to child automatically.
 - **Dashboard Visualization**: The child appears **nested beneath** the parent in dashboards and visualizations, improving readability.
 
-### Lifecycle containment
+## Lifecycle containment
 
 When a resource implements the `IResourceWithParent` interface, it declares **true containment** — meaning its lifecycle is controlled by its parent:
 
@@ -26,9 +27,9 @@ When a resource implements the `IResourceWithParent` interface, it declares **tr
   container — if the main app stops, the logging sidecar is also terminated.
 </Aside>
 
-### Visual grouping (without lifecycle impact)
+## Visual grouping (without lifecycle impact)
 
-Aspire also supports **visual-only parent-child relationships** using the `WithParentRelationship()` method during resource construction.
+Aspire also supports **visual-only parent-child relationships** using the <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithParentRelationship" /> method during resource construction.
 
 Visual relationships:
 
@@ -41,7 +42,7 @@ Visual relationships:
   grouped visually, even though they start independently.
 </Aside>
 
-### Manual Relationships — No Inference
+## Manual Relationships — No Inference
 
 Aspire **does not infer** parent-child relationships automatically based on names, dependencies, or network links.
 
@@ -52,7 +53,7 @@ You must **explicitly declare** relationships by either:
 
 This explicitness ensures developers have full control over resource containment and presentation.
 
-### Real-world scenarios
+## Real-world scenarios
 
 The following scenarios illustrate how Aspire models parent-child relationships:
 
@@ -68,7 +69,7 @@ In Aspire, configuration, connectivity details, and dependencies between distrib
 
 Aspire represents these relationships through a **heterogeneous Directed Acyclic Graph (<abbr title="Directed Acyclic Graph" data-tooltip-placement="top">DAG</abbr>)**. This graph tracks not only dependency ordering but also how **structured values** are passed between resources at multiple abstraction levels: configuration, connection, and runtime behavior.
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var db = builder.AddPostgres("pg");
@@ -113,7 +114,7 @@ Endpoints are modeled as **external entities**:
 
 Resources connect to each other through:
 
-- **`WithReference()` calls**: Direct resource-to-resource dependencies.
+- **<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> calls**: Direct resource-to-resource dependencies.
 - **Environment variables and CLI arguments**: Configuration values containing structured references.
 - **Other configuration sources**: Settings populated with structured value references.
 
@@ -191,7 +192,7 @@ Aspire evaluates the model in **two distinct modes**:
 
 **Example — Using `ReferenceExpression`:**
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var ep = api.GetEndpoint("http");
 
 builder.WithEnvironment("HEALTH_URL",
@@ -220,7 +221,7 @@ HEALTH_URL=https://localhost:5000/health
 
 ### Alternate pattern using `ExecutionContext`
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var ep = api.GetEndpoint("http");
 
 if (builder.ExecutionContext.IsRunMode)
@@ -361,7 +362,7 @@ Error accessing Url: Endpoint has not been allocated.
 ```
 
 <Aside type="tip">
-  The overloads of `WithEnvironment` that take a callback run after endpoints
+  The overloads of <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> that take a callback run after endpoints
   have been allocated.
 </Aside>
 
@@ -373,7 +374,7 @@ This section covers how to reference endpoints from other resources in Aspire, a
 
 The `WithReference` API allows you to pass an endpoint reference directly to a target resource.
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddContainer("redis", "redis")
@@ -418,7 +419,7 @@ In C#, call `endpoint.Property(...)` to get that field. In TypeScript AppHosts, 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var redis = builder.AddContainer("redis", "redis")
                    .WithEndpoint("tcp", 6379);
 
@@ -434,7 +435,7 @@ builder.AddProject("worker")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -495,15 +496,20 @@ Key members:
 
 ## Context-based endpoint resolution
 
-Aspire resolves endpoints differently based on the relationship between the source and target resources. This ensures proper communication across all environments.
+Aspire resolves endpoints differently based on the relationship between the source resource (the caller) and the target resource (the endpoint owner). This ensures that the resolved address is reachable from the caller's network context.
 
 ### Resolution Rules
 
-| **Source**           | **Target**           | **Resolution**                              | **Example URL**             |
-| -------------------- | -------------------- | ------------------------------------------- | --------------------------- |
-| Container            | Container            | Container network (`resource name:port`).   | `redis:6379`                |
-| Executable / Project | Container            | Host network (`localhost:port`).            | `localhost:6379`            |
-| Container            | Executable / Project | Host network (`host.docker.internal:port`). | `host.docker.internal:5000` |
+| **Source**           | **Target**           | **Tunnel state**  | **Resolution**                                                    | **Example URL**                                     |
+| -------------------- | -------------------- | ----------------- | ----------------------------------------------------------------- | --------------------------------------------------- |
+| Container            | Container            | Not applicable    | Container network (`resource name:target port`).                  | `redis:6379`                                        |
+| Executable / Project | Container            | Not applicable    | Host network (`localhost:host port`).                             | `localhost:6379`                                    |
+| Container            | Executable / Project | Enabled (default) | Container tunnel address and allocated port (TCP endpoints only). | `aspire.dev.internal:<tunnel-port>`                 |
+| Container            | Executable / Project | Disabled          | Container-runtime host address and host port.                     | `host.docker.internal:<host-port>` (Docker Desktop) |
+
+When the container tunnel is enabled, resolving a non-TCP executable or project endpoint for the default Aspire container network causes the consuming resource to fail.
+
+For details about how Aspire projects host-process endpoints into the container network, see [Container networking](/fundamentals/container-networking/).
 
 ### Advanced Scenario: Overriding default endpoint resolution
 
@@ -519,7 +525,7 @@ Starting with Aspire 13.2, you can explicitly control endpoint resolution contex
 
 Use the `Caller` property to resolve an endpoint from the perspective of a specific calling resource:
 
-```csharp title="C# — Resolve endpoint from a resource's perspective"
+```csharp title="Resolve endpoint from a resource's perspective"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddRedis("cache");
@@ -543,7 +549,7 @@ This is particularly useful when you need to pass connection information between
 
 Use the `Network` property to resolve an endpoint from the perspective of a specific network:
 
-```csharp title="C# — Resolve endpoint from a network's perspective"
+```csharp title="Resolve endpoint from a network's perspective"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddRedis("cache");
@@ -556,15 +562,24 @@ var url = await endpoint.GetValueAsync(new ValueProviderContext {
     Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
 });
 
-// The URL will be appropriate for the container network
-// e.g., "cache:6379" using the resource name as the hostname
+// Redis is a container target, so the URL uses its resource name and target port
+// e.g., "cache:6379"
 ```
 
 The `KnownNetworkIdentifiers` class provides predefined network identifiers:
 
-- `LocalhostNetwork`: Resolves to localhost-based URLs
-- `DefaultAspireContainerNetwork`: Resolves to container network URLs using resource names
-- `PublicInternet`: Resolves to externally accessible URLs
+- `LocalhostNetwork` resolves to localhost-based URLs.
+- `DefaultAspireContainerNetwork` resolves an endpoint as reachable from the default Aspire container network. Container targets use their resource name and target port. Executable and project targets use the container tunnel address and allocated tunnel port when the tunnel is enabled, or the container-host address and host port when it's disabled.
+- `PublicInternet` resolves to externally accessible URLs.
+
+<Aside type="caution">
+  Aspire creates the default container network only when the application model
+  contains at least one container resource. If an executable or project
+  explicitly resolves an executable or project endpoint for
+  `DefaultAspireContainerNetwork` without a container resource in the model, the
+  consuming resource fails with an error that identifies the invalid endpoint
+  reference.
+</Aside>
 
 <Aside type="note">
   These APIs existed in Aspire 13.1 but did not behave as expected. In Aspire
@@ -579,7 +594,7 @@ The following code demonstrates how to set environment variables for a project t
 
 With Aspire 13.2, you can simplify this using `ValueProviderContext`:
 
-```csharp title="C# — Simplified with ValueProviderContext (Aspire 13.2+)"
+```csharp title="Simplified with ValueProviderContext (Aspire 13.2+)"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080);
@@ -615,7 +630,7 @@ builder.Build().Run();
 
 **Before Aspire 13.2**, you would need to manually construct the URL:
 
-```csharp title="C# — Manual URL construction (pre-13.2)"
+```csharp title="Manual URL construction (pre-13.2)"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080);

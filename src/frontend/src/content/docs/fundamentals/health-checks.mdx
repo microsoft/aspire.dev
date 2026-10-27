@@ -4,9 +4,11 @@ seoTitle: Aspire health checks and readiness gates for resources
 description: Add health checks to Aspire resources to gate startup, surface readiness in the dashboard, and tie WaitFor / WaitForCompletion behavior to real application signals.
 ---
 
+import ThemeImage from '@components/ThemeImage.astro';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
-import { Image } from 'astro:assets';
 import healthChecksDashboardStatus from '@assets/fundamentals/health-checks-dashboard-status.png';
+import healthChecksDashboardStatusLight from '@assets/fundamentals/health-checks-dashboard-status-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 Health checks provide availability and state information about an app. Health checks are often exposed as HTTP endpoints, but can also be used internally by the app to write logs or perform other tasks based on the current health. Health checks are typically used in combination with an external monitoring service or container orchestrator to check the status of an app.
 
@@ -16,7 +18,7 @@ Aspire uses health checks in two distinct contexts. Understanding the difference
 
 | Health check type           | Where it runs    | What it checks            | Used for                           |
 | --------------------------- | ---------------- | ------------------------- | ---------------------------------- |
-| **AppHost resource checks** | AppHost project  | "Is my dependency ready?" | Startup orchestration, `WaitFor()` |
+| **AppHost resource checks** | AppHost project  | "Is my dependency ready?" | Startup orchestration, <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> |
 | **Service endpoint checks** | Your application | "Am I healthy?"           | Load balancers, Kubernetes probes  |
 
 <Aside type="tip" title="Key insight">
@@ -88,7 +90,7 @@ public static IHostApplicationBuilder AddDefaultHealthChecks(
 </TabItem>
 <TabItem label="Go">
 
-```go title="Go — health.go"
+```go title="health.go"
 package main
 
 import (
@@ -113,7 +115,7 @@ func aliveHandler(w http.ResponseWriter, r *http.Request) {
 </TabItem>
 <TabItem label="Python">
 
-```python title="Python — health.py"
+```python title="health.py"
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -132,7 +134,7 @@ async def alive():
 </TabItem>
 <TabItem label="TypeScript">
 
-```typescript title="TypeScript — health.ts"
+```typescript title="health.ts"
 import express from 'express';
 
 const app = express();
@@ -189,7 +191,7 @@ public static WebApplication MapDefaultEndpoints(
 </TabItem>
 <TabItem label="Go">
 
-```go title="Go — health.go"
+```go title="health.go"
 package main
 
 import (
@@ -216,7 +218,7 @@ func main() {
 </TabItem>
 <TabItem label="Python">
 
-```python title="Python — main.py"
+```python title="main.py"
 import uvicorn
 
 # The /health and /alive endpoints defined above
@@ -228,7 +230,7 @@ if __name__ == "__main__":
 </TabItem>
 <TabItem label="TypeScript">
 
-```typescript title="TypeScript — server.ts"
+```typescript title="server.ts"
 // The /health and /alive endpoints defined above
 // are automatically available when the Express app starts
 app.listen(8080, () => {
@@ -269,7 +271,7 @@ app.Run();
 </TabItem>
 <TabItem label="Go">
 
-```go title="Go — main.go"
+```go title="main.go"
 import (
     "context"
     "net/http"
@@ -288,7 +290,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 </TabItem>
 <TabItem label="Python">
 
-```python title="Python — main.py"
+```python title="main.py"
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 import asyncio
@@ -300,7 +302,7 @@ import asyncio
 </TabItem>
 <TabItem label="TypeScript">
 
-```typescript title="TypeScript — server.ts"
+```typescript title="server.ts"
 // In Express, use middleware for request timeouts
 import timeout from 'connect-timeout';
 
@@ -326,7 +328,7 @@ If either of these operations fail, the corresponding health check also fails.
 
 You can disable health checks for a given integration using one of the available configuration options. Aspire integrations support [Microsoft.Extensions.Configurations](https://learn.microsoft.com/dotnet/api/microsoft.extensions.configuration) to apply settings through config files such as _appsettings.json_:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Npgsql": {
@@ -341,7 +343,7 @@ You can also use an inline delegate to configure health checks:
 <Tabs syncKey="consuming-lang">
 <TabItem label="C#">
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDbContext<MyDbContext>(
     "postgresdb",
     static settings => settings.DisableHealthChecks  = true);
@@ -350,7 +352,7 @@ builder.AddNpgsqlDbContext<MyDbContext>(
 </TabItem>
 <TabItem label="Go">
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -375,7 +377,7 @@ http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 </TabItem>
 <TabItem label="Python">
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import psycopg2
 
@@ -396,7 +398,7 @@ async def health():
 </TabItem>
 <TabItem label="TypeScript">
 
-```typescript title="TypeScript — app.ts"
+```typescript title="app.ts"
 import pg from 'pg';
 import express from 'express';
 
@@ -467,7 +469,7 @@ await webapp.waitFor(catalogApi); // Waits for /health to return HTTP 200
 </TabItem>
 </Tabs>
 
-The `WithHttpHealthCheck` method can also be applied to project resources:
+The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> method can also be applied to project resources:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -536,13 +538,13 @@ builder.AddProject<Projects.MyApp>("myapp")
   `builder.Services.AddHealthChecks()` is not yet available.
 </Aside>
 
-The `AddCheck` method registers the health check, and `WithHealthCheck` associates it with specific resources. For more details about creating and registering custom health checks, see [Create health checks](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks#create-health-checks).
+The `AddCheck` method registers the health check, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHealthCheck" /> associates it with specific resources. For more details about creating and registering custom health checks, see [Create health checks](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks#create-health-checks).
 
 ### Dashboard integration
 
 Resource health check status is displayed in the Aspire dashboard, providing real-time visibility into resource readiness. When resources are waiting for health checks to pass, the dashboard shows the current status and any failure details.
 
-<Image
-  src={healthChecksDashboardStatus}
+<ThemeImage
+  dark={healthChecksDashboardStatus} light={healthChecksDashboardStatusLight}
   alt="Screenshot of the Aspire dashboard showing health check status for resources"
 />

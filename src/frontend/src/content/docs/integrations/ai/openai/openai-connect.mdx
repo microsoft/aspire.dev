@@ -66,17 +66,17 @@ Pick the language your consuming app is written in. Each example assumes your Ap
 
 For C# apps, the recommended approach is the Aspire OpenAI client integration. It registers an [`OpenAIClient`](https://learn.microsoft.com/dotnet/api/azure.ai.openai.openaiclient) through dependency injection and, optionally, registers an [`IChatClient`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.ai.ichatclient) or [`IEmbeddingGenerator`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.ai.iembeddinggenerator-2) via `Microsoft.Extensions.AI`. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
 
-#### Install the client integration
+### Install the client integration
 
 Install the [📦 Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.OpenAI" />
 
-#### Add an OpenAI client
+### Add an OpenAI client
 
 In _Program.cs_, call `AddOpenAIClient` on your `IHostApplicationBuilder` to register an `OpenAIClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOpenAIClient(connectionName: "chat");
 ```
 
@@ -86,50 +86,50 @@ The `connectionName` must match the OpenAI model resource name from the AppHost.
 
 Resolve the client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(OpenAIClient client)
 {
     // Use client...
 }
 ```
 
-#### Add a chat client
+### Add a chat client
 
 Call `AddChatClient` after `AddOpenAIClient` to also register an `IChatClient` from `Microsoft.Extensions.AI`. The model name is inferred from the connection string's `Model` property:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOpenAIClient("chat")
        .AddChatClient();
 ```
 
 If only a parent resource was defined (no child model resource), provide the model name explicitly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOpenAIClient("openai")
        .AddChatClient("gpt-4o-mini");
 ```
 
 Resolve the `IChatClient` through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(IChatClient chatClient)
 {
     // Use chatClient...
 }
 ```
 
-#### Add keyed OpenAI clients
+### Add keyed OpenAI clients
 
 To register multiple `OpenAIClient` instances with different connection names, use `AddKeyedOpenAIClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedOpenAIClient(name: "chat");
 builder.AddKeyedOpenAIClient(name: "embeddings");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("chat")] OpenAIClient chatClient,
     [FromKeyedServices("embeddings")] OpenAIClient embeddingsClient)
@@ -138,19 +138,19 @@ public class ExampleService(
 }
 ```
 
-#### Configuration
+### Configuration
 
 The Aspire OpenAI client integration offers multiple ways to provide configuration.
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddOpenAIClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOpenAIClient("chat");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "chat": "Endpoint=https://api.openai.com/v1;Key=${OPENAI_API_KEY};Model=gpt-4o-mini"
@@ -160,7 +160,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `OpenAISettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:OpenAI` key (global) or `Aspire:OpenAI:{connectionName}` (per named client):
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "OpenAI": {
@@ -177,16 +177,16 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an `Action<OpenAISettings>` to configure settings inline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddOpenAIClient("chat", settings => settings.DisableTracing = true);
 builder.AddOpenAIClient("chat", configureOptions: o => o.NetworkTimeout = TimeSpan.FromSeconds(30));
 ```
 
-#### Client integration health checks
+### Client integration health checks
 
 Aspire client integrations enable health checks by default. The OpenAI client integration does not register a runtime health check on its own (health checks are opt-in per model at the hosting level — see [Add health check per model](../openai-host/#add-health-check-per-model)).
 
-#### Observability and telemetry
+### Observability and telemetry
 
 The Aspire OpenAI client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
 
@@ -209,11 +209,11 @@ The Aspire OpenAI client integration automatically configures logging, tracing, 
 
 - `OpenAI.*` meter (when OpenTelemetry is enabled)
 
-#### Read environment variables in C\#
+### Read environment variables in C\#
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection properties from the environment and construct an `OpenAIClient` directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using OpenAI;
 
 var endpoint = Environment.GetEnvironmentVariable("CHAT_ENDPOINT");
@@ -240,7 +240,7 @@ go get github.com/sashabaranov/go-openai
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -290,7 +290,7 @@ pip install openai
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from openai import OpenAI
 
@@ -321,7 +321,7 @@ npm install openai
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import OpenAI from 'openai';
 
 // Read Aspire-injected connection properties

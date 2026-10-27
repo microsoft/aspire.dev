@@ -1,0 +1,174 @@
+---
+title: Connect Aspire apps to Dapr sidecars
+description: Use Aspire-injected Dapr HTTP and gRPC endpoints from C#, TypeScript, Python, and Go apps with the official Dapr SDKs.
+next: false
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import daprLightIcon from '@assets/icons/dapr-light-icon.png';
+import daprDarkIcon from '@assets/icons/dapr-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={daprLightIcon}
+  dark={daprDarkIcon}
+  alt="Dapr logo"
+  width={100}
+  height={100}
+  classOverride="float-inline-left icon"
+  zoomable={false}
+/>
+
+This page describes how an app connects to the Dapr sidecar attached to it. For sidecar and component configuration in the AppHost, see [Set up Dapr resources in the AppHost](../dapr-host/).
+
+## Connection properties
+
+The hosting integration injects these environment variables into an app resource that has a Dapr sidecar:
+
+| Environment variable | Description                              |
+| -------------------- | ---------------------------------------- |
+| `DAPR_HTTP_PORT`     | Port for the sidecar's HTTP API          |
+| `DAPR_GRPC_PORT`     | Port for the sidecar's gRPC API          |
+| `DAPR_HTTP_ENDPOINT` | Full endpoint for the sidecar's HTTP API |
+| `DAPR_GRPC_ENDPOINT` | Full endpoint for the sidecar's gRPC API |
+
+These variables are added in run mode. Pick the HTTP or gRPC endpoint that matches the SDK transport you configure.
+
+## Connect from your app
+
+Each example uses the sidecar endpoint injected into the app resource.
+
+<Tabs syncKey="dapr-consuming-lang">
+<TabItem label="C#">
+
+Install the official [📦 Dapr.Client](https://www.nuget.org/packages/Dapr.Client) package:
+
+<InstallDotNetPackage packageName="Dapr.Client" />
+
+```csharp title="Program.cs"
+using Dapr.Client;
+
+var endpoint = Environment.GetEnvironmentVariable("DAPR_GRPC_ENDPOINT")
+    ?? throw new InvalidOperationException("DAPR_GRPC_ENDPOINT is not set.");
+
+using var daprClient = new DaprClientBuilder()
+    .UseGrpcEndpoint(endpoint)
+    .Build();
+
+var product = await daprClient.GetStateAsync<string>(
+    "statestore",
+    "product-1");
+```
+
+ASP.NET Core apps can instead install [📦 Dapr.AspNetCore](https://www.nuget.org/packages/Dapr.AspNetCore) and register `DaprClient` with dependency injection.
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the official Dapr JavaScript SDK:
+
+```bash title="Terminal"
+npm install @dapr/dapr
+```
+
+```typescript title="index.ts"
+import { CommunicationProtocolEnum, DaprClient, HttpMethod } from '@dapr/dapr';
+
+const endpoint = new URL(process.env.DAPR_HTTP_ENDPOINT!);
+const client = new DaprClient({
+  daprHost: endpoint.hostname,
+  daprPort: endpoint.port,
+  communicationProtocol: CommunicationProtocolEnum.HTTP,
+});
+
+const response = await client.invoker.invoke(
+  'catalog-api',
+  'api/data',
+  HttpMethod.GET
+);
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the official Dapr Python SDK:
+
+```bash title="Terminal"
+pip install dapr
+```
+
+```python title="app.py"
+import os
+from urllib.parse import urlparse
+
+from dapr.clients import DaprClient
+
+endpoint = urlparse(os.environ["DAPR_GRPC_ENDPOINT"])
+
+with DaprClient(address=endpoint.netloc) as client:
+    response = client.invoke_method(
+        app_id="catalog-api",
+        method_name="api/data",
+        http_verb="GET",
+    )
+    print(response.text())
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Install the official Dapr Go SDK:
+
+```bash title="Terminal"
+go get github.com/dapr/go-sdk/client
+```
+
+```go title="main.go"
+package main
+
+import (
+    "context"
+    "fmt"
+    "net/url"
+    "os"
+
+    dapr "github.com/dapr/go-sdk/client"
+)
+
+func main() {
+    endpoint, err := url.Parse(os.Getenv("DAPR_GRPC_ENDPOINT"))
+    if err != nil {
+        panic(err)
+    }
+
+    client, err := dapr.NewClientWithAddress(endpoint.Host)
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    response, err := client.InvokeMethod(
+        context.Background(),
+        "catalog-api",
+        "api/data",
+        "get",
+    )
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(string(response))
+}
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Dapr service invocation](https://docs.dapr.io/developing-applications/building-blocks/service-invocation/)
+- [Dapr SDKs](https://docs.dapr.io/developing-applications/sdks/)
+- [Set up Dapr resources in the AppHost](../dapr-host/)

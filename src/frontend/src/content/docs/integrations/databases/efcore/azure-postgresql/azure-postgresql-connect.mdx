@@ -61,17 +61,17 @@ The recommended approach for C# apps is the Aspire Azure PostgreSQL EF Core clie
 <Tabs syncKey="azure-postgres-efcore-consuming-lang">
 <TabItem label="C#">
 
-#### Install the client integration
+### Install the client integration
 
 Install the [📦 Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL](https://www.nuget.org/packages/Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL/) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL" />
 
-#### Add the DbContext
+### Add the DbContext
 
 In _Program.cs_, call `AddAzureNpgsqlDbContext` on your `IHostApplicationBuilder` to register a pooled `DbContext` that uses Azure authentication ([Microsoft Entra ID](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-azure-ad-authentication)) by default:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureNpgsqlDbContext<YourDbContext>(connectionName: "postgresdb");
 ```
 
@@ -85,7 +85,7 @@ The `connectionName` must match the Azure PostgreSQL database resource name from
 
 Resolve the `DbContext` through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(YourDbContext context)
 {
     // Use context...
@@ -94,15 +94,15 @@ public class ExampleService(YourDbContext context)
 
 For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
 
-#### Add keyed DbContext instances
+### Add keyed DbContext instances
 
 To register multiple `DbContext` instances with different connection names, use the keyed service pattern by configuring separate named sections. See [Configure multiple DbContext classes](#configure-multiple-dbcontext-classes) for details.
 
-#### Enrich a manually registered DbContext
+### Enrich a manually registered DbContext
 
 If you need more control over `DbContext` registration — for example, to reuse existing configuration code, use EF Core interceptors, or opt out of context pooling — register the `DbContext` manually and call `EnrichAzureNpgsqlDbContext` to add Aspire health checks, retries, logging, and telemetry:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddDbContext<YourDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("postgresdb")
         ?? throw new InvalidOperationException("Connection string 'postgresdb' not found.")));
@@ -117,19 +117,19 @@ builder.EnrichAzureNpgsqlDbContext<YourDbContext>(
 
 The `settings` parameter is an instance of `AzureNpgsqlEntityFrameworkCorePostgreSQLSettings`.
 
-#### Configuration
+### Configuration
 
 The client integration supports multiple ways to provide configuration.
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureNpgsqlDbContext`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureNpgsqlDbContext<YourDbContext>("postgresdb");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "postgresdb": "Host=myserver;Database=test"
@@ -141,7 +141,7 @@ The username and password are automatically inferred from the credential configu
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureNpgsqlEntityFrameworkCorePostgreSQLSettings` from _appsettings.json_ using the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Npgsql": {
@@ -158,7 +158,7 @@ The username and password are automatically inferred from the credential configu
 
 **Inline delegates.** Pass an `Action<AzureNpgsqlEntityFrameworkCorePostgreSQLSettings>` to configure settings inline, for example to disable health checks:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureNpgsqlDbContext<YourDbContext>(
     "postgresdb",
     settings => settings.DisableHealthChecks = true);
@@ -172,18 +172,18 @@ Use the `AzureNpgsqlEntityFrameworkCorePostgreSQLSettings.Credential` property t
 
 In this case, configure the `Username` property in the connection string and use `EnrichAzureNpgsqlDbContext`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddDbContextPool<YourDbContext>(
     options => options.UseNpgsql(connectionString));
 
 builder.EnrichAzureNpgsqlDbContext<YourDbContext>();
 ```
 
-#### Configure multiple DbContext classes
+### Configure multiple DbContext classes
 
 To register more than one `DbContext` with different configuration, use the `$"Aspire:Npgsql:EntityFrameworkCore:PostgreSQL:{typeof(TContext).Name}"` configuration section name:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Npgsql": {
@@ -205,18 +205,18 @@ To register more than one `DbContext` with different configuration, use the `$"A
 
 Call `AddAzureNpgsqlDbContext` with the `AnotherDbContext` type parameter to load settings from the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL:AnotherDbContext` section:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureNpgsqlDbContext<AnotherDbContext>();
 ```
 
-#### Client integration health checks
+### Client integration health checks
 
 Aspire client integrations enable health checks by default. The Azure PostgreSQL EF Core client integration adds:
 
 - The [`DbContextHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
 - Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
 
-#### Observability and telemetry
+### Observability and telemetry
 
 The Aspire Azure PostgreSQL EF Core client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
 

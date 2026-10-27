@@ -7,6 +7,7 @@ import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import appInsightsIcon from '@assets/icons/azure-appinsights-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={appInsightsIcon}
@@ -44,11 +45,11 @@ aspire add azure-application-insights
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Azure.ApplicationInsights@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Azure.ApplicationInsights" Version="*" />
 ```
 
@@ -78,11 +79,11 @@ This updates your `aspire.config.json` with the Azure Application Insights hosti
 
 ### Add Azure Application Insights resource
 
-Once you've installed the hosting integration in your AppHost project, call `AddAzureApplicationInsights` (or `addAzureApplicationInsights`) to add and return an Azure Application Insights resource builder:
+Once you've installed the hosting integration in your AppHost project, call <ApiReference name="Aspire.Hosting.AzureApplicationInsightsExtensions.AddAzureApplicationInsights" /> to add and return an Azure Application Insights resource builder:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var appInsights = builder.AddAzureApplicationInsights("app-insights");
@@ -95,7 +96,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -117,13 +118,13 @@ await builder.build().run();
 
 1. A Log Analytics workspace is automatically created to store the telemetry data.
 
-1. The `WithReference` (or `withReference`) call configures a connection in the consuming project, making the Application Insights connection string available as the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable.
+1. The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> call configures a connection in the consuming project, making the Application Insights connection string available as the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable.
 
 </Steps>
 
 <Aside type="caution">
   When you call `AddAzureApplicationInsights` (or `addAzureApplicationInsights`), it implicitly calls
-  `AddAzureProvisioning` — which adds support for generating Azure resources
+  <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" /> — which adds support for generating Azure resources
   dynamically during app startup. The app must configure the appropriate
   subscription and location. For more information, see [Local provisioning:
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -135,7 +136,7 @@ If you have an existing Log Analytics workspace that you want to use, you can li
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var logAnalytics = builder.AddAzureLogAnalyticsWorkspace("log-analytics");
@@ -149,7 +150,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -178,7 +179,7 @@ You can also configure the Log Analytics workspace using the fluent API:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var logAnalytics = builder.AddAzureLogAnalyticsWorkspace("log-analytics");
@@ -193,7 +194,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -257,11 +258,11 @@ The generated Bicep is a starting point that reflects the provisioning infrastru
 
 ### Customize provisioning infrastructure
 
-All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> API:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var appInsights = builder.AddAzureApplicationInsights("app-insights")
@@ -284,7 +285,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -323,7 +324,7 @@ For more information, see [Customize Azure resources](/integrations/cloud/azure/
 
 To use Application Insights in your application, configure the OpenTelemetry exporter in your service defaults:
 
-```csharp title="C# — Extensions.cs"
+```csharp title="Extensions.cs"
 public static IHostApplicationBuilder AddServiceDefaults(
     this IHostApplicationBuilder builder)
 {
@@ -383,7 +384,7 @@ private static IHostApplicationBuilder AddOpenTelemetryExporters(
 
 Alternatively, you can use the Azure Monitor OpenTelemetry exporter directly:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.Services.AddOpenTelemetry()
     .UseAzureMonitor(options =>
     {

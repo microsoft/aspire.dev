@@ -6,8 +6,10 @@ description: Learn how to use the Aspire SQL Server Hosting integration to orche
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import sqlIcon from '@assets/icons/sql-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={sqlIcon}
@@ -39,11 +41,11 @@ aspire add sql-server
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.SqlServer@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.SqlServer" Version="*" />
 ```
 
@@ -63,7 +65,7 @@ This updates your `aspire.config.json` with the SQL Server hosting integration p
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.SqlServer": "13.3.0"
+    "Aspire.Hosting.SqlServer": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -77,7 +79,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
@@ -94,7 +96,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -134,20 +136,22 @@ await builder.build().run();
     When you reference a SQL Server resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, and port numbers. For a complete list of these properties and per-language connection examples, see [Connect to SQL Server](../sql-server-connect/).
 </Aside>
 
+<ContainerImages package="Aspire.Hosting.SqlServer" />
+
 ## Add SQL Server resource with database creation script
 
 By default, when you add a `SqlServerDatabaseResource`, it relies on the following SQL script to create the database:
 
-```sql title="SQL — Default database creation script"
+```sql title="Default database creation script"
 IF (NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = @DatabaseName))
     CREATE DATABASE [<QUOTED_DATABASE_NAME>];
 ```
 
-To supply a custom creation script, call `WithCreationScript` (or `withCreationScript`) on the database resource builder:
+To supply a custom creation script, call <ApiReference name="Aspire.Hosting.SqlServerBuilderExtensions.WithCreationScript" /> on the database resource builder:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
@@ -185,7 +189,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -231,7 +235,7 @@ Add a data volume to the SQL Server resource as shown in the following examples:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
@@ -248,7 +252,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -280,7 +284,7 @@ Add a data bind mount to the SQL Server resource as shown in the following examp
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
@@ -297,7 +301,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -329,7 +333,7 @@ When you want to explicitly provide the password used by the container image, yo
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var password = builder.AddParameter("password", secret: true);
@@ -346,7 +350,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -370,11 +374,11 @@ When no `password` parameter is provided, Aspire generates a strong password aut
 
 ## Use a specific SQL Server container image tag
 
-To pin the SQL Server container to a specific release, call `WithImageTag` (or `withImageTag`):
+To pin the SQL Server container to a specific release, call <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithImageTag" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
@@ -391,7 +395,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -419,7 +423,7 @@ By default, Aspire injects the SQL Server connection information using variable 
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql");
@@ -439,7 +443,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -461,11 +465,11 @@ await builder.build().run();
 
 ## Connect to an existing SQL Server instance
 
-To reference an externally managed SQL Server instance instead of running one as a container, use `AddConnectionString`:
+To reference an externally managed SQL Server instance instead of running one as a container, use <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddConnectionString("sql");
@@ -478,7 +482,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -496,7 +500,7 @@ await builder.build().run();
 
 The connection string is resolved from the `ConnectionStrings` configuration section of the AppHost project:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "sql": "Server=myserver;Database=mydb;User Id=sa;Password=mypassword;"
@@ -552,6 +556,55 @@ When the AppHost runs, the server's database resources can be accessed from exte
         </LearnMore>
     </TabItem>
 </Tabs>
+
+<span id="add-sql-server-resource-with-a-repl-command"></span>
+
+## Open an interactive REPL
+
+In Aspire 13.6 or later, add <ApiReference name="Aspire.Hosting.SqlServerBuilderExtensions.WithRepl" /> to the SQL Server resource to enable a **REPL** command that opens `sqlcmd` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addSqlServer('sql').withRepl();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddSqlServer("sql").WithRepl();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The command is opt-in and available only in run mode while the container is running. The client runs inside the container as `sa`, connected to the `master` database, so no local SQL client is needed. It uses the configured password without putting it in command-line arguments and trusts the local server's self-signed certificate, matching the integration's local development connection string.
+
+The command supports `/opt/mssql-tools18/bin/sqlcmd` in newer SQL Server images and `/opt/mssql-tools/bin/sqlcmd` in older images. Custom images must include one of these clients.
+
+Enter SQL statements followed by `GO` on its own line to execute a batch:
+
+```sql title="Execute a SQL batch"
+SELECT DB_NAME();
+GO
+```
+
+Use `USE [db];` followed by `GO` to switch databases, and `QUIT` to exit before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client runs as `sa`, can modify or delete data, and can execute server-side operating system commands when enabled. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
+:::
 
 ## Connection properties
 

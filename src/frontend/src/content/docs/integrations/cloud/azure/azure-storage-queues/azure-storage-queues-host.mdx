@@ -5,10 +5,12 @@ description: Learn how to use the Aspire Azure Queue Storage Hosting integration
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import queueIcon from '@assets/icons/azure-storagequeue-icon.png';
 import storageExplorerImage from '@assets/integrations/cloud/azure/storage/azure-storage-explorer.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={queueIcon}
@@ -40,11 +42,11 @@ aspire add azure-storage
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Azure.Storage@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Azure.Storage" Version="*" />
 ```
 
@@ -64,7 +66,7 @@ This updates your `aspire.config.json` with the Azure Storage hosting integratio
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.Azure.Storage": "13.3.0"
+    "Aspire.Hosting.Azure.Storage": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -79,7 +81,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var queues = builder.AddAzureStorage("storage")
@@ -118,7 +120,7 @@ await builder.build().run();
 The preceding code adds an Azure Storage resource named `storage`, attaches a queue storage resource named `queues` to it, and passes the queue's connection information to the consuming project.
 
 <Aside type="caution">
-When you call `AddAzureStorage` (or `addAzureStorage`), it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+When you call <ApiReference name="Aspire.Hosting.AzureStorageExtensions.AddAzureStorage" />, it implicitly calls <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" />—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 <Aside type="note">
@@ -127,12 +129,12 @@ When you reference the queue resource from the AppHost, Aspire makes several con
 
 ## Run as Azurite emulator
 
-For local development, Aspire can run the [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) emulator in a container to avoid requiring an Azure subscription. Call `RunAsEmulator` (C#) or `runAsEmulator` (TypeScript) on the storage resource:
+For local development, Aspire can run the [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) emulator in a container to avoid requiring an Azure subscription. Call <ApiReference name="Aspire.Hosting.AzureStorageExtensions.RunAsEmulator" /> on the storage resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var queues = builder.AddAzureStorage("storage")
@@ -172,6 +174,8 @@ await builder.build().run();
 
 When running as an emulator, Aspire pulls the `mcr.microsoft.com/azure-storage/azurite` container image and starts a local Azurite instance.
 
+<ContainerImages package="Aspire.Hosting.Azure.Storage" />
+
 ## Configure Azurite container ports
 
 By default, the Azurite container exposes the following endpoints:
@@ -187,7 +191,7 @@ The host port is dynamic by default. To fix the ports, pass a configuration call
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var storage = builder.AddAzureStorage("storage")
@@ -236,12 +240,12 @@ The resulting port mappings (`container:host`) are:
 
 ## Configure Azurite container with persistent lifetime
 
-To keep the Azurite container alive across AppHost restarts, call `WithLifetime` with `ContainerLifetime.Persistent`:
+To keep the Azurite container alive across AppHost restarts, call <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithLifetime" /> with `ContainerLifetime.Persistent`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var storage = builder.AddAzureStorage("storage")
@@ -283,7 +287,7 @@ To persist Azurite data outside the container lifecycle, add a data volume:
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var storage = builder.AddAzureStorage("storage")
@@ -322,12 +326,12 @@ The data volume is mounted at the `/data` path in the Azurite container. When a 
 
 ## Configure Azurite container with data bind mount
 
-To use a bind mount instead of a volume, call `WithDataBindMount`:
+To use a bind mount instead of a volume, call <ApiReference name="Aspire.Hosting.AzureStorageExtensions.WithDataBindMount" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var storage = builder.AddAzureStorage("storage")
@@ -370,12 +374,12 @@ Data bind mounts rely on the host machine's filesystem to persist Azurite data a
 
 ## Connect to an existing Azure Storage account
 
-You might have an existing Azure Storage account that you want to connect to. Call `AsExisting` (or `asExisting`) to annotate the resource as already provisioned:
+You might have an existing Azure Storage account that you want to connect to. Call <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" /> to annotate the resource as already provisioned:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var existingStorageName = builder.AddParameter("existingStorageName");
@@ -417,7 +421,7 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="caution">
-When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` to work with resources that are already present in your Azure subscription, you must add certain configuration values to your AppHost so that Aspire can locate them. The necessary configuration values include **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you don't set them, "Missing configuration" errors appear in the Aspire dashboard. For more information about how to set them, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+When you call <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.RunAsExisting" />, <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" />, or `AsExisting` to work with resources that are already present in your Azure subscription, you must add certain configuration values to your AppHost so that Aspire can locate them. The necessary configuration values include **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you don't set them, "Missing configuration" errors appear in the Aspire dashboard. For more information about how to set them, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 </Aside>
 
 ## Connect to storage resources from Azure Storage Explorer

@@ -1,0 +1,50 @@
+---
+title: Compiler Error ASPIREACANAMING002
+seoTitle: "ASPIREACANAMING002: WithUniqueResourceNaming is for evaluation"
+description: Learn what causes the Aspire compiler error ASPIREACANAMING002 and how to fix it so your AppHost builds cleanly.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> WithUniqueResourceNaming is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+## Example
+
+The following code generates `ASPIREACANAMING002`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var env1 = builder.AddAzureContainerAppEnvironment("cae1")
+    .WithUniqueResourceNaming();
+```
+
+## To correct this error
+
+Suppress the error with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREACANAMING002.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREACANAMING002</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREACANAMING002` directive.

@@ -3,9 +3,11 @@ title: 正常性チェック
 description: Aspire の正常性チェックを確認する
 ---
 
+import ThemeImage from '@components/ThemeImage.astro';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
-import { Image } from 'astro:assets';
 import healthChecksDashboardStatus from '@assets/fundamentals/health-checks-dashboard-status.png';
+import healthChecksDashboardStatusLight from '@assets/fundamentals/health-checks-dashboard-status-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 正常性チェックは、アプリの可用性と状態に関する情報を提供します。正常性チェックは多くの場合 HTTP エンドポイントとして公開されますが、現在の正常性に基づいてログを書き込んだり、ほかのタスクを実行したりするために、アプリ内部でも使用できます。正常性チェックは通常、外部の監視サービスやコンテナー オーケストレーターと組み合わせて、アプリの状態確認に使用されます。
 
@@ -15,7 +17,7 @@ Aspire は、2 つの異なるコンテキストで正常性チェックを利�
 
 | 正常性チェックの種類           | 実行場所             | チェック内容                   | 用途                                 |
 | ------------------------------ | -------------------- | ------------------------------ | ------------------------------------ |
-| **AppHost リソース チェック**  | AppHost プロジェクト | 「依存関係の準備はできているか?」 | 起動オーケストレーション、`WaitFor()` |
+| **AppHost リソース チェック**  | AppHost プロジェクト | 「依存関係の準備はできているか?」 | 起動オーケストレーション、<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> |
 | **サービス エンドポイント チェック** | アプリケーション     | 「自分は正常か?」               | ロード バランサー、Kubernetes プローブ |
 
 <Aside type="tip" title="重要なポイント">
@@ -87,7 +89,7 @@ public static IHostApplicationBuilder AddDefaultHealthChecks(
 </TabItem>
 <TabItem label="Go">
 
-```go title="Go — health.go"
+```go title="health.go"
 package main
 
 import (
@@ -112,7 +114,7 @@ func aliveHandler(w http.ResponseWriter, r *http.Request) {
 </TabItem>
 <TabItem label="Python">
 
-```python title="Python — health.py"
+```python title="health.py"
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -131,7 +133,7 @@ async def alive():
 </TabItem>
 <TabItem label="TypeScript">
 
-```typescript title="TypeScript — health.ts"
+```typescript title="health.ts"
 import express from 'express';
 
 const app = express();
@@ -188,7 +190,7 @@ public static WebApplication MapDefaultEndpoints(
 </TabItem>
 <TabItem label="Go">
 
-```go title="Go — health.go"
+```go title="health.go"
 package main
 
 import (
@@ -215,7 +217,7 @@ func main() {
 </TabItem>
 <TabItem label="Python">
 
-```python title="Python — main.py"
+```python title="main.py"
 import uvicorn
 
 # 上で定義した /health と /alive エンドポイントは
@@ -227,7 +229,7 @@ if __name__ == "__main__":
 </TabItem>
 <TabItem label="TypeScript">
 
-```typescript title="TypeScript — server.ts"
+```typescript title="server.ts"
 // 上で定義した /health と /alive エンドポイントは
 // Express アプリ起動時に自動的に公開されます
 app.listen(8080, () => {
@@ -268,7 +270,7 @@ app.Run();
 </TabItem>
 <TabItem label="Go">
 
-```go title="Go — main.go"
+```go title="main.go"
 import (
  	"context"
  	"net/http"
@@ -287,7 +289,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 </TabItem>
 <TabItem label="Python">
 
-```python title="Python — main.py"
+```python title="main.py"
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 import asyncio
@@ -299,7 +301,7 @@ import asyncio
 </TabItem>
 <TabItem label="TypeScript">
 
-```typescript title="TypeScript — server.ts"
+```typescript title="server.ts"
 // Express では、要求タイムアウトにミドルウェアを使います
 import timeout from 'connect-timeout';
 
@@ -325,7 +327,7 @@ Aspire の統合機能は、アプリに追加の正常性チェックを登録�
 
 利用中の統合機能に対する正常性チェックは、利用可能な構成オプションのいずれかで無効化できます。Aspire の統合機能は、_appsettings.json_ などの構成ファイル経由で設定を適用するために [Microsoft.Extensions.Configuration](https://learn.microsoft.com/ja-jp/dotnet/api/microsoft.extensions.configuration) をサポートしています:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Npgsql": {
@@ -340,7 +342,7 @@ Aspire の統合機能は、アプリに追加の正常性チェックを登録�
 <Tabs syncKey="consuming-lang">
 <TabItem label="C#">
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDbContext<MyDbContext>(
     "postgresdb",
     static settings => settings.DisableHealthChecks  = true);
@@ -349,7 +351,7 @@ builder.AddNpgsqlDbContext<MyDbContext>(
 </TabItem>
 <TabItem label="Go">
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -374,7 +376,7 @@ http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 </TabItem>
 <TabItem label="Python">
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 import psycopg2
 
@@ -395,7 +397,7 @@ async def health():
 </TabItem>
 <TabItem label="TypeScript">
 
-```typescript title="TypeScript — app.ts"
+```typescript title="app.ts"
 import pg from 'pg';
 import express from 'express';
 
@@ -431,7 +433,7 @@ HTTP エンドポイントを公開するリソースには、特定パスをポ
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
@@ -446,7 +448,7 @@ builder.AddProject<Projects.WebApp>("webapp")
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -467,12 +469,12 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`WithHttpHealthCheck` メソッドは、プロジェクト リソースにも適用できます:
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> メソッドは、プロジェクト リソースにも適用できます:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var backend = builder.AddProject<Projects.Backend>("backend")
                      .WithHttpHealthCheck("/health");
 
@@ -484,7 +486,7 @@ builder.AddProject<Projects.Frontend>("frontend")
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -511,7 +513,7 @@ await builder.build().run();
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var startAfter = DateTime.Now.AddSeconds(30);
@@ -539,7 +541,7 @@ builder.AddProject<Projects.MyApp>("myapp")
 `builder.services.addHealthChecks()` によるカスタム正常性チェックの登録は、TypeScript AppHost SDK ではまだ利用できません。代わりに HTTP ベースの正常性チェックには `withHttpHealthCheck` を使用してください。
 :::
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -559,13 +561,13 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`AddCheck` メソッドは正常性チェックを登録し、`WithHealthCheck` はそれを特定リソースに関連付けます。カスタム正常性チェックの作成と登録の詳細は、[正常性チェックの作成](https://learn.microsoft.com/ja-jp/aspnet/core/host-and-deploy/health-checks#create-health-checks) を参照してください。
+`AddCheck` メソッドは正常性チェックを登録し、<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHealthCheck" /> はそれを特定リソースに関連付けます。カスタム正常性チェックの作成と登録の詳細は、[正常性チェックの作成](https://learn.microsoft.com/ja-jp/aspnet/core/host-and-deploy/health-checks#create-health-checks) を参照してください。
 
 ### ダッシュボード統合
 
 リソース正常性チェックの状態は Aspire ダッシュボードに表示され、リソース準備完了の状況をリアルタイムで可視化します。リソースが正常性チェック合格待ちのとき、ダッシュボードは現在の状態と失敗詳細を表示します。
 
-<Image
-  src={healthChecksDashboardStatus}
+<ThemeImage
+  dark={healthChecksDashboardStatus} light={healthChecksDashboardStatusLight}
   alt="リソースの正常性チェック状態を示す Aspire ダッシュボードのスクリーンショット"
 />

@@ -6,12 +6,23 @@
   -- route module imports and test props are intentionally dynamic in this harness
 */
 import { describe, expect, it, vi } from 'vitest';
+import { createMarkdownProcessor } from '@astrojs/markdown-remark';
+import { selectAll } from 'hast-util-select';
+import { toHtml } from 'hast-util-to-html';
+import rehypeParse from 'rehype-parse';
+import { unified } from 'unified';
 
-import { renderCSharpDocMarkdown } from '@utils/csharp-api-markdown';
-import { memberKindSlugs } from '@utils/packages';
-import { tsSlugify } from '@utils/ts-modules';
+import { escapeTableCell } from '@utils/api-markdown-shared';
+import {
+  renderCSharpDocMarkdown,
+  renderCSharpMemberKindMarkdown,
+  renderCSharpTypeMarkdown,
+} from '@utils/csharp-api-markdown';
+import { memberKindSlugs, resolveMemberAnchors } from '@utils/packages';
+import { getTsModuleDocument, getTsModules, tsSlugify } from '@utils/ts-modules';
+import { getTsHandleMethod, getTsRouteItem } from '@utils/ts-api-routes';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
-import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
+import type { TsApiDocument, TsFunction, TsHandleType } from '@utils/ts-modules';
 
 vi.mock('astro:content', async (importOriginal) => {
   const actual = await importOriginal<typeof import('astro:content')>();
@@ -153,21 +164,20 @@ describe('API markdown routes', () => {
   });
 
   it('returns markdown for a TypeScript handle route', async () => {
-    const route = await findStaticRoute(
-      typeScriptItemRoute.getStaticPaths,
+    const { route, item } = await findItemRoute(
+      'handle',
       (candidate) =>
-        candidate.props.itemKind === 'handle' &&
-        candidate.props.item.capabilities?.some(
+        candidate.capabilities?.some(
           (capability: any) => capability.kind === 'Method' || capability.kind === 'InstanceMethod'
         ),
       'TypeScript handle route'
     );
-    const method = route.props.item.capabilities.find(
+    const method = item.capabilities.find(
       (capability: any) => capability.kind === 'Method' || capability.kind === 'InstanceMethod'
     );
     const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
 
-    expect(markdown).toContain(`# ${route.props.item.name}`);
+    expect(markdown).toContain(`# ${item.name}`);
     expect(markdown).toContain('## Methods');
     expect(markdown).toContain(
       `/reference/api/typescript/${route.params.module}/${route.params.item}/${tsSlugify(method.name)}.md`
@@ -175,44 +185,38 @@ describe('API markdown routes', () => {
   });
 
   it('returns markdown for a TypeScript DTO route', async () => {
-    const route = await findStaticRoute(
-      typeScriptItemRoute.getStaticPaths,
-      (candidate) =>
-        candidate.props.itemKind === 'dto' &&
-        (candidate.props.item.fields?.length ?? 0) > 0,
+    const { route, item } = await findItemRoute(
+      'dto',
+      (candidate) => (candidate.fields?.length ?? 0) > 0,
       'TypeScript DTO route'
     );
     const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
 
-    expect(markdown).toContain(`# ${route.props.item.name}`);
+    expect(markdown).toContain(`# ${item.name}`);
     expect(markdown).toContain('## Fields');
   });
 
   it('returns markdown for a TypeScript enum route', async () => {
-    const route = await findStaticRoute(
-      typeScriptItemRoute.getStaticPaths,
-      (candidate) =>
-        candidate.props.itemKind === 'enum' &&
-        (candidate.props.item.members?.length ?? 0) > 0,
+    const { route, item } = await findItemRoute(
+      'enum',
+      (candidate) => (candidate.members?.length ?? 0) > 0,
       'TypeScript enum route'
     );
     const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
 
-    expect(markdown).toContain(`# ${route.props.item.name}`);
+    expect(markdown).toContain(`# ${item.name}`);
     expect(markdown).toContain('## Values');
   });
 
   it('returns markdown for a TypeScript function route', async () => {
-    const route = await findStaticRoute(
-      typeScriptItemRoute.getStaticPaths,
-      (candidate) =>
-        candidate.props.itemKind === 'function' &&
-        (candidate.props.item.parameters?.length ?? 0) > 0,
+    const { route, item } = await findItemRoute(
+      'function',
+      (candidate) => (candidate.parameters?.length ?? 0) > 0,
       'TypeScript function route'
     );
     const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
 
-    expect(markdown).toContain(`# ${route.props.item.name}`);
+    expect(markdown).toContain(`# ${item.name}`);
     expect(markdown).toContain('## Parameters');
     expect(markdown).toContain('## Returns');
   });
@@ -225,13 +229,106 @@ describe('API markdown routes', () => {
     );
     const markdown = await readMarkdown(typeScriptMemberRoute.GET?.({ props: route.props } as any));
 
-    expect(markdown).toContain(`# ${route.props.parentType.name}.${route.props.method.name}`);
+    const pkg = await getTsModuleDocument(route.props.packageName);
+    const { parentType, method } = getTsHandleMethod<TsFunction, TsHandleType>(
+      pkg.handleTypes,
+      route.props.handleIndex,
+      route.props.methodIndex
+    );
+
+    expect(markdown).toContain(`# ${parentType.name}.${method.name}`);
     expect(markdown).toContain('## Signature');
     expect(markdown).toContain(`/reference/api/typescript/${route.params.module}/${route.params.item}.md`);
   });
 });
 
 describe('API markdown helpers', () => {
+  const tableProcessor = createMarkdownProcessor({ smartypants: false, syntaxHighlight: false });
+
+  async function renderCell(value: string) {
+    const processor = await tableProcessor;
+    const result = await processor.render(
+      `| Value | Sentinel |\n| --- | --- |\n| ${escapeTableCell(value)} | intact |`
+    );
+    const tree = unified().use(rehypeParse, { fragment: true }).parse(result.code);
+    expect(selectAll('tbody tr', tree)).toHaveLength(1);
+    const cells = selectAll('td', tree);
+    expect(cells).toHaveLength(2);
+    expect(toHtml(cells[1])).toBe('<td>intact</td>');
+    return toHtml(cells[0]);
+  }
+
+  it.each([0, 1, 2, 3, 4])('preserves %i literal backslashes before a pipe in a GFM cell', async (count) => {
+    const value = `left${'\\'.repeat(count)}|right`;
+    expect(await renderCell(value)).toBe(`<td>${value}</td>`);
+  });
+
+  it('preserves ordinary inline code containing pipes', async () => {
+    expect(await renderCell('`left|middle|right`')).toBe('<td><code>left|middle|right</code></td>');
+  });
+
+  it.each(['\r\n', '\r', '\n'])('keeps %j line endings within a single table row', async (newline) => {
+    expect(await renderCell(`first${newline}second`)).toBe('<td>first<br>second</td>');
+  });
+
+  it('preserves links, emphasis, code spans and literal paths in rendered table cells', async () => {
+    expect(await renderCell(
+      '[API | docs](/reference/api/) **important** `C:\\src\\app` and C:\\src\\app\\'
+    )).toBe(
+      '<td><a href="/reference/api/">API | docs</a> <strong>important</strong> '
+      + '<code>C:\\src\\app</code> and C:\\src\\app\\</td>'
+    );
+  });
+
+  it('encodes repeated prose backslashes and pipes once, without changing plain code spans', async () => {
+    const value = 'a\\|b\\\\|c | `C:\\src\\app` | `left|right`';
+    expect(escapeTableCell(value)).toBe(
+      'a\\\\\\|b\\\\\\\\\\|c \\| `C:\\src\\app` \\| `left\\|right`'
+    );
+    expect(await renderCell(value)).toBe(
+      '<td>a\\|b\\\\|c | <code>C:\\src\\app</code> | <code>left|right</code></td>'
+    );
+  });
+
+  it('preserves code backslashes when a pipe occurs elsewhere in the same span', async () => {
+    expect(await renderCell('before\r\n`C:\\src | D:\\data` after\\|end')).toBe(
+      '<td>before<br><code>C:\\src | D:\\data</code> after\\|end</td>'
+    );
+  });
+
+  it('preserves existing Markdown escapes instead of treating the cell as raw text', async () => {
+    expect(await renderCell('\\*literal\\* and \\[label\\] | `C:\\src\\app`')).toBe(
+      '<td>*literal* and [label] | <code>C:\\src\\app</code></td>'
+    );
+  });
+
+  it('preserves inline-code link labels and single-line code from API renderers', async () => {
+    expect(await renderCell('[`left|right`](/reference/api/) and `first second`')).toBe(
+      '<td><a href="/reference/api/"><code>left|right</code></a> and <code>first second</code></td>'
+    );
+  });
+
+  it('preserves rich Markdown from the C# documentation table renderer', async () => {
+    const markdown = renderCSharpDocMarkdown([{
+      kind: 'list',
+      style: 'table',
+      items: [{
+        term: [{ kind: 'text', text: 'path\\|name' }],
+        description: [
+          { kind: 'href', text: 'API | docs', value: '/reference/api/' },
+          { kind: 'code', text: '%LocalAppData%\\Aspire\\BrowserData' },
+        ],
+      }],
+    }], { allTypes: [], base: '', packageName: 'Test.Package' });
+    const result = await (await tableProcessor).render(markdown);
+    const tree = unified().use(rehypeParse, { fragment: true }).parse(result.code);
+    expect(selectAll('tbody tr', tree)).toHaveLength(1);
+    expect(selectAll('td', tree).map((node) => toHtml(node))).toEqual([
+      '<td>path\\|name</td>',
+      '<td><a href="/reference/api/">API | docs</a> <code>%LocalAppData%\\Aspire\\BrowserData</code></td>',
+    ]);
+  });
+
   it('normalizes note blockquotes to a single level', () => {
     const markdown = renderCSharpDocMarkdown(
       [
@@ -294,6 +391,52 @@ describe('API markdown helpers', () => {
 
     expect(markdown).toContain('[GitHub](https://github.com/microsoft/aspire/tree/abc123)');
   });
+
+  it('uses resolved exact anchors for colliding C# member links and crefs', () => {
+    const members = [
+      {
+        name: 'Run',
+        kind: 'method',
+        signature: 'public void Widget.Run(int value)',
+        parameters: [{ name: 'value', type: 'System.Int32' }],
+        returnType: 'void',
+      },
+      {
+        name: 'Run',
+        kind: 'method',
+        signature: 'public void Widget.Run(params int[] values)',
+        parameters: [{ name: 'values', type: 'System.Int32[]', modifier: 'params' }],
+        returnType: 'void',
+      },
+    ];
+    const type = {
+      name: 'Widget',
+      fullName: 'Sample.Widget',
+      namespace: 'Sample',
+      kind: 'class',
+      members,
+    };
+    const pkg = {
+      package: { name: 'Sample.Package', version: '1.0.0' },
+      types: [type],
+    };
+    const anchors = resolveMemberAnchors(members);
+
+    const typeMarkdown = renderCSharpTypeMarkdown(pkg, type, [type], '');
+    expect(typeMarkdown).toContain(`methods.md#${anchors[0].exact}`);
+    expect(typeMarkdown).toContain(`methods.md#${anchors[1].exact}`);
+
+    const memberMarkdown = renderCSharpMemberKindMarkdown(pkg, type, 'method', [type], '');
+    expect(memberMarkdown).toContain(`<a id="${anchors[0].exact}"></a>`);
+    expect(memberMarkdown).toContain(`<a id="${anchors[1].exact}"></a>`);
+    expect(memberMarkdown).toContain(`<a id="${anchors[0].aliases[0]}"></a>`);
+
+    const crefMarkdown = renderCSharpDocMarkdown(
+      [{ kind: 'cref', value: 'M:Sample.Widget.Run(System.Int32)' }],
+      { allTypes: [type], base: '', packageName: pkg.package.name }
+    );
+    expect(crefMarkdown).toContain(`methods.md#${anchors[0].exact}`);
+  });
 });
 
 function getRouteModule(path: string): MarkdownRouteModule {
@@ -331,4 +474,21 @@ async function findStaticRoute(
 
   expect(route, `Expected a representative ${label}.`).toBeTruthy();
   return route as StaticRoute;
+}
+
+// Item routes carry an index into the loaded document, so resolve the item the way GET does.
+async function findItemRoute(
+  itemKind: string,
+  predicate: (item: any) => boolean,
+  label: string
+): Promise<{ route: StaticRoute; item: any }> {
+  const docs = new Map((await getTsModules()).map(({ data }) => [data.package.name, data]));
+  const resolve = (candidate: StaticRoute) =>
+    getTsRouteItem<any>(docs.get(candidate.props.packageName)!, candidate.props.itemKind, candidate.props.itemIndex);
+  const route = await findStaticRoute(
+    typeScriptItemRoute.getStaticPaths,
+    (candidate) => candidate.props.itemKind === itemKind && predicate(resolve(candidate)),
+    label
+  );
+  return { route, item: resolve(route) };
 }

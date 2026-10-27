@@ -1,0 +1,141 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import { getTopic } from '../../utils/dev-center/topics';
+import { glossaryHref, glossaryLetter, glossarySearchText, type GlossaryTerm } from '../../utils/dev-center/glossary';
+
+interface Props { term: GlossaryTerm; legacyGroupAnchor?: string }
+const { term, legacyGroupAnchor } = Astro.props;
+const { title, description, topics, context } = term.data;
+const primaryTopic = getTopic(topics[0]);
+---
+
+<article
+  id={term.data.legacyAnchors[0]}
+  class="glossary-card"
+  data-glossary-card
+  data-search={glossarySearchText(term)}
+  data-letter={glossaryLetter(title)}
+  data-topics={topics.join(' ')}
+  data-preview="false"
+  style={`--term-accent: ${primaryTopic?.color ?? 'var(--sl-color-purple)'}`}
+>
+  <div class="glossary-card-heading">
+    <h3>
+      {legacyGroupAnchor && <span id={legacyGroupAnchor} />}
+      {term.data.legacyAnchors.slice(1).map((anchor) => <span id={anchor} />)}
+      <a href={glossaryHref(term.id)} data-term-link>{title}</a>
+    </h3>
+    <div class="glossary-topics">
+      {topics.map((id) => {
+        const topic = getTopic(id)!;
+        return <span class="glossary-topic" style={`--topic-color: ${topic.color}`}>
+          <Icon name={topic.icon} size="0.9rem" />{topic.title}
+        </span>;
+      })}
+    </div>
+  </div>
+  <div class="glossary-copy">
+    <div class="glossary-definition" data-definition>
+      <p>{description}</p>
+    </div>
+    <div id={`context-${term.id}`} class="glossary-context" data-context-panel aria-hidden="true" inert>
+      <p>{context}</p>
+    </div>
+  </div>
+  <div class="glossary-card-footer">
+    <button type="button" data-glossary-context aria-expanded="false" aria-controls={`context-${term.id}`}>
+      <span data-context-label>In practice</span><span class="sr-only">: {title}</span>
+      <Icon name="right-arrow" size="1rem" />
+    </button>
+    <a href={glossaryHref(term.id)} data-term-link class="term-detail-link" aria-label={`Read the full definition of ${title}`}>
+      Full definition
+    </a>
+  </div>
+  <noscript><p class="glossary-noscript-context"><strong>In practice:</strong> {context}</p></noscript>
+</article>
+
+<style>
+  .glossary-card {
+    scroll-margin-top: 6rem;
+    padding: 1.25rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--sl-color-gray-6) 50%, var(--sl-color-bg));
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .glossary-card:target, .glossary-card:focus-within, .glossary-card[data-preview='true'] {
+    border-color: color-mix(in srgb, var(--term-accent) 70%, var(--sl-color-gray-5));
+    background: color-mix(in srgb, var(--term-accent) 4%, var(--sl-color-bg));
+  }
+  .glossary-card h3 { font-size: 1.25rem; line-height: 1.4; overflow-wrap: anywhere; }
+  .glossary-card h3 span[id] { scroll-margin-top: 7rem; }
+  .glossary-card h3 a { color: var(--sl-color-white); text-decoration: none; }
+  .glossary-card h3 a:hover { text-decoration: underline; }
+  .glossary-card p { line-height: 1.6; font-size: 0.95rem; color: var(--sl-color-gray-2); }
+  .glossary-card-heading { display: grid; gap: 0.5rem; }
+  .glossary-topics { display: flex; gap: 0.65rem; flex-wrap: wrap; }
+  .glossary-topic { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; }
+  .glossary-topic :global(svg) { color: var(--topic-color); }
+  .glossary-copy {
+    display: grid;
+    flex: 1;
+    align-items: start;
+  }
+  .glossary-definition,
+  .glossary-context {
+    grid-area: 1 / 1;
+  }
+  .glossary-context {
+    opacity: 0;
+    visibility: hidden;
+    padding-inline-start: 0.9rem;
+    border-inline-start: 2px solid var(--term-accent);
+  }
+  .glossary-card[data-preview='true'] .glossary-definition {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .glossary-card[data-preview='true'] .glossary-context {
+    opacity: 1;
+    visibility: visible;
+  }
+  .glossary-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .glossary-card-footer button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--term-accent) 30%, var(--sl-color-bg));
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--term-accent) 8%, var(--sl-color-bg));
+    color: var(--sl-color-text);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .glossary-card-footer button:is(:hover, :focus-visible, [aria-expanded='true']) {
+    border-color: var(--term-accent);
+    background: color-mix(in srgb, var(--term-accent) 15%, var(--sl-color-bg));
+  }
+  .term-detail-link { display: inline-flex; align-items: center; min-height: 2.75rem; font-size: 0.85rem; color: var(--sl-color-gray-2); }
+  .glossary-noscript-context { margin-top: 0.5rem; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  @media (prefers-reduced-motion: no-preference) {
+    .glossary-definition, .glossary-context {
+      transition: opacity 140ms ease;
+    }
+  }
+</style>

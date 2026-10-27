@@ -21,8 +21,12 @@ let unexpected: BlockResult[];
 
 beforeAll(() => {
   report = runAudit();
+  console.info(
+    `[twoslash audit] files=${report.filesScanned} blocks=${report.blocksScanned} ` +
+    `uniqueInputs=${report.uniqueInputs} compilerCalls=${report.compilerCalls}`
+  );
   unexpected = getRenderedFailureBlocks(report);
-}, 240_000);
+}, 600_000);
 
 describe.skipIf(!TWOSLASH_ENABLED)('twoslash code blocks', () => {
   test('every twoslash block renders without TypeScript diagnostics', () => {

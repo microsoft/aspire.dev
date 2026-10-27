@@ -6,6 +6,7 @@ description: Learn how to seed database data in Aspire projects using SQL script
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dotnetIcon from '@assets/icons/dotnet.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={dotnetIcon}
@@ -52,7 +53,7 @@ The recommended method for executing database seeding scripts depends on the dat
 <Tabs syncKey="efcore-db-provider">
 <TabItem label="SQL Server">
 
-With Aspire, you can use the `WithCreationScript` method to ensure a T-SQL script is run when the database is created. Add SQL code to this script that creates and populates the database, the necessary tables, and other database objects.
+With Aspire, you can use the <ApiReference name="Aspire.Hosting.SqlServerBuilderExtensions.WithCreationScript" /> method to ensure a T-SQL script is run when the database is created. Add SQL code to this script that creates and populates the database, the necessary tables, and other database objects.
 
 The following code is an example T-SQL script that creates and populates an address book database:
 
@@ -108,7 +109,7 @@ GO
 You must ensure that this script is copied to the AppHost's output directory, so that Aspire can execute it. Add the following XML to your *.csproj* file:
 
 ```xml title="DatabaseContainers.AppHost.csproj" {11-15}
-<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
+<Project Sdk="Aspire.AppHost.Sdk/%ASPIRE_VERSION%">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -129,9 +130,9 @@ You must ensure that this script is copied to the AppHost's output directory, so
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.MySql" Version="13.1.0" />
-    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.0" />
-    <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.1.0" />
+    <PackageReference Include="Aspire.Hosting.MySql" Version="%ASPIRE_VERSION%" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="%ASPIRE_VERSION%" />
+    <PackageReference Include="Aspire.Hosting.SqlServer" Version="%ASPIRE_VERSION%" />
   </ItemGroup>
 
 </Project>
@@ -141,7 +142,7 @@ Adjust the `Include` parameter to match the path to your SQL script in the proje
 
 Next, in the _AppHost.cs_ file, create the database and run the creation script:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var sqlserver = builder.AddSqlServer("sqlserver")
     // Configure the container to store data in a volume so that it persists across instances.
     .WithDataVolume()
@@ -157,7 +158,7 @@ var addressBookDb = sqlserver.AddDatabase("AddressBook")
 The preceding code:
 
 - Create a SQL Server container by calling `builder.AddSqlServer()`.
-- Ensures that data is persisted across debugging sessions by calling `WithDataVolume()` and `WithLifetime(ContainerLifetime.Persistent)`.
+- Ensures that data is persisted across debugging sessions by calling <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithDataVolume" /> and `WithLifetime(ContainerLifetime.Persistent)`.
 - Obtains the path to the T-SQL script in the output folder.
 - Calls `WithCreationScript()` to create and seed the database.
 
@@ -190,7 +191,7 @@ ON CONFLICT DO NOTHING;
 
 In the _AppHost.cs_ file, create the database and mount the folder that contains the SQL script as a bind mount:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 // PostgreSQL container is configured with an auto-generated password by default
 // and supports setting the default database name via an environment variable & running *.sql/*.sh scripts in a bind mount.
 var todosDbName = "Todos";
@@ -217,7 +218,7 @@ With Aspire, you can use the `WithCreationScript` method to ensure a MySQL scrip
 
 In the following AppHost code, the script is created as a string and passed to the `WithCreationScript` method:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var catalogDbName = "catalog";
@@ -285,7 +286,7 @@ Add the following code to the `Program.cs` file of your **API Service** project:
 <Tabs syncKey="efcore-db-provider">
 <TabItem label="SQL Server">
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddSqlServerDbContext<TicketContext>("TicketsDB", 
     configureDbContextOptions: options =>
 {
@@ -342,7 +343,7 @@ if (app.Environment.IsDevelopment())
 </TabItem>
 <TabItem label="PostgreSQL">
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddNpgsqlDbContext<TicketContext>("TicketsDB",
     configureDbContextOptions: options =>
 {
@@ -399,7 +400,7 @@ if (app.Environment.IsDevelopment())
 </TabItem>
 <TabItem label="Pomelo MySQL">
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddMySqlDbContext<TicketContext>("TicketsDB", 
     configureDbContextOptions: options =>
 {
@@ -480,7 +481,7 @@ Add the following code to the `Program.cs` file of your **API Service** project.
 <Tabs syncKey="efcore-db-provider">
 <TabItem label="SQL Server">
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 // Register DbContext class
 builder.AddSqlServerDbContext<TicketContext>("sqldata");
 
@@ -515,7 +516,7 @@ if (app.Environment.IsDevelopment())
 </TabItem>
 <TabItem label="PostgreSQL">
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 // Register DbContext class
 builder.AddNpgsqlDbContext<TicketContext>("sqldata");
 
@@ -550,7 +551,7 @@ if (app.Environment.IsDevelopment())
 </TabItem>
 <TabItem label="Pomelo MySQL">
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 // Register DbContext class
 builder.AddMySqlDataSource<TicketContext>("sqldata");
 

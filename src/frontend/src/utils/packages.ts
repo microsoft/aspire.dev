@@ -4,6 +4,16 @@
 
 import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
+import { shortTypeName } from './api-member-anchors';
+
+export {
+  memberAnchorAliases,
+  memberNameSlug,
+  memberSlug,
+  resolveMemberAnchorMap,
+  resolveMemberAnchors,
+  shortTypeName,
+} from './api-member-anchors';
 
 export interface GenericParameter {
   name: string;
@@ -61,16 +71,30 @@ let packagesPromise: Promise<PackageCollectionEntry[]> | undefined;
 const shouldCachePackages = import.meta.env.PROD;
 
 /**
- * Fetch all package entries from the content collection.
+ * Fetch packages with public C# types from the content collection.
  * Memoized so Astro's many API routes reuse a single collection load.
  */
 export function getPackages(): Promise<PackageCollectionEntry[]> {
+  const hasPublicTypes = ({ data }: CollectionEntry<'packages'>) => data.types.length > 0;
   if (!shouldCachePackages) {
-    return getCollection('packages');
+    return getCollection('packages', hasPublicTypes);
   }
 
-  packagesPromise ??= getCollection('packages');
+  packagesPromise ??= getCollection('packages', hasPublicTypes);
   return packagesPromise;
+}
+
+/**
+ * Resolve a package document by name. Routes pass this name through `props`
+ * instead of the document itself so that parallel prerender workers do not
+ * receive a structured clone of the full package for every generated page.
+ */
+export async function getPackageDocument(packageName: string): Promise<PackageApiDocument> {
+  const entry = (await getPackages()).find(({ data }) => data.package.name === packageName);
+  if (!entry) {
+    throw new Error(`Package "${packageName}" was not found in the packages collection.`);
+  }
+  return entry.data;
 }
 
 /** Count generic type parameters on a type object. */
@@ -193,30 +217,6 @@ export function groupTypesByNamespace(types: PackageType[]): Map<string, Package
 }
 
 /**
- * Generate a URL-safe anchor slug for a member.
- * Includes parameter types for indexers, methods, and constructors to
- * disambiguate overloads.
- */
-export function memberSlug(member: {
-  name: string;
-  kind?: string;
-  parameters?: { type: string }[];
-}): string {
-  let base = member.name === '.ctor' ? 'constructor' : member.name;
-  if (member.kind === 'indexer' && member.parameters?.length) {
-    const paramTypes = member.parameters.map((p) => shortTypeName(p.type)).join(', ');
-    base = `this[${paramTypes}]`;
-  } else if ((member.kind === 'method' || member.kind === 'constructor') && member.parameters) {
-    const paramTypes = member.parameters.map((p) => shortTypeName(p.type)).join(', ');
-    base = `${base}(${paramTypes})`;
-  }
-  return base
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
-/**
  * Display name for a member, including parameter types for indexers,
  * methods, and constructors.
  * e.g. `this[string]`, `Add(string, int)`, `Constructor(ILogger)`.
@@ -304,42 +304,6 @@ export function resolveTypeLink(
  *   `System.IEquatable<SampleApi.ValidationError>`  →  `IEquatable<ValidationError>`
  *   `SampleApi.PagedResult<T>`                      →  `PagedResult<T>`
  */
-export function shortTypeName(fullName: string): string {
-  let firstAngle = -1;
-  for (let i = 0; i < fullName.length; i++) {
-    if (fullName[i] === '<') {
-      firstAngle = i;
-      break;
-    }
-  }
-
-  if (firstAngle < 0) {
-    return fullName.split('.').pop() ?? fullName;
-  }
-
-  const outerShort = fullName.slice(0, firstAngle).split('.').pop() ?? fullName;
-  const lastAngle = fullName.lastIndexOf('>');
-  const argsContent = fullName.slice(firstAngle + 1, lastAngle);
-
-  const args: string[] = [];
-  let current = '';
-  let depth = 0;
-  for (const ch of argsContent) {
-    if (ch === '<') depth++;
-    if (ch === '>') depth--;
-    if (ch === ',' && depth === 0) {
-      args.push(current.trim());
-      current = '';
-    } else {
-      current += ch;
-    }
-  }
-  if (current.trim()) args.push(current.trim());
-
-  const shortArgs = args.map((a) => shortTypeName(a));
-  return `${outerShort}<${shortArgs.join(', ')}>`;
-}
-
 /**
  * Parse a `seeAlso` doc-id reference like `T:SampleApi.Customer` or
  * `P:SampleApi.Customer.Id`.

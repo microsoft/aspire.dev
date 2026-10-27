@@ -24,7 +24,13 @@ internal sealed class AtsDumpRoot
     public List<AtsDumpEnumType> EnumTypes { get; init; } = [];
 
     [JsonPropertyName("Diagnostics")]
-    public List<object> Diagnostics { get; init; } = [];
+    public List<AtsDumpDiagnostic> Diagnostics { get; init; } = [];
+}
+
+internal sealed class AtsDumpDiagnostic
+{
+    public required string Severity { get; init; }
+    public required string Message { get; init; }
 }
 
 internal sealed class AtsDumpPackageRef
@@ -160,6 +166,9 @@ internal sealed class AtsDumpTypeRef
 
     [JsonPropertyName("ElementType")]
     public AtsDumpTypeRef? ElementType { get; init; }
+
+    [JsonPropertyName("UnionTypes")]
+    public List<AtsDumpTypeRef> UnionTypes { get; init; } = [];
 }
 
 internal sealed class AtsDumpHandleType
@@ -397,6 +406,9 @@ internal sealed class TsHandleTypeModel
 
     [JsonPropertyName("implementedInterfaces")]
     public List<string> ImplementedInterfaces { get; init; } = [];
+
+    [JsonPropertyName("baseTypeHierarchy")]
+    public List<string> BaseTypeHierarchy { get; init; } = [];
 
     /// <summary>
     /// Capabilities that target this handle type.

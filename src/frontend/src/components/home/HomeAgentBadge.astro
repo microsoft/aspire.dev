@@ -1,0 +1,288 @@
+---
+interface Props {
+  id: string;
+  label: string;
+  description: string;
+  align?: 'start' | 'center';
+}
+
+const { id, label, description, align = 'start' } = Astro.props;
+const t = Astro.locals.t;
+const labelId = `${id}-label`;
+const descriptionId = `${id}-description`;
+---
+
+<div class="home-agent-badge" data-align={align} data-home-agent-badge data-open="false">
+  <button
+    type="button"
+    class="agent-badge-trigger"
+    aria-expanded="false"
+    aria-controls={descriptionId}
+  >
+    <span class="agent-badge-spark" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        width="1rem"
+        height="1rem"
+        focusable="false"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          fill="currentColor"
+          d="m19 9l-1.25-2.75L15 5l2.75-1.25L19 1l1.25 2.75L23 5l-2.75 1.25zm0 14l-1.25-2.75L15 19l2.75-1.25L19 15l1.25 2.75L23 19l-2.75 1.25zM9 20l-2.5-5.5L1 12l5.5-2.5L9 4l2.5 5.5L17 12l-5.5 2.5z"
+        ></path>
+      </svg>
+    </span>
+    <span id={labelId}>{label}</span>
+  </button>
+  <div class="agent-badge-popover" id={descriptionId} role="region" aria-labelledby={labelId}>
+    <strong>{t('home.agentBadge.heading')}</strong>
+    <p>{description}</p>
+  </div>
+</div>
+
+<script>
+  function initAgentBadges() {
+    document.querySelectorAll<HTMLElement>('[data-home-agent-badge]').forEach((badge) => {
+      if (badge.dataset.badgeReady === 'true') return;
+
+      const trigger = badge.querySelector<HTMLButtonElement>('.agent-badge-trigger');
+      if (!trigger) return;
+
+      let pinned = false;
+      let hovering = false;
+      let focusWithin = false;
+      let suppressed = false;
+
+      const setOpen = (open: boolean) => {
+        badge.dataset.open = String(open);
+        trigger.setAttribute('aria-expanded', String(open));
+      };
+
+      const syncOpenState = () => {
+        setOpen(pinned || (!suppressed && (hovering || focusWithin)));
+      };
+
+      const handlePointerEnter = () => {
+        hovering = true;
+        syncOpenState();
+      };
+      const handlePointerLeave = () => {
+        hovering = false;
+        if (!focusWithin) suppressed = false;
+        syncOpenState();
+      };
+      const handleFocusIn = () => {
+        focusWithin = true;
+        syncOpenState();
+      };
+      const handleFocusOut = () => {
+        queueMicrotask(() => {
+          focusWithin = badge.contains(document.activeElement);
+          if (!focusWithin) suppressed = false;
+          syncOpenState();
+        });
+      };
+      const handleClick = () => {
+        if (pinned) {
+          pinned = false;
+          suppressed = true;
+          setOpen(false);
+          return;
+        }
+
+        pinned = true;
+        suppressed = false;
+        setOpen(true);
+      };
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== 'Escape') return;
+        pinned = false;
+        suppressed = true;
+        setOpen(false);
+        trigger.focus();
+      };
+      const handleDocumentPointerDown = (event: PointerEvent) => {
+        if (event.target instanceof Node && badge.contains(event.target)) return;
+        pinned = false;
+        suppressed = false;
+        setOpen(false);
+      };
+
+      badge.addEventListener('pointerenter', handlePointerEnter);
+      badge.addEventListener('pointerleave', handlePointerLeave);
+      badge.addEventListener('focusin', handleFocusIn);
+      badge.addEventListener('focusout', handleFocusOut);
+      trigger.addEventListener('click', handleClick);
+      trigger.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('pointerdown', handleDocumentPointerDown);
+
+      document.addEventListener(
+        'astro:before-swap',
+        () => {
+          document.removeEventListener('pointerdown', handleDocumentPointerDown);
+        },
+        { once: true }
+      );
+
+      badge.dataset.badgeReady = 'true';
+      setOpen(false);
+    });
+  }
+
+  initAgentBadges();
+  document.addEventListener('astro:page-load', initAgentBadges);
+</script>
+
+<style>
+  .home-agent-badge {
+    --agent-badge-surface: var(--home-surface);
+    --agent-badge-text: var(--home-text);
+    --agent-badge-muted: var(--home-muted);
+    position: relative;
+    z-index: 20;
+    width: fit-content;
+    margin-top: 1rem;
+    color: var(--agent-badge-text);
+  }
+
+  .home-agent-badge[data-align='center'] {
+    margin-inline: auto;
+  }
+
+  .agent-badge-trigger {
+    min-height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0.42rem 0.65rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 42%, var(--home-border));
+    border-radius: 0.55rem;
+    color: var(--agent-badge-text);
+    background: color-mix(in srgb, var(--home-purple) 7%, var(--agent-badge-surface));
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      border-color 0.2s ease,
+      background-color 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .agent-badge-trigger:hover,
+  .home-agent-badge[data-open='true'] .agent-badge-trigger {
+    border-color: color-mix(in srgb, var(--home-purple) 68%, var(--home-border));
+    background: color-mix(in srgb, var(--home-purple) 13%, var(--agent-badge-surface));
+  }
+
+  .agent-badge-trigger:active {
+    transform: scale(0.98);
+  }
+
+  .agent-badge-trigger:focus-visible {
+    outline: 0.1875rem solid var(--home-purple);
+    outline-offset: 0.2rem;
+  }
+
+  .agent-badge-spark {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--home-purple-bright);
+    filter: drop-shadow(0 0 0.28rem color-mix(in srgb, var(--home-purple-bright) 45%, transparent));
+    transition:
+      transform 0.25s ease,
+      filter 0.25s ease;
+  }
+
+  .agent-badge-spark svg {
+    display: block;
+    transform-origin: center;
+    animation: agent-badge-twinkle 2.8s ease-in-out infinite;
+  }
+
+  .home-agent-badge[data-open='true'] .agent-badge-spark {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 0.5rem color-mix(in srgb, var(--home-purple-bright) 78%, transparent));
+  }
+
+  @keyframes agent-badge-twinkle {
+    0%,
+    100% {
+      opacity: 0.82;
+      transform: scale(0.92) rotate(-6deg);
+    }
+
+    45% {
+      opacity: 1;
+      transform: scale(1.08) rotate(6deg);
+    }
+  }
+
+  .agent-badge-popover {
+    position: absolute;
+    top: calc(100% + 0.55rem);
+    left: 0;
+    z-index: 1;
+    width: min(22rem, calc(100vw - 2rem));
+    display: none;
+    padding: 1rem 1.15rem;
+    border: 1px solid color-mix(in srgb, var(--home-purple) 32%, var(--home-border));
+    border-radius: 0.65rem;
+    color: var(--agent-badge-text);
+    background: var(--agent-badge-surface);
+    box-shadow: 0 1rem 2.8rem color-mix(in srgb, #171426 16%, transparent);
+  }
+
+  .home-agent-badge[data-open='true'] .agent-badge-popover {
+    display: block;
+  }
+
+  .home-agent-badge[data-align='center'] .agent-badge-popover {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .agent-badge-popover strong {
+    display: block;
+    color: var(--agent-badge-text);
+    font-size: 0.92rem;
+    line-height: 1.3;
+  }
+
+  .agent-badge-popover p {
+    margin: 0.5rem 0 0;
+    color: var(--agent-badge-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 49.999rem) {
+    .agent-badge-trigger {
+      min-height: 2.75rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .agent-badge-trigger,
+    .agent-badge-spark {
+      transition: none;
+    }
+
+    .agent-badge-spark svg {
+      animation: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .agent-badge-trigger,
+    .agent-badge-popover {
+      border-color: CanvasText;
+      background: Canvas;
+    }
+  }
+</style>

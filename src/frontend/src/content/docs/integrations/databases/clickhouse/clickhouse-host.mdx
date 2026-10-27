@@ -8,6 +8,7 @@ import { Image } from 'astro:assets';
 import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import clickhouseIcon from '@assets/icons/clickhouse-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={clickhouseIcon}
@@ -40,11 +41,11 @@ aspire add clickhouse
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.ClickHouse@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.ClickHouse" Version="*" />
 ```
 
@@ -52,7 +53,7 @@ Or, choose a manual installation approach:
 
 Once you've installed the hosting integration in your AppHost project, you can add a ClickHouse server resource and then add a database resource as shown in the following example:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var clickhouse = builder.AddClickHouse("clickhouse");
@@ -75,13 +76,13 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 1. The password is stored in the AppHost's secret store in the `Parameters` section:
 
-    ```json title="JSON — secrets.json"
+    ```json title="secrets.json"
     {
       "Parameters:clickhouse-password": "<THE_GENERATED_PASSWORD>"
     }
     ```
 
-1. The `WithReference` call configures a connection in the consuming project named after the referenced database resource, such as `clickhousedb` in the preceding example.
+1. The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> call configures a connection in the consuming project named after the referenced database resource, such as `clickhousedb` in the preceding example.
 
 </Steps>
 
@@ -90,14 +91,14 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 </Aside>
 
 <Aside type="tip">
-    If you'd rather connect to an existing ClickHouse server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/get-started/resources/).
+    If you'd rather connect to an existing ClickHouse server, call <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" /> instead. For more information, see [Reference existing resources](/get-started/resources/).
 </Aside>
 
 ## Add ClickHouse resource with data volume
 
 Add a data volume to the ClickHouse resource as shown in the following example:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var clickhouse = builder.AddClickHouse("clickhouse")
@@ -124,7 +125,7 @@ The data volume is used to persist the ClickHouse data outside the lifecycle of 
 
 Add a data bind mount to the ClickHouse resource as shown in the following example:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var clickhouse = builder.AddClickHouse("clickhouse")
@@ -151,7 +152,7 @@ Data bind mounts rely on the host machine's filesystem to persist the ClickHouse
 
 When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var username = builder.AddParameter("username", secret: true);
@@ -169,7 +170,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 
 The username and password parameters are usually specified as user secrets:
 
-```json title="JSON — secrets.json"
+```json title="secrets.json"
 {
   "Parameters": {
     "username": "default",
@@ -182,7 +183,7 @@ For more information, see [External parameters](/get-started/resources/).
 
 You can also specify a custom host port:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var clickhouse = builder.AddClickHouse("clickhouse", port: 18123);
 ```
 

@@ -4,71 +4,19 @@ import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 const SHOW_CLIENT = process.env.PUBLIC_SHOW_CLIENT_INTEGRATIONS === 'true';
 
 // On tablet viewports, the gallery's two-column EC code blocks can stack
-// above the fixed-position cookie banner once Playwright scrolls the
-// "Reject all" button into view — clicks then time out because a `<code>`
-// element from a card intercepts pointer events.  Sidestep the whole
-// banner by pre-seeding a "Reject all"-equivalent `cc_cookie` before the
-// first navigation; vanilla-cookieconsent reads this on init and never
-// renders the modal.
-test.beforeEach(async ({ context, baseURL }) => {
-  // Pre-seed a "Reject all"-equivalent cc_cookie so vanilla-cookieconsent
-  // skips the modal on first paint. The cookie banner is fixed-position at
-  // the bottom of the viewport, and on tablet our EC code blocks stack
-  // above it once Playwright scrolls the reject button into view — the
-  // resulting pointer-event interception makes the standard
-  // dismissCookieConsentIfVisible helper time out. Suppressing the banner
-  // up front avoids the overlap entirely.
-  //
-  // Shape mirrors vanilla-cookieconsent v3's persisted cookie after a real
-  // "Reject all" — categories: ['necessary'] is the minimal accepted set
-  // (matches the readOnly: true necessary category in
-  // src/frontend/config/cookie.config.ts).
-  const ccCookieValue = encodeURIComponent(
-    JSON.stringify({
-      categories: ['necessary'],
-      revision: 0,
-      data: null,
-      consentTimestamp: new Date().toISOString(),
-      consentId: '00000000-0000-0000-0000-000000000000',
-      services: { necessary: [] },
-      lastConsentTimestamp: new Date().toISOString(),
-      expirationTime: Date.now() + 365 * 24 * 60 * 60 * 1000,
-    }),
-  );
-
-  // Set on both the explicit base URL host (so the lib sees it on first
-  // request) and via init script (defensive — runs before any inline page
-  // script). The CSS fallback hides the banner if a future lib upgrade
-  // rejects our pre-seeded shape.
-  if (baseURL) {
-    const url = new URL(baseURL);
-    await context.addCookies([
-      {
-        name: 'cc_cookie',
-        value: ccCookieValue,
-        domain: url.hostname,
-        path: '/',
-        expires: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
-        sameSite: 'Lax',
-      },
-    ]);
-  }
-
-  await context.addInitScript((value) => {
-    try {
-      document.cookie = `cc_cookie=${value}; path=/; max-age=31536000; SameSite=Lax`;
-    } catch {
-      // best-effort
-    }
-
-    // Belt-and-suspenders: hide the banner via CSS in case the pre-seed
-    // shape is rejected by a future lib upgrade. The CSS rule is appended
-    // as soon as <head> exists, so it applies before paint.
+// above the fixed-position WCP cookie banner once Playwright scrolls a
+// card into view — clicks then time out because a `<code>` element
+// intercepts pointer events. Sidestep the overlap by hiding the WCP
+// banner (`#wcpConsentBannerCtrl`) via CSS before first paint. The banner
+// is geo-gated so it never renders in CI, but this keeps local EU runs
+// stable too.
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript(() => {
     const installHide = () => {
       if (document.querySelector('style[data-test-cc-suppress]')) return;
       const style = document.createElement('style');
       style.setAttribute('data-test-cc-suppress', '');
-      style.textContent = '#cc-main, #cm, .cm--box { display: none !important; }';
+      style.textContent = '#wcpConsentBannerCtrl { display: none !important; }';
       (document.head ?? document.documentElement).appendChild(style);
     };
     if (document.head) {
@@ -76,7 +24,7 @@ test.beforeEach(async ({ context, baseURL }) => {
     } else {
       document.addEventListener('DOMContentLoaded', installHide, { once: true });
     }
-  }, ccCookieValue);
+  });
 });
 
 test.describe('integrations gallery', () => {
@@ -135,11 +83,11 @@ test.describe('integrations gallery', () => {
     await dismissCookieConsentIfVisible(page);
 
     const postgresCard = page.locator('.card[data-title="aspire.hosting.postgresql"]');
-    const csharpLink = postgresCard.locator('.lang-button').first();
-    const tsLink = postgresCard.locator('.lang-button').nth(1);
+    const tsLink = postgresCard.locator('.lang-button').first();
+    const csharpLink = postgresCard.locator('.lang-button').nth(1);
 
-    await expect(csharpLink).toHaveAttribute('href', /aspire-lang=csharp/);
     await expect(tsLink).toHaveAttribute('href', /aspire-lang=typescript/);
+    await expect(csharpLink).toHaveAttribute('href', /aspire-lang=csharp/);
 
     // Both links should target the same base docs path — only the lang differs.
     const csharpHref = await csharpLink.getAttribute('href');
@@ -273,7 +221,7 @@ test.describe('integrations gallery', () => {
     await dismissCookieConsentIfVisible(page);
 
     const postgresCard = page.locator('.card[data-title="aspire.hosting.postgresql"]');
-    const csharpLink = postgresCard.locator('.lang-button').first();
+    const csharpLink = postgresCard.locator('.lang-button').nth(1);
     const csharpHref = await csharpLink.getAttribute('href');
     expect(csharpHref).toBeTruthy();
 
@@ -293,7 +241,7 @@ test.describe('integrations gallery', () => {
   });
 });
 
-test('PivotSelector aspire-lang selection bridges to synced-tabs storage', async ({ page }) => {
+test('PivotSelector defaults to TypeScript and bridges to synced-tabs storage', async ({ page }) => {
   await page.goto('/get-started/first-app/');
   await dismissCookieConsentIfVisible(page);
 
@@ -301,7 +249,8 @@ test('PivotSelector aspire-lang selection bridges to synced-tabs storage', async
   await expect(pivotSelector).toBeVisible();
   const typeScriptButton = pivotSelector.getByRole('button', { name: 'TypeScript' });
 
-  await typeScriptButton.click();
+  await expect(pivotSelector.getByRole('button').first()).toHaveText('TypeScript');
+  await expect(typeScriptButton).toHaveClass(/active/);
 
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('aspire-lang')))

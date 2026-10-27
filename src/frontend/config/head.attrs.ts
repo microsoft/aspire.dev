@@ -9,14 +9,6 @@ export const headAttrs: HeadAttr[] = [
   {
     tag: 'meta',
     attrs: {
-      name: 'description',
-      content:
-        'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
-    },
-  },
-  {
-    tag: 'meta',
-    attrs: {
       name: 'keywords',
       content: `
 					Aspire, .NET Aspire, dotnet aspire,
@@ -35,9 +27,9 @@ export const headAttrs: HeadAttr[] = [
 
   // Open Graph / Twitter card meta tags — only truly-global tags live here.
   // Per-page `og:title`, `og:description`, `og:url`, `og:image`,
-  // `og:image:alt`, `og:image:width`, `og:image:height`, `og:type`,
-  // `twitter:title`, `twitter:description`, `twitter:url`, `twitter:image`,
-  // and `twitter:image:alt` are emitted dynamically by
+  // `og:image:type`, `og:image:alt`, `og:image:width`, `og:image:height`,
+  // `og:type`, `twitter:title`, `twitter:description`, `twitter:url`,
+  // `twitter:image`, and `twitter:image:alt` are emitted dynamically by
   // `src/components/starlight/Head.astro` based on each page's frontmatter
   // (see `src/utils/page-metadata.ts` for the resolution logic).
   { tag: 'meta', attrs: { property: 'og:site_name', content: 'Aspire' } },

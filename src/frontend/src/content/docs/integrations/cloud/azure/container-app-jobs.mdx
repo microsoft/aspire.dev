@@ -6,6 +6,7 @@ description: Learn how to use the Aspire Azure Container App Jobs hosting integr
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import containerAppsIcon from '@assets/icons/azure-container-apps-environments.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={containerAppsIcon}
@@ -16,7 +17,7 @@ import containerAppsIcon from '@assets/icons/azure-container-apps-environments.s
   data-zoom-off
 />
 
-[Azure Container Apps jobs](https://learn.microsoft.com/azure/container-apps/jobs) let you run containerized tasks that execute for a finite duration and exit. Unlike continuously-running Container Apps, jobs are purpose-built for batch processing, scheduled tasks, and event-driven workloads. The Aspire Azure Container App Jobs hosting integration exposes `PublishAsAzureContainerAppJob` and `PublishAsScheduledAzureContainerAppJob` extension methods so you can declare any `ProjectResource`, `ContainerResource`, or `ExecutableResource` as an Azure Container App Job directly from your [`AppHost`](/get-started/app-host/).
+[Azure Container Apps jobs](https://learn.microsoft.com/azure/container-apps/jobs) let you run containerized tasks that execute for a finite duration and exit. Unlike continuously-running Container Apps, jobs are purpose-built for batch processing, scheduled tasks, and event-driven workloads. The Aspire Azure Container App Jobs hosting integration exposes <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsAzureContainerAppJob" /> and <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsScheduledAzureContainerAppJob" /> extension methods so you can declare any `ProjectResource`, `ContainerResource`, or `ExecutableResource` as an Azure Container App Job directly from your [`AppHost`](/get-started/app-host/).
 
 ## Supported resource types
 
@@ -24,9 +25,9 @@ The following resource types can be published as Azure Container App Jobs:
 
 | Resource type | Description |
 |---|---|
-| `ProjectResource` | A .NET project added via `AddProject<T>`. |
-| `ContainerResource` | A container image added via `AddContainer`. |
-| `ExecutableResource` | An executable process added via `AddExecutable`. |
+| `ProjectResource` | A .NET project added via <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" />. |
+| `ContainerResource` | A container image added via <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddContainer" />. |
+| `ExecutableResource` | An executable process added via <ApiReference name="Aspire.Hosting.ExecutableResourceBuilderExtensions.AddExecutable" />. |
 
 ## Publish a project as a Container App Job
 
@@ -34,7 +35,7 @@ Use `PublishAsAzureContainerAppJob` to deploy a project, container, or executabl
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.DataProcessor>("data-processor")
@@ -61,7 +62,7 @@ Azure Container App Jobs support three trigger types: **manual**, **schedule**, 
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.ManualTask>("manual-task")
@@ -82,7 +83,7 @@ builder.AddProject<Projects.ManualTask>("manual-task")
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.ScheduledTask>("scheduled-task")
@@ -106,7 +107,7 @@ builder.AddProject<Projects.ScheduledTask>("scheduled-task")
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.EventDrivenTask>("event-task")
@@ -135,7 +136,7 @@ Configure CPU and memory for your job:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.ResourceIntensiveTask>("intensive-task")
@@ -160,7 +161,7 @@ Pass environment variables — including provisioning parameters — into the jo
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var connectionString = builder.AddParameter("connectionString");
@@ -188,7 +189,7 @@ builder.AddProject<Projects.DatabaseTask>("db-task")
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.RetryableTask>("retryable-task")
@@ -211,7 +212,7 @@ builder.AddProject<Projects.RetryableTask>("retryable-task")
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddContainer("batch-processor", "myregistry.azurecr.io/batch-processor:latest")
@@ -233,7 +234,7 @@ builder.AddContainer("batch-processor", "myregistry.azurecr.io/batch-processor:l
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddExecutable("data-script", "python", ".", "process_data.py")

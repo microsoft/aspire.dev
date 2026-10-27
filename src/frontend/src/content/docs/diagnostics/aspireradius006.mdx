@@ -1,0 +1,82 @@
+---
+title: Compiler Warning ASPIRERADIUS006
+seoTitle: 'ASPIRERADIUS006: Radius secret store types and members'
+description: Learn what causes the Aspire compiler warning ASPIRERADIUS006 and how to fix it so your AppHost builds cleanly.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.6"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Radius secret store types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using experimental Radius secret-store APIs from the `Aspire.Hosting.Radius` integration, including:
+
+- `AddRadiusSecretStore` and `WithSecretStore`
+- their population callbacks, such as `WithData`, `WithExistingSecret`, and `WithSealedSecret`, and their consumer callbacks
+- `RadiusSecretStoreType`
+
+These APIs declare a Radius secret store and populate it from Aspire secret parameters, existing cluster secrets, or GitOps sealed secrets.
+
+## Example
+
+The following code generates `ASPIRERADIUS006`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var user = builder.AddParameter("db-user", secret: true);
+var pass = builder.AddParameter("db-pass", secret: true);
+
+builder.AddRadiusSecretStore("db-creds", RadiusSecretStoreType.BasicAuthentication)
+    .WithData(d =>
+    {
+        d.Add("username", user);
+        d.Add("password", pass);
+    });
+
+builder.Build().Run();
+```
+
+## To correct this warning
+
+Suppress the warning with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRERADIUS006.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRERADIUS006</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRERADIUS006` directive:
+
+  ```csharp title="Suppressing the warning"
+  var apiKey = builder.AddParameter("api-key", secret: true);
+
+  #pragma warning disable ASPIRERADIUS006
+  builder.AddRadiusSecretStore("api-creds", RadiusSecretStoreType.Generic)
+      .WithData(d => d.Add("api-key", apiKey));
+  #pragma warning restore ASPIRERADIUS006
+  ```
+
+## See also
+
+- [ASPIRERADIUS003](/diagnostics/aspireradius003/) - Radius cloud provider APIs
+- [ASPIRERADIUS004](/diagnostics/aspireradius004/) - Radius infrastructure customization APIs
+- [ASPIRERADIUS057](/diagnostics/aspireradius057/) - Radius container image API

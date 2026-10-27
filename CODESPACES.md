@@ -4,12 +4,12 @@ Thanks for contributing to Aspire! Your development environment is ready to go.
 
 ## Quick Start
 
-All dependencies have been installed automatically (`pnpm i` was run during setup).
+All dependencies have been installed automatically (`bun install` was run during setup).
 
 **To start the development server:**
 
 ```bash
-pnpm dev
+bun run dev
 ```
 
 ## Useful Tips

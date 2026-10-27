@@ -8,6 +8,7 @@ lastUpdated: true
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire の**AppHost**で分散アプリを構成する場合、単にローカル開発とオーケストレーション用のサービスを定義しているのではなく、デプロイメントの基盤も設定しています。ローカルで実行およびデバッグするために使用する同じ構成は、アプリを発行する際にも活用され、開発から本番環境まで一貫性が確保されます。
 
@@ -147,8 +148,8 @@ Aspire パイプラインの依存関係は明示的で目的が明確です。�
 
 ステップは以下を使用して関係を宣言します:
 
-- `PipelineStep.DependsOn`: このステップは別のステップが正常に完了した後に実行される必要があります
-- `PipelineStep.RequiredBy`: 別のステップはこのステップ後に実行される必要があります（逆の依存関係宣言）
+- <ApiReference name="Aspire.Hosting.Pipelines.PipelineStep.DependsOn" />: このステップは別のステップが正常に完了した後に実行される必要があります
+- <ApiReference name="Aspire.Hosting.Pipelines.PipelineStep.RequiredBy" />: 別のステップはこのステップ後に実行される必要があります（逆の依存関係宣言）
 
 **依存関係の例:**
 
@@ -488,7 +489,7 @@ aspire deploy --list-steps
 
 `builder.Pipeline.AddStep` を使用して、アプリケーション全体に適用されるカスタムステップを追加します:
 
-```csharp title="C# — Application-level custom step"
+```csharp title="Application-level custom step"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // カスタム検証ステップを追加
@@ -518,9 +519,9 @@ aspire do validate
 
 ### リソースレベルステップ
 
-リソースは `WithPipelineStepFactory` を使用して独自のパイプラインステップを提供できます:
+リソースは <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineStepFactory" /> を使用して独自のパイプラインステップを提供できます:
 
-```csharp title="C# — Resource-level custom step"
+```csharp title="Resource-level custom step"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPipelineStepFactory(context =>
     {
@@ -546,7 +547,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 依存関係を使用してステップ実行順序を制御します:
 
-```csharp title="C# — Step with dependencies"
+```csharp title="Step with dependencies"
 // 他のステップに依存するステップ
 builder.Pipeline.AddStep("database-migration", async (context) =>
 {
@@ -564,7 +565,7 @@ requiredBy: ["deploy-apiservice"]);
 
 ### パイプライン設定
 
-リソースは `WithPipelineConfiguration` を使用してパイプラインにどのように参加するかをカスタマイズすることもでき、ステップの順序付けとリソース固有のパイプライン動作を制御できます。
+リソースは <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineConfiguration" /> を使用してパイプラインにどのように参加するかをカスタマイズすることもでき、ステップの順序付けとリソース固有のパイプライン動作を制御できます。
 
 <Aside type="note">
 `WithPipelineConfiguration` API は実験的であり、将来のリリースで変更される可能性があります。
@@ -579,7 +580,7 @@ requiredBy: ["deploy-apiservice"]);
 
 テスト、ステージング、本番環境、またはその他の環境にデプロイする場合、各環境で異なるデプロイメントアクションを実行することもあります。パイプラインコンテキストを使用して、環境固有のパイプラインステップを作成できます:
 
-```csharp title="C# — Multi-environment deployment"
+```csharp title="Multi-environment deployment"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // 環境固有の検証を追加
@@ -617,7 +618,7 @@ aspire do deploy --environment Production
 
 パイプラインと統合するカスタムビルドロジックを追加します:
 
-```csharp title="C# — Custom build step"
+```csharp title="Custom build step"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // カスタムのビルド前ステップを追加
@@ -643,7 +644,7 @@ builder.Build().Run();
 
 デプロイメントの一部としてデータベースが確実に入力されるようにする場合、データベースマイグレーションをデプロイメントパイプラインに統合するステップを作成できます:
 
-```csharp title="C# — Database migrations step"
+```csharp title="Database migrations step"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var database = builder.AddPostgres("db");
@@ -679,8 +680,8 @@ Aspire 13.0はより柔軟なパイプラインシステムで発行コールバ
 
 **削除された API:**
 - `WithPublishingCallback` 拡張メソッド
-- `PublishingContext` と `PublishingCallbackAnnotation`
-- `DeployingContext` と `DeployingCallbackAnnotation`
+- `PublishingContext` とレガシー publish コールバック注釈型
+- `DeployingContext` とレガシー deploy コールバック注釈型
 - `IDistributedApplicationPublisher` インターフェース
 
 **新しい API:**
@@ -709,7 +710,7 @@ Aspire 9.x コードと Aspire 13.x の同等物を示すコード例を以下�
 
 **前（Aspire 9.x）:**
 
-```csharp title="C# — Old publishing callback"
+```csharp title="Old publishing callback"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPublishingCallback(async (context, cancellationToken) =>
     {
@@ -720,7 +721,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 **後（Aspire 13.0）:**
 
-```csharp title="C# — New pipeline step"
+```csharp title="New pipeline step"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPipelineStepFactory(context =>
     {
@@ -741,7 +742,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 **前（Aspire 9.x）:**
 
-```csharp title="C# — Old application-level callback"
+```csharp title="Old application-level callback"
 builder.Services.AddLifecycleHook<CustomPublishingHook>();
 
 public class CustomPublishingHook : IDistributedApplicationLifecycleHook
@@ -758,7 +759,7 @@ public class CustomPublishingHook : IDistributedApplicationLifecycleHook
 
 **後（Aspire 13.0）:**
 
-```csharp title="C# — New pipeline step"
+```csharp title="New pipeline step"
 builder.Pipeline.AddStep("notify-deployment", async (context) =>
 {
     // カスタムロジック
@@ -771,7 +772,7 @@ dependsOn: [WellKnownPipelineSteps.Deploy]);
 
 **前（Aspire 9.x）:**
 
-```csharp title="C# — Old complex callback"
+```csharp title="Old complex callback"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPublishingCallback(async (context, cancellationToken) =>
     {
@@ -786,7 +787,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 **後（Aspire 13.0）:**
 
-```csharp title="C# — New pipeline steps with dependencies"
+```csharp title="New pipeline steps with dependencies"
 // 依存関係付きの離散ステップに分割
 builder.Pipeline.AddStep("provision-infra", async (context) =>
 {

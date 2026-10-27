@@ -41,11 +41,15 @@ function getLatestWhatsNewSlug() {
 const latestWhatsNewSlug = getLatestWhatsNewSlug();
 
 export const redirects = {
+  '/app-host/terminal-service/': '/dashboard/ephemeral-terminals/',
+  '/app-host/terminal-automation/': '/dashboard/automate-terminals/',
+  '/dashboard/terminal-automation/': '/dashboard/terminal-tape-playback/',
   // https://docs.astro.build/en/guides/routing/#configured-redirects
   // For example:
   // '/original/path/': '/new/path'
   '/cli/': '/reference/cli/overview/',
   '/deployment/overview/': '/deployment/deploy-with-aspire/',
+  '/deployment/kubernetes/kubernetes/': '/deployment/kubernetes/clusters/',
   '/compatibility/': '/whats-new/upgrade-aspire/',
   // `/whats-new/` has no index page; redirect it to the latest release notes
   // (computed from the filenames in src/content/docs/whats-new/). Uses 302
@@ -61,7 +65,7 @@ export const redirects = {
   '/app-host/persistent-containers/': '/app-host/resource-lifetimes/',
   '/ja/app-host/persistent-containers/': '/ja/app-host/resource-lifetimes/',
   // Integration -client → -connect rename
-  '/integrations/ai/github-models/github-models-client/': '/integrations/ai/github-models/github-models-connect/',
+  '/integrations/ai/github-models/github-models-client/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/',
   '/integrations/ai/ollama/ollama-client/': '/integrations/ai/ollama/ollama-connect/',
   '/integrations/ai/openai/openai-client/': '/integrations/ai/openai/openai-connect/',
   '/integrations/caching/garnet/garnet-client/': '/integrations/caching/garnet/garnet-connect/',
@@ -139,7 +143,11 @@ export const redirects = {
   '/integrations/databases/efcore/postgresql/': '/integrations/databases/efcore/postgres/postgresql-get-started/',
   '/integrations/databases/efcore/azure-postgresql/': '/integrations/databases/efcore/azure-postgresql/azure-postgresql-get-started/',
   '/integrations/databases/efcore/azure-sql/': '/integrations/databases/efcore/azure-sql/azure-sql-get-started/',
-  '/integrations/ai/github-models/': '/integrations/ai/github-models/github-models-get-started/',
+  // GitHub Models was retired; its former pages redirect to the Microsoft Foundry integration.
+  '/integrations/ai/github-models/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/',
+  '/integrations/ai/github-models/github-models-get-started/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/',
+  '/integrations/ai/github-models/github-models-host/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/',
+  '/integrations/ai/github-models/github-models-connect/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/',
   '/integrations/ai/openai/': '/integrations/ai/openai/openai-get-started/',
   '/integrations/caching/redis/': '/integrations/caching/redis/redis-get-started/',
   '/integrations/caching/redis-distributed/': '/integrations/caching/redis-distributed/redis-distributed-get-started/',
@@ -177,11 +185,24 @@ export const redirects = {
   '/integrations/devtools/flagd/': '/integrations/devtools/flagd/flagd-get-started/',
   '/integrations/devtools/goff/': '/integrations/devtools/goff/goff-get-started/',
   '/integrations/devtools/mailpit/': '/integrations/devtools/mailpit/mailpit-get-started/',
+  '/integrations/devtools/dab/': '/integrations/devtools/dab/dab-get-started/',
+  '/integrations/frameworks/dapr/': '/integrations/frameworks/dapr/dapr-get-started/',
   '/integrations/frameworks/go/': '/integrations/frameworks/go/go-get-started/',
   '/integrations/frameworks/go-apps/': '/integrations/frameworks/go/go-get-started/',
+  '/integrations/frameworks/deno-apps/': '/integrations/frameworks/deno/deno-get-started/',
+  '/integrations/frameworks/java/': '/integrations/frameworks/java/java-get-started/',
+  '/integrations/frameworks/perl/': '/integrations/frameworks/perl/perl-get-started/',
+  '/integrations/frameworks/powershell/': '/integrations/frameworks/powershell/powershell-get-started/',
+  '/integrations/frameworks/rust/': '/integrations/frameworks/rust/rust-get-started/',
+  '/integrations/devtools/k6/': '/integrations/devtools/k6/k6-get-started/',
+  '/integrations/devtools/sql-projects/': '/integrations/devtools/sql-projects/sql-projects-get-started/',
+  '/ja/integrations/frameworks/java/': '/integrations/frameworks/java/java-get-started/',
+  '/ja/integrations/frameworks/powershell/': '/integrations/frameworks/powershell/powershell-get-started/',
+  '/ja/integrations/frameworks/rust/': '/integrations/frameworks/rust/rust-get-started/',
   '/ja/integrations/frameworks/go-apps/': '/integrations/frameworks/go/go-get-started/',
   '/integrations/frameworks/csharp-file-based-apps/': '/integrations/dotnet/csharp-file-based-apps/',
   '/integrations/frameworks/maui/': '/integrations/dotnet/maui/',
+  '/integrations/messaging/lavinmq/': '/integrations/messaging/lavinmq/lavinmq-get-started/',
   '/fundamentals/service-defaults/': '/get-started/csharp-service-defaults/',
   '/fundamentals/launch-profiles/': '/integrations/dotnet/launch-profiles/',
   '/ja/fundamentals/service-defaults/': '/ja/get-started/csharp-service-defaults/',
@@ -212,4 +233,7 @@ export const redirects = {
   '/fundamentals/app-lifecycle/': '/deployment/app-lifecycle/',
   '/dashboard/copilot/': '/dashboard/ai-coding-agents/',
   '/dashboard/mcp-server/': '/get-started/aspire-mcp-server/',
+  // Diagnostics: ASPIREDOTNETTOOL reference page migrated to the canonical
+  // numeric-suffixed slug to match the other ASPIRE* diagnostics.
+  '/diagnostics/aspiredotnettool/': '/diagnostics/aspiredotnettool001/',
 };

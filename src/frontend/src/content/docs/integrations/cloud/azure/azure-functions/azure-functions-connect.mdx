@@ -6,6 +6,7 @@ description: Learn how Azure Functions code reads Aspire-injected environment va
 import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import functionsIcon from '@assets/icons/azure-functionapps-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={functionsIcon}
@@ -24,7 +25,7 @@ Most Aspire integrations follow a pattern where the AppHost provisions a backing
 
 ## How Aspire injects values
 
-When the AppHost calls `WithReference` on the Functions project resource, Aspire writes the referenced resource connection properties as environment variables into the Functions host process. The variable names follow the standard Aspire pattern: `[RESOURCE]_[PROPERTY]` (uppercased).
+When the AppHost calls <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> on the Functions project resource, Aspire writes the referenced resource connection properties as environment variables into the Functions host process. The variable names follow the standard Aspire pattern: `[RESOURCE]_[PROPERTY]` (uppercased).
 
 For example, if the AppHost references a blob storage container named `blobs`, Aspire injects:
 
@@ -51,11 +52,11 @@ Pick the language your Functions project is written in.
 
 The .NET isolated worker model starts the Functions host through a standard `HostBuilder`. You can read Aspire-injected values through `IConfiguration` (which maps environment variables automatically) or through `Environment.GetEnvironmentVariable`.
 
-#### Read through IConfiguration
+### Read through IConfiguration
 
 `IConfiguration` is available through dependency injection. Register a class that receives the configuration section you need:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -71,7 +72,7 @@ var host = new HostBuilder()
 await host.RunAsync();
 ```
 
-```csharp title="C# — MyBlobService.cs"
+```csharp title="MyBlobService.cs"
 using Microsoft.Extensions.Configuration;
 
 public class MyBlobService(IConfiguration config)
@@ -81,11 +82,11 @@ public class MyBlobService(IConfiguration config)
 }
 ```
 
-#### Read through Environment.GetEnvironmentVariable
+### Read through Environment.GetEnvironmentVariable
 
 For one-off reads, use `Environment.GetEnvironmentVariable` directly in your function class:
 
-```csharp title="C# — MyFunction.cs"
+```csharp title="MyFunction.cs"
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 
@@ -106,11 +107,11 @@ public class MyFunction
 }
 ```
 
-#### Use connection name attributes for triggers
+### Use connection name attributes for triggers
 
 Azure Functions trigger attributes accept a `Connection` parameter that maps to the environment variable prefix Aspire injects. For a Service Bus queue trigger using the `servicebus` resource:
 
-```csharp title="C# — MyQueueFunction.cs"
+```csharp title="MyQueueFunction.cs"
 using Microsoft.Azure.Functions.Worker;
 
 public class MyQueueFunction
@@ -136,7 +137,7 @@ public class MyQueueFunction
 
 JavaScript and TypeScript Azure Functions read environment variables via `process.env`. The Functions runtime loads environment variables from the host before invoking your function.
 
-```typescript title="TypeScript — src/functions/myHttpFunction.ts"
+```typescript title="src/functions/myHttpFunction.ts"
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
 export async function myHttpFunction(
@@ -159,7 +160,7 @@ app.http('myHttpFunction', {
 
 For a Service Bus trigger that uses the Aspire-injected connection:
 
-```typescript title="TypeScript — src/functions/myQueueFunction.ts"
+```typescript title="src/functions/myQueueFunction.ts"
 import { app, InvocationContext } from '@azure/functions';
 
 export async function myQueueFunction(
@@ -186,7 +187,7 @@ app.serviceBusQueue('myQueueFunction', {
 
 Python Azure Functions read environment variables via `os.environ` or `os.getenv`. The Functions runtime loads environment variables from the host before invoking your function.
 
-```python title="Python — function_app.py"
+```python title="function_app.py"
 import azure.functions as func
 import logging
 import os
@@ -203,7 +204,7 @@ def my_http_function(req: func.HttpRequest) -> func.HttpResponse:
 
 For a Service Bus trigger that uses the Aspire-injected connection:
 
-```python title="Python — function_app.py"
+```python title="function_app.py"
 import azure.functions as func
 import logging
 import os
@@ -231,7 +232,7 @@ def my_queue_function(msg: func.ServiceBusMessage):
 
 When running your Azure Functions project outside of Aspire (for example, in isolation with `func start`), the Functions runtime reads connection information from `local.settings.json`. You can populate this file with the same environment variable names that Aspire injects:
 
-```json title="JSON — local.settings.json"
+```json title="local.settings.json"
 {
   "IsEncrypted": false,
   "Values": {

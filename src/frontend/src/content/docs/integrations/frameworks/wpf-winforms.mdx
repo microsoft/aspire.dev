@@ -6,6 +6,7 @@ description: Learn how to orchestrate WPF and Windows Forms desktop applications
 import { Image } from 'astro:assets';
 import { Steps } from '@astrojs/starlight/components';
 import dotnetIcon from '@assets/icons/dotnet.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={dotnetIcon}
@@ -16,7 +17,7 @@ import dotnetIcon from '@assets/icons/dotnet.svg';
   data-zoom-off
 />
 
-WPF (Windows Presentation Foundation) and Windows Forms are .NET desktop UI frameworks for building Windows applications. Because they are standard .NET projects, you can register them in an Aspire AppHost alongside your backend services using the same `AddProject` API you use for web and worker services. Aspire then starts and monitors the desktop app as a local process resource when you run the AppHost during development.
+WPF (Windows Presentation Foundation) and Windows Forms are .NET desktop UI frameworks for building Windows applications. Because they are standard .NET projects, you can register them in an Aspire AppHost alongside your backend services using the same <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> API you use for web and worker services. Aspire then starts and monitors the desktop app as a local process resource when you run the AppHost during development.
 
 :::note
 WPF and Windows Forms applications require Windows and are **not** containerized or included in [`aspire deploy`](/reference/cli/commands/aspire-deploy/) output. Aspire orchestrates them as local processes during development only. For production deployment, use your existing desktop tooling (MSIX, ClickOnce, and so on).
@@ -30,7 +31,7 @@ No additional NuGet package is required. Add the desktop project reference to th
 
 1. **Add a project reference** from your AppHost `.csproj` to the WPF or Windows Forms project:
 
-   ```xml title="XML — AppHost.csproj"
+   ```xml title="AppHost.csproj"
    <ItemGroup>
      <ProjectReference Include="..\MyWpfApp\MyWpfApp.csproj" />
    </ItemGroup>
@@ -38,7 +39,7 @@ No additional NuGet package is required. Add the desktop project reference to th
 
 1. **Register the project** in your AppHost and wire up any service references it needs:
 
-   ```csharp title="C# — AppHost.cs"
+   ```csharp title="AppHost.cs"
    var builder = DistributedApplication.CreateBuilder(args);
 
    var api = builder.AddProject<Projects.ApiService>("api");
@@ -57,7 +58,7 @@ No additional NuGet package is required. Add the desktop project reference to th
 
    For **WPF**, override `OnStartup` in `App.xaml.cs`:
 
-   ```csharp title="C# — App.xaml.cs (WPF)"
+   ```csharp title="App.xaml.cs (WPF)"
    public partial class App : Application
    {
        public IServiceProvider Services { get; private set; } = default!;
@@ -85,7 +86,7 @@ No additional NuGet package is required. Add the desktop project reference to th
 
    For **Windows Forms**, configure the host in `Program.cs`:
 
-   ```csharp title="C# — Program.cs (Windows Forms)"
+   ```csharp title="Program.cs (Windows Forms)"
    var host = Host.CreateDefaultBuilder(args)
        .ConfigureServices(services =>
        {
@@ -113,7 +114,7 @@ No additional NuGet package is required. Add the desktop project reference to th
 
 A common pattern is to register the desktop app only during local development and skip it in CI or staging environments. Use `builder.Environment.IsDevelopment()` to add the resource conditionally:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")

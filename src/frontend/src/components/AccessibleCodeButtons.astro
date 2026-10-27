@@ -6,6 +6,11 @@
  * The expressive-code library generates copy buttons dynamically, and this script
  * ensures they have proper aria-label attributes for screen readers.
  *
+ * It also makes horizontally-scrollable code blocks and tables keyboard-focusable
+ * (WCAG 2.1.1), since a scrollable region that never receives focus can't be
+ * scrolled by keyboard-only users, and disambiguates same-named nav/aside
+ * landmarks (WCAG 1.3.1) so assistive tech can tell them apart.
+ *
  * Additionally, this component supports hiding copy buttons via:
  * - disable-copy in code fence meta: ```bash disable-copy
  * - data-disable-copy attribute on parent elements: <div data-disable-copy>
@@ -83,6 +88,28 @@
     });
   }
 
+  function makeScrollableCodeRegionsFocusable() {
+    const regions = document.querySelectorAll('figure.frame pre, pre[role="region"]');
+
+    regions.forEach((regionEl) => {
+      const region = regionEl as HTMLElement;
+      const isScrollable = region.scrollWidth > region.clientWidth + 1;
+
+      if (!isScrollable) {
+        if (region.dataset.autoFocusable === 'true') {
+          region.removeAttribute('tabindex');
+          delete region.dataset.autoFocusable;
+        }
+        return;
+      }
+
+      if (!region.hasAttribute('tabindex')) {
+        region.setAttribute('tabindex', '0');
+        region.dataset.autoFocusable = 'true';
+      }
+    });
+  }
+
   function makeScrollableTablesFocusable(headings: Element[]) {
     const tables = document.querySelectorAll('main table');
 
@@ -118,6 +145,55 @@
   }
 
   /**
+   * Starlight's desktop and mobile tables of contents both render a `<nav>`
+   * labelled "On this page", and both exist in the DOM at once (CSS toggles
+   * which is visible). Give the mobile one a distinct accessible name so the
+   * two nav landmarks aren't indistinguishable to assistive tech (WCAG 1.3.1).
+   */
+  function disambiguateMobileTocLandmark() {
+    const nav = document.querySelector('nav[aria-labelledby="starlight__on-this-page--mobile"]');
+    if (!nav || nav.hasAttribute('aria-label')) return;
+
+    const label = normalizeText(
+      document.getElementById('starlight__on-this-page--mobile')?.textContent
+    );
+    if (!label) return;
+
+    nav.removeAttribute('aria-labelledby');
+    nav.setAttribute('aria-label', `${label} (mobile)`);
+  }
+
+  /**
+   * Aside/callout boxes (Note, Tip, Caution, etc.) get their accessible name
+   * from their type label. Multiple asides of the same type on one page then
+   * share an identical landmark name, which is indistinguishable to assistive
+   * tech (WCAG 1.3.1). Number same-named asides so each is unique.
+   */
+  function disambiguateAsideLandmarks() {
+    const asides = Array.from(document.querySelectorAll('main aside[aria-label]'));
+    const groups = new Map();
+
+    asides.forEach((aside) => {
+      const label = aside.getAttribute('aria-label') || '';
+      if (!aside.dataset.baseAriaLabel) {
+        aside.dataset.baseAriaLabel = label;
+      }
+      const baseLabel = aside.dataset.baseAriaLabel;
+      if (!groups.has(baseLabel)) groups.set(baseLabel, []);
+      groups.get(baseLabel).push(aside);
+    });
+
+    groups.forEach((elements, baseLabel) => {
+      elements.forEach((aside, index) => {
+        aside.setAttribute(
+          'aria-label',
+          elements.length > 1 ? `${baseLabel} (${index + 1} of ${elements.length})` : baseLabel
+        );
+      });
+    });
+  }
+
+  /**
    * Add accessible labels to code blocks, copy buttons, and scrollable tables.
    * This runs after the page loads and whenever the DOM changes
    */
@@ -127,7 +203,10 @@
     );
 
     labelCodeRegions(headings);
+    makeScrollableCodeRegionsFocusable();
     makeScrollableTablesFocusable(headings);
+    disambiguateMobileTocLandmark();
+    disambiguateAsideLandmarks();
 
     // Find all figures with copy buttons (includes both .expressive-code and direct figures)
     const figures = document.querySelectorAll('figure.frame');

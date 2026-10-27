@@ -5,8 +5,10 @@ description: Learn how to use the Aspire Azure Data Explorer (Kusto) hosting int
 
 import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import kustoIcon from '@assets/icons/azure-dataexplorer-icon.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={kustoIcon}
@@ -42,11 +44,11 @@ aspire add azure-kusto
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Azure.Kusto@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Azure.Kusto" Version="*" />
 ```
 
@@ -66,7 +68,7 @@ This updates your `aspire.config.json` with the Azure Data Explorer hosting inte
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.Azure.Kusto": "13.3.0-preview.1.26256.5"
+    "Aspire.Hosting.Azure.Kusto": "%ASPIRE_VERSION_PREVIEW%"
   }
 }
 ```
@@ -76,11 +78,11 @@ This updates your `aspire.config.json` with the Azure Data Explorer hosting inte
 
 ## Add an Azure Data Explorer cluster resource
 
-Once you've installed the hosting integration, call `AddAzureKustoCluster` (or `addAzureKustoCluster`) to declare a cluster, then call `AddReadWriteDatabase` (or `addReadWriteDatabase`) to declare one or more databases inside it:
+Once you've installed the hosting integration, call <ApiReference name="Aspire.Hosting.AzureKustoBuilderExtensions.AddAzureKustoCluster" /> to declare a cluster, then call <ApiReference name="Aspire.Hosting.AzureKustoBuilderExtensions.AddReadWriteDatabase" /> to declare one or more databases inside it:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kusto = builder.AddAzureKustoCluster("kusto");
@@ -94,7 +96,7 @@ builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -111,10 +113,10 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-The preceding code adds an Azure Data Explorer cluster named `kusto` with a read-write database named `analytics`. The `WithReference` (or `withReference`) method injects the connection information into the consuming project.
+The preceding code adds an Azure Data Explorer cluster named `kusto` with a read-write database named `analytics`. The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> method injects the connection information into the consuming project.
 
 <Aside type="caution">
-  When you call `AddAzureKustoCluster`, it implicitly calls `AddAzureProvisioning` —
+  When you call `AddAzureKustoCluster`, it implicitly calls <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" /> —
   which adds support for generating Azure resources dynamically during app startup.
   The app must configure the appropriate subscription and location. For more
   information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -126,7 +128,7 @@ The hosting integration supports running Azure Data Explorer locally using the K
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kusto = builder.AddAzureKustoCluster("kusto")
@@ -142,7 +144,7 @@ builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -163,13 +165,15 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 When running as an emulator, databases are automatically created when the container starts and the connection string is configured automatically for local development.
 
+<ContainerImages package="Aspire.Hosting.Azure.Kusto" />
+
 ### Configure the emulator host port
 
-By default, the emulator uses a dynamic host port. To fix the host port, pass a `configureContainer` callback and call `WithHostPort` (or `withHostPort`):
+By default, the emulator uses a dynamic host port. To fix the host port, pass a `configureContainer` callback and call <ApiReference name="Aspire.Hosting.AzureKustoBuilderExtensions.WithHostPort" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kusto = builder.AddAzureKustoCluster("kusto")
@@ -182,7 +186,7 @@ var kusto = builder.AddAzureKustoCluster("kusto")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -205,7 +209,7 @@ When running as an emulator, you can provide a KQL script to initialize the data
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kusto = builder.AddAzureKustoCluster("kusto")
@@ -313,11 +317,11 @@ The generated Bicep is a starting point — customise it through the C# provisio
 
 ### Customize provisioning infrastructure
 
-All Aspire Azure resources subclass `AzureProvisioningResource`. The `ConfigureInfrastructure` (or `configureInfrastructure`) API lets you customise the generated Bicep with a fluent callback:
+All Aspire Azure resources subclass `AzureProvisioningResource`. The <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> API lets you customise the generated Bicep with a fluent callback:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kusto = builder.AddAzureKustoCluster("kusto")
@@ -341,7 +345,7 @@ kusto.AddReadWriteDatabase("analytics");
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();

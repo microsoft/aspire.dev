@@ -1,5 +1,8 @@
 ---
 title: What's new in Aspire 13.2
+resourceImage:
+  light: ~/assets/whats-new/aspire-13.2/resources-light.png
+  dark: ~/assets/whats-new/aspire-13.2/resources-dark.png
 description: Aspire 13.2 is here with new CLI commands, TypeScript AppHost support, and new and improved integrations.
 sidebar:
   label: Aspire 13.2
@@ -15,6 +18,7 @@ import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import ThemeImage from '@components/ThemeImage.astro';
+import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 
 import resourcesDark from '@assets/whats-new/aspire-13.2/resources-dark.png';
 import resourcesLight from '@assets/whats-new/aspire-13.2/resources-light.png';
@@ -29,10 +33,9 @@ import manageDialog from '@assets/whats-new/aspire-13.2/manage-dialog.png';
 import exportJsonMenu from '@assets/whats-new/aspire-13.2/export-json-menu.png';
 import exportJsonDialog from '@assets/whats-new/aspire-13.2/export-json-dialog.png';
 import exportEnvDialog from '@assets/whats-new/aspire-13.2/export-env-dialog.png';
+import ApiReference from '@components/ApiReference.astro';
 
-Welcome to Aspire 13.2! Whether you're a long-time Aspire user or just getting started, we're excited for you to try what's new. If you have questions, feedback, or run into issues, come say hi on [Discord](https://aka.ms/aspire-discord) or open an issue on [GitHub](https://github.com/microsoft/aspire/issues).
-
-Aspire 13.2 brings significant improvements with enhanced CLI capabilities, dashboard improvements, new AI agent integrations, and better multi-language support. This release focuses on making local development more streamlined for both developers and coding agents while maintaining the robust cloud-native foundation that Aspire is known for. 13.2 also includes significant infrastructure improvements to make it easy for the Aspire team to ship more frequent stable releases. A huge thank you to all the community contributors who helped make this release happen — your issues, PRs, and feedback drive Aspire forward.
+Aspire 13.2 expands the CLI, adds preview TypeScript AppHost support, and improves the dashboard, AI agent integrations, multi-language development, and cloud deployment. It also strengthens the infrastructure used to ship stable releases more frequently. Share questions and feedback on [Discord](https://aka.ms/aspire-discord) or [GitHub](https://github.com/microsoft/aspire/issues).
 
 ## 🆙 Upgrade to Aspire 13.2
 
@@ -45,11 +48,7 @@ Aspire 13.2 brings significant improvements with enhanced CLI capabilities, dash
   review the [Breaking changes](#breaking-changes) section before upgrading.
 </Aside>
 
-<Aside type="note">
-  If you are on a version of the Aspire CLI less than 13, please use the
-  [installation instructions](/get-started/install-cli/) to install the latest
-  stable version.
-</Aside>
+If your Aspire CLI version is earlier than 13, first [install the latest stable version](/get-started/install-cli/).
 
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
 
@@ -97,7 +96,7 @@ You can also manually update your apphost to reference Aspire version `13.2.0`:
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.AppHost.Sdk@13.2.0
 ```
 
@@ -139,7 +138,7 @@ aspire restore
 
 ### Detached mode and process management
 
-One of the most requested features lands in 13.2: **detached mode** for running Aspirified apps. You can now run your apphost in the background, freeing up your terminal for other tasks.
+One of the most requested features in 13.2 is detached mode for running Aspirified apps. You can now run your apphost in the background, freeing up your terminal for other tasks.
 
 ```bash title="Aspire CLI — Detached mode and process management"
 # Run in detached mode
@@ -172,15 +171,12 @@ aspire resource api restart
 aspire resource api rebuild
 ```
 
-<Aside type="tip">
-  For automation and CI/CD scenarios, use `--format Json` to get machine-readable output:
+For automation and CI/CD scenarios, use `--format Json` to get machine-readable output:
 
 ```bash title="Aspire CLI — Detached mode with JSON output"
 aspire run --detach --format Json
 aspire ps --format Json
 ```
-
-</Aside>
 
 <LearnMore>
   Command reference: [`aspire run`](/reference/cli/commands/aspire-run/),
@@ -349,7 +345,7 @@ Configuration is now clearly separated into local and global settings, with feat
 
 Aspire now also prefers a single `aspire.config.json` file that combines apphost location, language metadata, Aspire SDK version, channel selection, feature flags, launch profiles, and package pins:
 
-```json title="JSON — aspire.config.json"
+```json title="aspire.config.json"
 {
   "appHost": {
     "path": "apphost.mts",
@@ -386,9 +382,9 @@ Global settings (`globalsettings.json` in your user-level Aspire directory) are 
 
 Several CLI options were standardized for consistency with common CLI conventions:
 
-- **`-v` for `--version`**: The `-v` flag is now a short alias for `--version`, following standard CLI conventions.
-- **`--format` descriptions**: The `--format` option description is now standardized to "Output format (Table or Json)." across all commands that support it.
-- **`--log-level`/`-l`**: Commands that support log-level filtering now use `--log-level`/`-l` consistently.
+- `-v` is now a short alias for `--version`, following standard CLI conventions.
+- The `--format` option description is now standardized to "Output format (Table or Json)." across all commands that support it.
+- Commands that support log-level filtering now use `--log-level` and `-l` consistently.
 
 ### Other CLI improvements
 
@@ -406,34 +402,34 @@ The Aspire VS Code extension received its biggest update yet in 13.2, with over 
 
 ### Aspire Activity Bar panel
 
-A dedicated **Aspire panel** in the Activity Bar gives you a live tree view of running apphosts and their resources. The panel uses `aspire describe --follow` to stream real-time resource state updates for the workspace apphost — no polling, no latency. A workspace/global toggle lets you switch between viewing just the current workspace's apphost or all running apphosts on your machine.
+A dedicated Aspire panel in the Activity Bar gives you a live tree view of running apphosts and their resources. The panel uses `aspire describe --follow` to stream real-time resource state updates for the workspace apphost — no polling, no latency. A workspace/global toggle lets you switch between viewing just the current workspace's apphost or all running apphosts on your machine.
 
 Resources in the tree show health-aware icons (green for healthy, red for errors, amber for degraded, spinner for starting), rich markdown tooltips with type, state, and clickable endpoint URLs, and right-click context menus for common operations like viewing logs, stopping, or restarting resources.
 
 ### CodeLens and gutter decorations
 
-When an Aspire apphost is running, the extension now shows **inline CodeLens** above each resource definition in your C# or TypeScript apphost file:
+When an Aspire apphost is running, the extension now shows inline CodeLens above each resource definition in your C# or TypeScript apphost file:
 
 - Live resource state (Running, Starting, Stopped, Error) with health status
 - Action buttons: Start, Stop, Restart, View Logs
 - Custom resource commands from the runtime
 
-Colored **gutter decorations** appear alongside resource definitions — green for running, blue for starting, red for errors, gray for stopped — giving you an at-a-glance view of your entire app's health right in the editor. Both features are backed by language-aware parsers that understand `DistributedApplication.CreateBuilder` in C# and `createBuilder()` in TypeScript.
+Colored gutter decorations appear alongside resource definitions — green for running, blue for starting, red for errors, gray for stopped — giving you an at-a-glance view of your entire app's health right in the editor. Both features are backed by language-aware parsers that understand `DistributedApplication.CreateBuilder` in C# and `createBuilder` in TypeScript.
 
 ### Getting Started walkthrough
 
-A new **Getting Started walkthrough** guides new users through installing the CLI, creating a project, running their app, exploring the dashboard, and next steps — all from within VS Code. The walkthrough includes clickable terminal links to install the Aspire CLI directly from the editor.
+A new Getting Started walkthrough guides new users through installing the CLI, creating a project, running their app, exploring the dashboard, and next steps — all from within VS Code. The walkthrough includes clickable terminal links to install the Aspire CLI directly from the editor.
 
 ### Debugging improvements
 
-- **Azure Functions debugging** — Azure Functions projects referenced from an apphost can now be debugged directly.
-- **TypeScript apphost debugging** — TS apphosts now participate in debugging more naturally, with better tool detection, build/launch coordination, and support for browser debugging scenarios.
-- **`publish`, `deploy`, and `do` flows** can now be debugged directly from the extension.
-- **Apphost exit messages** now appear in the debug console for easier troubleshooting.
+- Azure Functions projects referenced from an apphost can now be debugged directly.
+- TypeScript apphosts now participate in debugging more naturally, with better tool detection, build and launch coordination, and support for browser debugging scenarios.
+- `publish`, `deploy`, and `do` flows can now be debugged directly from the extension.
+- Apphost exit messages now appear in the debug console for easier troubleshooting.
 
 ### `aspire.config.json` and <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> support
 
-The extension now reads `aspire.config.json` for apphost discovery instead of relying solely on `.csproj` file detection, making TypeScript apphosts work seamlessly. It can also **auto-register the Aspire MCP server** for AI agent workflows. The CLI is automatically detected at default install paths even when it's not on PATH.
+The extension now reads `aspire.config.json` for apphost discovery instead of relying solely on `.csproj` file detection, making TypeScript apphosts work seamlessly. It can also auto-register the Aspire MCP server for AI agent workflows. The CLI is automatically detected at default install paths even when it's not on PATH.
 
 ### Additional improvements
 
@@ -454,7 +450,7 @@ One of the most anticipated features in Aspire 13.2 is support for writing your 
 
 TypeScript apphosts use the same app model as C#—resources, references, integrations—expressed in idiomatic TypeScript via `createBuilder()`:
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -492,7 +488,7 @@ Aspire 13.2 adds comprehensive data export and import capabilities to the dashbo
 
 #### Manage logs and telemetry dialog
 
-The new **Manage logs and telemetry** dialog (accessible via **Settings → Manage**) is a one-stop shop for exporting, importing, and removing data from the dashboard. Select resources and telemetry types, then export, remove, or import as needed.
+The new Manage logs and telemetry dialog, available from Settings → Manage, provides one place to export, import, and remove dashboard data. Select resources and telemetry types, then export, remove, or import as needed.
 
 Data is exported as JSON in a zip file. Share it with AI, teammates, or import it back into the dashboard later.
 
@@ -502,7 +498,7 @@ The dashboard can also import telemetry bundles captured with `aspire export`, m
 
 #### Export JSON for resources and telemetry
 
-Export data for specific resources and telemetry directly from the dashboard. Select **Export JSON** in context menus to get the data — copy it to your clipboard or download it to your machine.
+Export data for specific resources and telemetry directly from the dashboard. Select Export JSON in context menus, then copy the data to your clipboard or download it to your machine.
 
 <Image src={exportJsonMenu} alt="Export JSON button in the resource context menu" />
 
@@ -540,11 +536,7 @@ You can now set resource parameters directly in the dashboard. Click the key act
 
 The GenAI visualizer keeps getting sharper. In 13.2 it handles more schema shapes, tolerates truncated payloads more gracefully, properly displays non-ASCII text, and makes tool inspection easier by letting you jump directly from a tool call to the corresponding tool definition.
 
-<Aside type="tip">
-  If you're using Aspire to inspect AI-heavy workloads, these improvements make
-  the dashboard much more useful when traffic is messy, incomplete, or generated
-  by real agents rather than tidy samples.
-</Aside>
+These improvements make the dashboard more useful for inspecting AI-heavy workloads when traffic is incomplete or generated by real agents rather than controlled samples.
 
 ### Resource graph improvements
 
@@ -577,12 +569,12 @@ Additional dashboard refinements in 13.2:
 
 ### MCP endpoints from the app model
 
-Aspire 13.2 adds `WithMcpServer`, which lets you declare in the app model that a resource hosts a Model Context Protocol (MCP) server. Aspire tooling can then discover and proxy that endpoint directly.
+Aspire 13.2 adds <ApiReference name="Aspire.Hosting.McpServerResourceBuilderExtensions.WithMcpServer" />, which lets you declare in the app model that a resource hosts a Model Context Protocol (MCP) server. Aspire tooling can then discover and proxy that endpoint directly.
 
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.MyApi>("api")
@@ -594,7 +586,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -608,10 +600,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-<Aside type="note">
-  If you host the MCP server on a non-default endpoint or path, you can pass a
-  custom `path` or `endpointName`.
-</Aside>
+If you host the MCP server on a non-default endpoint or path, pass a custom `path` or `endpointName`.
 
 ### Project rebuilds and smarter change detection
 
@@ -629,12 +618,12 @@ The OpenTelemetry Protocol (OTLP) endpoint is now modeled as a first-class resou
 
 ### Better secret and certificate handling
 
-Container build secrets got a clearer API in 13.2. `WithBuildSecret` replaces the old `WithSecretBuildArg` name and makes secure Docker or Podman build secret flows more readable.
+Container build secrets got a clearer API in 13.2. <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithBuildSecret" /> replaces the old `WithSecretBuildArg` name and makes secure Docker or Podman build secret flows more readable.
 
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var accessToken = builder.AddParameter("accessToken", secret: true);
@@ -647,7 +636,7 @@ builder.AddContainer("worker", "contoso/worker")
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -664,7 +653,7 @@ await builder.addContainer("worker", { image: "contoso/worker", tag: "latest" })
 
 Certificate trust handling also became more flexible. You can now create custom certificate bundles during run mode, which helps with scenarios like Java trust stores or custom bundle formats that don't map cleanly to the default certificate layout.
 
-```csharp title="C# — Custom certificate trust configuration"
+```csharp title="Custom certificate trust configuration"
 builder.AddContainer("my-java-app", "my-image:latest")
     .WithCertificateTrustConfiguration(ctx =>
     {
@@ -690,7 +679,7 @@ builder.AddContainer("my-java-app", "my-image:latest")
     });
 ```
 
-`ReferenceExpression` now exposes `GetValueAsync()` and supports conditional mode in multi-language code generation, which makes advanced hosting extensions easier to build without relying on synchronous value access patterns.
+`ReferenceExpression` now exposes <ApiReference name="Aspire.Hosting.ApplicationModel.ReferenceExpression.GetValueAsync" /> and supports conditional mode in multi-language code generation, which makes advanced hosting extensions easier to build without relying on synchronous value access patterns.
 
 ### Enhanced debugging experience
 
@@ -717,10 +706,10 @@ This makes it easier to inspect your Aspire application state during debugging s
 
 ### Docker and container enhancements
 
-- **'Never' Pull Policy**: Exposed image pull policy option for scenarios requiring local images
-- **PullPolicy for Docker Compose**: Added `PullPolicy` property to Docker Compose Service class
-- **File-based Docker build secrets**: Build secrets can now be files (e.g., `.npmrc`), allowing private registry authentication in container builds without baking credentials into the image
-- **PostgreSQL v18+ Compatibility**: Fixed data volume path for PostgreSQL version 18 and later
+- The `Never` pull policy is exposed for scenarios that require local images.
+- The Docker Compose Service class adds a `PullPolicy` property.
+- Docker build secrets can now be files such as `.npmrc`, allowing private registry authentication without baking credentials into the image.
+- The data volume path now supports PostgreSQL version 18 and later.
 
 ### Build improvements
 
@@ -742,7 +731,7 @@ The same resource can have different URLs depending on the context:
 
 You can resolve an endpoint URL from the perspective of a specific calling resource using the `Caller` property on `ValueProviderContext`:
 
-```csharp title="C# — Resolve endpoint from a resource's perspective"
+```csharp title="Resolve endpoint from a resource's perspective"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddRedis("cache");
@@ -766,7 +755,7 @@ This is particularly useful when you need to pass connection information between
 
 You can also resolve an endpoint URL from the perspective of a specific network using the `Network` property on `ValueProviderContext`:
 
-```csharp title="C# — Resolve endpoint from a network's perspective"
+```csharp title="Resolve endpoint from a network's perspective"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddRedis("cache");
@@ -789,10 +778,7 @@ The `KnownNetworkIdentifiers` class provides predefined network identifiers:
 - `DefaultAspireContainerNetwork`: Resolves to container network URLs using resource names
 - `PublicInternet`: Resolves to externally accessible URLs
 
-<Aside type="note">
-  These APIs existed in Aspire 13.1 but did not behave as expected. In Aspire
-  13.2, they now correctly resolve endpoints based on the specified context.
-</Aside>
+These APIs existed in Aspire 13.1 but did not behave as expected. In Aspire 13.2, they correctly resolve endpoints based on the specified context.
 
 <LearnMore>
   For more details, see: - [GitHub Issue
@@ -810,7 +796,7 @@ The Docker Compose publishing integration has moved from prerelease to a stable 
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddDockerComposeEnvironment("compose");
@@ -821,7 +807,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -845,7 +831,7 @@ You can now add Foundry accounts, create Foundry Projects, attach model deployme
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var foundry = builder.AddFoundry("foundry");
@@ -864,7 +850,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -889,13 +875,13 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-New APIs in this area include `AddProject`, `AddModelDeployment`, `WithAppInsights`, `WithKeyVault`, `WithContainerRegistry`, `PublishAsHostedAgent`, and `AddAndPublishPromptAgent`. `RunAsFoundryLocal` is still available for local model development, but Foundry Projects aren't supported when the parent resource is configured as Foundry Local.
+New APIs in this area include <ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.AddProject" />, <ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.AddModelDeployment" />, <ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.WithAppInsights" />, <ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.WithKeyVault" />, <ApiReference name="Aspire.Hosting.ContainerRegistryResourceBuilderExtensions.WithContainerRegistry" />, `PublishAsHostedAgent`, and `AddAndPublishPromptAgent`. <ApiReference name="Aspire.Hosting.FoundryExtensions.RunAsFoundryLocal" /> is still available for local model development, but Foundry Projects aren't supported when the parent resource is configured as Foundry Local.
 
 <Aside type="caution">
   This is a breaking change. `Aspire.Hosting.Azure.AIFoundry` has been replaced
-  by `Aspire.Hosting.Foundry`. See the [AIFoundry to Foundry
-  transition](#aifoundry-to-foundry-transition) in breaking changes for
-  migration steps.
+  by `Aspire.Hosting.Foundry`. See the [Foundry package and namespace
+  transition](#foundry-package-and-namespace-transition) in breaking changes
+  for migration steps.
 </Aside>
 
 <LearnMore>
@@ -907,7 +893,7 @@ New APIs in this area include `AddProject`, `AddModelDeployment`, `WithAppInsigh
 
 When deploying to Azure, securing network access to your resources is critical. The new `Aspire.Hosting.Azure.Network` integration lets you lock down your Azure resources by defining virtual networks, subnets, NAT gateways, network security groups (NSGs), and private endpoints directly in your apphost—ensuring your cloud infrastructure is secure by default.
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 
 // Add a subnet with NSG rules
@@ -930,10 +916,10 @@ peSubnet.AddPrivateEndpoint(storage.AddBlobs("blobs"));
 
 Key capabilities include:
 
-- **Virtual networks and subnets**: Create networks with `AddAzureVirtualNetwork` and add subnets with `AddSubnet`.
-- **NAT gateways**: Provide deterministic outbound public IP addresses with `AddNatGateway` and `WithNatGateway`.
-- **Network security groups**: Control traffic flow using shorthand methods (`AllowInbound`, `DenyInbound`, `AllowOutbound`, `DenyOutbound`) or explicit `AddNetworkSecurityGroup` with `WithSecurityRule` for full control.
-- **Private endpoints**: Securely connect to Azure services over private networks with `AddPrivateEndpoint`, which automatically creates private DNS zones, virtual network links, and disables public access on the target resource.
+- Create virtual networks with <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AddAzureVirtualNetwork" /> and add subnets with <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AddSubnet" />.
+- Provide deterministic outbound public IP addresses with <ApiReference name="Aspire.Hosting.AzureNatGatewayExtensions.AddNatGateway" /> and <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.WithNatGateway" />.
+- Control traffic with network security group shorthand methods (<ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AllowInbound" />, <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.DenyInbound" />, <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AllowOutbound" />, <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.DenyOutbound" />) or explicit <ApiReference name="Aspire.Hosting.AzureNetworkSecurityGroupExtensions.AddNetworkSecurityGroup" /> with <ApiReference name="Aspire.Hosting.AzureNetworkSecurityGroupExtensions.WithSecurityRule" />.
+- Connect securely to Azure services over private networks with <ApiReference name="Aspire.Hosting.AzurePrivateEndpointExtensions.AddPrivateEndpoint" />, which automatically creates private DNS zones and virtual network links and disables public access on the target resource.
 
 <LearnMore>
   For more details, see [Azure Virtual Network
@@ -944,7 +930,7 @@ Key capabilities include:
 
 The Azure AI Inference component now supports embeddings in addition to chat completions. You can register an `EmbeddingsClient` and then layer an `IEmbeddingGenerator<string, Embedding<float>>` on top of it:
 
-```csharp title="C# — Service project"
+```csharp title="Service project"
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddAzureEmbeddingsClient("embeddings")
@@ -960,9 +946,7 @@ app.MapGet("/embed", async (
 });
 ```
 
-<Aside type="note">
-  Keyed embeddings are supported too with `AddKeyedEmbeddingGenerator`.
-</Aside>
+Keyed embeddings are also supported with `AddKeyedEmbeddingGenerator`.
 
 <LearnMore>
   For more details, see [Azure AI Inference
@@ -983,14 +967,14 @@ app.MapGet("/embed", async (
 
 ### Azure Container Registry
 
-The Azure Container Registry integration now supports scheduled image cleanup with the new `WithPurgeTask` method. This provisions an [ACR purge task](https://learn.microsoft.com/azure/container-registry/container-registry-auto-purge) that automatically removes old or unused container images on a cron schedule:
+The Azure Container Registry integration now supports scheduled image cleanup with the new <ApiReference name="Aspire.Hosting.AzureContainerRegistryExtensions.WithPurgeTask" /> method. This provisions an [ACR purge task](https://learn.microsoft.com/azure/container-registry/container-registry-auto-purge) that automatically removes old or unused container images on a cron schedule:
 
-```csharp title="C# — Schedule ACR image cleanup"
+```csharp title="Schedule ACR image cleanup"
 var acr = builder.AddAzureContainerRegistry("my-acr")
     .WithPurgeTask("0 1 * * *", ago: TimeSpan.FromDays(7), keep: 5);
 ```
 
-Additionally, the new `GetAzureContainerRegistry` method makes it easy to access the registry from a compute environment for further configuration.
+Additionally, the new <ApiReference name="Aspire.Hosting.AzureContainerRegistryExtensions.GetAzureContainerRegistry" /> method makes it easy to access the registry from a compute environment for further configuration.
 
 <LearnMore>
   For more details, see [Azure Container Registry
@@ -1004,7 +988,7 @@ Aspire 13.2 adds both hosting and client-side support for Azure Data Lake Storag
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api");
@@ -1021,7 +1005,7 @@ api.WithReference(dataLake)
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -1040,7 +1024,7 @@ await api.withReference(dataLake)
 </TabItem>
 </Tabs>
 
-```csharp title="C# — Service project"
+```csharp title="Service project"
 builder.AddAzureDataLakeServiceClient("data-lake");
 builder.AddAzureDataLakeFileSystemClient("data-lake-file-system");
 ```
@@ -1052,14 +1036,14 @@ builder.AddAzureDataLakeFileSystemClient("data-lake-file-system");
 
 ### Database integrations
 
-- **MongoDB**: Connection string options now correctly prepend forward slash
-- **MongoDB Entity Framework Core**: [New client integration `Aspire.MongoDB.EntityFrameworkCore`](/integrations/databases/efcore/mongodb/mongodb-efcore-get-started/)
-- **Oracle EF Core**: Multi-targeting support added
-- **SQL Server**: New `Aspire.Hosting.SqlServer` exports
+- MongoDB connection string options now correctly prepend a forward slash.
+- The new [`Aspire.MongoDB.EntityFrameworkCore` client integration](/integrations/databases/efcore/mongodb/mongodb-efcore-get-started/) adds Entity Framework Core support for MongoDB.
+- Oracle EF Core adds multi-targeting support.
+- SQL Server adds new `Aspire.Hosting.SqlServer` exports.
 
 The new MongoDB EF Core provider makes it easier to use EF Core with MongoDB while keeping the normal Aspire enrichment experience:
 
-```csharp title="C# — Service project"
+```csharp title="Service project"
 builder.AddMongoDbContext<MyDbContext>("mongodb", databaseName: "appdb");
 ```
 
@@ -1067,12 +1051,12 @@ If you register the `DbContext` yourself, you can still opt into Aspire instrume
 
 ### JavaScript hosting with Bun
 
-JavaScript resources can now opt into Bun as their package manager with `WithBun()`. Aspire configures the right package-manager annotations, install behavior, and container build image defaults for Bun-backed applications. This release also fixes reliability issues when using Yarn with `AddViteApp` via `WithYarn()`.
+JavaScript resources can now opt into Bun as their package manager with <ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.WithBun" />. Aspire configures the right package-manager annotations, install behavior, and container build image defaults for Bun-backed applications. This release also fixes reliability issues when using Yarn with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" /> via <ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.WithYarn" />.
 
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddViteApp("frontend", "./frontend")
@@ -1085,7 +1069,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -1111,7 +1095,7 @@ await builder.build().run();
 - Azure App Configuration emulator updated to 1.0.2
 - CosmosDB preview emulator readiness check added
 - Azure Managed Redis now uses `rediss://` as the default scheme
-- Multiple Azurite storage accounts now supported with `RunAsEmulator`
+- Multiple Azurite storage accounts now supported with <ApiReference name="Aspire.Hosting.AzureStorageExtensions.RunAsEmulator" />
 
 ### AI model updates
 
@@ -1124,7 +1108,7 @@ await builder.build().run();
 ### Kubernetes improvements
 
 - YAML publishing fixes for Kubernetes deployments
-- Better handling of resources with `ExcludeFromManifest`
+- Better handling of resources with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.ExcludeFromManifest" />
 
 ### Azure deployment
 
@@ -1164,11 +1148,11 @@ This release includes numerous bug fixes across all areas:
 
 Service discovery environment variables now use the endpoint **scheme** instead of the endpoint **name**:
 
-```csharp title="C# — Before (13.0/13.1)"
+```csharp title="Before (13.0/13.1)"
 // services__myservice__myendpoint__0 = https://localhost:5001
 ```
 
-```csharp title="C# — After (13.2)"
+```csharp title="After (13.2)"
 // services__myservice__https__0 = https://localhost:5001
 ```
 
@@ -1203,7 +1187,7 @@ The standalone dashboard now defaults its HTTP API to off.
 
 If you host the dashboard directly and rely on the API, enable it explicitly by setting `ASPIRE_DASHBOARD_API_ENABLED=true` or by supplying equivalent configuration:
 
-```json title="JSON — Dashboard configuration"
+```json title="Dashboard configuration"
 {
   "Dashboard": {
     "Api": {
@@ -1225,9 +1209,9 @@ The `BeforeResourceStartedEvent` now only fires when actually starting a resourc
 
 ### Connection property suffix
 
-Several connection properties for "named entity" resources gained an explicit `Name` suffix so the property clearly refers to the entity's name rather than the entity itself. This affects both the connection-property API (`GetConnectionProperty`) and the environment variables Aspire injects via `WithReference(...)` and `ReferenceEnvironmentInjectionFlags.ConnectionProperties`.
+Several connection properties for "named entity" resources gained an explicit `Name` suffix so the property clearly refers to the entity's name rather than the entity itself. This affects both the connection-property API (<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.GetConnectionProperty" />) and the environment variables Aspire injects via <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> and `ReferenceEnvironmentInjectionFlags.ConnectionProperties`.
 
-A subset of these renames first shipped in 13.1; 13.2 completes the rollout across the remaining built-in resources. The full list of renamed properties as of 13.2 is:
+A subset of these renames first shipped in [13.1](/whats-new/aspire-13-1/#connection-properties-rename); 13.2 completes the rollout across the remaining built-in resources, so apps upgrading directly from 13.0 to 13.2 encounter all of them at once. The full list of renamed properties as of 13.2 is:
 
 | Old property name | New property name | Affected resources |
 | ----------------- | ----------------- | ------------------ |
@@ -1235,19 +1219,21 @@ A subset of these renames first shipped in 13.1; 13.2 completes the rollout acro
 | `Model`           | `ModelName`       | `OpenAIModel`, `AzureOpenAIDeployment`, `FoundryDeployment`, `GitHubModel` |
 | `ConsumerGroup`   | `ConsumerGroupName` | `AzureEventHubConsumerGroup` |
 
-Aspire serializes property names directly into environment variable names with the `[RESOURCE]_[PROPERTY]` pattern, so any consuming app that reads the renamed properties from the environment must use the new uppercase names. For example, a SQL Server database resource named `sqldb`:
+When Aspire injects a connection property with the `[RESOURCE]_[PROPERTY]` pattern, it transforms the two parts differently. For the resource-name prefix, Aspire replaces each character that isn't an ASCII letter or digit with an underscore, prefixes an underscore when the name starts with a digit, and uppercases the result. For the property suffix, Aspire only uppercases the property key. Any consuming app that reads the renamed properties from the environment must use the new names. For example, a SQL Server database resource named `sqldb`:
 
-```diff title="Bash — Environment variable"
+```diff title="Environment variable"
 - SQLDB_DATABASE=catalog
 + SQLDB_DATABASENAME=catalog
 ```
+
+For an Event Hubs consumer group resource named `orders-cg`, the resource-name encoder produces `ORDERS_CG`; separately, uppercasing the `ConsumerGroupName` property key produces `CONSUMERGROUPNAME`. Aspire joins them as `ORDERS_CG_CONSUMERGROUPNAME`.
 
 Update consuming app code that reads the variable directly:
 
 <Tabs syncKey="aspire-consuming-lang">
 <TabItem label="C#">
 
-```diff lang="csharp" title="C# — Read injected connection property"
+```diff lang="csharp" title="Read injected connection property"
 - var database = Environment.GetEnvironmentVariable("SQLDB_DATABASE");
 + var database = Environment.GetEnvironmentVariable("SQLDB_DATABASENAME");
 ```
@@ -1255,7 +1241,7 @@ Update consuming app code that reads the variable directly:
 </TabItem>
 <TabItem label="Python">
 
-```diff lang="python" title="Python — Read injected connection property"
+```diff lang="python" title="Read injected connection property"
 - database = os.getenv("SQLDB_DATABASE")
 + database = os.getenv("SQLDB_DATABASENAME")
 ```
@@ -1263,7 +1249,7 @@ Update consuming app code that reads the variable directly:
 </TabItem>
 <TabItem label="TypeScript">
 
-```diff lang="typescript" title="TypeScript — Read injected connection property"
+```diff lang="typescript" title="Read injected connection property"
 - const database = process.env.SQLDB_DATABASE;
 + const database = process.env.SQLDB_DATABASENAME;
 ```
@@ -1271,7 +1257,7 @@ Update consuming app code that reads the variable directly:
 </TabItem>
 <TabItem label="Go">
 
-```diff lang="go" title="Go — Read injected connection property"
+```diff lang="go" title="Read injected connection property"
 - database := os.Getenv("SQLDB_DATABASE")
 + database := os.Getenv("SQLDB_DATABASENAME")
 ```
@@ -1281,12 +1267,14 @@ Update consuming app code that reads the variable directly:
 
 If your AppHost code reads connection properties through the `IResourceWithConnectionString` API, update those calls as well:
 
-```diff lang="csharp" title="C# — AppHost.cs"
+```diff lang="csharp" title="AppHost.cs"
 - var database = sqldb.Resource.GetConnectionProperty("Database");
 + var database = sqldb.Resource.GetConnectionProperty("DatabaseName");
 ```
 
-To migrate, search your solution for the affected uppercase environment variable names (for example, `_DATABASE`, `_MODEL`, and `_CONSUMERGROUP`) along with `GetConnectionProperty("Database")`, `GetConnectionProperty("Model")`, and `GetConnectionProperty("ConsumerGroup")`, and apply the rename. Properties not listed in the table — for example, `Endpoint`, `Host`, `Port`, `Username`, `Password`, `Uri`, and `Key` — are unchanged.
+To migrate, search your solution for the affected uppercase environment variable names (for example, `_DATABASE`, `_MODEL`, and `_CONSUMERGROUP`) along with `GetConnectionProperty("Database")`, `GetConnectionProperty("Model")`, and `GetConnectionProperty("ConsumerGroup")`, and apply the rename. Also update any custom Bicep, Helm, or other deployment templates that hard-code the old property keys when emitting connection metadata. Properties not listed in the table — for example, `Endpoint`, `Host`, `Port`, `Username`, `Password`, `Uri`, and `Key` — are unchanged.
+
+C# apps that consume the Aspire client integrations (for example, `AddNpgsqlDataSource`, `AddAzureOpenAIClient`, or `AddMongoDBClient`) don't need source changes. Those packages resolve the connection string through `ConnectionStrings:<resource-name>`, which is unaffected by this rename.
 
 <Aside type="note">
   Properties that don't refer to a named entity were not renamed. For example, the
@@ -1294,20 +1282,27 @@ To migrate, search your solution for the affected uppercase environment variable
   `Organization` property on `GitHubModelResource` keep their existing names.
 </Aside>
 
-For the full per-resource property catalog, see the **Connection properties** section on each integration's *connect* page — for example, [Connect to Azure Cosmos DB](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-connect/#connection-properties), [Connect to SQL Server](/integrations/databases/sql-server/sql-server-connect/#connection-properties), or [Connect to GitHub Models](/integrations/ai/github-models/github-models-connect/#connection-properties).
+For the full per-resource property catalog, see the Connection properties section on each integration's *connect* page — for example, [Connect to Azure Cosmos DB](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-connect/#connection-properties) or [Connect to SQL Server](/integrations/databases/sql-server/sql-server-connect/#connection-properties).
 
-### AIFoundry to Foundry transition
+### Foundry package and namespace transition
 
-`Aspire.Hosting.Azure.AIFoundry` was replaced by the broader `Aspire.Hosting.Foundry` surface.
+Aspire 13.2 standardizes the Foundry hosting surface under `Aspire.Hosting.Foundry`.
 
-When upgrading, make both of these changes:
+| Previous 13.1 name | 13.2 name |
+| ------------------ | --------- |
+| Hosting package: `Aspire.Hosting.Azure.AIFoundry` | Hosting package: `Aspire.Hosting.Foundry` |
+| Resource and model namespace: `Aspire.Hosting.Azure` | Resource and model namespace: `Aspire.Hosting.Foundry` |
+| `AddAzureAIFoundry(...)` | <ApiReference name="Aspire.Hosting.FoundryExtensions.AddFoundry" /> |
+| `AzureAIFoundryResource` | `FoundryResource` |
+| `AzureAIFoundryExtensions` | `FoundryExtensions` |
+| `AzureAIFoundryDeploymentResource` | `FoundryDeploymentResource` |
+| `AIFoundryModel` | `FoundryModel` |
 
-- Replace the `Aspire.Hosting.Azure.AIFoundry` package reference with `Aspire.Hosting.Foundry`.
-- Migrate from `AddAzureAIFoundry()` to `AddFoundry()`, then add deployments explicitly with `AddDeployment()` or `AddModelDeployment()`.
+Migration tip: update your package reference, add `using Aspire.Hosting.Foundry;` for direct resource or model type references, and rename `AddAzureAIFoundry(...)` to `AddFoundry(...)`. Remove `using Aspire.Hosting.Azure;` only if your code no longer uses other types from that namespace. Extension methods remain in the `Aspire.Hosting` namespace.
 
 ```xml title="XML — AppHost project file"
 <ItemGroup>
-  <PackageReference Include="Aspire.Hosting.Foundry" Version="13.2.0" />
+  <PackageReference Include="Aspire.Hosting.Foundry" Version="13.2.0-preview.1.26170.3" />
 </ItemGroup>
 ```
 
@@ -1327,7 +1322,7 @@ This aligns the hosting API with the current Foundry branding and unlocks the ne
 
 The container build secret API was renamed for clarity:
 
-```csharp title="C# — Migration example"
+```csharp title="Migration example"
 // Before
 builder.AddContainer("worker", "contoso/worker")
     .WithDockerfile("../worker")
@@ -1368,8 +1363,14 @@ The following TypeScript AppHost APIs were renamed. Update any affected `apphost
 | `runAsExistingFromParameters(name, resourceGroup)` | `runAsExisting(name, { resourceGroup })` | Name change plus positional → options object. |
 | `publishAsExistingFromParameters(name, resourceGroup)` | `publishAsExisting(name, { resourceGroup })` | Name change plus positional → options object. |
 | `withConnectionPropertyValue(name, value)` | `withConnectionProperty(name, value)` | Unified API for string/reference values. |
-| `withParameterBuildArg(name, parameter)` | `withBuildArg(name, parameter)` | Renamed to the unified `withBuildArg` surface. |
+| `withParameterBuildArg(name, parameter)` | `withBuildArg(name, parameter)` | Renamed to the unified <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithBuildArg" /> surface. |
 
 <Aside type="note">
   `withConnectionPropertyValue` is still available as a compatibility alias in the generated SDKs, so it is not a runtime SDK break.
 </Aside>
+
+## 🙏 Community
+
+Aspire is built in the open, and this release wouldn't be what it is without you. A huge thank you to everyone who helped make Aspire 13.2 possible.
+
+<ReleaseCommunity version="13.2" />

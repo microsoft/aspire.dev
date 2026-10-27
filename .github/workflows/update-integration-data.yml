@@ -1,0 +1,197 @@
+name: Integration Data Updater
+
+# Deterministic replacement for the former `gh aw` agentic workflow. Runs the
+# update scripts directly (no LLM inference, no agent timeout, no PAT auth) and
+# opens a PR through the Aspire bot GitHub App when the generated data changes.
+#
+# The bot owns the rolling `chore/update-integration-data` branch and force-pushes
+# it on every run, so nobody should commit to it. The PR is labeled
+# `:octocat: auto-merge`, which .github/policies/auto-merge.yml turns into an
+# approval and a squash auto-merge once the required `ci-gate` check passes.
+# Remove the label to hold a PR for manual review.
+#
+# All logic lives in src/frontend/scripts/update-integration-data.ps1 so the
+# exact same flow can be reproduced locally:
+#   pwsh src/frontend/scripts/update-integration-data.ps1
+
+on:
+  schedule:
+    # Daily, including weekends, so the complete blog archive stays current.
+    - cron: "10 21 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: update-integration-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update integration data
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history is required so the orchestrator can diff the committed
+          # aspire-integrations.json (HEAD) against the freshly generated one.
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install Aspire CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          aspire_bin="${RUNNER_TEMP}/aspire/bin"
+          curl -sSL https://aspire.dev/install.sh | bash -s -- --install-path "$aspire_bin" --skip-path
+          echo "ASPIRE_CLI_PATH=$aspire_bin/aspire" >> "$GITHUB_ENV"
+          echo "$aspire_bin" >> "$GITHUB_PATH"
+          "$aspire_bin/aspire" --version --banner
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.x"
+
+      - name: Install dependencies
+        working-directory: src/frontend
+        run: bun install --frozen-lockfile
+
+      - name: Update integration data and official blog archive
+        id: update
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./src/frontend/scripts/update-integration-data.ps1
+
+      - name: Commit and refresh automation branch
+        if: ${{ steps.update.outputs.changed == 'true' }}
+        id: push
+        env:
+          PR_TITLE: ${{ steps.update.outputs.pr_title }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Single long-lived automation branch. Each run force-pushes one commit
+          # with the latest generated data on top of the freshest main, so the
+          # open PR is refreshed in place instead of piling up a new PR (and a new
+          # branch) every day. The rolling commit is always a single snapshot
+          # rebased onto current main, which also keeps the PR conflict-free.
+          branch="chore/update-integration-data"
+
+          # Stage only the allowed generated data files — never workflow files,
+          # source, manifests, or docs. Directories with no changes are no-ops.
+          git add -- \
+            src/frontend/src/data/aspire-integrations.json \
+            src/frontend/src/data/integration-docs.json \
+            src/frontend/src/data/github-stats.json \
+            src/frontend/src/data/github-contributors.json \
+            src/frontend/src/data/samples.json \
+            src/frontend/src/data/aspire-blog-posts.json \
+            src/frontend/src/data/schemas \
+            src/frontend/src/assets/samples \
+            src/frontend/src/data/pkgs \
+            src/frontend/src/data/ts-modules \
+            src/frontend/src/data/twoslash/aspire.d.ts
+
+          if git diff --cached --quiet; then
+            echo "No staged changes after filtering to allowed paths; skipping PR."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Reset the branch to a single fresh commit on top of the current main
+          # and force-push, so the open PR (if any) updates in place. The lease
+          # fails the push if the branch moved since checkout instead of
+          # overwriting it.
+          git config user.name "aspire-repo-bot[bot]"
+          git config user.email "aspire-repo-bot[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git commit \
+            -m "$PR_TITLE" \
+            -m "Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>"
+          git push --force-with-lease origin "HEAD:refs/heads/$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update pull request
+        if: ${{ steps.push.outputs.pushed == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.push.outputs.branch }}
+          PR_TITLE: ${{ steps.update.outputs.pr_title }}
+          PR_BODY_FILE: ${{ steps.update.outputs.pr_body_file }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Reuse the existing open PR for the rolling branch if there is one, so
+          # its review threads and history carry over; otherwise open a fresh PR.
+          # Adding the label at creation is what triggers the auto-merge policy.
+          existing=$(gh pr list \
+            --state open \
+            --head "$BRANCH" \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -n "$existing" ]; then
+            echo "Refreshing existing PR #$existing in place."
+            gh pr edit "$existing" \
+              --title "$PR_TITLE" \
+              --body-file "$PR_BODY_FILE"
+          else
+            new_pr=$(gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "$PR_TITLE" \
+              --body-file "$PR_BODY_FILE" \
+              --label ":octocat: auto-merge")
+            echo "Created $new_pr"
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo "## Integration Data Updater"
+            echo ""
+            echo "- Changed: \`${{ steps.update.outputs.changed || 'unknown' }}\`"
+            echo "- Versions changed: \`${{ steps.update.outputs.versions_changed || 'n/a' }}\`"
+            echo "- API regen ran: \`${{ steps.update.outputs.regen_ran || 'n/a' }}\`"
+            echo "- Semantic validation: \`${{ steps.update.outputs.semantic_validation || 'not run' }}\`"
+            if [ -n "${{ steps.update.outputs.icon_warnings }}" ]; then
+              echo "- Icon warnings: \`${{ steps.update.outputs.icon_warnings }}\`"
+            fi
+            if [ "${{ steps.push.outputs.pushed }}" = "true" ]; then
+              echo "- Branch: \`${{ steps.push.outputs.branch }}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

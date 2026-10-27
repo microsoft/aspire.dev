@@ -19,7 +19,7 @@ This skill keeps that file in sync with the `microsoft/aspire-samples` repositor
 
 - Node.js installed and available on `PATH`
 - Working directory is the repository root
-- The frontend project dependencies are installed (`pnpm install` in `src/frontend/`)
+- The frontend project dependencies are installed (`bun install` in `src/frontend/`)
 - Optional: `GITHUB_TOKEN` environment variable for higher GitHub API rate limits
 
 ## Step-by-Step Process
@@ -71,6 +71,7 @@ Tags are automatically inferred from the README content and sample name. The scr
 | `javascript` | JavaScript references |
 | `node` | Node.js references |
 | `go` | Go/Golang references |
+| `java` | Java, Spring Boot, Quarkus, Maven, Gradle references |
 
 #### Services & Technologies
 | Tag | Matched by |
@@ -148,7 +149,7 @@ After running the script:
 The script is registered as an npm script in `src/frontend/package.json`:
 
 ```bash
-pnpm update:samples
+bun run update:samples
 ```
 
 It is also included in the `update:all` aggregate script so it runs alongside other data updates during builds.

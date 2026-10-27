@@ -7,6 +7,7 @@ description: Learn how to use the AddDotnetTool AppHost API to run .NET CLI tool
 import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import dotnetIcon from '@assets/icons/dotnet.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={dotnetIcon}
@@ -22,7 +23,7 @@ This article is the reference for the .NET tool resources AppHost integration. I
 :::caution[Experimental feature]
 The `DotnetToolResource` and related APIs are experimental and may change in future versions. The C# AppHost requires the .NET 10 SDK, and you must suppress the `ASPIREDOTNETTOOL` diagnostic to use these APIs in C#.
 
-For more information, see the [ASPIREDOTNETTOOL diagnostic](/diagnostics/aspiredotnettool/).
+For more information, see the [ASPIREDOTNETTOOL diagnostic](/diagnostics/aspiredotnettool001/).
 :::
 
 ## When to use .NET tool resources
@@ -43,12 +44,12 @@ Before using .NET tool resources, ensure you have:
 
 ## Add a .NET tool resource
 
-The `addDotnetTool` API requires a resource name and the NuGet package ID of the tool:
+The <ApiReference name="Aspire.Hosting.DotnetToolResourceExtensions.AddDotnetTool" /> API requires a resource name and the NuGet package ID of the tool:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #pragma warning disable ASPIREDOTNETTOOL
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -63,7 +64,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -81,12 +82,12 @@ When the AppHost runs, Aspire executes `dotnet tool exec dotnet-ef` to run the t
 
 ## Pass arguments to a tool
 
-Use `withArgs` to pass command-line arguments to the tool:
+Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithArgs" /> to pass command-line arguments to the tool:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #pragma warning disable ASPIREDOTNETTOOL
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -100,7 +101,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -124,12 +125,12 @@ By default, the latest stable version of the tool is used. You can specify a par
 
 ### Specify a version
 
-Use `withToolVersion` to pin to a specific version:
+Use <ApiReference name="Aspire.Hosting.DotnetToolResourceExtensions.WithToolVersion" /> to pin to a specific version:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var efTool = builder.AddDotnetTool("ef", "dotnet-ef")
     .WithToolVersion("9.0.1");
 ```
@@ -137,7 +138,7 @@ var efTool = builder.AddDotnetTool("ef", "dotnet-ef")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 const efTool = await builder.addDotnetTool("ef", "dotnet-ef");
 await efTool.withToolVersion("9.0.1");
 ```
@@ -150,7 +151,7 @@ You can also use wildcard versions to get the latest patch:
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var efTool = builder.AddDotnetTool("ef", "dotnet-ef")
     .WithToolVersion("10.0.*");
 ```
@@ -158,7 +159,7 @@ var efTool = builder.AddDotnetTool("ef", "dotnet-ef")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 const efTool = await builder.addDotnetTool("ef", "dotnet-ef");
 await efTool.withToolVersion("10.0.*");
 ```
@@ -168,12 +169,12 @@ await efTool.withToolVersion("10.0.*");
 
 ### Allow prerelease versions
 
-Use `withToolPrerelease` to allow prerelease versions of the tool:
+Use <ApiReference name="Aspire.Hosting.DotnetToolResourceExtensions.WithToolPrerelease" /> to allow prerelease versions of the tool:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var efTool = builder.AddDotnetTool("ef", "dotnet-ef")
     .WithToolPrerelease();
 ```
@@ -181,7 +182,7 @@ var efTool = builder.AddDotnetTool("ef", "dotnet-ef")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 const efTool = await builder.addDotnetTool("ef", "dotnet-ef");
 await efTool.withToolPrerelease();
 ```
@@ -195,12 +196,12 @@ By default, tools are acquired from configured NuGet feeds. You can add addition
 
 ### Add a package source
 
-Use `withToolSource` to add a NuGet package source:
+Use <ApiReference name="Aspire.Hosting.DotnetToolResourceExtensions.WithToolSource" /> to add a NuGet package source:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var tool = builder.AddDotnetTool("my-tool", "my-custom-tool")
     .WithToolSource("https://my-private-feed.example.com/nuget/v3/index.json");
 ```
@@ -208,7 +209,7 @@ var tool = builder.AddDotnetTool("my-tool", "my-custom-tool")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 const tool = await builder.addDotnetTool("my-tool", "my-custom-tool");
 await tool.withToolSource("https://my-private-feed.example.com/nuget/v3/index.json");
 ```
@@ -218,12 +219,12 @@ await tool.withToolSource("https://my-private-feed.example.com/nuget/v3/index.js
 
 ### Use only specified sources
 
-Use `withToolIgnoreExistingFeeds` to ignore the existing NuGet configuration and use only the sources you specify:
+Use <ApiReference name="Aspire.Hosting.DotnetToolResourceExtensions.WithToolIgnoreExistingFeeds" /> to ignore the existing NuGet configuration and use only the sources you specify:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var tool = builder.AddDotnetTool("my-tool", "my-custom-tool")
     .WithToolSource("./local-packages")
     .WithToolIgnoreExistingFeeds();
@@ -232,7 +233,7 @@ var tool = builder.AddDotnetTool("my-tool", "my-custom-tool")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 const tool = await builder.addDotnetTool("my-tool", "my-custom-tool");
 await tool.withToolSource("./local-packages");
 await tool.withToolIgnoreExistingFeeds();
@@ -243,12 +244,12 @@ await tool.withToolIgnoreExistingFeeds();
 
 ### Ignore failed sources
 
-Use `withToolIgnoreFailedSources` to treat package source failures as warnings rather than errors:
+Use <ApiReference name="Aspire.Hosting.DotnetToolResourceExtensions.WithToolIgnoreFailedSources" /> to treat package source failures as warnings rather than errors:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var tool = builder.AddDotnetTool("my-tool", "my-custom-tool")
     .WithToolIgnoreFailedSources();
 ```
@@ -256,7 +257,7 @@ var tool = builder.AddDotnetTool("my-tool", "my-custom-tool")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 const tool = await builder.addDotnetTool("my-tool", "my-custom-tool");
 await tool.withToolIgnoreFailedSources();
 ```
@@ -271,7 +272,7 @@ The following is a complete example using Entity Framework Core CLI to run datab
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #pragma warning disable ASPIREDOTNETTOOL
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -295,7 +296,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -353,7 +354,7 @@ The `ASPIREDOTNETTOOL` diagnostic applies to C# AppHosts only. The TypeScript Ap
 
 ### Suppress in code
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #pragma warning disable ASPIREDOTNETTOOL
 var tool = builder.AddDotnetTool("my-tool", "dotnet-tool-package");
 #pragma warning restore ASPIREDOTNETTOOL
@@ -361,7 +362,7 @@ var tool = builder.AddDotnetTool("my-tool", "dotnet-tool-package");
 
 ### Suppress in project file
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PropertyGroup>
   <NoWarn>$(NoWarn);ASPIREDOTNETTOOL</NoWarn>
 </PropertyGroup>
@@ -369,6 +370,6 @@ var tool = builder.AddDotnetTool("my-tool", "dotnet-tool-package");
 
 ## See also
 
-- [ASPIREDOTNETTOOL diagnostic](/diagnostics/aspiredotnettool/)
+- [ASPIREDOTNETTOOL diagnostic](/diagnostics/aspiredotnettool001/)
 - [Project resources](/integrations/dotnet/project-resources/)
 - [Executable resources](/app-host/executable-resources/)

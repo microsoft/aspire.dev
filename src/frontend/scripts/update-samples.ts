@@ -1,15 +1,18 @@
 import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream/promises';
+import { fileURLToPath } from 'url';
 
 import fetch from 'node-fetch';
+
+import { normalizeAspireTerminology, normalizeAspireTerminologyInCode } from './aspire-terminology';
 
 const REPO = 'microsoft/aspire-samples';
 const DEFAULT_BRANCH = 'main';
 // `BRANCH` controls which ref of `microsoft/aspire-samples` is fetched (README,
 // AppHost code, raw assets, tree listing). The override exists so contributors
 // can stage `samples.json` against a still-open upstream PR by running the
-// script with `SAMPLES_BRANCH=<head-ref> pnpm run update:samples` — the output
+// script with `SAMPLES_BRANCH=<head-ref> bun run update:samples` — the output
 // is identical to what the next normal run will produce after that PR merges,
 // so the staged data PR is idempotent with the upstream merge.
 const BRANCH = process.env.SAMPLES_BRANCH ?? DEFAULT_BRANCH;
@@ -97,7 +100,7 @@ interface GitTreeResponse {
   truncated?: boolean;
 }
 
-interface SampleResult {
+export interface SampleResult {
   name: string;
   title: string;
   description: string | null;
@@ -109,6 +112,23 @@ interface SampleResult {
   appHost: AppHostKind | null;
   appHostPath: string | null;
   appHostCode: string | null;
+}
+
+// `appHostCode` is rendered as C# (not prose), so only its **comments** are
+// normalized — identifiers, string literals, and CLI commands stay byte-for-byte
+// identical, keeping the code compilable while still fixing deprecated terms that
+// would otherwise render in the sample's code block and trip forbidden-words CI.
+export function normalizeSampleTerminology(sample: SampleResult): SampleResult {
+  return {
+    ...sample,
+    title: normalizeAspireTerminology(sample.title),
+    description:
+      sample.description === null ? null : normalizeAspireTerminology(sample.description),
+    readme: normalizeAspireTerminology(sample.readme),
+    readmeRaw: normalizeAspireTerminology(sample.readmeRaw),
+    appHostCode:
+      sample.appHostCode === null ? null : normalizeAspireTerminologyInCode(sample.appHostCode),
+  };
 }
 
 type AppHostKind = 'typescript' | 'csproj' | 'file-based';
@@ -127,6 +147,10 @@ const TAG_RULES: TagRule[] = [
     patterns: [/\bTypeScript\b/i, /\bts-node\b/i, /\bapphost\.m?ts\b/i, /\.m?tsx?\b/],
   },
   { tag: 'node', patterns: [/\bNode\.?js\b/i, /\bnpm\b/i] },
+  {
+    tag: 'java',
+    patterns: [/\bJava\b/i, /\bSpring\s+Boot\b/i, /\bQuarkus\b/i, /\bMaven\b/i, /\bGradle\b/i, /\bmvnw\b/i],
+  },
   {
     tag: 'go',
     patterns: [
@@ -531,7 +555,7 @@ async function processSample(
   const thumbnail = extractThumbnail(name, readme);
   const href = `${TREE_BASE}/${SAMPLES_DIR}/${name}`;
 
-  return {
+  return normalizeSampleTerminology({
     name,
     title,
     description,
@@ -543,7 +567,7 @@ async function processSample(
     appHost: appHostInfo?.kind ?? null,
     appHostPath: appHostInfo?.entryPath ?? null,
     appHostCode,
-  };
+  });
 }
 
 async function main(): Promise<void> {
@@ -577,7 +601,13 @@ async function main(): Promise<void> {
   console.log(`\n✅ Saved ${results.length} samples to ${OUTPUT_PATH}`);
 }
 
-main().catch((error: unknown) => {
-  console.error('❌ Error:', getErrorMessage(error));
-  process.exit(1);
-});
+const isMainModule = process.argv[1]
+  ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  : false;
+
+if (isMainModule) {
+  void main().catch((error: unknown) => {
+    console.error('❌ Error:', getErrorMessage(error));
+    process.exitCode = 1;
+  });
+}

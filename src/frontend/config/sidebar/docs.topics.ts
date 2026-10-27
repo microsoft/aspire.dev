@@ -91,6 +91,14 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       collapsed: true,
       items: [
         {
+          label: 'Aspire 13.6',
+          slug: 'whats-new/aspire-13-6',
+        },
+        {
+          label: 'Aspire 13.5',
+          slug: 'whats-new/aspire-13-5',
+        },
+        {
           label: 'Aspire 13.4',
           slug: 'whats-new/aspire-13-4',
         },
@@ -219,7 +227,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'Setup and tooling',
-          collapsed: false,
+          collapsed: true,
           translations: {
             da: 'Opsætning og værktøjer',
             de: 'Einrichtung und Werkzeuge',
@@ -409,7 +417,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Use AI coding agents',
-          collapsed: false,
+          collapsed: true,
           translations: {
             da: 'AI-kodningsagenter',
             de: 'KI-Coding-Agenten',
@@ -562,7 +570,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Glossary',
-              slug: 'get-started/glossary',
+              link: '/hub/glossary/',
               translations: {
                 da: 'Ordliste',
                 de: 'Glossar',
@@ -623,6 +631,27 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 'zh-CN': '服务发现',
               },
               slug: 'fundamentals/service-discovery',
+            },
+            {
+              label: 'Environment variables',
+              slug: 'fundamentals/environment-variables',
+              translations: {
+                da: 'Miljøvariabler',
+                de: 'Umgebungsvariablen',
+                en: 'Environment variables',
+                es: 'Variables de entorno',
+                fr: "Variables d'environnement",
+                hi: 'पर्यावरण चर',
+                id: 'Variabel lingkungan',
+                it: 'Variabili di ambiente',
+                ja: '環境変数',
+                ko: '환경 변수',
+                'pt-BR': 'Variáveis de ambiente',
+                ru: 'Переменные среды',
+                tr: 'Ortam değişkenleri',
+                uk: 'Змінні середовища',
+                'zh-CN': '环境变量',
+              },
             },
             {
               label: 'Networking overview',
@@ -865,6 +894,14 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 ja: '証明書の構成',
               },
             },
+            {
+              label: 'CORS configuration',
+              slug: 'app-host/cors-configuration',
+              translations: {
+                en: 'CORS configuration',
+                ja: 'CORS の構成',
+              },
+            },
           ],
         },
         {
@@ -936,7 +973,23 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 ja: '実行可能リソース',
               },
             },
+            {
+              label: 'Console and worker apps',
+              slug: 'app-host/console-apps',
+              translations: {
+                en: 'Console and worker apps',
+                ja: 'コンソール アプリとワーカー アプリ',
+              },
+            },
           ],
+        },
+        {
+          label: 'Resource naming',
+          slug: 'app-host/resource-naming',
+          translations: {
+            en: 'Resource naming',
+            ja: 'リソースの名前付け',
+          },
         },
         {
           label: 'Project structure',

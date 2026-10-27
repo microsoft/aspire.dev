@@ -6,8 +6,10 @@ description: Learn how to use the Aspire Redis Hosting integration to orchestrat
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import redisIcon from '@assets/icons/redis-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={redisIcon}
@@ -39,11 +41,11 @@ aspire add redis
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.Redis@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.Redis" Version="*" />
 ```
 
@@ -63,7 +65,7 @@ This updates your `aspire.config.json` with the Redis hosting integration packag
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.Redis": "13.3.0"
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -77,7 +79,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache");
@@ -89,7 +91,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -118,13 +120,15 @@ await builder.addNodeApp("api", "./api", "index.js")
     When you reference a Redis resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, port numbers, and the password. For a complete list of these properties and per-language connection examples, see [Connect to Redis](../redis-connect/).
 </Aside>
 
+<ContainerImages package="Aspire.Hosting.Redis" only="Redis" />
+
 ## Add Redis resource with data volume
 
 Add a data volume to the Redis resource as shown in the following examples:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache")
@@ -137,7 +141,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -153,7 +157,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-The data volume is used to persist Redis data outside the lifecycle of its container. The data volume is mounted at the `/data` path in the Redis container, and when a `name` parameter isn't provided, the name is generated at random. Calling `WithDataVolume` (or `withDataVolume`) also enables Redis persistence so the in-memory state survives container restarts. For more information on data volumes and details on why they're preferred over [bind mounts](#add-redis-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+The data volume is used to persist Redis data outside the lifecycle of its container. The data volume is mounted at the `/data` path in the Redis container, and when a `name` parameter isn't provided, the name is generated at random. Calling <ApiReference name="Aspire.Hosting.RedisBuilderExtensions.WithDataVolume" parameterTypes={['Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.RedisResource>', 'string?', 'bool']} /> also enables Redis persistence so the in-memory state survives container restarts. For more information on data volumes and details on why they're preferred over [bind mounts](#add-redis-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 ## Add Redis resource with data bind mount
 
@@ -161,7 +165,7 @@ Add a data bind mount to the Redis resource as shown in the following examples:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache")
@@ -176,7 +180,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -200,11 +204,11 @@ Data bind mounts rely on the host machine's filesystem to persist Redis data acr
 
 ## Add Redis resource with persistence
 
-To configure Redis snapshot persistence explicitly, call `WithPersistence` (or `withPersistence`) alongside a data volume or bind mount:
+To configure Redis snapshot persistence explicitly, call <ApiReference name="Aspire.Hosting.RedisBuilderExtensions.WithPersistence" /> alongside a data volume or bind mount:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache")
@@ -220,7 +224,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -248,7 +252,7 @@ When you want to explicitly provide the port and password used by the Redis cont
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var password = builder.AddParameter("password", secret: true);
@@ -262,7 +266,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -287,7 +291,7 @@ When no `password` parameter is provided, Aspire generates a strong password aut
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache")
@@ -300,7 +304,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -318,13 +322,15 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 The preceding code adds a container based on the `docker.io/redis/redisinsight` image. The Redis Insight UI is available from the Aspire dashboard and connects automatically to the Redis resource.
 
+<ContainerImages package="Aspire.Hosting.Redis" only="RedisInsight" />
+
 ### Configure Redis Insight host port
 
 To configure the host port for the Redis Insight container, use the `configureContainer` callback as shown in the following examples:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache")
@@ -337,7 +343,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -365,7 +371,7 @@ The preceding code adds and configures the host port for the Redis Insight conta
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache")
@@ -378,7 +384,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -394,7 +400,9 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-The preceding code adds a container based on the `docker.io/rediscommander/redis-commander` image. The Redis Commander UI is available from the Aspire dashboard and connects automatically to the Redis resource.
+The preceding code adds a container based on the `ghcr.io/joeferner/redis-commander` image. The Redis Commander UI connects automatically to the Redis resource. Open **Manage (Commander)** on a Redis resource in the dashboard; the management container is hidden from the main resource list. Redis Insight follows the same pattern with **Manage (Insights)**.
+
+<ContainerImages package="Aspire.Hosting.Redis" only="Redis Commander" />
 
 ### Configure Redis Commander host port
 
@@ -402,7 +410,7 @@ To configure the host port for the Redis Commander container, use the `configure
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache")
@@ -415,7 +423,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -441,7 +449,7 @@ The preceding code adds and configures the host port for the Redis Commander con
 
 The `WithClearCommand` method adds a **CLEAR** command button to the Aspire dashboard for the Redis resource. When clicked, it flushes all keys from the Redis database, which is useful during development to reset cache state without restarting the container.
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache")
@@ -463,7 +471,7 @@ By default, Aspire injects the Redis connection information using variable names
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache");
@@ -481,7 +489,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -504,11 +512,11 @@ await builder.build().run();
 
 ## Connect to an existing Redis instance
 
-To reference an externally managed Redis instance instead of running one as a container, use `AddConnectionString`:
+To reference an externally managed Redis instance instead of running one as a container, use <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddConnectionString("cache");
@@ -520,8 +528,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -537,6 +545,46 @@ await builder.build().run();
 </Tabs>
 
 With `AddConnectionString` and `addConnectionString`, Aspire resolves `cache` from `ConnectionStrings:cache` (or environment variable `ConnectionStrings__cache`) in the AppHost configuration. Consuming apps receive that value as a single connection string, not deconstructed Redis resource-specific connection-property variables such as `CACHE_HOST`, `CACHE_PORT`, or `CACHE_URI`.
+
+<span id="add-redis-resource-with-a-repl-command"></span>
+
+## Open an interactive REPL
+
+In Aspire 13.6 or later, add <ApiReference name="Aspire.Hosting.RedisBuilderExtensions.WithRepl" /> to the Redis resource to enable a **REPL** command that opens `redis-cli` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addRedis('cache').withRepl();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRedis("cache").WithRepl();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The command is opt-in and available only in run mode while the container is running. It uses the container's bundled client through Docker or Podman, so no local Redis client is needed. Credentials are passed through environment variables rather than command-line arguments. When TLS is enabled, the in-container REPL uses the non-TLS port over loopback.
+
+Use `quit` before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client uses the resource's configured credentials and can modify or delete data. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
+:::
 
 ## Connection properties
 

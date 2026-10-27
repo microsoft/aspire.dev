@@ -1,20 +1,56 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 // For deployment: We want to pick AppService as the environment to publish to.
-builder.AddAzureAppServiceEnvironment("production");
+builder.AddAzureAppServiceEnvironment("production")
+    .WithDashboard(false);
+
+var cache = builder.AddAzureManagedRedis("cache")
+    .RunAsContainer();
 
 var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
-    .WithExternalHttpEndpoints();
+    .WithReference(cache)
+    .WithExternalHttpEndpoints()
+    .PublishAsAzureAppServiceWebsite((infra, website) =>
+    {
+        website.IsEndToEndEncryptionEnabled = true;
 
-builder.AddAzureFrontDoor(staticHostWebsite);
+        // App Service negotiates HTTP/1.1 unless HTTP/2 is enabled, which limits browsers to six
+        // connections per origin. The landing page loads dozens of small assets, so multiplexing
+        // them over one connection matters most on slow, high-latency links.
+        website.SiteConfig.IsHttp20Enabled = true;
+
+        // The live-status client streams over a WebSocket (/api/live/ws). App Service rejects
+        // WebSocket upgrades unless this is enabled. Azure Front Door relays them without extra
+        // configuration, as long as the route has no caching.
+        website.SiteConfig.IsWebSocketsEnabled = true;
+    });
+
+var frontDoor = builder.AddAzureFrontDoor(staticHostWebsite);
 
 if (builder.ExecutionContext.IsRunMode)
 {
-    // For local development: Use ViteApp for hot reload and development experience
+    staticHostWebsite.WithLocalLiveStatusDevCommands();
+
+    // For local development: Use ViteApp for hot reload and development experience.
+    // The live-status client calls same-origin /api/live[/ws]; inject StaticHost's
+    // origin so the Vite dev server can proxy those to the API (see astro.config.mjs).
+    // Without this, /api/live 404s against the Vite origin under `aspire run`.
     builder.AddViteApp("frontend", "../../frontend")
-           .WithPnpm()
+           .WithBun()
+           .WithEnvironment("ASPIRE_STATICHOST_URL", staticHostWebsite.GetEndpoint("https"))
            .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (Local)")
            .WithExternalHttpEndpoints();
+}
+else
+{
+    staticHostWebsite.WithProductionForwardedHosts(builder);
+
+    var secrets = builder.AddAzureKeyVault("secrets");
+    staticHostWebsite.WithProductionLiveStatus(builder, secrets);
+
+    var logsWorkspace = builder.AddAzureLogAnalyticsWorkspace("workspace-logs");
+    frontDoor.WithDiagnostics(logsWorkspace);
+    cache.WithDiagnostics(logsWorkspace);
 }
 
 builder.Build().Run();

@@ -10,11 +10,10 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:4322',
   },
   webServer: {
-    command: 'pnpm git-env && pnpm check-data && astro dev --host 127.0.0.1 --port 4322',
+    command: 'bun run git-env && bun run check-data && astro dev --host 127.0.0.1 --port 4322',
     env: {
       ...process.env,
       ASTRO_TELEMETRY_DISABLED: '1',
-      E2E_TESTS: '1',
     },
     url: 'http://127.0.0.1:4322',
     reuseExistingServer: false,

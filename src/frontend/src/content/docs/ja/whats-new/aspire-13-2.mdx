@@ -7,6 +7,7 @@ sidebar:
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2
+publishDate: 2026-03-23
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -28,6 +29,7 @@ import manageDialog from '@assets/whats-new/aspire-13.2/manage-dialog.png';
 import exportJsonMenu from '@assets/whats-new/aspire-13.2/export-json-menu.png';
 import exportJsonDialog from '@assets/whats-new/aspire-13.2/export-json-dialog.png';
 import exportEnvDialog from '@assets/whats-new/aspire-13.2/export-env-dialog.png';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire 13.2 へようこそ!長年の Aspire ユーザーでも、これから始めたばかりでも、新しい機能を試していただけることを楽しみにしています。質問やフィードバックがある場合、または問題に遭遇した場合は、[Discord](https://aka.ms/aspire-discord) で挨拶するか、[GitHub](https://github.com/microsoft/aspire/issues) で issue を開いてください。
 
@@ -96,7 +98,7 @@ Aspire バージョン `13.2.0` を参照するようにアプリホストを手
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.AppHost.Sdk@13.2.0
 ```
 
@@ -348,7 +350,7 @@ aspire config set <key> <value>
 
 Aspire は、アプリホストの場所、言語メタデータ、Aspire SDK バージョン、チャネル選択、機能フラグ、起動プロファイル、パッケージ ピンを組み合わせた単一の `aspire.config.json` ファイルを優先するようになりました。
 
-```json title="JSON — aspire.config.json"
+```json title="aspire.config.json"
 {
   "appHost": {
     "path": "apphost.mts",
@@ -451,9 +453,9 @@ Aspire 13.2 で最も期待されている機能の 1 つは、TypeScript での
 
 ### TypeScript で apphost を書く
 
-TypeScript アプリホストは、`createBuilder()` を介して慣用的な TypeScript で表現された C# と同じアプリ モデル (リソース、参照、統合) を使用します。
+TypeScript アプリホストは、<ApiReference name="Aspire.Hosting.DistributedApplication.CreateBuilder" /> を介して慣用的な TypeScript で表現された C# と同じアプリ モデル (リソース、参照、統合) を使用します。
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -576,12 +578,12 @@ Aspire を使用して AI を多用するワークロードを検査している
 
 ### アプリモデルからの MCP エンドポイント
 
-Aspire 13.2 には `WithMcpServer` が追加されており、リソースが Model Context Protocol (MCP) サーバーをホストすることをアプリ モデル内で宣言できます。 Aspire ツールは、そのエンドポイントを直接検出してプロキシすることができます。
+Aspire 13.2 には <ApiReference name="Aspire.Hosting.McpServerResourceBuilderExtensions.WithMcpServer" /> が追加されており、リソースが Model Context Protocol (MCP) サーバーをホストすることをアプリ モデル内で宣言できます。 Aspire ツールは、そのエンドポイントを直接検出してプロキシすることができます。
 
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.MyApi>("api")
@@ -593,7 +595,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -628,12 +630,12 @@ OpenTelemetry Protocol (OTLP) エンドポイントは、アプリケーショ�
 
 ### シークレットと証明書の処理の改善
 
-13.2 では、コンテナー ビルド シークレットの API がより明確になりました。 `WithBuildSecret` は古い `WithSecretBuildArg` 名を置き換え、安全な Docker または Podman ビルドのシークレット フローを読みやすくします。
+13.2 では、コンテナー ビルド シークレットの API がより明確になりました。 <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithBuildSecret" /> は古い `WithSecretBuildArg` 名を置き換え、安全な Docker または Podman ビルドのシークレット フローを読みやすくします。
 
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var accessToken = builder.AddParameter("accessToken", secret: true);
@@ -646,7 +648,7 @@ builder.AddContainer("worker", "contoso/worker")
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -663,7 +665,7 @@ await builder.addContainer("worker", { image: "contoso/worker", tag: "latest" })
 
 証明書の信頼処理もより柔軟になりました。実行モード中にカスタム証明書バンドルを作成できるようになりました。これは、デフォルトの証明書レイアウトにきれいにマップされない Java トラスト ストアやカスタム バンドル形式などのシナリオに役立ちます。
 
-```csharp title="C# — カスタム証明書信頼設定"
+```csharp title="カスタム証明書信頼設定"
 builder.AddContainer("my-java-app", "my-image:latest")
     .WithCertificateTrustConfiguration(ctx =>
     {
@@ -689,7 +691,7 @@ builder.AddContainer("my-java-app", "my-image:latest")
     });
 ```
 
-`ReferenceExpression` は `GetValueAsync()` を公開し、多言語コード生成で条件付きモードをサポートするようになりました。これにより、同期値アクセス パターンに依存せずに高度なホスティング拡張機能を簡単に構築できるようになります。
+`ReferenceExpression` は <ApiReference name="Aspire.Hosting.ApplicationModel.ReferenceExpression.GetValueAsync" /> を公開し、多言語コード生成で条件付きモードをサポートするようになりました。これにより、同期値アクセス パターンに依存せずに高度なホスティング拡張機能を簡単に構築できるようになります。
 
 ### 強化されたデバッグエクスペリエンス
 
@@ -741,7 +743,7 @@ Aspire 13.2 では、特定のリソースまたはネットワークの観点�
 
 `ValueProviderContext` の `Caller` プロパティを使用して、特定の呼び出しリソースの観点からエンドポイント URL を解決できます。
 
-```csharp title="C# — リソースの視点からエンドポイントを解決"
+```csharp title="リソースの視点からエンドポイントを解決"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddRedis("cache");
@@ -765,7 +767,7 @@ var url = await endpoint.GetValueAsync(new ValueProviderContext {
 
 `ValueProviderContext` の `Network` プロパティを使用して、特定のネットワークの観点からエンドポイント URL を解決することもできます。
 
-```csharp title="C# — ネットワークの視点からエンドポイントを解決"
+```csharp title="ネットワークの視点からエンドポイントを解決"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddRedis("cache");
@@ -797,7 +799,7 @@ var url = await endpoint.GetValueAsync(new ValueProviderContext {
 詳細については、次を参照してください: - [GitHub の問題
 #7153](https://github.com/microsoft/aspire/issues/7153) - [GitHub PR
 #14278](https://github.com/microsoft/aspire/pull/14278) - [コンテキストベースのエンドポイント
-解決](/ja/architecture/resource-hierarchies/#context-based-endpoint-resolution)
+解決](/ja/architecture/resource-hierarchies/#コンテキスト-ベースのエンドポイント解決)
 </LearnMore>
 
 ## 📦 統合のアップデート
@@ -809,7 +811,7 @@ Aspire 13.2 では、Docker Compose 公開統合がプレリリースから安�
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddDockerComposeEnvironment("compose");
@@ -820,7 +822,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -844,7 +846,7 @@ Aspire 13.2 は、以前の Azure AI Foundry に重点を置いたホスティ�
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var foundry = builder.AddFoundry("foundry");
@@ -863,7 +865,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -888,12 +890,12 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-この領域の新しい API には、`AddProject`、`AddModelDeployment`、`WithAppInsights`、`WithKeyVault`、`WithContainerRegistry`、`PublishAsHostedAgent`、`AddAndPublishPromptAgent` があります。 `RunAsFoundryLocal` は引き続きローカル モデル開発に使用できますが、親リソースが Foundry Local として構成されている場合、Foundry プロジェクトはサポートされません。
+この領域の新しい API には、<ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.AddProject" />、<ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.AddModelDeployment" />、<ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.WithAppInsights" />、<ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.WithKeyVault" />、<ApiReference name="Aspire.Hosting.ContainerRegistryResourceBuilderExtensions.WithContainerRegistry" />、`PublishAsHostedAgent`、`AddAndPublishPromptAgent` があります。 <ApiReference name="Aspire.Hosting.FoundryExtensions.RunAsFoundryLocal" /> は引き続きローカル モデル開発に使用できますが、親リソースが Foundry Local として構成されている場合、Foundry プロジェクトはサポートされません。
 
 <Aside type="caution">
-これは破壊的な変更です。 `Aspire.Hosting.Azure.AIFoundry` が `Aspire.Hosting.Foundry` 
-に置き換えられました。移行手順における破壊的な変更については [AIFoundry から Foundry への
-移行](#aifoundry-から-foundry-への移行) を
+これは破壊的な変更です。`Aspire.Hosting.Azure.AIFoundry` が `Aspire.Hosting.Foundry`
+に置き換えられました。移行手順における破壊的な変更については [Foundry パッケージと名前空間の
+移行](#foundry-パッケージと名前空間の移行) を
 参照してください。
 </Aside>
 
@@ -906,7 +908,7 @@ await builder.build().run();
 
 Azure にデプロイする場合、リソースへのネットワーク アクセスを保護することが重要です。新しい `Aspire.Hosting.Azure.Network` 統合により、仮想ネットワーク、サブネット、NAT ゲートウェイ、ネットワーク セキュリティ グループ (NSG)、プライベート エンドポイントをアプリホスト内で直接定義することで Azure リソースをロックダウンでき、クラウド インフラストラクチャが既定で安全であることが保証されます。
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 
 // NSG ルールを使用してサブネットを追加する
@@ -929,10 +931,10 @@ peSubnet.AddPrivateEndpoint(storage.AddBlobs("blobs"));
 
 主な機能は次のとおりです:
 
-- **仮想ネットワークとサブネット**: `AddAzureVirtualNetwork` でネットワークを作成し、`AddSubnet` でサブネットを追加します。
-- **NAT ゲートウェイ**: `AddNatGateway` および `WithNatGateway` を使用して、決定的な送信パブリック IP アドレスを提供します。
-- **ネットワーク セキュリティ グループ**: 短縮方法 (`AllowInbound`、`DenyInbound`、`AllowOutbound`、`DenyOutbound`) を使用するか、明示的な `AddNetworkSecurityGroup` と `WithSecurityRule` を使用して完全に制御し、トラフィック フローを制御します。
-- **プライベート エンドポイント**: `AddPrivateEndpoint` を使用してプライベート ネットワーク経由で Azure サービスに安全に接続します。これにより、プライベート DNS ゾーン、仮想ネットワーク リンクが自動的に作成され、ターゲット リソースでのパブリック アクセスが無効になります。
+- **仮想ネットワークとサブネット**: <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AddAzureVirtualNetwork" /> でネットワークを作成し、<ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AddSubnet" /> でサブネットを追加します。
+- **NAT ゲートウェイ**: <ApiReference name="Aspire.Hosting.AzureNatGatewayExtensions.AddNatGateway" /> および <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.WithNatGateway" /> を使用して、決定的な送信パブリック IP アドレスを提供します。
+- **ネットワーク セキュリティ グループ**: 短縮方法 (<ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AllowInbound" />、<ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.DenyInbound" />、<ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.AllowOutbound" />、<ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.DenyOutbound" />) を使用するか、明示的な <ApiReference name="Aspire.Hosting.AzureNetworkSecurityGroupExtensions.AddNetworkSecurityGroup" /> と <ApiReference name="Aspire.Hosting.AzureNetworkSecurityGroupExtensions.WithSecurityRule" /> を使用して完全に制御し、トラフィック フローを制御します。
+- **プライベート エンドポイント**: <ApiReference name="Aspire.Hosting.AzurePrivateEndpointExtensions.AddPrivateEndpoint" /> を使用してプライベート ネットワーク経由で Azure サービスに安全に接続します。これにより、プライベート DNS ゾーン、仮想ネットワーク リンクが自動的に作成され、ターゲット リソースでのパブリック アクセスが無効になります。
 
 <LearnMore>
 詳細については、 [Azure 仮想ネットワーク
@@ -943,7 +945,7 @@ peSubnet.AddPrivateEndpoint(storage.AddBlobs("blobs"));
 
 Azure AI Inference コンポーネントでは、チャットの完了に加えて埋め込みもサポートされるようになりました。 `EmbeddingsClient` を登録し、その上に `IEmbeddingGenerator<string, Embedding<float>>` を重ねることができます。
 
-```csharp title="C# — サービスプロジェクト"
+```csharp title="サービスプロジェクト"
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddAzureEmbeddingsClient("embeddings")
@@ -982,14 +984,14 @@ app.MapGet("/embed", async (
 
 ### Azure コンテナー レジストリ
 
-Azure Container Registry 統合では、新しい `WithPurgeTask` メソッドによるスケジュールされたイメージ クリーンアップがサポートされるようになりました。これにより、古いまたは未使用のコンテナ イメージを cron スケジュールで自動的に削除する [ACR パージ タスク](https://learn.microsoft.com/ja-jp/azure/container-registry/container-registry-auto-purge) がプロビジョニングされます。
+Azure Container Registry 統合では、新しい <ApiReference name="Aspire.Hosting.AzureContainerRegistryExtensions.WithPurgeTask" /> メソッドによるスケジュールされたイメージ クリーンアップがサポートされるようになりました。これにより、古いまたは未使用のコンテナ イメージを cron スケジュールで自動的に削除する [ACR パージ タスク](https://learn.microsoft.com/ja-jp/azure/container-registry/container-registry-auto-purge) がプロビジョニングされます。
 
-```csharp title="C# — ACR イメージクリーンアップをスケジュール"
+```csharp title="ACR イメージクリーンアップをスケジュール"
 var acr = builder.AddAzureContainerRegistry("my-acr")
     .WithPurgeTask("0 1 * * *", ago: TimeSpan.FromDays(7), keep: 5);
 ```
 
-さらに、新しい `GetAzureContainerRegistry` メソッドを使用すると、コンピューティング環境からレジストリに簡単にアクセスして、さらに構成を行うことができます。
+さらに、新しい <ApiReference name="Aspire.Hosting.AzureContainerRegistryExtensions.GetAzureContainerRegistry" /> メソッドを使用すると、コンピューティング環境からレジストリに簡単にアクセスして、さらに構成を行うことができます。
 
 <LearnMore>
 詳細については、 [Azure Container Registry
@@ -1003,7 +1005,7 @@ Aspire 13.2 では、Azure Data Lake Storage のホスティングとクライ�
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api");
@@ -1020,7 +1022,7 @@ api.WithReference(dataLake)
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -1039,7 +1041,7 @@ await api.withReference(dataLake)
 </TabItem>
 </Tabs>
 
-```csharp title="C# — サービスプロジェクト"
+```csharp title="サービスプロジェクト"
 builder.AddAzureDataLakeServiceClient("data-lake");
 builder.AddAzureDataLakeFileSystemClient("data-lake-file-system");
 ```
@@ -1058,7 +1060,7 @@ builder.AddAzureDataLakeFileSystemClient("data-lake-file-system");
 
 新しい MongoDB EF Core プロバイダーにより、通常の Aspire エンリッチメント エクスペリエンスを維持しながら、MongoDB で EF Core を簡単に使用できるようになります。
 
-```csharp title="C# — サービスプロジェクト"
+```csharp title="サービスプロジェクト"
 builder.AddMongoDbContext<MyDbContext>("mongodb", databaseName: "appdb");
 ```
 
@@ -1066,12 +1068,12 @@ builder.AddMongoDbContext<MyDbContext>("mongodb", databaseName: "appdb");
 
 ### Bun を使用した JavaScript ホスティング
 
-JavaScript リソースは、`WithBun()` を使用してパッケージ マネージャーとして Bun をオプトインできるようになりました。 Aspire は、Bun-backed アプリケーションに対して適切なパッケージ マネージャー アノテーション、インストール動作、およびコンテナー ビルド イメージのデフォルトを構成します。このリリースでは、`WithYarn()` 経由で `AddViteApp` で Yarn を使用する場合の信頼性の問題も修正されています。
+JavaScript リソースは、<ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.WithBun" /> を使用してパッケージ マネージャーとして Bun をオプトインできるようになりました。 Aspire は、Bun-backed アプリケーションに対して適切なパッケージ マネージャー アノテーション、インストール動作、およびコンテナー ビルド イメージのデフォルトを構成します。このリリースでは、<ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.WithYarn" /> 経由で <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" /> で Yarn を使用する場合の信頼性の問題も修正されています。
 
 <Tabs>
 <TabItem label="C# AppHost">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddViteApp("frontend", "./frontend")
@@ -1084,7 +1086,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem label="TypeScript AppHost">
 
-```typescript title="TypeScript — apphost.mts" twoslash
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -1110,7 +1112,7 @@ await builder.build().run();
 - Azure App Configuration エミュレータが 1.0.2 に更新されました
 - CosmosDB プレビュー エミュレーターの準備状況チェックが追加されました
 - Azure Managed Redis は、既定のスキームとして `rediss://` を使用するようになりました
-- `RunAsEmulator` で複数の Azurite ストレージ アカウントがサポートされるようになりました
+- <ApiReference name="Aspire.Hosting.AzureStorageExtensions.RunAsEmulator" /> で複数の Azurite ストレージ アカウントがサポートされるようになりました
 
 ### AI モデルの更新
 
@@ -1123,7 +1125,7 @@ await builder.build().run();
 ### Kubernetes の改善
 
 - Kubernetes デプロイメントの YAML 公開の修正
-- `ExcludeFromManifest` によるリソースの処理の改善
+- <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.ExcludeFromManifest" /> によるリソースの処理の改善
 
 ### Azure のデプロイメント
 
@@ -1163,11 +1165,11 @@ await builder.build().run();
 
 サービス検出環境変数は、エンドポイント **name** の代わりにエンドポイント **scheme** を使用するようになりました。
 
-```csharp title="C# — 変更前 (13.0/13.1)"
+```csharp title="変更前 (13.0/13.1)"
 // サービス__myservice__myendpoint__0 = https://localhost:5001
 ```
 
-```csharp title="C# — 変更後 (13.2)"
+```csharp title="変更後 (13.2)"
 // サービス__myservice__https__0 = https://localhost:5001
 ```
 
@@ -1202,7 +1204,7 @@ aspire resource api restart
 
 ダッシュボードを直接ホストし、API に依存する場合は、`ASPIRE_DASHBOARD_API_ENABLED=true` を設定するか、同等の構成を指定して、明示的に有効にします。
 
-```json title="JSON — Dashboard configuration"
+```json title="Dashboard configuration"
 {
   "Dashboard": {
     "Api": {
@@ -1226,18 +1228,25 @@ AppHost に統合されたダッシュボード シナリオは、As​​pire.H
 
 接続プロパティのサフィックスが追加されました。接続プロパティに直接アクセスするコードの更新が必要になる場合があります。
 
-### AIFoundry から Foundry への移行
+### Foundry パッケージと名前空間の移行
 
-`Aspire.Hosting.Azure.AIFoundry` は、より広い `Aspire.Hosting.Foundry` サーフェスに置き換えられました。
+Aspire 13.2 では、Foundry ホスティング サーフェスが `Aspire.Hosting.Foundry` に統一されました。
 
-アップグレードする場合は、次の両方の変更を加えます:
+| 以前の 13.1 名称 | 13.2 の名称 |
+| ---------------- | ----------- |
+| ホスティング パッケージ: `Aspire.Hosting.Azure.AIFoundry` | ホスティング パッケージ: `Aspire.Hosting.Foundry` |
+| リソース型とモデル型の名前空間: `Aspire.Hosting.Azure` | リソース型とモデル型の名前空間: `Aspire.Hosting.Foundry` |
+| `AddAzureAIFoundry(...)` | <ApiReference name="Aspire.Hosting.FoundryExtensions.AddFoundry" /> |
+| `AzureAIFoundryResource` | `FoundryResource` |
+| `AzureAIFoundryExtensions` | `FoundryExtensions` |
+| `AzureAIFoundryDeploymentResource` | `FoundryDeploymentResource` |
+| `AIFoundryModel` | `FoundryModel` |
 
-- `Aspire.Hosting.Azure.AIFoundry` パッケージ参照を `Aspire.Hosting.Foundry` に置き換えます。
-- `AddAzureAIFoundry()` から `AddFoundry()` に移行し、`AddDeployment()` または `AddModelDeployment()` を使用してデプロイメントを明示的に追加します。
+移行のヒント: パッケージ参照を更新し、リソース型またはモデル型を直接参照する場合は `using Aspire.Hosting.Foundry;` を追加し、`AddAzureAIFoundry(...)` を `AddFoundry(...)` に変更してください。`using Aspire.Hosting.Azure;` は、コードでその名前空間の他の型を使用しなくなった場合にのみ削除してください。拡張メソッドの名前空間は引き続き `Aspire.Hosting` です。
 
 ```xml title="XML — AppHost project file"
 <ItemGroup>
-  <PackageReference Include="Aspire.Hosting.Foundry" Version="13.2.0" />
+  <PackageReference Include="Aspire.Hosting.Foundry" Version="13.2.0-preview.1.26170.3" />
 </ItemGroup>
 ```
 
@@ -1257,7 +1266,7 @@ var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 
 わかりやすくするために、コンテナー ビルド シークレット API の名前が変更されました。
 
-```csharp title="C# — 移行例"
+```csharp title="移行例"
 // 移行前
 builder.AddContainer("worker", "contoso/worker")
     .WithDockerfile("../worker")
@@ -1298,7 +1307,7 @@ Aspire 13.2.1 は、信頼性の修正に重点を置いたパッチ リリー�
 | `runAsExistingFromParameters(name, resourceGroup)` | `runAsExisting(name, { resourceGroup })` |名前の変更と位置 → オプション オブジェクト。 |
 | `publishAsExistingFromParameters(name, resourceGroup)` | `publishAsExisting(name, { resourceGroup })` |名前の変更と位置 → オプション オブジェクト。 |
 | `withConnectionPropertyValue(name, value)` | `withConnectionProperty(name, value)` |文字列/参照値の統合 API。 |
-| `withParameterBuildArg(name, parameter)` | `withBuildArg(name, parameter)` |名前が統合された `withBuildArg` サーフェスに変更されました。 |
+| `withParameterBuildArg(name, parameter)` | `withBuildArg(name, parameter)` |名前が統合された <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithBuildArg" /> サーフェスに変更されました。 |
 
 <Aside type="note">
 `withConnectionPropertyValue` は、生成された SDK の互換性エイリアスとして引き続き使用できるため、ランタイム SDK の中断ではありません。

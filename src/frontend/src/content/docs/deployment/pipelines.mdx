@@ -9,6 +9,7 @@ lastUpdated: true
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 When you compose your distributed app in Aspire's **AppHost**, you're not just defining services for local development and orchestration—you're also setting up the foundation for deployment. The same composition you use to run and debug locally is leveraged when you publish your app, ensuring consistency from development through to production.
 
@@ -149,8 +150,8 @@ Dependencies in Aspire pipelines are explicit and purpose-driven, unlike traditi
 
 Steps declare their relationships using:
 
-- `PipelineStep.DependsOn`: This step must run after another step completes successfully
-- `PipelineStep.RequiredBy`: Another step must run after this step (inverse dependency declaration)
+- <ApiReference name="Aspire.Hosting.Pipelines.PipelineStep.DependsOn" />: This step must run after another step completes successfully
+- <ApiReference name="Aspire.Hosting.Pipelines.PipelineStep.RequiredBy" />: Another step must run after this step (inverse dependency declaration)
 
 **Example dependency relationships:**
 
@@ -490,7 +491,7 @@ The pipeline system allows you to add custom steps to handle application-specifi
 
 Use `builder.Pipeline.AddStep` to add custom steps that apply to your entire application:
 
-```csharp title="C# — Application-level custom step"
+```csharp title="Application-level custom step"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add a custom validation step
@@ -520,9 +521,9 @@ aspire do validate
 
 ### Resource-level steps
 
-Resources can contribute their own pipeline steps using `WithPipelineStepFactory`:
+Resources can contribute their own pipeline steps using <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineStepFactory" />:
 
-```csharp title="C# — Resource-level custom step"
+```csharp title="Resource-level custom step"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPipelineStepFactory(context =>
     {
@@ -548,7 +549,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 Control step execution order using dependencies:
 
-```csharp title="C# — Step with dependencies"
+```csharp title="Step with dependencies"
 // Step that depends on other steps
 builder.Pipeline.AddStep("database-migration", async (context) =>
 {
@@ -566,7 +567,7 @@ You can choose from two dependency types to fix the step order:
 
 ### Pipeline configuration
 
-Resources can also customize how they participate in the pipeline using `WithPipelineConfiguration`, which provides control over step ordering and resource-specific pipeline behavior.
+Resources can also customize how they participate in the pipeline using <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineConfiguration" />, which provides control over step ordering and resource-specific pipeline behavior.
 
 <Aside type="note">
 The `WithPipelineConfiguration` API is experimental and may change in future releases. Refer to the [aspire do command reference](/reference/cli/commands/aspire-do/) for the latest details on pipeline configuration.
@@ -580,7 +581,7 @@ To deepen your understanding of pipelines, let's examine scenarios where you mig
 
 If you're deploying to testing, staging, production, or other environments, you might want to take different deployment actions in each case. You can use the pipeline context to create environment-specific pipeline steps:
 
-```csharp title="C# — Multi-environment deployment"
+```csharp title="Multi-environment deployment"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add environment-specific validation
@@ -618,7 +619,7 @@ aspire do deploy --environment Production
 
 Add custom build logic that integrates with the pipeline:
 
-```csharp title="C# — Custom build step"
+```csharp title="Custom build step"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add custom pre-build step
@@ -644,7 +645,7 @@ builder.Build().Run();
 
 If you want to ensure a database is populated as part of your deployment, you can create a step that integrates database migrations into the deployment pipeline:
 
-```csharp title="C# — Database migrations step"
+```csharp title="Database migrations step"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var database = builder.AddPostgres("db");
@@ -680,8 +681,8 @@ The old publishing callback system has been removed and replaced with pipeline s
 
 **Removed APIs:**
 - `WithPublishingCallback` extension method
-- `PublishingContext` and `PublishingCallbackAnnotation`
-- `DeployingContext` and `DeployingCallbackAnnotation`
+- `PublishingContext` and the legacy publish callback annotation type
+- `DeployingContext` and the legacy deploy callback annotation type
 - `IDistributedApplicationPublisher` interface
 
 **New APIs:**
@@ -710,7 +711,7 @@ Here are some code examples that show Aspire 9.x code and the Aspire 13.x equiva
 
 **Before (Aspire 9.x):**
 
-```csharp title="C# — Old publishing callback"
+```csharp title="Old publishing callback"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPublishingCallback(async (context, cancellationToken) =>
     {
@@ -721,7 +722,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 **After (Aspire 13.0):**
 
-```csharp title="C# — New pipeline step"
+```csharp title="New pipeline step"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPipelineStepFactory(context =>
     {
@@ -742,7 +743,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 **Before (Aspire 9.x):**
 
-```csharp title="C# — Old application-level callback"
+```csharp title="Old application-level callback"
 builder.Services.AddLifecycleHook<CustomPublishingHook>();
 
 public class CustomPublishingHook : IDistributedApplicationLifecycleHook
@@ -759,7 +760,7 @@ public class CustomPublishingHook : IDistributedApplicationLifecycleHook
 
 **After (Aspire 13.0):**
 
-```csharp title="C# — New pipeline step"
+```csharp title="New pipeline step"
 builder.Pipeline.AddStep("notify-deployment", async (context) =>
 {
     // Custom logic
@@ -772,7 +773,7 @@ dependsOn: [WellKnownPipelineSteps.Deploy]);
 
 **Before (Aspire 9.x):**
 
-```csharp title="C# — Old complex callback"
+```csharp title="Old complex callback"
 var api = builder.AddProject<Projects.Api>("api")
     .WithPublishingCallback(async (context, cancellationToken) =>
     {
@@ -787,7 +788,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
 **After (Aspire 13.0):**
 
-```csharp title="C# — New pipeline steps with dependencies"
+```csharp title="New pipeline steps with dependencies"
 // Break down into discrete steps with dependencies
 builder.Pipeline.AddStep("provision-infra", async (context) =>
 {

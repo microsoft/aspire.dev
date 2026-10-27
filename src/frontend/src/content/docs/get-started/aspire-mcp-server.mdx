@@ -1,23 +1,25 @@
 ---
-title: Aspire MCP server for AI coding agents
-description: Learn how the Aspire MCP server exposes resource graphs, logs, and telemetry to AI coding agents — security model, transport options, and troubleshooting tips.
+title: Aspire MCP server for application observability
+description: Give coding agents MCP tools for application logs, distributed traces, and resource health. Configure optional runtime access alongside Aspire CLI skills.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 :::note
 The MCP server that was previously built into the Aspire dashboard has been removed. The [`aspire agent mcp`](/reference/cli/commands/aspire-agent-mcp/) CLI command is now the way to start the Aspire MCP server.
 :::
 
-The Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server gives AI coding agents direct runtime access to your running Aspire application. Through the Model Context Protocol (MCP), agents can query resource status, read logs, inspect distributed traces, and execute commands — without you copy-pasting terminal output.
+The Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server exposes application observability to AI coding agents. Agents can query resource status and health, read application logs, inspect distributed traces, and execute resource commands. They use the same runtime evidence you inspect in the [Aspire dashboard](/dashboard/overview/), rather than inferring application behavior from source code alone.
 
 :::tip[Aspire skills are preferred]
-For most AI coding-agent workflows, install [Aspire skills](/get-started/aspire-skills/) first. Aspire skills are the preferred way to teach agents Aspire commands, workflows, and AppHost conventions. Add the Aspire MCP server when the agent also needs live runtime data such as resource status, logs, traces, or resource commands.
+For most AI coding-agent workflows, install [Aspire skills](/get-started/aspire-skills/) first. Skills teach agents Aspire CLI commands, workflows, and TypeScript or C# AppHost conventions, including how to query live runtime data. Add the optional MCP server when you prefer to expose that data through MCP tools instead.
 :::
 
 <LearnMore>
   To set up your project for AI coding agents, see [Use AI coding agents](/get-started/ai-coding-agents/).
+  For a request-level investigation, see [Debug application failures with AI coding agents](/dashboard/ai-coding-agents/).
 </LearnMore>
 
 ## Configuration
@@ -123,7 +125,7 @@ The Aspire MCP server provides the following tools to AI agents:
 
 ### Exclude resources from MCP
 
-By default, all resources, console logs, and telemetry are accessible through the MCP server. You can exclude specific resources and their associated telemetry by annotating them with `ExcludeFromMcp()`:
+By default, all resources, console logs, and telemetry are accessible through the MCP server. You can exclude specific resources and their associated telemetry by annotating them with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.ExcludeFromMcp" />:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -206,7 +208,7 @@ For teams evaluating the Aspire MCP server:
 - **Development-time only** — not included in published or deployed applications
 - **No external network access** — no network listeners when using STDIO transport
 - **Data stays local** — telemetry remains on the developer's machine. Data shared with AI assistants is governed by the assistant's own data policies
-- **Granular access control** — use `ExcludeFromMcp()` to restrict sensitive resources
+- **Granular access control** — exclude sensitive resources and their telemetry from MCP access
 - **No persistent storage** — all data is in memory for the session duration
 - **Open specification** — implements the [Model Context Protocol specification](https://modelcontextprotocol.io/)
 

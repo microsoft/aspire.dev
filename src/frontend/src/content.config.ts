@@ -3,6 +3,7 @@ import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
 import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { topicIds } from './utils/dev-center/topics';
 
 export const collections = {
   docs: defineCollection({
@@ -10,6 +11,30 @@ export const collections = {
     schema: docsSchema({
       extend: () =>
         z.object({
+          /**
+           * Absolute sunset date for this page's announcement `banner` (shown
+           * via `src/components/starlight/Banner.astro`). Once it passes, the
+           * banner is hidden for **everyone**, regardless of whether they
+           * dismissed it; if the date is already past at build time the banner
+           * isn't rendered at all. Use `YYYY-MM-DD` in frontmatter
+           * (e.g. `2026-09-01`).
+           *
+           * This is a **top-level** field rather than nested under `banner`
+           * on purpose: Starlight's built-in `banner` schema is a plain
+           * `z.object({ content })`, and extra keys nested inside it are
+           * dropped before they reach the component. Top-level keys (like the
+           * built-in `lastUpdated`/`publishDate`) survive the schema
+           * intersection intact.
+           */
+          bannerExpiresOn: z.coerce.date().optional(),
+          /**
+           * Auto-hide this page's announcement `banner` this many days after a
+           * reader first sees it — even if they never explicitly dismiss it.
+           * Tracked per-reader in `localStorage`, so it's independent of the
+           * absolute `bannerExpiresOn` sunset (either one hides the banner).
+           * Kept top-level for the same reason as `bannerExpiresOn`.
+           */
+          bannerAutoDismissAfterDays: z.number().int().positive().optional(),
           renderBlocking: z.string().optional(),
           giscus: z.boolean().optional().default(false),
           crumbs: z.boolean().optional().default(true),
@@ -25,6 +50,11 @@ export const collections = {
            * build-time generated `/og/<slug>.png`.
            */
           ogImage: z.string().optional(),
+          /** Featured Browse artwork; local assets use ~/assets/, with optional light/dark variants. */
+          resourceImage: z.union([
+            z.string(),
+            z.object({ light: z.string(), dark: z.string() }),
+          ]).optional(),
           /**
            * Opt out of dynamic Open Graph image generation for this page. When
            * `false`, the build skips generating a per-page OG image and the
@@ -56,6 +86,22 @@ export const collections = {
   i18n: defineCollection({
     loader: i18nLoader(),
     schema: i18nSchema(),
+  }),
+  glossary: defineCollection({
+    loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/glossary' }),
+    schema: z.object({
+      title: z.string(),
+      description: z.string(),
+      aliases: z.array(z.string()).default([]),
+      termType: z.string().trim().min(1).optional(),
+      pronunciation: z.string().trim().min(1).optional(),
+      topics: z.array(z.enum(topicIds)).min(1),
+      context: z.string(),
+      related: z.array(z.string()).default([]),
+      resources: z.array(z.object({ title: z.string(), href: z.string() })).default([]),
+      legacyAnchors: z.array(z.string()).default([]),
+      legacyGroup: z.string().optional(),
+    }),
   }),
 
   /**

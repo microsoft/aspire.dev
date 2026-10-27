@@ -7,7 +7,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
-const REQUIRED_FILES = ['./src/data/aspire-integrations.json', './src/data/github-stats.json'];
+const REQUIRED_FILES = ['./src/data/aspire-integrations.json', './src/data/github-stats.json', './src/data/github-contributors.json', './src/data/aspire-blog-posts.json'];
 
 function checkDataFiles() {
   const missingFiles = REQUIRED_FILES.filter((file) => {
@@ -21,7 +21,7 @@ function checkDataFiles() {
     console.log('\n🔄 Running update:all to generate missing files...\n');
 
     try {
-      execSync('pnpm run update:all', { stdio: 'inherit' });
+      execSync('bun run update:all', { stdio: 'inherit' });
       console.log('\n✅ Data files generated successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

@@ -17,6 +17,7 @@ import ThemeImage from '@components/ThemeImage.astro';
 import { Code, Tabs, Steps, TabItem, Aside, Icon } from '@astrojs/starlight/components';
 import resourcesParametersView from '@assets/whats-new/resources-parameters-view.png';
 import genaiVisualizerTooldefinitions from '@assets/whats-new/genai-visualizer-tooldefinitions.png';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire 13.1 は、Aspire 13 で確立されたポリグロット基盤をさらに発展させ、CLI 体験の大幅な改善、AI コーディングエージェント向けの MCP（Model Context Protocol）サポートの強化、ダッシュボードの改良、Azure へのデプロイの簡素化を提供します。本リリースは、開発者の生産性向上と、最新の AI 支援開発ワークフローとのシームレスな統合に重点を置いています。
 
@@ -25,7 +26,7 @@ Aspire 13.1 は、Aspire 13 で確立されたポリグロット基盤をさら�
 - **AI コーディングエージェント向け MCP**: 新しい `aspire agent init` コマンドと、AI アシスタントが統合を発見し Aspire アプリケーションと連携するための MCP ツール。
 - **CLI の強化**: チャネルの永続化、自動インスタンス検出、インストールパスのオプション。
 - **ダッシュボードの改善**: 専用の Parameters タブと生成 AI ビジュアライザーの強化。
-- **Azure マネージド Redis**: `AddAzureRedisEnterprise` から `AddAzureManagedRedis` へ名称変更し、検証を改善。
+- **Azure マネージド Redis**: `AddAzureRedisEnterprise` から <ApiReference name="Aspire.Hosting.AzureManagedRedisExtensions.AddAzureManagedRedis" /> へ名称変更し、検証を改善。
 - **コンテナー レジストリ サポート**: 汎用コンテナー レジストリ向けの新しい `ContainerRegistryResource`。
 - **JavaScript の改善**: 新しいフロントエンド スターター テンプレート、Vite の HTTPS 設定、pnpm の修正。
 - **DevTunnels の安定化**: [📦 Aspire.Hosting.DevTunnels](https://www.nuget.org/packages/Aspire.Hosting.DevTunnels) が安定版パッケージになりました。
@@ -74,7 +75,7 @@ Aspire 13.1 では、MCP（Model Context Protocol）との統合により、AI �
 
 新しい `aspire agent init` コマンドは、開発環境を検出し、対応する AI コーディングエージェント向けに MCP サーバーを設定します:
 
-```bash title="Bash — MCP 構成を初期化"
+```bash title="MCP 構成を初期化"
 aspire agent init
 ```
 
@@ -119,7 +120,7 @@ AppHost に接続されている場合、ダッシュボードは MCP エンド�
 
 `aspire new` および `aspire init` コマンドで `--channel` オプションが利用可能になり、使用する Aspire のバージョンチャネルを明示的に選択できるようになりました:
 
-```bash title="Bash — チャネルの選択"
+```bash title="チャネルの選択"
 aspire new aspire-starter --channel preview
 aspire init --channel stable
 ```
@@ -188,12 +189,12 @@ aspire init --channel stable
 **破壊的変更**: Azure サービスの名称に合わせるため、`AddAzureRedisEnterprise` メソッドは `AddAzureManagedRedis` に名称変更されました。
 </Aside>
 
-```csharp title="C# — Azure マネージド Redis (これまで)" data-disable-copy
+```csharp title="Azure マネージド Redis (これまで)" data-disable-copy
 // Before (Aspire 13.0)
 var redis = builder.AddAzureRedisEnterprise("cache");
 ```
 
-```csharp title="C# — Azure マネージド Redis (これから)"
+```csharp title="Azure マネージド Redis (これから)"
 // After (Aspire 13.1)
 var redis = builder.AddAzureManagedRedis("cache");
 ```
@@ -210,9 +211,9 @@ Azure リソースは、すべての対応言語で利用できる標準化さ�
 
 ### Azure App Service のデプロイ スロット
 
-Azure App Service のデプロイ スロットを構成するための、新しい `WithDeploymentSlot` 拡張メソッドが追加されました:
+Azure App Service のデプロイ スロットを構成するための、新しい <ApiReference name="Aspire.Hosting.AzureAppServiceEnvironmentExtensions.WithDeploymentSlot" /> 拡張メソッドが追加されました:
 
-```csharp title="C# — デプロイ スロットの構成"
+```csharp title="デプロイ スロットの構成"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureAppServiceEnvironment("appservice")
@@ -221,7 +222,7 @@ builder.AddAzureAppServiceEnvironment("appservice")
 
 ### 既定のロール割り当てのクリア
 
-権限を細かく制御したい場合に、Azure リソースへの自動的なロール割り当てを無効化できる、新しい `ClearDefaultRoleAssignments` 拡張メソッドが追加されました。
+権限を細かく制御したい場合に、Azure リソースへの自動的なロール割り当てを無効化できる、新しい <ApiReference name="Aspire.Hosting.AzureResourceExtensions.ClearDefaultRoleAssignments" /> 拡張メソッドが追加されました。
 
 ### バグ修正
 
@@ -238,7 +239,7 @@ builder.AddAzureAppServiceEnvironment("appservice")
 
 新しい `ContainerRegistryResource` により、Azure Container Registry 以外の汎用コンテナー レジストリとの統合が可能になりました:
 
-```csharp title="C# — コンテナー レジストリ リソース"
+```csharp title="コンテナー レジストリ リソース"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var registry = builder.AddContainerRegistry("myregistry", "registry.example.com");
@@ -289,11 +290,11 @@ $ aspire do push
 
 ### Azure デプロイにおける明示的なコンテナー レジストリ サポート
 
-Aspire 13.1 以前では、`AddAzureContainerAppEnvironment` を使用して Azure Container Apps にデプロイする際、Azure Container Registry（ACR）は環境の一部として暗黙的にプロビジョニングされていました。この自動プロビジョニングにより、デプロイの遅延が発生したり、どのレジストリが使用されているのかを開発者が把握しにくいという課題がありました。
+Aspire 13.1 以前では、<ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.AddAzureContainerAppEnvironment" /> を使用して Azure Container Apps にデプロイする際、Azure Container Registry（ACR）は環境の一部として暗黙的にプロビジョニングされていました。この自動プロビジョニングにより、デプロイの遅延が発生したり、どのレジストリが使用されているのかを開発者が把握しにくいという課題がありました。
 
 Aspire 13.1 では、この点を改善するために、コンテナー レジストリを明示的に構成する方向へと変更され、イメージが「どこに」「いつ」プッシュされるのかについて、開発者がより高い制御性と可視性を得られるようになりました。以下の構成では、「myenv」環境に関連付けられた ACR が環境と並行してプロビジョニングされ、レジストリのプロビジョニングが完了し次第、イメージのプッシュが開始されます。
 
-```csharp title="C# — 明示的な Azure Container Registry"
+```csharp title="明示的な Azure Container Registry"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var acr = builder.AddAzureContainerAppEnvironment("myenv");
@@ -312,9 +313,9 @@ var api = builder.AddProject<Projects.Api>("api")
 - Docker Compose デプロイ後に、リソースのエンドポイントが表示されるようになりました。
 - パイプラインを並列実行した際に発生していた、Dockerfile のマテリアライズ処理における競合状態を修正しました。
 
-高度なシナリオでは、`ConfigureEnvFile` を使用して生成される `.env` ファイルをカスタマイズできます:
+高度なシナリオでは、<ApiReference name="Aspire.Hosting.DockerComposeEnvironmentExtensions.ConfigureEnvFile" /> を使用して生成される `.env` ファイルをカスタマイズできます:
 
-```csharp title="C# — Docker Compose の .env file をカスタマイズ"
+```csharp title="Docker Compose の .env file をカスタマイズ"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddDockerComposeEnvironment("compose")
@@ -390,7 +391,7 @@ TLS が既定で有効な場合、ASP.NET Core の開発者証明書が利用可
 
 特定のリソースで開発者証明書を明示的に有効化するには（例: Vite）:
 
-```csharp title="C# — 開発者証明書を有効化"
+```csharp title="開発者証明書を有効化"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddViteApp("frontend")
@@ -399,7 +400,7 @@ builder.AddViteApp("frontend")
 
 カスタム証明書を使用する場合は、次のように設定します:
 
-```csharp title="C# — カスタム証明書による TLS 終端"
+```csharp title="カスタム証明書による TLS 終端"
 var certificate = new X509Certificate2("path/to/certificate.pfx", "password");
 
 builder.AddYarp("gateway")
@@ -408,7 +409,7 @@ builder.AddYarp("gateway")
 
 YARP では、HTTPS ポートを明示的に指定することもできます:
 
-```csharp title="C# — カスタム HTTPS ポートを使用する YARP"
+```csharp title="カスタム HTTPS ポートを使用する YARP"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddYarp("gateway")
@@ -417,7 +418,7 @@ builder.AddYarp("gateway")
 
 特定のリソースで HTTPS 証明書の構成を無効化するには、次のようにします:
 
-```csharp title="C# — HTTPS 証明書を無効化"
+```csharp title="HTTPS 証明書を無効化"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddRedis("cache")
@@ -426,7 +427,7 @@ builder.AddRedis("cache")
 
 組み込みの TLS 終端サポートを持たないリソースに対しては、構成コールバックを使用して、カスタム引数や環境変数を渡すことで TLS 終端を構成できます:
 
-```csharp title="C# — 構成コールバックによる TLS 終端"
+```csharp title="構成コールバックによる TLS 終端"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddContainer("my-service", "my-image")
@@ -487,7 +488,7 @@ DCP から出力されるシステム レベルのログは、冗長な JSON オ
 
 Keycloak コンテナーが、OTLP コレクターへテレメトリをエクスポートできるようになりました:
 
-```csharp title="C# — OTLP エクスポートを有効化した Keycloak"
+```csharp title="OTLP エクスポートを有効化した Keycloak"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddKeycloak("keycloak")
@@ -509,7 +510,7 @@ Aspire 13.1 では、Azure Functions 統合が正式版となり、プレビュ�
 - ローカル環境に Azure Functions Core Tools がインストールされていない場合、Aspire ダッシュボードが通知します。
 - ジェネリック型パラメーターなしで Functions プロジェクトを追加できる新しいオーバーロード `AddAzureFunctionsProject(name, projectPath)` が追加されました:
 
-```csharp title="C# — ジェネリック型なしの Azure Functions"
+```csharp title="ジェネリック型なしの Azure Functions"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureFunctionsProject("myfunc", "../MyFunctions/MyFunctions.csproj");

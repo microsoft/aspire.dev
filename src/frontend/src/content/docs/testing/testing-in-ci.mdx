@@ -29,7 +29,7 @@ One of the most common issues experienced when running Aspire tests in CI is a t
 
 The `WaitForResourceAsync` and `WaitForResourceHealthyAsync` methods accept a `CancellationToken`. Always pass a token with a timeout to avoid indefinite waits:
 
-```csharp title="C# — IntegrationTest.cs"
+```csharp title="IntegrationTest.cs"
 using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
 await app.ResourceNotifications.WaitForResourceHealthyAsync(
@@ -41,7 +41,7 @@ await app.ResourceNotifications.WaitForResourceHealthyAsync(
 
 Use `WaitAsync` to apply a timeout to the `BuildAsync` and `StartAsync` operations:
 
-```csharp title="C# — IntegrationTest.cs"
+```csharp title="IntegrationTest.cs"
 var timeout = TimeSpan.FromMinutes(5);
 var cancellationToken = CancellationToken.None;
 
@@ -56,7 +56,7 @@ await app.StartAsync(cancellationToken)
 
 CI environments are often slower than local development machines due to network latency when pulling container images, limited CPU and memory, and parallel test execution. Consider using environment-aware timeouts:
 
-```csharp title="C# — IntegrationTest.cs"
+```csharp title="IntegrationTest.cs"
 private static readonly TimeSpan DefaultTimeout = 
     Environment.GetEnvironmentVariable("CI") is not null
         ? TimeSpan.FromMinutes(5)   // Longer timeout in CI
@@ -115,7 +115,7 @@ When deploying to Azure Container Apps or Azure App Service, Aspire 13.0 automat
 <Tabs syncKey="ci-provider">
 <TabItem label="GitHub Actions">
 
-```yaml title="YAML — .github/workflows/tests.yml"
+```yaml title=".github/workflows/tests.yml"
 - name: Run Aspire integration tests
   env:
     AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -128,7 +128,7 @@ When deploying to Azure Container Apps or Azure App Service, Aspire 13.0 automat
 </TabItem>
 <TabItem label="Azure DevOps">
 
-```yaml title="YAML — azure-pipelines.yml"
+```yaml title="azure-pipelines.yml"
 - task: DotNetCoreCLI@2
   displayName: Run Aspire integration tests
   inputs:
@@ -148,7 +148,7 @@ When deploying to Azure Container Apps or Azure App Service, Aspire 13.0 automat
 
 You can also set Azure credentials programmatically in your test setup using the `DistributedApplicationFactory`:
 
-```csharp title="C# — CiAppHostFactory.cs"
+```csharp title="CiAppHostFactory.cs"
 public class CiAppHostFactory()
     : DistributedApplicationFactory(typeof(Projects.MyAppHost))
 {
@@ -186,7 +186,7 @@ public class CiAppHostFactory()
 
 When Azure credentials aren't configured, you may want to skip tests that require Azure resources rather than fail them. Use a guard at the start of your test or in a base class:
 
-```csharp title="C# — IntegrationTest.cs"
+```csharp title="IntegrationTest.cs"
 [Fact]
 public async Task TestWithAzureCosmosDb()
 {
@@ -216,7 +216,7 @@ Aspire tests use random port assignment by default, which allows multiple test i
 
 For CI environments running multiple test classes in parallel, random ports help prevent failures caused by port collisions. If you've disabled random ports, for example to match a specific port in a health check URL, re-enable them for CI:
 
-```csharp title="C# — IntegrationTest.cs"
+```csharp title="IntegrationTest.cs"
 var appHost = await DistributedApplicationTestingBuilder
     .CreateAsync<Projects.MyAppHost>(
     [
@@ -236,7 +236,7 @@ The following is a complete GitHub Actions workflow for running Aspire integrati
 GitHub Actions automatically sets the `CI` environment variable to `true` for all workflow runs. The test code from the earlier [Use longer timeouts in CI](#use-longer-timeouts-in-ci) section checks for this variable to apply extended timeouts. Other CI platforms such as Azure DevOps, CircleCI, and others, also set `CI=true` by default.
 </Aside>
 
-```yaml title="YAML — .github/workflows/integration-tests.yml"
+```yaml title=".github/workflows/integration-tests.yml"
 name: Integration Tests
 
 on:

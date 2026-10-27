@@ -6,8 +6,10 @@ description: Learn how to use the Aspire RabbitMQ Hosting integration to orchest
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import rabbitmqIcon from '@assets/icons/rabbitmq-icon.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={rabbitmqIcon}
@@ -39,11 +41,11 @@ aspire add rabbitmq
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package Aspire.Hosting.RabbitMQ@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="Aspire.Hosting.RabbitMQ" Version="*" />
 ```
 
@@ -63,7 +65,7 @@ This updates your `aspire.config.json` with the RabbitMQ hosting integration pac
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.RabbitMQ": "13.4.0"
+    "Aspire.Hosting.RabbitMQ": "%ASPIRE_VERSION%"
   }
 }
 ```
@@ -81,7 +83,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var rabbitmq = builder.AddRabbitMQ("messaging");
@@ -93,7 +95,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -122,13 +124,15 @@ await builder.addNodeApp("api", "./api", "index.js")
     When you reference a RabbitMQ resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, port numbers, and credentials. For a complete list of these properties and per-language connection examples, see [Connect to RabbitMQ](../rabbitmq-connect/).
 </Aside>
 
+<ContainerImages package="Aspire.Hosting.RabbitMQ" />
+
 ## Add RabbitMQ server resource with data volume
 
 Add a data volume to the RabbitMQ server resource as shown in the following examples:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var rabbitmq = builder.AddRabbitMQ("messaging")
@@ -141,7 +145,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -165,7 +169,7 @@ Add a data bind mount to the RabbitMQ server resource as shown in the following 
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var rabbitmq = builder.AddRabbitMQ("messaging")
@@ -180,7 +184,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -208,7 +212,7 @@ When you want to explicitly provide the username and password used by the contai
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var username = builder.AddParameter("username", secret: true);
@@ -223,7 +227,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -245,11 +249,11 @@ When no `password` parameter is provided, Aspire generates a strong password aut
 
 ## Add RabbitMQ server resource with management plugin
 
-To add the [RabbitMQ management plugin](https://www.rabbitmq.com/docs/management) as a sub-resource, call `WithManagementPlugin` (or `withManagementPlugin`). You'll need the credentials you configured to log in to the management UI:
+To add the [RabbitMQ management plugin](https://www.rabbitmq.com/docs/management) as a sub-resource, call <ApiReference name="Aspire.Hosting.RabbitMQBuilderExtensions.WithManagementPlugin" />. You'll need the credentials you configured to log in to the management UI:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var username = builder.AddParameter("username", secret: true);
@@ -265,7 +269,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -290,13 +294,13 @@ To configure a custom host port for the management plugin, pass the `port` optio
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var rabbitmq = builder.AddRabbitMQ("messaging")
     .WithManagementPlugin(port: 15672);
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 await rabbitmq.withManagementPlugin({ port: 15672 });
 ```
 </TabItem>
@@ -308,7 +312,7 @@ By default, Aspire injects the RabbitMQ connection information using variable na
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var rabbitmq = builder.AddRabbitMQ("messaging");
@@ -327,7 +331,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts"
 import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -351,11 +355,11 @@ await builder.build().run();
 
 ## Connect to an existing RabbitMQ instance
 
-To reference an externally managed RabbitMQ instance instead of running one as a container, use `AddConnectionString`:
+To reference an externally managed RabbitMQ instance instead of running one as a container, use <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var rabbitmq = builder.AddConnectionString("messaging");
@@ -367,8 +371,8 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
@@ -393,7 +397,7 @@ For the full reference of RabbitMQ resource connection properties — and how co
 
 ## RabbitMQ 4.3 queue declaration requirements
 
-Starting with Aspire 13.4, the default RabbitMQ container image used by `AddRabbitMQ` is **4.3**. RabbitMQ 4.3 disables the deprecated `transient_nonexcl_queues` feature by default. Declaring a queue that is simultaneously non-durable (transient) and non-exclusive is rejected by the broker with AMQP error 541 (`INTERNAL_ERROR - Feature 'transient_nonexcl_queues' is deprecated.`).
+Starting with Aspire 13.4, the default RabbitMQ container image used by <ApiReference name="Aspire.Hosting.RabbitMQBuilderExtensions.AddRabbitMQ" /> is **4.3**. RabbitMQ 4.3 disables the deprecated `transient_nonexcl_queues` feature by default. Declaring a queue that is simultaneously non-durable (transient) and non-exclusive is rejected by the broker with AMQP error 541 (`INTERNAL_ERROR - Feature 'transient_nonexcl_queues' is deprecated.`).
 
 If your application declares such queues, switch to one of the supported patterns:
 

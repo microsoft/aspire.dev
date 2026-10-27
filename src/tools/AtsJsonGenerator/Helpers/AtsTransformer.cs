@@ -10,13 +10,26 @@ internal static class AtsTransformer
     /// <summary>
     /// Transform the deserialized dump output into a <see cref="TsPackageModel"/>.
     /// </summary>
+    /// <param name="tolerateKnownScannerDiagnostics">
+    /// Accept error diagnostics that <see cref="KnownScannerDiagnostics"/> attributes to known scanner defects.
+    /// Any other error diagnostic still fails the transform.
+    /// </param>
     public static TsPackageModel Transform(
         AtsDumpRoot dump,
         string packageName,
         string? version = null,
         string? sourceRepository = null,
-        string? sourceCommit = null)
+        string? sourceCommit = null,
+        bool tolerateKnownScannerDiagnostics = false)
     {
+        var errors = GetErrorDiagnostics(dump)
+            .Where(message => !tolerateKnownScannerDiagnostics || !KnownScannerDiagnostics.IsInheritedDuplicateCapability(message, dump))
+            .ToArray();
+        if (errors.Length > 0)
+        {
+            throw new InvalidOperationException($"ATS dump contains error diagnostics: {string.Join("; ", errors)}");
+        }
+
         sourceRepository = NormalizeSourceRepository(sourceRepository);
 
         // Fall back to the version from the dump's Packages metadata if not explicitly provided
@@ -34,8 +47,9 @@ internal static class AtsTransformer
         var handleLookup = handleModels.ToDictionary(h => h.FullName, h => h);
 
         // Transform capabilities into functions
+        var enumNames = dump.EnumTypes.ToDictionary(value => value.TypeId, value => value.Name);
         var functionModels = dump.Capabilities
-            .Select(TransformCapability)
+            .Select(capability => TransformCapability(capability, enumNames))
             .OrderBy(f => f.QualifiedName)
             .ToList();
 
@@ -56,7 +70,7 @@ internal static class AtsTransformer
 
         // Transform DTO types
         var dtoModels = dump.DtoTypes
-            .Select(TransformDto)
+            .Select(dto => TransformDto(dto, enumNames))
             .OrderBy(d => d.FullName)
             .ToList();
 
@@ -81,6 +95,11 @@ internal static class AtsTransformer
             EnumTypes = enumModels,
         };
     }
+
+    internal static IEnumerable<string> GetErrorDiagnostics(AtsDumpRoot dump) =>
+        dump.Diagnostics
+            .Where(diagnostic => diagnostic.Severity.Equals("Error", StringComparison.OrdinalIgnoreCase))
+            .Select(diagnostic => diagnostic.Message);
 
     private static string? NormalizeSourceRepository(string? sourceRepository)
     {
@@ -123,10 +142,14 @@ internal static class AtsTransformer
                 .Select(i => StripAssemblyPrefix(i.TypeId))
                 .OrderBy(i => i)
                 .ToList(),
+            BaseTypeHierarchy = h.BaseTypeHierarchy
+                .Select(i => StripAssemblyPrefix(i.TypeId))
+                .ToList(),
         };
     }
 
-    private static TsFunctionModel TransformCapability(AtsDumpCapability cap)
+    private static TsFunctionModel TransformCapability(
+        AtsDumpCapability cap, IReadOnlyDictionary<string, string> enumNames)
     {
         // Filter out the context/builder target parameter from visible params
         var visibleParams = cap.Parameters
@@ -144,12 +167,12 @@ internal static class AtsTransformer
         var paramModels = visibleParams.Select(p => new TsParameterModel
         {
             Name = p.Name,
-            Type = FormatTypeRef(p.Type),
+            Type = FormatTypeRef(p.Type, enumNames),
             IsOptional = p.IsOptional,
             IsNullable = p.IsNullable,
             DefaultValue = p.DefaultValue,
             IsCallback = p.IsCallback,
-            CallbackSignature = p.IsCallback ? FormatCallbackSignature(p) : null,
+            CallbackSignature = p.IsCallback ? FormatCallbackSignature(p, enumNames) : null,
             Description = paramDocLookup.TryGetValue(p.Name, out var pd) ? NormalizeDoc(pd) : null,
         }).ToList();
 
@@ -163,7 +186,7 @@ internal static class AtsTransformer
             return $"{p.Name}{opt}: {type}";
         });
 
-        var returnTypeStr = FormatTypeRef(cap.ReturnType);
+        var returnTypeStr = FormatTypeRef(cap.ReturnType, enumNames);
         var sig = $"{cap.MethodName}({string.Join(", ", paramParts)}): {returnTypeStr}";
 
         // Prefer the richer Documentation.Summary; fall back to the legacy
@@ -190,7 +213,8 @@ internal static class AtsTransformer
         };
     }
 
-    private static TsDtoTypeModel TransformDto(AtsDumpDtoType dto)
+    private static TsDtoTypeModel TransformDto(
+        AtsDumpDtoType dto, IReadOnlyDictionary<string, string> enumNames)
     {
         var fullName = StripAssemblyPrefix(dto.TypeId);
         return new TsDtoTypeModel
@@ -202,8 +226,10 @@ internal static class AtsTransformer
             Fields = dto.Properties.Select(p => new TsDtoFieldModel
             {
                 Name = p.Name,
-                Type = FormatTypeRef(p.Type),
-                IsOptional = p.IsOptional,
+                Type = FormatTypeRef(p.Type, enumNames),
+                // The Aspire TypeScript SDK intentionally emits DTOs as partial
+                // object shapes, regardless of the raw ATS property's nullability.
+                IsOptional = true,
                 Description = NormalizeDoc(p.Documentation?.Summary) ?? NormalizeDoc(p.Description),
             }).ToList(),
         };
@@ -255,7 +281,8 @@ internal static class AtsTransformer
     /// <summary>
     /// Format a callback parameter into a TypeScript-style function type signature.
     /// </summary>
-    private static string FormatCallbackSignature(AtsDumpParameter param)
+    private static string FormatCallbackSignature(
+        AtsDumpParameter param, IReadOnlyDictionary<string, string> enumNames)
     {
         if (param.CallbackParameters is null)
         {
@@ -263,14 +290,14 @@ internal static class AtsTransformer
         }
 
         var cbParams = param.CallbackParameters.Select(p =>
-            $"{p.Name}: {FormatTypeRef(p.Type)}");
+            $"{p.Name}: {FormatTypeRef(p.Type, enumNames)}");
 
         // The generated TypeScript SDK always exposes callbacks as async
         // (the aspire TS code generator hardcodes `=> Promise<T>` for every
         // callback because invocation happens over RPC). Mirror that here so
         // the docs signatures match the actual SDK types.
         var innerReturnType = param.CallbackReturnType is not null
-            ? FormatTypeRef(param.CallbackReturnType)
+            ? FormatTypeRef(param.CallbackReturnType, enumNames)
             : "void";
 
         return $"({string.Join(", ", cbParams)}) => Promise<{innerReturnType}>";
@@ -279,7 +306,8 @@ internal static class AtsTransformer
     /// <summary>
     /// Format a type reference for display, simplifying common patterns.
     /// </summary>
-    internal static string FormatTypeRef(AtsDumpTypeRef? typeRef)
+    internal static string FormatTypeRef(
+        AtsDumpTypeRef? typeRef, IReadOnlyDictionary<string, string>? enumNames = null)
     {
         if (typeRef is null)
         {
@@ -290,8 +318,15 @@ internal static class AtsTransformer
         {
             "Primitive" => typeRef.TypeId,
             "Callback" => "callback",
+            "Enum" when enumNames?.TryGetValue(typeRef.TypeId, out var name) == true => name,
+            "Union" when typeRef.UnionTypes.Count > 0 =>
+                string.Join(" | ", typeRef.UnionTypes.Select(member => FormatTypeRef(member, enumNames))),
+            "Union" => throw new InvalidOperationException(
+                $"Union type '{typeRef.TypeId}' has no member metadata."),
+            "Array" when typeRef.ElementType?.Category == "Union" =>
+                $"({FormatTypeRef(typeRef.ElementType, enumNames)})[]",
             "Array" when typeRef.ElementType is not null =>
-                $"{FormatTypeRef(typeRef.ElementType)}[]",
+                $"{FormatTypeRef(typeRef.ElementType, enumNames)}[]",
             _ => SimplifyTypeId(typeRef.TypeId),
         };
     }
@@ -302,7 +337,101 @@ internal static class AtsTransformer
     internal static string SimplifyTypeId(string typeId)
     {
         var stripped = StripAssemblyPrefix(typeId);
-        return SimpleName(stripped);
+        return FormatReflectionType(stripped);
+    }
+
+    private static string FormatReflectionType(string typeName)
+    {
+        var arraySuffix = "";
+        while (typeName.EndsWith("[]", StringComparison.Ordinal))
+        {
+            arraySuffix += "[]";
+            typeName = typeName[..^2];
+        }
+
+        var arityIndex = typeName.IndexOf('`');
+        var argumentsIndex = arityIndex >= 0
+            ? typeName.IndexOf("[[", arityIndex, StringComparison.Ordinal)
+            : -1;
+        if (arityIndex >= 0 &&
+            argumentsIndex >= 0 &&
+            TrySplitReflectionGenericArguments(typeName, argumentsIndex, out var arguments))
+        {
+            var genericName = SimpleName(typeName[..arityIndex]);
+            var formattedArguments = arguments.Select(FormatReflectionType);
+            return $"{genericName}<{string.Join(",", formattedArguments)}>{arraySuffix}";
+        }
+
+        return $"{FormatPrimitiveType(SimpleName(typeName))}{arraySuffix}";
+    }
+
+    private static bool TrySplitReflectionGenericArguments(
+        string typeName,
+        int startIndex,
+        out List<string> arguments)
+    {
+        arguments = [];
+        var argumentStart = startIndex + 2;
+        var depth = 1;
+        var i = argumentStart;
+
+        while (i < typeName.Length)
+        {
+            if (i + 1 < typeName.Length && typeName[i] == '[' && typeName[i + 1] == ']')
+            {
+                i += 2;
+                continue;
+            }
+
+            if (i + 1 < typeName.Length && typeName[i] == '[' && typeName[i + 1] == '[')
+            {
+                depth++;
+                i += 2;
+                continue;
+            }
+
+            if (i + 1 < typeName.Length && typeName[i] == ']' && typeName[i + 1] == ']')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    arguments.Add(typeName[argumentStart..i]);
+                    return i + 2 == typeName.Length;
+                }
+                i += 2;
+                continue;
+            }
+
+            if (depth == 1 &&
+                i + 2 < typeName.Length &&
+                typeName[i] == ']' &&
+                typeName[i + 1] == ',' &&
+                typeName[i + 2] == '[')
+            {
+                arguments.Add(typeName[argumentStart..i]);
+                argumentStart = i + 3;
+                i += 3;
+                continue;
+            }
+
+            i++;
+        }
+
+        arguments = [];
+        return false;
+    }
+
+    private static string FormatPrimitiveType(string typeName)
+    {
+        return typeName switch
+        {
+            "String" => "string",
+            "Boolean" => "boolean",
+            "Byte" or "SByte" or "Int16" or "UInt16" or "Int32" or "UInt32" or
+                "Int64" or "UInt64" or "Single" or "Double" or "Decimal" => "number",
+            "Object" => "unknown",
+            _ => typeName,
+        };
     }
 
     /// <summary>
@@ -337,41 +466,109 @@ internal static class AtsTransformer
         {
             if (i + 1 < typeId.Length && typeId[i] == '[' && typeId[i + 1] == '[')
             {
-                result.Append("[[");
-                i += 2;
-
-                // Read the type name (up to the first comma or closing bracket)
-                while (i < typeId.Length && typeId[i] != ',' && typeId[i] != ']')
+                if (TryCleanGenericArgumentList(typeId, i, out var cleaned, out var nextIndex))
                 {
-                    result.Append(typeId[i]);
-                    i++;
-                }
-
-                // Skip assembly metadata: everything between the comma and "]]"
-                var depth = 1;
-                while (i < typeId.Length && depth > 0)
-                {
-                    if (i + 1 < typeId.Length && typeId[i] == ']' && typeId[i + 1] == ']')
-                    {
-                        depth--;
-                        if (depth == 0)
-                        {
-                            result.Append("]]");
-                            i += 2;
-                            break;
-                        }
-                    }
-                    i++;
+                    result.Append(cleaned);
+                    i = nextIndex;
+                    continue;
                 }
             }
-            else
-            {
-                result.Append(typeId[i]);
-                i++;
-            }
+
+            result.Append(typeId[i]);
+            i++;
         }
 
         return result.ToString();
+    }
+
+    private static bool TryCleanGenericArgumentList(
+        string typeId,
+        int startIndex,
+        out string cleaned,
+        out int nextIndex)
+    {
+        var result = new System.Text.StringBuilder();
+        result.Append("[[");
+        var i = startIndex + 2;
+
+        while (i < typeId.Length)
+        {
+            var argumentStart = i;
+            var bracketDepth = 0;
+            while (i < typeId.Length)
+            {
+                if (typeId[i] == '[')
+                {
+                    bracketDepth++;
+                }
+                else if (typeId[i] == ']')
+                {
+                    if (bracketDepth == 0)
+                    {
+                        break;
+                    }
+                    bracketDepth--;
+                }
+                i++;
+            }
+
+            if (i >= typeId.Length)
+            {
+                cleaned = "";
+                nextIndex = startIndex;
+                return false;
+            }
+
+            var argument = typeId[argumentStart..i];
+            var assemblySeparator = FindTopLevelComma(argument);
+            var typeName = assemblySeparator >= 0 ? argument[..assemblySeparator] : argument;
+            result.Append(CleanAssemblyQualifiedGenerics(typeName.Trim()));
+
+            if (i + 1 < typeId.Length && typeId[i + 1] == ']')
+            {
+                result.Append("]]");
+                cleaned = result.ToString();
+                nextIndex = i + 2;
+                return true;
+            }
+
+            if (i + 2 < typeId.Length && typeId[i + 1] == ',' && typeId[i + 2] == '[')
+            {
+                result.Append("],[");
+                i += 3;
+                continue;
+            }
+
+            cleaned = "";
+            nextIndex = startIndex;
+            return false;
+        }
+
+        cleaned = "";
+        nextIndex = startIndex;
+        return false;
+    }
+
+    private static int FindTopLevelComma(string value)
+    {
+        var bracketDepth = 0;
+        for (var i = 0; i < value.Length; i++)
+        {
+            if (value[i] == '[')
+            {
+                bracketDepth++;
+            }
+            else if (value[i] == ']')
+            {
+                bracketDepth--;
+            }
+            else if (value[i] == ',' && bracketDepth == 0)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>

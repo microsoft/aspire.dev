@@ -7,6 +7,7 @@ import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import tableIcon from '@assets/icons/azure-table-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={tableIcon}
@@ -52,17 +53,17 @@ Pick the language your consuming app is written in. Each example assumes your Ap
 
 For C# apps, the recommended approach is the Aspire Azure Data Tables client integration. It registers a [`TableServiceClient`](https://learn.microsoft.com/dotnet/api/azure.data.tables.tableserviceclient) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
 
-#### Install the client integration
+### Install the client integration
 
 Install the [📦 Aspire.Azure.Data.Tables](https://www.nuget.org/packages/Aspire.Azure.Data.Tables) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.Azure.Data.Tables" />
 
-#### Add the Table Storage client
+### Add the Table Storage client
 
 In _Program.cs_, call `AddAzureTableServiceClient` on your `IHostApplicationBuilder` to register a `TableServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureTableServiceClient(connectionName: "tables");
 ```
 
@@ -72,25 +73,25 @@ The `connectionName` must match the Azure Table Storage resource name from the A
 
 Resolve the service client through dependency injection:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(TableServiceClient client)
 {
     // Use client...
 }
 ```
 
-#### Add keyed Table Storage clients
+### Add keyed Table Storage clients
 
 To register multiple `TableServiceClient` instances with different connection names, use `AddKeyedAzureTableServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddKeyedAzureTableServiceClient(name: "tables1");
 builder.AddKeyedAzureTableServiceClient(name: "tables2");
 ```
 
 Then resolve each instance by key:
 
-```csharp title="C# — ExampleService.cs"
+```csharp title="ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("tables1")] TableServiceClient tablesClient1,
     [FromKeyedServices("tables2")] TableServiceClient tablesClient2)
@@ -101,19 +102,19 @@ public class ExampleService(
 
 For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
 
-#### Configuration
+### Configuration
 
 The Aspire Azure Data Tables client integration offers multiple ways to provide configuration.
 
 **Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureTableServiceClient`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureTableServiceClient("tables");
 ```
 
 The connection string is resolved from the `ConnectionStrings` section:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "ConnectionStrings": {
     "tables": "DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=...;EndpointSuffix=core.windows.net"
@@ -123,7 +124,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureDataTablesSettings` from _appsettings.json_ (or any other configuration source) using the `Aspire:Azure:Data:Tables` key:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Aspire": {
     "Azure": {
@@ -144,7 +145,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 **Inline delegates.** Pass an `Action<AzureDataTablesSettings>` to configure settings inline:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureTableServiceClient(
     "tables",
     settings => settings.DisableHealthChecks = true);
@@ -152,7 +153,7 @@ builder.AddAzureTableServiceClient(
 
 You can also configure the `TableClientOptions`:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 builder.AddAzureTableServiceClient(
     "tables",
     configureClientBuilder: clientBuilder =>
@@ -160,7 +161,7 @@ builder.AddAzureTableServiceClient(
             options => options.EnableTenantDiscovery = true));
 ```
 
-#### Client integration health checks
+### Client integration health checks
 
 Aspire client integrations enable health checks by default. The Azure Data Tables client integration adds:
 
@@ -169,7 +170,7 @@ Aspire client integrations enable health checks by default. The Azure Data Table
 
 To disable health checks, set `DisableHealthChecks` to `true` in the configuration.
 
-#### Observability and telemetry
+### Observability and telemetry
 
 The Aspire Azure Data Tables client integration automatically configures logging and tracing through OpenTelemetry.
 
@@ -184,11 +185,11 @@ The Aspire Azure Data Tables client integration automatically configures logging
 
 **Metrics:** The Azure Data Tables integration currently doesn't support metrics by default due to limitations in the Azure SDK.
 
-#### Read environment variables in C\#
+### Read environment variables in C\#
 
 If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and construct a `TableServiceClient` directly using the [📦 Azure.Data.Tables](https://www.nuget.org/packages/Azure.Data.Tables/) NuGet package:
 
-```csharp title="C# — Program.cs"
+```csharp title="Program.cs"
 using Azure.Data.Tables;
 
 var connectionString = Environment.GetEnvironmentVariable("TABLES_CONNECTIONSTRING");
@@ -215,7 +216,7 @@ go get github.com/Azure/azure-sdk-for-go/sdk/data/aztables
 
 Read the injected environment variables and connect:
 
-```go title="Go — main.go"
+```go title="main.go"
 package main
 
 import (
@@ -268,7 +269,7 @@ pip install azure-data-tables
 
 Read the injected environment variables and connect:
 
-```python title="Python — app.py"
+```python title="app.py"
 import os
 from azure.data.tables import TableServiceClient
 
@@ -299,7 +300,7 @@ npm install @azure/data-tables
 
 Read the injected environment variables and connect:
 
-```typescript title="TypeScript — index.ts"
+```typescript title="index.ts"
 import { TableServiceClient } from '@azure/data-tables';
 
 const connectionString = process.env.TABLES_CONNECTIONSTRING;
@@ -326,5 +327,5 @@ for await (const table of client.listTables()) {
 </Tabs>
 
 <Aside type="tip">
-    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See the [AppHost reference](/get-started/app-host/) for details.
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" />. See the [AppHost reference](/get-started/app-host/) for details.
 </Aside>

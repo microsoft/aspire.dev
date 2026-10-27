@@ -1,6 +1,112 @@
 import { expect, test } from '@playwright/test';
 
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { deferAppHostExamples } from '../../config/apphost-examples.mjs';
+
+test.describe('deferred AppHost examples', () => {
+  test.beforeEach(async ({ page, request, baseURL }) => {
+    // Exercise the production transformation locally without a full site build.
+    const response = await request.get('/');
+    const html = await response.text();
+    if (!html.includes('data-apphost-examples=')) {
+      const deferred = deferAppHostExamples(html);
+      await page.route(new URL('/', baseURL).href, (route) =>
+        route.fulfill({ response, body: deferred.html })
+      );
+      await page.route(`**/_astro/${deferred.filename}`, (route) =>
+        route.fulfill({ contentType: 'text/html', body: deferred.examples })
+      );
+    }
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+  });
+
+  test('loads examples once on interaction and keeps the initial default useful', async ({
+    page,
+  }) => {
+    const exampleRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\/_astro\/apphost-examples\./.test(request.url())) {
+        exampleRequests.push(request.url());
+      }
+    });
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+    const builder = page.locator('[data-apphost-builder]').first();
+    const stage = builder.locator('[data-code-stage]');
+    await expect(stage).toHaveAttribute('data-code-variant', 'frontend');
+    await expect(stage).toContainText('.addViteApp("frontend"');
+    await expect(builder.locator('.code-variant')).toHaveCount(1);
+    expect(exampleRequests).toHaveLength(0);
+
+    await builder.locator('[data-toggle="database"]').click();
+    await expect(stage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+    await builder.locator('[data-lang="csharp"]').click();
+    await expect(stage).toHaveAttribute('data-code-lang', 'csharp');
+    await expect(stage).toContainText('AddPostgres("db")');
+    expect(exampleRequests).toHaveLength(1);
+  });
+
+  for (const failure of ['unavailable', 'invalid content']) {
+    test(`keeps the last preview and allows retry after ${failure}`, async ({ page }) => {
+      let requests = 0;
+      await page.route('**/_astro/apphost-examples.*.html', async (route) => {
+        requests++;
+        if (requests === 1) {
+          await route.fulfill({
+            status: failure === 'unavailable' ? 503 : 200,
+            contentType: 'text/html',
+            body: '<html>Examples unavailable</html>',
+          });
+        } else {
+          await route.fallback();
+        }
+      });
+      await page.goto('/');
+      await dismissCookieConsentIfVisible(page);
+      const builder = page.locator('[data-apphost-builder]').first();
+      const stage = builder.locator('[data-code-stage]');
+      const status = builder.locator('[data-code-status]');
+      await builder.locator('[data-lang="csharp"]').click();
+      await expect(status).toBeVisible();
+      await expect(status).toContainText('Select an option to try again.');
+      await expect(stage).toHaveAttribute('data-code-lang', 'typescript');
+      await expect(stage).toContainText('.addViteApp("frontend"');
+      await expect(builder.locator('[data-apphost-code-display]')).toHaveAttribute(
+        'aria-busy',
+        'false'
+      );
+
+      await builder.locator('[data-lang="csharp"]').click();
+      await expect(stage).toHaveAttribute('data-code-lang', 'csharp');
+      await expect(status).not.toContainText('Could not load');
+      expect(requests).toBe(2);
+    });
+  }
+
+  test('uses the latest selection when controls change during loading', async ({ page }) => {
+    const gate = Promise.withResolvers<void>();
+    await page.route('**/_astro/apphost-examples.*.html', async (route) => {
+      await gate.promise;
+      await route.fallback();
+    });
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+    const builder = page.locator('[data-apphost-builder]').first();
+    await builder.locator('[data-toggle="database"]').click();
+    await expect(builder.locator('[data-apphost-code-display]')).toHaveAttribute(
+      'aria-busy',
+      'true'
+    );
+    await builder.locator('[data-toggle="api"]').click();
+    await builder.locator('[data-lang="csharp"]').click();
+    gate.resolve();
+
+    const stage = builder.locator('[data-code-stage]');
+    await expect(stage).toHaveAttribute('data-code-lang', 'csharp');
+    await expect(stage).toHaveAttribute('data-code-variant', 'databaseApiFrontend');
+    await expect(stage).toContainText('AddPostgres("db")');
+  });
+});
 
 test('app host builder swaps visible code when toggles and language change', async ({ page }) => {
   await page.goto('/');
@@ -13,18 +119,177 @@ test('app host builder swaps visible code when toggles and language change', asy
 
   const csharpGroup = builder.locator('.code-lang-group[data-code-lang="csharp"]');
   const typeScriptGroup = builder.locator('.code-lang-group[data-code-lang="typescript"]');
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+  const languageToggles = builder.locator('.lang-toggle');
+  const typeScriptToggle = builder.locator('.lang-toggle[data-lang="typescript"]');
+  const csharpToggle = builder.locator('.lang-toggle[data-lang="csharp"]');
 
-  await expect(csharpGroup).toBeVisible();
-  await expect(csharpGroup).toContainText('AddViteApp("frontend"');
+  await expect(languageToggles).toHaveText(['TypeScript', 'C#']);
+  await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(csharpToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(codeStage).toBeVisible();
+  await expect(codeStage).toHaveAttribute('data-code-lang', 'typescript');
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'frontend');
+  await expect(codeStage).toContainText('.addViteApp("frontend"');
+  await expect(typeScriptGroup).toBeHidden();
+  await expect(csharpGroup).toBeHidden();
 
   await builder.locator('.toggle[data-toggle="database"]').click();
-  await expect(csharpGroup).toContainText('AddPostgres("db")');
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage).toContainText('.addPostgres("db")');
 
-  await builder.locator('.lang-toggle[data-lang="typescript"]').click();
+  await csharpToggle.click();
 
-  await expect(typeScriptGroup).toBeVisible();
+  await expect(csharpToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(codeStage).toHaveAttribute('data-code-lang', 'csharp');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage).toContainText('AddPostgres("db")');
   await expect(csharpGroup).toBeHidden();
-  await expect(typeScriptGroup).toContainText('.addPostgres("db")');
+  await expect(typeScriptGroup).toBeHidden();
+});
+
+test('AppHost builder types additions and selects removals before deleting them', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+  const databaseToggle = builder.locator('.toggle[data-toggle="database"]');
+
+  await expect(builder.locator('[data-editor-caret]')).toHaveCSS('position', 'absolute');
+  await databaseToggle.click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'typing');
+  await expect(codeStage.locator('[data-editor-inserting]')).toHaveCount(1);
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+
+  await databaseToggle.click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'selecting');
+  await expect(codeStage.locator('[data-editor-selection]')).not.toHaveCount(0);
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'frontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage).not.toContainText('.addPostgres("db")');
+});
+
+test('AppHost builder applies code changes immediately when reduced motion is requested', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+
+  await builder.locator('.toggle[data-toggle="database"]').click();
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-motion', 'reduced');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage.locator('[data-editor-selection], [data-editor-inserting]')).toHaveCount(
+    0
+  );
+});
+
+test('AppHost builder can disable typing motion and its caret', async ({ page }) => {
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const codeStage = builder.locator('[data-code-stage]');
+  const motionToggle = builder.locator('[data-editor-motion-toggle]');
+  const databaseToggle = builder.locator('.toggle[data-toggle="database"]');
+
+  await expect(motionToggle).toBeChecked();
+  await databaseToggle.click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'typing');
+
+  await motionToggle.uncheck();
+  await expect(builder).toHaveAttribute('data-editor-motion-enabled', 'false');
+  await expect(codeDisplay).toHaveAttribute('data-editor-motion', 'disabled');
+  await expect(builder.locator('[data-editor-caret]')).toBeHidden();
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await expect(codeStage.locator('[data-editor-selection], [data-editor-inserting]')).toHaveCount(
+    0
+  );
+
+  await builder.locator('.toggle[data-toggle="api"]').click();
+  await expect(codeStage).toHaveAttribute('data-code-variant', 'databaseApiFrontend');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+  await builder.locator('.lang-toggle[data-lang="csharp"]').click();
+  await expect(codeStage).toHaveAttribute('data-code-lang', 'csharp');
+  await expect(codeStage).toContainText('AddPostgres("db")');
+  await expect(codeStage.locator('[data-editor-selection], [data-editor-inserting]')).toHaveCount(
+    0
+  );
+
+  await motionToggle.check();
+  await expect(builder).toHaveAttribute('data-editor-motion-enabled', 'true');
+  await builder.locator('.toggle[data-toggle="api"]').click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'selecting');
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
+});
+
+test('AI context tips overlay section content on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const cases = [
+    ['.home-model [data-home-agent-badge]', '.model-proof'],
+    ['[data-home-environments] [data-home-agent-badge]', '.environment-switcher'],
+    ['.home-dashboard [data-home-agent-badge]', '.dashboard-stage'],
+  ] as const;
+
+  for (const [index, [badgeSelector, contentSelector]] of cases.entries()) {
+    const badge = page.locator(badgeSelector);
+    const trigger = badge.getByRole('button');
+    const popover = badge.getByRole('region');
+
+    await badge.scrollIntoViewIfNeeded();
+    await trigger.focus();
+    await expect(popover).toBeVisible();
+
+    const geometry = await page.evaluate(
+      ({ badgeSelector, contentSelector }) => {
+        const badge = document.querySelector<HTMLElement>(badgeSelector);
+        const popover = badge?.querySelector<HTMLElement>('[role="region"]');
+        const content = document.querySelector<HTMLElement>(contentSelector);
+        if (!popover || !content) return null;
+
+        const popoverRect = popover.getBoundingClientRect();
+        const contentRect = content.getBoundingClientRect();
+        const overlapLeft = Math.max(popoverRect.left, contentRect.left);
+        const overlapRight = Math.min(popoverRect.right, contentRect.right);
+        const overlapTop = Math.max(popoverRect.top, contentRect.top);
+        const overlapBottom = Math.min(popoverRect.bottom, contentRect.bottom);
+        const overlaps = overlapRight > overlapLeft && overlapBottom > overlapTop;
+        const pointX = overlaps ? (overlapLeft + overlapRight) / 2 : popoverRect.left + 4;
+        const pointY = overlaps ? (overlapTop + overlapBottom) / 2 : popoverRect.top + 4;
+        const topElement = document.elementFromPoint(pointX, pointY);
+
+        return {
+          insideViewport: popoverRect.left >= 0 && popoverRect.right <= window.innerWidth,
+          overlaps,
+          paintsOnTop: topElement === popover || popover.contains(topElement),
+        };
+      },
+      { badgeSelector, contentSelector }
+    );
+
+    expect(geometry).not.toBeNull();
+    expect(geometry?.insideViewport).toBe(true);
+    expect(geometry?.paintsOnTop).toBe(true);
+    if (index < 2) expect(geometry?.overlaps).toBe(true);
+  }
 });
 
 test('accessible code enhancements label code regions and remove disabled copy buttons', async ({
@@ -81,26 +346,39 @@ test('prerequisites presents container runtimes as one choice with Podman setup 
   await expect(podmanChoice.locator('starlight-tabs[data-sync-key="terminal"]')).toBeVisible();
 });
 
-test('testimonial carousel advances cards and enables the previous control', async ({ page }) => {
+test('homepage environment story exposes a keyboard-operable selected state', async ({ page }) => {
   await page.goto('/');
   await dismissCookieConsentIfVisible(page);
 
-  const track = page.locator('.testimonial-carousel [data-track]');
-  const prevButton = page.locator('.testimonial-carousel .prev-btn');
-  const nextButton = page.locator('.testimonial-carousel .next-btn');
+  const environment = page.locator('[data-home-environments]');
+  const localButton = environment.getByRole('button', { name: 'Local' });
+  const productionButton = environment.getByRole('button', { name: 'Production' });
+  const localPanel = environment.locator('[data-environment-panel="local"]');
+  const productionPanel = environment.locator('[data-environment-panel="production"]');
 
-  const initialScrollLeft = await track.evaluate((element) => Math.round(element.scrollLeft));
-  if (await nextButton.isDisabled()) {
-    await expect(prevButton).toBeDisabled();
-    await expect(nextButton).toBeDisabled();
-  } else {
-    await nextButton.click();
+  await expect(localButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(localPanel).toBeVisible();
+  await expect(productionPanel).toBeHidden();
 
-    await expect(prevButton).toBeEnabled();
-    await expect
-      .poll(async () => track.evaluate((element) => Math.round(element.scrollLeft)))
-      .toBeGreaterThan(initialScrollLeft);
-  }
+  const selectedIndicator = await localButton.evaluate((button) => {
+    const style = getComputedStyle(button, '::after');
+    return {
+      borderRadius: style.borderRadius,
+      width: Number.parseFloat(style.width),
+      buttonWidth: button.getBoundingClientRect().width,
+    };
+  });
+
+  expect(selectedIndicator.borderRadius).not.toBe('0px');
+  expect(selectedIndicator.width).toBeLessThan(selectedIndicator.buttonWidth);
+
+  await productionButton.focus();
+  await page.keyboard.press('Enter');
+
+  await expect(productionButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(localButton).toHaveAttribute('aria-pressed', 'false');
+  await expect(localPanel).toBeHidden();
+  await expect(productionPanel).toBeVisible();
 });
 
 test('os aware tabs default first-time Windows visitors to PowerShell', async ({ browser }) => {
@@ -179,10 +457,10 @@ test('samples grid hydrates filters from the URL and syncs them back on change',
   // back/forward stack, so a shared link reflects current state but
   // browser history stays clean.
   const redisChip = page.locator('[data-tag="redis"]');
+  if (!await redisChip.isVisible()) await page.locator('[data-tag-toggle]').click();
+  await expect(redisChip).toBeVisible();
   await redisChip.click();
-  await expect
-    .poll(() => page.url())
-    .toMatch(/tags=databases%2Credis|tags=databases,redis/);
+  await expect.poll(() => page.url()).toMatch(/tags=databases%2Credis|tags=databases,redis/);
 
   // The "Clear all" link resets every filter at once (search + tags) and
   // hides itself when there is nothing left to clear.
@@ -192,4 +470,75 @@ test('samples grid hydrates filters from the URL and syncs them back on change',
   await expect(redisChip).not.toHaveClass(/\bactive\b/);
   await expect(clearAll).toBeHidden();
   await expect.poll(() => page.url()).not.toMatch(/[?&](q|tags)=/);
+});
+
+test('ApiReference renders as valid phrasing content and is never reparented out of its containing paragraph or list item', async ({
+  page,
+}) => {
+  // Regression test: ApiReference used to render Starlight's `<Code>`
+  // component, which emits block-level Expressive Code markup
+  // (`<div><figure><pre>...`). This page embeds ApiReference both inside a
+  // literal `<p>` (the Python/Node.js pivot panels) and inside a Markdown
+  // list item ("Best practices"), which is exactly the phrasing-content
+  // position that triggered the bug: the browser's HTML parser can't nest
+  // block content inside a `<p>`, so it implicitly closes the paragraph and
+  // promotes the block markup out as a sibling — leaving the `.api-reference`
+  // element empty in place and a detached code block (with its own copy
+  // button) floating elsewhere on the page.
+  await page.goto('/get-started/app-host/');
+  await dismissCookieConsentIfVisible(page);
+
+  const references = page.locator('.api-reference');
+  const count = await references.count();
+  expect(count).toBeGreaterThan(0);
+
+  for (const reference of await references.all()) {
+    // The symptom of the reparenting bug: an ApiReference instance left
+    // empty at its authored position because its only content got hoisted
+    // out by the parser.
+    await expect(reference).not.toBeEmpty();
+
+    // Still a real descendant of the paragraph/list item it was authored
+    // inside, not promoted elsewhere in the tree by implied tag closing.
+    const containingParent = await reference.evaluate(
+      (element) => element.closest('p, li')?.tagName.toLowerCase() ?? null
+    );
+    expect(containingParent).toMatch(/^(p|li)$/);
+
+    // A correctly rendered ApiReference is just `<a><code>`, so a copy
+    // affordance anywhere inside one means a code frame crept back in.
+    await expect(reference.locator('.copy, .copy button, button.copy')).toHaveCount(0);
+  }
+
+  // No ApiReference instance should ever emit block-level code markup —
+  // that's the root cause a browser has to reparent out of a `<p>`/`<li>`
+  // in the first place.
+  await expect(
+    page.locator('.api-reference pre, .api-reference figure, .api-reference .expressive-code')
+  ).toHaveCount(0);
+
+  // A hoisted frame lands as a *sibling* of the paragraph, out of reach of the
+  // `.api-reference`-scoped selectors above, so also check the whole page for a
+  // copy button belonging to one of these references. Expressive Code
+  // SSR-attaches the copied text to the button as `data-code` (see
+  // integrations-gallery.spec.ts), and matching it exactly keeps the page's real
+  // code samples - whose `data-code` is a full statement that may well mention
+  // the same API - from tripping this. Labels are read with `evaluateAll` rather
+  // than `allInnerTexts` so the chips hidden by the language pivot still count.
+  const referenceLabels = await page
+    .locator('.api-reference .ar-lang code')
+    .evaluateAll((elements) =>
+      elements.flatMap((element) => {
+        const label = element.textContent?.trim() ?? '';
+        return label ? [label, label.replace(/\(\)$/, '')] : [];
+      })
+    );
+  expect(referenceLabels.length).toBeGreaterThan(0);
+
+  for (const label of new Set(referenceLabels)) {
+    const selector = JSON.stringify(label);
+    await expect(
+      page.locator(`.copy button[data-code=${selector}], button.copy[data-code=${selector}]`)
+    ).toHaveCount(0);
+  }
 });

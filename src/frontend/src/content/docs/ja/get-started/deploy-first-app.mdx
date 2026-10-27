@@ -3,7 +3,8 @@ title: 最初の Aspire アプリをデプロイする
 description: C# または TypeScript AppHost を使用して最初の Aspire アプリケーションをデプロイする方法を学びます。
 ---
 
-import { Aside, FileTree, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Aside, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import { Image } from 'astro:assets';
 import { Kbd } from 'starlight-kbd/components';
 import Expand from '@components/Expand.astro';
@@ -16,6 +17,7 @@ import dockerIcon from '@assets/icons/docker.svg';
 import csharpStarterPng from '@assets/get-started/csharp-starter.png';
 import javascriptStarterDarkPng from '@assets/get-started/javascript-starter-dark.png';
 import javascriptStarterLightPng from '@assets/get-started/javascript-starter-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <PivotSelector
     title="プログラミング言語を選択してください"
@@ -89,7 +91,7 @@ architecture-beta
 React (Vite) および Express スターター テンプレートは、単一のコンテナーとしてデプロイされる 2 つのリソースで構成されます。 Express サーバーは、API と React によって生成された静的フロントエンド ファイルの両方をホストします。
 
 <LearnMore>
-このチュートリアルでは、**バックエンドがフロントエンドにサービスを提供する** デプロイメント モデルを使用します。リバース プロキシやゲートウェイ/BFF アプローチなど、`AddViteApp` と `AddJavaScriptApp` で利用できる他の運用パターンについては、[JavaScript アプリをデプロイする](/ja/deployment/javascript-apps/) を参照してください。
+このチュートリアルでは、**バックエンドがフロントエンドにサービスを提供する** デプロイメント モデルを使用します。リバース プロキシやゲートウェイ/BFF アプローチなど、<ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" /> と <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddJavaScriptApp" /> で利用できる他の運用パターンについては、[JavaScript アプリをデプロイする](/ja/deployment/javascript-apps/) を参照してください。
 </LearnMore>
 
 </Pivot>
@@ -247,7 +249,7 @@ AppHost で、適切な環境 API メソッドへの呼び出しを連鎖させ�
 <Tabs syncKey="deploy-target">
   <TabItem id="docker-compose" label="Docker Compose">
 
-    ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4}
+    ```csharp title="AppHost.cs project-based orchestrator" {3-4}
     var builder = DistributedApplication.CreateBuilder(args);
 
     // 次の行を追加して、Docker Compose 環境を構成します。
@@ -265,13 +267,13 @@ AppHost で、適切な環境 API メソッドへの呼び出しを連鎖させ�
     builder.Build().Run();
     ```
 
-    - `AddDockerComposeEnvironment` - デプロイ用に Docker Compose 環境を構成します。この呼び出しにより、デプロイの一部として AppHost 内のリソースをコンテナー化するサポートが暗黙的に追加されます。
-    - `WithExternalHttpEndpoints` - デプロイ時にリソースの HTTP エンドポイントを公開します。
+    - <ApiReference name="Aspire.Hosting.DockerComposeEnvironmentExtensions.AddDockerComposeEnvironment" /> - デプロイ用に Docker Compose 環境を構成します。この呼び出しにより、デプロイの一部として AppHost 内のリソースをコンテナー化するサポートが暗黙的に追加されます。
+    - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" /> - デプロイ時にリソースの HTTP エンドポイントを公開します。
 
   </TabItem>
   <TabItem id="azure" label="Azure">
 
-    ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4}
+    ```csharp title="AppHost.cs project-based orchestrator" {3-4}
     var builder = DistributedApplication.CreateBuilder(args);
 
     // 次の行を追加して、Azure App Container 環境を構成します。
@@ -289,7 +291,7 @@ AppHost で、適切な環境 API メソッドへの呼び出しを連鎖させ�
     builder.Build().Run();
     ```
 
-    - `AddAzureContainerAppEnvironment` - デプロイ用に Azure App Container 環境を構成します。この呼び出しにより、デプロイの一部として AppHost 内のリソースをコンテナー化するサポートが暗黙的に追加されます。
+    - <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.AddAzureContainerAppEnvironment" /> - デプロイ用に Azure App Container 環境を構成します。この呼び出しにより、デプロイの一部として AppHost 内のリソースをコンテナー化するサポートが暗黙的に追加されます。
     - `WithExternalHttpEndpoints` - デプロイ時にリソースの HTTP エンドポイントを公開します。
 
   </TabItem>
@@ -307,7 +309,7 @@ AppHost で、適切な環境 API メソッドへの呼び出しを連鎖させ�
 <Tabs syncKey="deploy-target">
   <TabItem id="docker-compose" label="Docker Compose">
 
-    ```typescript title="TypeScript — apphost.mts" {5-6} twoslash
+    ```typescript title="apphost.mts" {5-6} twoslash
     import { createBuilder } from './.aspire/modules/aspire.mjs';
 
     const builder = await createBuilder();
@@ -336,7 +338,7 @@ AppHost で、適切な環境 API メソッドへの呼び出しを連鎖させ�
   </TabItem>
   <TabItem id="azure" label="Azure">
 
-    ```typescript title="TypeScript — apphost.mts" {5-6} twoslash
+    ```typescript title="apphost.mts" {5-6} twoslash
     import { createBuilder } from './.aspire/modules/aspire.mjs';
 
     const builder = await createBuilder();
@@ -649,7 +651,7 @@ Steps Summary:
       ```yaml title="./aspire-output/docker-compose.yaml"
       services:
         env-dashboard:
-          image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest"
+          image: "mcr.microsoft.com/aspire/nightly/dashboard:13.6"
           expose:
           - "18888"
           - "18889"
@@ -977,7 +979,7 @@ Steps Summary:
         ```yaml title="./aspire-output/docker-compose.yaml"
         services:
           env-dashboard:
-            image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest"
+            image: "mcr.microsoft.com/aspire/nightly/dashboard:13.6"
             expose:
             - "18888"
             - "18889"

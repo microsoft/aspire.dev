@@ -22,18 +22,9 @@ export const DEFAULT_OG_IMAGE_WIDTH = 1200;
 export const DEFAULT_OG_IMAGE_HEIGHT = 630;
 
 /**
- * Marketing-grade fallback description used for the home page and for any
- * page that somehow lacks a frontmatter `description`. This intentionally
- * differs from `structured-data.ts`'s `organizationDescription` and from the
- * site-wide `description` meta in `config/head.attrs.ts` because each is
- * sized for its own audience:
- *
- * - `astro.config.mjs` / `head.attrs.ts` — long-form marketing copy, no
- *   length cap, shown only on the home page.
- * - `structured-data.ts` `organizationDescription` — JSON-LD organization
- *   summary, slightly tighter and product-focused.
- * - This constant — Open Graph fallback, kept short enough for social-card
- *   previews and truncated to `OG_DESCRIPTION_MAX_LENGTH` before emission.
+ * Social-card fallback for pages without a frontmatter `description`.
+ * Starlight owns the standard description meta tag; this fallback only
+ * applies to Open Graph and Twitter previews.
  */
 export const FALLBACK_DESCRIPTION =
   'Aspire streamlines your development workflow with code-first control, ' +
@@ -84,6 +75,8 @@ export interface OgMetadata {
   type: OgType;
   /** Resolved `og:image` URL. */
   image: string;
+  /** `og:image:type` MIME type inferred from the image URL (e.g. `image/png`). */
+  imageType: string;
   /** `og:image:alt` text. */
   imageAlt: string;
   /** Image pixel dimensions (matches the dynamic template). */
@@ -253,6 +246,36 @@ export function resolveOgImage(
 }
 
 /**
+ * Infer the `og:image:type` MIME type from an image URL's file extension.
+ * Every card the site emits today is a PNG (the dynamic `/og/<slug>.png`
+ * endpoint and the static `/og-image.png` fallback), but an explicit
+ * `ogImage` frontmatter override could point at another format, so we map
+ * the extension and fall back to `image/png` when it is unknown.
+ */
+export function resolveOgImageType(image: string): string {
+  const withoutQuery = image.split(/[?#]/, 1)[0];
+  const match = /\.([a-z0-9]+)$/i.exec(withoutQuery);
+  const extension = match?.[1]?.toLowerCase();
+
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'svg':
+      return 'image/svg+xml';
+    case 'avif':
+      return 'image/avif';
+    case 'png':
+    default:
+      return 'image/png';
+  }
+}
+
+/**
  * Whether the dynamic OG image endpoint should skip a given entry. The
  * endpoint and the meta-tag emitter both consult this so the URL written into
  * `og:image` matches the file actually produced at build time.
@@ -291,6 +314,7 @@ export function getOgMetadata(
   const description = resolveOgDescription(route);
   const type = resolveOgType(route, contentBasePath);
   const image = resolveOgImage(route, contentBasePath, siteUrl, isDefaultLocale);
+  const imageType = resolveOgImageType(image);
   const imageAlt = title;
 
   return {
@@ -300,6 +324,7 @@ export function getOgMetadata(
     url,
     type,
     image,
+    imageType,
     imageAlt,
     imageWidth: DEFAULT_OG_IMAGE_WIDTH,
     imageHeight: DEFAULT_OG_IMAGE_HEIGHT,

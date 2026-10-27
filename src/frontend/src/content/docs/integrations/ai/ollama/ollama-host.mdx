@@ -8,6 +8,7 @@ import { Image } from 'astro:assets';
 import { Aside, Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ollamaIcon from '@assets/icons/ollama-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -16,6 +17,7 @@ import ollamaIcon from '@assets/icons/ollama-icon.png';
   alt="Ollama logo"
   width={100}
   height={100}
+  fit="contain"
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
@@ -41,11 +43,11 @@ aspire add ollama --source CommunityToolkit
 
 Or, choose a manual installation approach:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #:package CommunityToolkit.Aspire.Hosting.Ollama@*
 ```
 
-```xml title="XML — AppHost.csproj"
+```xml title="AppHost.csproj"
 <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="*" />
 ```
 
@@ -83,7 +85,7 @@ Once you've installed the hosting integration in your AppHost project, you can a
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama");
@@ -96,7 +98,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -116,7 +118,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/ollama/ollama` image, it creates a new Ollama instance on your local machine.
 
-1. The resource name passed to `AddOllama` is used as the connection string name when referenced in a dependency. Model sub-resources are named by sanitizing the model name (for example, `"llama3"` produces the resource name `"ollama-llama3"`).
+1. The resource name passed to <ApiReference name="Aspire.Hosting.OllamaResourceBuilderExtensions.AddOllama" /> is used as the connection string name when referenced in a dependency. Model sub-resources are named by sanitizing the model name (for example, `"llama3"` produces the resource name `"ollama-llama3"`).
 
 1. The AppHost reference call configures a connection in the consuming project named after the referenced model resource.
 
@@ -128,11 +130,11 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 ## Add Ollama model resource
 
-Models are sub-resources of an Ollama server resource. You add them with the `AddModel` (or `addModel`) method. Each model is downloaded when the Ollama container first starts.
+Models are sub-resources of an Ollama server resource. You add them with the <ApiReference name="Aspire.Hosting.OllamaResourceBuilderExtensions.AddModel" /> method. Each model is downloaded when the Ollama container first starts.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama");
@@ -151,7 +153,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -188,7 +190,7 @@ Add a data volume to the Ollama resource to persist downloaded models across con
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama")
@@ -203,7 +205,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -225,14 +227,14 @@ The data volume is mounted at `/root/.ollama` in the Ollama container. When a `n
 
 ## Use GPUs when available
 
-By default, the Ollama container runs on CPU. To enable GPU acceleration, use the `WithGPUSupport` (or `withGPUSupport`) extension method:
+By default, the Ollama container runs on CPU. To enable GPU acceleration, use the <ApiReference name="Aspire.Hosting.OllamaResourceBuilderExtensions.WithGPUSupport" /> extension method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
 **Nvidia:**
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama")
@@ -245,7 +247,7 @@ ollama.AddModel("llama3");
 
 **AMD:**
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama")
@@ -261,7 +263,7 @@ ollama.AddModel("llama3");
 
 **Nvidia:**
 
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -276,13 +278,13 @@ await ollama.addModel("llama3");
 
 **AMD:**
 
-```typescript title="TypeScript — apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
+```typescript title="apphost.mts" twoslash
+import { createBuilder, OllamaGpuVendor } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
 const ollama = await builder.addOllama("ollama");
-await ollama.withGPUSupport({ vendor: "AMD" });
+await ollama.withGPUSupport({ vendor: OllamaGpuVendor.AMD });
 
 await ollama.addModel("llama3");
 
@@ -290,7 +292,7 @@ await ollama.addModel("llama3");
 ```
 
 <Aside type="note">
-  The TypeScript `withGPUSupport` API shape for vendor selection may differ from the C# overload. Refer to the generated `.aspire/modules/aspire.mjs` in your project for the exact parameter structure.
+  In TypeScript, select the GPU vendor with the `OllamaGpuVendor` enum imported from the generated `.aspire/modules/aspire.mjs` — for example, `OllamaGpuVendor.AMD` or `OllamaGpuVendor.Nvidia`.
 </Aside>
 
 </TabItem>
@@ -300,11 +302,11 @@ For more information, see [GPU support in Docker Desktop](https://docs.docker.co
 
 ## Add a model from Hugging Face
 
-To use a model in GGUF format from [Hugging Face](https://huggingface.co/), use the `AddHuggingFaceModel` (or `addHuggingFaceModel`) extension method:
+To use a model in GGUF format from [Hugging Face](https://huggingface.co/), use the <ApiReference name="Aspire.Hosting.OllamaResourceBuilderExtensions.AddHuggingFaceModel" /> extension method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama");
@@ -320,7 +322,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -339,7 +341,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-Only models in GGUF format are supported. Ollama automatically prefixes `hf.co/` if the model name doesn't already start with `hf.co/` or `huggingface.co/`.
+Only models in GGUF format are supported. The integration automatically prefixes `hf.co/` to the model name if it doesn't already start with `hf.co/` or `huggingface.co/`, so Ollama can resolve it from Hugging Face.
 
 ## Add Ollama resource with parameters
 
@@ -347,7 +349,7 @@ To use a fixed port for the Ollama container, pass it as a parameter:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama", port: 11434);
@@ -358,7 +360,7 @@ ollama.AddModel("llama3");
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -378,7 +380,7 @@ The Ollama integration also provides support for running [Open WebUI](https://op
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama")
@@ -390,7 +392,7 @@ ollama.AddModel("llama3");
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();

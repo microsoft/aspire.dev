@@ -3,29 +3,29 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
-// This file pins the behavior of the patched `starlight-llms-txt` plugin so a
-// future dependency bump or accidental patch loss is caught in CI rather than
-// regressing the generated `dist/llms-small.txt`.
+// This file pins the behavior of the `starlight-llms-txt` plugin's
+// code-block-preserving minify path so a future dependency bump or accidental
+// upstream removal is caught in CI rather than regressing the generated
+// `dist/llms-small.txt`.
 //
-// Background: `starlight-llms-txt@0.8.1` ships an `entryToSimpleMarkdown.ts`
-// whose `minify.whitespace` path runs `markdown.replace(/\s+/g, ' ')`, which
-// collapses every whitespace run — including newlines inside fenced code
-// blocks — into a single space. Downstream LLM consumers (e.g. the Aspire CLI
-// `aspire docs get` command) then render multi-line code samples as flowed
-// prose.
+// Background: older `starlight-llms-txt` (v0.8.1) shipped an
+// `entryToSimpleMarkdown.ts` whose `minify.whitespace` path ran
+// `markdown.replace(/\s+/g, ' ')`, which collapsed every whitespace run —
+// including newlines inside fenced code blocks — into a single space.
+// Downstream LLM consumers (e.g. the Aspire CLI `aspire docs get` command) then
+// rendered multi-line code samples as flowed prose.
 //
-// The patch in `src/frontend/patches/starlight-llms-txt@0.8.1.patch` adds a
-// `minify.collapseCodeBlocks` option (default `false`). When unset (the new
-// default), the plugin preserves the bodies of ``` and ~~~ fenced blocks
-// while still collapsing whitespace in surrounding prose. Setting it to
-// `true` restores the legacy flatten-everything behavior. The upstream PR
-// mirrors this change.
+// v0.10.0 ships (natively) a `minify.collapseCodeBlocks` option (default
+// `false`). When unset (the default), the plugin preserves the bodies of ```
+// and ~~~ fenced blocks while still collapsing whitespace in surrounding prose.
+// Setting it to `true` restores the legacy flatten-everything behavior. This
+// was previously carried as a local patch and has since been upstreamed.
 //
-// The sentinel below pins the *exact* fence regex shipped in the patched
-// plugin to the regex used by the inlined helper. That makes the behavior
-// fixtures (which run the inlined helper) a faithful test of what's actually
-// running at build time — drift between the inlined copy and the shipped
-// patched code fails CI on the sentinel.
+// The sentinel below pins the *exact* fence regex shipped in the plugin to the
+// regex used by the inlined helper. That makes the behavior fixtures (which run
+// the inlined helper) a faithful test of what's actually running at build
+// time — drift between the inlined copy and the shipped plugin code fails CI on
+// the sentinel.
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
@@ -38,39 +38,39 @@ const patchedPluginPath = path.join(
 
 // Source of the fence regex used by the inlined helper, captured as a string
 // so it can be compared byte-for-byte to the regex literal embedded in the
-// patched plugin file. MUST equal `INLINED_FENCE_MATCHER.toString()`.
+// plugin file. MUST equal `INLINED_FENCE_MATCHER.toString()`.
 const INLINED_FENCE_MATCHER =
   /(?<=^|\n)([ \t]*)(`{3,}|~{3,})[^\n]*\n(?:[\s\S]*?\n)?\1\2[ \t]*(?=\n|$)/g;
 
-describe('starlight-llms-txt patch sentinel', () => {
-  test('patched entryToSimpleMarkdown.ts contains collapseCodeBlocks branch', () => {
+describe('starlight-llms-txt collapseCodeBlocks sentinel', () => {
+  test('entryToSimpleMarkdown.ts contains collapseCodeBlocks branch', () => {
     const source = readFileSync(patchedPluginPath, 'utf8');
 
     expect(
       source,
-      'patched plugin should declare the collapseCodeBlocks default',
+      'plugin should declare the collapseCodeBlocks default',
     ).toContain('collapseCodeBlocks: false');
     expect(
       source,
-      'patched plugin should gate the legacy branch on the new option',
+      'plugin should gate the legacy branch on the new option',
     ).toContain('minify.collapseCodeBlocks');
     expect(
       source,
-      'patched plugin should trim boundary whitespace introduced by the `\\n` wrappers',
+      'plugin should trim boundary whitespace introduced by the `\\n` wrappers',
     ).toContain("parts.join('').trim()");
     expect(
       source,
-      'patched plugin should guard the optional `match.index`',
+      'plugin should guard the optional `match.index`',
     ).toContain('match.index ?? 0');
   });
 
-  test('patched fence regex matches the regex used by the inlined helper', () => {
+  test('fence regex matches the regex used by the inlined helper', () => {
     const source = readFileSync(patchedPluginPath, 'utf8');
     const regexLiteral = source.match(/\/\(\?<=\^\|\\n\)[^\n]+\/g/);
 
     expect(
       regexLiteral,
-      'patched plugin should declare a fenceMatcher regex literal',
+      'plugin should declare a fenceMatcher regex literal',
     ).not.toBeNull();
     // This pins the regex shipped in the plugin to the regex run by the
     // fixtures below. If upstream amends the algorithm, the inlined copy and
@@ -79,10 +79,10 @@ describe('starlight-llms-txt patch sentinel', () => {
   });
 });
 
-// The minify algorithm from the patch, inlined here so the fixtures run in
-// isolation from the plugin's full runtime (which depends on Astro/Starlight).
-// MUST stay byte-identical to the implementation in
-// `patches/starlight-llms-txt@0.8.1.patch`; the sentinel above enforces this.
+// The minify algorithm, inlined here so the fixtures run in isolation from the
+// plugin's full runtime (which depends on Astro/Starlight). MUST stay
+// byte-identical to the implementation shipped in `starlight-llms-txt`'s
+// `entryToSimpleMarkdown.ts`; the sentinel above enforces this.
 function minifyPreservingCodeBlocks(markdown: string): string {
   const fenceMatcher = new RegExp(INLINED_FENCE_MATCHER.source, INLINED_FENCE_MATCHER.flags);
   const parts: string[] = [];

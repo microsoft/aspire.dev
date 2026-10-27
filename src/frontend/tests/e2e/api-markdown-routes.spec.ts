@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { locales } from '../../config/locales';
 
 const markdownRoutes = [
   {
@@ -86,3 +87,25 @@ for (const route of markdownRoutes) {
     expect(body).not.toContain('<!DOCTYPE html>');
   });
 }
+
+test('built homepages publish useful Markdown through their existing companion paths', async ({
+  request,
+}) => {
+  test.skip(!process.env.CI, 'Homepage Markdown is finalized by the production build.');
+
+  for (const locale of Object.keys(locales)) {
+    const prefix = locale === 'root' ? '' : `/${locale}`;
+    const response = await request.get(`${prefix || '/index'}.md`);
+    expect(response.ok()).toBe(true);
+    expect(response.headers()['content-type']).toContain('text/markdown');
+    const markdown = await response.text();
+
+    expect(markdown).toMatch(/^# .+/m);
+    expect(markdown).toContain('OpenTelemetry');
+    expect(markdown).toContain(`](${prefix}/get-started/first-app/)`);
+    expect(markdown).toContain(`](${prefix}/dashboard/standalone/)`);
+    expect(markdown).toContain('```typescript\n');
+    expect(markdown).toContain('```csharp\n');
+    expect(markdown).not.toMatch(/<HomePage|<!DOCTYPE html>|class="code-variant"/);
+  }
+});

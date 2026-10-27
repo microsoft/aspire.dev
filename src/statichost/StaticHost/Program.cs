@@ -1,6 +1,17 @@
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddForwardedClientIp();
+
+// Production supplies the vault reference; local Aspire runs intentionally do not.
+if (builder.Configuration.GetConnectionString("secrets") is not null)
+{
+    builder.Configuration.AddAzureKeyVaultSecrets("secrets");
+}
+
+builder.AddLiveStatus();
 
 builder.Services.AddHsts(options =>
 {
@@ -9,7 +20,15 @@ builder.Services.AddHsts(options =>
     options.MaxAge = TimeSpan.FromDays(180);
 });
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddOpenApi("v1");
+}
+
 await using var app = builder.Build();
+
+// Restore the Front Door client IP before telemetry or any middleware reads it.
+app.UseForwardedClientIp();
 
 // Only enable HSTS in production
 if (!app.Environment.IsDevelopment())
@@ -18,6 +37,9 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Resolve request casing before any middleware rewrites or matches the static path.
+app.UseCanonicalPathRedirects();
 
 // Agent-readiness middlewares MUST run before UseDefaultFiles + UseRouting:
 //   * UseDefaultFiles rewrites /foo/ -> /foo/index.html, breaking .md-companion mapping.
@@ -70,7 +92,38 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.MapGet("/healthz", () => Results.Ok());
+app.MapGet("/healthz", (HttpContext context) =>
+{
+    // A health probe must always reach the origin, never a cached copy.
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok();
+});
+
+// Live-status API + WebSocket + webhooks. Azure Front Door does not relay Server-Sent
+// Events, but it does relay WebSockets (the route must not enable caching).
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = LiveStatusEndpointRouteBuilderExtensions.WebSocketKeepAliveInterval,
+});
+app.MapLiveStatus();
+
+// OpenAPI + Scalar API reference (with custom Aspire-brand theme) in dev.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference("/scalar/v1", options =>
+    {
+        options.WithTitle("aspire.dev API")
+               .WithTheme(ScalarTheme.None);
+
+        var brandPath = Path.Combine(AppContext.BaseDirectory, "aspire-brand.css");
+        var themePath = Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "scalar", "aspire-theme.css");
+        options.WithCustomCss(string.Concat(
+            File.ReadAllText(brandPath),
+            Environment.NewLine,
+            File.ReadAllText(themePath)));
+    });
+}
 
 app.MapGet("/install.ps1", (HttpContext context, OneDSTelemetryService telemetry) =>
 {

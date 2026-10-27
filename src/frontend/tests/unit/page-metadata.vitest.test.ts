@@ -10,6 +10,7 @@ import {
   resolveCanonicalUrl,
   resolveOgDescription,
   resolveOgImage,
+  resolveOgImageType,
   resolveOgTitle,
   resolveOgType,
   resolveSiteUrl,
@@ -350,6 +351,35 @@ describe('resolveOgImage', () => {
   });
 });
 
+describe('resolveOgImageType', () => {
+  it('defaults to image/png for the dynamic and fallback cards', () => {
+    expect(resolveOgImageType('https://aspire.dev/og/dashboard/enable-browser-telemetry.png')).toBe(
+      'image/png'
+    );
+    expect(resolveOgImageType('https://aspire.dev/og-image.png')).toBe('image/png');
+  });
+
+  it('maps common raster extensions to their MIME types', () => {
+    expect(resolveOgImageType('https://aspire.dev/card.jpg')).toBe('image/jpeg');
+    expect(resolveOgImageType('https://aspire.dev/card.jpeg')).toBe('image/jpeg');
+    expect(resolveOgImageType('https://aspire.dev/card.webp')).toBe('image/webp');
+    expect(resolveOgImageType('https://aspire.dev/card.gif')).toBe('image/gif');
+    expect(resolveOgImageType('https://aspire.dev/card.avif')).toBe('image/avif');
+    expect(resolveOgImageType('https://aspire.dev/card.svg')).toBe('image/svg+xml');
+  });
+
+  it('is case-insensitive and ignores query strings and fragments', () => {
+    expect(resolveOgImageType('https://aspire.dev/card.PNG')).toBe('image/png');
+    expect(resolveOgImageType('https://aspire.dev/card.JPG?v=2')).toBe('image/jpeg');
+    expect(resolveOgImageType('https://aspire.dev/card.webp#hero')).toBe('image/webp');
+  });
+
+  it('falls back to image/png for unknown or missing extensions', () => {
+    expect(resolveOgImageType('https://aspire.dev/card.bin')).toBe('image/png');
+    expect(resolveOgImageType('https://aspire.dev/og/no-extension')).toBe('image/png');
+  });
+});
+
 describe('shouldSkipDynamicOgImage', () => {
   it('skips splash pages', () => {
     const route = createRoute({ template: 'splash' });
@@ -456,6 +486,7 @@ describe('getOgMetadata', () => {
     expect(meta.url).toBe('https://aspire.dev/dashboard/enable-browser-telemetry/');
     expect(meta.type).toBe('article');
     expect(meta.image).toBe('https://aspire.dev/og/dashboard/enable-browser-telemetry.png');
+    expect(meta.imageType).toBe('image/png');
     expect(meta.imageAlt).toBe('Enable browser telemetry');
     expect(meta.imageWidth).toBe(DEFAULT_OG_IMAGE_WIDTH);
     expect(meta.imageHeight).toBe(DEFAULT_OG_IMAGE_HEIGHT);
@@ -504,6 +535,19 @@ describe('getOgMetadata', () => {
     );
 
     expect(meta.image).toBe('https://aspire.dev/custom-image.png');
+    expect(meta.imageType).toBe('image/png');
+  });
+
+  it('infers the image MIME type from a non-PNG ogImage override', () => {
+    const route = createRoute({ ogImage: '/custom-image.jpg' });
+    const meta = getOgMetadata(
+      route,
+      new URL('https://aspire.dev/dashboard/enable-browser-telemetry/'),
+      site
+    );
+
+    expect(meta.image).toBe('https://aspire.dev/custom-image.jpg');
+    expect(meta.imageType).toBe('image/jpeg');
   });
 
   it('falls back to the static image for generated pages routes', () => {

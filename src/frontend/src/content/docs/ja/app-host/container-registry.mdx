@@ -5,6 +5,7 @@ description: Aspire アプリケーションのコンテナーレジストリを
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire 13.1 では明示的なコンテナーレジストリ設定が導入され、デプロイ時にコンテナーイメージをどこへいつプッシュするかを開発者が制御できるようになりました。この記事では、Aspire アプリケーションのコンテナーレジストリを設定する方法について説明します。
 
@@ -23,7 +24,7 @@ Aspire アプリケーションを本番環境にデプロイする際、コン�
   この API は試験的であり、将来のリリースで変更される可能性があります。試験的な警告を抑制するには、診断コード `ASPIRECOMPUTE003` を使用してください。詳細については、[ASPIRECOMPUTE003](/ja/diagnostics/aspirecompute003/) を参照してください。
 </Aside>
 
-`AddContainerRegistry` メソッドを使用して、アプリケーションの汎用コンテナーレジストリを設定します。DockerHub、GitHub Container Registry、Harbor、プライベートレジストリなど、あらゆる Docker 互換レジストリで使用できます。
+<ApiReference name="Aspire.Hosting.ContainerRegistryResourceBuilderExtensions.AddContainerRegistry" /> メソッドを使用して、アプリケーションの汎用コンテナーレジストリを設定します。DockerHub、GitHub Container Registry、Harbor、プライベートレジストリなど、あらゆる Docker 互換レジストリで使用できます。
 
 ### 基本的な使い方
 
@@ -216,19 +217,19 @@ await api.withContainerRegistry(registry);
 
 イメージをプッシュする前に、レジストリへの認証を確認してください:
 
-```bash title="Bash — Docker ログイン"
+```bash title="Docker ログイン"
 docker login registry.example.com
 ```
 
 DockerHub の場合:
 
-```bash title="Bash — DockerHub ログイン"
+```bash title="DockerHub ログイン"
 docker login docker.io -u username
 ```
 
 GitHub Container Registry の場合:
 
-```bash title="Bash — GHCR ログイン"
+```bash title="GHCR ログイン"
 echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
 ```
 
@@ -236,7 +237,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
 
 CI/CD 環境 (GitHub Actions、Azure Pipelines など) では、シークレットを使用して認証情報を設定します:
 
-```yaml title="YAML — GitHub Actions の例"
+```yaml title="GitHub Actions の例"
 - name: Login to GitHub Container Registry
   uses: docker/login-action@v3
   with:
@@ -302,7 +303,7 @@ await builder.build().run();
 
 ### 既存の ACR を使用する
 
-既存の Azure Container Registry を使用するには、ACR を追加する際に `PublishAsExisting` メソッドを呼び出します:
+既存の Azure Container Registry を使用するには、ACR を追加する際に <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" /> メソッドを呼び出します:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -498,7 +499,7 @@ await builder.build().run();
 
 AppHost の設定でパラメーターを設定します:
 
-```json title="JSON — appsettings.json"
+```json title="appsettings.json"
 {
   "Parameters": {
     "registry-endpoint": "ghcr.io",
@@ -509,7 +510,7 @@ AppHost の設定でパラメーターを設定します:
 
 または、環境変数を使用して設定することもできます:
 
-```bash title="Bash — 環境変数"
+```bash title="環境変数"
 export Parameters__registry_endpoint="ghcr.io"
 export Parameters__registry_repository="myorg"
 ```

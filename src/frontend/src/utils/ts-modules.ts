@@ -4,6 +4,7 @@
 
 import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
+import { prepareTsApiRoutes } from '@utils/ts-api-routes';
 
 export interface TsFunctionParameter {
   name: string;
@@ -49,6 +50,7 @@ export interface TsHandleType extends TsNamedItem {
   kind?: 'handle';
   exposeProperties?: boolean;
   implementedInterfaces?: string[];
+  baseTypeHierarchy?: string[];
   capabilities?: TsFunction[];
 }
 
@@ -94,8 +96,24 @@ export function getTsModules(): Promise<TsModuleCollectionEntry[]> {
     return getCollection('tsModules');
   }
 
-  tsModulesPromise ??= getCollection('tsModules');
+  tsModulesPromise ??= getCollection('tsModules').then((entries) => {
+    for (const entry of entries) prepareTsApiRoutes(entry.data);
+    return entries;
+  });
   return tsModulesPromise;
+}
+
+/**
+ * Resolve a TypeScript module document by package name. Routes pass this name
+ * through `props` instead of the document itself so that parallel prerender
+ * workers do not receive a structured clone of the full module for every page.
+ */
+export async function getTsModuleDocument(packageName: string): Promise<TsApiDocument> {
+  const entry = (await getTsModules()).find(({ data }) => data.package.name === packageName);
+  if (!entry) {
+    throw new Error(`TypeScript module "${packageName}" was not found in the tsModules collection.`);
+  }
+  return entry.data;
 }
 
 /** Normalize a module name for use in a URL path segment. */
