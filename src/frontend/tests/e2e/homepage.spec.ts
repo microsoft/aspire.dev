@@ -350,7 +350,7 @@ test('uses concise section copy and a compact editorial rhythm', async ({ page }
   }
 });
 
-test('uses lavender canvases, theme-matched product surfaces, and an inverted banner', async ({
+test('uses lavender canvases and theme-matched product surfaces without a duplicate banner', async ({
   page,
 }) => {
   await page.evaluate(() => localStorage.setItem('starlight-theme', 'light'));
@@ -378,7 +378,6 @@ test('uses lavender canvases, theme-matched product surfaces, and an inverted ba
       dashboardStage: read('.dashboard-stage'),
       dashboardMediaStage: read('[data-dashboard-carousel] .stage'),
       dashboardPlayback: read('[data-playback-toggle]'),
-      banner: read('.sl-banner'),
     };
   });
 
@@ -392,9 +391,7 @@ test('uses lavender canvases, theme-matched product surfaces, and an inverted ba
   expect(lightPalette.dashboardMediaStage.backgroundColor).toBe('rgb(240, 238, 248)');
   expect(lightPalette.dashboardPlayback.backgroundColor).toBe('rgb(255, 255, 255)');
   expect(lightPalette.dashboardPlayback.color).toBe('rgb(31, 30, 51)');
-  expect(lightPalette.banner.backgroundColor).toBe('rgb(116, 85, 221)');
-  expect(lightPalette.banner.backgroundImage).toBe('none');
-  expect(lightPalette.banner.color).toBe('rgb(255, 255, 255)');
+  await expect(page.locator('.sl-banner')).toHaveCount(0);
 
   await page.evaluate(() => localStorage.setItem('starlight-theme', 'dark'));
   await page.reload();
@@ -423,8 +420,6 @@ test('uses lavender canvases, theme-matched product surfaces, and an inverted ba
     dashboardMediaStage: 'rgb(21, 20, 35)',
     dashboardPlayback: 'rgba(229, 226, 244, 0.08)',
   });
-  await expect(page.locator('.sl-banner')).toHaveCSS('background-color', 'rgb(220, 213, 246)');
-  await expect(page.locator('.sl-banner')).toHaveCSS('color', 'rgb(32, 30, 49)');
 });
 
 test('uses deliberate landing-page tracking across responsive layouts', async ({
