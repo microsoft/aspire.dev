@@ -849,6 +849,59 @@ test('theme changes skip decorative motion when reduced motion is requested', as
   await expect(page.locator('.aspire-theme-artwork')).toHaveCount(0);
 });
 
+test('theme reveal masks both the root and named sidebar snapshots', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'The named View Transition snapshot contract only needs one Chromium viewport.'
+  );
+
+  await page.addInitScript(() => {
+    localStorage.setItem('starlight-theme', 'light');
+  });
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+  await page.addStyleTag({
+    content: `
+      html[data-aspire-theme-transition]::view-transition-new(root),
+      html[data-aspire-theme-transition]::view-transition-new(aspire-sidebar) {
+        animation-duration: 5s !important;
+      }
+    `,
+  });
+
+  await page.locator('#footer-theme-toggle').getByRole('radio', { name: 'Dark' }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.hasAttribute('data-aspire-theme-transition'))
+    )
+    .toBe(true);
+
+  const snapshots = await page.evaluate(() => {
+    const root = document.documentElement;
+    const readSnapshot = (pseudo: string) => {
+      const style = getComputedStyle(root, pseudo);
+      return {
+        animationName: style.animationName,
+        maskImage: style.maskImage,
+      };
+    };
+
+    return {
+      newRoot: readSnapshot('::view-transition-new(root)'),
+      newSidebar: readSnapshot('::view-transition-new(aspire-sidebar)'),
+      oldRoot: readSnapshot('::view-transition-old(root)'),
+      oldSidebar: readSnapshot('::view-transition-old(aspire-sidebar)'),
+    };
+  });
+
+  expect(snapshots.newRoot.animationName).toBe('aspire-theme-reveal');
+  expect(snapshots.newSidebar.animationName).toBe('aspire-theme-reveal');
+  expect(snapshots.newRoot.maskImage).toContain('data:image/svg+xml');
+  expect(snapshots.newSidebar.maskImage).toBe(snapshots.newRoot.maskImage);
+  expect(snapshots.oldRoot.animationName).toBe('none');
+  expect(snapshots.oldSidebar.animationName).toBe('none');
+});
+
 test('quick reverse theme changes use the destination Aspiry artwork hook', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('starlight-theme', 'light');
