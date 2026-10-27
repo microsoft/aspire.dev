@@ -3,14 +3,9 @@ import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { locales } from '../../config/locales';
-import {
-  currentAspireMajorMinorVersion,
-  latestAspireReleaseVersion,
-} from '../../config/aspire-versions.mjs';
+import { latestAspireReleaseVersion } from '../../config/aspire-versions.mjs';
 import en from '../../src/content/i18n/en.json' with { type: 'json' };
 import { dismissCookieConsentIfVisible } from './helpers';
-
-const currentReleaseSlug = currentAspireMajorMinorVersion.replace('.', '-').replace(/-0$/, '');
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -183,11 +178,15 @@ test('renders a complete semantic landing page without horizontal overflow', asy
   });
   expect(heroAccentColor.accent).toBe(heroAccentColor.purple);
   expect(heroAccentColor.accent).not.toBe(heroAccentColor.heading);
-  await expect(
-    page.getByRole('link', {
-      name: `Aspire ${latestAspireReleaseVersion}`,
-    })
-  ).toHaveAttribute('href', `/whats-new/aspire-${currentReleaseSlug}/`);
+  const releaseLink = page.getByRole('link', {
+    name: `Aspire ${latestAspireReleaseVersion}`,
+  });
+  await expect(releaseLink).toHaveAttribute(
+    'href',
+    `https://github.com/microsoft/aspire/releases/tag/v${latestAspireReleaseVersion}`
+  );
+  await expect(releaseLink).toHaveAttribute('target', '_blank');
+  await expect(releaseLink).toHaveAttribute('data-tooltip-placement', 'top');
   await expect(
     page.locator('.home-hero-release').getByRole('link', { name: 'Support' })
   ).toHaveAttribute('href', '/support/');

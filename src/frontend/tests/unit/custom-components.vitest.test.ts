@@ -1758,8 +1758,12 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('code.');
     expect(html).toContain(`v${latestAspireReleaseVersion}`);
     expect(html).toContain(
-      `href="/whats-new/aspire-${currentAspireMajorMinorVersion.replace('.', '-').replace(/-0$/, '')}/"`
+      `href="https://github.com/microsoft/aspire/releases/tag/v${latestAspireReleaseVersion}"`
     );
+    expect(html).toContain(
+      `title="View the Aspire ${latestAspireReleaseVersion} release on GitHub"`
+    );
+    expect(html).toContain('data-tooltip-placement="top"');
     expect(html).toContain('href="/support/"');
     expect(html).toContain('home-hero-product');
     expect(html).toContain('The AppHost defines how your resources connect.');

@@ -6,15 +6,11 @@ import heroImage from '@assets/aspire-hero.png';
 import AppHostBuilder from '@components/AppHostBuilder.astro';
 import { localizedHref } from '@utils/helpers';
 import { getLocaleFromPath } from '@utils/locale-routes';
-import {
-  currentAspireMajorMinorVersion,
-  latestAspireReleaseVersion,
-} from '../../../config/aspire-versions.mjs';
+import { latestAspireReleaseVersion } from '../../../config/aspire-versions.mjs';
 
 const t = Astro.locals.t;
 const locale = getLocaleFromPath(Astro.url.pathname);
-const releaseSlug = currentAspireMajorMinorVersion.replace('.', '-').replace(/-0$/, '');
-const releaseHref = `/whats-new/aspire-${releaseSlug}/`;
+const releaseHref = `https://github.com/microsoft/aspire/releases/tag/v${latestAspireReleaseVersion}`;
 ---
 
 <section
@@ -31,10 +27,15 @@ const releaseHref = `/whats-new/aspire-${releaseSlug}/`;
         <a
           class="home-release-link"
           href={releaseHref}
+          target="_blank"
+          rel="noopener noreferrer"
           aria-label={`Aspire ${latestAspireReleaseVersion}`}
+          title={`View the Aspire ${latestAspireReleaseVersion} release on GitHub`}
+          data-tooltip-placement="top"
+          data-tippy-allowhtml="false"
         >
           <span class="home-release-version">v{latestAspireReleaseVersion}</span>
-          <Icon name="right-arrow" size="0.75rem" />
+          <Icon name="external" class="home-release-external" size="0.7rem" />
         </a>
         <a class="home-release-support" href="/support/">{t('footer.support')}</a>
       </nav>
@@ -247,49 +248,69 @@ const releaseHref = `/whats-new/aspire-${releaseSlug}/`;
   .home-hero-release {
     display: inline-flex;
     align-items: center;
-    margin: 0 0 1.1rem;
+    gap: 0.125rem;
+    margin: 0 0 1.25rem;
+    padding: 0.125rem;
     overflow: hidden;
-    border: 1px solid color-mix(in srgb, var(--home-purple) 24%, var(--home-border));
-    border-radius: 0.55rem;
+    border: 0.0625rem solid color-mix(in srgb, var(--home-purple) 24%, var(--home-border));
+    border-radius: 999rem;
     color: var(--home-muted);
-    background: color-mix(in srgb, var(--home-surface) 88%, transparent);
-    box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--home-purple) 8%, transparent);
-    font-size: 0.68rem;
+    background: color-mix(in srgb, var(--home-purple) 11%, var(--home-surface));
+    box-shadow:
+      inset 0 0.0625rem 0 color-mix(in srgb, var(--home-surface) 88%, transparent),
+      0 0.3rem 0.9rem color-mix(in srgb, var(--home-purple) 7%, transparent);
+    font-size: 0.625rem;
     font-weight: 650;
     line-height: 1;
   }
 
   .home-hero-release a {
-    min-height: 1.85rem;
+    box-sizing: border-box;
+    height: 1.375rem;
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.45rem 0.6rem;
+    gap: 0.25rem;
+    padding: 0.3125rem 0.5rem;
     color: inherit;
     text-decoration: none;
   }
 
   .home-hero-release .home-release-link {
     color: var(--home-purple);
-    background: color-mix(in srgb, var(--home-purple) 10%, transparent);
   }
 
   .home-release-version {
+    position: relative;
+    top: 0.0625rem;
     font-family: var(--__sl-font-mono);
     font-weight: 750;
   }
 
+  .home-release-link :global(.home-release-external) {
+    flex-shrink: 0;
+  }
+
   .home-hero-release .home-release-support {
-    border-inline-start: 1px solid
-      color-mix(in srgb, var(--home-purple) 18%, var(--home-border));
-    color: color-mix(in srgb, var(--home-muted) 68%, transparent);
-    font-size: 0.65rem;
+    height: 1.375rem;
+    padding: 0.25rem 0.5rem;
+    border: 0.0625rem solid color-mix(in srgb, var(--home-purple) 20%, var(--home-border));
+    border-radius: 999rem;
+    color: color-mix(in srgb, var(--home-muted) 72%, transparent);
+    background: color-mix(in srgb, var(--home-surface) 90%, transparent);
+    box-shadow:
+      inset 0 0.0625rem 0 color-mix(in srgb, var(--home-surface) 95%, transparent),
+      0 0.0625rem 0.125rem color-mix(in srgb, var(--home-purple) 10%, transparent);
+    font-size: 0.625rem;
     font-weight: 500;
   }
 
-  .home-hero-release a:hover {
+  .home-hero-release .home-release-link:hover {
+    color: var(--home-purple-bright);
+  }
+
+  .home-hero-release .home-release-support:hover {
     color: var(--home-purple);
-    background: color-mix(in srgb, var(--home-purple) 15%, transparent);
+    border-color: color-mix(in srgb, var(--home-purple) 42%, var(--home-border));
   }
 
   .home-hero-release a:focus-visible {
@@ -593,7 +614,7 @@ const releaseHref = `/whats-new/aspire-${releaseSlug}/`;
     }
 
     .home-hero-release {
-      margin-bottom: 1rem;
+      margin-bottom: 1.125rem;
       font-size: var(--aspire-text-meta);
     }
 
@@ -655,6 +676,7 @@ const releaseHref = `/whats-new/aspire-${releaseSlug}/`;
     .home-hero-action:hover {
       transform: none;
     }
+
   }
 
   @media (forced-colors: active) {

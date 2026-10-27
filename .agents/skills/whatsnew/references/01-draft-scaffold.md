@@ -51,7 +51,8 @@ duplicating.
      stable SDK/package version used by the site AppHost. This is not necessarily
      the latest public GitHub patch release.
    - Set `latestAspireReleaseVersion` to the latest public `N.N.PATCH` release tag.
-     The homepage badge reads this value and links to `/whats-new/{SLUG}/`.
+     The homepage badge reads this value and links to the exact
+     `https://github.com/microsoft/aspire/releases/tag/vN.N.PATCH` release.
    - Set `currentAspirePreviewVersion` to the matching full
      `N.N.PATCH-preview.*` package version used by the site AppHost.
 
@@ -59,7 +60,7 @@ duplicating.
    dialog. `latestAspireReleaseVersion` independently drives the homepage badge.
 4. **Homepage release badge.** Do not hand-edit badge markup or copy. Confirm
    `latestAspireReleaseVersion` renders as the full point release and that the badge
-   links to `/whats-new/{SLUG}/` and `/support/`.
+   links to its exact `microsoft/aspire` GitHub release tag and `/support/`.
 5. **Site-wide announcement banners.** The banner is **per-page frontmatter**, not a
    global config. Update the `banner.content` string **and its link** to point at
    `/whats-new/{SLUG}/` across every landing page that carries it, and set
@@ -91,7 +92,7 @@ duplicating.
 
 - Page exists and is structurally sound (frontmatter + imports + section skeleton).
 - Sidebar resolves the new slug; the homepage badge shows the full point release
-  and links to the new article; banners point at the new article across locales.
+  and links to the exact GitHub release; banners point at the new article across locales.
 - Release-specific screenshots exist and `resourceImage` resolves to them, or
   their capture is explicitly tracked as incomplete. The resource directory
   discovers one release-notes entry with the expected metadata.
