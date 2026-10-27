@@ -15,6 +15,7 @@ import FooterLinks from '@components/FooterLinks.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
+import ThemeTransition from '@components/ThemeTransition.astro';
 import FreeAndOpenSourceAside from '@components/FreeAndOpenSourceAside.astro';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
 import HeroSection from '@components/HeroSection.astro';
@@ -487,6 +488,20 @@ const basicRenderCases: BasicRenderCase[] = [
       'id="footer-kbd-select"',
       'Select theme',
       'Select keyboard shortcuts style',
+    ],
+  },
+  {
+    name: 'ThemeTransition renders the Aspire reveal controller and mascot hooks',
+    Component: ThemeTransition,
+    props: {
+      sunglassesSrc: '/aspiry-sunglasses.svg',
+      nightVisionSrc: '/aspiry-night-vision.svg',
+    },
+    includes: [
+      'id="aspire-theme-transition"',
+      'data-sunglasses-src="/aspiry-sunglasses.svg"',
+      'data-night-vision-src="/aspiry-night-vision.svg"',
+      'ThemeTransition.astro?astro&type=script',
     ],
   },
   {

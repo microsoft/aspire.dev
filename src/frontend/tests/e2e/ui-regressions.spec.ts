@@ -261,6 +261,11 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   await expectThemeSelection('dark');
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
   await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.hasAttribute('data-aspire-theme-transition'))
+    )
+    .toBe(false);
+  await expect
     .poll(() => page.evaluate(() => localStorage.getItem('starlight-theme')))
     .toBe('dark');
 
@@ -269,6 +274,7 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   await expect
     .poll(() => page.evaluate(() => document.documentElement.dataset.theme))
     .toBe('light');
+  await expect(page.locator('#aspire-theme-transition')).toBeAttached();
 
   await kbdSelect.selectOption('mac');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('sl-kbd-type'))).toBe('mac');
@@ -279,6 +285,90 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
 
   await expectThemeSelection('light');
   await expect(kbdSelect).toHaveValue('mac');
+});
+
+test('theme changes skip decorative motion when reduced motion is requested', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+
+  const themeToggle = page.locator('#footer-theme-toggle');
+  await themeToggle.getByRole('radio', { name: 'Dark' }).click();
+
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.hasAttribute('data-aspire-theme-transition'))
+    )
+    .toBe(false);
+  await expect(page.locator('.aspire-theme-artwork')).toHaveCount(0);
+});
+
+test('quick reverse theme changes use the destination Aspiry artwork hook', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('starlight-theme', 'light');
+  });
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+
+  await page.locator('#aspire-theme-transition').evaluate((host) => {
+    host.setAttribute(
+      'data-sunglasses-src',
+      'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" id="sunglasses"/%3E'
+    );
+    host.setAttribute(
+      'data-night-vision-src',
+      'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" id="night-vision"/%3E'
+    );
+  });
+
+  await page.evaluate(async () => {
+    const transitionApi = (
+      window as Window & {
+        AspireThemeTransition: {
+          setTheme: (theme: 'light' | 'dark', origin: { x: number; y: number }) => void;
+        };
+      }
+    ).AspireThemeTransition;
+    const waitForTheme = (theme: 'light' | 'dark') =>
+      new Promise<void>((resolve) => {
+        const checkTheme = () => {
+          if (document.documentElement.dataset.theme === theme) {
+            resolve();
+          } else {
+            requestAnimationFrame(checkTheme);
+          }
+        };
+        checkTheme();
+      });
+
+    transitionApi.setTheme('dark', { x: innerWidth / 2, y: innerHeight / 2 });
+    await waitForTheme('dark');
+    await new Promise((resolve) => setTimeout(resolve, 2_200));
+    transitionApi.setTheme('light', { x: innerWidth / 2, y: innerHeight / 2 });
+  });
+
+  await expect(page.locator('.aspire-theme-aspiry')).toHaveAttribute('src', /sunglasses/);
+
+  await page.evaluate(() => {
+    (
+      window as Window & {
+        AspireThemeTransition: {
+          setTheme: (theme: 'dark', origin: { x: number; y: number }) => void;
+        };
+      }
+    ).AspireThemeTransition.setTheme('dark', {
+      x: innerWidth / 2,
+      y: innerHeight / 2,
+    });
+  });
+
+  await expect(page.locator('.aspire-theme-aspiry')).toHaveCount(0);
+  await expect(page.locator('.aspire-theme-aspiry')).toHaveCount(1);
+  await expect(page.locator('.aspire-theme-aspiry')).toHaveAttribute('src', /night-vision/);
+
+  await page.locator('.aspire-theme-aspiry').dispatchEvent('click');
+  await expect(page.locator('.aspire-theme-aspiry')).toHaveCount(0);
 });
 
 test('terminal tabs stay synced between pages', async ({ page }) => {
@@ -721,9 +811,7 @@ test('sidebar collapse toggle stays visible without overlapping the H1 on no-TOC
 
   // Sanity check: this is a no-TOC page on the topic-nav layout —
   // both conditions the no-TOC anchor + padding rules depend on.
-  const hasToc = await page.evaluate(() =>
-    document.documentElement.hasAttribute('data-has-toc')
-  );
+  const hasToc = await page.evaluate(() => document.documentElement.hasAttribute('data-has-toc'));
   expect(hasToc).toBe(false);
   await expect(page.locator('.topics-sidebar[data-topic-nav]')).toBeVisible();
 
