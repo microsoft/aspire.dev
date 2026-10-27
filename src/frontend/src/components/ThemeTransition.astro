@@ -132,7 +132,7 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     }
   }
 
-  function showAspiry(theme: ResolvedTheme, origin: TransitionOrigin, generation: number) {
+  function showAspiry(theme: ResolvedTheme, generation: number) {
     const host = getHost();
     if (!host || motionQuery.matches || generation !== aspiryGeneration) {
       return;
@@ -146,19 +146,9 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     }
 
     const image = document.createElement('img');
-    const horizontalInset = Math.min(120, window.innerWidth / 2);
-    const verticalInset = Math.min(120, window.innerHeight / 2);
     image.className = 'aspire-theme-aspiry';
     image.src = source;
     image.alt = '';
-    image.style.setProperty(
-      '--aspire-theme-aspiry-x',
-      `${Math.min(Math.max(origin.x, horizontalInset), window.innerWidth - horizontalInset)}px`
-    );
-    image.style.setProperty(
-      '--aspire-theme-aspiry-y',
-      `${Math.min(Math.max(origin.y, verticalInset), window.innerHeight - verticalInset)}px`
-    );
     image.addEventListener(
       'click',
       () => {
@@ -191,7 +181,7 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     if (from === to || motionQuery.matches || !themeTransitionDocument.startViewTransition) {
       applyTheme(theme);
       if (showQuickToggleAspiry) {
-        showAspiry(to, origin, currentAspiryGeneration);
+        showAspiry(to, currentAspiryGeneration);
       }
       if (from !== to) {
         lastChange = { from, to, startedAt };
@@ -214,7 +204,7 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
         error
       );
       if (showQuickToggleAspiry) {
-        showAspiry(to, origin, currentAspiryGeneration);
+        showAspiry(to, currentAspiryGeneration);
       }
       lastChange = { from, to, startedAt };
       return;
@@ -225,7 +215,7 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     transition.ready
       .then(() => {
         if (showQuickToggleAspiry) {
-          window.setTimeout(() => showAspiry(to, origin, currentAspiryGeneration), 340);
+          window.setTimeout(() => showAspiry(to, currentAspiryGeneration), 420);
         }
       })
       .catch(() => undefined);
@@ -300,7 +290,7 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     z-index: 1;
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='white' d='M28 240C12.56 240 0 227.44 0 212C0 206.968 1.328 202.072 3.84 197.832L70.544 82.296L70.816 81.888L103.744 24.792C108.744 16.152 118.032 10.792 128 10.792C137.968 10.792 147.256 16.152 152.248 24.784L252.248 197.992C254.664 202.064 255.992 206.96 255.992 211.992C255.992 227.432 243.432 239.992 227.992 239.992L28 240Z'/%3E%3C/svg%3E");
     mask-repeat: no-repeat;
-    animation: aspire-theme-reveal 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: aspire-theme-reveal 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   html[data-aspire-theme-transition]::view-transition-old(root) {
@@ -309,24 +299,34 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
 
   .aspire-theme-aspiry {
     position: fixed;
-    top: var(--aspire-theme-aspiry-y);
-    left: var(--aspire-theme-aspiry-x);
-    width: clamp(8rem, 18vw, 14rem);
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: 50%;
+    width: clamp(6.5rem, 12vw, 9.5rem);
     height: auto;
-    transform: translate(-50%, -50%);
-    filter: drop-shadow(0 0.8rem 1.5rem rgba(31, 30, 51, 0.35));
+    transform: translate(-50%, 35%);
+    filter: drop-shadow(0 0.65rem 1.15rem rgba(31, 30, 51, 0.28));
     animation: aspire-theme-aspiry-pop 5s cubic-bezier(0.16, 1, 0.3, 1) both;
     cursor: pointer;
     pointer-events: auto;
   }
 
   @keyframes aspire-theme-reveal {
-    from {
+    0% {
+      opacity: 0;
       mask-position: var(--aspire-theme-origin-x) var(--aspire-theme-origin-y);
       mask-size: 0 0;
     }
 
-    to {
+    38% {
+      opacity: 0.14;
+    }
+
+    72% {
+      opacity: 0.42;
+    }
+
+    100% {
+      opacity: 1;
       mask-position: var(--aspire-theme-ripple-left) var(--aspire-theme-ripple-top);
       mask-size: var(--aspire-theme-ripple-size) var(--aspire-theme-ripple-size);
     }
@@ -335,32 +335,32 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
   @keyframes aspire-theme-aspiry-pop {
     0% {
       opacity: 0;
-      transform: translate(-50%, -36%) scale(0.62) rotate(-8deg);
+      transform: translate(-50%, 35%) scale(0.88);
     }
 
-    20% {
+    16% {
       opacity: 1;
-      transform: translate(-50%, -54%) scale(1.06) rotate(2deg);
+      transform: translate(-50%, -8%) scale(1.02);
     }
 
-    30% {
+    24% {
       opacity: 1;
-      transform: translate(-50%, -54%) scale(1) rotate(0);
+      transform: translate(-50%, 0) scale(1);
     }
 
-    72% {
+    74% {
       opacity: 1;
-      transform: translate(-50%, -56%) scale(1) rotate(0);
+      transform: translate(-50%, 0) scale(1);
     }
 
-    84% {
-      opacity: 1;
-      transform: translate(-50%, -57%) scale(1.015) rotate(-1deg);
+    88% {
+      opacity: 0.72;
+      transform: translate(-50%, 8%) scale(0.99);
     }
 
     100% {
       opacity: 0;
-      transform: translate(-50%, -68%) scale(0.96) rotate(2deg);
+      transform: translate(-50%, 38%) scale(0.94);
     }
   }
 

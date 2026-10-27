@@ -894,6 +894,8 @@ test('quick reverse theme changes use the destination Aspiry artwork hook', asyn
   });
 
   await expect(page.locator('.aspire-theme-aspiry')).toHaveAttribute('src', /sunglasses/);
+  await expect(page.locator('.aspire-theme-aspiry')).toHaveCSS('left', `${page.viewportSize()!.width / 2}px`);
+  await expect(page.locator('.aspire-theme-aspiry')).not.toHaveCSS('bottom', 'auto');
 
   await page.evaluate(() => {
     (
