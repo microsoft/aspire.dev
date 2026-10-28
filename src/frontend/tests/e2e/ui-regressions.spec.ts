@@ -965,7 +965,7 @@ test('theme reveal masks both the root and named sidebar snapshots', async ({ pa
   expect(snapshots.oldSidebar.animationName).toBe('none');
 });
 
-test('quick reverse theme changes use the destination Aspiry artwork hook', async ({ page }) => {
+test('quick reverse theme changes vary Aspiry placement and gesture', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('starlight-theme', 'light');
   });
@@ -1009,9 +1009,18 @@ test('quick reverse theme changes use the destination Aspiry artwork hook', asyn
     transitionApi.setTheme('light', { x: innerWidth / 2, y: innerHeight / 2 });
   });
 
-  await expect(page.locator('.aspire-theme-aspiry')).toHaveAttribute('src', /sunglasses/);
-  await expect(page.locator('.aspire-theme-aspiry')).toHaveCSS('left', `${page.viewportSize()!.width / 2}px`);
-  await expect(page.locator('.aspire-theme-aspiry')).not.toHaveCSS('bottom', 'auto');
+  const aspiry = page.locator('.aspire-theme-aspiry');
+  await expect(aspiry).toHaveAttribute('src', /sunglasses/);
+  await expect(aspiry).toHaveAttribute(
+    'data-placement',
+    /^(bottom-left|bottom-center|bottom-right|left|right|top-left|top-right)$/
+  );
+  await expect(aspiry).toHaveAttribute('data-gesture', /^(bob|tilt|wiggle)$/);
+  await expect(aspiry).toHaveCSS('animation-duration', '5s, 5s');
+  const firstVariation = await aspiry.evaluate((image) => ({
+    gesture: image.dataset.gesture,
+    placement: image.dataset.placement,
+  }));
 
   await page.evaluate(() => {
     (
@@ -1026,12 +1035,18 @@ test('quick reverse theme changes use the destination Aspiry artwork hook', asyn
     });
   });
 
-  await expect(page.locator('.aspire-theme-aspiry')).toHaveCount(0);
-  await expect(page.locator('.aspire-theme-aspiry')).toHaveCount(1);
-  await expect(page.locator('.aspire-theme-aspiry')).toHaveAttribute('src', /night-vision/);
+  await expect(aspiry).toHaveCount(0);
+  await expect(aspiry).toHaveCount(1);
+  await expect(aspiry).toHaveAttribute('src', /night-vision/);
+  const secondVariation = await aspiry.evaluate((image) => ({
+    gesture: image.dataset.gesture,
+    placement: image.dataset.placement,
+  }));
+  expect(secondVariation.gesture).not.toBe(firstVariation.gesture);
+  expect(secondVariation.placement).not.toBe(firstVariation.placement);
 
-  await page.locator('.aspire-theme-aspiry').dispatchEvent('click');
-  await expect(page.locator('.aspire-theme-aspiry')).toHaveCount(0);
+  await aspiry.dispatchEvent('click');
+  await expect(aspiry).toHaveCount(0);
 });
 
 test('terminal tabs stay synced between pages', async ({ page }) => {

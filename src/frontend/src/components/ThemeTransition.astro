@@ -35,11 +35,23 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
 
   const root = document.documentElement;
   const reverseToggleWindow = 3_000;
+  const aspiryPlacements = [
+    'bottom-left',
+    'bottom-center',
+    'bottom-right',
+    'left',
+    'right',
+    'top-left',
+    'top-right',
+  ] as const;
+  const aspiryGestures = ['bob', 'tilt', 'wiggle'] as const;
   const pointerOrigins = new WeakMap<Element, TransitionOrigin>();
   const themeTransitionDocument = document as ThemeTransitionDocument;
   const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   let activeTransition: ViewTransition | undefined;
   let aspiryGeneration = 0;
+  let lastAspiryGesture: (typeof aspiryGestures)[number] | undefined;
+  let lastAspiryPlacement: (typeof aspiryPlacements)[number] | undefined;
   let themeGeneration = 0;
   let lastChange:
     | {
@@ -133,6 +145,14 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     }
   }
 
+  function pickDifferent<T extends string>(
+    options: readonly [T, ...T[]],
+    previous: T | undefined
+  ): T {
+    const available = previous ? options.filter((option) => option !== previous) : options;
+    return available[Math.floor(Math.random() * available.length)] ?? options[0];
+  }
+
   function showAspiry(theme: ResolvedTheme, generation: number) {
     const host = getHost();
     if (!host || motionQuery.matches || generation !== aspiryGeneration) {
@@ -147,16 +167,29 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     }
 
     const image = document.createElement('img');
+    const placement = pickDifferent(aspiryPlacements, lastAspiryPlacement);
+    const gesture = pickDifferent(aspiryGestures, lastAspiryGesture);
+    lastAspiryPlacement = placement;
+    lastAspiryGesture = gesture;
     image.className = 'aspire-theme-aspiry';
     image.src = source;
     image.alt = '';
+    image.dataset.placement = placement;
+    image.dataset.gesture = gesture;
     image.addEventListener(
       'click',
       () => {
         aspiryGeneration++;
-        const opacity = getComputedStyle(image).opacity;
+        const style = getComputedStyle(image);
+        const opacity = style.opacity;
+        const rotate = style.rotate;
+        const scale = style.scale;
+        const translate = style.translate;
         image.getAnimations().forEach((animation) => animation.cancel());
         image.style.opacity = opacity;
+        image.style.rotate = rotate;
+        image.style.scale = scale;
+        image.style.translate = translate;
         image.style.transition = 'opacity 180ms ease-out';
         requestAnimationFrame(() => {
           image.style.opacity = '0';
@@ -313,15 +346,96 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
 
   .aspire-theme-aspiry {
     position: fixed;
-    bottom: max(1rem, env(safe-area-inset-bottom));
-    left: 50%;
     width: clamp(6.5rem, 12vw, 9.5rem);
     height: auto;
-    transform: translate(-50%, 35%);
     filter: drop-shadow(0 0.65rem 1.15rem rgba(31, 30, 51, 0.28));
-    animation: aspire-theme-aspiry-pop 5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-duration: 5s, 5s;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1), ease-in-out;
+    animation-fill-mode: both;
     cursor: pointer;
     pointer-events: auto;
+    will-change: opacity, translate, rotate, scale;
+    --aspiry-rest-x: 0%;
+    --aspiry-rest-y: 0%;
+    --aspiry-start-x: var(--aspiry-rest-x);
+    --aspiry-start-y: 45%;
+    --aspiry-enter-x: var(--aspiry-rest-x);
+    --aspiry-enter-y: -10%;
+    --aspiry-exit-x: var(--aspiry-rest-x);
+    --aspiry-exit-y: 45%;
+  }
+
+  .aspire-theme-aspiry[data-placement='bottom-left'] {
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: max(1rem, env(safe-area-inset-left));
+  }
+
+  .aspire-theme-aspiry[data-placement='bottom-center'] {
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: 50%;
+    --aspiry-rest-x: -50%;
+    --aspiry-start-x: -50%;
+    --aspiry-enter-x: -50%;
+    --aspiry-exit-x: -50%;
+  }
+
+  .aspire-theme-aspiry[data-placement='bottom-right'] {
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .aspire-theme-aspiry[data-placement='left'] {
+    top: 52%;
+    left: 0;
+    --aspiry-rest-x: -15%;
+    --aspiry-rest-y: -50%;
+    --aspiry-start-x: -90%;
+    --aspiry-start-y: -50%;
+    --aspiry-enter-x: -5%;
+    --aspiry-enter-y: -50%;
+    --aspiry-exit-x: -90%;
+    --aspiry-exit-y: -50%;
+  }
+
+  .aspire-theme-aspiry[data-placement='right'] {
+    top: 48%;
+    right: 0;
+    --aspiry-rest-x: 15%;
+    --aspiry-rest-y: -50%;
+    --aspiry-start-x: 90%;
+    --aspiry-start-y: -50%;
+    --aspiry-enter-x: 5%;
+    --aspiry-enter-y: -50%;
+    --aspiry-exit-x: 90%;
+    --aspiry-exit-y: -50%;
+  }
+
+  .aspire-theme-aspiry[data-placement='top-left'] {
+    top: max(4.5rem, env(safe-area-inset-top));
+    left: max(1rem, env(safe-area-inset-left));
+    --aspiry-start-y: -90%;
+    --aspiry-enter-y: 10%;
+    --aspiry-exit-y: -90%;
+  }
+
+  .aspire-theme-aspiry[data-placement='top-right'] {
+    top: max(4.5rem, env(safe-area-inset-top));
+    right: max(1rem, env(safe-area-inset-right));
+    --aspiry-start-y: -90%;
+    --aspiry-enter-y: 10%;
+    --aspiry-exit-y: -90%;
+  }
+
+  .aspire-theme-aspiry[data-gesture='bob'] {
+    animation-name: aspire-theme-aspiry-entrance, aspire-theme-aspiry-bob;
+  }
+
+  .aspire-theme-aspiry[data-gesture='tilt'] {
+    animation-name: aspire-theme-aspiry-entrance, aspire-theme-aspiry-tilt;
+  }
+
+  .aspire-theme-aspiry[data-gesture='wiggle'] {
+    animation-name: aspire-theme-aspiry-entrance, aspire-theme-aspiry-wiggle;
   }
 
   @keyframes aspire-theme-reveal {
@@ -345,35 +459,111 @@ const { sunglassesSrc = '', nightVisionSrc = '' } = Astro.props;
     }
   }
 
-  @keyframes aspire-theme-aspiry-pop {
+  @keyframes aspire-theme-aspiry-entrance {
     0% {
       opacity: 0;
-      transform: translate(-50%, 35%) scale(0.88);
+      translate: var(--aspiry-start-x) var(--aspiry-start-y);
     }
 
     16% {
       opacity: 1;
-      transform: translate(-50%, -8%) scale(1.02);
+      translate: var(--aspiry-enter-x) var(--aspiry-enter-y);
     }
 
     24% {
       opacity: 1;
-      transform: translate(-50%, 0) scale(1);
+      translate: var(--aspiry-rest-x) var(--aspiry-rest-y);
     }
 
     74% {
       opacity: 1;
-      transform: translate(-50%, 0) scale(1);
+      translate: var(--aspiry-rest-x) var(--aspiry-rest-y);
     }
 
     88% {
       opacity: 0.72;
-      transform: translate(-50%, 8%) scale(0.99);
+      translate: var(--aspiry-enter-x) var(--aspiry-enter-y);
     }
 
     100% {
       opacity: 0;
-      transform: translate(-50%, 38%) scale(0.94);
+      translate: var(--aspiry-exit-x) var(--aspiry-exit-y);
+    }
+  }
+
+  @keyframes aspire-theme-aspiry-bob {
+    0%,
+    24%,
+    74%,
+    100% {
+      rotate: 0deg;
+      scale: 1;
+    }
+
+    38% {
+      rotate: -2deg;
+      scale: 1.04;
+    }
+
+    52% {
+      rotate: 2deg;
+      scale: 0.98;
+    }
+
+    64% {
+      rotate: 0deg;
+      scale: 1.02;
+    }
+  }
+
+  @keyframes aspire-theme-aspiry-tilt {
+    0%,
+    24%,
+    74%,
+    100% {
+      rotate: 0deg;
+      scale: 1;
+    }
+
+    38% {
+      rotate: -7deg;
+      scale: 1.02;
+    }
+
+    58% {
+      rotate: 5deg;
+      scale: 1.02;
+    }
+  }
+
+  @keyframes aspire-theme-aspiry-wiggle {
+    0%,
+    24%,
+    74%,
+    100% {
+      rotate: 0deg;
+      scale: 1;
+    }
+
+    34% {
+      rotate: -5deg;
+      scale: 1.03;
+    }
+
+    42% {
+      rotate: 5deg;
+    }
+
+    50% {
+      rotate: -3deg;
+    }
+
+    58% {
+      rotate: 3deg;
+    }
+
+    66% {
+      rotate: 0deg;
     }
   }
 
