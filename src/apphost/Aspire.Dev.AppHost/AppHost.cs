@@ -1,3 +1,5 @@
+using Azure.Provisioning.KeyVault;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 // For deployment: We want to pick AppService as the environment to publish to.
@@ -12,6 +14,7 @@ var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
     .WithExternalHttpEndpoints()
     .PublishAsAzureAppServiceWebsite((infra, website) =>
     {
+        website.IsHttpsOnly = true;
         website.IsEndToEndEncryptionEnabled = true;
 
         // App Service negotiates HTTP/1.1 unless HTTP/2 is enabled, which limits browsers to six
@@ -45,7 +48,14 @@ else
 {
     staticHostWebsite.WithProductionForwardedHosts(builder);
 
-    var secrets = builder.AddAzureKeyVault("secrets");
+    var secrets = builder.AddAzureKeyVault("secrets")
+        .ConfigureInfrastructure(infra =>
+        {
+            var vault = infra.GetProvisionableResources().OfType<KeyVaultService>().Single();
+            vault.Properties.EnableSoftDelete = true;
+            vault.Properties.SoftDeleteRetentionInDays = 90;
+            vault.Properties.EnablePurgeProtection = true;
+        });
     staticHostWebsite.WithProductionLiveStatus(builder, secrets);
 
     var logsWorkspace = builder.AddAzureLogAnalyticsWorkspace("workspace-logs");
