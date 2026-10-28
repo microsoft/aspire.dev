@@ -187,9 +187,7 @@ test('renders a complete semantic landing page without horizontal overflow', asy
   );
   await expect(releaseLink).toHaveAttribute('target', '_blank');
   await expect(releaseLink).toHaveAttribute('data-tooltip-placement', 'top');
-  await expect(
-    page.locator('.home-hero-release').getByRole('link', { name: 'Support' })
-  ).toHaveAttribute('href', '/support/');
+  await expect(page.locator('.home-release-support')).toHaveCount(0);
   await expect(
     page.getByText(
       'Aspire is an agent-ready, code-first tool for composing, debugging, and deploying distributed applications.'

@@ -34,8 +34,8 @@ then **fix → re-review → repeat** until it converges clean:
   targets.
 - **Release badge + banner + version wiring:** the homepage badge shows
   `latestAspireReleaseVersion`, links to the exact `microsoft/aspire` GitHub release
-  tag and `/support/`, banners point at the new article across locales, and
-  AppHost-aligned version constants remain correct.
+  tag, banners point at the new article across locales, and AppHost-aligned version
+  constants remain correct.
 - **Resource directory:** `resourceImage` is present and every configured image
   resolves to a newly captured screenshot of a feature introduced in this release.
   Verify capture provenance (product version, scenario, and actual UI state);

@@ -60,7 +60,7 @@ duplicating.
    dialog. `latestAspireReleaseVersion` independently drives the homepage badge.
 4. **Homepage release badge.** Do not hand-edit badge markup or copy. Confirm
    `latestAspireReleaseVersion` renders as the full point release and that the badge
-   links to its exact `microsoft/aspire` GitHub release tag and `/support/`.
+   links to its exact `microsoft/aspire` GitHub release tag.
 5. **Site-wide announcement banners.** The banner is **per-page frontmatter**, not a
    global config. Update the `banner.content` string **and its link** to point at
    `/whats-new/{SLUG}/` across every landing page that carries it, and set

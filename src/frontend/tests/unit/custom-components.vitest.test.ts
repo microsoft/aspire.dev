@@ -1764,7 +1764,7 @@ describe('custom Astro component render coverage', () => {
       `title="View the Aspire ${latestAspireReleaseVersion} release on GitHub"`
     );
     expect(html).toContain('data-tooltip-placement="top"');
-    expect(html).toContain('href="/support/"');
+    expect(html).not.toContain('home-release-support');
     expect(html).toContain('home-hero-product');
     expect(html).toContain('The AppHost defines how your resources connect.');
     expect(html).not.toContain('home-apphost-intro');
