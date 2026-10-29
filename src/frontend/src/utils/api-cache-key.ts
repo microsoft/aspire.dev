@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { deploymentMetadata } from './deployment-metadata';
 
 const digests = new WeakMap<object, string>();
 
@@ -7,13 +8,16 @@ const digests = new WeakMap<object, string>();
  *
  * Every page generated from a package or module document returns this value
  * from `getStaticPaths()`, so Astro can reuse a page from the previous build
- * as long as the document it was rendered from (and the template code) is
- * unchanged. The digest is memoized per document object.
+ * as long as its document, deployment metadata and template code are unchanged.
+ * The digest is memoized per document object.
  */
 export function apiDocumentCacheKey(document: object): string {
   let digest = digests.get(document);
   if (!digest) {
-    digest = createHash('sha1').update(JSON.stringify(document)).digest('base64url');
+    // Bun reads import.meta.env at render time, outside Astro's dependency hash.
+    digest = createHash('sha1')
+      .update(JSON.stringify([document, deploymentMetadata]))
+      .digest('base64url');
     digests.set(document, digest);
   }
   return digest;

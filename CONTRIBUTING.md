@@ -58,6 +58,15 @@ setting only to the vnext build, not the live build. If vnext builds a different
 source branch, set the intended label explicitly instead. Changing the badge on
 a deployed static site requires rebuilding its frontend assets.
 
+## Incremental API builds
+
+API reference cache keys include the deployment commit and repository URL emitted
+by the shared page head. Changing either value must regenerate cached API pages:
+mixing old and new `git-commit-id` metadata makes the deployment guard correctly
+fall back to full-page navigation. Builds with unchanged data and deployment
+metadata can still reuse their API pages. Keep the head metadata and API cache
+keys in sync when changing build identity handling.
+
 ## 🆘 Getting help
 
 - **Issues**: Report bugs or request features via [GitHub Issues](https://github.com/microsoft/aspire.dev/issues)
