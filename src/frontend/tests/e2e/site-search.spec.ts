@@ -71,6 +71,101 @@ async function navigateClient(page: Page, navigate: () => Promise<unknown>): Pro
 
 test.describe('site search dialog', () => {
   for (const theme of ['light', 'dark']) {
+    test(`search result row hit areas remain stable on hover in ${theme}`, async ({ page }) => {
+      await page.addInitScript((value) => localStorage.setItem('starlight-theme', value), theme);
+      await page.goto('/');
+      await dismissCookieConsentIfVisible(page);
+      await openSearchDialog(page);
+      // Isolate hit testing from the production-only index using Pagefind's row markup.
+      await page.evaluate(() => {
+        const container = document.createElement('div');
+        container.className = 'search-container';
+        const root = document.createElement('div');
+        root.id = 'starlight__search';
+        root.innerHTML = `
+          <div class="pagefind-ui">
+            <form class="pagefind-ui__form" role="search">
+              <input class="pagefind-ui__search-input" type="search" aria-label="Search" />
+            </form>
+            <ol class="pagefind-ui__results">
+              <li class="pagefind-ui__result">
+                <div class="pagefind-ui__result-inner">
+                  <p class="pagefind-ui__result-title">
+                    <a class="pagefind-ui__result-link" href="/reference/overview/">Overview</a>
+                  </p>
+                  <div class="pagefind-ui__result-nested">
+                    <p class="pagefind-ui__result-title">
+                      <a class="pagefind-ui__result-link" href="/reference/overview/#reference">Reference</a>
+                    </p>
+                    <p class="pagefind-ui__result-excerpt">A matching <mark>reference</mark> excerpt.</p>
+                  </div>
+                </div>
+              </li>
+            </ol>
+          </div>`;
+        document.querySelector('#starlight__search')?.remove();
+        const frame = document.querySelector('site-search .dialog-frame')!;
+        // Retain Starlight's scoped mobile layout, including space for Cancel.
+        for (const element of [container, root]) {
+          element.classList.add(...[...frame.classList].filter((name) => name.startsWith('astro-')));
+          for (const name of frame.getAttributeNames().filter((name) => name.startsWith('data-astro-cid-'))) {
+            element.setAttribute(name, '');
+          }
+        }
+        container.append(root);
+        frame.prepend(container);
+        root.addEventListener('click', (event) => {
+          const link = (event.target as Element).closest('a');
+          if (!link) return;
+          event.preventDefault();
+          event.stopPropagation();
+          root.dataset.clickedHref = link.getAttribute('href')!;
+        });
+      });
+
+      for (const selector of [
+        '.pagefind-ui__result-inner > .pagefind-ui__result-title',
+        '.pagefind-ui__result-nested',
+      ]) {
+        const row = page.locator(`#starlight__search ${selector}`);
+        const link = row.locator('.pagefind-ui__result-link');
+        const textBox = await link.boundingBox();
+        expect(textBox).not.toBeNull();
+        await page.mouse.move(textBox!.x + textBox!.width / 2, textBox!.y + textBox!.height / 2);
+        await expect(link).toHaveCSS('filter', 'none');
+        const box = await row.boundingBox();
+        expect(box).not.toBeNull();
+        const point = { x: box!.x + box!.width - 4, y: box!.y + box!.height / 2 };
+        await page.mouse.move(point.x, point.y);
+        await expect(link).toHaveCSS('filter', 'none');
+        await expect(link).toHaveCSS('cursor', 'pointer');
+        await expect.poll(() => page.evaluate(({ x, y }) => {
+          return document.elementFromPoint(x, y)?.closest('a')?.getAttribute('href');
+        }, point)).toBe(await link.getAttribute('href'));
+        const overlay = await link.evaluate((element) => {
+          const style = getComputedStyle(element, '::after');
+          return { width: style.width, height: style.height, cursor: style.cursor };
+        });
+        expect(Number.parseFloat(overlay.width)).toBeCloseTo(box!.width, 0);
+        expect(Number.parseFloat(overlay.height)).toBeCloseTo(box!.height, 0);
+        expect(overlay.cursor).toBe('pointer');
+        await page.mouse.click(point.x, point.y);
+        await expect(page.locator('#starlight__search')).toHaveAttribute(
+          'data-clicked-href', await link.getAttribute('href') as string,
+        );
+        await page.locator('#starlight__search').evaluate((root) => {
+          delete (root as HTMLElement).dataset.clickedHref;
+        });
+        await link.focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('#starlight__search')).toHaveAttribute(
+          'data-clicked-href', await link.getAttribute('href') as string,
+        );
+      }
+    });
+  }
+
+  for (const theme of ['light', 'dark']) {
     test(`native Pagefind input presentation matches browse in ${theme}`, async ({ page }, testInfo) => {
       await page.addInitScript((value) => localStorage.setItem('starlight-theme', value), theme);
       await page.goto('/hub/browse/');
