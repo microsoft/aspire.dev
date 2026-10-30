@@ -50,28 +50,66 @@ function typeScriptAppHostSamples(source: string) {
     const open = /^(\s*)(`{3,}|~{3,})\s*(?:typescript|ts)\b/i.exec(lines[index]);
     if (!open) continue;
     const body: string[] = [];
-    while (++index < lines.length && lines[index].trim() !== open[2]) body.push(lines[index]);
+    const close = new RegExp(`^\\s*${open[2][0]}{${open[2].length},}\\s*$`);
+    while (++index < lines.length && !close.test(lines[index])) body.push(lines[index]);
     const sample = body.join('\n');
     if (sample.includes('createBuilder')) samples.push(sample);
   }
   return samples;
 }
 
+function casingMismatches(sample: string, exported: Set<string>, byLowerCase: Map<string, string>) {
+  const calls: string[] = [];
+  const mismatches: string[] = [];
+  for (const [, name] of sample.matchAll(/\.\s*([A-Za-z]\w*)\s*(?:<[^()]*>)?\s*\(/g)) {
+    calls.push(name);
+    const expected = byLowerCase.get(name.toLowerCase());
+    if (expected && !exported.has(name)) mismatches.push(`${name} -> ${expected}`);
+  }
+  return { calls, mismatches };
+}
+
 describe('TypeScript AppHost samples', () => {
+  const exported = exportedFunctionNames();
+  const byLowerCase = new Map([...exported].map((name) => [name.toLowerCase(), name]));
+
+  test('detects casing mismatches in every character of a method name', () => {
+    const sample = [
+      'const builder = await createBuilder();',
+      'const db = await builder.addAzureCosmosDb("cosmos-db");',
+      'const db2 = await builder.AddAzureCosmosDB("cosmos-db");',
+      'const db3 = await builder.addAzureCosmosDB("cosmos-db");',
+    ].join('\n');
+
+    expect(casingMismatches(sample, exported, byLowerCase).mismatches).toEqual([
+      'addAzureCosmosDb -> addAzureCosmosDB',
+      'AddAzureCosmosDB -> addAzureCosmosDB',
+    ]);
+  });
+
+  test('ends a sample at a longer closing fence', () => {
+    const source = [
+      '```typescript',
+      'const builder = await createBuilder();',
+      '````',
+      '```csharp',
+      'var builder = DistributedApplication.CreateBuilder(args);',
+      '```',
+    ].join('\n');
+
+    expect(typeScriptAppHostSamples(source)).toEqual(['const builder = await createBuilder();']);
+  });
+
   test('use the exact casing of exported Aspire TypeScript APIs', () => {
-    const exported = exportedFunctionNames();
-    const byLowerCase = new Map([...exported].map((name) => [name.toLowerCase(), name]));
     const mismatches: string[] = [];
     let calls = 0;
 
     for (const path of englishDocs(docsRoot)) {
       for (const sample of typeScriptAppHostSamples(readFileSync(path, 'utf8'))) {
-        for (const [, name] of sample.matchAll(/\.\s*([a-z]\w*)\s*(?:<[^()]*>)?\s*\(/g)) {
-          calls++;
-          const expected = byLowerCase.get(name.toLowerCase());
-          if (expected && !exported.has(name)) {
-            mismatches.push(`${relative(frontendRoot, path)}: ${name} -> ${expected}`);
-          }
+        const result = casingMismatches(sample, exported, byLowerCase);
+        calls += result.calls.length;
+        for (const mismatch of result.mismatches) {
+          mismatches.push(`${relative(frontendRoot, path)}: ${mismatch}`);
         }
       }
     }
