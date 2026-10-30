@@ -546,6 +546,11 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   await expectThemeSelection('dark');
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
   await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.hasAttribute('data-aspire-theme-transition'))
+    )
+    .toBe(false);
+  await expect
     .poll(() => page.evaluate(() => localStorage.getItem('starlight-theme')))
     .toBe('dark');
   await expectMatchingPreferenceSurfaces();
@@ -555,6 +560,7 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   await expect
     .poll(() => page.evaluate(() => document.documentElement.dataset.theme))
     .toBe('light');
+  await expect(page.locator('#aspire-theme-transition')).toBeAttached();
   await expectMatchingPreferenceSurfaces();
 
   await languageTrigger.click();
@@ -824,6 +830,223 @@ test('aligns the scroll-to-top control with the header action at each breakpoint
     expect(placement.colorsMatch).toBe(true);
     expect(placement.rightEdgeDelta).toBeLessThanOrEqual(1);
   }
+});
+
+test('theme changes skip decorative motion when reduced motion is requested', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+
+  const themeToggle = page.locator('#footer-theme-toggle');
+  await themeToggle.getByRole('radio', { name: 'Dark' }).click();
+
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.hasAttribute('data-aspire-theme-transition'))
+    )
+    .toBe(false);
+  await expect(page.locator('.aspire-theme-artwork')).toHaveCount(0);
+});
+
+test('latest theme request wins when a skipped transition update runs late', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('starlight-theme', 'light');
+    Object.defineProperty(Document.prototype, 'startViewTransition', {
+      configurable: true,
+      value(update: () => void) {
+        const finished = new Promise<void>((resolve) => {
+          window.setTimeout(() => {
+            update();
+            resolve();
+          }, 100);
+        });
+
+        return {
+          ready: finished,
+          finished,
+          skipTransition() {},
+        };
+      },
+    });
+  });
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+
+  await page.evaluate(() => {
+    const transitionApi = (
+      window as Window & {
+        AspireThemeTransition: {
+          setTheme: (theme: 'light' | 'dark', origin: { x: number; y: number }) => void;
+        };
+      }
+    ).AspireThemeTransition;
+
+    transitionApi.setTheme('dark', { x: innerWidth / 2, y: innerHeight / 2 });
+    transitionApi.setTheme('light', { x: innerWidth / 2, y: innerHeight / 2 });
+  });
+
+  await page.waitForTimeout(200);
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('starlight-theme')))
+    .toBe('light');
+});
+
+test('enabling reduced motion removes visible Aspiry artwork', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() => {
+    localStorage.setItem('starlight-theme', 'light');
+  });
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+
+  const themeToggle = page.locator('#footer-theme-toggle');
+  await themeToggle.getByRole('radio', { name: 'Dark' }).click();
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+  await themeToggle.getByRole('radio', { name: 'Light' }).click();
+  await expect(page.locator('.aspire-theme-aspiry')).toHaveCount(1);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  await expect(page.locator('.aspire-theme-aspiry')).toHaveCount(0);
+});
+
+test('theme reveal masks both the root and named sidebar snapshots', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'The named View Transition snapshot contract only needs one Chromium viewport.'
+  );
+
+  await page.addInitScript(() => {
+    localStorage.setItem('starlight-theme', 'light');
+  });
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+  await page.addStyleTag({
+    content: `
+      html[data-aspire-theme-transition]::view-transition-new(root),
+      html[data-aspire-theme-transition]::view-transition-new(aspire-sidebar) {
+        animation-duration: 5s !important;
+      }
+    `,
+  });
+
+  await page.locator('#footer-theme-toggle').getByRole('radio', { name: 'Dark' }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.hasAttribute('data-aspire-theme-transition'))
+    )
+    .toBe(true);
+
+  const snapshots = await page.evaluate(() => {
+    const root = document.documentElement;
+    const readSnapshot = (pseudo: string) => {
+      const style = getComputedStyle(root, pseudo);
+      return {
+        animationName: style.animationName,
+        maskImage: style.maskImage,
+      };
+    };
+
+    return {
+      newRoot: readSnapshot('::view-transition-new(root)'),
+      newSidebar: readSnapshot('::view-transition-new(aspire-sidebar)'),
+      oldRoot: readSnapshot('::view-transition-old(root)'),
+      oldSidebar: readSnapshot('::view-transition-old(aspire-sidebar)'),
+    };
+  });
+
+  expect(snapshots.newRoot.animationName).toBe('aspire-theme-reveal');
+  expect(snapshots.newSidebar.animationName).toBe('aspire-theme-reveal');
+  expect(snapshots.newRoot.maskImage).toContain('data:image/svg+xml');
+  expect(snapshots.newSidebar.maskImage).toBe(snapshots.newRoot.maskImage);
+  expect(snapshots.oldRoot.animationName).toBe('none');
+  expect(snapshots.oldSidebar.animationName).toBe('none');
+});
+
+test('quick reverse theme changes vary Aspiry placement and gesture', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('starlight-theme', 'light');
+  });
+  await page.goto('/get-started/aspire-vscode-extension/');
+  await dismissCookieConsentIfVisible(page);
+
+  await page.locator('#aspire-theme-transition').evaluate((host) => {
+    host.setAttribute(
+      'data-sunglasses-src',
+      'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" id="sunglasses"/%3E'
+    );
+    host.setAttribute(
+      'data-night-vision-src',
+      'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" id="night-vision"/%3E'
+    );
+  });
+
+  await page.evaluate(async () => {
+    const transitionApi = (
+      window as Window & {
+        AspireThemeTransition: {
+          setTheme: (theme: 'light' | 'dark', origin: { x: number; y: number }) => void;
+        };
+      }
+    ).AspireThemeTransition;
+    const waitForTheme = (theme: 'light' | 'dark') =>
+      new Promise<void>((resolve) => {
+        const checkTheme = () => {
+          if (document.documentElement.dataset.theme === theme) {
+            resolve();
+          } else {
+            requestAnimationFrame(checkTheme);
+          }
+        };
+        checkTheme();
+      });
+
+    transitionApi.setTheme('dark', { x: innerWidth / 2, y: innerHeight / 2 });
+    await waitForTheme('dark');
+    await new Promise((resolve) => setTimeout(resolve, 2_200));
+    transitionApi.setTheme('light', { x: innerWidth / 2, y: innerHeight / 2 });
+  });
+
+  const aspiry = page.locator('.aspire-theme-aspiry');
+  await expect(aspiry).toHaveAttribute('src', /sunglasses/);
+  await expect(aspiry).toHaveAttribute(
+    'data-placement',
+    /^(bottom-left|bottom-center|bottom-right|left|right|top-left|top-right)$/
+  );
+  await expect(aspiry).toHaveAttribute('data-gesture', /^(bob|tilt|wiggle)$/);
+  await expect(aspiry).toHaveCSS('animation-duration', '5s, 5s');
+  const firstVariation = await aspiry.evaluate((image) => ({
+    gesture: image.dataset.gesture,
+    placement: image.dataset.placement,
+  }));
+
+  await page.evaluate(() => {
+    (
+      window as Window & {
+        AspireThemeTransition: {
+          setTheme: (theme: 'dark', origin: { x: number; y: number }) => void;
+        };
+      }
+    ).AspireThemeTransition.setTheme('dark', {
+      x: innerWidth / 2,
+      y: innerHeight / 2,
+    });
+  });
+
+  await expect(aspiry).toHaveCount(0);
+  await expect(aspiry).toHaveCount(1);
+  await expect(aspiry).toHaveAttribute('src', /night-vision/);
+  const secondVariation = await aspiry.evaluate((image) => ({
+    gesture: image.dataset.gesture,
+    placement: image.dataset.placement,
+  }));
+  expect(secondVariation.gesture).not.toBe(firstVariation.gesture);
+  expect(secondVariation.placement).not.toBe(firstVariation.placement);
+
+  await aspiry.dispatchEvent('click');
+  await expect(aspiry).toHaveCount(0);
 });
 
 test('terminal tabs stay synced between pages', async ({ page }) => {
