@@ -336,6 +336,58 @@ await service.publishAsKubernetesService(async (resource) => {
 </TabItem>
 </Tabs>
 
+### Configure CPU and memory requests and limits
+
+Use the `PublishAsKubernetesService` callback to set CPU and memory requirements on the generated pod container:
+
+- **Requests**: Reserve capacity for scheduling. Kubernetes uses requests to choose a node with enough available capacity. A container can use more than its request when resources are available.
+- **Limits**: Constrain resource use at runtime. CPU limits cause throttling; exceeding a memory limit can cause the container to be terminated with an out-of-memory error.
+
+The following C# AppHost example requests a quarter of a CPU and 256 MiB of memory, with limits of one CPU and 512 MiB:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddKubernetesEnvironment("k8s");
+
+builder.AddProject<Projects.Api>("api")
+    .PublishAsKubernetesService(resource =>
+    {
+        var container = resource.Workload!.PodTemplate.Spec.Containers[0];
+        container.Resources ??= new();
+
+        container.Resources.Requests["cpu"] = "250m";
+        container.Resources.Requests["memory"] = "256Mi";
+        container.Resources.Limits["cpu"] = "1";
+        container.Resources.Limits["memory"] = "512Mi";
+    });
+
+builder.Build().Run();
+```
+
+`Workload.PodTemplate` accesses the pod template for either a Deployment or a StatefulSet. The example configures the first generated container, not every container in the pod. For an [AKS environment](/integrations/cloud/azure/aks/), replace `AddKubernetesEnvironment("k8s")` with `AddAzureKubernetesEnvironment("aks")`. Both targets use the Kubernetes publishing path, so the callback applies to both. It changes the published workload, not local `aspire run` resource limits.
+
+Values use Kubernetes quantity syntax and are stored as strings:
+
+| Quantity | Meaning |
+| -------- | ------- |
+| `250m` CPU | 250 millicpu, equivalent to `0.25` CPU |
+| `1` CPU | One physical or virtual CPU core |
+| `256Mi` memory | 256 mebibytes |
+| `512Mi` memory | 512 mebibytes |
+
+Memory suffixes are case-sensitive: `Mi` denotes mebibytes, while `M` denotes decimal megabytes. Don't use `m` for memory, which denotes millibytes.
+
+CPU and memory requests and limits are optional. Set only the dictionary entries you need; Aspire doesn't add default CPU or memory requests or limits. Kubernetes admission policies, such as a namespace's `LimitRange`, can supply defaults or enforce constraints. If you set a limit without a request for the same resource and no admission-time default applies, Kubernetes uses the limit as the request.
+
+:::note
+This example uses the C# workload resource model. The same typed CPU and memory customization isn't currently exposed to TypeScript AppHosts.
+:::
+
+<LearnMore>
+  For quantity syntax and enforcement details, see [Resource management for pods and containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
+</LearnMore>
+
 ## Add custom Kubernetes manifests
 
 Within a `PublishAsKubernetesService` callback, you can attach arbitrary Kubernetes manifests — such as [cert-manager](https://cert-manager.io/) `Certificate` definitions, additional `ConfigMap` objects, or any other Kubernetes resource — to the generated Helm chart alongside your service.
