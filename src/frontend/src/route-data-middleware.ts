@@ -2,6 +2,7 @@ import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
 import { normalizeApiReferenceSidebarHref } from './utils/api-reference-routes';
 import { isDefaultLocaleOnlyPath } from './utils/default-locale-only-routes';
 import { getOgMetadata } from './utils/page-metadata';
+import { stripLocaleFromPath } from './utils/locale-routes';
 
 /**
  * Custom route middleware that applies implicit pagination rules:
@@ -174,7 +175,8 @@ interface SidebarEntry {
  * Walk the sidebar tree and rewrite any link whose href is a localized API
  * reference path (e.g. `/it/reference/api/csharp/`) to the canonical,
  * locale-stripped path (e.g. `/reference/api/csharp/`). Also restore TypeScript
- * section fragments after Starlight's trailing-slash formatting.
+ * section fragments after Starlight's trailing-slash formatting. Other
+ * default-locale-only routes such as `/hub/glossary/` lose the locale prefix too.
  */
 function canonicalizeApiReferenceLinks(entries: SidebarEntry[]): void {
   for (const entry of entries) {
@@ -182,6 +184,13 @@ function canonicalizeApiReferenceLinks(entries: SidebarEntry[]): void {
 
     if (entry.type === 'link' && typeof entry.href === 'string') {
       entry.href = normalizeApiReferenceSidebarHref(entry.href);
+
+      // Other English-only routes (e.g. /hub/glossary/) get the same treatment:
+      // Starlight's locale prefix (/de/hub/glossary/) would otherwise 404.
+      const unlocalizedHref = stripLocaleFromPath(entry.href);
+      if (unlocalizedHref !== entry.href && isDefaultLocaleOnlyPath(unlocalizedHref)) {
+        entry.href = unlocalizedHref;
+      }
     }
 
     if (entry.entries) {
