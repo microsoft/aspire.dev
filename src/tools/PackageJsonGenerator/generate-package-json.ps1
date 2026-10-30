@@ -109,7 +109,10 @@ $integrationsFile = [System.IO.Path]::Combine($RepoRoot, "src", "frontend", "src
 $integrations = if (Test-Path $integrationsFile) {
     # Entries marked `"apiReference": false` (third-party packages) are not documented here.
     @(Get-Content $integrationsFile -Raw | ConvertFrom-Json |
-        Where-Object { $_.apiReference -ne $false })
+        Where-Object {
+            $_.PSObject.Properties.Name -notcontains "apiReference" -or
+            $_.apiReference -ne $false
+        })
 }
 else {
     @()
