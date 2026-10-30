@@ -67,6 +67,22 @@ log.Println("AppHost directory:", dir)
 
 `aspire.FormatError` turns an error into a message that is ready to log. When the AppHost server returns an error for a call, the error is an `*aspire.CapabilityError`, and `FormatError` adds its error code and the capability that failed. Use `errors.As` and the `Code`, `Message`, and `Capability` methods to read these values yourself. For any other error, `FormatError` returns `err.Error()`.
 
+The error also exposes the JSON-RPC error code and data that the AppHost server returned. The error type is unexported, so read them with `errors.As` and a small interface:
+
+```go title="apphost.go"
+var rpcErr interface {
+	Code() int
+	Data() any
+}
+if errors.As(err, &rpcErr) {
+	log.Println("JSON-RPC error code:", rpcErr.Code())
+}
+```
+
+If a callback that you pass to the SDK panics, the AppHost process keeps running. Only the call that invoked the callback fails, with the JSON-RPC error code `-32603` and the message `Callback execution failed: <panic value>`. The stack trace isn't sent to the AppHost server.
+
+Methods that return lists of resources, such as `GetResources` and `GetChildren`, return the resources as `aspire.Resource` values.
+
 ## Cancellation
 
 A method that accepts a cancellation token takes it in its options struct. For example, `aspire.RunOptions` has a `CancellationToken` field. Create a token with `aspire.NewCancellationToken`, pass it in the options, and call its `Cancel` method to cancel the call:
@@ -87,6 +103,8 @@ if err := app.Run(&aspire.RunOptions{CancellationToken: token}); err != nil {
 ```
 
 You can't create a token from a `context.Context`. To cancel a token when an existing context ends, call `context.AfterFunc(ctx, token.Cancel)`. The token's `Context` method returns a `context.Context` that ends when the token is canceled, so you can use the same token with other Go APIs.
+
+Canceling a token after the call that it was passed to has returned doesn't notify the AppHost server.
 
 ## See also
 
