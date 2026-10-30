@@ -92,6 +92,7 @@ const anchorsOf = (file: string) => {
         .replace(/\{#[^}]+\}$/, '')
         .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
         .replace(/<[^>]+>/g, '')
+        .replace(/[<>]/g, '')
         .replace(/[`*_]/g, '')
         .trim();
       anchors.add(slugger.slug(text));
