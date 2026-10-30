@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { getSiteNavigationLink, revealMobileSiteMenu } from './helpers';
+import {
+  getSiteNavigationLink,
+  emulateConsentNotRequiredRegion,
+  revealMobileSiteMenu,
+} from './helpers';
+
+test.beforeEach(async ({ page }) => {
+  await emulateConsentNotRequiredRegion(page);
+});
 
 test('production Dev Hub scripts, styles, and Pagefind load from static assets', async ({ page, request }) => {
   const pagefind = await request.get('/pagefind/pagefind.js');

@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
+import { emulateConsentNotRequiredRegion } from './helpers';
 
 for (const route of ['/hub/browse/', '/hub/glossary/']) {
   test(`${route} controls container reuses passive static Hub grain`, async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('aspireConsentRequired', 'false'));
+    await emulateConsentNotRequiredRegion(page);
     await page.goto(`${route}?q=zzzz-no-match&topic=foundations`);
     const empty = page.locator('.search-empty:visible');
     const controls = page.locator('.browse-controls, .glossary-filter-panel');
