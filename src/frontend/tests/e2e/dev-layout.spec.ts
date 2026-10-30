@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { getSiteNavigationLink } from './helpers';
+import { getSiteNavigationLink, revealMobileSiteMenu } from './helpers';
 
 test('production Dev Hub scripts, styles, and Pagefind load from static assets', async ({ page, request }) => {
   const pagefind = await request.get('/pagefind/pagefind.js');
@@ -767,6 +767,24 @@ test('localized navigation keeps the English Developer Hub destination', async (
   const link = await getSiteNavigationLink(page, '/hub/');
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute('href', '/hub/');
+});
+
+test('localized docs sidebar opens the English Glossary and keeps translated docs localized', async ({ page }) => {
+  await page.goto('/de/docs/');
+  await revealMobileSiteMenu(page);
+  const sidebar = page.locator('#starlight__sidebar');
+  const sidebarLink = (label: string) => sidebar.locator('a', { hasText: new RegExp(`^\\s*${label}\\s*$`) });
+  await expect(sidebarLink('Ressourcen verstehen')).toHaveAttribute('href', '/de/get-started/resources/');
+
+  const glossary = sidebarLink('Glossar');
+  await expect(glossary).toHaveAttribute('href', '/hub/glossary/');
+  for (const summary of await glossary.locator('xpath=ancestor::details[not(@open)]/summary').all()) {
+    await summary.click();
+  }
+  await glossary.click();
+
+  await expect(page).toHaveURL(/\/hub\/glossary\/$/);
+  await expect(page.getByRole('heading', { name: 'Aspire glossary', exact: true })).toBeVisible();
 });
 
 test('the hub and glossary retain accessible light and dark layouts', async ({ page }) => {
