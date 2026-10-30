@@ -1,0 +1,107 @@
+---
+title: Microsoft Entra ID integration
+seoTitle: Microsoft Entra ID integration for Aspire AppHost
+description: Learn how to use the Microsoft Entra ID hosting integration to create or reference app registrations from C#, TypeScript, Python, Go, Java, and Rust AppHosts.
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="🧪 Preview" variant="note" size="large" />
+
+The Microsoft Entra ID hosting integration models Entra ID app registrations in your AppHost. You can create new registrations, or reference existing registrations as configuration only, and then pass their settings to the resources that reference them.
+
+## Hosting integration
+
+Add the 📦 [Aspire.Hosting.Azure.EntraId](https://www.nuget.org/packages/Aspire.Hosting.Azure.EntraId) package to your AppHost:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.EntraId" shortName="azure-entraid" prerelease={true} />
+
+The integration is available in C#, TypeScript, Python, Go, Java, and Rust AppHosts, with the same behavior in each. Method names follow each language's conventions, and optional arguments are passed as options objects or keyword arguments. For example, Python's generator abbreviates `Application` to `app` (`add_entra_id_app`, `with_app_owners`).
+
+### Create a registration and reference it
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var entraWeb = builder.AddEntraIdApplication("entra-web")
+                      .WithRedirectUris("https://localhost:7123/signin-oidc");
+
+builder.AddContainer("web", "my-web-image")
+       .WithReference(entraWeb, connectionName: "AUTH");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const entraWeb = await builder.addEntraIdApplication("entra-web")
+    .withRedirectUris("https://localhost:7123/signin-oidc");
+
+await builder.addContainer("web", "my-web-image")
+    .withReference(entraWeb, { connectionName: "AUTH" });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+`withReference` applies the same configuration rules as C#. `withEntraIdReference` is the explicit form that also sets the `DownstreamApis` prefix (`withEntraIdReference(entraWeb, { connectionName, downstreamApisPrefix })`). Neither configures authentication middleware in the workload; the workload must read the injected settings into its authentication library's options.
+
+### Reference an existing registration
+
+`addExistingEntraApplication` references a registration that already exists. Tenant and client IDs each accept a literal or a parameter resource. This top-level factory doesn't enable Azure provisioning or query Microsoft Graph.
+
+```typescript title="apphost.ts"
+const clientId = await builder.addParameter("entra-client");
+const clientSecret = await builder.addParameter("entra-secret", { secret: true });
+
+const entraApi = await builder.addExistingEntraApplication(
+    "entra-api", "aaaabbbb-0000-cccc-1111-dddd2222eeee", clientId)
+    .withClientSecret(clientSecret);
+```
+
+Client secrets and certificate passwords require secret parameters. Certificate and signed assertion paths identify files on the consumer, not files the AppHost reads.
+
+### Redirect URIs and federation
+
+Endpoint redirect URIs stay deferred: local run uses the allocated endpoint URL, while publish uses the compute environment's host.
+
+```typescript title="apphost.ts"
+const web = await builder.addContainer("web", "my-web-image")
+    .withHttpEndpoint({ targetPort: 8080 })
+    .withReference(entraWeb);
+
+await entraWeb.withRedirectUris(await web.getEndpoint("http"), {
+    callbackPaths: ["/signin-oidc"],
+});
+await entraWeb.publishWithFederatedManagedIdentityCredential({ identity: web });
+```
+
+### Roles, scopes, permissions, and consent
+
+The polyglot SDK exports `withAppRole`, `withApplicationIdUri`, `withScope`, `getScopeUri`, `withPreAuthorizedApplication`, `withApiPermissions`, `withAdminConsent`, `withExternalApiPermissions`, and `withExternalApiAdminConsent`. The external API methods accept a well-known API (`EntraIdWellKnownApi`) or a custom API.
+
+```typescript title="apphost.ts"
+import { EntraIdPermissionType, EntraIdWellKnownApi } from './.aspire/modules/aspire.mjs';
+
+const entraApi = await builder.addEntraIdApplication("entra-api")
+    .withApplicationIdUri()
+    .withScope("Weather.Read", "Allows the app to read weather forecasts.")
+    .withAppRole("Admin", "Administrator", "Can administer the API.", {
+        allowedMemberTypes: ["User", "Application"],
+    });
+
+await builder.addEntraIdApplication("entra-web")
+    .withApiPermissions(entraApi, ["Weather.Read"])
+    .withAdminConsent(entraApi, ["Weather.Read"])
+    .withExternalApiPermissions(EntraIdWellKnownApi.MicrosoftGraph, [
+        { name: "User.Read" },
+        { name: "User.Read.All", type: EntraIdPermissionType.Application },
+    ]);
+```
+
+<Aside type="note">
+Creating registrations and federation trust still requires the Azure and Microsoft Graph permissions needed by the C# integration. Existing registrations are never modified.
+</Aside>
