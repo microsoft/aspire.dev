@@ -1,5 +1,6 @@
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
 import { normalizeApiReferenceSidebarHref } from './utils/api-reference-routes';
+import { isDefaultLocaleOnlyPath } from './utils/default-locale-only-routes';
 import { getOgMetadata } from './utils/page-metadata';
 
 /**
@@ -23,6 +24,14 @@ export const onRequest = defineRouteMiddleware((context) => {
   if (!routeData) return;
 
   const { entry, pagination, sidebar } = routeData;
+
+  // --- Locale alternates: drop hreflang on default-locale-only routes ---
+  // Starlight adds an alternate for every configured locale, but custom
+  // StarlightPage routes such as /hub/ and /reference/api/ are never generated
+  // for other locales, so those alternates (e.g. /de/hub/) point at 404s.
+  if (isDefaultLocaleOnlyPath(context.url.pathname)) {
+    removeHreflangAlternates(routeData.head);
+  }
 
   // --- Step 0: Canonicalize API reference sidebar links ---
   // API reference pages under /reference/api/ are only generated for the default
@@ -220,6 +229,16 @@ function isSplashPage(id: string): boolean {
   // 404 page
   if (/^([a-z]{2}(-[a-z]{2,4})?\/)?404\.mdx?$/i.test(normalized)) return true;
   return false;
+}
+
+function removeHreflangAlternates(head: MetaHeadEntry[]): void {
+  if (!Array.isArray(head)) return;
+  for (let i = head.length - 1; i >= 0; i--) {
+    const { tag, attrs } = head[i];
+    if (tag === 'link' && attrs?.rel === 'alternate' && attrs.hreflang) {
+      head.splice(i, 1);
+    }
+  }
 }
 
 /** Check whether a frontmatter prev/next value is an explicit link override. */
