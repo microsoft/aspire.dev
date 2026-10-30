@@ -121,6 +121,8 @@ The dashboard applies the following default data retention limits:
 
 When these limits are exceeded, the oldest corresponding data is removed. Attribute, span-event, resource, instrumentation-scope, instrument, and dimension limits also apply.
 
+Reading a trace, span, structured log, or metric detail view involves multiple dependent SQLite queries, for example selecting a trace and then its spans. The dashboard runs these dependent reads inside a single deferred SQLite transaction so eviction can't remove a selected row between queries. This keeps the Traces, Spans, Structured Logs, and Metrics views consistent during normal telemetry eviction, without blocking concurrent ingestion under SQLite's write-ahead log (WAL) mode. Cached resource and instrument metadata lookups aren't part of these transactions, so an explicit telemetry clear that runs concurrently with a cache metadata lookup isn't protected by this behavior.
+
 | Mode | Database retention |
 |------|--------------------|
 | `None` | The temporary database lasts for the dashboard process and is deleted after a clean shutdown. |
