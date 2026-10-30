@@ -607,6 +607,20 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               ],
             },
             {
+              label: 'aspire template',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire template',
+                  slug: 'reference/cli/commands/aspire-template',
+                },
+                {
+                  label: 'aspire template source',
+                  slug: 'reference/cli/commands/aspire-template-source',
+                },
+              ],
+            },
+            {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',
             },
