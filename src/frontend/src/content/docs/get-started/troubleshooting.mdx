@@ -262,6 +262,36 @@ Persisted Aspire CLI logs are stored in the Aspire home directory's `logs` folde
   <Code slot="windows" lang="powershell" code="$HOME\.aspire\logs\" />
 </OsAwareTabs>
 
+## `dotnet run --operation publish` hangs at "Starting dashboard..."
+
+**Symptoms**: Running `dotnet run --operation publish` (or an equivalent
+`--publisher manifest` or `AppHost:Operation` configuration override) against
+an AppHost that has the [Aspire CLI run hook](/get-started/aspire-sdk/#running-with-dotnet-run)
+enabled appears to hang at `Starting dashboard...` and never completes.
+
+**Cause**: `dotnet run --operation publish` starts the AppHost in publish
+mode, but the CLI run hook still waits for the dashboard to become ready
+before it can hand off control. Publish mode never starts the dashboard — it
+expects a publishing client to consume pipeline progress and request
+shutdown — so the readiness wait never resolves.
+
+**Solution**: Use `aspire publish` instead of `dotnet run --operation
+publish` to generate deployment artifacts:
+
+```powershell title="Use aspire publish instead"
+aspire publish --project ./MyApp.AppHost/
+```
+
+Newer Aspire releases detect this mismatch and fail immediately instead of
+hanging, exiting with code `2` and the following message:
+
+```text title="Output"
+An unexpected error occurred: The AppHost is in publish mode and cannot be started with 'aspire run'. Use 'aspire publish' instead.
+```
+
+See [`aspire publish`](/reference/cli/commands/aspire-publish/) for details
+on generating deployment artifacts.
+
 ## Building from source
 
 ### "Failed to copy CLI files" error on macOS or Linux
