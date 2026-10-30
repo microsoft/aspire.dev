@@ -75,6 +75,18 @@ const stripCodeFences = (source: string) => {
     .join('\n');
 };
 
+// Headings can contain inline JSX such as <abbr title="...">MCP</abbr>; keep only the text.
+const stripTags = (value: string) => {
+  let text = '';
+  let inTag = false;
+  for (const character of value) {
+    if (character === '<') inTag = true;
+    else if (character === '>' && inTag) inTag = false;
+    else if (!inTag) text += character;
+  }
+  return text;
+};
+
 const docs = collectDocs(docsDir);
 const docsByRoute = new Map(docs.map((file) => [routeOf(file), file]));
 const anchorCache = new Map<string, Set<string>>();
@@ -88,11 +100,9 @@ const anchorsOf = (file: string) => {
     for (const [, heading] of source.matchAll(/^#{2,6}\s+(.+?)\s*$/gm)) {
       const customId = heading.match(/\{#([^}]+)\}$/)?.[1];
       if (customId) anchors.add(customId);
-      const text = heading
+      const text = stripTags(heading)
         .replace(/\{#[^}]+\}$/, '')
         .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-        .replace(/<[^>]+>/g, '')
-        .replace(/[<>]/g, '')
         .replace(/[`*_]/g, '')
         .trim();
       anchors.add(slugger.slug(text));
