@@ -213,6 +213,17 @@ export DASHBOARD__OTLP__ALLOWEDCERTIFICATES__0__THUMBPRINT="HEX_SHA256_THUMBPRIN
 If no allowed certificates are configured then all certificates that pass [ASP.NET Core certificate validation](https://learn.microsoft.com/aspnet/core/security/authentication/certauth#configure-certificate-validation) can authenticate.
 </Aside>
 
+### Dashboard self-telemetry
+
+The dashboard can export its own traces over OTLP, separate from the telemetry it receives from your app's resources. Set `OTEL_EXPORTER_OTLP_ENDPOINT` to enable export; the dashboard doesn't configure an OpenTelemetry resource or export its own traces unless this variable is set.
+
+Exported traces use `aspire-dashboard` as the default `service.name`. Override it with `OTEL_SERVICE_NAME`, or with `service.name` in `OTEL_RESOURCE_ATTRIBUTES`. `OTEL_SERVICE_NAME` takes precedence when both are specified. The dashboard doesn't generate a `service.instance.id` for itself, but preserves one supplied through `OTEL_RESOURCE_ATTRIBUTES`.
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+export OTEL_SERVICE_NAME="custom-dashboard"
+```
+
 ## Data persistence
 
 The dashboard stores resources and telemetry in a SQLite database. Persistence behavior depends on how the dashboard is started: an AppHost-launched dashboard defaults to retaining separate application runs, while the standalone dashboard defaults to deleting its temporary database when it stops. The [application name](#other) is used to partition persisted data.
