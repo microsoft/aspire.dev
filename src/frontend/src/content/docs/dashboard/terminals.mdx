@@ -230,6 +230,18 @@ A **viewer** is a browser view or CLI connection. The **producer** is the proces
 
 Stopping a local `docker exec` subprocess doesn't guarantee that the program it launched inside the container stops. Exit the shell or client normally before closing its tab; see [Docker exec process cleanup](/dashboard/ephemeral-terminals/#open-a-database-or-cache-repl).
 
+## Recover from a disconnected terminal
+
+When a workload exits or the connection to a terminal drops, the dashboard keeps the last screen visible instead of clearing it. Retained output includes both text and Sixel/Kitty graphics. A disconnect banner explains what happened and offers recovery actions appropriate to the terminal's kind:
+
+- **Resource terminals** show **Restart resource**, which uses the resource's advertised Restart or Start command, including the resource's usual confirmation and read-only checks. The banner includes the exit code when the resource protocol reports one. A successful restart reconnects the view automatically, even after automatic retries have been exhausted.
+- **Docked terminals** show **Close tab**, which closes only the owning tab without affecting adjacent tabs.
+- Both kinds show **Show terminal**, which collapses the banner into a small disconnected icon inset at the top right of the retained screen. Select the icon to reopen the recovery actions. This suppresses the redundant disconnected indicator elsewhere in the view; unrelated errors remain visible.
+
+:::note[Limitation]
+Hex1b 0.173.0 doesn't support selecting or copying output while disconnected. Collapsing the banner uncovers the retained screen, but selection and copy require the terminal to reconnect.
+:::
+
 ## Prerequisites and limitations
 
 - **AppHost connection:** These experiences need a live, writable AppHost resource-service connection. An [OTEL-only standalone dashboard](/dashboard/standalone/#unavailable-features-when-standalone) has telemetry, not terminal producers; it doesn't show the dock. Historical read-only runs don't provide live resource terminals or a terminal dock.
