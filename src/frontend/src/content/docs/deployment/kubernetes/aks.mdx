@@ -85,6 +85,34 @@ When you run `aspire deploy`, Aspire provisions the following Azure resources:
 
 Aspire builds your container images, pushes them to ACR, generates Helm charts, and installs them to the AKS cluster.
 
+## Cluster tier
+
+AKS clusters provisioned by Aspire use the **Standard** control-plane tier by default, which provides an uptime SLA suitable for production workloads. The Standard tier adds a cluster-management charge on top of the underlying Azure resource costs; see [AKS pricing tiers](https://learn.microsoft.com/azure/aks/free-standard-pricing-tiers) for current details. The control-plane tier doesn't change node VM sizes, node counts, or provide an application availability guarantee.
+
+<Aside type="caution">
+  Applying updated infrastructure to an existing Aspire-managed cluster changes its tier to Standard unless you explicitly override it. Upgrading the `Aspire.Hosting.Azure.Kubernetes` package alone doesn't change a deployed cluster — the tier change only takes effect the next time you provision.
+</Aside>
+
+To use the Free tier for development or testing, customize the generated infrastructure with `ConfigureInfrastructure`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Azure.Provisioning.ContainerService;
+
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+    .ConfigureInfrastructure(infrastructure =>
+    {
+        var cluster = infrastructure.GetProvisionableResources()
+            .OfType<ContainerServiceManagedCluster>()
+            .Single();
+
+        cluster.Sku.Tier = ManagedClusterSkuTier.Free;
+    });
+```
+</TabItem>
+</Tabs>
+
 ## Configure node pools
 
 ### System node pool
