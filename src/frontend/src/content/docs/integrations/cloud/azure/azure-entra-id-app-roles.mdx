@@ -1,0 +1,67 @@
+---
+title: Microsoft Entra ID application roles
+description: Declare application roles on Microsoft Entra ID app registrations that Aspire creates, and learn how role IDs, removal, and retirement work.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+Application roles, such as `User` and `Admin`, appear in the `roles` claim of tokens issued for your API. They're distinct from delegated scopes, consent, and Azure RBAC roles. The `Aspire.Hosting.Azure.EntraId` integration can declare application roles on registrations that Aspire creates.
+
+## Install the integration
+
+<InstallPackage packageName="Aspire.Hosting.Azure.EntraId" />
+
+## Declare application roles
+
+Use `WithAppRole` with an `EntraIdAppRole` to declare a role on a registration created by `AddEntraIdApplication`. Aspire writes the roles to the application's `appRoles` in the generated Microsoft Graph Bicep.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var entraApi = builder.AddEntraIdApplication("entra-api")
+                      .WithAppRole(new EntraIdAppRole("User", "User", "Can use the API."))
+                      .WithAppRole(new EntraIdAppRole("Admin", "Administrator", "Can administer the API.",
+                          ["User", "Application"]));
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+`WithAppRole` only declares roles. It doesn't assign them to any user, group, or application, and it doesn't grant consent. Role assignments aren't provisioned yet.
+
+### `EntraIdAppRole` parameters
+
+| Parameter | Description |
+| --- | --- |
+| `value` | The value emitted in the `roles` claim, for example `Admin`. It must be unique for the application, at most 120 characters, can't start with a period, and can contain only ASCII letters, digits, and the punctuation that [Microsoft Graph allows](https://learn.microsoft.com/graph/api/resources/approle). Invalid values are rejected when you write the AppHost. |
+| `displayName` | The display name shown in the Microsoft Entra admin center. |
+| `description` | The description shown in assignment and consent experiences. |
+| `allowedMemberTypes` | The member types the role can be assigned to, passed through to Microsoft Graph (for example `User` or `Application`). Defaults to `User`. |
+| `id` | An optional role ID. When omitted, a stable ID is derived from the resource name and `value`. |
+| `isEnabled` | Whether the role is enabled. Defaults to `true`. |
+
+### Role IDs
+
+Role IDs are derived from the resource name and role value (or supplied with `id`), so they stay stable across deployments. The tenant resource suffix isn't part of the ID. Changing a role's value or ID creates a different role in the directory, and assignments of the previous role aren't migrated.
+
+### Existing registrations
+
+Aspire never modifies existing registrations, so `WithAppRole` throws when used with `AddExistingEntraApplication`.
+
+## Removing and retiring roles
+
+Whenever the application declares at least one role, Aspire sends the complete `appRoles` collection and Microsoft Graph replaces what's stored. Include every role you want to keep, including roles that were added outside the AppHost. A role that's left out fails the deployment with `CannotDeleteOrUpdateEnabledEntitlement` if it's still enabled, and is deleted if it's already disabled.
+
+When the application declares no roles, Aspire doesn't send `appRoles`, so roles that the AppHost never declared are left alone.
+
+To retire a role:
+
+1. Deploy it with `isEnabled: false` and leave it declared.
+1. Remove it from the AppHost in a later deployment, while other roles remain declared.
+
+<Aside type="caution">
+A disabled role can't be assigned to anyone new, but Microsoft Entra [keeps issuing it in tokens for existing assignments](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps#app-roles-ui). Disabling isn't access revocation; remove existing assignments separately.
+</Aside>
+
+To retire the last role, keep it declared with `isEnabled: false`, or delete it in the Microsoft Entra admin center.

@@ -320,6 +320,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/azure-connector-namespace',
             },
             {
+              label: 'Microsoft Entra ID application roles',
+              slug: 'integrations/cloud/azure/azure-entra-id-app-roles',
+            },
+            {
               label: 'Default Azure credential',
               slug: 'integrations/cloud/azure/azure-default-credential',
             },
