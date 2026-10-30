@@ -34,11 +34,12 @@ export const onRequest = defineRouteMiddleware((context) => {
   canonicalizeApiReferenceLinks(sidebar);
 
   // --- Step 0.5: Optimize Open Graph metadata in the emitted head ---
-  // Starlight populates `head` with `og:title` from `data.title` and
-  // `og:description` from `data.description`. We compose an SEO-optimal
-  // title (via `seoTitle` or the `· Aspire` suffix) and trim the
-  // description to the 200-char Open Graph limit so social previews never
-  // see the raw, sometimes-too-long frontmatter strings.
+  // Starlight populates `head` with `og:title` from `data.title`,
+  // `og:description` from `data.description`, and a hardcoded
+  // `og:type=article`. We compose an SEO-optimal title (via `seoTitle` or the
+  // `· Aspire` suffix), trim the description to the 200-char Open Graph limit
+  // so social previews never see the raw, sometimes-too-long frontmatter
+  // strings, and emit `website` for the home page and splash landing pages.
   optimizeOpenGraphHead(routeData, context.url, context.site);
 
   // --- Step 1: Group boundary rules ---
@@ -104,8 +105,8 @@ interface MetaHeadEntry {
 }
 
 /**
- * Replace the `og:title` / `og:description` meta entries Starlight emits by
- * default with our SEO-optimized values from `getOgMetadata`. The function
+ * Replace the `og:title` / `og:description` / `og:type` meta entries Starlight
+ * emits by default with our SEO-optimized values from `getOgMetadata`. The function
  * mutates `routeData.head` in place so downstream components (the
  * Starlight `<Head>` default and our wrapper) emit a single, consistent set
  * of Open Graph tags.
@@ -125,6 +126,7 @@ function optimizeOpenGraphHead(
 
   upsertMetaEntry(head, 'property', 'og:title', og.ogTitle);
   upsertMetaEntry(head, 'property', 'og:description', og.description);
+  upsertMetaEntry(head, 'property', 'og:type', og.type);
 }
 
 /**
