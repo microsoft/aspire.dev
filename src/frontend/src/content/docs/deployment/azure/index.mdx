@@ -45,6 +45,14 @@ Use an Azure Resource Manager service connection. Prefer workload identity feder
 For provider-specific setup, see [Configuring OpenID Connect in Azure](https://docs.github.com/en/actions/how-tos/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure) and [Connect to Azure with an Azure Resource Manager service connection](https://learn.microsoft.com/azure/devops/pipelines/library/connect-to-azure?view=azure-devops).
 </LearnMore>
 
+### Short-lived federated credentials
+
+Workload identity federation assertions are short-lived, and a lengthy infrastructure provisioning step can outlast one before image build and registry login ask for a different token audience. Before provisioning starts, `aspire deploy` acquires the Microsoft Entra ID (ARM) token and the registry (ACR) token scopes declared by the deployment steps the current command selected, including registry login steps for existing and automatically created registries. Provisioning-only commands don't request an ACR token unless registry login is in the selected dependency graph.
+
+This reduces failures caused by an assertion expiring mid-deployment, as long as the configured credential caches audience-specific access tokens. `AzureCliCredential` asks the Azure CLI for a token on every request, so reuse depends on the CLI's own token cache rather than the credential object's lifetime. Custom credentials keep whatever caching behavior they already implement.
+
+Pre-acquisition doesn't renew a federated assertion or extend an access token's lifetime. If the assertion is already expired, or the deployment outlasts the cached access token, authentication still fails and the deployment stops. See [Azure CLI federated-token limitations](https://github.com/Azure/azure-cli/issues/28708) for background on the underlying constraint. Offline `aspire publish` and resource destruction don't perform this pre-acquisition.
+
 ## Shared Azure settings
 
 After authentication succeeds, `aspire deploy` still needs a small set of shared Azure settings. By default, the tenant comes from your active Azure credential context, while the settings below tell Aspire which subscription, location, and resource group to target.
