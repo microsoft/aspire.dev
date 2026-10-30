@@ -13,7 +13,7 @@ const SCANNER_XPATH = 'xpath=//*[@id="c-uhff-footer_managecookies"]';
 // astro dev fires a one-time full-page reload once Vite finishes pre-bundling
 // dependencies on a cold server, which can destroy the page's execution context
 // mid-assertion. Poll generously and evaluate defensively so that reload never
-// makes these tests flaky. (CI serves the built site via `astro preview`, where
+// makes these tests flaky. (CI serves the built site through StaticHost, where
 // this reload does not happen.)
 const POLL_TIMEOUT = 20_000;
 

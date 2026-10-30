@@ -130,6 +130,14 @@ for (const firstLanguage of ['csharp', 'typescript', 'go'] as const) {
   });
 }
 
+test('long member signatures truncate instead of widening the page', async ({ page }) => {
+  await page.goto('/reference/api/csharp/aspire.azure.ai.inference/aspireazureaiinferenceextensions/');
+  await dismissCookieConsentIfVisible(page);
+  await expect(page.locator('.mol-name').first()).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBe(0);
+});
+
 test('API landing searches and query filters survive language changes and history navigation', async ({ page }) => {
   test.setTimeout(120_000);
   const errors = trackPageErrors(page);

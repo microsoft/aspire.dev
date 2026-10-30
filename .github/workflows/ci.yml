@@ -21,6 +21,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
   security-events: write
 
 jobs:
@@ -103,6 +104,11 @@ jobs:
     if: ${{ needs.changes.outputs.apphost == 'true' }}
     uses: ./.github/workflows/apphost-build.yml
 
+  hybrid-api-poc:
+    needs: changes
+    if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'hybrid-api-poc') }}
+    uses: ./.github/workflows/hybrid-api-docs-poc.yml
+
   release-sync-tests:
     runs-on: ubuntu-latest
     steps:
@@ -115,7 +121,7 @@ jobs:
           bash .github/scripts/test-merge-main-into-release.sh
 
   ci-gate:
-    needs: [changes, frontend-build, apphost-build, release-sync-tests]
+    needs: [changes, frontend-build, apphost-build, release-sync-tests, hybrid-api-poc]
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -128,6 +134,8 @@ jobs:
           FRONTEND_RESULT: ${{ needs['frontend-build'].result }}
           APPHOST_RESULT: ${{ needs['apphost-build'].result }}
           RELEASE_SYNC_RESULT: ${{ needs['release-sync-tests'].result }}
+          HYBRID_REQUESTED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'hybrid-api-poc') }}
+          HYBRID_RESULT: ${{ needs['hybrid-api-poc'].result }}
         run: |
           echo "changes result: $CHANGES_RESULT"
           echo "frontend changed: $FRONTEND_CHANGED"
@@ -135,6 +143,10 @@ jobs:
           echo "apphost changed: $APPHOST_CHANGED"
           echo "apphost-build result: $APPHOST_RESULT"
           echo "release-sync-tests result: $RELEASE_SYNC_RESULT"
+          if [[ "$HYBRID_REQUESTED" == "true" && "$HYBRID_RESULT" != "success" ]]; then
+            echo "The hybrid API docs acceptance checks must succeed."
+            exit 1
+          fi
 
           if [[ "$RELEASE_SYNC_RESULT" != "success" ]]; then
             echo "The release sync tests must succeed."

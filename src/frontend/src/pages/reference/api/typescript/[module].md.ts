@@ -4,6 +4,7 @@ import { markdownResponse } from '@utils/api-markdown-shared';
 import { renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument } from '@utils/ts-modules';
 import { getTsModules, tsModuleSlug } from '@utils/ts-modules';
+import { resolveTypeScriptApiRoute } from '@utils/api-route-data';
 
 export const prerender = true;
 
@@ -27,8 +28,9 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   }));
 }
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = async ({ props, url }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  const routeProps = props as RouteProps;
+  const routeProps = (props.pkg ? props : await resolveTypeScriptApiRoute(url.pathname)) as RouteProps | undefined;
+  if (!routeProps) return new Response('API module not found', { status: 404 });
   return markdownResponse(renderTypeScriptModuleMarkdown(routeProps.pkg, base));
 };

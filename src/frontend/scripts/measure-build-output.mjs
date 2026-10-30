@@ -75,7 +75,8 @@ async function main() {
   const out = process.env.BUILD_METRICS_DIR;
   if (!out) throw new Error('BUILD_METRICS_DIR is required.');
   await mkdir(out, { recursive: true });
-  const output = await measureOutput(resolve('dist'));
+  const outputDirectory = resolve('dist-hybrid', 'client');
+  const output = await measureOutput(outputDirectory);
   const summary = {
     commit: process.env.GITHUB_SHA,
     run: process.env.GITHUB_RUN_ID,
@@ -94,7 +95,7 @@ async function main() {
   await writeFile(join(out, 'file-manifest.json'), JSON.stringify(output.files));
   if (process.env.PROFILE_BUILD === 'true') {
     await writeFile(join(out, 'compression-sample.json'),
-      JSON.stringify(await sampleCompression(resolve('dist'), output.files), null, 2));
+      JSON.stringify(await sampleCompression(outputDirectory, output.files), null, 2));
   }
   if (process.env.GITHUB_STEP_SUMMARY) {
     await appendFile(process.env.GITHUB_STEP_SUMMARY, [

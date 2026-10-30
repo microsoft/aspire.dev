@@ -5,6 +5,7 @@ import { renderTypeScriptMemberMarkdownPage } from '@utils/typescript-api-markdo
 import type { TsApiDocument, TsFunction, TsHandleType } from '@utils/ts-modules';
 import { getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
 import { getTsItemSlug, getTsMethods, getTsMethodSlug, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import { resolveTypeScriptApiRoute } from '@utils/api-route-data';
 
 export const prerender = true;
 
@@ -70,9 +71,10 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   return [...paths, ...legacy.values()];
 }
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = async ({ props, url }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  const routeProps = props as RouteProps;
+  const routeProps = (props.pkg ? props : await resolveTypeScriptApiRoute(url.pathname)) as RouteProps | undefined;
+  if (!routeProps?.method || !routeProps.parentType) return new Response('API member not found', { status: 404 });
 
   return markdownResponse(
     renderTypeScriptMemberMarkdownPage(routeProps.pkg, routeProps.parentType, routeProps.method, base)

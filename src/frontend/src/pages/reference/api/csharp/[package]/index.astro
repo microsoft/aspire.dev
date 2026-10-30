@@ -7,7 +7,8 @@
  * and collapsible namespace sections.
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import { genericArity, typeDisplayName, groupTypesByNamespace, typeHref, nugetHref, packageSlug, slugify, getPackages, resolveMemberAnchors } from '@utils/packages';
+import { genericArity, typeDisplayName, groupTypesByNamespace, typeHref, nugetHref, packageSlug, getPackages } from '@utils/packages';
+import { apiSearchIndexUrl, buildCSharpPackageSearchIndex } from '@utils/api-search-index';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import Expand from '@components/Expand.astro';
@@ -15,6 +16,7 @@ import Breadcrumb from '@components/Breadcrumb.astro';
 import DocContent from '@components/api-reference/DocContent.astro';
 import NuGetButton from '@components/api-reference/NuGetButton.astro';
 import { hasAttribute } from '@utils/api-attributes';
+import { resolveCSharpApiRoute } from '@utils/api-route-data';
 
 export async function getStaticPaths() {
   const packages = await getPackages();
@@ -24,7 +26,9 @@ export async function getStaticPaths() {
   }));
 }
 
-const { pkg } = Astro.props;
+const routeProps = Astro.props.pkg ? Astro.props : await resolveCSharpApiRoute(Astro.url.pathname);
+if (!routeProps) return new Response('API package not found', { status: 404 });
+const { pkg } = routeProps;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const validTypes = pkg.types.filter((t: any) => t.name);  // skip types with empty names
 const isOfficial = pkg.package.name.startsWith('Aspire.');
@@ -39,76 +43,9 @@ const headings = [...namespaceGroups.keys()].map((ns) => ({
 
 /* Build package-scoped search index */
 
-interface PkgIndexEntry {
-  /** Short name */
-  n: string;
-  /** Fully-qualified name */
-  f: string;
-  /** Namespace */
-  ns: string;
-  /** Kind (class, interface, enum, method, property, ...) */
-  k: string;
-  /** Summary text (first ~160 chars) */
-  s: string;
-  /** Parent type name (for members only) */
-  t?: string;
-  /** Precomputed anchor slug (when it differs from the name-derived slug) */
-  a?: string;
-}
-
-function extractSummary(summary: any): string {
-  if (!summary || !Array.isArray(summary)) return '';
-  return summary
-    .map((node: any) => {
-      if (node.kind === 'text') return node.text;
-      if (node.kind === 'cref') return node.value?.split('.').pop() ?? '';
-      if (node.kind === 'paramref' || node.kind === 'typeparamref') return node.value ?? '';
-      if (node.kind === 'langword') return node.value ?? '';
-      return '';
-    })
-    .join('')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 160);
-}
-
-const pkgIndex: PkgIndexEntry[] = [];
-let memberCount = 0;
-
-for (const type of validTypes) {
-  const typeSlug = slugify(type.name, genericArity(type));
-  pkgIndex.push({
-    n: type.name,
-    f: type.fullName ?? type.name,
-    ns: type.namespace ?? '',
-    k: type.kind ?? 'class',
-    s: extractSummary(type.docs?.summary),
-    ...(typeSlug !== type.name.toLowerCase() ? { g: typeSlug } : {}),
-  });
-
-  const members: any[] = type.members ?? [];
-  const memberAnchors = resolveMemberAnchors(members);
-  for (const [memberIndex, member] of members.entries()) {
-    memberCount++;
-    const memberName = member.name === '.ctor' ? `${type.name} (constructor)` : member.name;
-    const memberFull = `${type.fullName ?? type.name}.${member.name === '.ctor' ? '.ctor' : member.name}`;
-    const slug = memberAnchors[memberIndex].exact;
-    const defaultSlug = memberName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    pkgIndex.push({
-      n: memberName,
-      f: memberFull,
-      ns: type.namespace ?? '',
-      k: member.kind ?? 'method',
-      s: extractSummary(member.docs?.summary),
-      t: type.name,
-      ...(slug !== defaultSlug ? { a: slug } : {}),
-      ...(typeSlug !== type.name.toLowerCase() ? { ts: typeSlug } : {}),
-    });
-  }
-}
+const { index: pkgIndex, memberCount } = buildCSharpPackageSearchIndex(validTypes);
 
 const allKinds = [...new Set(pkgIndex.map(e => e.k))].sort();
-const pkgIndexJson = JSON.stringify(pkgIndex);
 const pkgName = pkg.package.name;
 
 function getCommonSourceDirectory(types: any[]): string | null {
@@ -210,8 +147,7 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
   </div>
 
   <!-- Package-scoped search -->
-  <div class="pkg-search-section not-content" data-api-search-language="csharp" data-api-search-kind="package" data-base={base} data-package-name={pkgName} data-type-count={validTypes.length} data-member-count={memberCount}>
-    <script is:inline type="application/json" data-api-search-index set:html={pkgIndexJson.replace(/</g, '\\u003c')} />
+  <div class="pkg-search-section not-content" data-api-search-language="csharp" data-api-search-kind="package" data-base={base} data-package-name={pkgName} data-type-count={validTypes.length} data-member-count={memberCount} data-api-search-index-url={apiSearchIndexUrl(base, 'csharp', packageSlug(pkgName))}>
     <InpageSearch
       id="pkg"
       placeholder={`Search types, methods, properties in ${pkg.package.name}...`}
@@ -255,7 +191,7 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
 
 <script>
   import { InpageSearchSync } from '@components/api-reference/inpage-search-sync';
-  import { readApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
+  import { loadApiSearchIndex, registerApiSearch } from '@components/api-reference/search-lifecycle';
   import { ApiSearchPresentation, withApiSearchFallback } from '../../_search-presentation';
 
   interface PkgIndexEntry {
@@ -326,7 +262,7 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
     private sync: InpageSearchSync;
     private presentation: ApiSearchPresentation;
 
-    constructor(root: HTMLElement, private signal: AbortSignal) {
+    constructor(root: HTMLElement, private signal: AbortSignal, index: PkgIndexEntry[]) {
       this.input = root.querySelector<HTMLInputElement>('#pkg-search-input')!;
       this.resultsEl = root.querySelector<HTMLElement>('#pkg-search-results')!;
       this.nsList = document.getElementById('pkg-namespace-list') as HTMLElement;
@@ -334,7 +270,7 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
       this.countEl = root.querySelector<HTMLElement>('#pkg-search-count')!;
       this.filtersEl = root.querySelector<HTMLElement>('#pkg-kind-filters')!;
       this.clearFiltersBtn = root.querySelector<HTMLElement>('#pkg-clear-filters')!;
-      this.index = readApiSearchIndex<PkgIndexEntry>(root);
+      this.index = index;
       this.base = root.dataset.base ?? '';
       this.pkgName = root.dataset.packageName ?? '';
       this.typeCount = Number(root.dataset.typeCount ?? 0);
@@ -626,7 +562,11 @@ const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceComm
     }
   }
 
-  registerApiSearch('csharp', 'package', withApiSearchFallback((root, signal) => new PkgSearchController(root, signal)));
+  registerApiSearch('csharp', 'package', withApiSearchFallback(async (root, signal) => {
+    const index = await loadApiSearchIndex<PkgIndexEntry>(root, signal);
+    if (signal.aborted) return;
+    new PkgSearchController(root, signal, index);
+  }));
 </script>
 
 <style>

@@ -26,6 +26,82 @@ We welcome translation contributions! Please see our [Translation guide](https:/
    └───📂 public                  # Static assets served as-is
 ```
 
+## Hybrid API documentation POC
+
+The normal build remains fully static. Opting in with `ASPIRE_HYBRID_API_DOCS=1`
+at **build time** leaves non-API documentation and assets static, but renders all
+C# and TypeScript API HTML and Markdown on demand through the existing StaticHost.
+This includes both API search pages. The convenience command `build:hybrid` sets
+the flag only for its child build; `build:hybrid:skip-search` also skips Pagefind.
+Setting a runtime flag alone cannot convert an already-static artifact.
+Use `build:hybrid`, not the static-only `build:statichost` command, for this mode.
+
+Run full-site comparisons in CI, not on your development machine. From the
+**Frontend Build** workflow, select the POC option, or use:
+
+```powershell
+gh workflow run frontend-build.yml --repo microsoft/aspire.dev --ref YOUR_BRANCH -f hybrid_api_poc=true
+```
+
+A PR carrying the `hybrid-api-poc` label also runs the POC checks when CI is
+triggered by opening, reopening, or pushing to the PR. The comparison builds both
+modes from the same commit and reports output counts, build resource usage, and
+cold/warm rendering measurements in `hybrid-api-docs-results`.
+The manual POC selection runs its focused checks and comparison without also
+duplicating the ordinary frontend build and all viewport test shards.
+
+Download the completed `hybrid-api-docs-poc` artifact into the frontend directory:
+
+```powershell
+gh run download RUN_ID --repo microsoft/aspire.dev --name hybrid-api-docs-poc-windows --dir .\src\frontend\dist-hybrid
+$env:ASPIRE_HYBRID_API_DOCS = '1'
+aspire start --non-interactive
+```
+
+Restore frontend dependencies with the repository's existing pnpm setup first.
+The downloaded directory contains `client`, `server`, and `hybrid-api-docs.json`.
+Use `hybrid-api-docs-poc` on Linux or `hybrid-api-docs-poc-windows` on Windows.
+The Node adapter's build paths are platform-specific; a Linux artifact cannot
+run on Windows. The manifest checks the platform before starting the renderer.
+The manifest and server stay outside the public static root. Browse the
+StaticHost endpoint in the Aspire dashboard. The AppHost runs two private Node
+processes, `api-docs` and `api-docs-standby`, from the same artifact. Dependencies
+must already be restored; startup does not install packages or rebuild the site.
+Missing or incompatible artifacts cause an actionable startup error instead of
+starting a development server or rebuilding the site.
+
+Astro's native `memoryCache()` is the only response cache: 128 LRU entries with a
+30-minute lifetime, not a 128 MiB byte budget. It does not guarantee cold-miss
+coalescing. StaticHost forwards every request, buffers up to 64 MiB, and sends
+on-demand output with `Cache-Control: no-store`. Negotiated Markdown shares the
+native `.md` entry; its private/Vary headers are applied during forwarding.
+Authorization requests bypass caching; preference cookies are not forwarded.
+
+Workers verify a real API render before becoming ready. StaticHost retries a
+failed GET against the matching-build standby, with 10-second attempts within a
+30-second budget. `/healthz/api-docs` reports renderer readiness; `/healthz`
+reports host liveness. If both workers fail, APIs return gateway errors while
+static pages remain available. Restarting Node clears its cache; restarting
+StaticHost does not. Restart the whole pair when replacing the artifact.
+
+Existing Redis/live-status behavior and the static Azure deployment are
+unchanged. Hybrid publishing models a .NET main container and two private Astro
+sidecars in the same App Service, without shared volumes. Build the renderer
+image with `src/frontend/Dockerfile.hybrid`, push it to the App Service registry,
+and supply its immutable image reference as `Parameters__api_docs_image` to the
+Aspire deployment. Both images must use the same Linux build artifact. No Azure
+resources are provisioned by the POC CI. Runtime images are restricted to bundled
+local files and dimensions up to 4096 pixels.
+
+Set `HybridApiDocsArtifactDirectory` to select an artifact outside `dist-hybrid`,
+for example when keeping Windows local and Linux deployment artifacts separate.
+
+Unset the flag to return to the ordinary Vite/local workflow:
+
+```powershell
+Remove-Item Env:ASPIRE_HYBRID_API_DOCS
+```
+
 ## Environment badge
 
 Set `PUBLIC_ENVIRONMENT_BADGE` to display a small text badge beside the header logo

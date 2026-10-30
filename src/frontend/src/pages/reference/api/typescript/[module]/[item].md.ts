@@ -5,6 +5,7 @@ import { renderTypeScriptItemMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsDtoType, TsEnumType, TsFunction, TsHandleType } from '@utils/ts-modules';
 import { getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
 import { getTsItemSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import { resolveTypeScriptApiRoute } from '@utils/api-route-data';
 
 export const prerender = true;
 
@@ -121,9 +122,10 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   return [...paths, ...legacy.values()];
 }
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = async ({ props, url }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  const routeProps = props as RouteProps;
+  const routeProps = (props.pkg ? props : await resolveTypeScriptApiRoute(url.pathname)) as RouteProps | undefined;
+  if (!routeProps?.item) return new Response('API item not found', { status: 404 });
 
   return markdownResponse(
     renderTypeScriptItemMarkdown(routeProps.pkg, routeProps.item, routeProps.itemKind, base)

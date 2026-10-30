@@ -9,6 +9,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
 import { tsModuleSlug, getTsModules, simplifyType, formatTsSignature, type TsFunction } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
+import { resolveTypeScriptApiRoute } from '@utils/api-route-data';
 import { getTsFunctionDisplayLabel, isTsExtensionStyleFunction } from '@utils/ts-api-function-kind';
 import { getTsItemSlug, getTsMemberAnchor, getTsMethods, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems, getTsTypeByName } from '@utils/ts-api-routes';
 import Breadcrumb from '@components/Breadcrumb.astro';
@@ -67,7 +68,9 @@ export async function getStaticPaths() {
   return paths;
 }
 
-const { pkg, item, itemKind } = Astro.props;
+const routeProps = Astro.props.pkg ? Astro.props : await resolveTypeScriptApiRoute(Astro.url.pathname);
+if (!routeProps?.item) return new Response('API item not found', { status: 404 });
+const { pkg, item, itemKind } = routeProps;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pkgSlug = tsModuleSlug(pkg.package.name);
 const topLevelItems = getTsTopLevelRouteItems(pkg);

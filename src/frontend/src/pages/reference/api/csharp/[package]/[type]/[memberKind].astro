@@ -9,6 +9,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import MemberCard from '@components/api-reference/MemberCard.astro';
+import { resolveCSharpApiRoute } from '@utils/api-route-data';
 import DocContent from '@components/api-reference/DocContent.astro';
 import {
   slugify,
@@ -65,7 +66,9 @@ export async function getStaticPaths() {
   return paths;
 }
 
-const { pkg, type, allTypes, kind } = Astro.props;
+const routeProps = Astro.props.pkg ? Astro.props : await resolveCSharpApiRoute(Astro.url.pathname);
+if (!routeProps?.type || !routeProps.kind) return new Response('API member group not found', { status: 404 });
+const { pkg, type, allTypes, kind } = routeProps;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const apiSidebar = await getApiReferenceSidebar({ packageName: pkg.package.name });
 

@@ -1,13 +1,13 @@
 var builder = DistributedApplication.CreateBuilder(args);
-
 // For deployment: We want to pick AppService as the environment to publish to.
-builder.AddAzureAppServiceEnvironment("production")
+var production = builder.AddAzureAppServiceEnvironment("production")
     .WithDashboard(false);
 
 var cache = builder.AddAzureManagedRedis("cache")
     .RunAsContainer();
 
 var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
+    .WithComputeEnvironment(production)
     .WithReference(cache)
     .WithExternalHttpEndpoints()
     .PublishAsAzureAppServiceWebsite((infra, website) =>
@@ -21,6 +21,11 @@ var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
     });
 
 var frontDoor = builder.AddAzureFrontDoor(staticHostWebsite);
+if (builder.ExecutionContext.IsPublishMode)
+{
+    // Published sites always serve the prebuilt hybrid website and its renderers.
+    staticHostWebsite.WithHybridApiDocs(builder, Path.GetFullPath("../../frontend", builder.AppHostDirectory));
+}
 
 if (builder.ExecutionContext.IsRunMode)
 {
@@ -30,11 +35,13 @@ if (builder.ExecutionContext.IsRunMode)
     // The live-status client calls same-origin /api/live[/stream]; inject StaticHost's
     // origin so the Vite dev server can proxy those to the API (see astro.config.mjs).
     // Without this, /api/live 404s against the Vite origin under `aspire run`.
+    // Vite serves the website, so StaticHost may start without a hybrid artifact.
+    staticHostWebsite.WithEnvironment("HybridApiDocs__WebsiteServedByDevServer", "true");
     builder.AddViteApp("frontend", "../../frontend")
-           .WithPnpm()
-           .WithEnvironment("ASPIRE_STATICHOST_URL", staticHostWebsite.GetEndpoint("https"))
-           .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (Local)")
-           .WithExternalHttpEndpoints();
+       .WithPnpm()
+       .WithEnvironment("ASPIRE_STATICHOST_URL", staticHostWebsite.GetEndpoint("https"))
+       .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (Local)")
+       .WithExternalHttpEndpoints();
 }
 else
 {
