@@ -55,6 +55,20 @@ Once Aspire 17.0 is available on the stable channel, use the [`aspire update` co
 
 <span id="breaking-changes"></span>
 
+#### AppHost SDK is obsolete and the CLI bundle is required
+
+The default C# AppHost now uses `Microsoft.NET.Sdk` with explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` package references. Declare project resources with `AddDotnetProject` using a project directory with a trailing slash:
+
+```csharp
+builder.AddDotnetProject("apiservice", "../MyApp.ApiService/");
+```
+
+`Aspire.AppHost.Sdk` reports warning [ASPIRE012](/diagnostics/aspire012/) but remains functional for staged migration, including original `ProjectReference` and `AddProject` resources. No removal date has been agreed; SDK obsoletion doesn't deprecate `AddProject`. After removing the SDK, retained `AddProject` resource references need explicit `IsAspireProjectResource="true"` and `ReferenceOutputAssembly="false"` metadata.
+
+C# AppHosts require the CLI bundle, enabled by default. Disabling it produces error [ASPIRE010](/diagnostics/aspire010/), not a suppressible warning. Fix an unresolved bundle using [ASPIRE009 guidance](/diagnostics/aspire009/) rather than opting out.
+
+Follow [Migrate from the AppHost SDK](/get-started/migrate-apphost-sdk/) for project and file-based AppHosts, central package management, and verification. Removing service project references means AppHost-only builds no longer build those services; keep solution and CI service builds. See [microsoft/aspire#20867](https://github.com/microsoft/aspire/pull/20867) for the source change.
+
 #### Legacy RabbitMQ and MongoDB client packages removed
 
 Starting in Aspire 17.0, new releases no longer include `Aspire.RabbitMQ.Client.v6` or `Aspire.MongoDB.Driver.v2`. Previously published versions of these packages remain available on NuGet.
