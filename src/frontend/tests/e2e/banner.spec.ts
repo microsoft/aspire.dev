@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const MS_PER_DAY = 86_400_000;
+const BANNER_PAGE = '/docs/';
 
 /**
  * Abort every script request so only inline scripts run. Anything the banner does after that is
@@ -28,13 +29,13 @@ test.describe('announcement banner', () => {
   });
 
   test('is in the first paint, so showing it cannot shift the page', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BANNER_PAGE);
 
     await expect(page.locator('[data-aspire-banner]')).toBeVisible();
   });
 
   test('stays hidden for a reader who dismissed it', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BANNER_PAGE);
     const { dismissKey } = await bannerKeys(page);
 
     await page.evaluate((key) => localStorage.setItem(key, 'true'), dismissKey);
@@ -44,7 +45,7 @@ test.describe('announcement banner', () => {
   });
 
   test('stays hidden once its auto-dismiss window has elapsed', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BANNER_PAGE);
     const { firstSeenKey } = await bannerKeys(page);
 
     await page.evaluate(
@@ -57,7 +58,7 @@ test.describe('announcement banner', () => {
   });
 
   test('stays visible inside its auto-dismiss window', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BANNER_PAGE);
     const { firstSeenKey } = await bannerKeys(page);
 
     await page.evaluate(
