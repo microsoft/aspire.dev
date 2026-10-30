@@ -2296,3 +2296,34 @@ test('passes WCAG AA checks in the dark theme', async ({ page }) => {
     violations.length === 0 ? undefined : JSON.stringify(violations, null, 2)
   ).toEqual([]);
 });
+
+test('keeps a dashboard view chosen before the tour activates', async ({ page }) => {
+  // Reduced motion settles the section reveal immediately, so the stage stays where it is scrolled.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await dismissCookieConsentIfVisible(page);
+
+  const carousel = page.locator('[data-dashboard-carousel]');
+  const stage = carousel.locator('[data-stage]');
+  const next = carousel.getByRole('button', { name: 'Next view' });
+  const activeSlide = carousel.locator('[data-slide][aria-current="true"]');
+
+  // Leave the top of the stage under the sticky header: visible enough for the
+  // tour's fail-safe activation, but not fully presented, so it activates late.
+  await stage.evaluate((element) => {
+    const header = document.querySelector<HTMLElement>('header.header');
+    const headerHeight = header?.getBoundingClientRect().height ?? 0;
+    const bounds = element.getBoundingClientRect();
+    const documentTop = bounds.top + window.scrollY;
+    window.scrollTo(0, documentTop - headerHeight + bounds.height * 0.05);
+  });
+  await expect(next).toBeInViewport();
+  await expect(carousel).not.toHaveAttribute('data-viewport-active', '');
+  await expect(activeSlide).toHaveAttribute('data-index', '0');
+
+  await next.click();
+  await expect(activeSlide).toHaveAttribute('data-index', '1');
+
+  await expect(carousel).toHaveAttribute('data-viewport-active', '');
+  await expect(activeSlide).toHaveAttribute('data-index', '1');
+});
