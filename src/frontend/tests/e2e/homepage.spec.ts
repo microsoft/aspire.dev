@@ -1752,6 +1752,37 @@ test('fades environment changes and pauses independent resource motion', async (
   ).toEqual(['running', 'running', 'running', 'running']);
 });
 
+test('starts the environment fade even when a long task delays the next frame', async ({
+  page,
+}) => {
+  const environment = page.locator('[data-home-environments]');
+  const testPanel = environment.locator('[data-environment-panel="test"]');
+
+  await environment.locator('.environment-stage').scrollIntoViewIfNeeded();
+  await expect(environment).toHaveAttribute('data-environment-motion-active', '');
+
+  await testPanel.evaluate((element) => {
+    element.dataset.testFadeSeen = 'false';
+    element.addEventListener('animationstart', (event) => {
+      if (event.animationName === 'environment-panel-fade-in') {
+        element.dataset.testFadeSeen = 'true';
+      }
+    });
+  });
+  // Block the main thread past the fade duration, as a busy device can after a click.
+  await environment.getByRole('button', { name: 'Test' }).evaluate((button) => {
+    (button as HTMLButtonElement).click();
+    const end = performance.now() + 250;
+    while (performance.now() < end) {
+      // Busy wait.
+    }
+  });
+
+  await expect(testPanel).toBeVisible();
+  await expect(testPanel).toHaveAttribute('data-test-fade-seen', 'true');
+  await expect(testPanel).not.toHaveAttribute('data-transition', { timeout: 2_000 });
+});
+
 test('passes WCAG AA checks in every environment state', async ({ page }) => {
   const environment = page.locator('[data-home-environments]');
   await environment.scrollIntoViewIfNeeded();
