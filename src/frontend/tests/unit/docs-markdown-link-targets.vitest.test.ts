@@ -58,7 +58,13 @@ const proseLines = (source: string) => {
   return source.split('\n').map((line) => {
     const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1];
     if (fence) {
-      if (marker && marker[0] === fence[0] && line.trim() === marker) fence = undefined;
+      if (
+        marker &&
+        marker[0] === fence[0] &&
+        marker.length >= fence.length &&
+        line.trim() === marker
+      )
+        fence = undefined;
       return '';
     }
     if (marker) {
@@ -151,6 +157,13 @@ describe('English docs Markdown link targets', () => {
   it('finds the English docs', () => {
     expect(docsByRoute.get('/whats-new/aspire-9-4/')).toBeDefined();
     expect(docs.length).toBeGreaterThan(100);
+  });
+
+  it('keeps shorter delimiters inside a longer code fence', () => {
+    const source = ['````md', '```', '[inside](code)', '```', '````', '[after](/after/)'].join(
+      '\n'
+    );
+    expect(proseLines(source)).toEqual(['', '', '', '', '', '[after](/after/)']);
   });
 
   it('uses resolvable link targets that starlight-links-validator does not check', () => {
