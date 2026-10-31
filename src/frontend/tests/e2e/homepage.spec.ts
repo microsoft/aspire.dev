@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { locales } from '../../config/locales';
@@ -2240,6 +2240,17 @@ test('resolves motion immediately when reduced motion is requested', async ({ pa
   });
 });
 
+function readHeroCopyOpacity(page: Page) {
+  return page
+    .locator('.home-hero-copy')
+    .evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity));
+}
+
+async function expectHeroCopyReceded(page: Page) {
+  // The hero applies scroll progress on the next animation frame.
+  await expect.poll(() => readHeroCopyOpacity(page)).toBeLessThanOrEqual(0.12);
+}
+
 test('uses bounded hero motion to advance product proof on large viewports', async ({ page }) => {
   const viewport = page.viewportSize();
   test.skip(
@@ -2275,10 +2286,38 @@ test('uses bounded hero motion to advance product proof on large viewports', asy
 
   await page.evaluate(() => window.scrollTo(0, 600));
 
-  const recededCopyOpacity = await page
-    .locator('.home-hero-copy')
-    .evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity));
-  expect(recededCopyOpacity).toBeLessThanOrEqual(0.12);
+  await expectHeroCopyReceded(page);
+});
+
+test('waits for the hero scroll frame before checking receded copy', async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 1152 || viewport.height < 768,
+    'The hero uses normal document flow below the desktop motion breakpoint.'
+  );
+
+  // Simulate a slow frame so a read that does not wait for the scroll frame sees stale progress.
+  await page.addInitScript(() => {
+    const requestFrame = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (callback) => {
+      let remainingFrames = 30;
+      const defer = (time: number) => {
+        remainingFrames -= 1;
+        if (remainingFrames > 0) requestFrame(defer);
+        else callback(time);
+      };
+      return requestFrame(defer);
+    };
+  });
+  await page.reload();
+  await dismissCookieConsentIfVisible(page);
+
+  await page.evaluate(() => window.scrollTo(0, 320));
+  await expect.poll(() => readHeroCopyOpacity(page)).toBeLessThan(1);
+
+  await page.evaluate(() => window.scrollTo(0, 600));
+
+  await expectHeroCopyReceded(page);
 });
 
 test('keeps primary controls visible and focused in forced colors', async ({ page }) => {
