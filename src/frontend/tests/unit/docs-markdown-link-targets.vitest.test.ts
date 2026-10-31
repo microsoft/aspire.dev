@@ -73,6 +73,15 @@ const docs = collectDocs(docsDir);
 const docsByRoute = new Map(docs.map((file) => [routeOf(file), file]));
 const anchorCache = new Map<string, Set<string>>();
 
+const stripTags = (value: string) => {
+  let previous;
+  do {
+    previous = value;
+    value = value.replace(/<[^>]*>/g, '');
+  } while (value !== previous);
+  return value;
+};
+
 const anchorsOf = (file: string) => {
   let anchors = anchorCache.get(file);
   if (!anchors) {
@@ -80,9 +89,7 @@ const anchorsOf = (file: string) => {
     const source = proseLines(readFileSync(file, 'utf8')).join('\n');
     anchors = new Set();
     for (const [, heading] of source.matchAll(/^#{2,6}\s+(.+?)\s*$/gm)) {
-      const text = heading
-        .replace(/<[^>]*>/g, '')
-        .replace(/[<>]/g, '')
+      const text = stripTags(heading)
         .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
         .replace(/[`*_]/g, '')
         .trim();
