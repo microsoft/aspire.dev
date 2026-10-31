@@ -581,6 +581,50 @@ test.describe('site search dialog', () => {
     await expect(input).toHaveAttribute('aria-expanded', 'false');
   });
 
+  test('auto-highlights the first result when later results render first', async ({ page }) => {
+    // Pagefind renders each result once its own fragment loads. Hold the
+    // first result's fragment so later results render before it.
+    let fragmentRequests = 0;
+    let releaseFirstFragment = () => {};
+    const firstFragmentReleased = new Promise<void>((resolve) => {
+      releaseFirstFragment = resolve;
+    });
+    await page.route('**/pagefind/fragment/**', async (route) => {
+      if (fragmentRequests++ === 0) await firstFragmentReleased;
+      await route.continue();
+    });
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const ready = await openSearchDialog(page);
+    test.skip(!ready, 'Pagefind is not available in dev mode; keyboard nav runs against astro preview.');
+
+    await typeSearchQuery(page, 'aspire');
+
+    const dialog = page.locator('site-search dialog[open]');
+    const input = dialog.locator('input.pagefind-ui__search-input');
+    const firstResult = dialog.locator('.pagefind-ui__result').first();
+    const activeTargets = dialog.locator('[data-search-active="true"]');
+
+    await expect(activeTargets).toHaveCount(1);
+    await expect(firstResult.locator('.pagefind-ui__result-link')).toHaveCount(0);
+
+    releaseFirstFragment();
+
+    const firstLink = firstResult.locator('.pagefind-ui__result-link').first();
+    await expect(firstLink).toBeVisible();
+    await expect(firstLink).toHaveAttribute('data-search-active', 'true');
+    await expect(firstLink).toHaveAttribute('aria-selected', 'true');
+    await expect(activeTargets).toHaveCount(1);
+    const firstId = (await firstLink.getAttribute('id'))!;
+    await expect(input).toHaveAttribute('aria-activedescendant', firstId);
+
+    const firstHref = (await firstLink.getAttribute('href'))!;
+    await input.press('Enter');
+    await expect(page).toHaveURL(new URL(firstHref, page.url()).href);
+  });
+
   test('arrow nav also cycles through the C#/TypeScript API buttons', async ({ page }) => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
