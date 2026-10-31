@@ -82,6 +82,7 @@ const anchorsOf = (file: string) => {
     for (const [, heading] of source.matchAll(/^#{2,6}\s+(.+?)\s*$/gm)) {
       const text = heading
         .replace(/<[^>]*>/g, '')
+        .replace(/[<>]/g, '')
         .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
         .replace(/[`*_]/g, '')
         .trim();
