@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 const frontendRoot = join(import.meta.dirname, '../..');
@@ -55,7 +55,11 @@ describe('get-started AppHost samples', () => {
         .filter((name) => /\.mdx?$/.test(name))
         .map((name) => join(root, name))
     );
-    expect(files.some((path) => path.includes('/ja/get-started/'))).toBe(true);
+    expect(
+      files.some((path) =>
+        relative(docsRoot, path).split(sep).join('/').startsWith('ja/get-started/')
+      )
+    ).toBe(true);
 
     for (const path of files) {
       for (const sample of csharpAppHostSamples(readFileSync(path, 'utf8'))) {
@@ -63,7 +67,8 @@ describe('get-started AppHost samples', () => {
           /\bbuilder\s*\.\s*(Add[A-Z]\w*)\s*(?:<[^()]*>)?\s*\(/g
         )) {
           calls++;
-          if (!members.has(name)) missing.push(`${relative(frontendRoot, path)}: ${name}`);
+          if (!members.has(name))
+            missing.push(`${relative(frontendRoot, path).split(sep).join('/')}: ${name}`);
         }
       }
     }
