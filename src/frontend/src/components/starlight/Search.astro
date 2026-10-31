@@ -332,8 +332,11 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
       const idx = this.targets.indexOf(target);
-      if (idx >= 0 && idx !== this.activeIndex) {
-        this.userNavigated = true;
+      if (idx < 0) return;
+      // Focusing the auto-highlighted result still counts as navigation, so
+      // a later re-render must not move the highlight away from focus.
+      this.userNavigated = true;
+      if (idx !== this.activeIndex) {
         this.setActive(idx, /* moveFocus */ false, /* scroll */ false);
       }
     }

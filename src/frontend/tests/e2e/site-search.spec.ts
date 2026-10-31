@@ -625,6 +625,50 @@ test.describe('site search dialog', () => {
     await expect(page).toHaveURL(new URL(firstHref, page.url()).href);
   });
 
+  test('keeps the highlight on a focused result when an earlier result renders later', async ({
+    page,
+  }) => {
+    let fragmentRequests = 0;
+    let releaseFirstFragment = () => {};
+    const firstFragmentReleased = new Promise<void>((resolve) => {
+      releaseFirstFragment = resolve;
+    });
+    await page.route('**/pagefind/fragment/**', async (route) => {
+      if (fragmentRequests++ === 0) await firstFragmentReleased;
+      await route.continue();
+    });
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const ready = await openSearchDialog(page);
+    test.skip(!ready, 'Pagefind is not available in dev mode; keyboard nav runs against astro preview.');
+
+    await typeSearchQuery(page, 'aspire');
+
+    const dialog = page.locator('site-search dialog[open]');
+    const firstResult = dialog.locator('.pagefind-ui__result').first();
+    const activeTargets = dialog.locator('[data-search-active="true"]');
+
+    await expect(activeTargets).toHaveCount(1);
+    await expect(firstResult.locator('.pagefind-ui__result-link')).toHaveCount(0);
+
+    // Focus the result that was auto-highlighted before the first one loaded.
+    const focusedHref = (await activeTargets.getAttribute('href'))!;
+    await activeTargets.focus();
+    await expect(activeTargets).toBeFocused();
+
+    releaseFirstFragment();
+
+    const firstLink = firstResult.locator('.pagefind-ui__result-link').first();
+    await expect(firstLink).toBeVisible();
+    await expect(firstLink).not.toHaveAttribute('data-search-active', 'true');
+    await expect(firstLink).not.toHaveAttribute('aria-selected', 'true');
+    await expect(activeTargets).toHaveCount(1);
+    await expect(activeTargets).toHaveAttribute('href', focusedHref);
+    await expect(activeTargets).toBeFocused();
+  });
+
   test('arrow nav also cycles through the C#/TypeScript API buttons', async ({ page }) => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
