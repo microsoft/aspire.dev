@@ -17,7 +17,7 @@ aspire template source add <name> [options]
 
 ## Description
 
-The `aspire template source add` command adds a named template source to global Aspire configuration. A template source is identified by a repository URL (`--repository`) or a local path (`--path`).
+The `aspire template source add` command adds a named template source to global Aspire configuration. A template source is either a Git repository (`--repository`, optionally with `--path` and `--ref`) or an absolute local directory (`--path` without `--repository`).
 
 Templates can run code, so the command asks you to trust the source before it changes any configuration. The prompt shows the source name and its repository URL or local path, and defaults to **No**:
 
@@ -43,15 +43,18 @@ The following options are available:
 
 - **`--path`**
 
-  The local path of the template source.
+  The template directory. Its meaning depends on whether `--repository` is specified:
+
+  - Without `--repository`, `--path` must be an absolute local directory that contains templates.
+  - With `--repository`, `--path` is a directory relative to the repository root. It defaults to the repository root (`.`).
 
 - **`--repository`**
 
-  The repository URL of the template source.
+  An HTTPS or SSH Git repository URL that contains templates.
 
 - **`--ref`**
 
-  The Git reference of the template source repository.
+  A Git branch, tag, or full commit SHA. Requires `--repository` and defaults to `HEAD`.
 
 - **`-y, --yes`**
 
@@ -75,6 +78,18 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire template source add company --repository https://example.com/templates
+  ```
+
+- Add a template source from a subdirectory of a repository at a specific tag:
+
+  ```bash title="Aspire CLI"
+  aspire template source add company --repository https://example.com/templates --path templates/web --ref v1.0.0
+  ```
+
+- Add a template source from an absolute local directory:
+
+  ```bash title="Aspire CLI"
+  aspire template source add local --path /home/user/templates
   ```
 
 - Add a template source in automation by explicitly trusting it:
