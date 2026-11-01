@@ -8,7 +8,7 @@ async function waitForHovers(page: Page) {
   await expect(page.locator('.twoslash-hover > .twoslash-popup-container')).toHaveCount(0);
 }
 
-async function assertHovers(page: Page) {
+async function assertHovers(page: Page, tokenLimit = Number.POSITIVE_INFINITY) {
   await waitForHovers(page);
   const hovers = page.locator('.twoslash-hover:visible');
   await expect(hovers.first()).toBeVisible();
@@ -17,7 +17,7 @@ async function assertHovers(page: Page) {
 
   // Check every token, not just the first: index-based pairing can show a
   // different token's popup, multiple popups, or nothing at all.
-  for (let index = 0; index < count; index++) {
+  for (let index = 0; index < Math.min(count, tokenLimit); index++) {
     const hover = hovers.nth(index);
     const token = (await hover.textContent())!.trim();
     for (let repeat = 0; repeat < 2; repeat++) {
@@ -97,22 +97,29 @@ test.describe('two-slash navigation', () => {
     }
   });
 
-  test('shows the correct popup on direct load, client navigation, and repeated visits', async ({
-    page,
-  }) => {
-    test.setTimeout(120_000);
-    const errors: string[] = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(typescriptPage);
-    await dismissCookieConsentIfVisible(page);
-    await page.evaluate(() => Reflect.set(window, '__twoslashSession', true));
-    await assertHovers(page);
+  // Each sweep hovers every token twice and takes roughly 40 seconds in CI.
+  // Give each visit its own test so three sweeps never share one budget.
+  for (const [name, clientVisits] of [
+    ['direct load', 0],
+    ['client navigation', 1],
+    ['repeated client navigation visits', 2],
+  ] as const) {
+    test(`shows the correct popup on ${name}`, async ({ page }) => {
+      test.setTimeout(120_000);
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      await page.goto(typescriptPage);
+      await dismissCookieConsentIfVisible(page);
+      await page.evaluate(() => Reflect.set(window, '__twoslashSession', true));
 
-    for (let visit = 0; visit < 2; visit++) {
-      await followLink(page, '/docs/');
-      await followLink(page, typescriptPage);
+      for (let visit = 0; visit < clientVisits; visit++) {
+        // Interact before leaving, as a reader would; the final visit checks every token.
+        await assertHovers(page, 1);
+        await followLink(page, '/docs/');
+        await followLink(page, typescriptPage);
+      }
       await assertHovers(page);
-    }
-    expect(errors).toEqual([]);
-  });
+      expect(errors).toEqual([]);
+    });
+  }
 });
