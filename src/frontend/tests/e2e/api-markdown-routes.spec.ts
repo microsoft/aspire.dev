@@ -109,3 +109,51 @@ test('built homepages publish useful Markdown through their existing companion p
     expect(markdown).not.toMatch(/<HomePage|<!DOCTYPE html>|class="code-variant"/);
   }
 });
+
+test('page Markdown actions on untranslated locale pages use the Markdown for the shown content', async ({
+  page,
+  request,
+}) => {
+  const copies: string[] = [];
+  await page.exposeFunction('__captureFallbackMarkdown', (text: string) => copies.push(text));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator.clipboard, 'writeText', {
+      configurable: true,
+      value: (text: string) => Reflect.get(window, '__captureFallbackMarkdown')(text),
+    });
+  });
+
+  // `de` renders the English fallback; `ja` has its own translated source.
+  for (const { path, markdownPath, heading } of [
+    {
+      path: '/de/fundamentals/telemetry/',
+      markdownPath: '/fundamentals/telemetry',
+      heading: '# OpenTelemetry and distributed tracing in Aspire',
+    },
+    {
+      path: '/ja/fundamentals/telemetry/',
+      markdownPath: '/ja/fundamentals/telemetry',
+      heading: '# テレメトリ',
+    },
+  ]) {
+    await page.goto(path);
+    const copyButtons = page.locator('[data-page-action="copy-markdown"]');
+    expect(
+      await copyButtons.evaluateAll((buttons) => buttons.map((button) => button.dataset.path))
+    ).toEqual(Array(await copyButtons.count()).fill(markdownPath));
+    const viewLinks = page.locator('a:has([data-action-icon="markdown"])');
+    expect(await viewLinks.count()).toBeGreaterThan(0);
+    expect(
+      await viewLinks.evaluateAll((links) => links.map((link) => link.getAttribute('href')))
+    ).toEqual(Array(await viewLinks.count()).fill(`${markdownPath}.md`));
+
+    const response = await request.get(`${markdownPath}.md`);
+    expect(response.ok(), `${markdownPath}.md should return 200.`).toBe(true);
+    expect(response.headers()['content-type']).toContain('text/markdown');
+
+    const copy = page.locator('[data-page-action="copy-markdown"]:visible').first();
+    await copy.click();
+    await expect(copy).toHaveClass(/copied/);
+    expect(copies.at(-1)).toContain(heading);
+  }
+});
