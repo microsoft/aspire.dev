@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { locales } from '../../config/locales';
@@ -1655,6 +1655,20 @@ test('keeps the environment frame stable while each topology changes', async ({ 
   );
 });
 
+async function recordPanelFade(panel: Locator) {
+  await panel.evaluate((element) => {
+    element.dataset.testFadeSeen = 'false';
+    // Descendant animations also bubble animationstart and can arrive before the panel's fade.
+    const onAnimationStart = (event: AnimationEvent) => {
+      if (event.target === element && event.animationName === 'environment-panel-fade-in') {
+        element.dataset.testFadeSeen = 'true';
+        element.removeEventListener('animationstart', onAnimationStart);
+      }
+    };
+    element.addEventListener('animationstart', onAnimationStart);
+  });
+}
+
 test('fades environment changes and pauses independent resource motion', async ({ page }) => {
   const environment = page.locator('[data-home-environments]');
   const stage = environment.locator('.environment-stage');
@@ -1683,35 +1697,13 @@ test('fades environment changes and pauses independent resource motion', async (
   expect(placement.bottomGap).toBeGreaterThanOrEqual(14);
   expect(placement.bottomGap).toBeLessThanOrEqual(18);
 
-  await testPanel.evaluate((element) => {
-    element.dataset.testFadeSeen = 'false';
-    element.addEventListener(
-      'animationstart',
-      (event) => {
-        if (event.animationName === 'environment-panel-fade-in') {
-          element.dataset.testFadeSeen = 'true';
-        }
-      },
-      { once: true }
-    );
-  });
+  await recordPanelFade(testPanel);
   await environment.getByRole('button', { name: 'Test' }).click();
   await expect(localPanel).toBeHidden();
   await expect(testPanel).toHaveAttribute('data-test-fade-seen', 'true');
   await expect(testPanel).not.toHaveAttribute('data-transition', { timeout: 2_000 });
 
-  await localPanel.evaluate((element) => {
-    element.dataset.testFadeSeen = 'false';
-    element.addEventListener(
-      'animationstart',
-      (event) => {
-        if (event.animationName === 'environment-panel-fade-in') {
-          element.dataset.testFadeSeen = 'true';
-        }
-      },
-      { once: true }
-    );
-  });
+  await recordPanelFade(localPanel);
   await environment.getByRole('button', { name: 'Local' }).click();
   await expect(testPanel).toBeHidden();
   await expect(localPanel).toHaveAttribute('data-test-fade-seen', 'true');
@@ -1761,14 +1753,7 @@ test('starts the environment fade even when a long task delays the next frame', 
   await environment.locator('.environment-stage').scrollIntoViewIfNeeded();
   await expect(environment).toHaveAttribute('data-environment-motion-active', '');
 
-  await testPanel.evaluate((element) => {
-    element.dataset.testFadeSeen = 'false';
-    element.addEventListener('animationstart', (event) => {
-      if (event.animationName === 'environment-panel-fade-in') {
-        element.dataset.testFadeSeen = 'true';
-      }
-    });
-  });
+  await recordPanelFade(testPanel);
   // Block the main thread past the fade duration, as a busy device can after a click.
   await environment.getByRole('button', { name: 'Test' }).evaluate((button) => {
     (button as HTMLButtonElement).click();
@@ -1779,6 +1764,33 @@ test('starts the environment fade even when a long task delays the next frame', 
   });
 
   await expect(testPanel).toBeVisible();
+  await expect(testPanel).toHaveAttribute('data-test-fade-seen', 'true');
+  await expect(testPanel).not.toHaveAttribute('data-transition', { timeout: 2_000 });
+});
+
+test('records the environment fade when a descendant animation starts first', async ({
+  page,
+}) => {
+  const environment = page.locator('[data-home-environments]');
+  const testPanel = environment.locator('[data-environment-panel="test"]');
+
+  await environment.locator('.environment-stage').scrollIntoViewIfNeeded();
+  await expect(environment).toHaveAttribute('data-environment-motion-active', '');
+
+  await recordPanelFade(testPanel);
+  // Revealing a panel restarts its topology animations, whose animationstart events bubble to the
+  // panel and can be dispatched before the fade's own event.
+  await testPanel
+    .locator('.topology-node-card')
+    .first()
+    .evaluate((card) =>
+      card.dispatchEvent(
+        new AnimationEvent('animationstart', { animationName: 'topology-node-idle', bubbles: true })
+      )
+    );
+  await expect(testPanel).toHaveAttribute('data-test-fade-seen', 'false');
+
+  await environment.getByRole('button', { name: 'Test' }).click();
   await expect(testPanel).toHaveAttribute('data-test-fade-seen', 'true');
   await expect(testPanel).not.toHaveAttribute('data-transition', { timeout: 2_000 });
 });
