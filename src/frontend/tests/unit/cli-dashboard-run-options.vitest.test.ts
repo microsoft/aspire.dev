@@ -51,33 +51,82 @@ function documentedOptions() {
   return documented;
 }
 
+// Joins Bash (`\`) and PowerShell (`` ` ``) continuation lines into one logical command,
+// keeping the 1-based line number where each command starts.
+function logicalLines(text: string) {
+  const result: { text: string; line: number }[] = [];
+  let current: { text: string; line: number } | undefined;
+
+  text.split('\n').forEach((raw, index) => {
+    const continued = /\s[\\`]\s*$/.test(raw);
+    const part = continued ? raw.replace(/\s[\\`]\s*$/, ' ') : raw;
+    if (current) current.text += part;
+    else current = { text: part, line: index + 1 };
+    if (!continued) {
+      result.push(current);
+      current = undefined;
+    }
+  });
+  if (current) result.push(current);
+
+  return result;
+}
+
+function undocumentedOptionsIn(text: string, documented: Set<string>) {
+  const undocumented: { line: number; option: string }[] = [];
+
+  for (const { text: command, line } of logicalLines(text)) {
+    for (const [, args] of command.matchAll(/\baspire dashboard run\b([^`\n|]*)/g)) {
+      // PascalCase arguments such as --Dashboard:Api:AuthMode=ApiKey or --AllowedHosts=...
+      // are forwarded to the dashboard as configuration keys, not CLI options.
+      for (const [, option] of args.matchAll(/(?<![\w-])(--?[a-z][a-z0-9-]*)(?![\w:])/g)) {
+        if (!documented.has(option)) undocumented.push({ line, option });
+      }
+    }
+  }
+
+  return undocumented;
+}
+
 describe('aspire dashboard run reference', () => {
+  test('detects options on Bash and PowerShell continuation lines', () => {
+    const documented = new Set(['--frontend-url']);
+    const bash = [
+      '```bash',
+      'aspire dashboard run \\',
+      '    --frontend-url http://localhost:9000 \\',
+      '    --Dashboard:Api:AuthMode=ApiKey \\',
+      '    --not-a-real-option',
+      '```',
+    ].join('\n');
+    const powershell = [
+      '```powershell',
+      'aspire dashboard run `',
+      '    --frontend-url http://localhost:9000 `',
+      '    --Dashboard:Api:AuthMode=ApiKey `',
+      '    --not-a-real-option',
+      '```',
+    ].join('\n');
+
+    expect(undocumentedOptionsIn(bash, documented)).toEqual([
+      { line: 2, option: '--not-a-real-option' },
+    ]);
+    expect(undocumentedOptionsIn(powershell, documented)).toEqual([
+      { line: 2, option: '--not-a-real-option' },
+    ]);
+  });
+
   test('documents every option the docs pass to aspire dashboard run', () => {
     const documented = documentedOptions();
     const files = docFiles(docsRoot).filter((path) => {
       const parts = relative(docsRoot, path).split(sep);
       return !localeDirs.has(parts[0]) && !parts.includes('whats-new');
     });
-    const undocumented: string[] = [];
-
-    for (const path of files) {
-      readFileSync(path, 'utf8')
-        .split('\n')
-        .forEach((line, index) => {
-          for (const [, args] of line.matchAll(/\baspire dashboard run\b([^`\n|]*)/g)) {
-            // PascalCase arguments such as --Dashboard:Api:AuthMode=ApiKey or --AllowedHosts=...
-            // are forwarded to the dashboard as configuration keys, not CLI options.
-            const options = [...args.matchAll(/(?<![\w-])(--?[a-z][a-z0-9-]*)(?![\w:])/g)].map(
-              (match) => match[1]
-            );
-            for (const option of options) {
-              if (!documented.has(option)) {
-                undocumented.push(`${relative(frontendRoot, path)}:${index + 1} ${option}`);
-              }
-            }
-          }
-        });
-    }
+    const undocumented = files.flatMap((path) =>
+      undocumentedOptionsIn(readFileSync(path, 'utf8'), documented).map(
+        ({ line, option }) => `${relative(frontendRoot, path)}:${line} ${option}`
+      )
+    );
 
     expect(documented).toContain('--frontend-url');
     expect(files.length).toBeGreaterThan(0);
