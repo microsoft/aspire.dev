@@ -17,7 +17,7 @@ function docs(directory: string, files: string[] = []) {
 
 function typeScriptFences(source: string) {
   const fences: { line: number; info: string; body: string }[] = [];
-  const lines = source.split('\n');
+  const lines = source.split(/\r?\n/);
   for (let index = 0; index < lines.length; index++) {
     const open = /^\s*(`{3,}|~{3,})\s*(?:typescript|ts|tsx)\b(.*)$/i.exec(lines[index]);
     if (!open) continue;
@@ -58,6 +58,22 @@ describe('TypeScript AppHost SDK imports', () => {
       "import { createBuilder } from './.aspire/modules/aspire.mjs';",
       '```',
     ].join('\n');
+
+    expect(legacySdkImports(source)).toEqual([
+      'line 1: ./.modules/aspire.js',
+      'line 4: title names apphost.ts',
+    ]);
+  });
+
+  test('flags the pre-13.4 apphost.ts layout in CRLF files', () => {
+    const source = [
+      '```typescript title="TypeScript — apphost.ts"',
+      "import { createBuilder } from './.modules/aspire.js';",
+      '```',
+      '```typescript title="apphost.ts"',
+      "import { createBuilder } from './.aspire/modules/aspire.mjs';",
+      '```',
+    ].join('\r\n');
 
     expect(legacySdkImports(source)).toEqual([
       'line 1: ./.modules/aspire.js',
