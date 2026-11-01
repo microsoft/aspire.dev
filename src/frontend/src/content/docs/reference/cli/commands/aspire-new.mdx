@@ -90,6 +90,33 @@ aspire certs trust
 
 Choosing **No** (the default) configures services with standard `http://localhost:<port>` addresses. This option requires no certificate setup and works in all browsers and tools without additional configuration.
 
+### Template sources from init configuration
+
+When the `ASPIRE_INIT_SOURCE_URL` environment variable is explicitly set, the **Search for more templates** flow in interactive `aspire new` combines the `templateSources` from that init-config repository with your global template sources. For example:
+
+```json title="Init repository configuration"
+{
+  "templateSources": {
+    "enterprise": {
+      "repository": "https://git.acme.example/platform/templates",
+      "ref": "template-preview",
+      "path": "templates"
+    }
+  }
+}
+```
+
+- The explicit environment variable authorizes fetching the template configuration for template search without another consent prompt. Employee detection alone doesn't enable this inheritance.
+- Global sources win over inherited sources with the same alias (compared case-insensitively). A global source replaces the inherited definition entirely, including its repository, ref, and path.
+- Inherited sources are used at runtime only. They're never written to user or project configuration, and project-level template sources remain ignored.
+- Use `aspire template source list` to see the combined list. In interactive mode it prompts for consent to include the inherited sources. Pass `--use-config-source` to accept without prompting, or `--use-config-source false` to list only global sources. With `--format json`, the command never prompts and lists only global sources unless you pass `--use-config-source`.
+
+```bash title="Aspire CLI"
+export ASPIRE_INIT_SOURCE_URL=https://git.acme.example/platform/aspire-init
+aspire template source list --format json --use-config-source
+aspire new aspire-starter --use-config-source
+```
+
 ## Options
 
 The following options are available:
@@ -123,6 +150,10 @@ The following options are available:
 - **`--language`**
 
   The programming language for the AppHost, such as `csharp`, `typescript`, or `go`. When you don't pass a template, `aspire new` offers only the templates that support the language.
+
+- **`--use-config-source [true|false]`**
+
+  Consent to using the proposed init configuration source. A bare `--use-config-source` means `true`; `true` and `false` are also accepted. When you omit the option, the consent is unspecified and the command prompts when a configuration source is available.
 
 - **`--suppress-agent-init`**
 
