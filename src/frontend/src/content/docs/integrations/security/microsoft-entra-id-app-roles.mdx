@@ -1,0 +1,75 @@
+---
+title: Microsoft Entra ID app-role assignments
+seoTitle: Assign Entra app roles to managed identities in Aspire
+description: Learn how to grant user-assigned managed identities application roles on a Microsoft Entra API registration with PublishWithAppRoleAssignment.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+The `Aspire.Hosting.Azure.EntraId` integration can create a Microsoft Entra API registration and grant other workloads access to it. `PublishWithAppRoleAssignment` grants a user-assigned managed identity (UAMI) an application role on an API registration that Aspire creates. Callers authenticate directly as their managed identities, so they don't need a separate app registration or federated identity credential.
+
+The role must be declared on the registration, enabled, and allow the `Application` member type. Assignments apply only during publish and deploy, not during local run.
+
+## Assign a role
+
+There are two overloads:
+
+- One accepts an explicit user-assigned identity resource. For more information, see [Azure user-assigned identity](/integrations/cloud/azure/user-assigned-identity/).
+- One accepts a compute resource and uses its attached UAMI, or lets a supported Azure deployment environment create one.
+
+<Tabs syncKey="aspire-lang">
+  <TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var callerIdentity = builder.AddAzureUserAssignedIdentity("caller-identity");
+var caller = builder.AddDotnetProject("worker", "../Worker/Worker.csproj")
+    .WithAzureUserAssignedIdentity(callerIdentity);
+
+var apiRegistration = builder.AddEntraIdApplication("entra-api")
+    .WithApplicationIdUri()
+    .WithAppRole(new EntraIdAppRole("Orders.Read", "Read orders", "Read orders.", ["Application"]))
+    .PublishWithAppRoleAssignment(callerIdentity, "Orders.Read");
+
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithReference(apiRegistration);
+
+// Alternatively, pass the workload instead of the identity.
+apiRegistration.PublishWithAppRoleAssignment(caller, "Orders.Read");
+```
+
+  </TabItem>
+  <TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+const caller = await builder.addContainer("worker", "my-worker-image");
+const apiRegistration = await builder.addEntraIdApplication("entra-api")
+    .withApplicationIdUri()
+    .withAppRole("Orders.Read", "Read orders", "Read orders.", {
+        allowedMemberTypes: ["Application"],
+    })
+    .publishWithAppRoleAssignment(caller, ["Orders.Read"]);
+
+const api = await builder.addContainer("api", "my-api-image")
+    .withReference(apiRegistration);
+```
+
+  </TabItem>
+</Tabs>
+
+Duplicate grants are eliminated, and assignments use stable role IDs.
+
+## Configure the caller and API
+
+Configure the caller to use its UAMI and request a token for the API's application ID URI plus `/.default` (by default, `api://{apiClientId}/.default`). Reference `apiRegistration` from the API workload, not the caller, because its settings identify the API registration. Pass the API URL and target application ID URI to the caller separately.
+
+The API must validate tokens and require the assigned role on protected routes. An unassigned identity can receive a token without roles, so authentication alone doesn't grant access.
+
+## Deployment privileges
+
+The deploying identity needs `AppRoleAssignment.ReadWrite.All` and `Application.Read.All` (or a higher permission that covers reads). Application permissions require administrator consent. Delegated deployments also require a [supported Entra directory role](https://learn.microsoft.com/graph/api/serviceprincipal-post-approleassignedto#permissions). Azure subscription Owner or Contributor alone is insufficient. Aspire doesn't grant these privileges automatically, and callers don't need them.
+
+## Revoke access
+
+<Aside type="caution">
+Removing a `PublishWithAppRoleAssignment` call, changing its target, or excluding a caller **doesn't revoke** the existing directory grant. Remove it explicitly through Microsoft Graph or the Microsoft Entra admin center. Disabling a role isn't revocation either. Existing tokens remain valid until they expire, and managed-identity token caches can delay observed changes.
+</Aside>
