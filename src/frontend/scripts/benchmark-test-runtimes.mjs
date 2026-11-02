@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
@@ -42,7 +43,7 @@ for (let round = 0; round < 4; round++) {
       ...(round === 3 ? ['--cpu-prof', `--cpu-prof-dir=${output}`] : []),
       vitest, 'run', '--config', 'vitest.config.ts', '--reporter=json', `--outputFile=${report}`,
     ], round);
-    if (result.code === 0) {
+    if (existsSync(report)) {
       const json = JSON.parse(await readFile(report, 'utf8'));
       result.counts = {
         tests: json.numTotalTests,
@@ -53,14 +54,17 @@ for (let round = 0; round < 4; round++) {
       result.tests = json.testResults.flatMap((file) =>
         file.assertionResults.map((test) => [file.name, test.fullName, test.status])
       ).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-      if (runtime === 'node') {
+      if (runtime === 'node' && result.code === 0) {
         baseline ??= result;
         if (JSON.stringify(result.tests) !== JSON.stringify(baseline.tests)) baselineFailed = true;
-      } else {
+      } else if (runtime === 'bun') {
         result.matchesNode = baseline !== undefined &&
           JSON.stringify(result.tests) === JSON.stringify(baseline.tests);
       }
-    } else if (runtime === 'node') baselineFailed = true;
+    } else if (result.code === 0) {
+      throw new Error(`${runtime} exited successfully without its required JSON report.`);
+    }
+    if (runtime === 'node' && result.code !== 0) baselineFailed = true;
     results.push(result);
   }
 }
