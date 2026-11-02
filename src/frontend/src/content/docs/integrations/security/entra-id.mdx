@@ -1,0 +1,63 @@
+---
+title: Microsoft Entra ID integration
+seoTitle: Microsoft Entra ID certificate credentials from Azure Key Vault in Aspire
+description: Learn how to configure Microsoft Entra application certificate credentials that reference an Azure Key Vault resource in the Aspire AppHost.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The Microsoft Entra ID hosting integration (`Aspire.Hosting.Azure.EntraId`) models Entra applications and the credentials your workloads use to authenticate as them.
+
+## Certificate from Azure Key Vault
+
+Use `WithCertificateFromKeyVault` to read an Entra application's certificate credential from Azure Key Vault. Pass an Azure Key Vault resource that's already modeled in the AppHost instead of hard-coding the vault URL:
+
+<Tabs syncKey="apphost-language">
+  <TabItem label="C#">
+
+```csharp
+var vault = builder.AddAzureKeyVault("vault");
+
+var entraWeb = builder.AddExistingEntraApplication("entra-web", tenantId: tenantId, clientId: webClientId)
+                      .WithCertificateFromKeyVault(vault, "MyCert");
+
+builder.AddProject<Projects.Web>("web")
+       .WithReference(entraWeb);
+```
+
+  </TabItem>
+  <TabItem label="TypeScript">
+
+```typescript
+const vault = await builder.addAzureKeyVault("vault");
+const entraWeb = await builder.addExistingEntraApplication("entra-web", tenantId, webClientId)
+    .withCertificateFromKeyVault(vault, "MyCert");
+
+await builder.addContainer("web", "my-web-image").withReference(entraWeb);
+```
+
+  </TabItem>
+</Tabs>
+
+The vault URI remains a deferred resource reference. During local runs it resolves to the vault output (or its emulator endpoint), and published configuration retains the vault output reference.
+
+The certificate must already exist in the vault with an exportable private key, and its public key must be registered on the Entra application. This helper neither creates the certificate nor uploads the public key. Microsoft.Identity.Web always retrieves the latest certificate version and has no setting to select a specific one.
+
+### Role assignments
+
+Microsoft.Identity.Web reads the certificate with its private key, which the vault's default **Key Vault Secrets User** role doesn't allow. Aspire grants the **Key Vault Certificate User** role automatically:
+
+- **Run mode:** the role is added to the vault's default roles, so it's granted to the developer identity. If you called `ClearDefaultRoleAssignments` on the vault before `WithCertificateFromKeyVault`, nothing is added and you must assign roles yourself.
+- **Publish mode:** the role is attached to every workload that references the Entra application, whether you add the credential before or after `WithReference`. The publish target must support role assignments (for example, `AddAzureContainerAppEnvironment`); otherwise publishing fails with a "does not support role assignments" error.
+
+To manage access yourself, call `WithRoleAssignments` on a workload before referencing the Entra application. Explicit assignments for that vault replace the automatic ones, and an empty role list grants none.
+
+You can model an existing vault with `RunAsExisting` or `PublishAsExisting`. Its access policies or RBAC configuration must allow certificate retrieval.
+
+### Use a vault URL
+
+When the vault is managed outside the AppHost, pass its URL instead. In this case, configure access and identity yourself:
+
+```csharp
+entraWeb.WithCertificateFromKeyVault("https://myvault.vault.azure.net", "MyCert");
+```
