@@ -46,6 +46,29 @@ If you specify `--non-interactive` without `--yes`, the command exits with an er
 The update command requires --yes when the --non-interactive option is specified.
 ```
 
+### Adopting a configuration source
+
+When an organization configuration source is available and the nearest local configuration has neither a saved `configSource` binding nor an opt-out, `aspire update` offers to adopt it for your project. Accepting materializes the source's allowlisted settings and records the source binding. Declining saves an explicit project opt-out alongside your other settings, so later updates don't prompt again:
+
+```json title="aspire.config.json"
+{
+  "configSource": {
+    "optOut": true
+  }
+}
+```
+
+The same opt-out is saved when you decline a source during `aspire new` or `aspire init`.
+
+Environment variables and employee detection only propose a candidate; they aren't consent. In non-interactive runs, `aspire update` skips adoption without writing an opt-out unless you pass `--use-config-source`. `--yes` alone isn't consent to adopt a configuration source:
+
+```bash title="Aspire CLI"
+aspire update --yes --non-interactive --use-config-source
+aspire update --yes --non-interactive --use-config-source false
+```
+
+An existing binding or opt-out suppresses adoption, even when `--use-config-source` is supplied. Remove the `configSource` entry to allow a later adoption prompt. Saved bindings stay authoritative: `aspire update --self`, repository-tool-only updates, and refresh-only `aspire update --config-source` don't discover or adopt sources, and a local opt-out doesn't prevent refreshing a separate global binding.
+
 ### Updating repository Aspire CLI references
 
 A repository can pin the Aspire CLI independently of the executable you're currently running, using an `Aspire.Cli` entry in `.config/dotnet-tools.json` or `dotnet-tools.json`, or an `@microsoft/aspire-cli` entry in `package.json` (`dependencies`, `devDependencies`, or `optionalDependencies`). `aspire update` updates these existing pins alongside AppHost integrations, or without an AppHost.
@@ -118,6 +141,10 @@ The following options are available:
 
   Automatically confirm all prompts without user input. Use this option in CI/CD pipelines or other non-interactive environments to skip confirmation dialogs.
 
+- **`--use-config-source`**
+
+  Use the proposed Git configuration source. Specify `false` to decline it and save a project opt-out. Required for non-interactive adoption; see [Adopting a configuration source](#adopting-a-configuration-source).
+
 - **`--nuget-config-dir`**
 
   Path to the directory containing the `NuGet.Config` file to use when searching for packages. When not specified, the command searches for a `NuGet.Config` file in the current directory and its parents.
@@ -164,4 +191,11 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire update --channel daily
+  ```
+
+- Adopt or decline an available configuration source in automation:
+
+  ```bash title="Aspire CLI"
+  aspire update --yes --non-interactive --use-config-source
+  aspire update --yes --non-interactive --use-config-source false
   ```
