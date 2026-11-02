@@ -1631,7 +1631,13 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Безпека та ідентичність',
         'zh-CN': '安全与身份',
       },
-      items: [{ label: 'Keycloak', slug: 'integrations/security/keycloak' }],
+      items: [
+        { label: 'Keycloak', slug: 'integrations/security/keycloak' },
+        {
+          label: 'Microsoft Entra ID app roles',
+          slug: 'integrations/security/microsoft-entra-id-app-roles',
+        },
+      ],
     },
     {
       label: 'Observability & logging',
