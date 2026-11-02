@@ -1,0 +1,75 @@
+---
+title: Microsoft Entra ID integration
+description: Learn how to model Microsoft Entra ID application registrations in Aspire, including how existing registrations are referenced.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+The Microsoft Entra ID hosting integration models, configures, and orchestrates Microsoft Entra ID application registrations in an Aspire solution. Use it to create new registrations or to reference registrations that already exist in your tenant.
+
+## Hosting integration
+
+To get started, add the [📦 Aspire.Hosting.Azure.EntraId](https://www.nuget.org/packages/Aspire.Hosting.Azure.EntraId) NuGet package in your AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.EntraId" />
+
+### Create registrations
+
+`AddEntraIdApplication` creates a registration and its service principal. Registration-only settings such as redirect URIs, owners, roles, consent, and certificate or federation provisioning apply to these new registrations.
+
+### Reference existing registrations
+
+Aspire doesn't modify existing registrations. Use `AddExistingEntraApplication` to reference a registration you created in the [Microsoft Entra admin center](https://entra.microsoft.com). This doesn't enable Azure provisioning. Alternatively, `AddEntraIdApplication(...).AsExistingApplication(...)` converts a resource to an existing reference, retains Azure setup, and doesn't provision the registration.
+
+To describe an existing API, supply its registered URI with `WithApplicationIdUri` and describe its scopes with `WithScope`. Set `EntraIdScope.Id` to the registered scope ID when callers declare permissions to it.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddExistingEntraApplication("entra-api", tenantId, clientId)
+    .WithApplicationIdUri("api://existing")
+    .WithAudience("api://existing");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+
+const api = await builder.addExistingEntraApplication("entra-api", tenantId, clientId)
+    .withApplicationIdUri("api://existing")
+    .withAudience("api://existing");
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The parameterless `WithApplicationIdUri()` is only for new registrations. On an existing reference, you must pass the registered URI.
+
+#### Supported and rejected configuration
+
+Consumer settings remain supported on existing references. They must match the existing registration; they don't register credentials, change supported account types, or grant permissions.
+
+- Audiences and credentials.
+- Explicit API URI and scope metadata.
+- Downstream API permissions with `WithApiPermissions`.
+
+Methods that change a registration throw an `InvalidOperationException` when called on an existing reference. This includes redirect URI, owner, ID-token issuance, role, pre-authorization, admin consent, certificate, and federation methods, and the parameterless `WithApplicationIdUri()`. Configure these settings on the registration in the Microsoft Entra admin center instead.
+
+`AsExistingApplication` also rejects registration-only settings applied before conversion, including mode-specific certificate or federation setup. Rejection happens before the conversion changes the resource's state.
+
+<Aside type="note">
+Created registrations can still grant consent to existing APIs or pre-authorize existing clients.
+</Aside>
