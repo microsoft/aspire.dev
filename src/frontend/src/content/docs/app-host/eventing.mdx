@@ -321,6 +321,12 @@ info: Aspire.Hosting.DistributedApplication[0]
   section).
 </Aside>
 
+### Handle `ResourceReadyEvent` subscriber failures
+
+When a `ResourceReadyEvent` subscriber throws, Aspire logs the exception as an error to both the failing resource's console logs and the AppHost log. Resources that wait on the failing resource with `WaitFor` also observe the failure.
+
+If a resource waits on several dependencies and more than one of them fails, the wait throws an `AggregateException` (for example, `Resource 'web' failed waiting for 2 dependencies.`) that contains every failure. If only one dependency fails, the original exception is rethrown unchanged.
+
 ## Publish events
 
 When subscribing to any of the built-in events, you don't need to publish the event yourself as the AppHost orchestrator manages to publish built-in events on your behalf. However, you can publish custom events with the eventing API. To publish an event, you have to first define an event as an implementation of either the `IDistributedApplicationEvent` or `IDistributedApplicationResourceEvent` interface. You need to determine which interface to implement based on whether the event is a global AppHost event or a resource-specific event.
