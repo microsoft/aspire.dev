@@ -76,6 +76,7 @@ export default function buildTiming() {
   /** @type {Record<string, unknown>} */
   const meta = {
     nodeVersion: process.version,
+    bunVersion: process.versions.bun ?? null,
     platform: process.platform,
     arch: process.arch,
     cpuCount: undefined,

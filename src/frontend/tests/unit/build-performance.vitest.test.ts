@@ -118,6 +118,22 @@ test('all frontend workflow checkouts disable persisted credentials', async () =
   }
 });
 
+test('runtime experiments preserve existing gates and profile the actual Bun runtime', async () => {
+  const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-runtime-experiments.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const benchmark = await readFile(new URL('../../scripts/benchmark-test-runtimes.mjs', import.meta.url), 'utf8');
+  expect(workflow).not.toContain('pull_request_target');
+  expect(workflow).not.toContain('continue-on-error');
+  expect(workflow).not.toContain('secrets.');
+  expect(workflow).toContain('bun --cpu-prof --cpu-prof-dir=');
+  expect(workflow).toContain('cache: [disabled, enabled]');
+  expect(workflow).toContain('diff -qr dist extracted');
+  expect(workflow).toContain('git diff --exit-code -- bun.lock package.json bunfig.toml patches');
+  expect(benchmark).toContain("['node', 'bun']");
+  expect(benchmark).toContain("'--config', 'vitest.config.ts'");
+  expect(benchmark).toContain('test.fullName, test.status');
+  expect(benchmark).toContain("throw new Error('Node control failed");
+});
+
 test('timing reports distinguish generated pages from asset URLs', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'aspire-timing-report-'));
   directories.push(directory);
