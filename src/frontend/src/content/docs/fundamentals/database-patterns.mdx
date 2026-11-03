@@ -660,13 +660,454 @@ When you deploy, the database resources in your AppHost become part of the deplo
 
 Your schema must also reach the deployed database. `RunDatabaseUpdateOnStart` affects only local runs, so plan a separate step for deployment:
 
-- With EF Core, publish your migrations as a container image with `PublishAsMigrationBundle`. The bundle runs as part of the deployment and applies pending migrations. For more information, see [Publish the migration bundle as a container image](/integrations/databases/efcore/migrations/#publish-the-migration-bundle-as-a-container-image).
+- With EF Core, publish your migrations as a container image with <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.PublishAsMigrationBundle" />. The bundle is deployed with your app and applies pending migrations when it runs. On some targets, such as a manually triggered Azure Container Apps job, it doesn't run until you start it. For more information, see [Publish the migration bundle as a container image](/integrations/databases/efcore/migrations/#publish-the-migration-bundle-as-a-container-image) and [Ensure successful migrations deployment](#ensure-successful-migrations-deployment).
 - With Drizzle, run `drizzle-kit migrate` as a step in your CI/CD pipeline, or call the `migrate` function when the deployed app starts. The migration resource from [Apply schema migrations on startup](#apply-schema-migrations-on-startup) configures a local run script; deploying it requires explicit runtime publishing configuration and a one-shot execution model for your deployment target. For publishing options, see [Deploy JavaScript apps](/deployment/javascript-apps/).
 
 Don't deploy development seed data or seed endpoints. Seed data that's part of your migrations, such as reference data, is deployed with the migrations.
 
 <LearnMore>
   For more information, see [Deploy with Aspire](/deployment/deploy-with-aspire/), [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/), [Run as a local container during development](/integrations/cloud/azure/azure-postgresql/azure-postgresql-host/#run-as-a-local-container-during-development), and [Database creation after initial deployment](/integrations/cloud/azure/azure-postgresql/azure-postgresql-host/#database-creation-after-initial-deployment).
+</LearnMore>
+
+### Ensure successful migrations deployment
+
+When you deploy a new version of your app, the new code often expects the new schema. If the app starts before the migrations finish, or if the migrations fail, the app can fail at runtime. To prevent this, make the deployment apply migrations first, and stop it when they fail. Choose one of these approaches:
+
+- [Add a custom step to the Aspire deployment pipeline](#run-migrations-in-the-deployment-pipeline) so that `aspire deploy` runs a migration job and waits for it to succeed before it updates the app.
+- [Run an EF Core migration bundle in your CI/CD pipeline](#run-a-migration-bundle-as-a-cicd-pre-deployment-step) before you call `aspire deploy`.
+
+Either way, the app version that's still running keeps serving requests while the migrations run. Write migrations that the old version of the app can tolerate. For example, add a column in one release and remove the old column in a later release.
+
+#### Run migrations in the deployment pipeline
+
+The `aspire deploy` command runs a pipeline of named steps, such as `provision-api-containerapp` and `deploy-api`. You can add your own steps to this pipeline and declare which steps must run before and after them. To make the app deployment wait for the migrations, deploy the migrations as a job and add a step that:
+
+1. Runs after the step that creates or updates the migration job.
+1. Starts the job and waits for it to finish. If the job fails, the step throws an error, and the pipeline stops.
+1. Runs before the step that updates the app, so that the app is updated only after the migrations succeed.
+
+The following examples deploy to Azure Container Apps. Aspire creates or updates each container app or job in a step named `provision-<resource-name>-containerapp`. A manually triggered job doesn't run when it's deployed, so the custom step starts it with the `az containerapp job start` command and polls its status. To find the step names for your deployment target, run `aspire do diagnostics`, which prints the dependency graph of the pipeline.
+
+For EF Core, publish the migration bundle as a container image and deploy it as a manually triggered job with <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsAzureContainerAppJob" />. Then add the custom step with `builder.Pipeline.AddStep` in C#, or `pipeline.addStep` in TypeScript:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { execFile } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
+import { promisify } from 'node:util';
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const run = promisify(execFile);
+
+const builder = await createBuilder();
+
+await builder.addAzureContainerAppEnvironment('env');
+
+const postgres = await builder.addPostgres('postgres');
+const catalogdb = await postgres.addDatabase('catalogdb');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(catalogdb);
+
+// Deploy the migration bundle as a manually triggered job.
+const migrations = await api.addEFMigrations('api-migrations');
+await migrations.withReference(catalogdb);
+await migrations.waitFor(catalogdb);
+await migrations.publishAsMigrationBundle({ publishContainer: true });
+await migrations.publishAsAzureContainerAppJob();
+
+if (await builder.executionContext().isPublishMode()) {
+    const pipeline = await builder.pipeline();
+
+    await pipeline.addStep('run-api-migrations', async (context) => {
+        const logger = await context.logger();
+        const resourceGroup = process.env.Azure__ResourceGroup!;
+        const job = ['--name', 'api-migrations', '--resource-group', resourceGroup];
+
+        const { stdout } = await run('az', [
+            'containerapp', 'job', 'start', ...job,
+            '--query', 'name', '--output', 'tsv',
+        ]);
+        const execution = stdout.trim();
+        await logger.logInformation(`Started migration job execution ${execution}.`);
+
+        while (true) {
+            await delay(10_000);
+            const { stdout: output } = await run('az', [
+                'containerapp', 'job', 'execution', 'show', ...job,
+                '--job-execution-name', execution,
+                '--query', 'properties.status', '--output', 'tsv',
+            ]);
+            const status = output.trim();
+
+            if (status === 'Succeeded') {
+                await logger.logInformation('Migrations applied.');
+                return;
+            }
+
+            if (['Failed', 'Stopped', 'Degraded'].includes(status)) {
+                throw new Error(`Migration job execution ${execution} ended with status ${status}.`);
+            }
+        }
+    }, {
+        // Run after the migration job is created or updated,
+        dependsOn: ['provision-api-migrations-containerapp'],
+        // and before the app is updated.
+        requiredBy: ['provision-api-containerapp'],
+    });
+}
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using System.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("env");
+
+var postgres = builder.AddPostgres("postgres");
+var catalogdb = postgres.AddDatabase("catalogdb");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(catalogdb);
+
+// Deploy the migration bundle as a manually triggered job.
+api.AddEFMigrations("api-migrations")
+    .WithReference(catalogdb)
+    .WaitFor(catalogdb)
+    .PublishAsMigrationBundle(publishContainer: true)
+    .PublishAsAzureContainerAppJob();
+
+if (builder.ExecutionContext.IsPublishMode)
+{
+#pragma warning disable ASPIREPIPELINES001
+    builder.Pipeline.AddStep("run-api-migrations", async context =>
+    {
+        var config = context.Services.GetRequiredService<IConfiguration>();
+        string[] job = ["--name", "api-migrations", "--resource-group", config["Azure:ResourceGroup"]!];
+
+        string[] startArgs = ["containerapp", "job", "start", .. job, "--query", "name", "--output", "tsv"];
+        var execution = await RunAzAsync(startArgs, context.CancellationToken);
+        context.Logger.LogInformation("Started migration job execution {Execution}.", execution);
+
+        string[] showArgs =
+        [
+            "containerapp", "job", "execution", "show", .. job,
+            "--job-execution-name", execution,
+            "--query", "properties.status", "--output", "tsv"
+        ];
+
+        while (true)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10), context.CancellationToken);
+            var status = await RunAzAsync(showArgs, context.CancellationToken);
+
+            if (status == "Succeeded")
+            {
+                context.Logger.LogInformation("Migrations applied.");
+                return;
+            }
+
+            if (status is "Failed" or "Stopped" or "Degraded")
+            {
+                throw new InvalidOperationException(
+                    $"Migration job execution {execution} ended with status {status}.");
+            }
+        }
+    },
+    // Run after the migration job is created or updated,
+    dependsOn: "provision-api-migrations-containerapp",
+    // and before the app is updated.
+    requiredBy: "provision-api-containerapp");
+#pragma warning restore ASPIREPIPELINES001
+}
+
+builder.Build().Run();
+
+static async Task<string> RunAzAsync(string[] args, CancellationToken cancellationToken)
+{
+    var startInfo = new ProcessStartInfo("az") { RedirectStandardOutput = true };
+    foreach (var arg in args)
+    {
+        startInfo.ArgumentList.Add(arg);
+    }
+
+    using var process = Process.Start(startInfo)!;
+    var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+    await process.WaitForExitAsync(cancellationToken);
+
+    if (process.ExitCode != 0)
+    {
+        throw new InvalidOperationException($"'az {string.Join(' ', args)}' failed.");
+    }
+
+    return output.Trim();
+}
+```
+
+</TabItem>
+</Tabs>
+
+The custom step reads the resource group from the `Azure__ResourceGroup` environment variable, so set it when you run `aspire deploy`. The Azure CLI must be installed and signed in to the same subscription. On Windows, run `az.cmd` instead of `az`. In a C# AppHost, the pipeline API is experimental and requires suppressing the [`ASPIREPIPELINES001`](/diagnostics/aspirepipelines001/) diagnostic.
+
+For Drizzle, deploy the `db:migrate` script from [Apply schema migrations on startup](#apply-schema-migrations-on-startup) as a job. Call <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsPackageScript" /> to build a container image that runs the script, and deploy the image as a manually triggered job. Then add the same custom step for the `api-migrate` job:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { execFile } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
+import { promisify } from 'node:util';
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const run = promisify(execFile);
+
+const builder = await createBuilder();
+
+await builder.addAzureContainerAppEnvironment('env');
+
+const postgres = await builder.addPostgres('postgres');
+const catalogdb = await postgres.addDatabase('catalogdb');
+
+// Deploy the db:migrate script as a manually triggered job.
+const migrate = await builder.addJavaScriptApp('api-migrate', './api', { runScriptName: 'db:migrate' })
+    .withReference(catalogdb)
+    .waitFor(catalogdb)
+    .publishAsPackageScript({ scriptName: 'db:migrate' });
+await migrate.publishAsAzureContainerAppJob();
+
+await builder.addNodeApp('api', './api', 'src/index.ts')
+    .withReference(catalogdb)
+    .waitForCompletion(migrate);
+
+if (await builder.executionContext().isPublishMode()) {
+    const pipeline = await builder.pipeline();
+
+    await pipeline.addStep('run-api-migrations', async (context) => {
+        const logger = await context.logger();
+        const resourceGroup = process.env.Azure__ResourceGroup!;
+        const job = ['--name', 'api-migrate', '--resource-group', resourceGroup];
+
+        const { stdout } = await run('az', [
+            'containerapp', 'job', 'start', ...job,
+            '--query', 'name', '--output', 'tsv',
+        ]);
+        const execution = stdout.trim();
+        await logger.logInformation(`Started migration job execution ${execution}.`);
+
+        while (true) {
+            await delay(10_000);
+            const { stdout: output } = await run('az', [
+                'containerapp', 'job', 'execution', 'show', ...job,
+                '--job-execution-name', execution,
+                '--query', 'properties.status', '--output', 'tsv',
+            ]);
+            const status = output.trim();
+
+            if (status === 'Succeeded') {
+                await logger.logInformation('Migrations applied.');
+                return;
+            }
+
+            if (['Failed', 'Stopped', 'Degraded'].includes(status)) {
+                throw new Error(`Migration job execution ${execution} ended with status ${status}.`);
+            }
+        }
+    }, {
+        // Run after the migration job is created or updated,
+        dependsOn: ['provision-api-migrate-containerapp'],
+        // and before the app is updated.
+        requiredBy: ['provision-api-containerapp'],
+    });
+}
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using System.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("env");
+
+var postgres = builder.AddPostgres("postgres");
+var catalogdb = postgres.AddDatabase("catalogdb");
+
+// Deploy the db:migrate script as a manually triggered job.
+#pragma warning disable ASPIREJAVASCRIPT001
+var migrate = builder.AddJavaScriptApp("api-migrate", "../api", "db:migrate")
+    .WithReference(catalogdb)
+    .WaitFor(catalogdb)
+    .PublishAsPackageScript(scriptName: "db:migrate")
+    .PublishAsAzureContainerAppJob();
+#pragma warning restore ASPIREJAVASCRIPT001
+
+builder.AddNodeApp("api", "../api", "src/index.ts")
+    .WithReference(catalogdb)
+    .WaitForCompletion(migrate);
+
+if (builder.ExecutionContext.IsPublishMode)
+{
+#pragma warning disable ASPIREPIPELINES001
+    builder.Pipeline.AddStep("run-api-migrations", async context =>
+    {
+        var config = context.Services.GetRequiredService<IConfiguration>();
+        string[] job = ["--name", "api-migrate", "--resource-group", config["Azure:ResourceGroup"]!];
+
+        string[] startArgs = ["containerapp", "job", "start", .. job, "--query", "name", "--output", "tsv"];
+        var execution = await RunAzAsync(startArgs, context.CancellationToken);
+        context.Logger.LogInformation("Started migration job execution {Execution}.", execution);
+
+        string[] showArgs =
+        [
+            "containerapp", "job", "execution", "show", .. job,
+            "--job-execution-name", execution,
+            "--query", "properties.status", "--output", "tsv"
+        ];
+
+        while (true)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10), context.CancellationToken);
+            var status = await RunAzAsync(showArgs, context.CancellationToken);
+
+            if (status == "Succeeded")
+            {
+                context.Logger.LogInformation("Migrations applied.");
+                return;
+            }
+
+            if (status is "Failed" or "Stopped" or "Degraded")
+            {
+                throw new InvalidOperationException(
+                    $"Migration job execution {execution} ended with status {status}.");
+            }
+        }
+    },
+    // Run after the migration job is created or updated,
+    dependsOn: "provision-api-migrate-containerapp",
+    // and before the app is updated.
+    requiredBy: "provision-api-containerapp");
+#pragma warning restore ASPIREPIPELINES001
+}
+
+builder.Build().Run();
+
+static async Task<string> RunAzAsync(string[] args, CancellationToken cancellationToken)
+{
+    var startInfo = new ProcessStartInfo("az") { RedirectStandardOutput = true };
+    foreach (var arg in args)
+    {
+        startInfo.ArgumentList.Add(arg);
+    }
+
+    using var process = Process.Start(startInfo)!;
+    var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+    await process.WaitForExitAsync(cancellationToken);
+
+    if (process.ExitCode != 0)
+    {
+        throw new InvalidOperationException($"'az {string.Join(' ', args)}' failed.");
+    }
+
+    return output.Trim();
+}
+```
+
+</TabItem>
+</Tabs>
+
+The container image includes only production dependencies, so list `drizzle-kit` under `dependencies` in _package.json_, not `devDependencies`. In a C# AppHost, the JavaScript publishing API is experimental and requires suppressing the [`ASPIREJAVASCRIPT001`](/diagnostics/aspirejavascript001/) diagnostic.
+
+You can use the same pattern with other deployment targets. Replace the `az` commands with the commands that run a one-off job on your target, such as `docker compose run` or `kubectl wait --for=condition=complete`. Then depend on the steps that your target adds to the pipeline.
+
+<LearnMore>
+  For more information, see [Pipelines and app topology](/deployment/pipelines/), [Azure Container Apps jobs](/integrations/cloud/azure/container-app-jobs/), and [Jobs in Azure Container Apps](https://learn.microsoft.com/azure/container-apps/jobs) in the Azure documentation.
+</LearnMore>
+
+#### Run a migration bundle as a CI/CD pre-deployment step
+
+An EF Core migration bundle is a single executable that applies your migrations to a database. It doesn't need the .NET SDK or your source code, so you can run it from a CI/CD pipeline before you deploy. If it fails, the pipeline stops before `aspire deploy` runs.
+
+To generate the bundle, publish the migration resource as a migration bundle. Set the target runtime to match your CI/CD agent, and make the bundle self-contained so that the agent doesn't need the .NET runtime:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const catalogdb = await postgres.addDatabase('catalogdb');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(catalogdb);
+
+await api.addEFMigrations('api-migrations')
+    .publishAsMigrationBundle({ targetRuntime: 'linux-x64', selfContained: true });
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var catalogdb = postgres.AddDatabase("catalogdb");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(catalogdb);
+
+api.AddEFMigrations("api-migrations")
+    .PublishAsMigrationBundle(targetRuntime: "linux-x64", selfContained: true);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+A pipeline step named `<resource-name>-generate-migration-bundle` generates the bundle and writes it to the _efmigrations_ folder in the publish output. In your CI/CD pipeline, run that step on its own, run the bundle against the production database, and then deploy:
+
+```bash title="Terminal"
+# Generate the bundle at ./artifacts/efmigrations/api-migrations.
+aspire do api-migrations-generate-migration-bundle --output-path ./artifacts
+
+# Apply pending migrations. The command fails if any migration fails.
+./artifacts/efmigrations/api-migrations --connection "$CATALOGDB_CONNECTION_STRING"
+
+# Deploy the app only after the migrations succeed.
+aspire deploy
+```
+
+Store the connection string in your CI/CD system's secret store, and make sure the agent can reach the database through its firewall. The step that generates the bundle doesn't deploy anything. You can run it in a build stage and pass the bundle to a later deployment stage as an artifact.
+
+Drizzle has no equivalent of a bundle, but you can follow the same order. Run `npx drizzle-kit migrate` in your CI/CD pipeline with the production connection string, and then run `aspire deploy`.
+
+<LearnMore>
+  For more information, see [Migration bundles](https://learn.microsoft.com/ef/core/managing-schemas/migrations/applying#bundles) in the EF Core documentation and the [`aspire do` command](/reference/cli/commands/aspire-do/).
 </LearnMore>
 
 ## See also
