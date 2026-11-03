@@ -492,7 +492,7 @@ a developer's existing Redis instance.
 
 The existing AppHost CI build job restores and builds both backend test
 projects, runs the ordinary suites, and explicitly runs the Redis group
-with Aspire-managed Redis on the runner's Docker engine. TRX results and build/test
+with Aspire-managed Redis on the runner's Docker engine. TRX results and restore/build/test
 binlogs are uploaded with a job summary. Changes to either backend test
 project or `Aspire.Dev.slnx` trigger that job.
 

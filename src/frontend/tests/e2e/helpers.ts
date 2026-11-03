@@ -16,6 +16,14 @@ export async function resetCookieConsentState(page: Page): Promise<void> {
   await page.context().clearCookies();
 }
 
+// WCP decides per runner region whether to show its banner. When shown, the banner
+// pushes `.page` down and reveals the cookie button, so layout assertions need the
+// no-consent state. A cached `false` alone does not stop live WCP showing the banner.
+export async function emulateConsentNotRequiredRegion(page: Page): Promise<void> {
+  await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
+  await page.addInitScript(() => localStorage.setItem('aspireConsentRequired', 'false'));
+}
+
 export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
   const siteTourDismissButton = page.locator('[data-tour-action="dismiss"]');
   if (await siteTourDismissButton.isVisible().catch(() => false)) {
