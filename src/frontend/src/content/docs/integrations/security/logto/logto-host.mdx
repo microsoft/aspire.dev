@@ -1,0 +1,227 @@
+---
+title: Logto hosting integration
+description: Configure a Logto container with PostgreSQL, optional Redis caching, storage, endpoints, and readiness checks in an Aspire AppHost.
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+The Logto hosting integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) models a Logto identity server as a container resource. It configures PostgreSQL connectivity, optional Redis connectivity, and a readiness check.
+
+For an introduction, see [Get started with the Logto integrations](/integrations/security/logto/logto-get-started/). To configure authentication in a consuming app, see [Logto client integration](/integrations/security/logto/logto-connect/).
+
+## Installation
+
+Install [📦 CommunityToolkit.Aspire.Hosting.Logto](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.Logto) in your AppHost:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Logto" />
+
+The package exports the Logto resource and its hosting extension methods for TypeScript AppHosts. Installing the integration and generating the AppHost bindings makes these APIs available from `./.aspire/modules/aspire.mjs`. The C# extension methods are in the `Aspire.Hosting` namespace.
+
+## Add Logto resource
+
+Add a PostgreSQL server, then supply it to the Logto resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const logto = await builder.addLogto('logto', postgres, {
+  databaseName: 'logto_db',
+  port: 3001,
+  adminPort: 3002,
+});
+await logto.withDatabaseSeeding();
+
+const web = await builder.addProject('web', '../Web/Web.csproj');
+await web.withReference(logto);
+await web.waitFor(logto);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var logto = builder.AddLogto("logto", postgres,
+        databaseName: "logto_db", port: 3001, adminPort: 3002)
+    .WithDatabaseSeeding();
+
+builder.AddProject<Projects.Web>("web")
+    .WithReference(logto)
+    .WaitFor(logto);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Use the path or project type for your consuming project in place of `Web`.
+
+The required resource arguments are:
+
+- `name`: The Logto resource name. This becomes the connection name when a consuming app references the resource.
+- `postgres`: A PostgreSQL **server** resource builder, not a PostgreSQL database resource.
+
+The optional arguments are:
+
+- `databaseName`: The database name appended to the PostgreSQL server URI. Defaults to `logto_db`.
+- `port`: The host port for the `http` endpoint, which targets container port `3001`.
+- `adminPort`: The host port for the `admin` endpoint, which targets container port `3002`.
+
+Omit the host ports to let Aspire allocate them. The resource uses the `docker.io/svhd/logto` image. Open its `admin` endpoint from the dashboard to configure applications and API resources.
+
+`WithReference` supplies connection information. `WaitFor` separately delays the consuming app until the Logto resource is healthy.
+
+## Configure PostgreSQL and database initialization
+
+Adding Logto sets `DB_URL` to the PostgreSQL server URI followed by `/{databaseName}` and adds a wait dependency on the server. It does not add an Aspire PostgreSQL database resource or automatically run a seeding command.
+
+Use `WithDatabase` / `withDatabase` to configure a different PostgreSQL server or database name on an existing Logto resource.
+
+Use `WithDatabaseSeeding` / `withDatabaseSeeding` to replace the container entrypoint with `sh` and these arguments:
+
+```bash title="Seeded container startup"
+sh -c "npm run cli db seed -- --swe && npm start"
+```
+
+<Aside type="caution">
+  Seeding runs on every container startup when enabled. Without this option, the
+  integration leaves the image's normal entrypoint and arguments unchanged.
+  Manage database initialization and migrations explicitly for environments with
+  existing data.
+</Aside>
+
+## Persist data and add Redis
+
+Persist PostgreSQL storage to retain Logto's database across container replacements. A Logto data volume separately mounts `/data`; it does not persist the PostgreSQL database.
+
+The following local-development example uses named volumes for both resources and adds Redis:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+await postgres.withDataVolume('logto-postgres-data');
+
+const redis = await builder.addRedis('redis');
+const logto = await builder.addLogto('logto', postgres);
+await logto.withDataVolume('logto-data');
+await logto.withRedis(redis);
+await logto.withDatabaseSeeding();
+await logto.withNodeEnv('development');
+await logto.withDeprecationTracing();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithDataVolume("logto-postgres-data");
+
+var redis = builder.AddRedis("redis");
+var logto = builder.AddLogto("logto", postgres)
+    .WithDataVolume("logto-data")
+    .WithRedis(redis)
+    .WithDatabaseSeeding()
+    .WithNodeEnv("development")
+    .WithDeprecationTracing();
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Named volumes retain data outside the container lifecycle. Omit the volume name to let Aspire generate one.
+
+For direct access to files on the host, use `WithDataBindMount(source)` / `withDataBindMount(source)` instead of the Logto data-volume call. Both storage helpers mount at `/data`; choose one for that destination.
+
+The Redis helper sets `REDIS_URL` to the Redis resource's URI expression and waits for Redis. It doesn't configure session storage in consuming applications.
+
+## Configure environment settings
+
+The following exported helpers set Logto environment variables:
+
+| TypeScript API                             | C# API                                     | Environment setting                                                                            |
+| ------------------------------------------ | ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `withNodeEnv(env)`                         | `WithNodeEnv(env)`                         | Sets `NODE_ENV` to a non-empty string, such as `development` or `production`.                  |
+| `withAdminEndpoint(url)`                   | `WithAdminEndpoint(url)`                   | Sets `ADMIN_ENDPOINT` to the supplied administrative URL.                                      |
+| `withDisableAdminConsole(disable)`         | `WithDisableAdminConsole(disable)`         | Sets `ADMIN_DISABLE_LOCALHOST` from the Boolean argument.                                      |
+| `withTrustProxyHeader(trustProxyHeader)`   | `WithTrustProxyHeader(trustProxyHeader)`   | Sets `TRUST_PROXY_HEADER` from the Boolean argument.                                           |
+| `withSensitiveUsername(sensitiveUsername)` | `WithSensitiveUsername(sensitiveUsername)` | Sets `CASE_SENSITIVE_USERNAME` from the Boolean argument.                                      |
+| `withSecretVault(secretVaultKek)`          | `WithSecretVault(secretVaultKek)`          | Sets `SECRET_VAULT_KEK` to the supplied base64-encoded key encryption key.                     |
+| `withDeprecationTracing()`                 | `WithDeprecationTracing()`                 | Sets `NODE_OPTIONS` to `--trace-deprecation`. This replaces that environment variable's value. |
+
+These helpers configure environment variables; they don't provision reverse proxies, TLS certificates, or secret stores. Setting the administrative URL does not change the primary endpoint supplied to consuming apps. The Admin Console helper does not remove the Aspire `admin` endpoint annotation.
+
+<Aside type="caution">
+  Trust proxy headers only when requests arrive through a trusted proxy. Keep
+  the secret vault key in a secret configuration provider, not source control.
+  The dedicated secret-vault helper accepts a string; use Aspire's generic
+  environment configuration with a secret parameter when deferred secret
+  injection is needed.
+</Aside>
+
+## Exported AppHost API surface
+
+All of the following hosting methods are exported for TypeScript. Optional arguments can be passed through an options object in TypeScript, as in the resource example.
+
+| TypeScript API                       | C# API                                                                               | Behavior                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `addLogto(name, postgres, options?)` | `AddLogto(name, postgres, databaseName = "logto_db", port = null, adminPort = null)` | Adds the container, endpoints, PostgreSQL configuration, and hosting health check. |
+| `withDatabase(postgres, options?)`   | `WithDatabase(postgres, databaseName = "logto_db")`                                  | Sets `DB_URL` and waits for the PostgreSQL server.                                 |
+| `withDatabaseSeeding()`              | `WithDatabaseSeeding()`                                                              | Runs the seed command before `npm start`.                                          |
+| `withRedis(redis)`                   | `WithRedis(redis)`                                                                   | Sets `REDIS_URL` and waits for Redis.                                              |
+| `withDataVolume(options?)`           | `WithDataVolume(name = null)`                                                        | Mounts a named volume at `/data`. The TypeScript option is `name`.                 |
+| `withDataBindMount(source)`          | `WithDataBindMount(source)`                                                          | Mounts a host directory at `/data`.                                                |
+| `withResourcePort(options?)`         | `WithResourcePort(port = null, adminPort = null)`                                    | Adds the `http` and `admin` endpoints. The options are `port` and `adminPort`.     |
+
+The [environment-settings table](#configure-environment-settings) lists the remaining exported helpers.
+
+The resource also exposes `PrimaryEndpoint`, `Host`, `Port`, `UriExpression`, and `ConnectionStringExpression`. TypeScript exposes their camelCase equivalents through the generated resource handle.
+
+`AddLogto` already calls the port helper to add both endpoints. Choose the host ports in the resource-creation arguments rather than calling the endpoint-adding helper again.
+
+## Hosting integration health checks
+
+The integration registers an HTTP health check named `{resourceName}_check`. It calls `/api/status` on the primary endpoint and expects HTTP `204 No Content`.
+
+The check verifies that Logto responds to its status request. It does not test a complete user sign-in flow, the Admin Console, or a consuming app's audience configuration.
+
+## Connection information
+
+The resource's connection string is `Endpoint={primaryEndpointUrl}`. Its connection properties are `Host`, `Port`, and `Uri`, all derived from the primary `http` endpoint. The administrative URL, application ID, and application secret are not included.
+
+See [Logto client integration](/integrations/security/logto/logto-connect/) for environment-variable names, authentication registration, and client configuration.
+
+## See also
+
+- [Get started with the Logto integrations](/integrations/security/logto/logto-get-started/)
+- [Logto client integration](/integrations/security/logto/logto-connect/)
+- [Logto hosting source and README](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.Logto)
+- [Logto documentation](https://docs.logto.io/)

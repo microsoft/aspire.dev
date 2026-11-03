@@ -1,0 +1,715 @@
+---
+title: Kind hosting integration
+description: Install and configure the Aspire Community Toolkit Kind hosting integration to manage local clusters, Helm charts, Kubernetes manifests, and a Kind compute environment.
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+Use the Kind hosting integration from the Aspire Community Toolkit to model a local [Kind](https://kind.sigs.k8s.io/) cluster, deploy charts and manifests to it, and pass its kubeconfig to AppHost resources. For an introduction and prerequisites, see [Get started with the Kind integration](./kind-get-started/).
+
+## Installation
+
+Install the [📦 CommunityToolkit.Aspire.Hosting.Kind](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Kind) package in the AppHost:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Kind" />
+
+The local cluster requires a container runtime and the Kind CLI. Install `kubectl` for manifest and Helm chart resources. Install Helm for chart resources and Kind-backed deployment workflows.
+
+## Add a Kind cluster resource
+
+Add a cluster to the AppHost. By default, Kind uses its configured Kubernetes version and creates one control-plane node without worker nodes.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder.addKindCluster('mycluster');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The cluster is created when the AppHost starts and is represented as an Aspire resource. The integration registers lifecycle cleanup that attempts to delete a session cluster during graceful shutdown or lifecycle-hook disposal.
+
+## Configure the cluster
+
+### Kubernetes version and node image
+
+Pin a Kubernetes version to use the corresponding Kind node image:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder
+  .addKindCluster('mycluster')
+  .withKubernetesVersion('v1.32.2');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster")
+    .WithKubernetesVersion("v1.32.2");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Use `WithNodeImage` when you need to specify a complete image name, such as a private registry image. Don't configure both a Kubernetes version and a node image on the same cluster.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder
+  .addKindCluster('mycluster')
+  .withNodeImage('registry.example.com/kindest/node:v1.32.2');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster")
+    .WithNodeImage("registry.example.com/kindest/node:v1.32.2");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+### Worker nodes
+
+`WithWorkerNodes` adds the requested number of worker nodes in addition to the control-plane node. The default is zero workers.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder.addKindCluster('mycluster').withWorkerNodes(2);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster")
+    .WithWorkerNodes(2);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+### Mount host content into cluster nodes
+
+Use `WithNodeMount` to make a host path available inside every Kind node. Relative host paths are resolved against the AppHost project directory. This configures a node mount; it does not install a chart or make a workload consume the mounted content.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder
+  .addKindCluster('mycluster')
+  .withNodeMount('./charts', '/var/local/charts', true);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster")
+    .WithNodeMount("./charts", "/var/local/charts", readOnly: true);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+### Cluster lifetime
+
+By default, the cluster uses `ClusterLifetime.Session`. The integration attempts to delete it during graceful shutdown or when its lifecycle hook is disposed. Set the lifetime to `Persistent` to retain the cluster and reuse it on a later AppHost start.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder, ClusterLifetime } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder
+  .addKindCluster('mycluster')
+  .withClusterLifetime(ClusterLifetime.Persistent);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster")
+    .WithClusterLifetime(ClusterLifetime.Persistent);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+| Lifetime                     | Behavior                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------- |
+| `ClusterLifetime.Session`    | Default. Attempts to delete the cluster at shutdown or lifecycle-hook disposal. |
+| `ClusterLifetime.Persistent` | Keeps the cluster across AppHost restarts and reuses it on the next start.      |
+
+## Networking and references
+
+Kind nodes use the container runtime's `kind` network. Aspire-managed containers normally use a different network, and workloads running in Kubernetes use the cluster's pod and service networks. Connecting a container to the Kind network gives it a route to the Kind node containers, but does not expose Kubernetes pod or service networks by itself.
+
+Reference the cluster from a non-container resource to inject the host kubeconfig path and cluster name. Reference it from a container to mount the container-compatible kubeconfig, set environment variables, and connect the container to the Kind network.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder.addKindCluster('mycluster');
+
+const operator = await builder
+  .addContainer('operator', 'myregistry/my-operator')
+  .withKindContainerReference(cluster);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster");
+
+var operator = builder.AddContainer("operator", "myregistry/my-operator")
+    .WithReference(cluster);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The container reference sets `KUBECONFIG` to `/etc/kubeconfig/config`, mounts the container-compatible kubeconfig read-only at that path, and sets `K8S_CLUSTER_NAME` to the cluster resource name. Its kubeconfig uses the Kind control-plane container name instead of `127.0.0.1`.
+
+For a project or executable that runs on the host, use the non-container reference overload:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder.addKindCluster('mycluster');
+
+const operator = await builder
+  .addProject('operator', '../Operator/Operator.csproj')
+  .withKindClusterReference(cluster);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster");
+
+var operator = builder.AddProject<Projects.Operator>("operator")
+    .WithReference(cluster);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+For non-container resources, `KUBECONFIG` contains the host kubeconfig path. Both reference overloads set `K8S_CLUSTER_NAME` to the cluster resource name.
+
+<Aside type="caution">
+  `WithReference` connects a container to the Kind container network, not the
+  Kubernetes pod or service network. Expose a workload using a Kubernetes
+  mechanism such as NodePort or HostPort when a container needs to reach it.
+</Aside>
+
+Use `WithKindNetwork` to connect a container to the Kind network without referencing the cluster resource:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const toolbox = await builder
+  .addContainer('toolbox', 'myregistry/kubectl')
+  .withKindNetwork();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var toolbox = builder.AddContainer("toolbox", "myregistry/kubectl")
+    .WithKindNetwork();
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+## Add a Helm chart
+
+Use `AddHelmChart` to deploy a chart after the Kind cluster is healthy. The resource uses `helm upgrade --install`; the release name defaults to the resource name. A configured namespace is created for the release.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder.addKindCluster('mycluster');
+const redis = await cluster
+  .addHelmChart('redis', 'oci://registry-1.docker.io/bitnamicharts/redis')
+  .withChartVersion('20.0.0')
+  .withHelmValue('replica.replicaCount', '0')
+  .withHelmStringValue('auth.password', '000123')
+  .withNamespace('cache');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster");
+
+var redis = cluster.AddHelmChart("redis", "oci://registry-1.docker.io/bitnamicharts/redis")
+    .WithChartVersion("20.0.0")
+    .WithHelmValue("replica.replicaCount", "0")
+    .WithHelmStringValue("auth.password", "000123")
+    .WithNamespace("cache");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Use `WithHelmStringValue` for values such as passwords that resemble numbers or booleans but must remain strings. Add values files with `WithHelmValuesFile`.
+
+## Apply Kubernetes manifests
+
+Use `AddManifest` to apply a local manifest file, directory, or Kustomize overlay after the cluster becomes healthy. Manifest paths must be absolute so a published AppHost does not depend on the original project directory. URL fetching is not supported. Download remote manifests in a build step and use the local path instead.
+
+The following example resolves a manifest path from the AppHost directory and uses server-side apply:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import { fileURLToPath } from 'node:url';
+
+const builder = await createBuilder();
+
+const cluster = await builder.addKindCluster('mycluster');
+const manifestPath = fileURLToPath(
+  new URL('./manifests/platform.yaml', import.meta.url)
+);
+
+const platform = await cluster
+  .addManifest('platform', manifestPath)
+  .withServerSideApply()
+  .withFieldManager('aspire-apphost');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster");
+var manifestPath = Path.Combine(builder.AppHostDirectory, "manifests", "platform.yaml");
+
+var platform = cluster.AddManifest("platform", manifestPath)
+    .WithServerSideApply()
+    .WithFieldManager("aspire-apphost");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Use `AddManifestFromContent` to apply inline manifest text with `kubectl apply -f -`. For example:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder.addKindCluster('mycluster');
+const demoNamespace = await cluster.addManifestFromContent(
+  'demo-namespace',
+  `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aspire-demo
+`
+);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster");
+var demoNamespace = cluster.AddManifestFromContent("demo-namespace", """
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: aspire-demo
+    """);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Configure manifest application with `WithRecursive`, `WithNamespace`, `WithApplyTimeout`, and `WithClusterReadyTimeout`. `WithNamespace` passes a namespace to `kubectl apply` but does not create it. `WithApplyTimeout` sets the maximum duration for `kubectl apply`; `WithClusterReadyTimeout` sets how long to wait for the Kubernetes API before applying the manifest. A directory containing a Kustomize marker file is applied with `kubectl apply -k`; `WithRecursive` does not apply to Kustomize overlays.
+
+<Aside type="caution">
+  Manifest application uses the cluster kubeconfig, which is typically
+  cluster-admin for a local Kind cluster. Apply only manifests you trust.
+  `WithServerSideApply(forceConflicts: true)` can override field ownership held
+  by other controllers.
+</Aside>
+
+## Wait for deployed resources
+
+Use Aspire's `WaitFor` dependency to keep another resource from starting until a chart or manifest has completed its deployment and passed its applicable health checks:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import { fileURLToPath } from 'node:url';
+
+const builder = await createBuilder();
+
+const cluster = await builder.addKindCluster('mycluster');
+const manifestPath = fileURLToPath(
+  new URL('./manifests/crds.yaml', import.meta.url)
+);
+const crds = await cluster.addManifest('crds', manifestPath);
+
+const operator = await builder
+  .addContainer('operator', 'myregistry/my-operator')
+  .withKindContainerReference(cluster);
+await operator.waitFor(crds);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster");
+var manifestPath = Path.Combine(builder.AppHostDirectory, "manifests", "crds.yaml");
+var crds = cluster.AddManifest("crds", manifestPath);
+
+var operator = builder.AddContainer("operator", "myregistry/my-operator")
+    .WithReference(cluster)
+    .WaitFor(crds);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+After a manifest successfully applies, the integration checks directly applied CRDs and waits for them to reach the Kubernetes `Established` condition. This check is a post-apply check, not a recurring health probe. It does not check the readiness of other object kinds or CRDs created later by a controller.
+
+The default CRD wait timeout is five minutes. By default, a failed check prevents the resource from reaching `Running`, so dependent resources remain blocked. Set `FailureBehavior` to `BestEffort` only when it is acceptable to continue without verifying CRD readiness:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder, CrdWaitBehavior } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cluster = await builder.addKindCluster('mycluster');
+const manifest = await cluster.addManifestFromContent(
+  'demo-namespace',
+  `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aspire-demo
+`
+);
+
+await manifest.withCrdWait(async (options) => {
+  await options.timeout.set(120_000);
+  await options.failureBehavior.set(CrdWaitBehavior.BestEffort);
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cluster = builder.AddKindCluster("mycluster");
+var manifest = cluster.AddManifestFromContent("demo-namespace", """
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: aspire-demo
+    """);
+
+manifest.WithCrdWait(options =>
+{
+    options.Timeout = TimeSpan.FromMinutes(2);
+    options.FailureBehavior = CrdWaitBehavior.BestEffort;
+});
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The TypeScript callback shape is supported by the generated TypeScript AppHost SDK and is exercised by the integration's TypeScript AppHost tests.
+
+For Helm charts, the integration compares CRDs before and after a successful install and waits for newly observed CRDs to become established. A separate workload health check continues after installation. A successful install can therefore be `Running` but `Unhealthy` if its tracked workload health check fails.
+
+## Use Kind as a compute environment
+
+Configure an Aspire Kubernetes environment with `.WithKind()` to use a local Kind cluster as the target for `aspire publish` and `aspire deploy`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const k8s = await builder
+  .addKubernetesEnvironment('k8s')
+  .withKind()
+  .withKubernetesVersion('v1.32.2');
+
+await builder.addContainer('redis', 'redis:7');
+await builder.addProject('api', '../Api/Api.csproj');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREPIPELINES001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddKubernetesEnvironment("k8s")
+    .WithKind()
+    .WithKubernetesVersion("v1.32.2");
+
+builder.AddContainer("redis", "redis", "7");
+builder.AddProject<Projects.Api>("api");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Run `aspire publish --output-path ./charts` to generate the Helm chart. Run `aspire deploy` to create the Kind cluster, build and load the application images, and install the generated chart. For deployment, have the Kind and Helm CLIs available along with Docker or Podman.
+
+## Complete exported AppHost API
+
+The package's generated API export includes the following Kind-specific methods. The listed methods are available to TypeScript AppHosts unless marked C# only. TypeScript names use camelCase.
+
+| API                                                               | Purpose                                                                                                                                                              |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AddKindCluster(name)`                                            | Add a managed Kind cluster resource.                                                                                                                                 |
+| `WithKubernetesVersion(version)`                                  | Pin the Kubernetes version used for the cluster nodes.                                                                                                               |
+| `WithNodeImage(image)`                                            | Specify the complete node image name instead of a version.                                                                                                           |
+| `WithWorkerNodes(count)`                                          | Add worker nodes to the control-plane node.                                                                                                                          |
+| `WithNodeMount(hostPath, containerPath, readOnly)`                | Mount a host path in each node.                                                                                                                                      |
+| `WithClusterLifetime(lifetime)`                                   | Choose `Session` or `Persistent` cluster lifetime.                                                                                                                   |
+| `WithReference(kind)` for non-container resources                 | Provide the host kubeconfig path and cluster name to a project, executable, or other resource with environment support. TypeScript name: `withKindClusterReference`. |
+| `WithReference(kind)` for containers                              | Mount the container-compatible kubeconfig, set cluster environment variables, and connect to the Kind network. TypeScript name: `withKindContainerReference`.        |
+| `WithKindNetwork()`                                               | Connect a container resource to the Kind container network.                                                                                                          |
+| `WithKindConfig(configure)`                                       | Configure the Kind cluster using `KindConfigModel`. **C# only:** the action callback is not TypeScript-compatible.                                                   |
+| `AddHelmChart(name, chartRef)`                                    | Add a Helm chart resource.                                                                                                                                           |
+| `WithChartVersion(version)`                                       | Pin a chart version.                                                                                                                                                 |
+| `WithHelmValue(key, value)`                                       | Set a Helm value.                                                                                                                                                    |
+| `WithHelmStringValue(key, value)`                                 | Set a Helm value as a string.                                                                                                                                        |
+| `WithHelmValuesFile(path)`                                        | Add a Helm values file.                                                                                                                                              |
+| `WithNamespace(namespace)`                                        | Set the namespace for a chart or manifest resource.                                                                                                                  |
+| `AddManifest(name, manifestPath)`                                 | Apply a local manifest file or directory.                                                                                                                            |
+| `AddManifestFromContent(name, content)`                           | Apply inline manifest content.                                                                                                                                       |
+| `WithRecursive()`                                                 | Apply manifest files recursively in a directory.                                                                                                                     |
+| `WithServerSideApply(forceConflicts)`                             | Enable server-side apply, optionally forcing conflicts.                                                                                                              |
+| `WithFieldManager(fieldManager)`                                  | Set the `kubectl apply` field manager name.                                                                                                                          |
+| `WithApplyTimeout(timeout)`                                       | Set the `kubectl apply` timeout.                                                                                                                                     |
+| `WithClusterReadyTimeout(timeout)`                                | Set the time allowed for the Kubernetes API to become reachable before applying a manifest.                                                                          |
+| `WithCrdWait(configure)`                                          | Configure the CRD `Established` wait timeout and failure behavior for a chart or manifest.                                                                           |
+| `WithCrdWaitTimeout(timeout)` and `WithCrdWaitBehavior(behavior)` | Obsolete manifest-specific compatibility APIs. Prefer `WithCrdWait`.                                                                                                 |
+| `AddKubernetesEnvironment(name).WithKind()`                       | Configure a Kubernetes environment to use Kind for publish and deploy workflows.                                                                                     |
+
+The exported API also includes these public types:
+
+| Type                                                | Members or purpose                                                                                                                                                                                                        |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ClusterLifetime`                                   | `Session` and `Persistent` cluster lifetime values.                                                                                                                                                                       |
+| `CrdWaitBehavior`                                   | `Fail` and `BestEffort` policies for failed CRD readiness checks.                                                                                                                                                         |
+| `CrdWaitOptions`                                    | `Timeout` and `FailureBehavior` values configured by `WithCrdWait`.                                                                                                                                                       |
+| `IKindResource`                                     | Resource interface exposing `KubeconfigPath`.                                                                                                                                                                             |
+| `KindConfigModel`                                   | Kind configuration containing `ApiVersion`, `Kind`, `Nodes`, `Networking`, `RuntimeConfig`, `FeatureGates`, `ContainerdConfigPatches`, and `KubeadmConfigPatches`. Configured with the C#-only `WithKindConfig` callback. |
+| `KindNetworkingModel`                               | Kind API server address and port, CNI setting, IP family, kube-proxy mode, and pod and service subnets.                                                                                                                   |
+| `KindNodeModel`                                     | Node role and image, labels, kubeadm patches, extra mounts, and port mappings.                                                                                                                                            |
+| `KindMountModel`                                    | Host and container paths, read-only mode, propagation, and SELinux relabel options for a node mount.                                                                                                                      |
+| `KindPortMappingModel`                              | Container and host ports, listen address, and protocol for a node port mapping.                                                                                                                                           |
+| `KindClusterResource` and `KindEnvironmentResource` | Cluster resources exposing their kubeconfig path; the cluster resource also exposes its container-compatible kubeconfig path.                                                                                             |
+| `KindHelmChartResource`                             | Chart reference, release name, values, string values, values files, version, and namespace.                                                                                                                               |
+| `K8sManifestResource`                               | Manifest path or inline content, namespace, apply and cluster-ready timeouts, recursive and server-side apply options, field manager, and Kustomize state.                                                                |
+| `KindDeployedResource`                              | Parent cluster and namespace shared by chart and manifest resources.                                                                                                                                                      |
+
+## See also
+
+- [Get started with the Kind integration](./kind-get-started/)
+- [Kind documentation](https://kind.sigs.k8s.io/)
+- [Aspire Kubernetes deployment](https://learn.microsoft.com/dotnet/aspire/deployment/kubernetes/)
+- [CommunityToolkit.Aspire.Hosting.Kind README](https://github.com/CommunityToolkit/Aspire/blob/main/src/CommunityToolkit.Aspire.Hosting.Kind/README.md)

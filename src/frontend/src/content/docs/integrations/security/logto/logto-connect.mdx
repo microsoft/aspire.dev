@@ -1,0 +1,569 @@
+---
+title: Logto client integration
+description: Connect ASP.NET Core apps to Logto with OpenID Connect or JWT bearer authentication, and consume Aspire connection properties from other languages.
+next: false
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+The [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) Logto client integration configures ASP.NET Core authentication against a Logto instance. Use OIDC for interactive browser sign-in or JWT bearer authentication to protect an API.
+
+This page assumes a Logto resource is referenced from the consuming app in your AppHost. For resource setup, see [Logto hosting integration](/integrations/security/logto/logto-host/).
+
+## Connection string and properties
+
+The Logto resource exposes this exact connection-string structure:
+
+```text title="Connection string format"
+Endpoint={primaryEndpointUrl}
+```
+
+For a host endpoint at port `3001`, an example is:
+
+```text title="Example connection string"
+Endpoint=http://localhost:3001
+```
+
+Referencing a resource named `logto` supplies `ConnectionStrings__logto` to the consuming process. .NET configuration reads it as `ConnectionStrings:logto`.
+
+Aspire also exposes the following connection properties:
+
+| Property | Environment variable for `logto` | Value                                                                |
+| -------- | -------------------------------- | -------------------------------------------------------------------- |
+| `Host`   | `LOGTO_HOST`                     | Host of the primary HTTP endpoint.                                   |
+| `Port`   | `LOGTO_PORT`                     | Port of the primary HTTP endpoint as resolved for the consuming app. |
+| `Uri`    | `LOGTO_URI`                      | Full primary HTTP endpoint URL.                                      |
+
+The values are resolved for the consuming resource's network context. Don't assume a container port or `localhost` address when reading them. The `admin` endpoint is not part of this connection contract.
+
+<Aside type="note">
+  A resource reference supplies the endpoint, not application credentials or
+  accepted audiences. Configure the application ID and secret separately for
+  browser sign-in. For JWT validation, configure the API resource identifier as
+  the audience.
+</Aside>
+
+## Install the client integration
+
+Install [📦 CommunityToolkit.Aspire.Logto.Client](https://nuget.org/packages/CommunityToolkit.Aspire.Logto.Client) in the consuming ASP.NET Core project:
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.Logto.Client" />
+
+The extension methods are in the `Microsoft.Extensions.Hosting` namespace. They register authentication services, not a keyed client or a Logto Management API service.
+
+## Add Logto client for OIDC sign-in
+
+Create a traditional web application in the Logto Admin Console. Store its application ID and secret in the consuming project's configuration. For local development, use .NET user secrets:
+
+```bash title="Terminal in the web project"
+dotnet user-secrets init
+dotnet user-secrets set "Aspire:Logto:Client:AppId" "<application-id>"
+dotnet user-secrets set "Aspire:Logto:Client:AppSecret" "<application-secret>"
+```
+
+Call `AddLogtoOIDC` on the host application builder:
+
+```csharp title="Program.cs"
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddLogtoOIDC("logto", oidcOptions: options =>
+{
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+});
+builder.Services.AddAuthorization();
+
+var app = builder.Build();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapGet("/", () => "Visit /signin to sign in.");
+app.MapGet("/signin", async (HttpContext context) =>
+{
+    await context.ChallengeAsync("Logto",
+        new AuthenticationProperties { RedirectUri = "/me" });
+});
+app.MapGet("/me", (HttpContext context) => new
+{
+    Name = context.User.Identity?.Name,
+    IsAuthenticated = context.User.Identity?.IsAuthenticated
+}).RequireAuthorization();
+
+app.Run();
+```
+
+The `connectionName` value, `logto`, must match the AppHost resource name. `AddLogtoOIDC` defaults to the authentication scheme `Logto` and cookie scheme `Logto.Cookie`.
+
+Register the consuming web app's full callback URL in Logto. The underlying .NET SDK defaults to `/Callback` for sign-in and `/SignedOutCallback` for sign-out. Match the scheme, host, port, and path of your app. Configure the corresponding sign-out redirect if implementing sign-out.
+
+<Aside type="caution">
+  The example permits HTTP discovery metadata only when the consuming app is
+  running in the Development environment. Keep HTTPS metadata enabled outside
+  local development and use a Logto endpoint reachable by both the browser and
+  the server.
+</Aside>
+
+## Add Logto JWT bearer authentication
+
+For an API, call `AddLogtoJwtBearer` on an `AuthenticationBuilder`. Supply the API resource identifier registered in Logto as `appIdentification`:
+
+```csharp title="Program.cs"
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddLogtoJwtBearer("logto",
+        appIdentification: "https://api.example.com",
+        configureOptions: options =>
+        {
+            options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        });
+builder.Services.AddAuthorization();
+
+var app = builder.Build();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapGet("/", () => "API is running.");
+app.MapGet("/secure", (HttpContext context) => new
+{
+    Subject = context.User.FindFirst("sub")?.Value
+}).RequireAuthorization();
+
+app.Run();
+```
+
+Replace `https://api.example.com` with the API resource identifier from the Admin Console. This value is an audience, not the browser application's client ID.
+
+The integration trims a trailing slash from the configured endpoint, then appends `/oidc`. It uses that URL for both `Authority` and `ValidIssuer`, enables issuer and audience validation, and assigns the supplied identifiers to `ValidAudiences`.
+
+An overload accepts `IEnumerable<string>` for multiple audiences. The collection must contain at least one identifier, and no identifier can be empty or whitespace. The default authentication scheme is `Bearer`. The JWT registration requires an endpoint but does not require `AppId` or `AppSecret`.
+
+Require the scopes or roles your API needs through ASP.NET Core authorization policies. Validating an audience does not by itself enforce application permissions.
+
+## Authentication schemes, not keyed clients
+
+This integration has no `AddKeyedLogtoClient` API. Use distinct ASP.NET Core authentication schemes to configure multiple identities. For OIDC, use a distinct cookie scheme and configuration section for each registration.
+
+For example, configure separate `CustomerLogto` and `StaffLogto` sections with the respective endpoint, application ID, and secret, then register two OIDC handlers:
+
+```csharp title="Program.cs"
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddLogtoOIDC(
+    configurationSectionName: "CustomerLogto",
+    authenticationScheme: "Customer",
+    cookieScheme: "Customer.Cookie");
+builder.AddLogtoOIDC(
+    configurationSectionName: "StaffLogto",
+    authenticationScheme: "Staff",
+    cookieScheme: "Staff.Cookie");
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("StaffOnly", policy =>
+    {
+        policy.AddAuthenticationSchemes("Staff.Cookie");
+        policy.RequireAuthenticatedUser();
+    });
+});
+
+var app = builder.Build();
+
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapGet("/staff", () => "Staff area").RequireAuthorization("StaffOnly");
+
+app.Run();
+```
+
+Challenge the desired OIDC scheme explicitly from your sign-in endpoint. Authentication schemes select handlers; they aren't [.NET dependency injection keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Configuration
+
+### Connection strings
+
+Outside an AppHost, configure a connection string yourself:
+
+```json title="appsettings.json"
+{
+  "ConnectionStrings": {
+    "logto": "Endpoint=https://identity.example.com"
+  },
+  "Aspire": {
+    "Logto": {
+      "Client": {
+        "AppId": "<application-id>"
+      }
+    }
+  }
+}
+```
+
+Supply the application secret through user secrets, an environment variable such as `Aspire__Logto__Client__AppSecret`, or another secret configuration provider.
+
+The connection-string parser accepts an absolute URI directly or a key-value connection string containing an `Endpoint` whose value is an absolute URI. It returns no endpoint for malformed strings, a missing `Endpoint` key, or an invalid endpoint URI.
+
+### Configuration providers and precedence
+
+The client binds `Logto.AspNetCore.Authentication.LogtoOptions` from `Aspire:Logto:Client` by default. Override the section name with `configurationSectionName` on either registration API.
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "Logto": {
+      "Client": {
+        "Endpoint": "https://identity.example.com",
+        "AppId": "<application-id>"
+      }
+    }
+  }
+}
+```
+
+The effective settings are resolved in this order:
+
+1. Bind the chosen configuration section.
+2. If its `Endpoint` is blank, fill it from the named connection string.
+3. For OIDC, apply the `logtoOptions` delegate, then require a non-blank `Endpoint` and `AppId`.
+
+An endpoint in the configuration section takes precedence over the AppHost-injected connection string. Omit `Endpoint` from that section when the AppHost should supply it. Passing a connection name does not select a child section under `Aspire:Logto:Client`.
+
+Only `Endpoint`, `AppId`, and `AppSecret` are copied from the resolved `LogtoOptions` into the underlying OIDC registration. Other Logto SDK options, such as `Scopes`, `Resource`, and `CallbackPath`, are not forwarded by this wrapper. Use `oidcOptions` to customize the underlying `OpenIdConnectOptions`.
+
+### Inline delegates
+
+The OIDC API accepts a `logtoOptions` delegate for the resolved Logto settings and an `oidcOptions` delegate for the named OIDC handler:
+
+```csharp title="Program.cs"
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddLogtoOIDC("logto",
+    logtoOptions: options =>
+    {
+        options.AppId = builder.Configuration["Identity:AppId"]
+            ?? throw new InvalidOperationException("Configure Identity:AppId.");
+        options.AppSecret = builder.Configuration["Identity:AppSecret"];
+    },
+    oidcOptions: options =>
+    {
+        options.CallbackPath = "/auth/callback";
+        options.Scope.Add("email");
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+    });
+builder.Services.AddAuthorization();
+
+var app = builder.Build();
+
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapGet("/profile", (HttpContext context) => new
+{
+    Name = context.User.Identity?.Name
+}).RequireAuthorization();
+
+app.Run();
+```
+
+Register `/auth/callback` with the consuming app's full URL in Logto when using this example.
+
+The JWT API's `configureOptions` delegate runs after the integration assigns the authority and token-validation parameters. Use it to customize `JwtBearerOptions`, but preserve issuer and audience validation.
+
+## Connect from other languages
+
+The hosting connection properties work independently of the .NET client package. Use `LOGTO_URI` as the endpoint for the [official Logto SDKs](https://docs.logto.io/quick-starts/). Supply application credentials separately; they are not injected by the Logto resource reference.
+
+The following local-development web apps read the injected endpoint and provide sign-in and callback routes. Supply `LOGTO_APP_ID`, `LOGTO_APP_SECRET`, `SESSION_SECRET`, and `WEB_BASE_URL` yourself. Use the full browser-facing URL of the consuming web app for `WEB_BASE_URL`, without a trailing slash.
+
+<Aside type="caution">
+  These examples use server-side, in-process session storage for local
+  development. Sessions are lost when the process restarts. For production,
+  configure durable per-user session storage, HTTPS, secure cookies, and a
+  production web server as described in each SDK guide. Don't share an
+  authentication session between users.
+</Aside>
+
+<Tabs syncKey="logto-consuming-lang">
+<TabItem label="TypeScript">
+
+Use the [Express SDK guide](https://docs.logto.io/quick-starts/express) for a Node.js web app:
+
+```bash title="Terminal"
+npm install express @logto/express cookie-parser express-session
+npm install --save-dev typescript tsx @types/express @types/cookie-parser @types/express-session
+```
+
+```typescript title="app.ts"
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import session from 'express-session';
+import { handleAuthRoutes, withLogto } from '@logto/express';
+import type { LogtoExpressConfig } from '@logto/express';
+
+function required(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Configure ${name}.`);
+  }
+  return value;
+}
+
+const config: LogtoExpressConfig = {
+  endpoint: required('LOGTO_URI'),
+  appId: required('LOGTO_APP_ID'),
+  appSecret: required('LOGTO_APP_SECRET'),
+  baseUrl: required('WEB_BASE_URL'),
+};
+
+const app = express();
+app.use(cookieParser());
+app.use(
+  session({
+    secret: required('SESSION_SECRET'),
+    resave: false,
+    saveUninitialized: false,
+    cookie: { httpOnly: true, sameSite: 'lax' },
+  })
+);
+app.use(handleAuthRoutes(config));
+app.get('/', withLogto(config), (request, response) => {
+  response
+    .type('html')
+    .send(
+      request.user.isAuthenticated
+        ? 'Signed in. <a href="/logto/sign-out">Sign out</a>'
+        : '<a href="/logto/sign-in">Sign in</a>'
+    );
+});
+
+app.listen(Number(process.env.PORT ?? '3000'));
+```
+
+```bash title="Terminal"
+npx tsx app.ts
+```
+
+Register `{WEB_BASE_URL}/logto/sign-in-callback` as the redirect URI and `WEB_BASE_URL` as the post sign-out redirect URI in Logto. The SDK creates these routes through `handleAuthRoutes`.
+
+</TabItem>
+<TabItem label="Python">
+
+Use the [Python SDK guide](https://docs.logto.io/quick-starts/python):
+
+```bash title="Terminal"
+pip install logto "flask[async]" Flask-Session cachelib
+```
+
+```python title="app.py"
+import os
+from cachelib import SimpleCache
+from flask import Flask, redirect, request, session
+from flask_session import Session
+from logto import LogtoClient, LogtoConfig, Storage
+
+app = Flask(__name__)
+app.config.update(
+    SECRET_KEY=os.environ["SESSION_SECRET"],
+    SESSION_TYPE="cachelib",
+    SESSION_CACHELIB=SimpleCache(),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+)
+Session(app)
+
+base_url = os.environ["WEB_BASE_URL"].rstrip("/")
+
+config = LogtoConfig(
+    endpoint=os.environ["LOGTO_URI"].rstrip("/"),
+    appId=os.environ["LOGTO_APP_ID"],
+    appSecret=os.environ["LOGTO_APP_SECRET"],
+)
+
+class SessionStorage(Storage):
+    def get(self, key: str) -> str | None:
+        return session.get(key)
+
+    def set(self, key: str, value: str | None) -> None:
+        session[key] = value
+
+    def delete(self, key: str) -> None:
+        session.pop(key, None)
+
+def logto_client() -> LogtoClient:
+    return LogtoClient(config, storage=SessionStorage())
+
+@app.get("/")
+def home():
+    if logto_client().isAuthenticated():
+        return 'Signed in. <a href="/sign-out">Sign out</a>'
+    return '<a href="/sign-in">Sign in</a>'
+
+@app.get("/sign-in")
+async def sign_in():
+    return redirect(await logto_client().signIn(
+        redirectUri=f"{base_url}/callback"
+    ))
+
+@app.get("/callback")
+async def callback():
+    await logto_client().handleSignInCallback(request.url)
+    return redirect("/")
+
+@app.get("/sign-out")
+async def sign_out():
+    return redirect(await logto_client().signOut(
+        postLogoutRedirectUri=f"{base_url}/"
+    ))
+
+if __name__ == "__main__":
+    app.run(port=int(os.environ.get("PORT", "3000")))
+```
+
+```bash title="Terminal"
+python app.py
+```
+
+Register `{WEB_BASE_URL}/callback` as the redirect URI and `{WEB_BASE_URL}/` as the post sign-out redirect URI. The storage adapter reads the current user's server-side Flask session.
+
+</TabItem>
+<TabItem label="Go">
+
+Use the [Go SDK guide](https://docs.logto.io/quick-starts/go). Run these commands in an initialized Go module:
+
+```bash title="Terminal"
+go get github.com/logto-io/go/v2/client
+go get github.com/gin-gonic/gin github.com/gin-contrib/sessions
+go get github.com/gin-contrib/sessions/memstore
+```
+
+```go title="main.go"
+package main
+
+import (
+    "net/http"
+    "os"
+
+    "github.com/gin-contrib/sessions"
+    "github.com/gin-contrib/sessions/memstore"
+    "github.com/gin-gonic/gin"
+    "github.com/logto-io/go/v2/client"
+)
+
+func required(name string) string {
+    value := os.Getenv(name)
+    if value == "" {
+        panic("Configure " + name)
+    }
+    return value
+}
+
+type sessionStorage struct {
+    session sessions.Session
+}
+
+func (storage *sessionStorage) GetItem(key string) string {
+    value, _ := storage.session.Get(key).(string)
+    return value
+}
+
+func (storage *sessionStorage) SetItem(key, value string) {
+    storage.session.Set(key, value)
+    if err := storage.session.Save(); err != nil {
+        panic(err)
+    }
+}
+
+func main() {
+    config := &client.LogtoConfig{
+        Endpoint:  required("LOGTO_URI"),
+        AppId:     required("LOGTO_APP_ID"),
+        AppSecret: required("LOGTO_APP_SECRET"),
+    }
+    baseURL := required("WEB_BASE_URL")
+
+    router := gin.New()
+    router.Use(gin.Recovery())
+    store := memstore.NewStore([]byte(required("SESSION_SECRET")))
+    store.Options(sessions.Options{
+        Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode,
+    })
+    router.Use(sessions.Sessions("logto-session", store))
+
+    newClient := func(ctx *gin.Context) *client.LogtoClient {
+        return client.NewLogtoClient(config,
+            &sessionStorage{session: sessions.Default(ctx)})
+    }
+
+    router.GET("/", func(ctx *gin.Context) {
+        ctx.JSON(http.StatusOK, gin.H{
+            "authenticated": newClient(ctx).IsAuthenticated(),
+            "signIn": "/sign-in",
+        })
+    })
+    router.GET("/sign-in", func(ctx *gin.Context) {
+        signInURL, err := newClient(ctx).SignIn(baseURL + "/callback")
+        if err != nil {
+            ctx.Status(http.StatusInternalServerError)
+            return
+        }
+        ctx.Redirect(http.StatusFound, signInURL)
+    })
+    router.GET("/callback", func(ctx *gin.Context) {
+        if err := newClient(ctx).HandleSignInCallback(ctx.Request); err != nil {
+            ctx.Status(http.StatusUnauthorized)
+            return
+        }
+        ctx.Redirect(http.StatusFound, "/")
+    })
+
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "3000"
+    }
+    if err := router.Run(":" + port); err != nil {
+        panic(err)
+    }
+}
+```
+
+```bash title="Terminal"
+go run .
+```
+
+Register `{WEB_BASE_URL}/callback` as the redirect URI. Open `/sign-in` to start sign-in. A client is created per request, backed by that user's server-side session. Follow the SDK guide to add sign-out.
+
+</TabItem>
+</Tabs>
+
+`LOGTO_APP_ID`, `LOGTO_APP_SECRET`, `SESSION_SECRET`, and `WEB_BASE_URL` are application-defined configuration variables. Use a random 32- or 64-byte value for `SESSION_SECRET`. `PORT` controls the consuming web app's listener, not Logto's port. Aspire only supplies `LOGTO_URI` through the Logto connection-property contract.
+
+## Client integration health checks
+
+The .NET client package does not register health checks. The [hosting health check](/integrations/security/logto/logto-host/#hosting-integration-health-checks) checks server readiness, not client credentials, callback registration, or successful token validation.
+
+## Observability and telemetry
+
+The client package does not add Logto-specific logging, metrics, or OpenTelemetry instrumentation. Authentication handlers use ASP.NET Core's logging, including the `Microsoft.AspNetCore.Authentication.OpenIdConnect` and `Microsoft.AspNetCore.Authentication.JwtBearer` categories.
+
+Use your app's existing telemetry configuration for request tracing. View the Logto container's stdout and stderr in the Aspire dashboard. Keep secrets, tokens, and personally identifiable claims out of diagnostic logs.
+
+## See also
+
+- [Get started with the Logto integrations](/integrations/security/logto/logto-get-started/)
+- [Logto hosting integration](/integrations/security/logto/logto-host/)
+- [Logto client source and README](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Logto.Client)
+- [Logto .NET SDK](https://github.com/logto-io/csharp)
+- [Logto API protection](https://docs.logto.io/api-protection)

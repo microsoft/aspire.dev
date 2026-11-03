@@ -421,6 +421,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                     },
                   ],
                 },
+                {
+                  label: 'Stripe',
+                  collapsed: true,
+                  items: [
+                    {
+                      label: 'Get started',
+                      slug: 'integrations/cloud/stripe/stripe-get-started',
+                    },
+                    {
+                      label: 'Set up Stripe in the AppHost',
+                      slug: 'integrations/cloud/stripe/stripe-host',
+                    },
+                  ],
+                },
               ],
             },
             {
@@ -682,6 +696,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/azure-storage-datalake',
             },
             {
+              label: 'Azure Storage Explorer',
+              slug: 'integrations/cloud/azure/azure-storage-explorer',
+            },
+            {
               label: 'Azure Storage Queues',
               collapsed: true,
               items: [
@@ -896,6 +914,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         { label: 'Docker', slug: 'integrations/compute/docker' },
         { label: 'Floci', slug: 'integrations/compute/floci' },
         { label: 'K3s', slug: 'integrations/compute/k3s' },
+        {
+          label: 'Kind',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/compute/kind/kind-get-started',
+            },
+            {
+              label: 'Set up Kind in the AppHost',
+              slug: 'integrations/compute/kind/kind-host',
+            },
+          ],
+        },
         { label: 'Kubernetes', slug: 'integrations/compute/kubernetes' },
       ],
     },
@@ -1837,7 +1869,63 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Безпека та ідентичність',
         'zh-CN': '安全与身份',
       },
-      items: [{ label: 'Keycloak', slug: 'integrations/security/keycloak' }],
+      items: [
+        {
+          label: 'Bitwarden Secrets Manager',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/security/bitwarden-secret-manager/bitwarden-secret-manager-get-started',
+            },
+            {
+              label: 'Set up Bitwarden Secrets Manager in the AppHost',
+              slug: 'integrations/security/bitwarden-secret-manager/bitwarden-secret-manager-host',
+            },
+            {
+              label: 'Connect to Bitwarden Secrets Manager',
+              slug: 'integrations/security/bitwarden-secret-manager/bitwarden-secret-manager-connect',
+            },
+          ],
+        },
+        { label: 'Keycloak', slug: 'integrations/security/keycloak' },
+        {
+          label: 'Logto',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/security/logto/logto-get-started',
+            },
+            {
+              label: 'Set up Logto in the AppHost',
+              slug: 'integrations/security/logto/logto-host',
+            },
+            {
+              label: 'Connect to Logto',
+              slug: 'integrations/security/logto/logto-connect',
+            },
+          ],
+        },
+        {
+          label: 'ZITADEL',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/security/zitadel/zitadel-get-started',
+            },
+            {
+              label: 'Set up ZITADEL in the AppHost',
+              slug: 'integrations/security/zitadel/zitadel-host',
+            },
+            {
+              label: 'Connect to ZITADEL',
+              slug: 'integrations/security/zitadel/zitadel-connect',
+            },
+          ],
+        },
+      ],
     },
     {
       label: 'Observability & logging',
@@ -1915,6 +2003,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         'zh-CN': '反向代理和API',
       },
       items: [
+        {
+          label: 'Ngrok',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/reverse-proxies/ngrok/ngrok-get-started',
+            },
+            {
+              label: 'Set up Ngrok in the AppHost',
+              slug: 'integrations/reverse-proxies/ngrok/ngrok-host',
+            },
+          ],
+        },
         {
           label: 'YARP (Yet Another Reverse Proxy)',
           slug: 'integrations/reverse-proxies/yarp',
