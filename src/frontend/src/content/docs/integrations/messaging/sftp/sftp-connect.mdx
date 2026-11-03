@@ -3,7 +3,7 @@ title: Connect to an SFTP server with Aspire
 description: Register the Community Toolkit SFTP client, configure connection strings and authentication, and use keyed SSH.NET clients in a consuming app.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -63,9 +63,10 @@ builder.AddKeyedSftpClient(
     {
         settings.Username = "archive-user";
         settings.PrivateKeyFile = builder.Configuration["Sftp:ArchivePrivateKeyFile"];
-        settings.PrivateKeyPassphrase = builder.Configuration["Sftp:ArchivePrivateKeyPassphrase"] ?? "";
     });
 ```
+
+Although `SftpSettings` includes `PrivateKeyPassphrase`, the client factory creates `PrivateKeyFile` with only the path. Use an unencrypted private key for `SftpClient`. The health check uses the passphrase, so it can succeed with an encrypted key even though client creation fails.
 
 Resolve a keyed client using dependency injection:
 
@@ -83,7 +84,7 @@ For more information, see [.NET dependency injection: Keyed services](https://le
 
 ### Connection strings
 
-The AppHost resource exposes `endpoint=sftp://host:port`. For a standalone app, set the connection string named `sftp`:
+The AppHost resource exposes the connection URI `sftp://host:port`. For a standalone app, set the connection string named `sftp`:
 
 ```json title="appsettings.json"
 {
