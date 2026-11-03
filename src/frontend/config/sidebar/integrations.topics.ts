@@ -442,6 +442,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure API Management',
+              slug: 'integrations/cloud/azure/azure-api-management',
+            },
+            {
               label: 'Azure Application Insights',
               slug: 'integrations/cloud/azure/azure-application-insights',
             },
