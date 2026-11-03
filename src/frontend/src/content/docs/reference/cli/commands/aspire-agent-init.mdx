@@ -31,34 +31,27 @@ aspire agent init [options]
 The `aspire agent init` command initializes Aspire skills and companion tools for your development environment. MCP (Model Context Protocol) server configuration is optional. It presents an interactive multi-step flow to configure AI coding agent support:
 
 1. **Select skill locations** — choose where skill files are installed (Standard `.agents/skills/`, Claude Code `.claude/skills/`, GitHub Skills `.github/skills/`, OpenCode `.opencode/skill/`). The **Standard** location is the only option that defaults as pre-selected.
-2. **Select skills and tools** — choose which Aspire workflow skills and companion tools to install. The Aspire workflow skills come from the Aspire skills bundle; optional companion tools such as `playwright-cli` and `dotnet-inspect` can be selected explicitly.
+2. **Select skills and tools** — choose which Aspire workflow skills and companion tools to install. Aspire workflow skills are registered through the selected agent clients; optional companion tools such as `playwright-cli` and `dotnet-inspect` can be selected explicitly.
 3. **Apply selections** — installs the chosen skills into each selected location. Standalone interactive setup offers MCP configuration as an explicit opt-in; it isn't selected by default.
 
 Setup chained from `aspire new` or `aspire init` doesn't offer MCP configuration. Non-interactive setup also skips MCP unless you supply `--mcp`. Skills teach agents to use the CLI without requiring an MCP server.
 
 The command also removes skill files from any locations that were deselected, keeping your workspace clean.
 
-<Aside type="note" title="Aspire workflow skills bundle">
-  Aspire workflow skills are distributed through the
-  [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) GitHub
-  release assets. Aspire 13.4 includes an embedded snapshot for default
-  installs, and the optional remote fetch path can download matching release
-  assets. The CLI verifies bundle integrity before installing selected files.
-  The `playwright-cli` and `dotnet-inspect` companion options aren't part of
-  that bundle and are installed separately when selected.
+<Aside type="note" title="Aspire workflow skills">
+  Aspire workflow skills are published in the
+  [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills)
+  repository and registered through each selected agent client's native
+  mechanism. The Aspire CLI no longer ships an embedded skills bundle, and the
+  `--aspire-source` option has been removed. The `playwright-cli` and
+  `dotnet-inspect` companion options are installed separately when selected.
 </Aside>
 
 ### Skills catalog and defaults
 
-The Aspire skills bundle includes seven workflow skills: `aspire`, `aspire-init`, `aspire-orchestration`, `aspire-monitoring`, `aspire-deployment`, `aspire-project-v2-migration`, and `aspireify`. The CLI reads the bundle catalog, so bundle-provided skills are available in the interactive prompt and through `--skills` by name.
+The Aspire skills catalog includes seven workflow skills: `aspire`, `aspire-init`, `aspire-orchestration`, `aspire-monitoring`, `aspire-deployment`, `aspire-project-v2-migration`, and `aspireify`. The CLI reads the skills catalog, so catalog skills are available in the interactive prompt and through `--skills` by name.
 
-All applicable bundle skills are pre-selected in both standalone and chained setup, including `aspireify` and `aspire-project-v2-migration`. Installing a skill doesn't execute its workflow: review and approve migration or AppHost-wiring changes when you ask an agent to use it. Companion tools remain opt-in, and project-language applicability can limit the offered skills.
-
-### Bundle integrity verification
-
-The CLI verifies the embedded and remotely-fetched Aspire skills bundle using
-SHA-512 checksums. Per-file hashes recorded in bundles published before the
-SHA-512 switch continue to validate against SHA-256.
+All applicable skills are pre-selected in both standalone and chained setup, including `aspireify` and `aspire-project-v2-migration`. Installing a skill doesn't execute its workflow: review and approve migration or AppHost-wiring changes when you ask an agent to use it. Companion tools remain opt-in, and project-language applicability can limit the offered skills.
 
 ### Installation summary
 
@@ -72,11 +65,6 @@ When one or more skill files are installed or updated, the command prints a sing
 ```
 
 If a skill install fails, the error message includes the exact skill path that failed. No-op runs, where every selected skill is already up to date, skip the skills and locations summary and print only the final completion message.
-
-<LearnMore>
-  If bundle validation fails before skill installation, see [Troubleshoot skill
-  bundle errors](/get-started/aspire-skills/#troubleshoot-skill-bundle-errors).
-</LearnMore>
 
 ## Options
 
