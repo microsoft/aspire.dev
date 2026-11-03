@@ -182,6 +182,7 @@ The **Selected SDK models** column lists representative models, not every model 
 | Azure Storage                 | `Aspire.Hosting.Azure.Provisioning.Storage`          | `StorageAccount`                                                                                                         |
 | Azure Service Bus             | `Aspire.Hosting.Azure.Provisioning.ServiceBus`       | `ServiceBusNamespace`                                                                                                    |
 | Azure Key Vault               | `Aspire.Hosting.Azure.Provisioning.KeyVault`         | `KeyVaultService`                                                                                                        |
+| Microsoft Entra ID            | `Aspire.Hosting.Azure.Provisioning.EntraId`          | `MicrosoftGraphApplication`, `MicrosoftGraphServicePrincipal`                                                            |
 
 Package names follow the Azure Provisioning SDK, which can differ from the hosting integration name: Front Door uses `Cdn`, Kubernetes uses `ContainerService`, and PostgreSQL uses the SDK spelling `PostgreSql`. Network and PrivateDns are separate opt-ins, as are Redis and RedisEnterprise. To customize supporting resources such as a container registry or Log Analytics workspace, also add the corresponding provisioning package; a transitive hosting dependency doesn't enable its SDK proxies.
 
@@ -207,6 +208,56 @@ The selected models in the table aren't all no-argument lookup roots:
 - **Child resources**: Use identifier-based lookup for resources such as Kusto databases. Don't assume the parent resource's no-argument lookup selects a child.
 
 For a complete TypeScript and C# example using Azure Storage, see [Basic infrastructure customization](#basic-infrastructure-customization). The example looks up the storage account inside its infrastructure callback and adds tags. The callback runs before Aspire emits the resource's Bicep; the lookup selects a generated resource rather than querying an existing Azure deployment.
+
+### Customize Microsoft Entra ID applications
+
+`AddEntraIdApplication` returns an Azure provisioning resource, so `ConfigureInfrastructure` can customize its generated Bicep. The Microsoft Graph models in the `Aspire.Hosting.Azure.EntraId.Provisioning` namespace are public: `MicrosoftGraphApplication`, `MicrosoftGraphServicePrincipal`, `MicrosoftGraphFederatedIdentityCredential`, and the permission grant types. Microsoft Graph `Tags` are a string array, not Azure key/value tags, and `ServiceManagementReference` is a separate string property.
+
+<Tabs syncKey="apphost-language">
+  <TabItem label="C#">
+
+```csharp title="C# — AppHost.cs"
+using Aspire.Hosting.Azure.EntraId.Provisioning;
+
+var entra = builder.AddEntraIdApplication("entra")
+    .ConfigureInfrastructure(infrastructure =>
+    {
+        var application = infrastructure.GetProvisionableResources()
+            .OfType<MicrosoftGraphApplication>()
+            .Single(r => r.BicepIdentifier == "application");
+        application.Tags.Add("department:engineering");
+        application.ServiceManagementReference = "your-service-management-reference";
+
+        var principal = infrastructure.GetProvisionableResources()
+            .OfType<MicrosoftGraphServicePrincipal>().Single();
+        principal.Tags.Add("department:engineering");
+    });
+```
+
+  </TabItem>
+  <TabItem label="TypeScript">
+
+Add the experimental `Aspire.Hosting.Azure.Provisioning.EntraId` package first.
+
+```typescript title="TypeScript — apphost.ts"
+const serviceReference = await builder.addParameter("service-reference");
+const entra = await builder.addEntraIdApplication("entra");
+await entra.configureInfrastructure(async infrastructure => {
+    const application = await infrastructure.getMicrosoftGraphApplicationByIdentifier("application");
+    const tags = await application.tags.get();
+    await tags.add("department:engineering");
+    await application.serviceManagementReference.set(infrastructure.bicep().parameter(serviceReference));
+
+    const principal = await infrastructure.getMicrosoftGraphServicePrincipalByIdentifier("servicePrincipal");
+    const principalTags = await principal.tags.get();
+    await principalTags.add("department:engineering");
+});
+```
+
+  </TabItem>
+</Tabs>
+
+Customization applies only to registrations that Aspire creates; references to existing registrations aren't provisioned or modified. An API registration that uses the default `api://{clientId}` URI is emitted as two `Microsoft.Graph/applications` declarations, and the second repeats `DisplayName` and `UniqueName`. Changing them on only the first isn't enough.
 
 ### IP address collections and projection limits
 
