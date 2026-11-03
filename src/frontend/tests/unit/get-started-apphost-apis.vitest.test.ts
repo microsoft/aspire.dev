@@ -1,9 +1,9 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 const frontendRoot = join(import.meta.dirname, '../..');
-const getStartedRoot = join(frontendRoot, 'src/content/docs/get-started');
+const docsRoot = join(frontendRoot, 'src/content/docs');
 const packagesRoot = join(frontendRoot, 'src/data/pkgs');
 
 type PackageApi = { types: { members?: { name: string }[] }[] };
@@ -17,6 +17,17 @@ function publishedMemberNames() {
     }
   }
   return names;
+}
+
+function getStartedRoots() {
+  const localeRoots = readdirSync(docsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(docsRoot, entry.name, 'get-started'))
+    .filter((path) => existsSync(path));
+  return [
+    join(docsRoot, 'get-started'),
+    ...localeRoots.filter((path) => path !== join(docsRoot, 'get-started')),
+  ];
 }
 
 function csharpAppHostSamples(source: string) {
@@ -39,14 +50,25 @@ describe('get-started AppHost samples', () => {
     const missing: string[] = [];
     let calls = 0;
 
-    for (const file of readdirSync(getStartedRoot).filter((name) => /\.mdx?$/.test(name))) {
-      const path = join(getStartedRoot, file);
+    const files = getStartedRoots().flatMap((root) =>
+      readdirSync(root)
+        .filter((name) => /\.mdx?$/.test(name))
+        .map((name) => join(root, name))
+    );
+    expect(
+      files.some((path) =>
+        relative(docsRoot, path).split(sep).join('/').startsWith('ja/get-started/')
+      )
+    ).toBe(true);
+
+    for (const path of files) {
       for (const sample of csharpAppHostSamples(readFileSync(path, 'utf8'))) {
         for (const [, name] of sample.matchAll(
           /\bbuilder\s*\.\s*(Add[A-Z]\w*)\s*(?:<[^()]*>)?\s*\(/g
         )) {
           calls++;
-          if (!members.has(name)) missing.push(`${relative(frontendRoot, path)}: ${name}`);
+          if (!members.has(name))
+            missing.push(`${relative(frontendRoot, path).split(sep).join('/')}: ${name}`);
         }
       }
     }
