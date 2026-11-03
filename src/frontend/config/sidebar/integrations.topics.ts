@@ -885,6 +885,18 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
+          label: 'Chroma',
+          collapsed: true,
+          items: [
+            { label: 'Get started', slug: 'integrations/databases/chroma/chroma-get-started' },
+            {
+              label: 'Set up Chroma in the AppHost',
+              slug: 'integrations/databases/chroma/chroma-host',
+            },
+            { label: 'Connect to Chroma', slug: 'integrations/databases/chroma/chroma-connect' },
+          ],
+        },
+        {
           label: 'ClickHouse',
           collapsed: true,
           items: [
@@ -903,6 +915,18 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: 'DuckDB',
+          collapsed: true,
+          items: [
+            { label: 'Get started', slug: 'integrations/databases/duckdb/duckdb-get-started' },
+            {
+              label: 'Set up DuckDB in the AppHost',
+              slug: 'integrations/databases/duckdb/duckdb-host',
+            },
+            { label: 'Connect to DuckDB', slug: 'integrations/databases/duckdb/duckdb-connect' },
+          ],
+        },
+        {
           label: 'Elasticsearch',
           collapsed: true,
           items: [
@@ -917,6 +941,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Connect to Elasticsearch',
               slug: 'integrations/databases/elasticsearch/elasticsearch-connect',
+            },
+            {
+              label: 'Community extensions',
+              slug: 'integrations/databases/elasticsearch/elasticsearch-extensions',
             },
           ],
         },
@@ -1059,6 +1087,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/sql-server/sql-server-connect',
                 },
               ],
+            },
+            {
+              label: 'SQLite',
+              slug: 'integrations/databases/efcore/sqlite',
+            },
+          ],
+        },
+        {
+          label: 'Flyway',
+          collapsed: true,
+          items: [
+            { label: 'Get started', slug: 'integrations/databases/flyway/flyway-get-started' },
+            {
+              label: 'Set up Flyway in the AppHost',
+              slug: 'integrations/databases/flyway/flyway-host',
             },
           ],
         },
@@ -1216,6 +1259,45 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               label: 'Connect to RavenDB',
               slug: 'integrations/databases/ravendb/ravendb-connect',
             },
+          ],
+        },
+        {
+          label: 'RustFS',
+          collapsed: true,
+          items: [
+            { label: 'Get started', slug: 'integrations/databases/rustfs/rustfs-get-started' },
+            {
+              label: 'Set up RustFS in the AppHost',
+              slug: 'integrations/databases/rustfs/rustfs-host',
+            },
+            { label: 'Connect to RustFS', slug: 'integrations/databases/rustfs/rustfs-connect' },
+          ],
+        },
+        {
+          label: 'SeaweedFS',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/seaweedfs/seaweedfs-get-started',
+            },
+            {
+              label: 'Set up SeaweedFS in the AppHost',
+              slug: 'integrations/databases/seaweedfs/seaweedfs-host',
+            },
+            {
+              label: 'Connect to SeaweedFS',
+              slug: 'integrations/databases/seaweedfs/seaweedfs-connect',
+            },
+          ],
+        },
+        {
+          label: 'Solr',
+          collapsed: true,
+          items: [
+            { label: 'Get started', slug: 'integrations/databases/solr/solr-get-started' },
+            { label: 'Set up Solr in the AppHost', slug: 'integrations/databases/solr/solr-host' },
+            { label: 'Connect to Solr', slug: 'integrations/databases/solr/solr-connect' },
           ],
         },
         {

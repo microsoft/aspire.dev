@@ -1,0 +1,191 @@
+---
+title: Connect with the Solr integration
+description: Query an Apache Solr core from Aspire apps using the injected core URL with .NET, TypeScript, Python, and Go HTTP clients.
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+The Solr hosting integration supplies connection information to apps that reference its resource. Add the container and reference as shown in [Solr hosting integration](/integrations/databases/solr/solr-host/#add-solr-resource). The examples use a resource named `solr` with a core named `documents`.
+
+There is no Community Toolkit Solr client package in this group. Use the core's HTTP API or a Solr client library. The examples below use standard HTTP clients and require no .NET integration package.
+
+## Connection properties
+
+The resource's connection string is a bare core URL:
+
+```text title="Solr connection-string format"
+http://{host}:{port}/solr/{coreName}
+```
+
+Aspire injects it as `ConnectionStrings__solr`. .NET configuration reads the value from `ConnectionStrings:solr`.
+
+| Property   | Environment variable | Value                                        |
+| ---------- | -------------------- | -------------------------------------------- |
+| `Host`     | `SOLR_HOST`          | Allocated server host.                       |
+| `Port`     | `SOLR_PORT`          | Allocated HTTP port.                         |
+| `CoreName` | `SOLR_CORENAME`      | The selected core name, such as `documents`. |
+| `Uri`      | `SOLR_URI`           | The same core URL as the connection string.  |
+
+<Aside type="tip">
+  The URL already contains `/solr/{coreName}`. Append a handler such as
+  `/select` or `/update` to that URL. Appending `/solr/{coreName}` again, or
+  resolving `/select` from the server root, targets the wrong path.
+</Aside>
+
+## Add an HTTP client in .NET
+
+Use `IHttpClientFactory` to configure a named client. This complete ASP.NET Core example queries all documents in the core and returns Solr's JSON response:
+
+```csharp title="Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+var coreUrl = builder.Configuration.GetConnectionString("solr")
+    ?? throw new InvalidOperationException("ConnectionStrings:solr is required");
+
+builder.Services.AddHttpClient("solr", client =>
+{
+    client.BaseAddress = new Uri(coreUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+var app = builder.Build();
+app.MapGet("/search", async (IHttpClientFactory factory) =>
+{
+    var client = factory.CreateClient("solr");
+    var json = await client.GetStringAsync("select?q=*%3A*&wt=json");
+    return Results.Content(json, "application/json");
+});
+app.Run();
+```
+
+The connection name must match the referenced AppHost resource name. The trailing slash on `BaseAddress` preserves the core path when resolving the relative `select` request.
+
+A new core can return an empty result set. Index documents through Solr's update API and configure the schema for application-specific fields before adding field-specific queries.
+
+## Configuration
+
+Outside AppHost orchestration, provide the core URL using a .NET configuration provider:
+
+```json title="appsettings.json"
+{
+  "ConnectionStrings": {
+    "solr": "http://localhost:8983/solr/documents"
+  }
+}
+```
+
+For TypeScript, Python, or Go apps outside orchestration, provide the same URL as `ConnectionStrings__solr` or `SOLR_URI`.
+
+Configure HTTP timeouts and handlers through the HTTP client, as in the .NET delegate above. The hosting package does not define consuming-app settings, retry policies, keyed Solr client registrations, or an `Aspire:Solr:Client` configuration section.
+
+<Aside type="caution">
+  The local hosting example does not configure authentication or TLS. Do not
+  expose that development server publicly. Configure Solr security and the
+  consuming HTTP client's credentials before connecting to a protected
+  deployment.
+</Aside>
+
+## Connect from other languages
+
+These examples query the same `select` handler using the injected `SOLR_URI`.
+
+<Tabs syncKey="solr-client-lang">
+<TabItem label="TypeScript">
+
+Use Node.js with its built-in `fetch`. Run the file with a TypeScript runner or compile it for Node.js:
+
+```typescript title="index.ts"
+const coreUrl = process.env.SOLR_URI;
+if (!coreUrl) {
+  throw new Error('SOLR_URI is required');
+}
+
+const url = new URL(coreUrl.replace(/\/$/, '') + '/select');
+url.searchParams.set('q', '*:*');
+url.searchParams.set('wt', 'json');
+
+const response = await fetch(url);
+if (!response.ok) {
+  throw new Error(`Solr query failed: ${response.status}`);
+}
+console.log(await response.json());
+
+export {};
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Use Python's standard library:
+
+```python title="app.py"
+import json
+import os
+from urllib.parse import urlencode
+from urllib.request import urlopen
+
+core_url = os.environ["SOLR_URI"].rstrip("/")
+query = urlencode({"q": "*:*", "wt": "json"})
+
+with urlopen(f"{core_url}/select?{query}", timeout=10) as response:
+    print(json.load(response))
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use Go's standard library:
+
+```go title="main.go"
+package main
+
+import (
+    "fmt"
+    "io"
+    "net/http"
+    "net/url"
+    "os"
+    "strings"
+    "time"
+)
+
+func main() {
+    coreURL := os.Getenv("SOLR_URI")
+    if coreURL == "" {
+        panic("SOLR_URI is required")
+    }
+    query := url.Values{"q": {"*:*"}, "wt": {"json"}}
+    endpoint := strings.TrimRight(coreURL, "/") + "/select?" + query.Encode()
+    client := &http.Client{Timeout: 10 * time.Second}
+    response, err := client.Get(endpoint)
+    if err != nil {
+        panic(err)
+    }
+    defer response.Body.Close()
+    if response.StatusCode != http.StatusOK {
+        panic(response.Status)
+    }
+    body, err := io.ReadAll(response.Body)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println(string(body))
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Health checks and telemetry
+
+The [hosting health check](/integrations/databases/solr/solr-host/#hosting-integration-health-checks) verifies the selected core's `/admin/ping` endpoint. It does not register a health check inside the consuming app.
+
+Add consuming-app health checks if the application must report Solr availability. Configure HTTP-client tracing and exporters through the application's observability setup. For .NET, [service defaults](/get-started/csharp-service-defaults/) configure HTTP instrumentation and health endpoints. The Solr hosting package does not add client tracing, metrics, logging, or server OpenTelemetry export.
+
+## See also
+
+- [Solr hosting integration](/integrations/databases/solr/solr-host/)
+- [Solr query guide](https://solr.apache.org/guide/solr/latest/query-guide/)
+- [Solr indexing guide](https://solr.apache.org/guide/solr/latest/indexing-guide/)
+- [IHttpClientFactory](https://learn.microsoft.com/dotnet/core/extensions/httpclient-factory)

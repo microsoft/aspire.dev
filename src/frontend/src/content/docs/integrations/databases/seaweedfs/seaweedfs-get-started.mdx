@@ -1,0 +1,123 @@
+---
+title: Get started with the SeaweedFS integration
+description: Run SeaweedFS in Aspire with its native Filer API or S3 gateway, then connect a .NET client to the configured endpoint.
+---
+
+import {
+  Aside,
+  Badge,
+  Steps,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+[SeaweedFS](https://seaweedfs.com/) is a distributed storage system with native Master, Volume, and Filer APIs and an optional S3-compatible gateway. The Community Toolkit provides an AppHost integration and a .NET client package for its S3 and Filer APIs.
+
+## Why use SeaweedFS with Aspire
+
+- Enable only the APIs your application uses.
+- Reference a SeaweedFS resource to pass dynamically assigned endpoints and S3 credentials to dependent projects.
+- Persist cluster files in a Docker volume or a host bind mount.
+- Register typed .NET clients with configuration and health checks.
+
+## Prerequisites
+
+- The [Aspire CLI](/get-started/install-cli/) and the other [Aspire prerequisites](/get-started/prerequisites/).
+- Docker to run the SeaweedFS container.
+- .NET 10 or later for the Community Toolkit client package.
+
+## How the integration fits together
+
+The hosting package starts a SeaweedFS container with the Master and Volume services. Add `WithFiler` for the native Filer API, or `WithS3` for the S3-compatible gateway. The S3 gateway also enables the Filer API because it depends on it. The client package reads endpoint and credential values from Aspire configuration and registers the matching .NET client.
+
+```mermaid
+architecture-beta
+  group apphost(server)[AppHost]
+  group seaweed(server)[SeaweedFS container]
+  service hosting(server)[SeaweedFS hosting integration] in apphost
+  service resource(disk)[SeaweedFS resource] in apphost
+  service master(server)[Master and Volume APIs] in seaweed
+  service filer(server)[Native Filer API] in seaweed
+  service s3(api)[S3 gateway] in seaweed
+  service client(server)[.NET application]
+  hosting:R --> L:resource
+  resource:R --> L:master
+  resource:R --> L:filer
+  resource:R --> L:s3
+  client:L --> R:s3
+```
+
+## Start using SeaweedFS
+
+<Steps>
+
+1. Install the hosting package in the AppHost.
+
+   <InstallPackage
+     packageName="CommunityToolkit.Aspire.Hosting.SeaweedFS"
+     shortName="seaweedfs"
+   />
+
+2. Add the resource and opt in to either the native Filer API, the S3 gateway, or both. See [Host SeaweedFS in the AppHost](/integrations/databases/seaweedfs/seaweedfs-host/) for endpoint, security, and persistence options.
+
+3. Install the client package in a .NET project and register the client for the same resource name used in the AppHost. See [Connect to SeaweedFS](/integrations/databases/seaweedfs/seaweedfs-connect/) for S3 and Filer client examples.
+
+</Steps>
+
+## Minimal AppHost flow
+
+The S3 gateway uses target port `8333` by default and enables the Filer API at target port `8888`. Aspire assigns host ports unless you configure them:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const seaweedfs = await builder.addSeaweedFS('seaweedfs');
+await seaweedfs.withS3();
+await seaweedfs.withDataVolume();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(seaweedfs);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var seaweedfs = builder.AddSeaweedFS("seaweedfs")
+    .WithS3()
+    .WithDataVolume();
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(seaweedfs);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+  `WithS3` implicitly enables and exposes the Filer API. To use the native Filer
+  API without S3, call `WithFiler` instead.
+</Aside>
+
+## See also
+
+- [Host SeaweedFS in the AppHost](/integrations/databases/seaweedfs/seaweedfs-host/)
+- [Connect to SeaweedFS](/integrations/databases/seaweedfs/seaweedfs-connect/)
+- [SeaweedFS documentation](https://seaweedfs.com/)
+- [📦 CommunityToolkit.Aspire.Hosting.SeaweedFS](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.SeaweedFS)
+- [📦 CommunityToolkit.Aspire.SeaweedFS.Client](https://www.nuget.org/packages/CommunityToolkit.Aspire.SeaweedFS.Client)

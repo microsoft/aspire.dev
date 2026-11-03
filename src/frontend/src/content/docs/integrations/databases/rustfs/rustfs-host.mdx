@@ -1,0 +1,331 @@
+---
+title: RustFS integration in the AppHost
+description: Configure the RustFS container, S3 and console ports, data persistence, signing region, and automatic bucket provisioning.
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+The RustFS hosting package runs the `rustfs/rustfs:1.0.0` container. For an overview, see [Get started with the RustFS integration](/integrations/databases/rustfs/rustfs-get-started/).
+
+## Installation
+
+Install the package in the AppHost:
+
+<InstallPackage
+  packageName="CommunityToolkit.Aspire.Hosting.RustFs"
+  shortName="rustfs"
+/>
+
+## Add a RustFS resource
+
+`AddRustFs` adds the S3-compatible object store and the console endpoint. It creates access-key and secret-key parameters when you do not provide your own. Aspire assigns host ports unless you choose ports in `AddRustFs`.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const rustfs = await builder.addRustFs('rustfs');
+await rustfs.withDataVolume();
+
+const api = await builder.addNodeApp('api', './api', 'index.js');
+await api.withReference(rustfs);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rustfs = builder.AddRustFs("rustfs")
+    .WithDataVolume();
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(rustfs);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The resource exposes the S3 API on container port `9000` and the console on container port `9001`. Host ports are allocated by Aspire by default. `port` and `consolePort` on `AddRustFs` let you select fixed host ports.
+
+## Configure credentials and ports
+
+Pass AppHost parameter resources to `AddRustFs` when you need explicit credentials. Leave `port` and `consolePort` unset to use dynamically assigned host ports:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const accessKey = await builder.addParameter('rustfs-access-key', {
+  secret: true,
+});
+const secretKey = await builder.addParameter('rustfs-secret-key', {
+  secret: true,
+});
+const rustfs = await builder.addRustFs(
+  'rustfs',
+  accessKey,
+  secretKey,
+  9000,
+  9001
+);
+await rustfs.withDataVolume();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var accessKey = builder.AddParameter("rustfs-access-key", secret: true);
+var secretKey = builder.AddParameter("rustfs-secret-key", secret: true);
+
+var rustfs = builder.AddRustFs(
+        "rustfs",
+        accessKey: accessKey,
+        secretKey: secretKey,
+        port: 9000,
+        consolePort: 9001)
+    .WithDataVolume();
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+If you omit either parameter, the integration generates a password parameter for that key. Do not use a fixed host port if another process may already be listening on it.
+
+<Aside type="note">
+  Use the generated credentials for local development or provide secret
+  parameters from your chosen secret provider. The connection string contains
+  both values for the dependent app.
+</Aside>
+
+## Persist data
+
+Use `WithDataVolume` to keep RustFS data outside the container lifecycle. Aspire creates a named Docker volume unless you provide a name:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const rustfs = await builder.addRustFs('rustfs');
+await rustfs.withDataVolume('rustfs-data');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rustfs = builder.AddRustFs("rustfs")
+    .WithDataVolume("rustfs-data");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Use `WithDataBindMount` to mount a host directory at `/data` when you need direct access to files during development:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const rustfs = await builder.addRustFs('rustfs');
+await rustfs.withDataBindMount('./data/rustfs');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rustfs = builder.AddRustFs("rustfs")
+    .WithDataBindMount("./data/rustfs");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Volumes persist data without coupling it to a host directory path. Bind mounts make the host directory directly accessible to the container.
+
+## Provision buckets
+
+Call `AddBucket` to register a child resource for one bucket. Aspire waits until the RustFS parent is ready, then issues a signed S3 `PUT` request to create the bucket. A bucket that already exists is treated as ready. The child resource appears in the dashboard and exposes its own connection string with a `Bucket` property.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const rustfs = await builder.addRustFs('rustfs');
+await rustfs.withDataVolume();
+const images = await rustfs.addBucket('images');
+const documents = await rustfs.addBucket('documents');
+
+const api = await builder.addNodeApp('api', './api', 'index.js');
+await api.withReference(images);
+await api.withReference(documents);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rustfs = builder.AddRustFs("rustfs")
+    .WithDataVolume();
+var images = rustfs.AddBucket("images");
+var documents = rustfs.AddBucket("documents");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(images)
+    .WithReference(documents);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Use the list overload to add several buckets while keeping the parent builder for further configuration. The TypeScript method name for this overload is `addBuckets`:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const rustfs = await builder.addRustFs('rustfs');
+await rustfs.addBuckets(['images', 'documents', 'audit-log']);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rustfs = builder.AddRustFs("rustfs")
+    .AddBucket(["images", "documents", "audit-log"]);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+## Configure the signing region
+
+Bucket provisioning uses AWS Signature Version 4 with the default signing region `us-east-1`. Call `WithSigningRegion` when your RustFS setup expects another region:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const rustfs = await builder.addRustFs('rustfs');
+await rustfs.withSigningRegion('ap-northeast-1');
+await rustfs.addBucket('images');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rustfs = builder.AddRustFs("rustfs")
+    .WithSigningRegion("ap-northeast-1")
+    .AddBucket("images");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+## Hosting integration health checks
+
+The integration configures an HTTP health check against `/health` on the primary S3 endpoint and expects HTTP `200`. Bucket provisioning waits for the RustFS resource's ready event before making its signed request. If provisioning fails, the child bucket resource reports the error in the dashboard.
+
+## Connection properties
+
+Reference the RustFS resource to pass a connection string with `Endpoint`, `AccessKey`, and `SecretKey` to a dependent app. The value is formatted as `Endpoint=http://{host}:{port};AccessKey={key};SecretKey={secret}`. A bucket resource adds `Bucket={bucketName}`. The resource also exposes the `Host`, `Port`, `AccessKey`, `SecretKey`, and `Uri` properties. The console endpoint is visible in the dashboard but is not part of the S3 connection string.
+
+For S3 client configuration, see [Connect to RustFS](/integrations/databases/rustfs/rustfs-connect/).
+
+## Exported AppHost API
+
+- `AddRustFs(name, accessKey, secretKey, port, consolePort)` adds the container and its two endpoints.
+- `WithDataVolume(name)` mounts a Docker volume at `/data`.
+- `WithDataBindMount(source)` binds a host directory at `/data`.
+- `WithSigningRegion(region)` sets the SigV4 region used when creating buckets.
+- `AddBucket(bucketName)` adds one child bucket resource; the TypeScript method is `addBucket`.
+- `AddBucket(bucketNames)` adds multiple child resources; the TypeScript method is `addBuckets`.
+
+## See also
+
+- [Get started with the RustFS integration](/integrations/databases/rustfs/rustfs-get-started/)
+- [Connect to RustFS](/integrations/databases/rustfs/rustfs-connect/)
+- [📦 CommunityToolkit.Aspire.Hosting.RustFs](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.RustFs)
