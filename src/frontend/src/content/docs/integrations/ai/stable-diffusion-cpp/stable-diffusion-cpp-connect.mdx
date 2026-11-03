@@ -1,0 +1,114 @@
+---
+title: Connect to the Stable Diffusion.cpp integration
+description: Read the Stable Diffusion.cpp endpoint and model connection properties from Aspire applications.
+next: false
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+This page explains the endpoint information that Aspire provides when an application references a Stable Diffusion.cpp resource. The Community Toolkit package hosts the server but does not include a client library. Use an HTTP client with the server URI and follow the [stable-diffusion.cpp API documentation](https://github.com/leejet/stable-diffusion.cpp) for supported routes and request formats.
+
+For AppHost setup and configuration, see [Stable Diffusion.cpp hosting integration](./stable-diffusion-cpp-host/).
+
+<Aside type="note">
+  The package does not provide a Stable Diffusion.cpp client integration.
+  Configure an HTTP client with the `Uri` property and use the upstream server
+  documentation for request paths and payloads.
+</Aside>
+
+## Connection properties
+
+The server resource exposes the following connection property:
+
+| Property | Description                                    |
+| -------- | ---------------------------------------------- |
+| `Uri`    | The HTTP URI for the server's `http` endpoint. |
+
+The server connection string is:
+
+```text
+Endpoint=http://localhost:<assigned-port>
+```
+
+The host port is assigned dynamically unless the AppHost configures a fixed port. If you reference a resource named `stable-diffusion`, Aspire exposes its `Uri` connection property to the consuming application as `STABLE_DIFFUSION_URI`.
+
+The model child resource also has a connection string and properties:
+
+```text
+Endpoint=http://localhost:<assigned-port>;Model=stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors;Revision=main
+```
+
+| Property   | Description                                                 |
+| ---------- | ----------------------------------------------------------- |
+| `Uri`      | The parent server's HTTP URI.                               |
+| `Model`    | The Hugging Face repository and file path, joined with `/`. |
+| `Revision` | The selected Hugging Face revision, defaulting to `main`.   |
+
+The model resource name is generated from the server resource name and the model file name unless you provide an explicit name. The connection property prefix is based on the referenced resource name.
+
+## Read the endpoint from a consuming app
+
+Reference the server resource from the consuming project:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const stableDiffusion = await builder.addStableDiffusionCpp('stable-diffusion');
+await stableDiffusion.addHuggingFaceModel(
+  'stabilityai/stable-diffusion-xl-base-1.0',
+  'sd_xl_base_1.0.safetensors'
+);
+
+await builder
+  .addNodeApp('image-api', './image-api', 'index.js')
+  .withReference(stableDiffusion);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var stableDiffusion = builder.AddStableDiffusionCpp("stable-diffusion");
+stableDiffusion.AddHuggingFaceModel(
+    "stabilityai/stable-diffusion-xl-base-1.0",
+    "sd_xl_base_1.0.safetensors");
+
+builder.AddProject<Projects.ImageApi>("image-api")
+    .WithReference(stableDiffusion);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
+Read `STABLE_DIFFUSION_URI` in the application and use it as the base address for HTTP requests:
+
+```csharp title="Program.cs"
+var stableDiffusionUri = builder.Configuration["STABLE_DIFFUSION_URI"]
+    ?? throw new InvalidOperationException("The Stable Diffusion.cpp URI is not configured.");
+
+builder.Services.AddHttpClient("stable-diffusion", client =>
+{
+    client.BaseAddress = new Uri(stableDiffusionUri);
+});
+```
+
+The client name and configuration key follow the AppHost resource name. If the resource name changes, update the consuming app's key to match.
+
+## See also
+
+- [Stable Diffusion.cpp hosting integration](./stable-diffusion-cpp-host/)
+- [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)

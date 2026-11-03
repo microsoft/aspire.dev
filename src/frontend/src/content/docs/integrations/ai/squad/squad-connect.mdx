@@ -1,0 +1,129 @@
+---
+title: Connect to a Squad team
+description: Read the Squad connection string injected by Aspire and register a keyed Squad agent in a consuming .NET service.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+The Squad hosting integration adds a logical resource to the AppHost. Reference that resource from a project with `WithReference` to pass its connection string to the consuming service. Install the separate `Squad.Agents.AI` package in the service to create an agent over the referenced team.
+
+For AppHost setup, see [Set up Squad in the AppHost](./squad-host/).
+
+## Connection string
+
+The resource provides a connection string in this format:
+
+```text
+squad://resource/{name}?teamRoot={escaped-path}&agents={escaped-roster}&protocol=maf-1.0
+```
+
+The integration URI-escapes the resource name, team root, and comma-separated roster. `protocol` is currently `maf-1.0`.
+
+| Property   | Description                                                                                                |
+| ---------- | ---------------------------------------------------------------------------------------------------------- |
+| `name`     | The Squad resource name from `AddSquad`. This is also the connection string name in the consuming service. |
+| `teamRoot` | The escaped workspace path that contains `.squad/`.                                                        |
+| `agents`   | The escaped, comma-separated list of discovered agent names.                                               |
+| `protocol` | The protocol identifier, currently `maf-1.0`.                                                              |
+
+## Add a Squad agent
+
+Install the agent client package in the consuming .NET project:
+
+<InstallDotNetPackage packageName="Squad.Agents.AI" />
+
+Reference the Squad resource from the consuming project in the AppHost. In the service, register a keyed agent using the same key as the AppHost resource name:
+
+```csharp title="Program.cs"
+using Microsoft.Extensions.DependencyInjection;
+using Squad.Agents.AI;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddKeyedSquadAgent("research-squad", options =>
+{
+    options.AgentName = "research-squad";
+});
+
+var app = builder.Build();
+
+app.MapPost("/ask", async (
+    [FromKeyedServices("research-squad")] SquadAgent agent,
+    string prompt,
+    CancellationToken cancellationToken) =>
+{
+    var session = await agent.CreateSessionAsync(cancellationToken);
+    var response = await agent.RunAsync(
+        prompt,
+        session,
+        cancellationToken: cancellationToken);
+
+    return Results.Ok(new { response = response.Text });
+});
+
+app.Run();
+```
+
+`AddKeyedSquadAgent` registers the agent with the key `research-squad`. The client reads the Aspire-injected connection string under `ConnectionStrings:research-squad`. If you register more than one team, register a separate keyed agent for each resource name.
+
+<Aside type="note">
+  The key and connection string name must match the Squad resource name in the
+  AppHost. For more information about keyed dependency injection, see [Keyed
+  services in .NET dependency
+  injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+</Aside>
+
+## Configuration
+
+### Connection strings
+
+With `WithReference(squad)`, Aspire injects the connection string into the consuming app's configuration. The application can read it through `IConfiguration.GetConnectionString("research-squad")`. `Squad.Agents.AI` can also read that configuration entry when you register it with the matching key.
+
+### Configuration providers
+
+For local development outside the AppHost, a configuration provider can supply the connection descriptor under the conventional `ConnectionStrings` key:
+
+```json title="appsettings.Development.json"
+{
+  "ConnectionStrings": {
+    "research-squad": "squad://resource/research-squad?teamRoot=%2Fworkspace%2Fresearch-squad&agents=ralph%2Cscribe&protocol=maf-1.0"
+  }
+}
+```
+
+Replace the example workspace path and roster with values for your team. Prefer `WithReference` when running under Aspire so the AppHost supplies the current resource metadata.
+
+### Inline options
+
+Pass client options to the registration delegate. For example, set the agent name while registering the keyed client:
+
+```csharp title="Program.cs"
+builder.Services.AddKeyedSquadAgent("research-squad", options =>
+{
+    options.AgentName = "research-squad";
+});
+```
+
+## Observability and telemetry
+
+The `Squad.Agents.AI` client emits agent tracing under `SquadAgentDiagnostics.ActivitySourceName`. Add that source to the service's OpenTelemetry tracing configuration to include the agent spans in Aspire telemetry:
+
+```csharp title="Program.cs"
+using OpenTelemetry.Trace;
+using Squad.Agents.AI;
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing =>
+        tracing.AddSource(SquadAgentDiagnostics.ActivitySourceName));
+```
+
+The hosting integration itself does not add a service health check or run the agent process. See the [complete Squad example](https://github.com/CommunityToolkit/Aspire/tree/main/examples/squad) for an AppHost, a consumer, and optional structured logging for subagent events.
+
+## See also
+
+- [Set up Squad in the AppHost](./squad-host/)
+- [Squad integration source and runnable example](https://github.com/CommunityToolkit/Aspire/tree/main/examples/squad)
+- [Squad.Agents.AI](https://www.nuget.org/packages/Squad.Agents.AI)

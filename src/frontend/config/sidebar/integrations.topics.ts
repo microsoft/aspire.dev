@@ -163,6 +163,42 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
+        {
+          label: 'Squad',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/ai/squad/squad-get-started',
+            },
+            {
+              label: 'Set up Squad in the AppHost',
+              slug: 'integrations/ai/squad/squad-host',
+            },
+            {
+              label: 'Connect to a Squad team',
+              slug: 'integrations/ai/squad/squad-connect',
+            },
+          ],
+        },
+        {
+          label: 'Stable Diffusion.cpp',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-get-started',
+            },
+            {
+              label: 'Set up Stable Diffusion.cpp in the AppHost',
+              slug: 'integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-host',
+            },
+            {
+              label: 'Connect to Stable Diffusion.cpp',
+              slug: 'integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-connect',
+            },
+          ],
+        },
       ],
     },
     {
@@ -1825,6 +1861,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
+          label: 'OpenTelemetry Collector',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/observability/opentelemetry-collector/opentelemetry-collector-get-started',
+            },
+            {
+              label: 'Set up the Collector in the AppHost',
+              slug: 'integrations/observability/opentelemetry-collector/opentelemetry-collector-host',
+            },
+          ],
+        },
+        {
           label: 'Seq',
           collapsed: true,
           items: [
@@ -2001,6 +2051,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: 'MCP Inspector',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/mcp-inspector/mcp-inspector-get-started',
+            },
+            {
+              label: 'Configure MCP Inspector in the AppHost',
+              slug: 'integrations/devtools/mcp-inspector/mcp-inspector-host',
+            },
+          ],
+        },
+        {
           label: 'SQL Database Projects',
           collapsed: true,
           items: [
@@ -2011,6 +2075,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Set up SQL projects in the AppHost',
               slug: 'integrations/devtools/sql-projects/sql-projects-host',
+            },
+          ],
+        },
+        {
+          label: 'Umami',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/umami/umami-get-started',
+            },
+            {
+              label: 'Set up Umami in the AppHost',
+              slug: 'integrations/devtools/umami/umami-host',
             },
           ],
         },
