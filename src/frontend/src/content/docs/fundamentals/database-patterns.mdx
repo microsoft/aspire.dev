@@ -686,9 +686,11 @@ The `aspire deploy` command runs a pipeline of named steps, such as `provision-a
 1. Starts the job and waits for it to finish. If the job fails, the step throws an error, and the pipeline stops.
 1. Runs before the step that updates the app, so that the app is updated only after the migrations succeed.
 
-The following examples deploy to Azure Container Apps. Aspire creates or updates each container app or job in a step named `provision-<resource-name>-containerapp`. A manually triggered job doesn't run when it's deployed, so the custom step starts it with the `az containerapp job start` command and polls its status. To find the step names for your deployment target, run `aspire do diagnostics`, which prints the dependency graph of the pipeline.
+The following examples deploy to Azure Container Apps, so they need the [📦 Aspire.Hosting.Azure.AppContainers](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppContainers) package. Aspire creates or updates each container app or job in a step named `provision-<resource-name>-containerapp`. A manually triggered job doesn't run when it's deployed, so the custom step starts it with the `az containerapp job start` command and polls its status. To find the step names for your deployment target, run `aspire do diagnostics`, which prints the dependency graph of the pipeline.
 
-For EF Core, publish the migration bundle as a container image and deploy it as a manually triggered job with <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsAzureContainerAppJob" />. Then add the custom step with `builder.Pipeline.AddStep` in C#, or `pipeline.addStep` in TypeScript:
+Aspire creates the Azure deployment steps while it resolves the pipeline, after your AppHost code adds its own steps. If you name an Azure step in the `dependsOn` or `requiredBy` options of a new step, the pipeline fails with an `unknown step` error. Instead, add the step without dependencies, then add the dependencies in a pipeline configuration callback. Aspire runs this callback after all the steps exist. The callback also runs during pipeline passes that don't create the Azure steps, so it adds the dependencies only when it finds them.
+
+For EF Core, publish the migration bundle as a container image and deploy it as a manually triggered job with <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsAzureContainerAppJob" />. Then add the custom step and the configuration callback. In C#, use `builder.Pipeline.AddStep` and `builder.Pipeline.AddPipelineConfiguration`. In TypeScript, use `pipeline.addStep` and `pipeline.configure`:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -751,11 +753,23 @@ if (await builder.executionContext().isPublishMode()) {
                 throw new Error(`Migration job execution ${execution} ended with status ${status}.`);
             }
         }
-    }, {
-        // Run after the migration job is created or updated,
-        dependsOn: ['provision-api-migrations-containerapp'],
-        // and before the app is updated.
-        requiredBy: ['provision-api-containerapp'],
+    });
+
+    // Azure creates its deployment steps while the pipeline resolves,
+    // so add the dependencies in a configuration callback.
+    await pipeline.configure(async (context) => {
+        const steps = new Map();
+        for (const step of await (await context.pipeline()).steps()) {
+            steps.set(await step.name(), step);
+        }
+
+        const deployApp = steps.get('provision-api-containerapp');
+        if (steps.has('provision-api-migrations-containerapp') && deployApp) {
+            // Run after the migration job is created or updated,
+            await steps.get('run-api-migrations').dependsOn('provision-api-migrations-containerapp');
+            // and before the app is updated.
+            await deployApp.dependsOn('run-api-migrations');
+        }
     });
 }
 
@@ -824,11 +838,26 @@ if (builder.ExecutionContext.IsPublishMode)
                     $"Migration job execution {execution} ended with status {status}.");
             }
         }
-    },
-    // Run after the migration job is created or updated,
-    dependsOn: "provision-api-migrations-containerapp",
-    // and before the app is updated.
-    requiredBy: "provision-api-containerapp");
+    });
+
+    // Azure creates its deployment steps while the pipeline resolves,
+    // so add the dependencies in a configuration callback.
+    builder.Pipeline.AddPipelineConfiguration(context =>
+    {
+        var runMigrations = context.Steps.Single(s => s.Name == "run-api-migrations");
+        var deployJob = context.Steps.SingleOrDefault(s => s.Name == "provision-api-migrations-containerapp");
+        var deployApp = context.Steps.SingleOrDefault(s => s.Name == "provision-api-containerapp");
+
+        if (deployJob is not null && deployApp is not null)
+        {
+            // Run after the migration job is created or updated,
+            runMigrations.DependsOn(deployJob);
+            // and before the app is updated.
+            deployApp.DependsOn(runMigrations);
+        }
+
+        return Task.CompletedTask;
+    });
 #pragma warning restore ASPIREPIPELINES001
 }
 
@@ -860,7 +889,7 @@ static async Task<string> RunAzAsync(string[] args, CancellationToken cancellati
 
 The custom step reads the resource group from the `Azure__ResourceGroup` environment variable, so set it when you run `aspire deploy`. The Azure CLI must be installed and signed in to the same subscription. On Windows, run `az.cmd` instead of `az`. In a C# AppHost, the pipeline API is experimental and requires suppressing the [`ASPIREPIPELINES001`](/diagnostics/aspirepipelines001/) diagnostic.
 
-For Drizzle, deploy the `db:migrate` script from [Apply schema migrations on startup](#apply-schema-migrations-on-startup) as a job. Call <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsPackageScript" /> to build a container image that runs the script, and deploy the image as a manually triggered job. Then add the same custom step for the `api-migrate` job:
+For Drizzle, deploy the `db:migrate` script from [Apply schema migrations on startup](#apply-schema-migrations-on-startup) as a job. Call <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsPackageScript" /> to build a container image that runs the script, and deploy the image as a manually triggered job. Then add the same custom step and configuration callback for the `api-migrate` job:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -924,11 +953,23 @@ if (await builder.executionContext().isPublishMode()) {
                 throw new Error(`Migration job execution ${execution} ended with status ${status}.`);
             }
         }
-    }, {
-        // Run after the migration job is created or updated,
-        dependsOn: ['provision-api-migrate-containerapp'],
-        // and before the app is updated.
-        requiredBy: ['provision-api-containerapp'],
+    });
+
+    // Azure creates its deployment steps while the pipeline resolves,
+    // so add the dependencies in a configuration callback.
+    await pipeline.configure(async (context) => {
+        const steps = new Map();
+        for (const step of await (await context.pipeline()).steps()) {
+            steps.set(await step.name(), step);
+        }
+
+        const deployApp = steps.get('provision-api-containerapp');
+        if (steps.has('provision-api-migrate-containerapp') && deployApp) {
+            // Run after the migration job is created or updated,
+            await steps.get('run-api-migrations').dependsOn('provision-api-migrate-containerapp');
+            // and before the app is updated.
+            await deployApp.dependsOn('run-api-migrations');
+        }
     });
 }
 
@@ -1000,11 +1041,26 @@ if (builder.ExecutionContext.IsPublishMode)
                     $"Migration job execution {execution} ended with status {status}.");
             }
         }
-    },
-    // Run after the migration job is created or updated,
-    dependsOn: "provision-api-migrate-containerapp",
-    // and before the app is updated.
-    requiredBy: "provision-api-containerapp");
+    });
+
+    // Azure creates its deployment steps while the pipeline resolves,
+    // so add the dependencies in a configuration callback.
+    builder.Pipeline.AddPipelineConfiguration(context =>
+    {
+        var runMigrations = context.Steps.Single(s => s.Name == "run-api-migrations");
+        var deployJob = context.Steps.SingleOrDefault(s => s.Name == "provision-api-migrate-containerapp");
+        var deployApp = context.Steps.SingleOrDefault(s => s.Name == "provision-api-containerapp");
+
+        if (deployJob is not null && deployApp is not null)
+        {
+            // Run after the migration job is created or updated,
+            runMigrations.DependsOn(deployJob);
+            // and before the app is updated.
+            deployApp.DependsOn(runMigrations);
+        }
+
+        return Task.CompletedTask;
+    });
 #pragma warning restore ASPIREPIPELINES001
 }
 
