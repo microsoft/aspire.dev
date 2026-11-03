@@ -1,0 +1,90 @@
+---
+title: Get started with ActiveMQ integration
+description: Run ActiveMQ Classic or Artemis from an Aspire AppHost and configure credentials, broker ports, and the web console for local development.
+---
+
+import { Image } from 'astro:assets';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import activemqIcon from '@assets/icons/activemq-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={activemqIcon}
+  alt="ActiveMQ logo"
+  width={100}
+  height={100}
+  fit="contain"
+  style="float: left; margin-right: 1rem;"
+  data-zoom-off
+/>
+
+Use the ActiveMQ integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) to run ActiveMQ Classic or ActiveMQ Artemis as a container resource. Both brokers expose a TCP endpoint that you can reference from application resources.
+
+## Prerequisites
+
+- An Aspire AppHost project
+- An ActiveMQ client library compatible with the broker you choose
+
+## Add ActiveMQ to your AppHost
+
+Install the [📦 CommunityToolkit.Aspire.Hosting.ActiveMQ](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.ActiveMQ) package in the AppHost:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.ActiveMQ
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.ActiveMQ
+```
+
+</TabItem>
+</Tabs>
+
+Choose either ActiveMQ Classic or Artemis in your AppHost. See [Set up ActiveMQ in the AppHost](../activemq-host/) for credentials, the web console, schemes, and storage options.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const username = await builder.addParameter('activemq-user', 'admin');
+const password = await builder.addParameter('activemq-password', { secret: true });
+
+const broker = await builder.addActiveMQ('activemq', username, password);
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var username = builder.AddParameter("activemq-user", "admin");
+var password = builder.AddParameter("activemq-password", secret: true);
+
+var broker = builder.AddActiveMQ("activemq", username, password);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The package also provides `AddActiveMQArtemis` and `addActiveMQArtemis` for the Artemis image. A connection name such as `activemq` is used when another resource references the broker.
+
+## See also
+
+- [Set up ActiveMQ in the AppHost](../activemq-host/)
+- [ActiveMQ Classic documentation](https://activemq.apache.org/components/classic/)
+- [ActiveMQ Artemis documentation](https://activemq.apache.org/components/artemis/)
+- [CommunityToolkit.Aspire.Hosting.ActiveMQ](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.ActiveMQ)

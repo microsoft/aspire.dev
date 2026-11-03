@@ -1,0 +1,67 @@
+---
+title: Get started with Redpanda integration
+description: Run a Kafka-compatible Redpanda broker from an Aspire AppHost and connect Kafka clients to it using Aspire resource references.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+[Redpanda](https://www.redpanda.com/) is a Kafka API-compatible streaming platform. The Community Toolkit integration runs a Redpanda broker in a container and exposes its Kafka API, Schema Registry, and Admin API endpoints.
+
+## Prerequisites
+
+- An Aspire AppHost project
+- A Kafka client integration for any application that connects to the broker
+
+## Add Redpanda to your AppHost
+
+Install the [📦 CommunityToolkit.Aspire.Hosting.RedPanda](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.RedPanda) package in the AppHost:
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.RedPanda
+```
+
+Add a broker and reference it from the client resource. See [Set up Redpanda in the AppHost](../redpanda-host/) for persistence, resource sizing, and optional web consoles.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const redpanda = await builder.addRedPanda('redpanda');
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(redpanda);
+await api.waitFor(redpanda);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var redpanda = builder.AddRedPanda("redpanda");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(redpanda)
+    .WaitFor(redpanda);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The Kafka bootstrap address exposed to referencing resources uses the `host:port` format. Redpanda can be used with the Aspire Kafka client integration. For client setup, see [Connect to Apache Kafka](/integrations/messaging/apache-kafka/apache-kafka-connect/).
+
+## See also
+
+- [Set up Redpanda in the AppHost](../redpanda-host/)
+- [Connect to Apache Kafka](/integrations/messaging/apache-kafka/apache-kafka-connect/)
+- [Redpanda documentation](https://docs.redpanda.com/)
+- [CommunityToolkit.Aspire.Hosting.RedPanda source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.RedPanda)

@@ -1,0 +1,135 @@
+---
+title: Connect to Posta with the Aspire integration
+description: Register a Posta API client with Aspire, configure its endpoint and credentials, and send email or manage templates and subscriber lists.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+The Community Toolkit Posta client configures an `HttpClient` for Posta's application-facing HTTP API and registers `IPostaClient` in dependency injection. Add the Posta resource to your AppHost first. For its PostgreSQL, Redis, and container settings, see [Set up Posta in the AppHost](../posta-host/).
+
+## Connection properties
+
+The hosting resource exposes `Host`, `Port`, and `Uri`. The connection string uses `Endpoint=http://{host}:{port}`. When the AppHost resource is named `posta`, reference it from the consuming project to provide the `ConnectionStrings:posta` value.
+
+Configure an API key or access token separately. The client sends the selected credential as a bearer token. Keep credentials in a secret provider rather than in source control.
+
+## Install the client integration
+
+Install the [📦 CommunityToolkit.Aspire.Posta](https://www.nuget.org/packages/CommunityToolkit.Aspire.Posta) package in the consuming project:
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.Posta" />
+
+## Add the Posta client
+
+Call `AddPostaClient` with the connection name used by the AppHost. Configure the API key from your application's configuration:
+
+```csharp title="Program.cs"
+builder.AddPostaClient(
+    "posta",
+    settings => settings.ApiKey = builder.Configuration["Posta:ApiKey"]);
+```
+
+The `IPostaClient` provides clients for email, templates, subscriber lists, health, and application information. Inject the interface into your service:
+
+```csharp title="MailService.cs"
+using CommunityToolkit.Aspire.Posta.Clients;
+using CommunityToolkit.Aspire.Posta.Models.Emails;
+
+public sealed class MailService(IPostaClient posta)
+{
+    public Task<SendAnEmailResponse?> SendAsync(CancellationToken cancellationToken) =>
+        posta.Emails.SendAnEmailAsync(
+            new SendAnEmailRequest
+            {
+                From = "Acme <hello@example.com>",
+                To = ["user@example.com"],
+                Subject = "Hello",
+                Html = "<h1>Hello!</h1>",
+            },
+            cancellationToken);
+}
+```
+
+## Add keyed Posta clients
+
+Register keyed clients when the app connects to more than one Posta instance:
+
+```csharp title="Program.cs"
+builder.AddKeyedPostaClient(
+    "transactional-mail",
+    settings => settings.ApiKey = builder.Configuration["Posta:TransactionalApiKey"]);
+builder.AddKeyedPostaClient(
+    "marketing-mail",
+    settings => settings.AccessToken = builder.Configuration["Posta:MarketingAccessToken"]);
+```
+
+Resolve a client with its key:
+
+```csharp title="MailServices.cs"
+public sealed class MailServices(
+    [FromKeyedServices("transactional-mail")] IPostaClient transactional,
+    [FromKeyedServices("marketing-mail")] IPostaClient marketing)
+{
+}
+```
+
+For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Configure the client
+
+### Connection strings
+
+`AddPostaClient("posta")` reads the connection string named `posta`. A standalone app can configure the endpoint directly:
+
+```json title="appsettings.json"
+{
+  "ConnectionStrings": {
+    "posta": "Endpoint=http://localhost:9000"
+  }
+}
+```
+
+When the AppHost references Posta, it supplies the endpoint connection string to the app.
+
+### Configuration providers
+
+The client uses the `Aspire:Posta:Client` configuration section by default. For a named client, it also reads `Aspire:Posta:Client:{connectionName}`. Use configuration providers for endpoint, API key, or access token settings:
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "Posta": {
+      "Client": {
+        "Endpoint": "http://localhost:9000",
+        "ApiKey": ""
+      }
+    }
+  }
+}
+```
+
+Load secret credentials from a secret provider, environment variable, or deployment configuration instead of committing them to this file.
+
+### Inline delegates
+
+Pass an `Action<PostaClientSettings>` to configure client settings in code:
+
+```csharp title="Program.cs"
+builder.AddPostaClient(
+    "posta",
+    settings =>
+    {
+        settings.ApiKey = builder.Configuration["Posta:ApiKey"];
+        settings.Timeout = TimeSpan.FromSeconds(30);
+    });
+```
+
+## See also
+
+- [Get started with the Posta integration](../posta-get-started/)
+- [Set up Posta in the AppHost](../posta-host/)
+- [Posta API reference](https://app.goposta.dev/docs)
+- [CommunityToolkit.Aspire.Posta source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Posta)

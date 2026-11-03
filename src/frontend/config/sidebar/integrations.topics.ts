@@ -1598,6 +1598,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
+          label: 'ActiveMQ',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/activemq/activemq-get-started',
+            },
+            {
+              label: 'Set up ActiveMQ in the AppHost',
+              slug: 'integrations/messaging/activemq/activemq-host',
+            },
+          ],
+        },
+        {
           label: 'Apache Kafka',
           collapsed: true,
           items: [
@@ -1634,6 +1648,34 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: 'Listmonk',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/listmonk/listmonk-get-started',
+            },
+            {
+              label: 'Set up listmonk in the AppHost',
+              slug: 'integrations/messaging/listmonk/listmonk-host',
+            },
+          ],
+        },
+        {
+          label: 'Mosquitto',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/mosquitto/mosquitto-get-started',
+            },
+            {
+              label: 'Set up Mosquitto in the AppHost',
+              slug: 'integrations/messaging/mosquitto/mosquitto-host',
+            },
+          ],
+        },
+        {
           label: 'NATS',
           collapsed: true,
           items: [
@@ -1652,8 +1694,40 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: 'Papercut SMTP',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/papercut-smtp/papercut-smtp-get-started',
+            },
+            {
+              label: 'Set up Papercut SMTP in the AppHost',
+              slug: 'integrations/messaging/papercut-smtp/papercut-smtp-host',
+            },
+          ],
+        },
+        {
           label: 'Particular Service Platform',
           link: 'https://docs.particular.net/platform/aspire/',
+        },
+        {
+          label: 'Posta',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/posta/posta-get-started',
+            },
+            {
+              label: 'Set up Posta in the AppHost',
+              slug: 'integrations/messaging/posta/posta-host',
+            },
+            {
+              label: 'Connect to Posta',
+              slug: 'integrations/messaging/posta/posta-connect',
+            },
+          ],
         },
         {
           label: 'RabbitMQ',
@@ -1670,6 +1744,38 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Connect to RabbitMQ',
               slug: 'integrations/messaging/rabbitmq/rabbitmq-connect',
+            },
+          ],
+        },
+        {
+          label: 'Redpanda',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/redpanda/redpanda-get-started',
+            },
+            {
+              label: 'Set up Redpanda in the AppHost',
+              slug: 'integrations/messaging/redpanda/redpanda-host',
+            },
+          ],
+        },
+        {
+          label: 'SFTP',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/sftp/sftp-get-started',
+            },
+            {
+              label: 'Set up SFTP in the AppHost',
+              slug: 'integrations/messaging/sftp/sftp-host',
+            },
+            {
+              label: 'Connect to an SFTP server',
+              slug: 'integrations/messaging/sftp/sftp-connect',
             },
           ],
         },
