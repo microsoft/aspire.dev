@@ -72,3 +72,66 @@ if ($catalogResult.title -contains "Particular.Aspire.Hosting.ServicePlatform") 
 }
 
 Write-Host "apiReference filter passed fixture and catalog checks ($($catalogResult.Count) included, $($excluded.Count) excluded)."
+
+# Execute the real batch reconciliation without restoring packages or building.
+$batchGuardAst = $ast.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.IfStatementAst] -and
+    $node.Extent.Text.StartsWith('if (-not $batchSummary -or')
+}, $true)
+$batchReconciliationAst = $ast.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.ForEachStatementAst] -and
+    $node.Extent.Text.Contains('$reportedStatusCount =')
+}, $true)
+$failureFunctionAst = $ast.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+    $node.Name -eq 'Add-PackageFailure'
+}, $true)
+if ($null -eq $batchGuardAst -or $null -eq $batchReconciliationAst -or $null -eq $failureFunctionAst) {
+    throw 'Could not locate batch reconciliation and failure reporting.'
+}
+. ([scriptblock]::Create($failureFunctionAst.Extent.Text))
+$guard = [scriptblock]::Create($batchGuardAst.Extent.Text)
+$reconcile = [scriptblock]::Create($batchReconciliationAst.Extent.Text)
+$successCount = 0
+$skipCount = 0
+$failCount = 0
+$failureReasons = @{}
+$failedPackageNames = [System.Collections.Generic.HashSet[string]]::new()
+$skippedPackageNames = [System.Collections.Generic.HashSet[string]]::new()
+$succeededPackages = [System.Collections.Generic.HashSet[string]]::new()
+$failedPackages = [System.Collections.Generic.HashSet[string]]::new()
+$skippedPackages = [System.Collections.Generic.HashSet[string]]::new()
+[void]$succeededPackages.Add('Example.Good')
+[void]$failedPackages.Add('Example.Broken')
+$batchFailureReasons = @{ 'Example.Broken' = 'cannot read assembly' }
+$batchExitCode = 1
+$batchSummary = 'Batch complete in 1.0s: 1 succeeded, 1 failed, 0 skipped'
+$removedFor = [System.Collections.Generic.List[string]]::new()
+function Remove-StalePackageJsonFiles {
+    param($PackageName, $CurrentOutputFile, $OutputDirectory)
+    $removedFor.Add($PackageName)
+}
+$OutputDir = [System.IO.Path]::GetTempPath()
+$manifestEntries = @(
+    @{ packageName = 'Example.Good'; output = $scriptPath },
+    @{ packageName = 'Example.Broken'; output = 'unused' }
+)
+. $guard
+. $reconcile
+if ($successCount -ne 1 -or $failCount -ne 1 -or $removedFor.Count -ne 1 -or
+    $removedFor[0] -ne 'Example.Good' -or
+    $failureReasons['Example.Broken'] -notmatch 'cannot read assembly') {
+    throw 'A completed partial batch must publish successes and report only actual failures.'
+}
+foreach ($scenario in @('crash', 'incomplete')) {
+    $batchExitCode = if ($scenario -eq 'crash') { 2 } else { 1 }
+    $batchSummary = if ($scenario -eq 'incomplete') { $null } else { 'complete' }
+    $rejected = $false
+    try { . $guard }
+    catch { $rejected = $true }
+    if (-not $rejected) { throw "$scenario batch was not rejected." }
+}
+Write-Host 'Batch reconciliation passed partial-success, crash, and incomplete-output checks.'

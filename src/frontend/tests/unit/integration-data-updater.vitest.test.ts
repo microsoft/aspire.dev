@@ -163,7 +163,8 @@ param([string]$OutputDir)
 $catalog = Get-Content "$PSScriptRoot/../../frontend/src/data/aspire-integrations.json" -Raw | ConvertFrom-Json
 $failed = @()
 foreach ($entry in $catalog) {
-    if ($env:FIXTURE_MODE -notin @('retry', 'ts-only-failure', 'clean-bundle-failure') -and $entry.title -ne 'Aspire.Hosting.Good') {
+    if ($env:FIXTURE_MODE -eq 'all-fail' -or
+        ($env:FIXTURE_MODE -notin @('retry', 'ts-only-failure', 'clean-bundle-failure') -and $entry.title -ne 'Aspire.Hosting.Good')) {
         $failed += $entry.title
         continue
     }
@@ -327,5 +328,13 @@ describe('integration data orchestration', () => {
     const run = fixture('clean-bundle-failure');
     expect(run.status, run.stdout + run.stderr).toBe(1);
     expect(run.outputs).not.toContain('api_failures_checked<<');
+  });
+
+  test('still publishes metadata and reports reasons when every package restore fails', () => {
+    const run = fixture('all-fail');
+    expect(run.status, run.stdout + run.stderr).toBe(0);
+    expect(run.failures).toHaveLength(3);
+    expect(fs.existsSync(path.join(run.data, 'pkgs', 'Aspire.Hosting.Good.1.0.0.json'))).toBe(true);
+    expect(run.outputs).toContain('api_failures_checked<<');
   });
 });
