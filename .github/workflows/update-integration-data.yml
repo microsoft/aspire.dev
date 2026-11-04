@@ -112,6 +112,7 @@ jobs:
           git add -- \
             src/frontend/src/data/aspire-integrations.json \
             src/frontend/src/data/integration-docs.json \
+            src/frontend/src/data/api-generation-failures.json \
             src/frontend/src/data/github-stats.json \
             src/frontend/src/data/github-contributors.json \
             src/frontend/src/data/samples.json \
@@ -206,42 +207,13 @@ jobs:
           fi
 
       - name: Track API generation failures
-        if: ${{ always() && steps.update.outcome == 'success' && steps.update.outputs.regen_ran == 'true' }}
+        if: ${{ always() && steps.update.outputs.api_failures_checked == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           FAILURES: ${{ steps.update.outputs.api_failures }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # One long-lived issue. Its body always lists the current failing
-          # packages; a comment is added only when that list changes, and the issue
-          # is closed once nothing fails, so the same failures never create noise.
-          title="Integration Data Updater: API generation failures"
-          existing=$(gh issue list \
-            --state open \
-            --search "\"$title\" in:title" \
-            --json number,title \
-            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
-
-          if [ -z "$FAILURES" ]; then
-            if [ -n "$existing" ]; then
-              gh issue close "$existing" --comment "No packages failed API generation in $RUN_URL."
-            fi
-            exit 0
-          fi
-
-          marker="<!-- failures:$(printf '%s' "$FAILURES" | sha256sum | cut -d' ' -f1) -->"
-          body=$(printf '%s\n\nThese packages failed API generation in the latest [Integration Data Updater run](%s). Their previous API data is kept and the rest of the data still updates. This issue updates itself and closes when nothing fails.\n\n```\n%s\n```\n' "$marker" "$RUN_URL" "$FAILURES")
-
-          if [ -z "$existing" ]; then
-            gh issue create --title "$title" --body "$body"
-          elif ! gh issue view "$existing" --json body --jq .body | grep -qF "$marker"; then
-            gh issue edit "$existing" --body "$body"
-            gh issue comment "$existing" --body "The set of failing packages changed: $RUN_URL"
-          fi
+        run: node src/frontend/scripts/report-api-generation-failures.mjs
 
       - name: Summary
         if: ${{ always() }}

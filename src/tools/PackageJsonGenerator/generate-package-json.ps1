@@ -1075,11 +1075,6 @@ Write-Host "Prepared $($manifestEntries.Count) packages for generation."
 
 if ($manifestEntries.Count -eq 0) {
     Write-Host "`nNo packages to process." -ForegroundColor Yellow
-    if ($failCount -gt 0) {
-        Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item (Join-Path $ScriptDir ".package-json-generator-work") -Recurse -Force -ErrorAction SilentlyContinue
-        exit 1
-    }
 }
 
 # Phase 3: Generate JSON files
@@ -1133,8 +1128,13 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
         }
     }
 
-    if ($batchExitCode -ne 0) {
-        Write-Warning "Batch tool exited with code $batchExitCode; no reported result will be published."
+    $batchSummary = $batchOutput | Where-Object {
+        $_ -match '^Batch complete in .+: \d+ succeeded, \d+ failed, \d+ skipped$'
+    } | Select-Object -Last 1
+    if (-not $batchSummary -or
+        $batchExitCode -ne [int]($failedPackages.Count -gt 0) -or
+        ($succeededPackages.Count + $failedPackages.Count + $skippedPackages.Count) -ne $manifestEntries.Count) {
+        throw "Batch generation did not complete reliably (exit $batchExitCode). No API data will be published."
     }
 
     foreach ($entry in $manifestEntries) {
@@ -1143,14 +1143,8 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
             [int]($skippedPackages.Contains($entry.packageName)) +
             [int]($failedPackages.Contains($entry.packageName))
 
-        if ($batchExitCode -ne 0) {
-            $failCount++
-            Add-PackageFailure $entry.packageName "batch tool exited with code $batchExitCode"
-        }
-        elseif ($reportedStatusCount -ne 1) {
-            Write-Warning "Batch tool reported $reportedStatusCount terminal statuses for $($entry.packageName); expected exactly one."
-            $failCount++
-            Add-PackageFailure $entry.packageName "batch tool reported $reportedStatusCount terminal statuses; expected exactly one"
+        if ($reportedStatusCount -ne 1) {
+            throw "Batch tool reported $reportedStatusCount terminal statuses for $($entry.packageName); expected exactly one."
         }
         elseif ($succeededPackages.Contains($entry.packageName)) {
             if (Test-Path -LiteralPath $entry.output -PathType Leaf) {
