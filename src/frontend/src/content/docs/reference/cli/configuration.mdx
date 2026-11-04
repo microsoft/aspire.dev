@@ -152,6 +152,35 @@ platform path separator.
 
 If `certificates.nssDbPaths` is unset, `aspire certs trust` will also honor the `DOTNET_DEV_CERTS_NSSDB_PATHS` environment variable, but Aspire configuration will take precedence when present. When no specific configuration is supplied, Aspire applies certificate trust to NSS databases in well-known browser specific paths for Firefox and Chrome/Chromium. Run [`aspire certs trust`](../commands/aspire-certs-trust/) to apply the configured trust settings.
 
+## Configure integration sources
+
+Use `integrationSources` to discover integrations from your own NuGet feeds. Each entry is a named source. The Aspire CLI searches all enabled sources for [`aspire add`](../commands/aspire-add/), integration list and search, and MCP integration discovery. Custom feeds can expose packages outside the `Aspire.Hosting.*` namespace.
+
+```json title="aspire.config.json"
+{
+  "integrationSources": {
+    "default": {},
+    "team": {
+      "source": "https://packages.example.com/v3/index.json",
+      "patterns": ["Contoso.Hosting.*", "Contoso.SpecialIntegration"]
+    },
+    "publicContoso": {
+      "source": "https://api.nuget.org/v3/index.json",
+      "patterns": ["Contoso.Hosting.*"]
+    }
+  }
+}
+```
+
+Each source supports the following behavior:
+
+- `source` is a NuGet feed URL or a local package directory. Relative paths resolve against the selected AppHost directory.
+- `patterns` lists exact package IDs or prefix patterns (for example, `Contoso.Hosting.*`). Omit `patterns` to allow every package in the feed. An explicitly supplied `patterns` array must be non-empty.
+- Entries that point at the same feed merge their patterns.
+- The implicit `default` source preserves the existing discovery behavior. Set `default.enabled` to `false` to search only your explicitly configured feeds.
+
+You can define `integrationSources` in `aspire.config.json` or in global settings. An explicit `--source` option on `aspire add` continues to override configured sources.
+
 ## Toggle preview feature experiences
 
 Use feature flags to opt in to preview experiences that your installed Aspire
