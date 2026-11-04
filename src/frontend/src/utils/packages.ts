@@ -5,6 +5,7 @@
 import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
 import { shortTypeName } from './api-member-anchors';
+import type { ApiAttribute } from './api-attributes';
 
 export {
   memberAnchorAliases,
@@ -26,6 +27,8 @@ export interface PackageParameter {
 export interface PackageMember {
   name: string;
   kind?: string;
+  returnType?: string;
+  type?: string;
   parameters?: PackageParameter[];
   docs?: {
     summary?: unknown;
@@ -34,6 +37,9 @@ export interface PackageMember {
 
 export interface PackageEnumMember {
   name: string;
+  docs?: {
+    summary?: unknown;
+  };
 }
 
 export interface PackageType {
@@ -42,11 +48,29 @@ export interface PackageType {
   namespace?: string;
   fullName?: string;
   isGeneric?: boolean;
+  accessibility?: string;
+  isStatic?: boolean;
+  isAbstract?: boolean;
+  isSealed?: boolean;
+  isReadOnly?: boolean;
+  baseType?: string;
+  interfaces?: string[];
+  nestedTypes?: string[];
+  attributes?: Array<ApiAttribute & { name: string }>;
+  delegateParameters?: PackageParameter[];
+  delegateReturnType?: string;
   genericParameters?: GenericParameter[];
   members?: PackageMember[];
   enumMembers?: PackageEnumMember[];
   docs?: {
     summary?: unknown;
+    remarks?: unknown[];
+    value?: unknown[];
+    typeParameters?: Record<string, unknown[]>;
+    parameters?: Record<string, unknown[]>;
+    permissions?: unknown[];
+    seeAlso?: string[];
+    examples?: unknown[];
   };
 }
 
@@ -61,6 +85,16 @@ export interface PackageMetadata {
 export interface PackageApiDocument {
   package: PackageMetadata;
   types: PackageType[];
+}
+
+// Route props contain identifiers only; documents stay in the rendering worker.
+export interface PackageTypeRouteProps {
+  packageName: string;
+  typeIndex: number;
+}
+
+export interface PackageMemberRouteProps extends PackageTypeRouteProps {
+  memberKind: string;
 }
 
 export type PackageCollectionEntry = Omit<CollectionEntry<'packages'>, 'data'> & {
@@ -82,6 +116,18 @@ export function getPackages(): Promise<PackageCollectionEntry[]> {
 
   packagesPromise ??= getCollection('packages', hasPublicTypes);
   return packagesPromise;
+}
+
+export async function getPackageDocument(packageName: string): Promise<PackageApiDocument> {
+  const entry = (await getPackages()).find(({ data }) => data.package.name === packageName);
+  if (!entry) throw new Error(`Unknown C# API package: ${packageName}`);
+  return entry.data;
+}
+
+export function getPackageType(document: PackageApiDocument, index: number): PackageType {
+  const type = Number.isInteger(index) && index >= 0 ? document.types[index] : undefined;
+  if (!type) throw new Error(`Unknown C# API type index ${index} in ${document.package.name}`);
+  return type;
 }
 
 /** Count generic type parameters on a type object. */

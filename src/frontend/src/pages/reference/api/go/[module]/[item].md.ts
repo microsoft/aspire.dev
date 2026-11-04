@@ -2,20 +2,13 @@ import type { APIRoute } from 'astro';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
 import { renderGoItemMarkdown } from '@utils/go-api-markdown';
-import type { GoApiDocument, GoDtoType, GoEnumType, GoFunction, GoHandleType } from '@utils/go-modules';
-import { getGoModules, goModuleSlug } from '@utils/go-modules';
+import type { GoItem, GoItemKind, GoItemRouteProps } from '@utils/go-modules';
+import { getGoItem, getGoModuleDocument, getGoModules, goModuleSlug } from '@utils/go-modules';
 import { getGoItemSlug, getGoStandaloneFunctions, getGoTopLevelRouteItems } from '@utils/go-api-routes';
 
 export const prerender = true;
 
-type GoItemKind = 'handle' | 'dto' | 'enum' | 'function';
-type GoItem = GoHandleType | GoDtoType | GoEnumType | GoFunction;
-
-type RouteProps = {
-  item: GoItem;
-  itemKind: GoItemKind;
-  pkg: GoApiDocument;
-};
+type RouteProps = GoItemRouteProps;
 
 type StaticPath = {
   params: { item: string; module: string };
@@ -30,14 +23,14 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
     const pkg = entry.data;
     const pkgSlug = goModuleSlug(pkg.package.name);
     const items = getGoTopLevelRouteItems(pkg);
-    const routeItems: Array<{ item: GoItem; itemKind: GoItemKind }> = [
-      ...(pkg.handleTypes ?? []).map((item) => ({ item, itemKind: 'handle' as const })),
-      ...(pkg.dtoTypes ?? []).map((item) => ({ item, itemKind: 'dto' as const })),
-      ...(pkg.enumTypes ?? []).map((item) => ({ item, itemKind: 'enum' as const })),
-      ...getGoStandaloneFunctions(pkg).map((item) => ({ item, itemKind: 'function' as const })),
+    const routeItems: Array<{ item: GoItem; itemKind: GoItemKind; itemIndex: number }> = [
+      ...(pkg.handleTypes ?? []).map((item, itemIndex) => ({ item, itemKind: 'handle' as const, itemIndex })),
+      ...(pkg.dtoTypes ?? []).map((item, itemIndex) => ({ item, itemKind: 'dto' as const, itemIndex })),
+      ...(pkg.enumTypes ?? []).map((item, itemIndex) => ({ item, itemKind: 'enum' as const, itemIndex })),
+      ...getGoStandaloneFunctions(pkg).map((item, itemIndex) => ({ item, itemKind: 'function' as const, itemIndex })),
     ];
 
-    for (const { item, itemKind } of routeItems) {
+    for (const { item, itemKind, itemIndex } of routeItems) {
       const itemSlug = getGoItemSlug(item, items);
       if (!itemSlug) {
         continue;
@@ -49,9 +42,9 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
           module: pkgSlug,
         },
         props: {
-          item,
+          itemIndex,
           itemKind,
-          pkg,
+          packageName: pkg.package.name,
         },
       });
     }
@@ -60,9 +53,11 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   return paths;
 }
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = async ({ props }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const routeProps = props as RouteProps;
 
-  return markdownResponse(renderGoItemMarkdown(routeProps.pkg, routeProps.item, routeProps.itemKind, base));
+  const pkg = await getGoModuleDocument(routeProps.packageName);
+  const item = getGoItem(pkg, routeProps.itemKind, routeProps.itemIndex);
+  return markdownResponse(renderGoItemMarkdown(pkg, item, routeProps.itemKind, base));
 };

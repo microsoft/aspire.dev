@@ -2,16 +2,12 @@ import type { APIRoute } from 'astro';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
 import { renderCSharpTypeMarkdown } from '@utils/csharp-api-markdown';
-import type { PackageApiDocument, PackageType } from '@utils/packages';
-import { genericArity, getPackages, packageSlug, slugify } from '@utils/packages';
+import type { PackageTypeRouteProps } from '@utils/packages';
+import { genericArity, getPackageDocument, getPackages, getPackageType, packageSlug, slugify } from '@utils/packages';
 
 export const prerender = true;
 
-type RouteProps = {
-  allTypes: PackageType[];
-  pkg: PackageApiDocument;
-  type: PackageType;
-};
+type RouteProps = PackageTypeRouteProps;
 
 type StaticPath = {
   params: { package: string; type: string };
@@ -26,7 +22,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
     const pkg = entry.data;
     const pkgSlug = packageSlug(pkg.package.name);
 
-    for (const type of pkg.types) {
+    for (const [typeIndex, type] of pkg.types.entries()) {
       const typeSlug = slugify(type.name, genericArity(type));
       if (!typeSlug) {
         continue;
@@ -38,9 +34,8 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
           type: typeSlug,
         },
         props: {
-          allTypes: pkg.types,
-          pkg,
-          type,
+          packageName: pkg.package.name,
+          typeIndex,
         },
       });
     }
@@ -49,11 +44,13 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   return paths;
 }
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = async ({ props }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const routeProps = props as RouteProps;
+  const pkg = await getPackageDocument(routeProps.packageName);
+  const type = getPackageType(pkg, routeProps.typeIndex);
 
   return markdownResponse(
-    renderCSharpTypeMarkdown(routeProps.pkg, routeProps.type, routeProps.allTypes, base)
+    renderCSharpTypeMarkdown(pkg, type, pkg.types, base)
   );
 };
