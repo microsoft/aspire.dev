@@ -37,12 +37,19 @@ Pass Aspire parameters for the broker username and password. Aspire marks the pa
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
-const username = await builder.addParameter('activemq-user', 'admin');
+const username = await builder.addParameter('activemq-user', {
+  value: 'admin',
+  publishValueAsDefault: true,
+});
 const password = await builder.addParameter('activemq-password', {
+  value: 'admin',
   secret: true,
 });
 
-const broker = await builder.addActiveMQ('activemq', username, password);
+const broker = await builder.addActiveMQ('activemq', {
+  userName: username,
+  password,
+});
 const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withReference(broker);
 
@@ -78,14 +85,12 @@ The `scheme` argument controls the scheme in the broker connection URI. It defau
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-const broker = await builder.addActiveMQ(
-  'activemq',
-  username,
+const broker = await builder.addActiveMQ('activemq', {
+  userName: username,
   password,
-  undefined,
-  'activemq',
-  8161
-);
+  scheme: 'activemq',
+  webPort: 8161,
+});
 await broker.withDataVolume();
 await broker.withConfVolume();
 ```

@@ -64,7 +64,7 @@ var redpanda = builder.AddRedPanda("redpanda", options =>
 });
 ```
 
-The TypeScript AppHost API currently exposes `addRedPanda(name, port?)`, but not the resource sizing callback.
+Set the broker's host port in TypeScript with `addRedPanda('redpanda', { port: 9092 })`. The TypeScript API does not expose the resource sizing callback.
 
 Use a data volume or bind mount to persist broker state across container restarts:
 
@@ -101,15 +101,15 @@ Use either Redpanda Console or Kafka UI. The integration connects each UI to the
 
 ```typescript title="apphost.mts"
 const redpanda = await builder.addRedPanda('redpanda');
-await redpanda.withConsole(async (console) => {
-  await console.withHostPort(8080);
+await redpanda.withConsole({
+  configureContainer: async (console) => {
+    await console.withHostPort({ port: 8080 });
+  },
 });
 
 // Or use Kafka UI:
 const redpandaWithKafkaUi = await builder.addRedPanda('redpanda-ui');
-await redpandaWithKafkaUi.withKafkaUI(async (kafkaUi) => {
-  await kafkaUi.withHostPort(9000);
-});
+await redpandaWithKafkaUi.withKafkaUI();
 ```
 
 </TabItem>
@@ -127,16 +127,18 @@ var redpandaWithKafkaUi = builder.AddRedPanda("redpanda-ui")
 </TabItem>
 </Tabs>
 
+The TypeScript `withHostPort` export targets Redpanda Console. C# also supports a Kafka UI-specific `WithHostPort` overload; the TypeScript API can start Kafka UI but cannot pin its host port.
+
 ## AppHost API
 
-| Method                                    | Purpose                                                  |
-| ----------------------------------------- | -------------------------------------------------------- |
-| `AddRedPanda` / `addRedPanda`             | Add a broker, optionally specifying its Kafka host port. |
-| `WithDataVolume` / `withDataVolume`       | Persist broker state in a volume.                        |
-| `WithDataBindMount` / `withDataBindMount` | Persist broker state in a host directory.                |
-| `WithConsole` / `withConsole`             | Add Redpanda Console.                                    |
-| `WithKafkaUI` / `withKafkaUI`             | Add the Kafka UI container.                              |
-| `WithHostPort` / `withHostPort`           | Set the host port for an optional web UI.                |
+| Method                                    | Purpose                                                                            |
+| ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| `AddRedPanda` / `addRedPanda`             | Add a broker, optionally specifying its Kafka host port.                           |
+| `WithDataVolume` / `withDataVolume`       | Persist broker state in a volume.                                                  |
+| `WithDataBindMount` / `withDataBindMount` | Persist broker state in a host directory.                                          |
+| `WithConsole` / `withConsole`             | Add Redpanda Console.                                                              |
+| `WithKafkaUI` / `withKafkaUI`             | Add the Kafka UI container.                                                        |
+| `WithHostPort` / `withHostPort`           | Set Redpanda Console's host port. C# also supports setting the Kafka UI host port. |
 
 ## See also
 

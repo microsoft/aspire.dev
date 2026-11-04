@@ -164,11 +164,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddLogtoOIDC(
     configurationSectionName: "CustomerLogto",
     authenticationScheme: "Customer",
-    cookieScheme: "Customer.Cookie");
+    cookieScheme: "Customer.Cookie",
+    oidcOptions: options =>
+    {
+        options.CallbackPath = "/customer/callback";
+        options.SignedOutCallbackPath = "/customer/signed-out";
+    });
 builder.AddLogtoOIDC(
     configurationSectionName: "StaffLogto",
     authenticationScheme: "Staff",
-    cookieScheme: "Staff.Cookie");
+    cookieScheme: "Staff.Cookie",
+    oidcOptions: options =>
+    {
+        options.CallbackPath = "/staff/callback";
+        options.SignedOutCallbackPath = "/staff/signed-out";
+    });
 
 builder.Services.AddAuthorization(options =>
 {
@@ -190,6 +200,8 @@ app.Run();
 
 Challenge the desired OIDC scheme explicitly from your sign-in endpoint. Authentication schemes select handlers; they aren't [.NET dependency injection keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
 
+The multiple-scheme example assigns a distinct sign-in and sign-out callback path to each OIDC handler. Register both complete callback URLs in the corresponding Logto applications.
+
 ## Configuration
 
 ### Connection strings
@@ -199,7 +211,7 @@ Outside an AppHost, configure a connection string yourself:
 ```json title="appsettings.json"
 {
   "ConnectionStrings": {
-    "logto": "Endpoint=https://identity.example.com"
+    "logto": "Endpoint=https://identity.example.com/"
   },
   "Aspire": {
     "Logto": {
@@ -514,7 +526,7 @@ func main() {
         })
     })
     router.GET("/sign-in", func(ctx *gin.Context) {
-        signInURL, err := newClient(ctx).SignIn(baseURL + "/callback")
+        signInURL, err := newClient(ctx).SignInWithRedirectUri(baseURL + "/callback")
         if err != nil {
             ctx.Status(http.StatusInternalServerError)
             return

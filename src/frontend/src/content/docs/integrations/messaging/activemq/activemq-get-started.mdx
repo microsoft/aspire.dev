@@ -56,12 +56,19 @@ Choose either ActiveMQ Classic or Artemis in your AppHost. See [Set up ActiveMQ 
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
-const username = await builder.addParameter('activemq-user', 'admin');
+const username = await builder.addParameter('activemq-user', {
+  value: 'admin',
+  publishValueAsDefault: true,
+});
 const password = await builder.addParameter('activemq-password', {
+  value: 'admin',
   secret: true,
 });
 
-const broker = await builder.addActiveMQ('activemq', username, password);
+const broker = await builder.addActiveMQ('activemq', {
+  userName: username,
+  password,
+});
 await builder.build().run();
 ```
 

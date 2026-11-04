@@ -36,7 +36,10 @@ The optional `httpPort` and `smtpPort` arguments pin the host ports for the web 
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
-const papercut = await builder.addPapercutSmtp('papercut', 8080, 2525);
+const papercut = await builder.addPapercutSmtp('papercut', {
+  httpPort: 8080,
+  smtpPort: 2525,
+});
 
 const mailer = await builder.addProject('mailer', '../Mailer/Mailer.csproj');
 await mailer.withReference(papercut);
@@ -63,7 +66,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-The resource provides an SMTP connection string in the form `endpoint=smtp://host:port`. Referencing applications receive the connection under the resource name, such as `ConnectionStrings:papercut` in .NET configuration. Configure your SMTP library with the host and port from that endpoint. Papercut's web console is available through the resource's HTTP endpoint in the Aspire dashboard.
+The resource provides an SMTP connection string in the form `Endpoint=smtp://host:port`. Referencing applications receive the connection under the resource name, such as `ConnectionStrings:papercut` in .NET configuration. Configure your SMTP library with the host and port from that endpoint. Papercut's web console is available through the resource's HTTP endpoint in the Aspire dashboard.
 
 The integration does not provide an email client library. Use an SMTP library in the consuming app, and use `WaitFor` when the app must wait for Papercut to be ready before starting.
 

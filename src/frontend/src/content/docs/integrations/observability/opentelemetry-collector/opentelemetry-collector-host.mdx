@@ -138,8 +138,8 @@ const builder = await createBuilder();
 const collector = await builder.addOpenTelemetryCollector(
   'otel-collector',
   async (settings) => {
-    settings.setEnableHttpEndpoint(false);
-    settings.setCollectorTag('0.120.0');
+    await settings.enableHttpEndpoint.set(false);
+    await settings.collectorTag.set('0.135.0');
   }
 );
 await collector.withConfig('./otel-collector-config.yaml');
@@ -157,7 +157,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var collector = builder.AddOpenTelemetryCollector("otel-collector", settings =>
 {
     settings.EnableHttpEndpoint = false;
-    settings.CollectorTag = "0.120.0";
+    settings.CollectorTag = "0.135.0";
 })
     .WithConfig("./otel-collector-config.yaml");
 
@@ -168,7 +168,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-The example disables the HTTP receiver and selects a specific image tag. Choose an image tag that matches the Collector version supported by your configuration.
+The example disables Aspire's HTTP endpoint exposure and selects a specific image tag. This setting does not change the receivers in the mounted Collector configuration. Choose an image tag that matches the Collector version supported by your configuration.
 
 ## Collector endpoints
 
@@ -181,7 +181,7 @@ The resource exposes these endpoint properties:
 
 Both endpoints are enabled by default. When Aspire is configured for HTTPS, the integration configures enabled endpoints for HTTPS and passes certificate paths to the Collector. Set `ForceNonSecureReceiver` to `true` to keep these receivers on HTTP.
 
-When `WithOpenTelemetryCollectorRouting` configures a resource, it reads `OTEL_EXPORTER_OTLP_PROTOCOL` from that resource, defaulting to `grpc`, and sets `OTEL_EXPORTER_OTLP_ENDPOINT` to the corresponding Collector endpoint. The resource also waits for the Collector to become healthy before starting.
+When `WithOpenTelemetryCollectorRouting` configures a resource, it reads `OTEL_EXPORTER_OTLP_PROTOCOL` from that resource, defaulting to `grpc`, and uses its value as the Collector endpoint name. Set it to `grpc` or `http`, which correspond to `GrpcEndpoint` and `HttpEndpoint`. The standard OTLP values `http/protobuf` and `http/json` are not endpoint names and do not resolve with this helper. The resource also waits for the Collector to become healthy before starting.
 
 ## Hosting integration health checks
 

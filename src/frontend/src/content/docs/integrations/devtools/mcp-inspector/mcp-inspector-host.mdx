@@ -119,7 +119,7 @@ builder.Build().Run();
 
 ## Configure ports and Inspector version
 
-The client endpoint defaults to port `6274`, and the server proxy endpoint defaults to port `6277`. Set alternate ports and the Inspector package version with the TypeScript method parameters:
+The client endpoint defaults to port `6274`, and the server proxy endpoint defaults to port `6277`. Set alternate ports and the Inspector package version in a TypeScript options object:
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -131,12 +131,11 @@ const mcpServer = await builder.addProject(
   '../McpServer/McpServer.csproj'
 );
 
-const inspector = await builder.addMcpInspector(
-  'inspector',
-  6275,
-  6278,
-  '0.17.2'
-);
+const inspector = await builder.addMcpInspector('inspector', {
+  clientPort: 6275,
+  serverPort: 6278,
+  inspectorVersion: '0.17.2',
+});
 await inspector.withInspectedMcpServer(mcpServer);
 
 await builder.build().run();
@@ -167,7 +166,7 @@ The `McpInspectorOptions` type exposes:
 - `InspectorVersion`: Version of the `@modelcontextprotocol/inspector` package. Defaults to `0.17.2`.
 - `ProxyToken`: Aspire parameter used as the proxy authentication token. When unset, Aspire creates a random token parameter.
 
-The options-object and configuration-delegate overloads are C# APIs. TypeScript AppHosts use the positional parameters shown above.
+TypeScript AppHosts pass optional settings in an options object with `clientPort`, `serverPort`, `inspectorVersion`, and `proxyToken` properties.
 
 ## Choose a package manager
 
@@ -238,8 +237,8 @@ The package exposes these AppHost APIs:
 - <ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.AddMcpInspector" />
   creates an Inspector resource. C# supports `McpInspectorOptions` and a
   configuration delegate. The positional C# overload is obsolete. TypeScript
-  exposes `addMcpInspector(name, clientPort?, serverPort?, inspectorVersion?,
-  proxyToken?)`.
+  exposes `addMcpInspector(name, options?)`, where `options` can include
+  `clientPort`, `serverPort`, `inspectorVersion`, and `proxyToken`.
 - <ApiReference name="Aspire.Hosting.McpInspectorResourceBuilderExtensions.WithMcpServer" />
   registers a server endpoint, transport, and MCP path. The TypeScript name is
   `withInspectedMcpServer`.

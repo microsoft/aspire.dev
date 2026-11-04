@@ -261,7 +261,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cluster = builder.AddKindCluster("mycluster");
 
-var operator = builder.AddContainer("operator", "myregistry/my-operator")
+var operatorContainer = builder.AddContainer("operator", "myregistry/my-operator")
     .WithReference(cluster);
 
 // After adding all resources, run the app...
@@ -300,7 +300,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cluster = builder.AddKindCluster("mycluster");
 
-var operator = builder.AddProject<Projects.Operator>("operator")
+var operatorApp = builder.AddProject<Projects.Operator>("operator")
     .WithReference(cluster);
 
 // After adding all resources, run the app...
@@ -318,7 +318,7 @@ For non-container resources, `KUBECONFIG` contains the host kubeconfig path. Bot
   mechanism such as NodePort or HostPort when a container needs to reach it.
 </Aside>
 
-Use `WithKindNetwork` to connect a container to the Kind network without referencing the cluster resource:
+Register a Kind cluster to initialize the network services, then use `WithKindNetwork` to connect a container without configuring a cluster reference on that container:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -328,6 +328,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
+await builder.addKindCluster('mycluster');
 const toolbox = await builder
   .addContainer('toolbox', 'myregistry/kubectl')
   .withKindNetwork();
@@ -341,6 +342,7 @@ await builder.build().run();
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
+builder.AddKindCluster("mycluster");
 var toolbox = builder.AddContainer("toolbox", "myregistry/kubectl")
     .WithKindNetwork();
 
@@ -536,7 +538,7 @@ var cluster = builder.AddKindCluster("mycluster");
 var manifestPath = Path.Combine(builder.AppHostDirectory, "manifests", "crds.yaml");
 var crds = cluster.AddManifest("crds", manifestPath);
 
-var operator = builder.AddContainer("operator", "myregistry/my-operator")
+var operatorContainer = builder.AddContainer("operator", "myregistry/my-operator")
     .WithReference(cluster)
     .WaitFor(crds);
 
