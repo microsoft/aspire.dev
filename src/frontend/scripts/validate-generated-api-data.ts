@@ -92,6 +92,9 @@ export interface ValidationInput {
   packages: GeneratedFile<PackageJson>[];
   modules: GeneratedFile<TsModuleJson>[];
   declarations: string;
+  // Packages whose generation failed and whose previous output is carried over;
+  // they are reported by the updater instead of failing validation.
+  skipPackages?: string[];
 }
 
 export interface ValidationResult {
@@ -377,8 +380,10 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     errors
   );
 
+  const skipPackages = new Set(input.skipPackages ?? []);
   for (const entry of input.catalog) {
     if (!isPackageOutputExpected(entry.title) || entry.apiReference === false) continue;
+    if (skipPackages.has(entry.title)) continue;
     const key = `${entry.title}@${entry.version}`;
     if (!packageByIdentity.has(key)) {
       errors.push(`Missing C# API output for catalog package ${key}.`);
@@ -390,7 +395,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     const catalogEntry = catalogByName.get(metadata.name);
     if (!catalogEntry) {
       errors.push(`C# API output ${identity(metadata)} is not present in the integration catalog.`);
-    } else if (catalogEntry.version !== metadata.version) {
+    } else if (catalogEntry.version !== metadata.version && !skipPackages.has(metadata.name)) {
       errors.push(
         `Stale C# API output ${identity(metadata)}; catalog version is ${catalogEntry.version}.`
       );
@@ -667,6 +672,10 @@ function main(): void {
     packages: loadJsonFiles<PackageJson>(packageDir, canonicalPackageDir),
     modules: loadJsonFiles<TsModuleJson>(moduleDir),
     declarations: fs.readFileSync(declarationsFile, 'utf8'),
+    skipPackages: (process.env.ASPIRE_API_FAILED_PACKAGES ?? '')
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean),
   });
 
   if (result.errors.length > 0) {

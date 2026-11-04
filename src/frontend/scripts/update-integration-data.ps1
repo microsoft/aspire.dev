@@ -536,6 +536,9 @@ if ($versionsChanged -and -not $SkipRegen) {
     # 3c. Cross-artifact semantic validation. This runs only after every
     # generator has completed and must pass before the workflow can publish.
     Write-Host "→ bun run validate:api-data (semantic regression gate)" -ForegroundColor Cyan
+    $failedPackageNames = @($pkgFailedPackages -split '[,\s]+' | ForEach-Object { ($_ -replace '@.*$', '').Trim() } | Where-Object { $_ -match '^[A-Za-z0-9_.-]+$' -and $_ -match '\.' })
+    $previousFailedEnv = $env:ASPIRE_API_FAILED_PACKAGES
+    $env:ASPIRE_API_FAILED_PACKAGES = $failedPackageNames -join ','
     Push-Location $FrontendDir
     try {
         $validationLog = & bun run validate:api-data 2>&1 | Tee-Object -Variable validationTeed | Out-String
@@ -543,6 +546,8 @@ if ($versionsChanged -and -not $SkipRegen) {
     }
     finally {
         Pop-Location
+        if ($null -eq $previousFailedEnv) { Remove-Item Env:ASPIRE_API_FAILED_PACKAGES -ErrorAction SilentlyContinue }
+        else { $env:ASPIRE_API_FAILED_PACKAGES = $previousFailedEnv }
     }
     if ($validationExit -ne 0) {
         Stop-ApiRegeneration "Generated API semantic validation failed.`n$validationLog`nAborting; no PR will be opened."

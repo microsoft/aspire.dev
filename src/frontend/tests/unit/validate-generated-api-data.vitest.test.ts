@@ -318,6 +318,14 @@ describe('validateGeneratedApiData', () => {
     );
     expect(errors).toContain('Missing C# API output for catalog package Aspire.Hosting.Foo@2.0.0.');
   });
+
+  test('tolerates missing and stale output for packages whose generation failed', () => {
+    const input = createValidInput();
+    input.catalog[0].version = '2.0.0';
+    input.skipPackages = ['Aspire.Hosting.Foo'];
+
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+  });
 });
 
 describe('loadJsonFromHead', () => {
