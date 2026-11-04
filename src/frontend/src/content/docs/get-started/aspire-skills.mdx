@@ -10,9 +10,9 @@ import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import { Kbd } from 'starlight-kbd/components';
 
-Aspire skills are Markdown instruction bundles for AI coding agents. Each skill lives in a folder with a `SKILL.md` file that describes when the skill applies and what workflow the agent should follow. Skills don't run services or expose application data; they teach the agent how to use Aspire tools correctly.
+Aspire skills are Markdown instructions that teach AI coding agents how to use Aspire tools. Each skill's `SKILL.md` file explains when to use the skill and which workflow to follow.
 
-Aspire ships multiple skills for different parts of the app lifecycle. The exact list can vary by Aspire CLI version and project type, but the [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) bundle includes seven workflow skills: `aspire`, `aspire-init`, `aspire-orchestration`, `aspire-monitoring`, `aspire-deployment`, `aspire-project-v2-migration`, and `aspireify`.
+The [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) repository publishes the `aspire` plugin with workflow skills and canvas extensions for Copilot agent environments. The available skills and canvases depend on the plugin version.
 
 <LearnMore>
   To configure AI coding agents end to end, see [Use AI coding
@@ -21,7 +21,7 @@ Aspire ships multiple skills for different parts of the app lifecycle. The exact
 
 ## Install Aspire guidance
 
-Use Aspire's first-party agent setup when creating a new app, adding Aspire to an existing repo, or refreshing agent guidance later. The Aspire CLI is the recommended path for project-local setup because it installs Aspire skill files into detected agent environments.
+The Aspire CLI edits agent settings to enable plugins for GitHub Copilot and Claude Code, or skill catalogs for OpenCode. Each agent downloads and loads its configured content.
 
 ### Set up or refresh agent guidance
 
@@ -29,7 +29,11 @@ Use Aspire's first-party agent setup when creating a new app, adding Aspire to a
 aspire agent init
 ```
 
-Run `aspire agent init` in an existing Aspire project when you want to set up AI coding agents or refresh installed skill files. Skills don't require MCP. MCP setup is an explicit opt-in during standalone interactive setup or through `--mcp`; setup chained from `aspire new` or `aspire init` doesn't offer it.
+Run this command in your Aspire project. Select your agents and `aspire`, then choose project scope for repo settings or global scope for user-level settings.
+
+Selecting `aspire` applies the enabled `skillSources` entries. Without that setting, setup uses the built-in `microsoft/aspire-skills` source. Adding custom sources doesn't exclude the built-in `default` source. To exclude it, set `skillSources.default.enabled` to `false`.
+
+MCP is optional. Enable it at the standalone setup prompt or with `--mcp`; `aspire new` and `aspire init` skip MCP setup.
 
 <LearnMore>
   For command options and examples, see the [`aspire agent init` command
@@ -55,7 +59,7 @@ When prompted to configure AI agent environments, press <Kbd windows="Y" mac="Y"
 aspire init
 ```
 
-When prompted to install Aspire agent guidance, press <Kbd windows="Y" mac="Y" linux="Y" /> then <Kbd windows="Enter" mac="Return" linux="Enter" />.
+When prompted to configure AI agent environments, press <Kbd windows="Y" mac="Y" linux="Y" /> then <Kbd windows="Enter" mac="Return" linux="Enter" />.
 
 <LearnMore>
   For command options and examples, see the [`aspire init` command
@@ -64,7 +68,7 @@ When prompted to install Aspire agent guidance, press <Kbd windows="Y" mac="Y" l
 
 ### Configure non-interactive setup
 
-For non-interactive setup, add `--non-interactive` and pass the skill and location options explicitly. Install the Aspire workflow skills together; the top-level `aspire` skill routes work to workflow-specific skills and isn't useful as the only Aspire skill. This example installs all available skills into the standard skill location:
+For non-interactive setup, specify agents, setup choices, and scope. This example enables skill sources for GitHub Copilot in the current project:
 
 <OsAwareTabs syncKey="terminal">
 <div slot="unix">
@@ -72,8 +76,9 @@ For non-interactive setup, add `--non-interactive` and pass the skill and locati
 ```bash title="Aspire CLI"
 aspire agent init \
   --non-interactive \
-  --skills all \
-  --skill-locations standard
+  --agents copilot \
+  --skills aspire \
+  --scope project
 ```
 
 </div>
@@ -82,14 +87,15 @@ aspire agent init \
 ```powershell title="Aspire CLI"
 aspire agent init `
   --non-interactive `
-  --skills all `
-  --skill-locations standard
+  --agents copilot `
+  --skills aspire `
+  --scope project
 ```
 
 </div>
 </OsAwareTabs>
 
-When the same repo is intentionally used with both a Standard-compatible host and Claude Code, install the same skills into both locations:
+To update project settings for both GitHub Copilot and Claude Code, select both agents:
 
 <OsAwareTabs syncKey="terminal">
 <div slot="unix">
@@ -97,8 +103,9 @@ When the same repo is intentionally used with both a Standard-compatible host an
 ```bash title="Aspire CLI"
 aspire agent init \
   --non-interactive \
-  --skills all \
-  --skill-locations standard,claudecode
+  --agents copilot,claude \
+  --skills aspire \
+  --scope project
 ```
 
 </div>
@@ -107,12 +114,25 @@ aspire agent init \
 ```powershell title="Aspire CLI"
 aspire agent init `
   --non-interactive `
-  --skills all `
-  --skill-locations standard,claudecode
+  --agents copilot,claude `
+  --skills aspire `
+  --scope project
 ```
 
 </div>
 </OsAwareTabs>
+
+### Choose plugins and skill sources
+
+Use `skillSources` to add your team's plugins or OpenCode catalogs, customize the built-in source, or exclude Aspire's plugin and catalog. Define entries in project settings, global defaults, or a shared Git configuration source, then rerun `aspire agent init` with `aspire` selected.
+
+<LearnMore>
+  See [Configure agent plugins and skill
+  sources](/reference/cli/configuration/#configure-agent-plugins-and-skill-sources)
+  for fields and examples, and [Agent configuration
+  files](/reference/cli/commands/aspire-agent-init/#agent-configuration-files)
+  for settings file paths.
+</LearnMore>
 
 ### Other installation options
 
@@ -255,17 +275,21 @@ In that command, `-a github-copilot` selects the target agent, `-g` installs glo
 
 Use the top-level `aspire` skill when the request is about an Aspire app and the right workflow isn't obvious. Use a workflow-specific skill directly when the task is clear, such as `aspire-orchestration` for local lifecycle work, `aspire-monitoring` for telemetry investigation, `aspire-deployment` for publish and deploy workflows, `aspire-project-v2-migration` for eligible legacy project resources, or `aspireify` for existing-codebase AppHost wiring.
 
-## GitHub Copilot app canvas extensions
+<a id="github-copilot-app-canvas-extensions"></a>
 
-Currently, the Aspire CLI setup flow doesn't install canvas extensions. Install them through the GitHub Copilot app plugin.
+## Copilot canvas extensions
+
+The `aspire` plugin provides canvas extensions in Copilot agent environments, including Copilot CLI, VS Code, and the GitHub Copilot app. Your environment loads them when the plugin is enabled.
 
 | Canvas          | Use it for                              | What it shows                                                                                  |
 | --------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `aspire-doctor` | Diagnosing your Aspire development setup | Environment checks, suggested fixes, and detected Aspire CLI installations in an app side panel |
+| Aspire Doctor | Diagnosing your Aspire development setup | Environment checks, suggested fixes, and detected Aspire CLI installations |
+| Aspire AppHosts | Inspecting and managing AppHosts | Workspace and Global resources, endpoints, health, commands, and resource relationships |
+| Aspireify | Reviewing AppHost wiring | A proposed resource graph and confirmation before the agent edits the AppHost |
 
 ## Companion skills and tools
 
-The Aspire CLI setup flow can offer companion options, but they aren't part of the `microsoft/aspire-skills` workflow bundle.
+The Aspire CLI setup flow can offer companion options, but they aren't part of the `microsoft/aspire-skills` plugin.
 
 | Skill            | Use it for                                 | What it teaches                                                                                                   |
 | ---------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -289,7 +313,7 @@ The `playwright-cli` skill works best alongside the `aspire` skill. The agent wi
 
 ## Skill locations
 
-Aspire installs each selected skill into the selected skill locations. For example, a standard location can contain every Aspire workflow skill and selected companion skills:
+Skills-compatible installers copy workflow files into agent-recognized directories, such as `.agents/skills/`. A workspace with workflow and companion skills can contain:
 
 :::note[Prefer one location]
 Install skills to a single location for the agent environment you actively use. Select multiple locations only when the same repo is intentionally shared across different agent hosts.
@@ -319,7 +343,7 @@ Install skills to a single location for the agent environment you actively use. 
 
 </FileTree>
 
-Other supported locations use the same skill folder names:
+Other agent-recognized locations use the same skill folder names:
 
 | Location          | Directory          | Notes                                              |
 | ----------------- | ------------------ | -------------------------------------------------- |
@@ -328,8 +352,13 @@ Other supported locations use the same skill folder names:
 | **GitHub Skills** | `.github/skills/`  | VS Code / GitHub Copilot specific                  |
 | **OpenCode**      | `.opencode/skill/` | OpenCode specific                                  |
 
+:::caution[Existing local skills]
+Local Aspire skill files can override plugin guidance. The CLI warns but leaves them unchanged. Keep copies only for intentional overrides.
+:::
+
 ## See also
 
 - [Use AI coding agents](/get-started/ai-coding-agents/) — set up your project for AI agents
 - [aspire agent init command](/reference/cli/commands/aspire-agent-init/)
 - [aspire init command](/reference/cli/commands/aspire-init/)
+- [Configure agent plugins and skill sources](/reference/cli/configuration/#configure-agent-plugins-and-skill-sources)

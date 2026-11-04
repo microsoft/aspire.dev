@@ -25,6 +25,7 @@ title: Config Settings Table
 | `profiles.<name>.applicationUrl`             | —                                  | Application URLs for the launch profile, such as `https://localhost:17000;http://localhost:15000`. To learn where each kind of AppHost stores launch profiles, see [AppHost configuration](/app-host/configuration/). |
 | `profiles.<name>.environmentVariables`       | —                                  | Environment variables for the launch profile. |
 | `sdk.version`                                | Installed CLI version              | Aspire SDK version for a non-C# AppHost, which determines the version of the `Aspire.Hosting` packages to use. `aspire update` updates this value. |
+| `skillSources.<name>`                        | Built-in Aspire source enabled     | Named agent plugin marketplaces and OpenCode skill catalogs configured by `aspire agent init`. Sources merge across global and project configuration. Set `skillSources.default.enabled` to `false` to exclude the built-in source. For fields and examples, see [Configure agent plugins and skill sources](/reference/cli/configuration/#configure-agent-plugins-and-skill-sources). |
 
 Each `.` in a key maps to a nested object in `aspire.config.json`. For example, `aspire config set appHost.path ./apphost.mts` writes `"appHost": { "path": "./apphost.mts" }`. Replace placeholders such as `<packageId>` and `<name>` with your own values.
 
