@@ -33,6 +33,7 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+      issues: write
     steps:
       - name: Create GitHub App token
         id: app-token
@@ -175,6 +176,33 @@ jobs:
               --body-file "$PR_BODY_FILE" \
               --label ":octocat: auto-merge")
             echo "Created $new_pr"
+          fi
+
+      - name: Report failure
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # One tracking issue for consecutive failures: comment on it while it is
+          # open, so a broken updater is noticed without a daily issue flood.
+          title="Integration Data Updater is failing"
+          existing=$(gh issue list \
+            --state open \
+            --search "\"$title\" in:title" \
+            --json number,title \
+            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Scheduled run failed again: $RUN_URL"
+          else
+            gh issue create \
+              --title "$title" \
+              --body "The scheduled [Integration Data Updater]($RUN_URL) run failed. This issue is updated on each consecutive failure; close it once the workflow is green."
           fi
 
       - name: Summary
