@@ -837,6 +837,22 @@ $skipCount = 0
 $runtimeRefsByTfm = @{}
 $failedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::OrdinalIgnoreCase)
+$failureReasons = @{}
+
+# Records why a package failed so the updater can surface an actionable reason
+# (for example an NU1102 missing dependency) instead of only the package name.
+function Add-PackageFailure {
+    param([string]$PackageId, [string]$Reason)
+    [void]$failedPackageNames.Add($PackageId)
+    $lines = @("$Reason" -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $line = $lines | Where-Object { $_ -match '\berror\s+[A-Z]+\d+:' } | Select-Object -First 1
+    if (-not $line) { $line = $lines | Select-Object -First 1 }
+    if (-not $line) { $line = 'unknown failure' }
+    $line = $line -replace '^.*?\berror\s+', 'error '
+    $line = $line -replace '\s*\[[^\]]*\.csproj\]\s*$', ''
+    if ($line.Length -gt 300) { $line = $line.Substring(0, 300) + '...' }
+    if (-not $failureReasons.ContainsKey($PackageId)) { $failureReasons[$PackageId] = $line }
+}
 $skippedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::OrdinalIgnoreCase)
 
@@ -910,7 +926,7 @@ if ($packagesToResolve.Count -gt 3 -and -not $Sequential) {
         if (-not $resolved.Version) {
             Write-Warning "Could not resolve version for $($resolved.PackageId) from $($resolved.Source)."
             $failCount++
-            [void]$failedPackageNames.Add($resolved.PackageId)
+            Add-PackageFailure $resolved.PackageId "could not resolve a version from $($resolved.Source)"
             continue
         }
         $packageInfos += $resolved
@@ -923,7 +939,7 @@ if ($packagesToResolve.Count -gt 3 -and -not $Sequential) {
         if (-not $version) {
             Write-Warning "Could not resolve version for $packageId from $($sourceInfo.DisplaySource)."
             $failCount++
-            [void]$failedPackageNames.Add($packageId)
+            Add-PackageFailure $packageId "could not resolve a version from $($sourceInfo.DisplaySource)"
             continue
         }
         $packageInfos += [PSCustomObject]@{ PackageId = $packageId; Version = $version }
@@ -1021,7 +1037,7 @@ foreach ($info in $packageInfos) {
         $restoreError = if ($null -eq $restoreOutcome) { "no restore result was produced." } else { $restoreOutcome.Error }
         Write-Warning "Failed to restore $packageId $version`: $restoreError"
         $failCount++
-        [void]$failedPackageNames.Add($packageId)
+        Add-PackageFailure $packageId "restore $version`: $restoreError"
         continue
     }
     $restoreGraph = $restoreOutcome.Graph
@@ -1088,6 +1104,8 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
     $failedPackages = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $skippedPackages = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
+    $batchFailureReasons = @{}
+
     $batchOutput | ForEach-Object {
         if ($_ -match "^Generated:") {
             Write-Host "  $_" -ForegroundColor Green
@@ -1101,8 +1119,9 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
             Write-Host "  $_" -ForegroundColor Yellow
         }
         elseif ($_ -match "^FAILED") {
-            if ($_ -match "^FAILED \[(.+)\]:") {
+            if ($_ -match "^FAILED \[(.+?)\]:\s*(.*)$") {
                 [void]$failedPackages.Add($Matches[1])
+                $batchFailureReasons[$Matches[1]] = $Matches[2]
             }
             Write-Host "  $_" -ForegroundColor Red
         }
@@ -1126,12 +1145,12 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
 
         if ($batchExitCode -ne 0) {
             $failCount++
-            [void]$failedPackageNames.Add($entry.packageName)
+            Add-PackageFailure $entry.packageName "batch tool exited with code $batchExitCode"
         }
         elseif ($reportedStatusCount -ne 1) {
             Write-Warning "Batch tool reported $reportedStatusCount terminal statuses for $($entry.packageName); expected exactly one."
             $failCount++
-            [void]$failedPackageNames.Add($entry.packageName)
+            Add-PackageFailure $entry.packageName "batch tool reported $reportedStatusCount terminal statuses; expected exactly one"
         }
         elseif ($succeededPackages.Contains($entry.packageName)) {
             if (Test-Path -LiteralPath $entry.output -PathType Leaf) {
@@ -1141,7 +1160,7 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
             else {
                 Write-Warning "Batch tool reported success for $($entry.packageName) without creating $($entry.output)."
                 $failCount++
-                [void]$failedPackageNames.Add($entry.packageName)
+                Add-PackageFailure $entry.packageName "batch tool reported success without creating the output file"
             }
         }
         elseif ($skippedPackages.Contains($entry.packageName)) {
@@ -1150,7 +1169,7 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
         }
         else {
             $failCount++
-            [void]$failedPackageNames.Add($entry.packageName)
+            Add-PackageFailure $entry.packageName "generation failed: $($batchFailureReasons[$entry.packageName])"
         }
     }
 
@@ -1209,7 +1228,8 @@ else {
         else {
             Write-Warning "Tool exited with code $generationExitCode for $($entry.packageName)"
             $failCount++
-            [void]$failedPackageNames.Add($entry.packageName)
+            $failedLine = $generationOutput | Where-Object { $_ -match '^FAILED ' } | Select-Object -First 1
+            Add-PackageFailure $entry.packageName "generation failed (exit $generationExitCode): $failedLine"
         }
     }
 }
@@ -1220,6 +1240,9 @@ Write-Host "`n══════════════════════
 Write-Host "Done! Success: $successCount | Failed: $failCount | Skipped: $skipCount" -ForegroundColor Cyan
 if ($failedPackageNames.Count -gt 0) {
     Write-Host "Failed packages: $(($failedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Red
+    foreach ($name in ($failedPackageNames | Sort-Object)) {
+        Write-Host "FAILURE $name`: $($failureReasons[$name])" -ForegroundColor Red
+    }
 }
 if ($skippedPackageNames.Count -gt 0) {
     Write-Host "Skipped packages: $(($skippedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Yellow
