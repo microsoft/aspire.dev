@@ -372,6 +372,8 @@ else {
 $regenRan = $false
 $pkgSummary = ''
 $pkgSkippedPackages = ''
+$pkgFailedPackages = ''
+$tsFailedPackages = ''
 $tsApiSummary = ''
 $tsSkippedPackages = ''
 $tsToleratedPackages = ''
@@ -417,7 +419,9 @@ if ($versionsChanged -and -not $SkipRegen) {
     }
     $pkgSummary = "Success: $($Matches.Succeeded) | Failed: $($Matches.Failed) | Skipped: $($Matches.Skipped)"
     if ([int]$Matches.Failed -gt 0) {
-        Stop-ApiRegeneration "C# API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
+        $pkgFailedLine = ($pkgLog -split "`n" | Where-Object { $_ -match '^\s*Failed packages:' } | Select-Object -First 1)
+        $pkgFailedPackages = if ($pkgFailedLine) { ($pkgFailedLine -replace '^\s*Failed packages:\s*', '').Trim() } else { "$($Matches.Failed) unnamed package(s)" }
+        Write-Warning "C# API generation failed for: $pkgFailedPackages. Continuing; existing data for these packages is kept."
     }
     $pkgSkippedLine = ($pkgLog -split "`n" |
         Where-Object { $_ -match '^\s*Skipped packages:' } |
@@ -476,7 +480,9 @@ if ($versionsChanged -and -not $SkipRegen) {
     }
     $tsApiSummary = "$($Matches.Succeeded) succeeded, $($Matches.Failed) failed, $($Matches.Skipped) skipped"
     if ([int]$Matches.Failed -gt 0) {
-        Stop-ApiRegeneration "TypeScript API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
+        $tsFailedLine = ($tsLog -split "`n" | Where-Object { $_ -match '^\s*Failed packages:' } | Select-Object -First 1)
+        $tsFailedPackages = if ($tsFailedLine) { ($tsFailedLine -replace '^\s*Failed packages:\s*', '').Trim() } else { "$($Matches.Failed) unnamed package(s)" }
+        Write-Warning "TypeScript API generation failed for: $tsFailedPackages. Continuing."
     }
     $tsSkippedLine = ($tsLog -split "`n" |
         Where-Object { $_ -match '^\s*Skipped packages:' } |
@@ -662,6 +668,15 @@ if ($regenRan) {
     if ($tsSkippedPackages) {
         [void]$sb.AppendLine("- TypeScript packages skipped because they export no ATS functions: ``$tsSkippedPackages``")
     }
+    if ($pkgFailedPackages -or $tsFailedPackages) {
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("### :warning: API generation failures")
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("These packages failed to generate and kept their previous API data. They are tracked in the *Integration Data Updater: API generation failures* issue.")
+        [void]$sb.AppendLine("")
+        if ($pkgFailedPackages) { [void]$sb.AppendLine("- C#: ``$pkgFailedPackages``") }
+        if ($tsFailedPackages) { [void]$sb.AppendLine("- TypeScript: ``$tsFailedPackages``") }
+    }
     if ($tsToleratedPackages) {
         [void]$sb.AppendLine("")
         [void]$sb.AppendLine("### :warning: Tolerated ATS scanner diagnostics")
@@ -723,6 +738,7 @@ Set-Output 'semantic_validation' $(if ($regenRan) { $semanticSummary } else { 'n
 Set-Output 'pr_title' $prTitle
 Set-Output 'pr_body_file' $prBodyFile
 Set-Output 'icon_warnings' $iconWarnings
+Set-Output 'api_failures' (@(@($pkgFailedPackages, $tsFailedPackages) | Where-Object { $_ }) -join "`n")
 
 Write-Host "PR title : $prTitle"
 Write-Host "PR body  : $prBodyFile"

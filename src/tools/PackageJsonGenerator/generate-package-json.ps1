@@ -1229,8 +1229,17 @@ Write-Host "Output: $FinalOutputDir"
 Remove-Item (Join-Path $ScriptDir ".package-json-generator-work") -Recurse -Force -ErrorAction SilentlyContinue
 
 if ($failCount -gt 0) {
-    Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
-    exit 1
+    Write-Warning "Skipping $failCount package(s) that failed to generate; their existing data is kept."
+}
+
+# A failed package is non-fatal: keep its previously generated files so the rest
+# of the catalog can still be refreshed. The caller reports the failures.
+function Test-IsFailedPackageFile {
+    param([string]$FileName)
+    foreach ($failed in $failedPackageNames) {
+        if ($FileName -match ("^{0}\.\d.*\.json$" -f [regex]::Escape($failed))) { return $true }
+    }
+    return $false
 }
 
 New-Item -ItemType Directory -Path $FinalOutputDir -Force | Out-Null
@@ -1243,7 +1252,7 @@ foreach ($file in $stagedFiles) {
 
 if ($isFullReconciliation) {
     foreach ($existingFile in Get-ChildItem -Path $FinalOutputDir -Filter "*.json" -File) {
-        if (-not $stagedNames.Contains($existingFile.Name)) {
+        if (-not $stagedNames.Contains($existingFile.Name) -and -not (Test-IsFailedPackageFile $existingFile.Name)) {
             Remove-Item -Path $existingFile.FullName -Force
             Write-Host "Removed stale package data: $($existingFile.Name)" -ForegroundColor DarkYellow
         }
@@ -1253,7 +1262,7 @@ else {
     foreach ($packageId in $Packages) {
         $namePattern = "^{0}\.\d.*\.json$" -f [regex]::Escape($packageId)
         foreach ($existingFile in Get-ChildItem -Path $FinalOutputDir -Filter "*.json" -File) {
-            if ($existingFile.Name -match $namePattern -and -not $stagedNames.Contains($existingFile.Name)) {
+            if ($existingFile.Name -match $namePattern -and -not $stagedNames.Contains($existingFile.Name) -and -not (Test-IsFailedPackageFile $existingFile.Name)) {
                 Remove-Item -Path $existingFile.FullName -Force
                 Write-Host "Removed stale package data: $($existingFile.Name)" -ForegroundColor DarkYellow
             }
