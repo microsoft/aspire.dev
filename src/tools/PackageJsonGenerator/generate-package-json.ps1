@@ -107,18 +107,26 @@ function Remove-StalePackageJsonFiles {
 
 $integrationsFile = [System.IO.Path]::Combine($RepoRoot, "src", "frontend", "src", "data", "aspire-integrations.json")
 $integrations = if (Test-Path $integrationsFile) {
-    # Entries marked `"apiReference": false` (third-party packages) are not documented here.
+    # Catalog fields are optional and StrictMode throws on missing properties, so
+    # read them through PSObject.Properties. Entries marked `"apiReference": false`
+    # (third-party packages) are not documented here.
     @(Get-Content $integrationsFile -Raw | ConvertFrom-Json |
-        Where-Object { $_.apiReference -ne $false })
+        Where-Object {
+            $apiReference = $_.PSObject.Properties['apiReference']
+            -not $apiReference -or $apiReference.Value -ne $false
+        })
 }
 else {
     @()
 }
 $catalogVersions = @{}
 foreach ($integration in $integrations) {
-    if (-not [string]::IsNullOrWhiteSpace($integration.title) -and
-        -not [string]::IsNullOrWhiteSpace($integration.version)) {
-        $catalogVersions[$integration.title] = $integration.version
+    $title = $integration.PSObject.Properties['title']
+    $version = $integration.PSObject.Properties['version']
+    if ($title -and $version -and
+        -not [string]::IsNullOrWhiteSpace($title.Value) -and
+        -not [string]::IsNullOrWhiteSpace($version.Value)) {
+        $catalogVersions[$title.Value] = $version.Value
     }
 }
 
