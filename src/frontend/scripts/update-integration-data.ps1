@@ -533,6 +533,10 @@ if ($versionsChanged -and -not $SkipRegen) {
 
     $twoslashSummary = 'succeeded'
 
+    # Publish failure details now so the tracking issue is filed even if a later step aborts.
+    Set-Output 'regen_ran' 'true'
+    Set-Output 'api_failures' ($apiFailureDetails -join "`n")
+
     # 3c. Cross-artifact semantic validation. This runs only after every
     # generator has completed and must pass before the workflow can publish.
     Write-Host "→ bun run validate:api-data (semantic regression gate)" -ForegroundColor Cyan
