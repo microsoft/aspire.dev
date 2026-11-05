@@ -1373,7 +1373,8 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('volume-data');
     expect(html).toContain('id="architecture"');
     expect(html).toContain('class="mermaid');
-    expect(html).toContain('Browser --&gt; Api');
+    expect(html).toContain('pele-flowchart');
+    expect(html).toContain('data-processed="true"');
     expect(html).toContain('expressive-code');
     expect(html).toContain('AppHost.cs');
     expect(html).toContain('Sample screenshots');
