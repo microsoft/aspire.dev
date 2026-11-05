@@ -2,17 +2,13 @@ import type { APIRoute } from 'astro';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
 import { renderGoMemberMarkdownPage } from '@utils/go-api-markdown';
-import type { GoApiDocument, GoFunction, GoHandleType } from '@utils/go-modules';
-import { getGoModules, goModuleSlug } from '@utils/go-modules';
+import type { GoMemberRouteProps } from '@utils/go-modules';
+import { getGoHandleMethod, getGoModuleDocument, getGoModules, goModuleSlug } from '@utils/go-modules';
 import { getGoItemSlug, getGoMethods, getGoMethodSlug, getGoTopLevelRouteItems } from '@utils/go-api-routes';
 
 export const prerender = true;
 
-type RouteProps = {
-  method: GoFunction;
-  parentType: GoHandleType;
-  pkg: GoApiDocument;
-};
+type RouteProps = GoMemberRouteProps;
 
 type StaticPath = {
   params: { item: string; member: string; module: string };
@@ -28,14 +24,14 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
     const pkgSlug = goModuleSlug(pkg.package.name);
     const items = getGoTopLevelRouteItems(pkg);
 
-    for (const handle of pkg.handleTypes ?? []) {
+    for (const [handleIndex, handle] of (pkg.handleTypes ?? []).entries()) {
       const itemSlug = getGoItemSlug(handle, items);
       if (!itemSlug) {
         continue;
       }
 
       const methods = getGoMethods(handle);
-      for (const method of methods) {
+      for (const [methodIndex, method] of methods.entries()) {
         const memberSlug = getGoMethodSlug(method, methods, handle.name);
         if (!memberSlug) {
           continue;
@@ -48,9 +44,9 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
             module: pkgSlug,
           },
           props: {
-            method,
-            parentType: handle,
-            pkg,
+            methodIndex,
+            handleIndex,
+            packageName: pkg.package.name,
           },
         });
       }
@@ -60,11 +56,11 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   return paths;
 }
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = async ({ props }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const routeProps = props as RouteProps;
 
-  return markdownResponse(
-    renderGoMemberMarkdownPage(routeProps.pkg, routeProps.parentType, routeProps.method, base)
-  );
+  const pkg = await getGoModuleDocument(routeProps.packageName);
+  const { parentType, method } = getGoHandleMethod(pkg, routeProps.handleIndex, routeProps.methodIndex);
+  return markdownResponse(renderGoMemberMarkdownPage(pkg, parentType, method, base));
 };

@@ -7,7 +7,7 @@
  * and collapsible module sections.
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import { tsModuleSlug, getTsModules, simplifyType } from '@utils/ts-modules';
+import { tsModuleSlug, getTsModuleDocument, getTsModules, simplifyType } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
 import {
   getTsCallableIdentityKey,
@@ -18,15 +18,20 @@ import { getTsItemSlug, getTsMethods, getTsMethodSlug, getTsStandaloneFunctions,
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 
+interface Props {
+  packageName: string;
+}
+
 export async function getStaticPaths() {
   const packages = await getTsModules();
   return packages.map(pkg => ({
     params: { module: tsModuleSlug(pkg.data.package.name) },
-    props: { pkg: pkg.data },
+    props: { packageName: pkg.data.package.name },
   }));
 }
 
-const { pkg } = Astro.props;
+const { packageName } = Astro.props;
+const pkg = await getTsModuleDocument(packageName);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pkgSlug = tsModuleSlug(pkg.package.name);
 const isOfficial = pkg.package.name.startsWith('Aspire.');

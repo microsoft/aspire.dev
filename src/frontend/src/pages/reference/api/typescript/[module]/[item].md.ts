@@ -2,20 +2,13 @@ import type { APIRoute } from 'astro';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
 import { renderTypeScriptItemMarkdown } from '@utils/typescript-api-markdown';
-import type { TsApiDocument, TsDtoType, TsEnumType, TsFunction, TsHandleType } from '@utils/ts-modules';
-import { getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
-import { getTsItemSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import type { TsItem, TsItemKind, TsItemRouteProps } from '@utils/ts-modules';
+import { getTsModuleDocument, getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
+import { getTsItemSlug, getTsRouteItem, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 
 export const prerender = true;
 
-type TypeScriptItemKind = 'handle' | 'dto' | 'enum' | 'function';
-type TypeScriptItem = TsHandleType | TsDtoType | TsEnumType | TsFunction;
-
-type RouteProps = {
-  item: TypeScriptItem;
-  itemKind: TypeScriptItemKind;
-  pkg: TsApiDocument;
-};
+type RouteProps = TsItemRouteProps;
 
 type StaticPath = {
   params: { item: string; module: string };
@@ -25,86 +18,38 @@ type StaticPath = {
 export async function getStaticPaths(): Promise<StaticPath[]> {
   const packages = await getTsModules();
   const paths: StaticPath[] = [];
+  const names = new Map<StaticPath, string>();
 
   for (const entry of packages) {
     const pkg = entry.data;
     const pkgSlug = tsModuleSlug(pkg.package.name);
     const items = getTsTopLevelRouteItems(pkg);
 
-    for (const handle of pkg.handleTypes ?? []) {
-      const itemSlug = getTsItemSlug(handle, items);
+    const routeItems: Array<{ item: TsItem; itemKind: TsItemKind; itemIndex: number }> = [
+      ...(pkg.handleTypes ?? []).map((item, itemIndex) => ({ item, itemKind: 'handle' as const, itemIndex })),
+      ...(pkg.dtoTypes ?? []).map((item, itemIndex) => ({ item, itemKind: 'dto' as const, itemIndex })),
+      ...(pkg.enumTypes ?? []).map((item, itemIndex) => ({ item, itemKind: 'enum' as const, itemIndex })),
+      ...getTsStandaloneFunctions(pkg).map((item, itemIndex) => ({ item, itemKind: 'function' as const, itemIndex })),
+    ];
+    for (const { item, itemKind, itemIndex } of routeItems) {
+      const itemSlug = getTsItemSlug(item, items);
       if (!itemSlug) {
         continue;
       }
 
-      paths.push({
+      const path: StaticPath = {
         params: {
           item: itemSlug,
           module: pkgSlug,
         },
         props: {
-          item: handle,
-          itemKind: 'handle',
-          pkg,
+          itemIndex,
+          itemKind,
+          packageName: pkg.package.name,
         },
-      });
-    }
-
-    for (const dto of pkg.dtoTypes ?? []) {
-      const itemSlug = getTsItemSlug(dto, items);
-      if (!itemSlug) {
-        continue;
-      }
-
-      paths.push({
-        params: {
-          item: itemSlug,
-          module: pkgSlug,
-        },
-        props: {
-          item: dto,
-          itemKind: 'dto',
-          pkg,
-        },
-      });
-    }
-
-    for (const enumType of pkg.enumTypes ?? []) {
-      const itemSlug = getTsItemSlug(enumType, items);
-      if (!itemSlug) {
-        continue;
-      }
-
-      paths.push({
-        params: {
-          item: itemSlug,
-          module: pkgSlug,
-        },
-        props: {
-          item: enumType,
-          itemKind: 'enum',
-          pkg,
-        },
-      });
-    }
-
-    for (const fn of getTsStandaloneFunctions(pkg)) {
-      const itemSlug = getTsItemSlug(fn, items);
-      if (!itemSlug) {
-        continue;
-      }
-
-      paths.push({
-        params: {
-          item: itemSlug,
-          module: pkgSlug,
-        },
-        props: {
-          item: fn,
-          itemKind: 'function',
-          pkg,
-        },
-      });
+      };
+      paths.push(path);
+      names.set(path, tsSlugify(item.name));
     }
   }
 
@@ -112,7 +57,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   const canonical = new Set(paths.map(({ params }) => `${params.module}/${params.item}`));
   const legacy = new Map<string, StaticPath>();
   for (const path of paths) {
-    const item = tsSlugify(path.props.item.name);
+    const item = names.get(path)!;
     const key = `${path.params.module}/${item}`;
     if (item && !canonical.has(key)) {
       legacy.set(key, { ...path, params: { ...path.params, item } });
@@ -121,11 +66,13 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   return [...paths, ...legacy.values()];
 }
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = async ({ props }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const routeProps = props as RouteProps;
+  const pkg = await getTsModuleDocument(routeProps.packageName);
+  const item = getTsRouteItem<TsItem>(pkg, routeProps.itemKind, routeProps.itemIndex);
 
   return markdownResponse(
-    renderTypeScriptItemMarkdown(routeProps.pkg, routeProps.item, routeProps.itemKind, base)
+    renderTypeScriptItemMarkdown(pkg, item, routeProps.itemKind, base)
   );
 };

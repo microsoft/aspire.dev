@@ -7,59 +7,61 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
-import { tsModuleSlug, getTsModules, simplifyType, formatTsSignature, type TsFunction } from '@utils/ts-modules';
+import { tsModuleSlug, getTsModuleDocument, getTsModules, simplifyType, formatTsSignature, type TsFunction, type TsItemRouteProps } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
 import { getTsFunctionDisplayLabel, isTsExtensionStyleFunction } from '@utils/ts-api-function-kind';
-import { getTsItemSlug, getTsMemberAnchor, getTsMethods, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems, getTsTypeByName } from '@utils/ts-api-routes';
+import { getTsItemSlug, getTsMemberAnchor, getTsMethods, getTsMethodSlug, getTsRouteItem, getTsStandaloneFunctions, getTsTopLevelRouteItems, getTsTypeByName } from '@utils/ts-api-routes';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import TsMemberCard from '@components/api-reference/TsMemberCard.astro';
 
+type Props = TsItemRouteProps;
+
 export async function getStaticPaths() {
   const packages = await getTsModules();
-  const paths: any[] = [];
+  const paths: Array<{ params: { module: string; item: string }; props: Props }> = [];
 
   for (const pkg of packages) {
     const pkgSlug = tsModuleSlug(pkg.data.package.name);
     const topLevelItems = getTsTopLevelRouteItems(pkg.data);
 
     // Handle types
-    for (const handle of pkg.data.handleTypes ?? []) {
+    for (const [itemIndex, handle] of (pkg.data.handleTypes ?? []).entries()) {
       const slug = getTsItemSlug(handle, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: handle, itemKind: 'handle' },
+        props: { packageName: pkg.data.package.name, itemIndex, itemKind: 'handle' },
       });
     }
 
     // DTO types
-    for (const dto of pkg.data.dtoTypes ?? []) {
+    for (const [itemIndex, dto] of (pkg.data.dtoTypes ?? []).entries()) {
       const slug = getTsItemSlug(dto, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: dto, itemKind: 'dto' },
+        props: { packageName: pkg.data.package.name, itemIndex, itemKind: 'dto' },
       });
     }
 
     // Enum types
-    for (const enumType of pkg.data.enumTypes ?? []) {
+    for (const [itemIndex, enumType] of (pkg.data.enumTypes ?? []).entries()) {
       const slug = getTsItemSlug(enumType, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: enumType, itemKind: 'enum' },
+        props: { packageName: pkg.data.package.name, itemIndex, itemKind: 'enum' },
       });
     }
 
     // Standalone functions (no dot in qualifiedName)
-    for (const fn of getTsStandaloneFunctions(pkg.data)) {
+    for (const [itemIndex, fn] of getTsStandaloneFunctions(pkg.data).entries()) {
       const slug = getTsItemSlug(fn, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: fn, itemKind: 'function' },
+        props: { packageName: pkg.data.package.name, itemIndex, itemKind: 'function' },
       });
     }
   }
@@ -67,17 +69,26 @@ export async function getStaticPaths() {
   return paths;
 }
 
-const { pkg, item, itemKind } = Astro.props;
+const { packageName, itemIndex, itemKind: routeItemKind } = Astro.props;
+const pkg = await getTsModuleDocument(packageName);
+const [itemKind, item] = routeItemKind === 'handle'
+  ? ['handle', getTsRouteItem({ handleTypes: pkg.handleTypes }, 'handle', itemIndex)] as const
+  : routeItemKind === 'dto'
+    ? ['dto', getTsRouteItem({ dtoTypes: pkg.dtoTypes }, 'dto', itemIndex)] as const
+    : routeItemKind === 'enum'
+      ? ['enum', getTsRouteItem({ enumTypes: pkg.enumTypes }, 'enum', itemIndex)] as const
+      : ['function', getTsRouteItem<TsFunction>(pkg, 'function', itemIndex)] as const;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pkgSlug = tsModuleSlug(pkg.package.name);
 const topLevelItems = getTsTopLevelRouteItems(pkg);
 const currentItemSlug = Astro.params.item ?? getTsItemSlug(item, topLevelItems);
 
 /* ── Handle type: group capabilities into properties & methods ── */
-const capabilities = item.capabilities ?? [];
+const capabilities = itemKind === 'handle' ? item.capabilities ?? [] : [];
+const implementedInterfaces = itemKind === 'handle' ? item.implementedInterfaces ?? [] : [];
 const getters = capabilities.filter((c: any) => c.kind === 'PropertyGetter');
 const setters = capabilities.filter((c: any) => c.kind === 'PropertySetter');
-const methods = getTsMethods<TsFunction>(item, true);
+const methods = getTsMethods<TsFunction>({ capabilities }, true);
 
 /* ── Kind labels and CSS ─────────────────────────────────────── */
 
@@ -130,7 +141,7 @@ if (itemKind === 'handle') {
     declMembers.push(formatted.split('\n').map(line => '  ' + line).join('\n'));
   }
 
-  const ifaces = (item.implementedInterfaces ?? []).map((i: string) => simplifyType(i));
+  const ifaces = implementedInterfaces.map((i: string) => simplifyType(i));
   let extendsClause = '';
   if (ifaces.length === 1) {
     extendsClause = ` extends ${ifaces[0]}`;
@@ -165,7 +176,7 @@ if (itemKind === 'handle') {
   const indentedMember = formattedMember.split('\n').map((line: string) => '  ' + line).join('\n');
 
   if ((item.expandedTargetTypes ?? []).length > 0) {
-    const targetName = simplifyType(item.expandedTargetTypes[0]);
+    const targetName = simplifyType((item.expandedTargetTypes ?? [])[0]);
     typeDeclaration = `interface ${targetName} {\n  // ... omitted for brevity\n${indentedMember}\n}`;
   } else {
     typeDeclaration = `function ${formatTsSignature(memberSig.replace(/;$/, ''))}`;
@@ -253,13 +264,13 @@ const tsSidebar = await getTsApiReferenceSidebar({
       )}
 
       {/* Implements footer */}
-      {(item.implementedInterfaces ?? []).length > 0 && (
+      {implementedInterfaces.length > 0 && (
         <div class="type-hero-footer">
           <div class="type-hero-footer-left">
             <div class="type-hero-implements">
               <span class="api-meta-label type-hero-section-label">Implements</span>
               <ul class="impl-list">
-                {item.implementedInterfaces.map((iface: string) => (
+                {implementedInterfaces.map((iface: string) => (
                   <li><code>{simplifyType(iface)}</code></li>
                 ))}
               </ul>
@@ -345,7 +356,7 @@ const tsSidebar = await getTsApiReferenceSidebar({
       <section>
         <h2 id="fields">Fields</h2>
            <div class="api-list ts-member-stack">
-          {item.fields.map((f: any) => (
+          {(item.fields ?? []).map((f: any) => (
             <div id={getTsMemberAnchor(f.name)}>
               <TsMemberCard
                 member={{ name: f.name, returnType: f.type, isOptional: f.isOptional, description: null }}
@@ -362,7 +373,7 @@ const tsSidebar = await getTsApiReferenceSidebar({
       <section>
         <h2 id="values">Values</h2>
            <div class="api-list ts-member-stack">
-          {item.members.map((m: string, i: number) => (
+          {(item.members ?? []).map((m: string, i: number) => (
             <div id={getTsMemberAnchor(m)}>
               <div class="api-list-item mc">
                 <div class="api-list-header">
@@ -402,7 +413,7 @@ const tsSidebar = await getTsApiReferenceSidebar({
             <h2 id="applies-to">Applies to</h2>
             <p class="fn-applies-desc">This {isExtensionStyleFunction ? 'method' : 'function'} applies to the following types:</p>
             <div class="api-list not-content">
-              {item.expandedTargetTypes.map((t: string) => {
+              {(item.expandedTargetTypes ?? []).map((t: string) => {
                 const simpleName = simplifyType(t);
                 const targetType = getTsTypeByName(pkg, simpleName);
                 const typeSlug = targetType ? getTsItemSlug(targetType, topLevelItems) : simpleName.toLowerCase();
