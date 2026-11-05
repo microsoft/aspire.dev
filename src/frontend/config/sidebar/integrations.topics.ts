@@ -128,24 +128,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
-          label: 'GitHub Models',
-          collapsed: true,
-          items: [
-            {
-              label: 'Get started',
-              slug: 'integrations/ai/github-models/github-models-get-started',
-            },
-            {
-              label: 'Set up GitHub Models in the AppHost',
-              slug: 'integrations/ai/github-models/github-models-host',
-            },
-            {
-              label: 'Connect to GitHub Models',
-              slug: 'integrations/ai/github-models/github-models-connect',
-            },
-          ],
-        },
-        {
           label: 'Ollama',
           collapsed: true,
           items: [

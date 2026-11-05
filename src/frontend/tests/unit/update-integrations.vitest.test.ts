@@ -10,7 +10,10 @@ import integrationDocs from '@data/integration-docs.json';
 import {
   DEFAULT_NUGET_ICON_URL,
   ASPIRE_RELEASE_ICON_URL,
+  THIRD_PARTY_PACKAGES,
+  filterAndTransform,
   getOfficialAspireDefaultIconPackages,
+  parseNuGetPageDownloads,
   reconcileIntegrationDocs,
   reconcileReleaseBranchCatalog,
   resolveIconUrl,
@@ -407,6 +410,61 @@ describe('Community Toolkit documentation mappings', () => {
       .map(({ match, href }) => `${match}: ${href}`);
 
     expect(invalidDestinations).toEqual([]);
+  });
+});
+
+describe('third-party integration allow list', () => {
+  const record = (id: string, overrides: Record<string, unknown> = {}) => ({
+    id,
+    version: '1.0.0',
+    verified: true,
+    ...overrides,
+  });
+
+  test('keeps allow-listed packages outside the Aspire ID prefixes', () => {
+    const titles = filterAndTransform([
+      record('Particular.Aspire.Hosting.ServicePlatform'),
+      record('Contoso.Aspire.Hosting.Other'),
+    ]).map(({ title }) => title);
+
+    expect(titles).toEqual(['Particular.Aspire.Hosting.ServicePlatform']);
+  });
+
+  test('still rejects allow-listed packages that are unverified or deprecated', () => {
+    const titles = filterAndTransform([
+      record('Particular.Aspire.Hosting.ServicePlatform', { verified: false }),
+      record('Particular.Aspire.Hosting.ServicePlatform', { deprecated: true }),
+    ]);
+
+    expect(titles).toEqual([]);
+  });
+
+  test('marks allow-listed packages as excluded from API reference generation', () => {
+    const [entry] = filterAndTransform([
+      record('Particular.Aspire.Hosting.ServicePlatform'),
+      record('Aspire.Hosting.Redis'),
+    ]);
+    const redis = filterAndTransform([record('Aspire.Hosting.Redis')])[0];
+
+    expect(entry.apiReference).toBe(false);
+    expect(redis).not.toHaveProperty('apiReference');
+  });
+
+  test('sums the per-version downloads listed on the nuget.org package page', () => {
+    const perVersion = [4200, 90, 3];
+    const row = (downloads: number, index: number) =>
+      `<tr class="version-row"><td><a href="/packages/x/${index}">${index}</a></td><td> ${downloads.toLocaleString('en-US')} </td><td>6/16/2026</td></tr>`;
+    const html = `<table><tbody>${perVersion.map(row).join('')}</tbody></table>`;
+
+    expect(parseNuGetPageDownloads(html)).toBe(perVersion.reduce((a, b) => a + b, 0));
+    expect(parseNuGetPageDownloads('<html></html>')).toBeNull();
+  });
+
+  test.each(THIRD_PARTY_PACKAGES)('catalogs %s and links its card to external docs', (id) => {
+    expect(aspireIntegrations.some(({ title }) => title === id)).toBe(true);
+
+    const mapping = integrationDocs.find(({ match }) => match === id);
+    expect(mapping?.href).toMatch(/^https:\/\//);
   });
 });
 
