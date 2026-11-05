@@ -27,6 +27,8 @@ The integration models the service as `AzureApiManagementResource`, with child r
 
 Call `AddAzureApiManagement` to add the service, then call `AddApi` with a compute resource to expose it through the gateway:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -48,6 +50,30 @@ apim.AddApi(
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addNodeApp("catalog", "./catalog", "index.js")
+    .withExternalHttpEndpoints();
+
+const apim = await builder.addAzureApiManagement("apim", {
+    publisherEmail: "api-owners@example.com",
+    publisherName: "Contoso APIs",
+});
+
+await apim.addApi("catalog-api", catalog, "catalog", {
+    subscriptionRequired: false,
+});
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 The compute-targeted `AddApi` overload creates an API, a reusable APIM backend, and root and catch-all operations for each supported HTTP method. These operations forward requests for the API path and its descendants to the workload's deployed endpoint. APIs require an APIM subscription key by default.
 
@@ -61,6 +87,8 @@ Supported service SKUs are Consumption, Developer, Basic, Basic v2, Standard, St
 
 Import operations from a deployed workload's OpenAPI endpoint:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="AppHost.cs"
 var environment = builder.AddAzureContainerAppEnvironment("env");
 
@@ -70,18 +98,43 @@ catalog.WithComputeEnvironment(environment)
 apim.AddApi("catalog-api", catalog, "catalog", subscriptionRequired: false)
     .WithOpenApiEndpoint("/openapi/v1.json");
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+const environment = await builder.addAzureContainerAppEnvironment("env");
+
+await catalog.withComputeEnvironment(environment)
+    .withExternalHttpEndpoints();
+
+await apim.addApi("catalog-api", catalog, "catalog", { subscriptionRequired: false })
+    .withOpenApiEndpoint({ documentPath: "/openapi/v1.json" });
+```
+</TabItem>
+</Tabs>
 
 APIM imports operations, parameters, schemas, and descriptions after the workload is deployed. The document endpoint must be reachable by the APIM control plane. For private workloads, use a JSON or YAML file available at publish time instead:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="AppHost.cs"
 apim.AddApi("catalog-api", catalog, "catalog")
     .WithOpenApiDocument("../Catalog/openapi.json");
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+await apim.addApi("catalog-api", catalog, "catalog")
+    .withOpenApiDocument("./catalog/openapi.json");
+```
+</TabItem>
+</Tabs>
 
 ### Backends and backend pools
 
 Add generic HTTP or SOAP backends with `AddBackend`, or specialized backends for Azure OpenAI, Foundry, and Blob Storage. Specialized backends configure managed identity authentication and required role assignments. Azure OpenAI and Foundry backends also configure HTTP 429 circuit breakers. Group backends into weighted, priority-based pools:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="AppHost.cs"
 var primary = apim.AddFoundryBackend("primary", primaryDeployment);
 var secondary = apim.AddFoundryBackend("secondary", secondaryDeployment);
@@ -96,6 +149,21 @@ apim.AddOpenAIApi(
         subscriptionRequired: false)
     .WithBackend(pool);
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+const primary = await apim.addFoundryBackend("primary", primaryDeployment);
+const secondary = await apim.addFoundryBackend("secondary", secondaryDeployment);
+
+const pool = await apim.addBackendPool("openai-pool")
+    .addBackendPoolMember(primary, { priority: 1, weight: 3 })
+    .addBackendPoolMember(secondary, { priority: 1, weight: 1 });
+
+await apim.addOpenAIApi("openai-api", "openai", { subscriptionRequired: false })
+    .withApiBackendPool(pool);
+```
+</TabItem>
+</Tabs>
 
 Members at the same priority receive weighted traffic. Lower priority numbers are preferred, and the next priority is used when every backend in the preferred group has an open circuit.
 
@@ -117,6 +185,8 @@ Policies accept arbitrary APIM policy XML, and the service can expose public ing
 
 Call `PublishAsExisting` to adopt an existing service. Aspire treats the service as read-only while managing the child resources declared in your AppHost. Set `Sku` explicitly to the existing service's actual pricing tier, even when it's Developer. Aspire uses this value to validate SKU-dependent child resources and throws at publish time if it's omitted:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="AppHost.cs"
 var apim = builder.AddAzureApiManagement("apim", new()
 {
@@ -134,11 +204,37 @@ var backend = apim.AddBackend(
 apim.AddApi("catalog-api", "catalog")
     .WithBackend(backend);
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { AzureApiManagementSku, createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const apim = await builder.addAzureApiManagement("apim", {
+    publisherEmail: "api-owners@example.com",
+    publisherName: "Contoso APIs",
+    sku: AzureApiManagementSku.Premium,
+}).publishAsExisting("shared-apim", {
+    resourceGroup: "shared-infrastructure",
+});
+
+const backend = await apim.addBackend(
+    "catalog-backend",
+    refExpr`https://catalog.example.com`);
+
+await apim.addApiWithoutTarget("catalog-api", "catalog")
+    .withApiBackend(backend);
+```
+</TabItem>
+</Tabs>
 
 Service-level networking, identities, and custom domains can't be changed through adoption.
 
 APIM uses a user-assigned managed identity for backend authentication and Key Vault access. Aspire creates and attaches one for new services, but it doesn't attach identities to existing services. If an existing service uses managed-identity backends or Key Vault-backed named values, supply an identity that's already attached to the service:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="AppHost.cs"
 var identity = builder.AddAzureUserAssignedIdentity("existing-apim-identity")
     .PublishAsExisting(
@@ -147,6 +243,18 @@ var identity = builder.AddAzureUserAssignedIdentity("existing-apim-identity")
 
 apim.WithAzureUserAssignedIdentity(identity);
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+const identity = await builder.addAzureUserAssignedIdentity("existing-apim-identity")
+    .publishAsExisting("shared-apim-identity", {
+        resourceGroup: "shared-infrastructure",
+    });
+
+await apim.withAzureUserAssignedIdentity(identity);
+```
+</TabItem>
+</Tabs>
 
 Diagnostics can't be configured when an existing APIM service is adopted from another resource group or subscription. Aspire-created role assignments deploy at the target resource's scope and can target resources in other resource groups.
 
