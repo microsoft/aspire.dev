@@ -30,6 +30,12 @@ The `aspire add` command searches for an integration package and adds it to the 
 When you're running a `staging` or `dev` quality CLI (see [`-Quality|--quality`](/reference/cli/install-script/#options)), `aspire add` discovers both stable and prerelease integration packages, because some integrations — such as `Aspire.Hosting.Azure.Kubernetes` — intentionally ship as prerelease even during a stable-shaped staging build. A `release` quality CLI continues to search stable packages only, but can still add a specific prerelease integration version with the `--version` option.
 :::
 
+### Configured integration sources
+
+`aspire add` searches all enabled named sources defined in the `integrationSources` section of `aspire.config.json` or global settings. For details, see [Configure integration sources](/reference/cli/configuration/#configure-integration-sources). When you add a package from a named source, the CLI uses that feed for version lookup and restore, and preserves your existing NuGet aliases, credentials, and mapping policy.
+
+If some feeds fail during search, the CLI keeps the results from the feeds that succeeded and writes a redacted warning to stderr. Structured output, such as `aspire integration list --format Json`, stays on stdout.
+
 ## Arguments
 
 The following arguments are available:
@@ -38,7 +44,9 @@ The following arguments are available:
 
   The name of the integration to add (for example: redis, postgres).
 
-  If a partial name or invalid name is provided, the CLI searches NuGet for approximate matches and prints them in the terminal for the user to select. If no results are found, all packages are listed.
+  If a partial name or invalid name is provided, the CLI searches NuGet for approximate matches and prints them in the terminal for the user to select. If no results are found, all packages are listed. Exact package IDs and friendly names are selected directly.
+
+  In interactive mode, running `aspire add` without an integration always opens the picker, even when there's only one result. With `--non-interactive`, the integration argument is required.
 
 ## Options
 
@@ -78,6 +86,12 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire add kafka --version %ASPIRE_VERSION%
+  ```
+
+- Add an integration from a configured named source without prompting:
+
+  ```bash title="Aspire CLI"
+  aspire add Contoso.SpecialIntegration --non-interactive
   ```
 
 - Add the **redis** integration to a TypeScript AppHost and regenerate `.aspire/modules/`:
