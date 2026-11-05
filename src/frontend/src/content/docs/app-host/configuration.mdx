@@ -224,3 +224,27 @@ You might override `DcpCliPath` in these scenarios:
 <Aside type="tip">
 If your AppHost fails to start with an error about missing DCP or orchestration dependencies, ensure you have the [Aspire SDK](/get-started/aspire-sdk/) properly configured rather than manually setting `DcpCliPath`.
 </Aside>
+
+### DCP Kubernetes API timeouts
+
+The AppHost communicates with DCP through a local Kubernetes-style API. These settings control how long the AppHost waits on that API before giving up, and they're configurable for environments where DCP is slower to respond, such as resource-constrained CI agents or heavily loaded developer machines.
+
+```json title="appsettings.json"
+{
+  "DcpPublisher": {
+    "KubernetesApiTimeout": "00:00:40",
+    "KubernetesInitializationAdditionalTimeout": "00:00:20",
+    "KubernetesCreateRecoveryTimeout": "00:02:00"
+  }
+}
+```
+
+| Option | Default value | Description |
+| ------ | -------------- | ------------ |
+| `DcpPublisher:KubernetesApiTimeout` | `00:00:40` (40 seconds) | The base budget for a single API operation, such as connecting to DCP or submitting a request. Valid values range from one second to ten minutes. |
+| `DcpPublisher:KubernetesInitializationAdditionalTimeout` | `00:00:20` (20 seconds) | Additional time added on top of `KubernetesApiTimeout` for API operations that happen before the first one succeeds, to account for one-time client setup. The value can be zero. The combined budget (`KubernetesApiTimeout` plus `KubernetesInitializationAdditionalTimeout`) must not exceed ten minutes. |
+| `DcpPublisher:KubernetesCreateRecoveryTimeout` | `00:02:00` (2 minutes) | The total budget for creating a DCP resource, covering client setup, the create request, confirmation checks, and retry delays. If a create request times out or returns an HTTP 504, the AppHost uses this budget to check whether DCP actually committed the object before retrying, rather than immediately failing the resource. Valid values range from one second to ten minutes. |
+
+<Aside type="note">
+A single ambiguous create failure (a timeout or HTTP 504 where it's unclear if DCP created the resource) no longer immediately moves a resource to `FailedToStart`. The AppHost checks whether the resource already exists before retrying. Failures that are unambiguous, such as a conflict on the first attempt, and cancellation from the caller are still terminal.
+</Aside>
