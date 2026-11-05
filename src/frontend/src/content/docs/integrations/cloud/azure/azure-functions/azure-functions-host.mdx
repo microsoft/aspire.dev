@@ -99,6 +99,10 @@ The Azure Functions hosting integration models Azure Functions projects as the `
 
 There are two ways to add an Azure Functions project in C#, depending on whether the Functions project is referenced by the AppHost project. The TypeScript AppHost always uses the file path approach.
 
+<Aside type="note">
+  For TypeScript or JavaScript Azure Functions apps that don't have a .NET project file, use `AddAzureFunctionsApp` (or `addAzureFunctionsApp`) instead — see [TypeScript and JavaScript Functions apps](#typescript-and-javascript-functions-apps).
+</Aside>
+
 ### Add a referenced Functions project (C# only)
 
 If the Azure Functions project is referenced in your C# AppHost project, use the generic overload of `AddAzureFunctionsProject`:
@@ -334,6 +338,90 @@ await functions.withExternalHttpEndpoints();
 </TabItem>
 </Tabs>
 
+## TypeScript and JavaScript Functions apps
+
+:::caution[Experimental APIs]
+The directory-based Functions app APIs — `AddAzureFunctionsApp`, `AzureFunctionsAppResource`, `AzureFunctionsLanguage`, and the app-specific `WithHostStorage` and `WithReference` overloads — are experimental pending API review and may change or be removed. In a C# AppHost, suppress diagnostic `ASPIREAZUREFUNCTIONS001` to opt in, for example with `#pragma warning disable ASPIREAZUREFUNCTIONS001`. For suppression options, see [ASPIREAZUREFUNCTIONS001](/diagnostics/aspireazurefunctions001/). The existing .NET project APIs, such as `AddAzureFunctionsProject`, are unaffected.
+:::
+
+Use `AddAzureFunctionsApp` (or `addAzureFunctionsApp`) to model a TypeScript or JavaScript Azure Functions app that does not have a .NET project file. Directory-based apps run on the Azure Functions Node language worker — Aspire sets `FUNCTIONS_WORKER_RUNTIME` to `node` for you:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZUREFUNCTIONS001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator();
+var blob = storage.AddBlobs("blob");
+
+builder.AddAzureFunctionsApp("functions", "../functions", AzureFunctionsLanguage.TypeScript)
+    .WithReference(blob);
+
+builder.Build().Run();
+
+#pragma warning restore ASPIREAZUREFUNCTIONS001
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { AzureFunctionsLanguage, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage("storage");
+await storage.runAsEmulator();
+const blob = await storage.addBlobs("blob");
+
+const functions = await builder.addAzureFunctionsApp(
+    "functions",
+    "../functions",
+    AzureFunctionsLanguage.TypeScript
+);
+await functions.withReference(blob);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. The path to the Functions app directory is relative to the AppHost project directory.
+
+1. `AzureFunctionsLanguage` has two values: `TypeScript` and `JavaScript`. Both run on the Node language worker.
+
+1. TypeScript apps are launched through `npm run start -- --port <port>`, so the standard Azure Functions Core Tools-generated `prestart` script can build the app before the host starts. The `start` script should resolve Azure Functions Core Tools from the app's local npm dependencies, for example by depending on the `azure-functions-core-tools` package in `devDependencies`. JavaScript apps are launched directly with `func host start --port <port>`.
+
+1. As with .NET Functions projects, Aspire provisions an implicit Azure Storage account for host storage by default. Call `WithHostStorage` (or `withHostStorage`) to use a specific storage account instead — see [Add Azure Functions resource with host storage](#add-azure-functions-resource-with-host-storage).
+
+</Steps>
+
+A directory-based Functions app's `package.json` should include scripts similar to the standard Azure Functions TypeScript template:
+
+```json title="package.json"
+{
+  "scripts": {
+    "build": "tsc",
+    "prestart": "npm run build",
+    "start": "func start"
+  },
+  "devDependencies": {
+    "azure-functions-core-tools": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+```
+
+<Aside type="note">
+  VS Code debugger support for directory-based Functions apps is tracked separately from this release and is not yet available.
+</Aside>
+
 ## Durable Task Scheduler integration
 
 :::caution[Experimental APIs]
@@ -451,6 +539,14 @@ builder.Build().Run();
 Deployment to Azure Container Apps (ACA) is supported using the SDK container publish function in `Microsoft.Azure.Functions.Worker.Sdk`. When deploying to Azure Container Apps, KEDA-based auto-scaling rules are automatically configured for your functions.
 
 For more information, see [Azure Functions and Aspire integration](https://learn.microsoft.com/azure/azure-functions/dotnet-aspire-integration).
+
+### Deploying TypeScript and JavaScript Functions apps
+
+When a directory-based Functions app doesn't already contain a `Dockerfile`, `aspire publish` generates one that uses the official Azure Functions Node image, copies the app to `/home/site/wwwroot`, installs npm dependencies, and (for TypeScript apps) runs `npm run build`. After the build step, Aspire runs `npm prune --omit=dev` so the deployed container keeps only production dependencies.
+
+If the Functions app directory already contains a `Dockerfile`, Aspire uses it as-is instead of generating one — use this to select a different Azure Functions Node image, pin a Node version, or add project-specific build steps.
+
+When deployed to Azure Container Apps, directory-based Functions resources are published with the container app `kind` set to `functionapp` and the container's HTTP port set to `80`, matching the shape of the Azure Functions Node host image.
 
 ## Connection properties
 

@@ -1,0 +1,77 @@
+---
+title: Compiler Warning ASPIREAZUREFUNCTIONS001
+seoTitle: "ASPIREAZUREFUNCTIONS001: Directory-based Azure Functions apps"
+description: Learn what causes the Aspire compiler warning ASPIREAZUREFUNCTIONS001 and how to fix it so your AppHost builds cleanly.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 17.0"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Directory-based Azure Functions app APIs are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental directory-based Azure Functions app APIs in the `Aspire.Hosting.Azure.Functions` package. These APIs let you model a TypeScript or JavaScript Azure Functions app — one that has no .NET project file — as a resource in your AppHost. The following APIs are affected:
+
+- `AddAzureFunctionsApp` extension method on `IDistributedApplicationBuilder`
+- `WithHostStorage` extension method on `IResourceBuilder<AzureFunctionsAppResource>`
+- `WithReference` extension method on `IResourceBuilder<AzureFunctionsAppResource>`
+- `AzureFunctionsAppResource` class
+- `AzureFunctionsLanguage` enum
+
+These APIs are pending API review and may change shape, or be removed, before becoming generally available (GA). The existing .NET project APIs, such as `AddAzureFunctionsProject`, are unaffected and do not require this suppression.
+
+## Example
+
+The following code generates `ASPIREAZUREFUNCTIONS001`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator();
+var blob = storage.AddBlobs("blob");
+
+builder.AddAzureFunctionsApp("functions", "../functions", AzureFunctionsLanguage.TypeScript)
+    .WithReference(blob);
+
+builder.Build().Run();
+```
+
+## To correct this warning
+
+Suppress the warning with any of the following methods:
+
+- Add a `#pragma warning disable` directive in the source file where the API is used:
+
+  ```csharp title="AppHost.cs"
+  #pragma warning disable ASPIREAZUREFUNCTIONS001
+  builder.AddAzureFunctionsApp("functions", "../functions", AzureFunctionsLanguage.TypeScript);
+  #pragma warning restore ASPIREAZUREFUNCTIONS001
+  ```
+
+- Set the severity of the rule in the _.editorconfig_ file:
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREAZUREFUNCTIONS001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREAZUREFUNCTIONS001</NoWarn>
+  </PropertyGroup>
+  ```
+
+<Badge text="TypeScript AppHost" variant="note" size="medium" class:list={'mb-1'} /> The TypeScript AppHost does not have a C# compiler, so this diagnostic does not apply to `addAzureFunctionsApp` calls in `apphost.mts`.
+
+## See also
+
+- [Azure Functions Hosting integration](/integrations/cloud/azure/azure-functions/azure-functions-host/) — Learn about the Azure Functions hosting integration, including the directory-based app support for TypeScript and JavaScript.
