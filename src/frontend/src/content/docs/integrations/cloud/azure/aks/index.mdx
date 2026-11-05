@@ -109,6 +109,58 @@ await worker.withNodePool(gpuPool);
 </TabItem>
 </Tabs>
 
+## Use an existing container registry
+
+Point the AKS environment at an Azure Container Registry your team already manages, including one in a different resource group or subscription, with <ApiReference name="Aspire.Hosting.ContainerRegistryResourceBuilderExtensions.WithContainerRegistry" />:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var registry = builder.AddAzureContainerRegistry("registry")
+    .PublishAsExisting("myregistry", "registry-resource-group");
+
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+    .WithContainerRegistry(registry);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const registry = await builder.addAzureContainerRegistry('registry');
+await registry.publishAsExisting('myregistry', { resourceGroup: 'registry-resource-group' });
+
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+await aks.withContainerRegistry(registry);
+```
+</TabItem>
+</Tabs>
+
+Aspire grants the AKS kubelet identity `AcrPull` at the registry's scope, so the deployment identity used to provision the environment must have permission to create role assignments there, as well as push images to the registry.
+
+:::caution
+`aspire destroy` deletes the entire application resource group, including any resources configured with `PublishAsExisting`, but preserves an existing registry only when it lives outside that resource group. It does not remove the kubelet's role assignment on a registry outside the application's resource group — remove that assignment separately when it's no longer needed, since deleting the kubelet's managed identity doesn't delete it.
+:::
+
+`AcrPull` permits pulling images from every repository in the registry, including unrelated images in a shared registry — the same permission used for an automatically created registry. A separate kubelet identity doesn't isolate its [Instance Metadata Service (IMDS)](https://learn.microsoft.com/azure/aks/imds-restriction) tokens from workloads running on the cluster; enabling Workload Identity alone doesn't prevent this access. The registry must use RBAC Registry Permissions mode for `AcrPull` to authorize pulls — registries using RBAC Registry + ABAC Repository Permissions mode require different roles that this integration doesn't configure automatically.
+
+## Cluster identities and permissions
+
+Aspire provisions separate user-assigned managed identities for the control plane and kubelets, both inheriting the cluster's resource-group and subscription scope (including scopes set through provisioning customization). Neither identity is a workload identity:
+
+| Identity | Permissions |
+| --- | --- |
+| Kubelet | `AcrPull` on the selected registry. |
+| Control plane | `Managed Identity Operator` on the kubelet identity, and `Network Contributor` on virtual networks selected through environment or node-pool `WithSubnet` calls. |
+
+These role assignments are provisioned before the cluster, in both the Aspire deployment pipeline and the generated `main.bicep`. AKS grants the control-plane identity its normal infrastructure permissions in the AKS-managed node resource group; Aspire doesn't grant Contributor on the application resource group or subscription. If provisioning customization references other external resources, such as route tables, network security groups, or private DNS zones, configure the corresponding control-plane permissions separately — see [AKS managed identity role assignments](https://learn.microsoft.com/azure/aks/managed-identity-overview#control-plane-managed-identity-role-assignments).
+
+### Updating existing clusters
+
+:::caution[Breaking change]
+Clusters deployed with earlier versions used a system-assigned control-plane identity and an AKS-created kubelet identity. Redeploying with this version changes both identities. Changing the kubelet identity can trigger node-pool upgrades, which drain and reimage nodes and can disrupt workloads — schedule the migration accordingly and follow the [pre-created kubelet identity guidance](https://learn.microsoft.com/azure/aks/pre-created-kubelet-managed-identity).
+
+Custom role assignments on the old identities aren't transferred automatically. Grant any additional permissions to the new identities before migration, and retain the old permissions until the control plane has switched identities and node pools have finished updating — the control plane can continue using its previous identity for several hours while cached tokens expire. Remove obsolete external assignments afterward. Existing-cluster migration hasn't been live-validated.
+:::
+
 ## Add a persistent volume
 
 <Aside type="note">
@@ -167,6 +219,7 @@ For a complete end-to-end walkthrough, see [Deploy to AKS](/deployment/kubernete
 - [Deploy to Kubernetes](/deployment/kubernetes/)
 - [Kubernetes integration](/integrations/compute/kubernetes/)
 - [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/)
+- [Azure Container Registry integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/)
 - [Azure Container Apps integration](/integrations/cloud/azure/configure-container-apps/)
 - [Deploy to Azure](/deployment/azure/)
 - [Azure compute integrations overview](/integrations/cloud/azure/overview/)
