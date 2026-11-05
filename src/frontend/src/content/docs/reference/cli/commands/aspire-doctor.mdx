@@ -69,6 +69,16 @@ This command is useful for troubleshooting when you encounter issues with Aspire
 </Aside>
 
 <Aside type="note">
+  `aspire doctor` also reports a warning in the AppHost section when it finds
+  static Aspire skill files, such as `.agents/skills/aspire/SKILL.md`, in the
+  project or global (`~/`) skill locations. These files can take precedence over
+  skills supplied by agent plugins. The check uses the same discovery as
+  `aspire agent init` and only reports what it finds: it doesn't delete files,
+  create backups, change registrations, or install skills. To resolve the
+  warning, delete the listed files and then run `aspire agent init --skills aspire`.
+</Aside>
+
+<Aside type="note">
   Environment checks time out after 30 seconds each or two minutes in aggregate,
   and installation discovery times out after 30 seconds. If a timeout occurs,
   the `aspire doctor` result includes a warning.
@@ -260,6 +270,17 @@ Development tools
        Install the Aspire extension from the VS Code Marketplace for an integrated Aspire experience.
 ```
 
+When static Aspire skill files are found, the AppHost section lists them using workspace-relative paths, `~/` paths for the home directory, or absolute paths for files outside both:
+
+```bash title="Aspire CLI"
+AppHost
+  ⚠️ Local Aspire skill files may override plugin skills
+       Delete these files, then run 'aspire agent init --skills aspire'.
+       Files:
+         .agents/skills/aspire/SKILL.md
+         ~/.agents/skills/aspire/SKILL.md
+```
+
 ## Exit codes
 
 The command returns the following exit codes:
@@ -354,6 +375,25 @@ When the CLI is out of date, the `cli-version` check has `"status": "warning"` a
   "metadata": {
     "currentVersion": "%ASPIRE_VERSION%-dev",
     "latestVersion": "%ASPIRE_VERSION_PREVIEW%"
+  }
+}
+```
+
+The `aspire-skill-sources` check in the `apphost` category reports `"status": "warning"` when static Aspire skill files are found. The `files` array lists the affected files, and `metadata.workspaceRoot` provides the workspace root as context:
+
+```json title="JSON output"
+{
+  "category": "apphost",
+  "name": "aspire-skill-sources",
+  "status": "warning",
+  "message": "Local Aspire skill files may override plugin skills",
+  "fix": "Delete these files, then run 'aspire agent init --skills aspire'.",
+  "files": [
+    ".agents/skills/aspire/SKILL.md",
+    "~/.agents/skills/aspire/SKILL.md"
+  ],
+  "metadata": {
+    "workspaceRoot": "C:\\Users\\dev\\src\\my-app"
   }
 }
 ```
