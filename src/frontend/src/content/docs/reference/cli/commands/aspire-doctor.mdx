@@ -34,6 +34,11 @@ This command is useful for troubleshooting when you encounter issues with Aspire
 - **SDK checks**: Reports .NET SDK availability and version
 - **Container checks**: Validates container runtime availability, running status, and version. On Windows, this includes WSLc in addition to Docker and Podman; on other platforms only Docker and Podman are checked. Marks the active runtime `← active`, or `← explicitly selected` when chosen via `ASPIRE_CONTAINER_RUNTIME`
 - **Environment checks**: Reports operating system information (type, version, and Linux distro details when available) and validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
+- **Go AppHost checks**: When the AppHost is a Go AppHost (the configured AppHost, or an `apphost.go` file in the current directory), validates the Go toolchain against the `go 1.26` directive used by the generated SDK and scaffolded `go.mod`. Other AppHost languages see no Go checks. The check reports:
+  - **Fail** (`go-apphost-go`) when `go` isn't on `PATH`, with a link to [install Go](https://go.dev/doc/install).
+  - **Fail** (`go-apphost-version`) when Go is older than 1.21, or when the effective `GOTOOLCHAIN` is `local`, because Go never switches toolchains and can't satisfy `go 1.26`.
+  - **Warning** (`go-apphost-version`) when Go is 1.21 to 1.25. With `GOTOOLCHAIN` set to `path`, `local+path`, or `<name>+path`, Go only switches to a newer toolchain already on `PATH` (for example `go1.26.0`); with any other value, Go can download the required toolchain. A warning is also reported when `go version` produces no readable output.
+  - **Pass** (`go-apphost-tools`) when Go 1.26 or later is installed, with the installed version.
 - **Development tools checks**: When VS Code is detected, reports whether the [Aspire VS Code extension](https://aka.ms/aspire/vscode-extension) is installed
 
 <Aside type="note">
