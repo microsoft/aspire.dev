@@ -1,0 +1,39 @@
+---
+title: Compiler Warning ASPIRE012
+seoTitle: 'ASPIRE012: Aspire.AppHost.Sdk is obsolete'
+description: Learn why Aspire.AppHost.Sdk reports ASPIRE012, how to migrate to explicit packages, and how to suppress the warning during staged migration.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge text="Version introduced: 17.0" variant="note" size="large" class:list={'mb-1'} />
+
+> [ProjectName] uses the Aspire.AppHost.Sdk, which is obsolete but remains available for staged migration. Switch the project's Sdk attribute to Microsoft.NET.Sdk, add explicit PackageReference items for Aspire.Hosting.AppHost and Aspire.Hosting.Dotnet, and migrate C# resource ProjectReference items to AddDotnetProject calls. See https://aka.ms/aspire/diagnostics/aspire012 for migration guidance.
+
+This warning is reported when a project uses `Aspire.AppHost.Sdk`. The SDK remains functional, including original `ProjectReference` and `AddProject` resources. No removal date has been agreed, and this warning doesn't deprecate `AddProject`.
+
+## To correct this warning
+
+Follow [Migrate from the AppHost SDK](/get-started/migrate-apphost-sdk/): use `Microsoft.NET.Sdk`, explicitly reference `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet`, and use `AddDotnetProject` for path-based resources. Keep the required CLI bundle enabled.
+
+For staged migration, retained `AddProject` resources require `IsAspireProjectResource="true"` and `ReferenceOutputAssembly="false"` on their project references after removing the SDK.
+
+## Suppress the warning temporarily
+
+While you retain the obsolete SDK, set:
+
+```xml
+<PropertyGroup>
+  <SuppressAspireAppHostSdkObsoleteWarning>true</SuppressAspireAppHostSdkObsoleteWarning>
+</PropertyGroup>
+```
+
+Alternatively, append `ASPIRE012` to `NoWarn`:
+
+```xml
+<PropertyGroup>
+  <NoWarn>$(NoWarn);ASPIRE012</NoWarn>
+</PropertyGroup>
+```
+
+Suppression doesn't change resource declarations or bundle requirements. Unlike this warning, [ASPIRE010](/diagnostics/aspire010/) is an error in Aspire 17.0 and can't be suppressed to disable the bundle.

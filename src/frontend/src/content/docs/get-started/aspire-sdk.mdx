@@ -1,13 +1,19 @@
 ---
 title: Aspire SDK for distributed apps
-description: Learn how the Aspire SDK simplifies orchestrating Aspire applications — packaging, project references, source generators, and how the SDK plugs into AppHost projects.
+description: Learn about package-based C# AppHosts, migrating from the obsolete Aspire SDK, and the required Aspire CLI bundle.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ApiReference from '@components/ApiReference.astro';
 
-The Aspire SDK is intended for [AppHost projects](/get-started/app-host/), which serve as the orchestrator for Aspire applications. These projects are designated by their usage of the `Aspire.AppHost.Sdk` in the project file. The SDK provides features that simplify the development of Aspire apps.
+Starting in Aspire 17.0, the default C# [AppHost project](/get-started/app-host/) uses `Microsoft.NET.Sdk` with explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` package references. The AppHost package identifies the project as an AppHost and supplies build targets. Declare services with `builder.AddDotnetProject("myservice", "../MyService/")`; the Dotnet package provides this API.
+
+:::caution[The AppHost SDK is obsolete]
+`Aspire.AppHost.Sdk` reports [ASPIRE012](/diagnostics/aspire012/) but remains functional for staged migration. It doesn't deprecate `AddProject`. Follow [Migrate from the AppHost SDK](/get-started/migrate-apphost-sdk/) to change packages, resources, and solution/CI build inputs.
+:::
+
+The SDK examples and project-reference defaults below describe existing projects that retain the obsolete SDK, not the default configuration for new AppHosts.
 
 The [📦 Aspire.AppHost.Sdk](https://www.nuget.org/packages/Aspire.AppHost.Sdk) is used for building Aspire apps.
 
@@ -93,34 +99,36 @@ var microservice1 = builder.AddProject<Projects.MicroService1>("micro1");
 var microservice2 = builder.AddProject<Projects.MicroService2>("micro2");
 ```
 
-### Orchestrator dependencies
+### Historical orchestrator dependencies
 
-The Aspire SDK dynamically adds references to the [Aspire Dashboard](/dashboard/overview/) and other AppHost dependencies, such as the developer control plane (DCP) packages. These dependencies are specific to the platform that the AppHost is built on.
+Before the required CLI bundle, the Aspire SDK dynamically added platform-specific references to the [Aspire Dashboard](/dashboard/overview/) and developer control plane (DCP) packages. Aspire 17.0 uses the CLI bundle instead.
 
 When the AppHost project runs, the orchestrator relies on these dependencies to provide the necessary functionality to the AppHost. For more information, see [Aspire orchestration overview](/get-started/app-host/).
 
 ### Use the Aspire CLI bundle for orchestration dependencies
 
-The Aspire SDK can source the binaries for these dependencies from platform-specific NuGet packages or from the installed **Aspire CLI bundle**. When it uses NuGet packages, the versions that run with your AppHost are tied to package restore.
+In Aspire 17.0, C# AppHosts require the **Aspire CLI bundle** for these binaries. This applies to both package-based AppHosts and projects retaining the obsolete SDK.
 
-When it uses the Aspire CLI bundle, those binaries update when you update the Aspire CLI through [`aspire update --self`](/reference/cli/commands/aspire-update/). Without the bundle, the Aspire SDK version used by the AppHost determines the binaries by adding implicit references to the RID-specific `Aspire.Hosting.Orchestration.*` and `Aspire.Dashboard.Sdk.*` packages.
+Bundle binaries update when you update the selected Aspire CLI through [`aspire update --self`](/reference/cli/commands/aspire-update/).
 
-New C# AppHost projects created with `aspire new` or `dotnet new`, and new single-file AppHosts created with `aspire init`, set `AspireUseCliBundle` to `true` automatically. For existing AppHosts, set `AspireUseCliBundle` to `true` to enable the CLI bundle. We recommend enabling it now because the CLI bundle will become the only supported source for orchestration dependencies in an upcoming Aspire release. The SDK property currently defaults to `false`, so launching a C# AppHost with `dotnet run` or an IDE continues to work without requiring the Aspire CLI. Leaving it unset (or explicitly `false`) reports warning [`ASPIRE010`](/diagnostics/aspire010/) as a reminder that some Aspire features require the bundle; suppress it if you intend to keep using NuGet-restored orchestration dependencies.
+`AspireUseCliBundle` defaults to `true` for C# project and file-based AppHosts. Remove an existing `false` setting or change it to `true`. Disabling the bundle reports error [`ASPIRE010`](/diagnostics/aspire010/); `NoWarn=ASPIRE010` doesn't permit opting out. An unresolved bundle reports [`ASPIRE009`](/diagnostics/aspire009/).
 
 When `AspireUseCliBundle` is `true`:
 
-- `Aspire.AppHost.Sdk` still sets AppHost properties and adds the implicit `Aspire.Hosting.AppHost` package.
+- Package-based AppHosts explicitly reference `Aspire.Hosting.AppHost`; projects retaining the obsolete SDK can still receive its implicit reference.
 - Your AppHost uses the DCP and Dashboard versions installed with the Aspire CLI.
 - The SDK selects the executable used to launch the AppHost as follows:
   1. An explicit `AspireCliPath` is always authoritative.
   2. When `AspireCliInvocationMode` is set to `Dnx` or `DnxPinned`, the SDK selects a usable `dnx` host.
-  3. Otherwise, the default `Path` mode selects a compatible `aspire` on `PATH`, then falls back to the SDK-paired Aspire CLI package through DNX.
+  3. Otherwise, the default `Path` mode selects a compatible `aspire` on `PATH`, then falls back to the Aspire CLI package paired with `Aspire.Hosting.AppHost` through DNX.
 - `AspireCliBundlePath` isn't an executable candidate. It explicitly identifies a bundle layout for DCP and Dashboard resolution.
 - If the resolved Aspire CLI has a bundle that hasn't been extracted yet, the build runs `aspire setup` through the selected `aspire` or paired DNX invocation to extract it, then resolves the bundle again. This lets an AppHost build and launch from an IDE even when the CLI installation didn't run the release install scripts.
 - If a required bundle layout can't be resolved, the build emits error [`ASPIRE009`](/diagnostics/aspire009/). Invalid explicit `AspireCliPath` and `AspireCliBundlePath` values remain authoritative and can produce this error.
 - If `Dnx` or `DnxPinned` mode can't find `dnx`, the run preflight emits error [`ASPIRE011`](/diagnostics/aspire011/) when it prepares the launch command. A regular build doesn't emit this diagnostic.
 
 #### Enable the CLI bundle
+
+The following setting is optional because `true` is the default:
 
 Set `AspireUseCliBundle` in your AppHost `.csproj`:
 
@@ -152,15 +160,15 @@ Most apps don't need to set either path. `AspireCliPath` selects an explicit `as
 
 #### Running with aspire run or aspire start
 
-When you start an opted-in AppHost using `aspire run` or `aspire start`, the CLI automatically passes the resolved bundle paths through the `ASPIRE_DCP_PATH` and `ASPIRE_DASHBOARD_PATH` environment variables.
+When you start an AppHost using `aspire run` or `aspire start`, the CLI automatically passes the resolved bundle paths through the `ASPIRE_DCP_PATH` and `ASPIRE_DASHBOARD_PATH` environment variables.
 
 #### Running with dotnet run
 
-When `AspireUseCliBundle` is `true` and you start the AppHost with `dotnet run` instead of `aspire run`, the SDK resolves and invokes the Aspire CLI itself. Set `AspireCliInvocationMode` to control how that invocation happens:
+When you start the AppHost with `dotnet run` instead of `aspire run`, the AppHost package targets resolve and invoke the Aspire CLI. Set `AspireCliInvocationMode` to control how that invocation happens:
 
-- **`Path`** (default) — resolves a compatible `aspire` command from `AspireCliPath` (if set) or `PATH`. If no compatible command is found, it falls back to invoking the `Aspire.Cli` version paired with `Aspire.AppHost.Sdk` through [`dnx`](https://learn.microsoft.com/dotnet/core/tools/dotnet-tool-exec).
+- **`Path`** (default) — resolves a compatible `aspire` command from `AspireCliPath` (if set) or `PATH`. If no compatible command is found, it falls back to invoking the `Aspire.Cli` version paired with `Aspire.Hosting.AppHost` through [`dnx`](https://learn.microsoft.com/dotnet/core/tools/dotnet-tool-exec).
 - **`Dnx`** — always invokes the Aspire CLI through `dnx`, using the unversioned `Aspire.Cli` package. This honors an in-scope [.NET local tool manifest](https://learn.microsoft.com/dotnet/core/tools/local-tools-how-to-use#create-a-manifest-file) (`.config/dotnet-tools.json`) if one pins `Aspire.Cli`, or resolves the latest published package when no manifest applies.
-- **`DnxPinned`** — always invokes the Aspire CLI through `dnx`, using `Aspire.Cli@<version>` pinned to the exact `Aspire.Cli` version paired with `Aspire.AppHost.Sdk`. Use this when the CLI must match the AppHost SDK version exactly, ignoring any local tool manifest.
+- **`DnxPinned`** — always invokes the Aspire CLI through `dnx`, using `Aspire.Cli@<version>` pinned to the exact `Aspire.Cli` version paired with `Aspire.Hosting.AppHost`, independently of an older retained SDK and ignoring any local tool manifest.
 
 Set `AspireCliInvocationMode` in your AppHost `.csproj`:
 
