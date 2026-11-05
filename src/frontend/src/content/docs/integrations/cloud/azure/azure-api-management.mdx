@@ -10,7 +10,7 @@ import InstallPackage from '@components/InstallPackage.astro';
 [Azure API Management](https://learn.microsoft.com/azure/api-management/) (APIM) is a managed gateway for publishing, securing, and observing APIs. The Aspire Azure API Management hosting integration models an APIM service and its child resources, such as APIs, backends, policies, and products, without hand-authored Bicep.
 
 <Aside type="caution">
-The `Aspire.Hosting.Azure.ApiManagement` integration is experimental and its APIs might change.
+`Aspire.Hosting.Azure.ApiManagement` is a prerelease package. Its APIs might change in future releases.
 </Aside>
 
 APIM is a deploy-only parent resource. It's omitted during `aspire run`, while `aspire deploy` provisions the service and the children declared beneath it. You don't need an execution-mode guard in your AppHost.
@@ -36,6 +36,7 @@ var catalog = builder.AddProject<Projects.Catalog>("catalog")
 var apim = builder.AddAzureApiManagement("apim", new()
 {
     PublisherEmail = "api-owners@example.com",
+    PublisherName = "Contoso APIs",
 });
 
 apim.AddApi(
@@ -48,7 +49,7 @@ apim.AddApi(
 builder.Build().Run();
 ```
 
-The compute-targeted `AddApi` overload creates an API, a reusable APIM backend, and a wildcard operation that forwards requests to the workload's deployed endpoint. APIs require an APIM subscription key by default.
+The compute-targeted `AddApi` overload creates an API, a reusable APIM backend, and root and catch-all operations for each supported HTTP method. These operations forward requests for the API path and its descendants to the workload's deployed endpoint. APIs require an APIM subscription key by default.
 
 Supported service SKUs are Consumption, Developer, Basic, Basic v2, Standard, Standard v2, Premium, and Premium v2. The integration validates SKU and capacity combinations.
 
@@ -110,12 +111,14 @@ Policies accept arbitrary APIM policy XML, and the service can expose public ing
 
 ### Use an existing API Management service
 
-Call `PublishAsExisting` to adopt an existing service. Aspire treats the service as read-only while managing the child resources declared in your AppHost:
+Call `PublishAsExisting` to adopt an existing service. Aspire treats the service as read-only while managing the child resources declared in your AppHost. Set `Sku` explicitly to the existing service's actual pricing tier, even when it's Developer. Aspire uses this value to validate SKU-dependent child resources and throws at publish time if it's omitted:
 
 ```csharp title="AppHost.cs"
 var apim = builder.AddAzureApiManagement("apim", new()
 {
     PublisherEmail = "api-owners@example.com",
+    PublisherName = "Contoso APIs",
+    Sku = AzureApiManagementSku.Premium,
 }).PublishAsExisting(
     "shared-apim",
     resourceGroup: "shared-infrastructure");
@@ -128,10 +131,17 @@ apim.AddApi("catalog-api", "catalog")
     .WithBackend(backend);
 ```
 
-Service-level networking, identities, and custom domains can't be changed through adoption. Identity-dependent children require you to confirm that the service already has a system-assigned identity:
+Service-level networking, identities, and custom domains can't be changed through adoption.
+
+APIM uses a user-assigned managed identity for backend authentication and Key Vault access. Aspire creates and attaches one for new services, but it doesn't attach identities to existing services. If an existing service uses managed-identity backends or Key Vault-backed named values, supply an identity that's already attached to the service:
 
 ```csharp title="AppHost.cs"
-apim.WithExistingSystemAssignedIdentity();
+var identity = builder.AddAzureUserAssignedIdentity("existing-apim-identity")
+    .PublishAsExisting(
+        "shared-apim-identity",
+        resourceGroup: "shared-infrastructure");
+
+apim.WithAzureUserAssignedIdentity(identity);
 ```
 
 Diagnostics and Aspire-created role assignments require the APIM service and their target resources to be in the same deployment resource group.
@@ -141,7 +151,7 @@ Diagnostics and Aspire-created role assignments require the APIM service and the
 - Developer and Premium support classic external or internal VNet injection.
 - Standard v2 and Premium v2 support outbound VNet integration through a dedicated `/27` or larger subnet.
 - Premium v2 supports inbound and outbound VNet injection through a dedicated subnet.
-- APIM can publicly front an internal Container Apps environment when both environments have VNet connectivity and private DNS.
+- APIM with classic external VNet injection (Developer or Premium) can publicly front an internal Container Apps environment in a separate subnet of the same virtual network. Configure the environment with `WithDelegatedSubnet` and then `WithInternalLoadBalancer(vnet)`, which provisions a private DNS zone and wildcard record for the environment's default domain. Container Apps Express environments don't support an internal load balancer.
 - Inbound private endpoints create the `privatelink.azure-api.net` DNS resources for new or existing services.
 
 Private endpoints can't be combined with classic VNet injection or Premium v2 injection. Consumption and Basic v2 don't support private endpoints. Internal classic and Premium v2 injection require customer-managed DNS for APIM's private VIP.
