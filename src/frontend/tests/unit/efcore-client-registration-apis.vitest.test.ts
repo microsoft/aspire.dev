@@ -18,8 +18,12 @@ function docFiles(dir: string): string[] {
   });
 }
 
+// Documented methods that only ship in prerelease packages, which are absent from the
+// stable package API data the updater prefers.
+const prereleaseOnlyMethods = ['EnrichSqliteDatabaseDbContext'];
+
 function efCoreRegistrationMethods() {
-  const methods = new Set<string>();
+  const methods = new Set<string>(prereleaseOnlyMethods);
 
   for (const file of readdirSync(packagesRoot).filter((name) =>
     name.includes('EntityFrameworkCore')
