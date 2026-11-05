@@ -365,6 +365,102 @@ The manifest representation is as follows:
 }
 ```
 
+## Optional parameters
+
+By default, a parameter is required: if no value is configured, you're prompted for one when you run or publish the app, and publishing fails until a value is supplied. Some parameters don't need a value in every environment. Use `WithOptional` to mark a parameter as optional:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var messagePrefix = builder.AddParameter("message-prefix")
+                            .WithOptional();
+
+builder.AddProject<Projects.ApiService>("api")
+       .WithEnvironment("MESSAGE_PREFIX", messagePrefix);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const messagePrefix = await builder.addParameter('message-prefix');
+await messagePrefix.withOptional();
+
+const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+await api.withEnvironment('MESSAGE_PREFIX', messagePrefix);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+When an optional parameter has no configured value, it isn't prompted for, and dependent resources that read it (for example, as an environment variable) resolve it to `null` instead of blocking startup or publish.
+
+To change a parameter back to required, call `WithRequired()`. Both methods are defined on the same underlying setting, so `WithOptional()` is equivalent to `WithRequired(required: false)`:
+
+```csharp
+var messagePrefix = builder.AddParameter("message-prefix")
+                            .WithRequired(required: false); // same as .WithOptional()
+```
+
+<Aside type="caution">
+  The manifest format used by `aspire publish --publisher manifest` doesn't support optional parameter inputs. Publishing an optional parameter to the manifest throws a <code>DistributedApplicationException</code>.
+</Aside>
+
+## Set and inspect parameter values programmatically
+
+In addition to configuration, environment variables, and dashboard prompts, AppHost code can read and set a parameter's value directly on the `ParameterResource`. This is useful when a value should be derived from other resources or computed logic instead of coming from an external source.
+
+Use `TryGetCurrentValue` to check whether a parameter currently has a value without waiting for an unresolved prompt, and `SetValueAsync` to set or clear it:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var messagePrefix = builder.AddParameter("message-prefix")
+                            .WithOptional();
+
+if (!messagePrefix.Resource.TryGetCurrentValue(out _))
+{
+    await messagePrefix.Resource.SetValueAsync("local");
+}
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const messagePrefix = await builder.addParameter('message-prefix');
+await messagePrefix.withOptional();
+
+if ((await messagePrefix.tryGetCurrentValue()) === null) {
+    await messagePrefix.setValueAsync({ value: 'local' });
+}
+```
+
+</TabItem>
+</Tabs>
+
+`TryGetCurrentValue` returns `false` (or `null` in TypeScript) when the parameter is unresolved, failed to initialize, or is an optional parameter that resolved without a value. `SetValueAsync` sets or replaces the value and updates any dependent dashboard state. Calling `SetValueAsync` without a value clears it; clearing a required parameter faults it with a missing-value error, while clearing an optional parameter resolves it to `null`.
+
+<Aside type="note">
+  `SetValueAsync` doesn't by itself save the value to user secrets or deployment state. It only updates the in-memory value for the running AppHost.
+</Aside>
+
 ## Add parameters from configuration
 
 In some scenarios, you might want to read parameter values directly from a specific configuration key rather than following the standard `Parameters:*` pattern. The <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddParameterFromConfiguration" /> method allows you to specify a custom configuration key for a parameter.
