@@ -48,6 +48,46 @@ The `--output` option validates the provided path before creating the project:
 
 When running `aspire new` in interactive mode, the command asks one or more questions before generating the project. The available prompts depend on the template and options you provide.
 
+### Select a template
+
+When you run `aspire new` in an interactive terminal, the initial template picker lists the built-in templates together with templates from configured Git and directory template sources. When at least one template source is configured, the picker groups its entries under nonselectable headings. Built-in templates appear under **Built-in templates**, and each configured source has its own heading. There's no separate submenu or search action for each source. Explicitly setting `--source`, `--version`, `--channel`, or `--language` options skips the discovery of configured sources. VS Code uses a flat picker with source-qualified labels rather than headings.
+
+Each terminal entry is shown in the form `Template Name (Template Description)`. If a template has no description, only the name is shown. In the grouped terminal picker, long entries and headings are truncated with an ellipsis to fit the terminal width. When you type to search for a template, the selection moves to a matching entry rather than filtering the list. In the grouped terminal picker, search matches only the visible text of an entry.
+
+If no template sources are configured, or if you pass `--source`, `--version`, `--channel`, or `--language`, the picker shows a flat list of the built-in templates, without headings or truncation. Templates from configured sources can't be combined with those options.
+
+<Aside type="note">
+  When `aspire new` runs through the Aspire extension for VS Code, the picker
+  is a flat list without headings. Each template from a configured source is
+  labeled in the form `Template Name (short-name) - source-alias`, so the
+  source's `displayName` isn't shown.
+</Aside>
+
+#### Name a template source
+
+Each source in the `templateSources` configuration object has an alias, which is the key you use to define it. The picker heading uses the alias by default. To show a friendlier heading, add an optional `displayName` property to the source:
+
+```json title="Global Aspire CLI configuration"
+{
+  "templateSources": {
+    "company": {
+      "repository": "https://github.com/example/templates",
+      "displayName": "Company templates"
+    }
+  }
+}
+```
+
+If `displayName` is missing, `null`, empty, or contains only spaces, the alias is used. Tabs, newlines, and other control characters are rejected. The alias remains the stable identity of the source, so two sources with the same display name aren't merged. You can also set the value on an existing source with `aspire config set`:
+
+```bash title="Aspire CLI"
+aspire config set templateSources.company.displayName "Company templates" --global
+```
+
+<LearnMore>
+  [Command reference: `aspire config set`](../aspire-config-set/)
+</LearnMore>
+
 ### Use \*.dev.localhost URLs?
 
 During project creation, you may be prompted:
