@@ -600,6 +600,12 @@ When a publisher or deployment target emits container build artifacts for a Go a
 - The runtime stage uses a small runtime image, installs certificate and time zone data for Alpine-based images, creates a non-root `app` user, and starts the compiled binary.
 - The generated `go build` command uses the same `packagePath`, `buildTags`, `ldFlags`, and `gcFlags` configured on the Go app resource. It intentionally excludes `raceDetector` for publish builds.
 
+### Use an existing Dockerfile
+
+An existing `Dockerfile` is used as-is, so Aspire can't apply a non-default `packagePath` to it. When the container has no explicit entrypoint and `packagePath` resolves to something other than the app directory, publishing logs a warning that names the resource, the requested package, and the `Dockerfile` path. The warning doesn't fail the publish, because a custom `Dockerfile` can already build and run the requested package. Build tags, linker flags, compiler flags, and the race detector don't trigger it.
+
+To silence the warning, set an explicit container entrypoint with `PublishAsDockerFile(c => c.WithEntrypoint(...))`, or rename the `Dockerfile` so Aspire generates one. The warning comes from a pipeline step, so a manifest-only publish (`--publisher manifest`) doesn't show it.
+
 For private modules, use <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithGoPrivate" /> to configure the generated Dockerfile with `GOPRIVATE` and BuildKit secret-based authentication. This setting only affects generated Dockerfiles; local run mode continues to use the developer's local Go and Git credentials.
 
 <Tabs syncKey='aspire-lang'>

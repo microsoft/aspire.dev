@@ -783,6 +783,12 @@ CMD ["python", "main.py"]
 The generated Dockerfile is tailored to your detected Python version and dependency configuration.
 :::
 
+### Use an existing Dockerfile
+
+If the app directory already contains a `Dockerfile`, Aspire uses it instead of generating one. A custom `Dockerfile` can't honor an entrypoint that was changed after the resource was created, so publishing fails when `WithEntrypoint(...)` re-points the resource to a different entrypoint than the one passed to `AddPython*`. The error names the resource, the requested entrypoint, and the `Dockerfile` path. Passing the same entrypoint again isn't a conflict, and a script path such as `./main.py` is treated as the same file as `main.py`.
+
+To resolve the error, remove the `WithEntrypoint(...)` call, rename the `Dockerfile` so Aspire generates one, or set the container entrypoint explicitly with `PublishAsDockerFile(c => c.WithEntrypoint(...))`.
+
 ## See also
 
 - [Environment variables](/fundamentals/environment-variables/) - How Aspire generates environment variable names from resources
