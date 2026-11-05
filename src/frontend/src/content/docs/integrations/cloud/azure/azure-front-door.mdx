@@ -145,6 +145,73 @@ await builder.build().run();
 
 Each origin must be added at most once per Front Door resource — adding the same resource twice throws `InvalidOperationException`.
 
+### Private Link origins for Azure App Service
+
+You can make Azure App Service workloads private origins behind Front Door by calling `WithAzureFrontDoorPrivateLink` on the App Service environment. This opt-in API is experimental (`ASPIREAZURE003`). It selects Front Door Premium and disables public network access on every workload website in the environment.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var environment = builder.AddAzureAppServiceEnvironment("env")
+    .WithDashboard(false);
+var frontDoor = builder.AddAzureFrontDoor("frontdoor");
+environment.WithAzureFrontDoorPrivateLink(frontDoor);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints();
+frontDoor.WithOrigin(api);
+
+#pragma warning restore ASPIREAZURE003
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const environment = await builder.addAzureAppServiceEnvironment("env").withDashboard(false);
+const frontDoor = await builder.addAzureFrontDoor("frontdoor");
+await environment.withAzureFrontDoorPrivateLink(frontDoor);
+
+const api = await builder.addProject("api", "../Api/Api.csproj")
+    .withExternalHttpEndpoints();
+await frontDoor.withOrigin(api);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Each App Service origin targets its own `Microsoft.Web/sites` resource (the `sites` Private Link group), not the shared App Service plan. Existing App Service plans are supported. Front Door Private Link can't target a deployment slot, so with deployment slots, Front Door targets the production site; the slot has public access disabled and is swapped into production.
+
+After deployment, the resource owner must approve Front Door's pending managed private endpoint connection on **each website**:
+
+```bash
+az network private-endpoint-connection list --type Microsoft.Web/sites --name <website-name> --resource-group <resource-group>
+az network private-endpoint-connection approve --id <connection-id>
+```
+
+<Aside type="caution">
+  Keep the following limitations in mind:
+
+  - Aspire creates the production site only if it doesn't exist. Enabling Private Link on an existing public site doesn't disable its public access; disable it on the site yourself.
+  - The separately provisioned dashboard isn't locked down by this feature. Use `WithDashboard(false)` when you don't need it.
+  - App Service doesn't provide Container Apps-style environment-local ingress. `WithReference` still resolves to website hostnames, so service-to-service callers need Front Door URLs or their own private networking and DNS.
+  - Passing Front Door outputs back to its own origins creates a deployment cycle. Configure those URLs separately after deployment.
+  - Aspire doesn't approve private endpoint connections automatically.
+</Aside>
+
 ### Health probes
 
 Front Door uses health probes to determine which origins are healthy. By default, the Aspire integration probes the origin's external endpoint at path `/` over HTTPS. If you have configured an HTTP probe on the origin (for example with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpProbe" />), Front Door uses the path and protocol from the resource's liveness probe instead.
