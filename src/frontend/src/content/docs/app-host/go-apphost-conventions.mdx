@@ -12,6 +12,18 @@ Every integration adds its methods to the `aspire` package, and method names are
 
 Methods that add a resource, such as `AddRedis` and `AddGoApp`, return a _handle_. A handle is a Go interface that stands for the resource in the app model, for example `aspire.RedisResource`. Methods that configure a resource return the same handle type, so calls chain. Every handle has an `Err() error` method, which is described in [Errors](#errors).
 
+### Pass derived builders
+
+Go has no return-type covariance, so a handle for a derived resource type doesn't satisfy the interface of its base type. For every handle type that other handle types derive from, the SDK generates an interface named `Any<Type>`, which accepts that type or a handle of any type derived from it. Parameters where you supply a value, such as `WithNodePool(nodePool AnyKubernetesNodePoolResource)`, use this interface.
+
+```go title="apphost.go"
+aks := builder.AddAzureKubernetesEnvironment("aks")
+pool := aks.AddNodePool("workload")
+builder.AddContainer("api", "nginx").WithNodePool(pool)
+```
+
+Here `AddNodePool` returns `aspire.AksNodePoolResource`, and `WithNodePool` accepts it because `AksNodePoolResource` derives from `KubernetesNodePoolResource`. The check happens at compile time: a handle of an unrelated resource type doesn't compile. Return types don't change, so chained calls still return the receiver's own handle type.
+
 ## Optional parameters
 
 Optional parameters go in a trailing variadic options argument. Leave it out to use the defaults. The argument is usually a struct named `<Method>Options`, such as `*aspire.WithHttpEndpointOptions`. Methods with the same name share one struct when their optional parameters match. If they don't match, or if another type already has the name, the name starts with the type that defines the method, such as `*aspire.ExecutableResourceWithVolumeOptions` for `WithVolume` on a Go app. A few methods take an existing type instead, such as `*aspire.DelveServerOptions` for `WithDelveServer`, and that type declares its own field types.
