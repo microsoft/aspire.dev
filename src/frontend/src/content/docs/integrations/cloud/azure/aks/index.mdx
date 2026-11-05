@@ -65,6 +65,34 @@ await builder.build().run();
 
 When an AKS environment is present, all compute resources are automatically deployed to AKS — no additional opt-in is required.
 
+## Cluster tier
+
+AKS clusters use the **Standard** control-plane tier by default, providing an uptime SLA for production workloads. Standard includes a cluster-management charge in addition to the underlying Azure resource costs. See [AKS pricing tiers](https://learn.microsoft.com/azure/aks/free-standard-pricing-tiers) for current details. The control-plane tier doesn't change node VM sizes or provide an application availability guarantee.
+
+<Aside type="caution">
+  Applying updated infrastructure to an existing Aspire-managed cluster changes its tier to Standard unless explicitly overridden. Upgrading the integration package alone doesn't change a deployed cluster.
+</Aside>
+
+To use the Free tier for development or testing, customize the infrastructure in a C# AppHost:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Azure.Provisioning.ContainerService;
+
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+    .ConfigureInfrastructure(infrastructure =>
+    {
+        var cluster = infrastructure.GetProvisionableResources()
+            .OfType<ContainerServiceManagedCluster>()
+            .Single();
+
+        cluster.Sku.Tier = ManagedClusterSkuTier.Free;
+    });
+```
+</TabItem>
+</Tabs>
+
 ## Configure the system node pool
 
 Customize the system node pool VM size and scaling using <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.WithSystemNodePool" />:
