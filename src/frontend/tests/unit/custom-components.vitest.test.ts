@@ -22,6 +22,7 @@ import FluidGrid from '@components/FluidGrid.astro';
 import FooterLegal from '@components/FooterLegal.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
 import FooterSocials from '@components/FooterSocials.astro';
+import ThemeTransition from '@components/ThemeTransition.astro';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
 import HeroSection from '@components/HeroSection.astro';
 import IconAside from '@components/IconAside.astro';
@@ -760,6 +761,20 @@ const basicRenderCases: BasicRenderCase[] = [
       'data-detector="apple"',
       'Select theme',
       'Select keyboard shortcuts style',
+    ],
+  },
+  {
+    name: 'ThemeTransition renders the Aspire reveal controller and mascot hooks',
+    Component: ThemeTransition,
+    props: {
+      sunglassesSrc: '/aspiry-sunglasses.svg',
+      nightVisionSrc: '/aspiry-night-vision.svg',
+    },
+    includes: [
+      'id="aspire-theme-transition"',
+      'data-sunglasses-src="/aspiry-sunglasses.svg"',
+      'data-night-vision-src="/aspiry-night-vision.svg"',
+      'ThemeTransition.astro?astro&type=script',
     ],
   },
   {
