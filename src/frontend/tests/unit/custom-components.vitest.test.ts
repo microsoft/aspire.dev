@@ -1797,6 +1797,28 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('data-open-install-modal');
   });
 
+  it('links Aspire software to its MIT license without replacing website legal links', async () => {
+    const html = normalizeHtml(
+      await renderComponent(FooterLegal, {
+        locals: { t: createTestTranslator(enTranslations) },
+      })
+    );
+
+    expect(html).toMatch(
+      /<a[^>]*href="https:\/\/github\.com\/microsoft\/aspire\/blob\/main\/LICENSE\.TXT"[^>]*>\s*Aspire software: MIT License\s*<\/a>/
+    );
+    for (const href of [
+      'https://aka.ms/yourcaliforniaprivacychoices',
+      'https://go.microsoft.com/fwlink/?LinkId=521839',
+      'https://go.microsoft.com/fwlink/?LinkID=206977',
+      'https://go.microsoft.com/fwlink/?linkid=2196228',
+      '/support/',
+    ]) {
+      expect(html).toContain(`href="${href}"`);
+    }
+    expect(html).toContain('Terms of Use');
+  });
+
   it('renders a unique scanner-addressable Manage Cookies action under Legal', async () => {
     const html = normalizeHtml(
       await renderComponent(FooterLegal, {
