@@ -1,4 +1,7 @@
-/** Turn opted-in fences into plain pre elements before code highlighting. */
+import { fromHtml } from 'hast-util-from-html';
+import { renderMermaid } from '../src/utils/mermaid.mjs';
+
+/** Render opted-in fences before code highlighting, including nested MDX content. */
 export function remarkMermaid() {
   return (tree) => {
     function visit(parent) {
@@ -9,8 +12,8 @@ export function remarkMermaid() {
             children: [],
             data: {
               hName: 'pre',
-              hProperties: { className: ['mermaid'] },
-              hChildren: [{ type: 'text', value: node.value }],
+              hProperties: { className: ['mermaid'], 'data-processed': 'true' },
+              hChildren: fromHtml(renderMermaid(node.value), { fragment: true }).children,
             },
             position: node.position,
           };
