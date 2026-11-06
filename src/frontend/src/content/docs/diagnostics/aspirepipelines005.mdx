@@ -1,0 +1,87 @@
+---
+title: Compiler Error ASPIREPIPELINES005
+seoTitle: "ASPIREPIPELINES005: Pipeline output diffing is experimental"
+description: Learn what causes the Aspire compiler error ASPIREPIPELINES005 and how to suppress it when you use the experimental pipeline output diffing APIs.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+<Badge
+  text="Version introduced: 17.0"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Pipeline output diffing APIs are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+Aspire 17.0 introduced output diffing, which regenerates pipeline output from the current AppHost and fails when the selected files differ from the files that were already on disk. The output diffing APIs are experimental and might change in future releases. The C# compiler reports `ASPIREPIPELINES005` when your AppHost uses them.
+
+<LearnMore>
+  For more information, see [Detect drift in generated pipeline
+  output](/deployment/output-diffing/).
+</LearnMore>
+
+## APIs affected
+
+This diagnostic applies to the following output diffing APIs:
+
+- `WithOutputDiffing` extension methods on `IDistributedApplicationBuilder`, including the generic overloads
+- `PipelineOutputDiffOptions`, `PipelineOutputDiffRule`, and `PipelineOutputDiffMode`, which configure the default comparison
+- `IPipelineOutputSnapshotter<TSnapshot>` and `IPipelineOutputComparer<TSnapshot>`, which customize capture and comparison
+- `PipelineOutputChange` and `PipelineOutputChangeKind`, which describe reported changes
+
+## Example
+
+The following code generates `ASPIREPIPELINES005`:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Pipelines;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose");
+
+// Using WithOutputDiffing generates ASPIREPIPELINES005
+builder.WithOutputDiffing();
+
+builder.Build().Run();
+```
+
+TypeScript AppHosts don't report this diagnostic. The generated TypeScript SDK marks `withOutputDiffing` with the `@experimental` tag.
+
+## To correct this error
+
+Suppress the error with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREPIPELINES005.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREPIPELINES005</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Add the following property directive to a file-based AppHost:
+
+  ```csharp title="AppHost.cs"
+  #:property NoWarn=ASPIREPIPELINES005
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREPIPELINES005` directive:
+
+  ```csharp title="Suppressing the error"
+  #pragma warning disable ASPIREPIPELINES005
+  builder.WithOutputDiffing();
+  #pragma warning restore ASPIREPIPELINES005
+  ```

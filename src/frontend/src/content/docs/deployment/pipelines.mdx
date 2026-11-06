@@ -430,6 +430,10 @@ aspire do push
 
 # Generate deployment artifacts
 aspire do publish
+
+# Generate artifacts and fail if they differ from existing output
+# (requires WithOutputDiffing in the AppHost)
+aspire do publish-and-diff
 ```
 
 ### Command options
@@ -670,6 +674,40 @@ var api = builder.AddProject<Projects.Api>("api").WithReference(database);
 
 builder.Build().Run();
 ```
+
+### Detect stale generated artifacts
+
+If you commit generated deployment files to source control, enable output diffing so CI fails when the files no longer match the AppHost:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await builder.withOutputDiffing();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREPIPELINES005
+builder.WithOutputDiffing();
+#pragma warning restore ASPIREPIPELINES005
+```
+
+</TabItem>
+</Tabs>
+
+Then run the comparison step. It regenerates the output, compares it with the existing files, and fails when files are added, changed, or removed:
+
+```bash title="Aspire CLI — Compare generated output"
+aspire do publish-and-diff
+```
+
+<LearnMore>
+  For configuration, Git behavior, and CI examples, see [Detect drift in
+  generated pipeline output](/deployment/output-diffing/).
+</LearnMore>
 
 ## Migrating from publishing callbacks
 
