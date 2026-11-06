@@ -108,6 +108,16 @@ The SQLite schema stores data in relational tables rather than retaining opaque 
 
 Console logs are persisted only after their stream is viewed or exported. A historical run can therefore omit console logs that weren't captured. The `Dashboard:Frontend:MaxConsoleLogCount` setting limits how many console entries are retained per database, shared across resources.
 
+## Browser-stored settings
+
+Resource tags, resource and group order, and pinned metrics aren't stored in the data directory. The dashboard saves them in the browser's local storage, like its other preferences, under keys scoped to the application name:
+
+- `Aspire_Resources_Tags_<app>`
+- `Aspire_Resources_Order_<app>`
+- `Aspire_Metrics_Pins_<app>`
+
+Because these settings live in the browser, they aren't shared between browsers or users, and they're tied to the browser origin, including the port. If the dashboard is served on a different port, its tags, order, and pins don't carry over. Settings are stored unprotected, so don't put secrets in resource tags. If several tabs are open, each tab merges its changes with the saved value rather than overwriting changes from other tabs. If a stored value can't be read, the dashboard copies it to a `<key>_Unreadable` entry before replacing it.
+
 ## Telemetry retention and disk use
 
 The dashboard applies the following default data retention limits:
