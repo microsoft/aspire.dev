@@ -61,13 +61,24 @@ test('frontend workflow keeps validation parallel and every shard required', asy
   expect(job('e2e')).toContain('--shard=${{ matrix.shard }}/2');
   expect(job('e2e')).toContain('frontend-blob-report-${{ matrix.project }}-${{ matrix.shard }}');
   expect(job('e2e')).toContain('frontend-test-results-${{ matrix.project }}-${{ matrix.shard }}');
-  expect(job('frontend-gate')).toContain('needs: [build, validation, e2e, report]');
-  expect(job('frontend-gate')).toContain('for result in "$BUILD" "$VALIDATION" "$E2E" "$REPORT"');
+  expect(job('frontend-gate')).toContain('needs: [build, publish, validation, e2e, report]');
+  expect(job('frontend-gate')).toContain('for result in "$BUILD" "$PUBLISH" "$VALIDATION" "$E2E" "$REPORT"');
   expect(job('frontend-gate')).toContain('if [[ "$result" != "success" ]]');
   expect(job('frontend-gate')).toContain('exit 1');
   expect(job('report')).toContain('pattern: frontend-blob-report-*');
-  expect(job('build')).toContain('name: frontend-dist');
-  expect(job('build')).toContain('path: src/frontend/dist');
+  expect(job('build')).toContain('name: frontend-e2e-dist');
+  expect(job('build')).toContain("tar -I 'zstd -T2 -3' -cf frontend-dist.tar.zst -C dist .");
+  expect(job('build')).toContain('name: Preserve partial output after a failed build');
+  expect(job('build')).toContain('if: ${{ failure() }}');
+  expect(job('publish')).toContain('needs: build');
+  expect(job('publish')).toContain('name: frontend-dist');
+  expect(job('publish')).toContain('path: src/frontend/dist');
+  expect(job('publish')).toContain('marker=\'<!-- aspire-dev-frontend-dist-artifact -->\'');
+  expect(job('e2e')).toContain('name: frontend-e2e-dist');
+  for (const consumer of ['publish', 'e2e']) {
+    expect(job(consumer)).toContain('tar --zstd -xf frontend-dist.tar.zst -C dist');
+    expect(job(consumer)).toContain('test -f dist/index.html');
+  }
   expect(job('build')).toContain('./node_modules/astro/bin/astro.mjs build --mode production');
 });
 
@@ -116,6 +127,22 @@ test('all frontend workflow checkouts disable persisted credentials', async () =
   for (const checkout of checkouts) {
     expect(checkout).toContain('\n          persist-credentials: false');
   }
+});
+
+test('runtime experiments preserve existing gates and profile the actual Bun runtime', async () => {
+  const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-runtime-experiments.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const benchmark = await readFile(new URL('../../scripts/benchmark-test-runtimes.mjs', import.meta.url), 'utf8');
+  expect(workflow).not.toContain('pull_request_target');
+  expect(workflow).not.toContain('continue-on-error');
+  expect(workflow).not.toContain('secrets.');
+  expect(workflow).toContain('bun --cpu-prof --cpu-prof-dir=');
+  expect(workflow).toContain('cache: [disabled, enabled]');
+  expect(workflow).toContain('diff -qr dist extracted');
+  expect(workflow).toContain('git diff --exit-code -- bun.lock package.json bunfig.toml patches');
+  expect(benchmark).toContain("['node', 'bun']");
+  expect(benchmark).toContain("'--config', 'vitest.config.ts'");
+  expect(benchmark).toContain('test.fullName, test.status');
+  expect(benchmark).toContain("throw new Error('Node control failed");
 });
 
 test('timing reports distinguish generated pages from asset URLs', async () => {

@@ -1,0 +1,331 @@
+name: Frontend runtime experiments
+
+on:
+  pull_request:
+    types: [opened, reopened]
+    paths:
+      - .github/workflows/frontend-runtime-experiments.yml
+      - src/frontend/scripts/benchmark-test-runtimes.mjs
+  workflow_dispatch:
+    inputs:
+      baseline_run:
+        description: Successful CI run whose site output is used unchanged
+        type: string
+        default: "41465710789"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-runtime-experiments-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Compare test runtimes (Bun ${{ matrix.bun }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        bun: [1.4.3, 1.4.4]
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ matrix.bun }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.x
+      - run: bun install --frozen-lockfile
+      - name: Prepare generated types
+        env:
+          ASTRO_TELEMETRY_DISABLED: 1
+        run: |
+          bun run git-env
+          bunx astro sync
+      - name: Compare identical suites
+        env:
+          BENCHMARK_OUT: ${{ runner.temp }}/test-runtimes
+        run: |
+          bun --version
+          node scripts/benchmark-test-runtimes.mjs
+      - name: Upload runtime results and failure logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-runtime-experiment-${{ matrix.bun }}
+          path: ${{ runner.temp }}/test-runtimes
+          retention-days: 7
+
+  installs:
+    name: Compare installation layout (${{ matrix.layout }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        layout: [hoisted, isolated, global]
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.x
+      - name: Benchmark cold and warm linking without touching shared caches
+        env:
+          BUN_INSTALL_CACHE_DIR: ${{ runner.temp }}/bun-install-experiment
+          ASTRO_TELEMETRY_DISABLED: 1
+          LAYOUT: ${{ matrix.layout }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/install-results"
+          linker="$LAYOUT"
+          global_store=0
+          if [[ "$LAYOUT" == global ]]; then
+            linker=isolated
+            global_store=1
+          fi
+          for round in 0 1 2; do
+            # Only remove this job's generated dependency directory, never the shared Bun cache.
+            rm -rf node_modules
+            BUN_INSTALL_GLOBAL_STORE="$global_store" /usr/bin/time -v \
+              bun install --frozen-lockfile --linker "$linker" \
+              > "$RUNNER_TEMP/install-results/$LAYOUT-$round.log" 2>&1
+          done
+          node --input-type=module -e '
+            import { readdirSync, realpathSync } from "node:fs";
+            import { join, sep } from "node:path";
+            const store = join(process.env.BUN_INSTALL_CACHE_DIR, "links") + sep;
+            const entries = process.env.LAYOUT === "hoisted" ? [] : readdirSync("node_modules/.bun");
+            const shared = entries.filter(name => realpathSync(join("node_modules/.bun", name)).startsWith(store));
+            console.log(JSON.stringify({ layout: process.env.LAYOUT, sharedEntries: shared.length }));
+            if (process.env.LAYOUT === "global" && shared.length === 0)
+              throw new Error("No global-store links found; the requested setting may be unsupported.");
+          ' > "$RUNNER_TEMP/install-results/$LAYOUT-links.log" 2>&1
+          bun run git-env
+          bunx astro sync > "$RUNNER_TEMP/install-results/$LAYOUT-sync.log" 2>&1
+          bun run test:unit:contracts > "$RUNNER_TEMP/install-results/$LAYOUT-contracts.log" 2>&1
+          du -sh node_modules >> "$RUNNER_TEMP/install-results/$LAYOUT-size.log"
+          git diff --exit-code -- bun.lock package.json bunfig.toml patches
+      - name: Upload install timings and compatibility results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: install-layout-experiment-${{ matrix.layout }}
+          path: ${{ runner.temp }}/install-results
+          retention-days: 7
+
+  artifact:
+    name: Measure whole-site archive
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Select successful main artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BASELINE_INPUT: ${{ inputs.baseline_run || '41465710789' }}
+        run: |
+          set -euo pipefail
+          [[ "$BASELINE_INPUT" =~ ^[0-9]+$ ]]
+          [[ "$(gh run view "$BASELINE_INPUT" --json conclusion --jq .conclusion)" == success ]]
+          echo "BASELINE_RUN=$BASELINE_INPUT" >> "$GITHUB_ENV"
+          echo "### Artifact input: main CI run $BASELINE_INPUT" >> "$GITHUB_STEP_SUMMARY"
+      - name: Download unchanged production output
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BASELINE_RUN }}
+          name: frontend-dist
+          path: dist
+      - name: Measure cross-file compression and lossless extraction
+        run: |
+          set -euo pipefail
+          /usr/bin/time -v -o archive-time.txt tar -I 'zstd -T2 -3' -cf frontend-dist.tar.zst -C dist .
+          mkdir extracted
+          /usr/bin/time -v -o extract-time.txt tar --zstd -xf frontend-dist.tar.zst -C extracted
+          diff -qr dist extracted
+          du -sb dist frontend-dist.tar.zst > sizes.txt
+          {
+            echo '### Lossless tar + zstd artifact experiment'
+            echo 'Full production output; no route, asset, or test coverage removed.'
+            echo '```'
+            cat sizes.txt
+            grep 'Elapsed\|Maximum resident' archive-time.txt extract-time.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload precompressed site
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-archive-experiment
+          path: frontend-dist.tar.zst
+          compression-level: 0
+          retention-days: 1
+      - name: Upload archive measurements
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: archive-experiment-metrics
+          path: |
+            sizes.txt
+            archive-time.txt
+            extract-time.txt
+          retention-days: 7
+
+  artifact-download:
+    name: Measure archive download and extraction
+    needs: artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: frontend-archive-experiment
+      - name: Extract full site
+        run: |
+          mkdir dist
+          /usr/bin/time -v tar --zstd -xf frontend-dist.tar.zst -C dist
+          test -f dist/index.html
+
+  browser:
+    name: Browser worker experiment (${{ matrix.workers }})
+    needs: artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        workers: [2, 4]
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.x
+      - run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: frontend-archive-experiment
+          path: src/frontend
+      - name: Extract same complete site for both variants
+        run: |
+          mkdir dist
+          tar --zstd -xf frontend-dist.tar.zst -C dist
+      - run: bun run playwright install --with-deps chromium
+      - name: Compare identical desktop shard with unchanged timeouts and retries
+        env:
+          ASTRO_TELEMETRY_DISABLED: 1
+          PLAYWRIGHT_JSON_OUTPUT_NAME: worker-results.json
+          WORKERS: ${{ matrix.workers }}
+        run: |
+          /usr/bin/time -v -o worker-resources.txt \
+            bun run playwright test --project=desktop-chromium --shard=1/2 \
+            --workers="$WORKERS" --reporter=blob,github,junit,list,json
+      - name: Upload worker results including retries and failures
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-worker-experiment-${{ matrix.workers }}
+          path: |
+            src/frontend/worker-results.json
+            src/frontend/worker-resources.txt
+            src/frontend/blob-report
+            src/frontend/test-results
+          compression-level: 0
+          retention-days: 7
+
+  build:
+    name: Profile Bun build (transpiler cache ${{ matrix.cache }})
+    runs-on: ${{ github.repository_owner == 'microsoft' && '8-core-ubuntu-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        cache: [disabled, enabled]
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.x
+      - run: bun install --frozen-lockfile
+      - name: Restore same Astro state as the control build
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: src/frontend/node_modules/.astro
+          key: astro-build-${{ runner.os }}-${{ hashFiles('src/frontend/bun.lock', 'src/frontend/astro.config.mjs', 'src/frontend/patches/*.patch') }}-${{ github.sha }}
+          restore-keys: |
+            astro-build-${{ runner.os }}-${{ hashFiles('src/frontend/bun.lock', 'src/frontend/astro.config.mjs', 'src/frontend/patches/*.patch') }}-
+      - name: Restore Bun transpiler cache
+        id: transpiler
+        if: ${{ matrix.cache == 'enabled' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bun-transpiler
+          key: bun-transpiler-experiment-${{ runner.os }}-${{ hashFiles('src/frontend/package.json', 'src/frontend/bun.lock') }}-${{ github.sha }}
+          restore-keys: |
+            bun-transpiler-experiment-${{ runner.os }}-${{ hashFiles('src/frontend/package.json', 'src/frontend/bun.lock') }}-
+      - name: Profile production build on Bun, not Node
+        env:
+          ASTRO_TELEMETRY_DISABLED: 1
+          NODE_OPTIONS: --max-old-space-size=8192
+          BUILD_TIMING: 1
+          BUILD_TIMING_OUT: ${{ runner.temp }}/build-profile/timing.jsonl
+          BUILD_TIMING_LABEL: ${{ matrix.cache }}
+          BUILD_METRICS_DIR: ${{ runner.temp }}/build-profile
+          BUN_RUNTIME_TRANSPILER_CACHE_PATH: ${{ matrix.cache == 'enabled' && format('{0}/bun-transpiler', runner.temp) || '0' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/build-profile"
+          bun run git-env
+          bun run compute-skill-digests
+          /usr/bin/time -v -o "$RUNNER_TEMP/build-profile/resources.txt" \
+            bun --cpu-prof --cpu-prof-dir="$RUNNER_TEMP/build-profile" \
+            ./node_modules/astro/bin/astro.mjs build --mode production \
+            2>&1 | tee "$RUNNER_TEMP/build-profile/build.log"
+          node scripts/measure-build-output.mjs
+          git diff --exit-code
+      - name: Save experiment-only transpiler cache
+        if: ${{ matrix.cache == 'enabled' && steps.transpiler.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bun-transpiler
+          key: ${{ steps.transpiler.outputs.cache-primary-key }}
+      - name: Upload Bun profiles and output inventories
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bun-build-profile-${{ matrix.cache }}
+          path: ${{ runner.temp }}/build-profile
+          retention-days: 7

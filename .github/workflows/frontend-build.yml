@@ -6,7 +6,6 @@ on:
       node_version:
         description: Node.js version
         required: true
-        default: "24.x"
         type: string
       pull_number:
         description: Pull request number when available
@@ -157,10 +156,59 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      # Upload before the dist sanity-check so the artifact is always
-      # available for debugging, even when the check step fails.
-      # Note: `uses` actions ignore the job-level working-directory,
-      # so the path is repo-root-relative (src/frontend/dist).
+      - name: Check dist
+        run: |
+          test -f dist/index.html || { echo "::error::Frontend build incomplete: dist/index.html missing"; exit 1; }
+
+      # Compress across files: the site contains thousands of similar pages.
+      # Publish browsable HTML on another runner so E2E doesn't wait for its upload.
+      - name: Package complete site for transport
+        run: tar -I 'zstd -T2 -3' -cf frontend-dist.tar.zst -C dist .
+
+      - name: Upload E2E transport artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-e2e-dist
+          path: src/frontend/frontend-dist.tar.zst
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Preserve partial output after a failed build
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-dist
+          path: src/frontend/dist
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 1
+
+  publish:
+    name: Publish browsable frontend artifact
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - name: Download complete site
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: frontend-e2e-dist
+          path: src/frontend
+
+      - name: Extract complete site
+        run: |
+          mkdir -p dist
+          tar --zstd -xf frontend-dist.tar.zst -C dist
+          test -f dist/index.html || { echo "::error::Extracted frontend site has no index.html"; exit 1; }
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      # Preserve the HTML layout consumed by GitHub Artifacts Explorer and the PR comment.
       - name: Upload build artifact
         id: upload_build_artifact
         if: ${{ always() }}
@@ -261,20 +309,6 @@ jobs:
               >/dev/null
           fi
 
-      - name: Check dist
-        run: |
-          if [ ! -d "dist" ]; then
-            echo "Frontend build failed - dist directory not found"
-            exit 1
-          fi
-
-          if [ ! -f "dist/index.html" ]; then
-            echo "Frontend build incomplete - index.html not found"
-            exit 1
-          fi
-
-          ls -la dist
-
   validation:
     name: Frontend validation
     runs-on: ubuntu-latest
@@ -339,8 +373,14 @@ jobs:
       - name: Download dist artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: frontend-dist
-          path: src/frontend/dist
+          name: frontend-e2e-dist
+          path: src/frontend
+
+      - name: Extract complete site
+        run: |
+          mkdir -p dist
+          tar --zstd -xf frontend-dist.tar.zst -C dist
+          test -f dist/index.html || { echo "::error::Extracted frontend site has no index.html"; exit 1; }
 
       - name: Install Playwright Chromium
         run: bun run playwright install --with-deps chromium
@@ -451,19 +491,20 @@ jobs:
   frontend-gate:
     name: Frontend gate
     if: ${{ always() }}
-    needs: [build, validation, e2e, report]
+    needs: [build, publish, validation, e2e, report]
     runs-on: ubuntu-latest
     steps:
       - name: Require all frontend checks
         env:
           BUILD: ${{ needs.build.result }}
+          PUBLISH: ${{ needs.publish.result }}
           VALIDATION: ${{ needs.validation.result }}
           E2E: ${{ needs.e2e.result }}
           REPORT: ${{ needs.report.result }}
         run: |
-          for result in "$BUILD" "$VALIDATION" "$E2E" "$REPORT"; do
+          for result in "$BUILD" "$PUBLISH" "$VALIDATION" "$E2E" "$REPORT"; do
             if [[ "$result" != "success" ]]; then
-              echo "::error::Every frontend job must succeed (build=$BUILD validation=$VALIDATION e2e=$E2E report=$REPORT)."
+              echo "::error::Every frontend job must succeed (build=$BUILD publish=$PUBLISH validation=$VALIDATION e2e=$E2E report=$REPORT)."
               exit 1
             fi
           done
