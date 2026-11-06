@@ -52,6 +52,115 @@ function resolveUrl(value, baseUrl) {
     }
 }
 
+// Caps keep the parse result (and the prompt payload built from it) bounded on
+// pathological pages. Whichever list was cut is named in the result's `capped`.
+const MAX_ALTERNATES = 50;
+const MAX_H1 = 5;
+const MAX_H1_SCAN = 50;
+const MAX_H1_CHARS = 200;
+const MAX_JSON_LD_BLOCKS = 10;
+const MAX_JSON_LD_CHARS = 6000;
+const MAX_JSON_LD_TOTAL_CHARS = 20000;
+const MAX_JSON_LD_DEPTH = 8;
+const MAX_JSON_LD_TYPES = 20;
+
+const hasToken = (value, token) => new RegExp(`(?:^|\\s)${token}(?:\\s|$)`).test(value);
+
+// Plain text of an HTML fragment: tags dropped, entities decoded, whitespace collapsed.
+function fragmentText(fragment) {
+    return decodeEntities(fragment.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+// Closing tags are located with a forward-only scan from the opener, so an
+// unclosed element costs one pass instead of a backtracking search per opener.
+function extractH1(html, capped) {
+    const out = [];
+    const open = /<h1\b[^>]*>/gi;
+    const close = /<\/h1\s*>/gi;
+    for (let scanned = 0; scanned < MAX_H1_SCAN; scanned += 1) {
+        const m = open.exec(html);
+        if (!m) break;
+        close.lastIndex = open.lastIndex;
+        const end = close.exec(html);
+        if (!end) break;
+        if (out.length >= MAX_H1) {
+            capped.add("h1");
+            break;
+        }
+        const text = fragmentText(html.slice(open.lastIndex, Math.min(end.index, open.lastIndex + 4000)));
+        out.push(text.length > MAX_H1_CHARS ? `${text.slice(0, MAX_H1_CHARS)}…` : text);
+    }
+    return out;
+}
+
+function jsonLdTypes(node, depth = 0) {
+    if (!node || typeof node !== "object" || depth > 4) return [];
+    if (Array.isArray(node)) return node.flatMap((child) => jsonLdTypes(child, depth + 1));
+    const own = [].concat(node["@type"] ?? []).filter((t) => typeof t === "string");
+    return own.concat(jsonLdTypes(node["@graph"], depth + 1));
+}
+
+// True when a parsed value nests deeper than `limit`. An explicit stack that
+// stops at the first violation keeps a hostile document from costing more than
+// one pass, and pretty-printing nested data grows with the square of its depth,
+// so deep blocks must never reach a stringify.
+function nestsDeeperThan(value, limit) {
+    const stack = [[value, 1]];
+    while (stack.length) {
+        const [node, depth] = stack.pop();
+        if (!node || typeof node !== "object") continue;
+        if (depth > limit) return true;
+        for (const child of Object.values(node)) stack.push([child, depth + 1]);
+    }
+    return false;
+}
+
+// JSON-LD blocks with their schema.org types. `data` is attached only to valid
+// blocks that are small, shallow, and fit the total budget; any other valid block
+// is flagged `dataOmitted` and named in `capped`. Invalid JSON never echoes a
+// snippet back.
+function extractJsonLd(html, capped) {
+    const out = [];
+    let budget = MAX_JSON_LD_TOTAL_CHARS;
+    const open = /<script\b[^>]*?\stype\s*=\s*["']?application\/ld\+json[^>]*>/gi;
+    const close = /<\/script\s*>/gi;
+    for (;;) {
+        const m = open.exec(html);
+        if (!m) break;
+        close.lastIndex = open.lastIndex;
+        const end = close.exec(html);
+        if (!end) break;
+        if (out.length >= MAX_JSON_LD_BLOCKS) {
+            capped.add("structuredData");
+            break;
+        }
+        const text = html.slice(open.lastIndex, end.index).trim();
+        let node;
+        let valid = true;
+        try {
+            node = JSON.parse(text);
+        } catch {
+            valid = false;
+        }
+        const entry = {
+            types: valid ? [...new Set(jsonLdTypes(node))].slice(0, MAX_JSON_LD_TYPES) : [],
+            valid,
+            size: text.length,
+        };
+        if (valid) {
+            if (text.length <= Math.min(MAX_JSON_LD_CHARS, budget) && !nestsDeeperThan(node, MAX_JSON_LD_DEPTH)) {
+                entry.data = node;
+                budget -= text.length;
+            } else {
+                entry.dataOmitted = true;
+                capped.add("structuredData");
+            }
+        }
+        out.push(entry);
+    }
+    return out;
+}
+
 // GitHub path segments that are never a real "owner" (site pages, product
 // areas, etc.). Used to filter false positives when sniffing a repo link.
 const GH_RESERVED_OWNERS = new Set([
@@ -144,9 +253,11 @@ export function parseMetadata(html, baseUrl) {
     const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     const htmlTitle = titleMatch ? decodeEntities(titleMatch[1]).trim() : "";
 
-    // <link> tags: icons + canonical
+    // <link> tags: icons, canonical + alternates (hreflang, feeds)
     let canonical = "";
     const icons = [];
+    const alternates = [];
+    const capped = new Set();
     for (const tag of extractTags(html, "link")) {
         const a = parseAttrs(tag);
         const rel = (a.rel || "").toLowerCase();
@@ -155,7 +266,24 @@ export function parseMetadata(html, baseUrl) {
         if (rel.includes("icon")) {
             icons.push({ rel, href: resolveUrl(a.href, baseUrl), sizes: a.sizes || "" });
         }
+        if (hasToken(rel, "alternate") && !hasToken(rel, "stylesheet")) {
+            if (alternates.length < MAX_ALTERNATES) {
+                alternates.push({
+                    hreflang: a.hreflang || "",
+                    type: a.type || "",
+                    href: resolveUrl(a.href, baseUrl),
+                });
+            } else {
+                capped.add("alternates");
+            }
+        }
     }
+
+    const htmlTag = html.match(/<html\b[^>]*>/i);
+    const htmlAttrs = htmlTag ? parseAttrs(htmlTag[0]) : {};
+    const lang = (htmlAttrs.lang || htmlAttrs["xml:lang"] || "").trim();
+    const h1 = extractH1(html, capped);
+    const structuredData = extractJsonLd(html, capped);
 
     const first = (k) => {
         const f = all.find((x) => x.key === k.toLowerCase());
@@ -287,6 +415,12 @@ export function parseMetadata(html, baseUrl) {
         htmlTitle,
         tagCount: all.length,
         repository: detectRepository(html),
+        canonical,
+        lang,
+        h1,
+        alternates,
+        structuredData,
+        capped: [...capped],
     };
 }
 

@@ -200,10 +200,171 @@ test("rejects unrelated loopback origins for all fetch surfaces", async () => {
     assert.equal((await fetch(resource)).status, 502);
 });
 
+test("an oversized HTML page still loads metadata and the browse document", async () => {
+    const oversized = 7 * 1024 * 1024; // over the 6 MiB metadata and resource cap
+    const beyondBrowse = 17 * 1024 * 1024; // over the 16 MiB browse document cap
+    const head =
+        '<!doctype html><head><title>Huge page</title><meta property="og:image" content="/huge.png">' +
+        '<script src="/external.js"></script></head><body>';
+    const page = (size) =>
+        Buffer.concat([Buffer.from(head), Buffer.alloc(size, "<p>filler</p>"), Buffer.from('<footer id="tail">end</footer></body>')]);
+    const document = page(oversized);
+    const unbounded = page(beyondBrowse);
+    const hugeTarget = createServer((req, res) => {
+        const isHtml = req.url === "/" || req.url === "/unbounded";
+        res.setHeader("Content-Type", isHtml ? "text/html" : req.url === "/big.pdf" ? "application/pdf" : "text/javascript");
+        if (req.url === "/") return res.end(document);
+        if (req.url === "/unbounded") return res.end(unbounded);
+        res.end(Buffer.alloc(req.url === "/big.pdf" ? beyondBrowse : oversized, "x"));
+    });
+    hugeTarget.listen(0, "127.0.0.1");
+    await once(hugeTarget, "listening");
+    const origin = `http://127.0.0.1:${hugeTarget.address().port}`;
+    try {
+        const selection = await fetch(api("/api/fetch?select=1&silent=1&u=" + encodeURIComponent(origin)));
+        const metadata = await selection.json();
+        assert.equal(metadata.resolved.title, "Huge page");
+        assert.equal(metadata.resolved.image, `${origin}/huge.png`);
+        assert.equal(metadata.truncated, true);
+
+        const html = await (await fetch(api("/api/proxy?u=" + encodeURIComponent(origin)))).text();
+        assert.match(html, /<title>Huge page<\/title>/);
+        assert.match(html, /<footer id="tail">/, "a document under the browse cap is served whole");
+        assert.doesNotMatch(html, /Couldn't load this page/);
+
+        const cut = await (await fetch(api("/api/proxy?u=" + encodeURIComponent(`${origin}/unbounded`)))).text();
+        assert.match(cut, /<title>Huge page<\/title>/);
+        assert.doesNotMatch(cut, /<footer id="tail">/, "a document over the browse cap is cut, not rejected");
+        assert.doesNotMatch(cut, /Couldn't load this page/);
+
+        const script = new URL(resourceUrl(html).href.replace("/external.js", "/big.js"));
+        assert.equal((await fetch(script)).status, 502, "oversized subresources are rejected, not truncated");
+        const pdf = await fetch(api("/api/proxy?u=" + encodeURIComponent(`${origin}/big.pdf`)));
+        assert.match(await pdf.text(), /Couldn't load this page/, "an oversized non-HTML document is not served cut off");
+    } finally {
+        await fetch(api("/api/fetch?select=1&silent=1&u=" + encodeURIComponent(targetUrl)));
+        hugeTarget.closeAllConnections();
+        await new Promise((resolve) => hugeTarget.close(resolve));
+    }
+});
+
 test("standalone get_metadata action explicitly authorizes localhost", async () => {
     const action = canvas.actions.find((action) => action.name === "get_metadata");
     const result = await action.handler({ input: { url: targetUrl } });
     assert.equal(result.resolved.title, "Local preview");
     const named = await action.handler({ input: { url: targetUrl.replace("127.0.0.1", "localhost") } });
     assert.equal(named.resolved.title, "Local preview");
+});
+
+test("/api/fetch reports the HTTP details and SEO signals the prompt payload needs", async () => {
+    const res = await fetch(api("/api/fetch?u=" + encodeURIComponent(targetUrl)));
+    const data = await res.json();
+    assert.equal(data.http.inputUrl, `${targetUrl}/`);
+    assert.equal(data.http.status, 200);
+    assert.match(data.http.contentType, /^text\/html/);
+    assert.deepEqual(data.http.headers, {});
+    assert.deepEqual([data.canonical, data.lang, data.h1, data.alternates, data.structuredData, data.capped], ["", "", [], [], [], []]);
+});
+
+test("serves the shared prompt builder to the UI without the private key", async () => {
+    const res = await fetch(new URL("/build-prompt.mjs", canvasUrl));
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type"), /^text\/javascript/);
+    const body = await res.text();
+    assert.match(body, /export function composePrompt/);
+    assert.ok(!/^import /m.test(body), "no Node imports, so a browser can load it");
+});
+
+async function withSeoPage(run) {
+    const server = createServer((req, res) => {
+        if (req.url === "/old") {
+            res.writeHead(301, { Location: "/landed" });
+            return res.end();
+        }
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("X-Robots-Tag", "noindex");
+        res.setHeader("Content-Language", "en");
+        res.end(`<!doctype html><html lang="en"><head><title>SEO page</title>
+<meta name="description" content="A page about SEO"><link rel="canonical" href="/canonical">
+</head><body><h1>Heading</h1></body></html>`);
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    try {
+        await run(`http://127.0.0.1:${server.address().port}`);
+    } finally {
+        server.closeAllConnections();
+        await new Promise((resolve) => server.close(resolve));
+    }
+}
+
+test("get_prompt returns a composed prompt and the full JSON payload", async () => {
+    const action = canvas.actions.find((action) => action.name === "get_prompt");
+    await withSeoPage(async (origin) => {
+        const result = await action.handler({ input: { url: origin, includeAgentReadiness: false } });
+        assert.equal(result.url, `${origin}/`);
+        assert.deepEqual(result.modules, ["audit", "fix-tags"]);
+        const { payload } = result;
+        assert.equal(payload.url.canonical, `${origin}/canonical`);
+        assert.equal(payload.http.status, 200);
+        assert.equal(payload.http.headers["x-robots-tag"], "noindex");
+        assert.equal(payload.http.headers["content-language"], "en");
+        assert.equal(payload.seo.robots.xRobotsTag, "noindex");
+        assert.equal(payload.seo.title.value, "SEO page");
+        assert.equal(payload.seo.description.value, "A page about SEO");
+        assert.equal(payload.seo.lang, "en");
+        assert.deepEqual(payload.seo.h1, ["Heading"]);
+        assert.equal(payload.agentReadiness, null);
+        assert.ok(result.prompt.includes(`Page: ${origin}/`));
+        assert.ok(result.prompt.includes("## Page data"));
+    });
+});
+
+test("get_prompt names a redirect target only inside the page data", async () => {
+    const action = canvas.actions.find((action) => action.name === "get_prompt");
+    await withSeoPage(async (origin) => {
+        const result = await action.handler({ input: { url: `${origin}/old`, includeAgentReadiness: false } });
+        assert.equal(result.url, `${origin}/landed`);
+        assert.equal(result.payload.url.final, `${origin}/landed`);
+        assert.equal(result.payload.url.redirected, true);
+        const instructions = result.prompt.slice(0, result.prompt.indexOf("## Page data"));
+        assert.ok(instructions.includes(`Page: ${origin}/old\n`));
+        assert.ok(!instructions.includes("/landed"));
+    });
+});
+
+test("get_prompt composes only the requested modules and instructions", async () => {
+    const action = canvas.actions.find((action) => action.name === "get_prompt");
+    await withSeoPage(async (origin) => {
+        const result = await action.handler({
+            input: { url: origin, modules: ["verify", "copy"], instructions: "Be terse.", includeAgentReadiness: false },
+        });
+        assert.deepEqual(result.modules, ["copy", "verify"]);
+        assert.match(
+            result.prompt,
+            /1\. \*\*Rewrite the title and description\.\*\*[\s\S]*2\. \*\*Verify the result\.\*\*/,
+        );
+        assert.ok(result.prompt.includes("## Additional instructions from the user\nBe terse."));
+        assert.ok(!result.prompt.includes("Audit"));
+    });
+});
+
+test("get_prompt rejects bad input before fetching anything", async () => {
+    const action = canvas.actions.find((action) => action.name === "get_prompt");
+    const beforeHits = hits;
+    const inputs = [
+        {},
+        { url: targetUrl, modules: ["nope"] },
+        { url: targetUrl, modules: "audit" },
+        { url: targetUrl, instructions: "x".repeat(8001) },
+        { url: targetUrl, instructions: 5 },
+    ];
+    for (const input of inputs) {
+        await assert.rejects(action.handler({ input }), (error) => error.code === "invalid_input");
+    }
+    await assert.rejects(
+        action.handler({ input: { url: targetUrl, modules: ["nope"] } }),
+        /Unknown prompt module\(s\): nope\. Valid modules: audit,/,
+    );
+    assert.equal(hits, beforeHits);
 });
