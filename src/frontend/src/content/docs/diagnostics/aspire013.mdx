@@ -1,0 +1,42 @@
+---
+title: Compiler Error ASPIRE013
+seoTitle: 'ASPIRE013: Aspire CLI bundle required · Aspire'
+description: Learn what causes Aspire compiler error ASPIRE013 when a C# AppHost disables the required Aspire CLI bundle, and how to correct it.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 17.0"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> '[ProjectName]' requires the Aspire CLI bundle. Remove AspireUseCliBundle or set it to true, and install the matching Aspire CLI from https://get.aspire.dev. ASPIRE013 cannot be suppressed to disable the bundle. See https://aka.ms/aspire/diagnostics/aspire013 for more information.
+
+This diagnostic error is reported when a C# AppHost project has `AspireUseCliBundle` set to anything other than `true`. The CLI bundle is required for C# AppHosts. Adding `ASPIRE013` (or [`ASPIRE010`](/diagnostics/aspire010/)) to `NoWarn` doesn't bypass the requirement.
+
+Non-C# AppHosts that opt out of the bundle report the suppressible warning [`ASPIRE010`](/diagnostics/aspire010/) instead. The two diagnostics are mutually exclusive.
+
+## Example
+
+The following configuration produces `ASPIRE013`:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>false</AspireUseCliBundle>
+</PropertyGroup>
+```
+
+## To correct this error
+
+Remove the `AspireUseCliBundle` property, or set it to `true`, and install the matching Aspire CLI from [get.aspire.dev](https://get.aspire.dev):
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+</PropertyGroup>
+```
+
+For more information, see [Use the Aspire CLI bundle for orchestration dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies).
