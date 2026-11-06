@@ -32,6 +32,7 @@ The command allows you to:
 - Test individual pipeline stages during development
 - Customize pipeline execution with environment-specific settings
 - Discover available steps and their dependencies using the diagnostics step
+- Detect drift in generated deployment files with an opt-in comparison step
 
 <LearnMore>
   For more information, see [Pipelines and app
@@ -152,7 +153,7 @@ Aspire provides several well-known steps that serve as entry points for common o
 - **`publish`**: Generates deployment artifacts by serializing resources to disk
 - **`deploy`**: Orchestrates the complete deployment process including infrastructure provisioning, image building, and application deployment
 
-Resources in your application can contribute their own custom steps, and you can add application-specific steps through the pipeline API.
+Resources in your application can contribute their own custom steps, and you can add application-specific steps through the pipeline API. Opt-in features can also register steps. For example, calling `WithOutputDiffing` in your AppHost registers the `publish-and-diff` step.
 
 ## Examples
 
@@ -213,6 +214,19 @@ The following examples demonstrate common pipeline operations:
   ```
 
   Specify where publishing artifacts should be written.
+
+- Generate deployment artifacts and fail if they differ from the existing files:
+
+  ```bash title="Aspire CLI"
+  aspire do publish-and-diff
+  ```
+
+  This runs the comparison step that `WithOutputDiffing` registers. The command regenerates the output, compares it with the files that were already in the output directory, and fails when files are added, changed, or removed. The AppHost must call `WithOutputDiffing`; otherwise the step doesn't exist.
+
+  <LearnMore>
+    For more information, see [Detect drift in generated pipeline
+    output](/deployment/output-diffing/).
+  </LearnMore>
 
 - Execute a pipeline step with additional arguments:
 
