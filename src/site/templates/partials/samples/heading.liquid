@@ -38,7 +38,9 @@
 {%- comment -%} The plain text: a link's text, without emphasis and code marks (strip_markdown would drop "1." as a list marker). {%- endcomment -%}
 {%- if sh_text contains "](" -%}{%- assign sh_plain = sh_text | strip_markdown -%}{%- else -%}{%- assign sh_plain = sh_text | remove: "**" | remove: "__" | remove: "`" -%}{%- endif -%}
 {%- assign sh_slug = sh_plain | downcase -%}
-{%- assign sh_marks = ".,:;!?()[]{}'\"’‘“”*&/\\+=<>|~^%$#@`_" | split: "" -%}
+{%- comment -%} Captured, since a Liquid string has no escapes and can't hold both quotes. {%- endcomment -%}
+{%- capture sh_marks -%}.,:;!?()[]{}'"’‘“”*&/\+=<>|~^%$#@`_{%- endcapture -%}
+{%- assign sh_marks = sh_marks | split: "" -%}
 {%- for sh_mark in sh_marks -%}{%- assign sh_slug = sh_slug | remove: sh_mark -%}{%- endfor -%}
 {%- assign sh_slug = sh_slug | strip | split: " " | join: "-" -%}
 {%- for sh_i in (1..4) -%}{%- assign sh_slug = sh_slug | replace: "--", "-" -%}{%- endfor -%}
@@ -49,5 +51,5 @@
 {%- if sh_count > 0 -%}{%- assign sh_id = sh_slug | append: "-" | append: sh_count -%}{%- else -%}{%- assign sh_id = sh_slug -%}{%- endif -%}
 {%- comment -%} "1. Web UI" would be a list: its marker is escaped for markdownify. {%- endcomment -%}
 {%- assign sh_md = sh_cased -%}{%- assign sh_first = sh_cased | split: " " | first -%}{%- assign sh_number = sh_first | remove: "." -%}{%- assign sh_number_check = sh_number | plus: 0 | append: "" -%}
-{%- if sh_number_check == sh_number and sh_first contains "." -%}{%- assign sh_escaped = sh_number | append: "\\." -%}{%- assign sh_md = sh_cased | replace_first: sh_first, sh_escaped -%}{%- endif -%}
+{%- if sh_number_check == sh_number and sh_first contains "." -%}{%- assign sh_escaped = sh_number | append: "\." -%}{%- assign sh_md = sh_cased | replace_first: sh_first, sh_escaped -%}{%- endif -%}
 <h{{ sh_depth }} id="{{ sh_id }}">{{ sh_md | markdownify: inline: true | replace: "’", "'" | replace: "‘", "'" | replace: "“", "&quot;" | replace: "”", "&quot;" | replace: "–", "--" | replace: "…", "..." | strip }}</h{{ sh_depth }}>
