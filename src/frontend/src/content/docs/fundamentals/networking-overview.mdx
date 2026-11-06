@@ -729,6 +729,50 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
+## Browser-facing origins
+
+Browser-facing URLs, such as `*.dev.localhost`, customized public URLs, and Codespaces forwarding URLs, can differ from an endpoint's physical address. When you configure CORS allowlists or authentication redirect URIs, use the endpoint's browser origins instead of its service discovery address. An `EndpointReference` exposes two deferred references for this purpose:
+
+- `PrimaryBrowserOrigin`: Resolves to one preferred HTTP(S) origin.
+- `BrowserOrigins`: Resolves to a comma-separated list of distinct HTTP(S) origins.
+
+```csharp title="C# — AppHost.cs"
+var endpoint = frontend.GetEndpoint("https");
+backend.WithEnvironment("FRONTEND_ORIGIN", endpoint.PrimaryBrowserOrigin);
+backend.WithEnvironment("ALLOWED_ORIGINS", endpoint.BrowserOrigins);
+entraWeb.WithRedirectUris(endpoint, "/signin-oidc");
+```
+
+These properties don't change host-to-host or container service discovery, and resolution doesn't depend on the reference's network context.
+
+### Run mode
+
+In run mode, the origins come from the finalized endpoint URLs, after URL customization and Codespaces projection, in URL display preference order. Origins exclude credentials, paths, queries, and fragments. The physical allocated HTTP(S) origin is included after any customized origins, even when its dashboard link is removed. The primary origin is the first entry in that sequence. If the endpoint has no HTTP(S) origins, both values are empty.
+
+### Publish mode
+
+Local display URLs aren't deployment addresses, so each publisher resolves the properties from its deployed endpoint mappings:
+
+| Target | Behavior |
+| --- | --- |
+| Azure Container Apps and App Service | Uses public deployed HTTP(S) origins. Internal and non-HTTP(S) references are rejected. |
+| Docker Compose | Uses deployment inputs that default to localhost and the explicit published port for external HTTP(S) endpoints. Provide an input when the published port is unknown. |
+| Kubernetes, including AKS | Derives defaults from matching literal Ingress or Gateway hostnames and TLS configuration. Provide an input for hostless, wildcard, or deferred hostnames. |
+| Foundry | Uses the authority of the deployed project endpoint. |
+
+For Compose, Kubernetes, and Radius, the scalar and list inputs are separate. For example, `Parameters:web-http-PrimaryBrowserOrigin` holds one origin and `Parameters:web-http-BrowserOrigins` holds the list. The manifest publisher lowers both properties to required inputs.
+
+### Compatibility notes
+
+- `WithUrls` and `WithUrlForEndpoint` callbacks now finish before `ResourceEndpointsAllocatedEvent` handlers run. Register URL customization in model configuration, not inside those handlers.
+- Custom endpoint allocators that publish `ResourceEndpointsAllocatedEvent` directly don't trigger URL processing, so browser-origin references can remain pending. Call `eventing.PublishResourceEndpointsAllocatedAsync(...)` after assigning the physical endpoints instead.
+- Manifest publication rejects the `:uri` format on endpoint bindings and non-parameter connection-string references. Use a parameter or infrastructure output for the value that needs encoding.
+
+<Aside type="note">
+  `PrimaryBrowserOrigin` and `BrowserOrigins` are also available in the generated
+  TypeScript, Go, Java, Python, and Rust SDKs.
+</Aside>
+
 ## Container-to-host networking
 
 The DCP container tunnel is enabled by default and provides container-to-host connectivity for TCP endpoints when you use `WithReference`. With the tunnel enabled, references to host project or executable endpoints using another transport protocol aren't supported. Runtime-specific host gateway names such as `host.docker.internal` are fallbacks for when the tunnel is disabled.
