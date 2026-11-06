@@ -433,6 +433,23 @@ The manifest handle returned by <ApiReference name="Aspire.Hosting.KindManifestR
 
 Each manifest is emitted as a separate template file inside the generated Helm chart.
 
+### Structured field values
+
+`withField` accepts JSON-compatible primitives, objects, and arrays, including arrays of objects. Paths are dot-separated, so to keep keys that contain dots or slashes, pass them inside an object at the parent path:
+
+```typescript title="apphost.mts"
+await manifest.withField('spec.endpointSelector.matchLabels', {
+    'app.kubernetes.io/component': 'api',
+});
+await manifest.withField('spec.ingress', [{
+    fromEndpoints: [{
+        matchLabels: { 'app.kubernetes.io/component': 'frontend' },
+    }],
+}]);
+```
+
+Each call replaces the value at that path rather than merging into an existing subtree. Non-JSON objects such as resource handles aren't supported as field values, including inside objects and arrays. Use `withNamespace`, `withLabel`, and `withAnnotation` for manifest metadata.
+
 <Aside type="note">
 `addManifest` is the recommended way to attach custom Kubernetes resources from TypeScript AppHosts, where there is no strongly-typed model for arbitrary CRDs. C# AppHosts have direct access to the resource model, so they add `BaseKubernetesResource` instances to `AdditionalResources` instead.
 </Aside>
