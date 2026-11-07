@@ -1,0 +1,234 @@
+---
+title: Microsoft Entra ID integration
+seoTitle: Microsoft Entra ID integration for Aspire AppHosts
+description: Model Microsoft Entra ID app registrations in your AppHost, create them with Azure provisioning or reference existing ones, and pass settings to workloads.
+---
+
+import { Badge, CardGrid, LinkCard, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="🧪 Preview" variant="note" size="large" />
+
+The Microsoft Entra ID hosting integration models Microsoft Entra ID application registrations in your AppHost. Aspire can create a registration and its service principal, or you can reference a registration that already exists. Either way, the integration passes the registration's settings to the resources that reference it as environment variables.
+
+The integration configures registrations and the settings that workloads read. It doesn't install authentication middleware or protect routes. Use [Microsoft.Identity.Web](https://learn.microsoft.com/entra/msal/dotnet/microsoft-identity-web/) or the equivalent library for your app's language to sign users in and validate tokens, and validate scopes or roles in your API.
+
+:::caution[Preview]
+The Entra ID integration is a preview in Aspire 17.0. The `Aspire.Hosting.Azure.EntraId` package ships with a preview version, and its APIs can change before the integration is stable. The opt-in `Aspire.Hosting.Azure.Provisioning.EntraId` package, which [customizes the generated infrastructure](/integrations/security/microsoft-entra-id/customize-infrastructure/) from TypeScript and other polyglot AppHosts, is experimental and reports `ASPIREAZUREPROVISIONING001`.
+:::
+
+## Prerequisites
+
+- You need a Microsoft Entra ID tenant.
+- To create registrations, you need an Azure subscription, permission to deploy to a resource group, permission to create application registrations and service principals in the subscription's tenant, and the Azure CLI with Bicep 0.36.1 or later. Tenant policy can restrict registration creation.
+- To reference existing registrations, you need an app registration created in the [Microsoft Entra admin center](https://entra.microsoft.com). This path needs no Azure or Microsoft Graph access.
+
+The first Bicep compilation downloads the Microsoft Graph Bicep extension from `mcr.microsoft.com`, so that registry must be reachable when Aspire creates registrations.
+
+## Hosting integration
+
+Add the [📦 Aspire.Hosting.Azure.EntraId](https://www.nuget.org/packages/Aspire.Hosting.Azure.EntraId) package to your AppHost:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.EntraId" />
+
+The integration is available in C#, TypeScript, Python, Go, Java, and Rust AppHosts with the same behavior. Method names follow each language's conventions, and optional arguments are passed as options objects or keyword arguments. For example, Python's generator abbreviates `Application` to `app`, as in `add_entra_id_app` and `with_app_owners`. The examples on these pages use C# and TypeScript.
+
+The examples add .NET projects with `AddDotnetProject`, which comes from the [Dotnet hosting integration](/integrations/frameworks/dotnet/dotnet-host/).
+
+## Add a registration and reference it
+
+`AddEntraIdApplication` adds a registration that Aspire creates. Reference it from a workload with `WithReference` to give that workload the registration's settings.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const entraApi = await builder.addEntraIdApplication("entra-api");
+
+const entraWeb = await builder.addEntraIdApplication("entra-web")
+    .withRedirectUris("https://localhost:7123/signin-oidc")
+    .withRedirectUris("https://localhost:7123/signout-callback-oidc");
+
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
+await api.withReference(entraApi);
+
+const web = await builder.addDotnetProject("web", "../Web/Web.csproj");
+await web.withReference(entraWeb);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var entraApi = builder.AddEntraIdApplication("entra-api");
+
+var entraWeb = builder.AddEntraIdApplication("entra-web")
+    .WithRedirectUris(
+        "https://localhost:7123/signin-oidc",
+        "https://localhost:7123/signout-callback-oidc");
+
+builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithReference(entraApi);
+
+builder.AddDotnetProject("web", "../Web/Web.csproj")
+    .WithReference(entraWeb);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+When the AppHost starts, Aspire creates the registration and its service principal through the Microsoft Graph Bicep extension. The registration is created in the subscription's tenant, which isn't necessarily your account's home tenant. Configure [local Azure provisioning](/integrations/cloud/azure/local-provisioning/) with your subscription and location, and sign in to the Azure CLI before you run the AppHost.
+
+The registration appears in the dashboard as a resource:
+
+- It starts in the **Waiting** state until its tenant ID and client ID are known, then validates its settings and reports **Running**.
+- It links to the app registration in the Azure portal and to the tenant's OpenID Connect discovery document.
+- Its properties show the tenant ID, client ID, sign-in audience, instance, and configured credential types.
+- If a setting is invalid, such as a malformed tenant ID, the resource reports **Failed to start** and its console logs explain why.
+- If the Azure subscription, location, or resource group settings are missing, the resource reports **Missing subscription configuration**, like other Azure resources.
+
+If tenant policy prevents creating registrations, use [`AddExistingEntraApplication`](/integrations/security/microsoft-entra-id/existing-registrations/) for a configuration-only reference.
+
+## Settings that workloads receive
+
+`WithReference` injects settings as environment variables. The names depend on the kind of workload.
+
+- .NET projects receive keys in the form `AzureAd__{Key}`, such as `AzureAd__Instance`, `AzureAd__TenantId`, and `AzureAd__ClientId`. .NET configuration maps them to the `AzureAd` section that Microsoft.Identity.Web reads without glue code.
+- Other resources receive uppercase snake-case names that start with the registration's resource name, such as `ENTRA_API_TENANT_ID` and `ENTRA_API_CLIENT_ID` for the `entra-api` resource. Configuration values keep their original casing.
+
+A .NET project reads the settings as ordinary configuration. For example, an API validates tokens with the injected `AzureAd` section:
+
+```csharp title="Program.cs"
+builder.Services.AddAuthentication()
+    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+```
+
+Other apps read the variables and map them into their authentication library's options. Adding a reference doesn't install or configure an authentication library.
+
+| Setting | When it's present |
+| ------- | ----------------- |
+| `Instance`, `TenantId`, `ClientId` | Always. |
+| `AppHomeTenantId` | The sign-in audience allows other tenants. `TenantId` then holds `organizations`, `common`, or `consumers`. |
+| `ClientCredentials` entries | A credential is configured. See [client credentials](/integrations/security/microsoft-entra-id/client-credentials/). |
+| `Scopes` | The registration exposes enabled scopes. See [expose and call APIs](/integrations/security/microsoft-entra-id/expose-and-call-apis/). |
+| `DownstreamApis` entries | The registration declares permissions to other APIs. For .NET projects, the section is a sibling of `AzureAd` and ignores the connection name. |
+| `Audiences` entries | `WithAudience` is called. |
+| `ClientCapabilities`, `SendX5C`, `AllowWebApiToBeAuthorizedByACL`, `ExtraQueryParameters` | The matching `WithClientCapability`, `WithSendX5C`, `WithAllowWebApiToBeAuthorizedByACL`, or `WithExtraQueryParameter` method is called. |
+
+### Change the environment variable names
+
+Use `connectionName` to change the prefix for one reference. Each consumer chooses its own name without affecting other references to the same registration.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const worker = await builder.addContainer("worker", "my-worker-image");
+await worker.withReference(entraApi, { connectionName: "ENTRA" });
+
+const customApi = await builder.addDotnetProject("custom-api", "../Api/Api.csproj");
+await customApi.withReference(entraApi, { connectionName: "Authentication:AzureAd" });
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var worker = builder.AddContainer("worker", "my-worker-image")
+    .WithReference(entraApi, connectionName: "ENTRA");
+
+var customApi = builder.AddDotnetProject("custom-api", "../Api/Api.csproj")
+    .WithReference(entraApi, connectionName: "Authentication:AzureAd");
+```
+
+</TabItem>
+</Tabs>
+
+The first reference produces names such as `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID`, and the second produces `Authentication__AzureAd__ClientId`. Several rules apply to connection names:
+
+- For .NET projects, a colon in the name becomes a double underscore.
+- For other resources, the name is normalized to uppercase snake case, so `MyAuth` produces `MY_AUTH_CLIENT_ID`.
+- An empty connection name omits the prefix and its separator, so `ClientId` becomes `CLIENT_ID` for other resources and stays `ClientId` for .NET projects.
+- The naming convention also applies to nested settings and array entries, such as `ENTRA_CLIENT_CREDENTIALS_0_SOURCE_TYPE`.
+- The `DownstreamApis` prefix is separate from the connection name. To change it, see [Settings that the caller receives](/integrations/security/microsoft-entra-id/expose-and-call-apis/#settings-that-the-caller-receives).
+
+## Run and publish behavior
+
+The same registration can behave differently when you run the AppHost and when you publish or deploy it.
+
+| Behavior | Run | Publish and deploy |
+| -------- | --- | ------------------ |
+| Created registration | Created through Azure provisioning when the AppHost starts. | Emitted as a Bicep module that deploys with the rest of your Azure resources. |
+| Existing registration | Configuration only. Aspire doesn't deploy Bicep or query Microsoft Graph. | Configuration only, and excluded from the publish manifest. |
+| Redirect URIs from an endpoint | Uses the endpoint's finalized browser URL. | Uses the compute environment's host and requires TLS. |
+| Local developer certificate | Provisions a short-lived certificate credential. | Isn't used. |
+| Managed identity federation that Aspire creates | Isn't used. | Trusts the workload's user-assigned managed identity. |
+| Managed identity federation that you configured | Applies. | Applies. |
+| App-role assignments to managed identities | Isn't used. | Assigned during deployment. |
+
+For the full lifecycle, required permissions, and known limitations, see [lifecycle and permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/).
+
+## Next steps
+
+<CardGrid>
+  <LinkCard
+    title="Secure a web app and API"
+    description="Sign users in and call an API locally and on Azure"
+    href="/integrations/security/microsoft-entra-id/secure-web-and-api/"
+  />
+  <LinkCard
+    title="Redirect URIs and sign-in"
+    description="Register callbacks, ID tokens, and sign-in audiences"
+    href="/integrations/security/microsoft-entra-id/redirect-uris-and-sign-in/"
+  />
+  <LinkCard
+    title="Client credentials"
+    description="Configure secrets, certificates, and managed identities"
+    href="/integrations/security/microsoft-entra-id/client-credentials/"
+  />
+  <LinkCard
+    title="Expose and call APIs"
+    description="Declare scopes, permissions, consent, and pre-authorization"
+    href="/integrations/security/microsoft-entra-id/expose-and-call-apis/"
+  />
+  <LinkCard
+    title="Application roles"
+    description="Declare roles and assign them to managed identities"
+    href="/integrations/security/microsoft-entra-id/app-roles/"
+  />
+  <LinkCard
+    title="Existing registrations"
+    description="Reference registrations that Aspire doesn't manage"
+    href="/integrations/security/microsoft-entra-id/existing-registrations/"
+  />
+  <LinkCard
+    title="Customize infrastructure"
+    description="Edit the generated Microsoft Graph resources"
+    href="/integrations/security/microsoft-entra-id/customize-infrastructure/"
+  />
+  <LinkCard
+    title="Lifecycle and permissions"
+    description="Understand deployment, cleanup, and limitations"
+    href="/integrations/security/microsoft-entra-id/lifecycle-and-permissions/"
+  />
+</CardGrid>
+
+## See also
+
+- [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
+- [Azure user-assigned managed identities](/integrations/cloud/azure/user-assigned-identity/)
+- [Microsoft Entra ID documentation](https://learn.microsoft.com/entra/identity-platform/)
+- [Bicep templates for Microsoft Graph](https://learn.microsoft.com/graph/templates/bicep/overview-bicep-templates-for-graph)
+- [Securing .NET Aspire apps with Microsoft Entra ID](https://devblogs.microsoft.com/aspire/securing-dotnet-aspire-apps-with-microsoft-entra-id/)

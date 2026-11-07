@@ -1,0 +1,175 @@
+---
+title: Entra ID lifecycle and permissions
+seoTitle: Microsoft Entra ID lifecycle and permissions in Aspire
+description: Understand how Aspire creates, redeploys, and cleans up Microsoft Entra ID registrations, which permissions each feature needs, and the known limitations.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Microsoft Entra ID registrations live in your tenant's directory, not in an Azure resource group. This affects how they're created, how a redeployment updates them, which permissions you need, and what remains after you delete your Azure resources. This article describes the behavior of registrations that Aspire creates. Existing registrations are never changed, so none of it applies to them.
+
+## Required permissions
+
+Aspire creates registrations with the Microsoft Graph Bicep extension, using the identity that provisions your Azure resources. Features that change more of the tenant need more privileges.
+
+| Feature | What the deploying identity needs |
+|---------|-----------------------------------|
+| Create registrations and service principals | Permission to deploy to the resource group, and permission to create application registrations and service principals in the subscription's tenant. Tenant policy can restrict creation. |
+| `WithOwners`, `WithApplicationOwners`, `WithServicePrincipalOwners` | `Application.ReadWrite.All`, or a directory role that can manage owners. |
+| `RunWithLocalDeveloperCertificateCredential` | `Application.ReadWrite.All` for delegated access. An application identity can use `Application.ReadWrite.OwnedBy` for registrations that it owns. |
+| `WithAdminConsent` for delegated permissions | A directory role such as Privileged Role Administrator, Cloud Application Administrator, or Application Administrator, or the `DelegatedPermissionGrant.ReadWrite.All` Graph permission. |
+| `WithAdminConsent` for Microsoft Graph application permissions | Privileged Role Administrator or a custom role, or the `AppRoleAssignment.ReadWrite.All` Graph permission when deploying as an application. |
+| `PublishWithAppRoleAssignment` | `AppRoleAssignment.ReadWrite.All` and `Application.Read.All` with administrator consent. Delegated deployments also need a supported directory role. |
+
+Aspire also assigns the **Key Vault Certificate User** role for `WithCertificateFromKeyVault`, to the developer identity when you run and to workloads when you publish. Deploying that role assignment is part of the normal Azure deployment.
+
+An Azure subscription Owner or Contributor role alone isn't enough for role assignments to managed identities. Workloads that run your app don't need these Graph permissions. Without consent calls, `WithApiPermissions` only lists permissions, so it needs nothing beyond creating the registration. For details, see [Expose and call APIs](/integrations/security/microsoft-entra-id/expose-and-call-apis/#required-privileges-for-consent) and [Application roles](/integrations/security/microsoft-entra-id/app-roles/#grant-the-deployer-the-required-permissions).
+
+To avoid these requirements, reference an existing registration. That path needs no Azure or Microsoft Graph access. For more information, see [Existing registrations](/integrations/security/microsoft-entra-id/existing-registrations/).
+
+## Create and update registrations
+
+Aspire provisions registrations in two situations.
+
+- When you run the AppHost, Aspire creates the registration the first time it starts and reuses the deployment state on unchanged restarts. Configure [local Azure provisioning](/integrations/cloud/azure/local-provisioning/) first, with your subscription and location, and sign in to the Azure CLI.
+- When you publish or deploy, the registration is part of the generated deployment, for example with `aspire deploy`.
+
+Registrations are created in the subscription's tenant, which isn't necessarily your account's home tenant. Creation doesn't support a registration tenant that differs from the Azure deployment's tenant.
+
+Each registration has a display name and a directory-wide `uniqueName`. Both default to the resource name that you pass to `AddEntraIdApplication`, followed by the optional tenant-scoped suffix. The same tenant, resource name, and suffix target the same registration, regardless of the resource group. A redeployment is an idempotent update of that registration, and the registration's identity stays the same.
+
+When a deployment sets a list, Aspire sends it in full, and Microsoft Graph replaces what's stored. This applies to application roles, scopes, and pre-authorized clients. For the removal rules, see [Application roles](/integrations/security/microsoft-entra-id/app-roles/#understand-how-deployments-update-roles) and [Expose and call APIs](/integrations/security/microsoft-entra-id/expose-and-call-apis/#retire-scopes-and-understand-what-deployments-remove).
+
+### Separate registrations with a tenant-scoped suffix
+
+Different resource groups don't isolate registrations in the same tenant. If two developers or two AppHosts use the same name and suffix, they update the same registration, and competing deployments can overwrite shared settings. Use the tenant-scoped suffix to separate them.
+
+- The Azure provisioning dialog includes an optional **Tenant-scoped resource suffix**. With the suffix `dev-a`, the resource `entra-web` creates `entra-web-dev-a`. An empty suffix creates `entra-web`.
+- You can supply an initial value with the `Azure:TenantResourceSuffix` configuration key. Edit or clear the saved value with **Change Azure context** in the dashboard.
+- The logical Aspire resource name and the names of the environment variables that workloads receive don't change.
+- Interactive `aspire deploy` prompts for a suffix when `Azure:TenantResourceSuffix` isn't configured. Set the key, even to an empty string, to skip the prompt. Non-interactive deployments use an empty suffix when no value is configured.
+- Published Azure templates expose `tenantResourceSuffix` as a deployment parameter that defaults to an empty string, so a developer's local suffix isn't embedded. Override it for one registration with `WithParameter`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const entraApi = await builder.addEntraIdApplication("entra-api")
+    .withParameter("tenantResourceSuffix", { value: "production" });
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var entraApi = builder.AddEntraIdApplication("entra-api")
+    .WithParameter("tenantResourceSuffix", "production");
+```
+
+</TabItem>
+</Tabs>
+
+Changing the name or the suffix targets another registration and leaves the previous application and service principal in place. Aspire doesn't adopt an existing registration that has a different `uniqueName`. To migrate, reference its IDs with `AddExistingEntraApplication`, or clean it up yourself.
+
+Development and production must use separate registrations, especially when you use the [local developer certificate](/integrations/security/microsoft-entra-id/client-credentials/#local-developer-certificate).
+
+### Set explicit owners
+
+By default, Aspire assigns no owners, so Microsoft Entra's default ownership behavior applies. To opt in, pass directory object IDs for users or service principals, as literals or parameters. `WithOwners` sets the owners of both the application and the service principal. Use `WithApplicationOwners` and `WithServicePrincipalOwners` to set them independently.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const ownerId = await builder.addParameter("entra-owner-id");
+
+const entraWeb = await builder.addEntraIdApplication("entra-web")
+    .withOwners(ownerId);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var ownerId = builder.AddParameter("entra-owner-id");
+
+var entraWeb = builder.AddEntraIdApplication("entra-web")
+    .WithOwners(ownerId);
+```
+
+</TabItem>
+</Tabs>
+
+Owners are appended, and Aspire never removes existing owners. Owners can manage the registration. `WithOwners` throws for existing registrations.
+
+## Know what a deployment leaves behind
+
+Removing a call from your AppHost doesn't always remove the tenant setting that it created. Check this table before you rely on removal.
+
+| Configuration | After you remove it from the AppHost |
+|---------------|--------------------------------------|
+| Delegated consent from `WithAdminConsent` | The grant stays when no call remains for that pair of registrations. Removing one scope from a call that remains revokes that scope. |
+| Application permission consent | Stays. Remove the app role assignment in the Microsoft Entra admin center. |
+| `PublishWithAppRoleAssignment` | Stays. Remove the assignment through Microsoft Graph or the Microsoft Entra admin center. |
+| `WithPreAuthorizedApplication` | Revoked when you remove the last call while the registration still declares an API. Stays when nothing declares the API anymore. |
+| Scopes and application ID URIs | Stay when nothing declares the API anymore. |
+| Owners | Stay. Aspire never removes owners. |
+| Local developer certificate | Publishing doesn't revoke a key that an earlier run registered. |
+
+Removal never revokes tokens that were already issued. Tokens stay valid until they expire.
+
+## Clean up registrations
+
+Registrations aren't deleted when you delete the resource group. Stopping the AppHost or switching to an existing registration doesn't delete them either.
+
+The deployment outputs include `objectId`, `servicePrincipalId`, and `uniqueName`, which you can use to find the objects. In the dashboard, the registration links to the app registration in the Azure portal.
+
+The registration offers deployment reprovisioning, cancellation, and local-state commands. It doesn't offer ARM resource inspection, relocation, or deletion. The **Delete Azure resources** command of the environment can still delete the resource group. After deletion, the command lists the registrations and service principals that it didn't delete, with their provider types, last-known object IDs, and the tenant ID, so you can delete them yourself. The report doesn't query Microsoft Graph to verify live objects, and it lists missing IDs as unknown.
+
+Delete only the registrations and service principals that belong to your application, by using the [Microsoft Entra admin center](https://entra.microsoft.com) or Microsoft Graph. Deleted applications stay soft-deleted for 30 days. Restore or permanently delete the application before you redeploy with the same `uniqueName`.
+
+## Troubleshoot Entra ID errors
+
+| Error | Likely cause |
+|-------|--------------|
+| `Missing subscription configuration` on the registration | Azure provisioning isn't configured. Set the subscription, resource group, and location, or switch to an existing registration. |
+| Creation fails with permission denied | Check the Azure deployment permissions and the permission to create registrations in the tenant. For consent and role assignments, see the permissions table. |
+| Creation fails because `uniqueName` already exists | Restore or permanently delete the soft-deleted application, or choose a different name or suffix. |
+| `Authorization_RequestDenied` on `servicePrincipal`, `Request_ResourceNotFound` on a federated credential, or `InvalidIdentifierUri` on a new application | Microsoft Graph hasn't made the new application visible yet. Deploy again. See the next section. |
+| `CannotDeleteOrUpdateEnabledEntitlement` | The deployment omitted an enabled application role. Keep it declared, and retire it in two deployments. Microsoft Graph also rejects removing an enabled scope. |
+| `AADSTS50011` | The redirect URI doesn't match. Compare the URIs on the registration with the callback of the app that you opened. |
+| `AADSTS700054`, or `response_type 'id_token' is not enabled` | Call `WithIdTokenIssuance`, or enable **ID tokens (used for implicit and hybrid flows)** in the **Authentication** settings of an existing registration. |
+| `AADSTS700213` | The registration has no federated credential that matches the managed identity. Check the issuer, subject, and audience. |
+| `AADSTS28000` | A token request mixed scopes of more than one API. Request each API's scopes separately. |
+| **Need admin approval** | The tenant restricts user consent. Ask an administrator to approve sign-in, or use `WithAdminConsent` with the privileges that it needs. |
+
+## Known limitations
+
+- Aspire doesn't assign application roles to users, groups, or applications. That includes granting a client an app role that an API in your AppHost declares with `WithAppRole`.
+- Aspire can't delete the last application role. Keep it declared with `isEnabled` set to `false`, or delete it in the Microsoft Entra admin center.
+- Aspire doesn't create, store, or rotate client secrets or certificates, except for the local developer certificate.
+- Aspire never modifies existing registrations. Configure their redirect URIs, exposed scopes, API permissions, and credentials in the Microsoft Entra admin center.
+- The integration doesn't install authentication middleware or protect routes in your apps.
+- Full validation of sovereign-cloud provisioning and federation isn't part of 17.0. The `WithInstance` setting exists, but don't treat it as validated in every cloud.
+- Microsoft Entra External ID customer tenants, CLI and template onboarding, an existing-registration picker, and a local OpenID Connect emulator aren't part of 17.0.
+
+### Deploy again after transient Graph failures
+
+Each registration deploys as one Bicep module. The module creates the application and, seconds later, sends more Microsoft Graph requests that refer to it. Graph sometimes hasn't made the new application visible yet, so the later request fails. Three failures are known:
+
+- Service principal creation fails with HTTP 403 and `Authorization_RequestDenied`. The message says that the backing application must be in the local tenant. It looks like a permissions problem, but isn't.
+- A federated credential fails with HTTP 404 and `Request_ResourceNotFound`.
+- Setting the default `api://{appId}` application ID URI fails with HTTP 400 and `InvalidIdentifierUri`.
+
+The deployment is an idempotent update, so deploying again succeeds. Aspire doesn't retry these errors automatically in 17.0, and this is tracked as an upstream Microsoft Graph Bicep issue. If a deployment keeps failing with a permission error after you deploy again, treat it as a real permissions problem.
+
+## Preview status
+
+The Entra ID integration is a preview in Aspire 17.0, so its APIs can change before it's stable. The opt-in `Aspire.Hosting.Azure.Provisioning.EntraId` package is experimental, and its APIs report the `ASPIREAZUREPROVISIONING001` diagnostic. For more information, see [Customize Entra ID infrastructure](/integrations/security/microsoft-entra-id/customize-infrastructure/).
+
+## See also
+
+- [Microsoft Entra ID integration](/integrations/security/microsoft-entra-id/)
+- [Azure local provisioning](/integrations/cloud/azure/local-provisioning/)
+- [Existing registrations](/integrations/security/microsoft-entra-id/existing-registrations/)
+- [Secure a web app and API](/integrations/security/microsoft-entra-id/secure-web-and-api/)
