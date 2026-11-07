@@ -1,0 +1,206 @@
+---
+title: Existing Entra ID registrations
+seoTitle: Use existing Microsoft Entra ID app registrations in Aspire
+description: Reference an existing Microsoft Entra ID app registration from your AppHost without letting Aspire create or change it, and learn which settings still apply.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Many teams manage app registrations outside the AppHost, for example because a central identity team owns them. Aspire can reference such a registration so that your apps receive its settings. Aspire never creates, queries, or modifies an existing registration, so you configure the registration itself in the [Microsoft Entra admin center](https://entra.microsoft.com).
+
+## Reference an existing registration
+
+You supply the **Directory (tenant) ID** and the **Application (client) ID** from the registration's **Overview** page. Use `AddExistingEntraApplication` when the AppHost only references existing registrations.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const tenantId = await builder.addParameter("entra-tenant-id");
+const apiClientId = await builder.addParameter("entra-api-client-id");
+
+const entraApi = await builder.addExistingEntraApplication("entra-api", tenantId, apiClientId);
+
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
+await api.withReference(entraApi);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var tenantId = builder.AddParameter("entra-tenant-id");
+var apiClientId = builder.AddParameter("entra-api-client-id");
+
+var entraApi = builder.AddExistingEntraApplication("entra-api", tenantId, apiClientId);
+
+builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithReference(entraApi);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Each ID accepts a literal value or a parameter. In TypeScript, you can mix them:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const clientId = await builder.addParameter("entra-client-id");
+const clientSecret = await builder.addParameter("entra-secret", { secret: true });
+
+const entraApi = await builder.addExistingEntraApplication(
+    "entra-api", "aaaabbbb-0000-cccc-1111-dddd2222eeee", clientId)
+    .withClientSecret(clientSecret);
+
+await builder.addExecutable("worker", "node", ".", ["worker.mjs"])
+    .withReference(entraApi, { connectionName: "AUTH" });
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var clientSecret = builder.AddParameter("entra-secret", secret: true);
+
+var entraApi = builder.AddExistingEntraApplication(
+    "entra-api",
+    tenantId: "aaaabbbb-0000-cccc-1111-dddd2222eeee",
+    clientId: "00001111-aaaa-2222-bbbb-3333cccc4444")
+    .WithClientSecret(clientSecret);
+
+builder.AddExecutable("worker", "node", ".", "worker.mjs")
+    .WithReference(entraApi, connectionName: "AUTH");
+```
+
+</TabItem>
+</Tabs>
+
+In C#, pass either two literals or two parameters. To mix literals and parameters, use the TypeScript AppHost.
+
+### Validation
+
+The tenant ID must be a GUID or a domain name such as `contoso.onmicrosoft.com`, and the client ID must be a GUID. Pass the home tenant here, not a sign-in keyword such as `organizations`, `common`, or `consumers`. To let accounts from other tenants sign in, keep the home tenant and call `WithSignInAudience`. For more information, see [Redirect URIs and sign-in](/integrations/security/microsoft-entra-id/redirect-uris-and-sign-in/).
+
+Aspire validates literal values when your AppHost runs the call, and throws an `ArgumentException` for an invalid value. It validates parameter values at startup. If a parameter has no value, the dashboard prompts for it. After validation, the resource moves from `Waiting` to `Running`. When a value is missing or malformed, the resource reports `FailedToStart` and logs the reason.
+
+## Choose how to reference the registration
+
+You can also convert an `AddEntraIdApplication` resource with `AsExistingApplication`. The two approaches differ in the Azure setup that they keep.
+
+| Approach | Azure provisioning | Use it when |
+|----------|--------------------|-------------|
+| `AddExistingEntraApplication` | Not enabled | The AppHost needs only the registration's settings. It needs no Azure or Microsoft Graph access. |
+| `AddEntraIdApplication(...).AsExistingApplication(...)` | Kept | You start with a created registration and later point it at an existing one. |
+
+`AddEntraIdApplication` enables Azure provisioning before `AsExistingApplication` runs, and the fluent API doesn't undo that setup. Deployment can still require Azure authentication and provisioning configuration, even though Aspire doesn't deploy or query the existing registration. Other Azure resources in the same AppHost keep their normal provisioning behavior in both approaches.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const entraApi = await builder.addEntraIdApplication("entra-api")
+    .asExistingApplication(tenantId, apiClientId);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var entraApi = builder.AddEntraIdApplication("entra-api")
+    .AsExistingApplication(tenantId: tenantId, clientId: apiClientId);
+```
+
+</TabItem>
+</Tabs>
+
+`AsExistingApplication` throws when you already applied registration-only configuration, such as redirect URIs or app roles. Remove that configuration first. Aspire checks this before it changes the resource, so a failed conversion leaves the IDs unchanged.
+
+An existing registration isn't part of the publish manifest, so deployment generates no Bicep for it. The workloads that reference it still receive its configuration.
+
+## Know which settings still apply
+
+Settings that describe how an app consumes the registration still work. They must match the registration, because they don't register anything. Settings that change a registration throw an `InvalidOperationException` that explains what to configure yourself, usually in the Microsoft Entra admin center.
+
+| Setting | Existing registration |
+|---------|-----------------------|
+| `WithClientSecret`, `WithClientCapability`, `WithSendX5C`, and the certificate and signed assertion credentials | Supported. The registration must already trust the credential. |
+| `WithFederatedManagedIdentityCredential` | Supported. Configure the trust yourself first. |
+| `WithAudience`, `WithSignInAudience`, `WithInstance` | Supported. They affect only the consuming app's configuration. |
+| `WithApplicationIdUri` with a URI, and `WithScope` | Supported. They describe an existing API. |
+| `WithApiPermissions` | Supported. It only produces the `DownstreamApis` configuration. |
+| `WithRedirectUris`, `WithIdTokenIssuance` | Throws. Configure these in the registration's **Authentication** settings. |
+| `WithOwners`, `WithApplicationOwners`, `WithServicePrincipalOwners` | Throws. |
+| `WithAppRole`, `PublishWithAppRoleAssignment` | Throws. |
+| `WithAdminConsent` and `WithPreAuthorizedApplication` | Throws. For Microsoft Graph and other external APIs, this includes the `withExternalApiAdminConsent` method in TypeScript. |
+| `WithApplicationIdUri` without a URI | Throws. Aspire can't infer an existing API's URI. |
+| `RunWithLocalDeveloperCertificateCredential`, `PublishWithFederatedManagedIdentityCredential` | Throws. Aspire can't register a certificate or create a federated credential on an existing registration. |
+
+A registration that Aspire creates can still consent to an existing API or pre-authorize an existing client, because the existing registration isn't modified.
+
+### Describe an existing API
+
+To reference an existing API's scopes, pass the URI that the registration already defines to `WithApplicationIdUri`, and describe each scope with `WithScope`. Set the scope's ID to the registered scope ID when callers declare permissions to it.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const entraApi = await builder.addExistingEntraApplication("entra-api", tenantId, apiClientId)
+    .withApplicationIdUri({ applicationIdUri: "api://contoso-orders" })
+    .withScope("Weather.Read", "Allows the app to read weather forecasts.", {
+        id: "5d1f7b84-3c2e-4a6e-9a1d-0b8f2c3d4e5f",
+    });
+
+// entraWeb is a created registration, as in the expose and call APIs article.
+await entraWeb.withApiPermissions(entraApi, ["Weather.Read"]);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var entraApi = builder.AddExistingEntraApplication("entra-api", tenantId, apiClientId)
+    .WithApplicationIdUri("api://contoso-orders")
+    .WithScope("Weather.Read", "Allows the app to read weather forecasts.", scope =>
+    {
+        scope.Id = new Guid("5d1f7b84-3c2e-4a6e-9a1d-0b8f2c3d4e5f");
+    });
+
+// entraWeb is a created registration, as in the expose and call APIs article.
+entraWeb.WithApiPermissions(entraApi, "Weather.Read");
+```
+
+</TabItem>
+</Tabs>
+
+Aspire needs the scope ID when a registration that it creates declares permissions to the scope, because it can't derive the ID that the existing registration defines. Without an application ID URI, `GetScopeUri` throws, because a guessed URI would fail later as a token error.
+
+## Existing registrations as callers
+
+An existing registration that calls an API needs a credential that it already trusts. Pass the credential with the consumer settings, such as `WithClientSecret` or a certificate credential. For a managed identity, create the federated credential on the registration yourself with these values:
+
+- The issuer is the tenant's v2.0 issuer, `https://login.microsoftonline.com/<tenant-id>/v2.0` in the Azure public cloud.
+- The subject is the identity's principal (object) ID.
+- The audience is the token exchange audience of the cloud, which is `api://AzureADTokenExchange` in the Azure public cloud.
+
+Then call `WithFederatedManagedIdentityCredential` with the identity's client ID, not its principal ID. For details, see [Client credentials](/integrations/security/microsoft-entra-id/client-credentials/#managed-identity-federation).
+
+## See also
+
+- [Redirect URIs and sign-in](/integrations/security/microsoft-entra-id/redirect-uris-and-sign-in/)
+- [Expose and call APIs](/integrations/security/microsoft-entra-id/expose-and-call-apis/)
+- [Lifecycle and permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/)
+- [Register an application with the Microsoft identity platform](https://learn.microsoft.com/entra/identity-platform/quickstart-register-app)
