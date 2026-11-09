@@ -204,6 +204,8 @@ await apim.addSecretNamedValue("upstream-api-key-value", apiKey, {
 });
 
 const vault = await builder.addAzureKeyVault("vault");
+const sharedSecret = await builder.addParameter("shared-secret-value", { secret: true });
+await vault.addSecret("vault-shared-secret", sharedSecret, { secretName: "shared-secret" });
 await apim.addKeyVaultNamedValue("shared-secret", vault, "shared-secret", {
     displayName: "SharedSecret",
 });
@@ -225,6 +227,8 @@ apim.AddSecretNamedValue(
     displayName: "UpstreamApiKey");
 
 var vault = builder.AddAzureKeyVault("vault");
+var sharedSecret = builder.AddParameter("shared-secret-value", secret: true);
+vault.AddSecret("vault-shared-secret", "shared-secret", sharedSecret);
 apim.AddKeyVaultNamedValue(
     "shared-secret",
     vault.GetSecret("shared-secret"),
@@ -239,6 +243,8 @@ apim.WithInboundPolicy("""
 
 </TabItem>
 </Tabs>
+
+In the Key Vault example, the `shared-secret-value` secret parameter supplies the value, and `AddSecret` (`addSecret` in TypeScript) creates the `shared-secret` secret in the vault. APIM resolves a Key Vault-backed named value from a secret that already exists, so create the secret as shown or reference a vault that already contains it.
 
 In TypeScript, `addKeyVaultNamedValue` takes the Key Vault resource and the secret name as separate arguments. In C#, you pass the Key Vault secret reference that `GetSecret` returns.
 
