@@ -128,40 +128,19 @@ When you first enable output diffing, a CI run reports every generated file as `
 
 ## Check drift in CI
 
-In CI, the checked-out files are the baseline. The pipeline regenerates the files and fails when generation changes any of them. The following GitHub Actions workflow runs the comparison on every pull request:
+In CI, the checked-out files are the baseline. The pipeline regenerates the files and fails when generation changes any of them. After your workflow checks out the repository and installs the Aspire CLI, add the comparison as a step:
 
 ```yaml title=".github/workflows/check-deployment-files.yml"
-name: Check deployment files
-
-on:
-  pull_request:
-
-jobs:
-  check-drift:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v4
-
-      # Required for C# AppHost projects
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Install Aspire CLI
-        run: |
-          curl -sSL https://aspire.dev/install.sh | bash
-          echo "$HOME/.aspire/bin" >> $GITHUB_PATH
-
-      - name: Check generated files
-        run: aspire do publish-and-diff --non-interactive
+- name: Check generated files
+  run: aspire do publish-and-diff --non-interactive
 ```
 
 If you generated the committed files for a specific environment, pass the same `--environment` value in CI, because an AppHost can produce different output for each environment.
 
 <LearnMore>
-  For more CI/CD guidance, see the [CI/CD overview](/deployment/ci-cd/).
+  For the checkout and CLI installation steps, see the [example app lifecycle
+  workflow](/deployment/app-lifecycle/). For more CI/CD guidance, see the
+  [CI/CD overview](/deployment/ci-cd/).
 </LearnMore>
 
 ## Compare another step
