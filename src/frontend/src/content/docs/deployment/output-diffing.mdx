@@ -303,27 +303,9 @@ In `FileSystem` mode, Aspire compares every selected file on disk, including fil
 
 ### Capture timing
 
-Aspire records the baseline before every step that the comparison step selects, so files written by prerequisite and build steps are checked along with files written by publishers. To see the extra baseline step, list the pipeline steps:
+Aspire adds a baseline step named after the comparison step, such as `publish-and-diff-baseline`. It records the output before any other step in the requested pipeline runs, so files written by prerequisite and build steps are checked along with files written by publishers. The baseline step does nothing unless the comparison step is part of the requested pipeline, and it appears in `aspire do --list-steps` output with the `output-diff-baseline` tag.
 
-```bash title="Aspire CLI"
-aspire do publish-and-diff --list-steps
-```
-
-```text title="Output"
-1. publish-and-diff-baseline
-   └─ Tags: output-diff-baseline
-
-2. publish-compose
-   └─ Depends on: publish-and-diff-baseline
-
-3. publish
-   └─ Depends on: publish-and-diff-baseline, publish-compose
-
-4. publish-and-diff
-   └─ Depends on: publish, publish-and-diff-baseline
-```
-
-The baseline step returns immediately unless the comparison step is selected. Aspire records the second capture after the comparison step's dependencies and action finish, so a write must finish within that boundary to be checked. Keep these points in mind when you add steps:
+Aspire records the second capture after the comparison step's dependencies and action finish, so a write must finish within that boundary to be checked. If you add your own steps or event handlers, keep these points in mind:
 
 - Step factories and pipeline configuration callbacks run before the baseline, so they shouldn't write files that you check.
 - Final actions that you add to the comparison step after you register it, and `AfterPublishEvent` handlers, run too late for their writes to be checked.
