@@ -3,17 +3,13 @@ title: Configuration sources
 description: Learn how to use a configuration source and create, secure, and distribute organization-specific Aspire defaults.
 ---
 
-Configuration sources let an organization share Aspire defaults from a Git-hosted
-`aspire.config.json`. Use them to offer custom agent skills, integration feeds,
-and project templates without maintaining a separate Aspire CLI distribution.
+Aspire configuration sources provide organization-specific developer defaults
+through a Git-hosted `aspire.config.json` file. Use a configuration source to
+share custom agent skills, integration feeds, and project templates tailored to
+your organization's needs.
 
 These are optional defaults, not enforced policy. Developers can decline a source
 or edit the resulting app configuration.
-
-- [Use a configuration source](#use-a-configuration-source) to accept or decline
-  shared defaults, understand what they control, and manage updates.
-- [Create a configuration source](#create-a-configuration-source) to publish
-  defaults, secure their content, and distribute settings to developers.
 
 All repositories, feeds, documentation URLs, and commit IDs in these examples are
 illustrative. Replace them with your organization's locations and reviewed full
@@ -31,10 +27,9 @@ when you select an AppHost in another directory. See the
 [Aspire CLI overview](/reference/cli/overview/).
 :::
 
-Before accepting, check who owns the configuration repository and read the linked
-source documentation. Review the skill repositories, feeds, catalogs, and
-templates it selects: trusting the configuration publisher also means trusting
-those suppliers.
+Before accepting, review the configuration repository, its linked documentation,
+and every skill, feed, catalog, and template it references. Trusting the
+publisher also means trusting those suppliers.
 
 ### Opt in or out
 
@@ -107,9 +102,8 @@ integration settings and a binding like this:
 ```
 
 `ref` selects a configuration branch or **commit**. `appliedVersion` identifies the
-configuration file's Git **blob** last applied to the app. It is an update-tracking
-value, not a pin, signature, or approval record. Git object IDs have 40 characters
-for SHA-1 repositories or 64 for SHA-256 repositories.
+Git **blob** for the configuration file last applied to the app. It tracks updates;
+it isn't a pin, signature, or approval record.
 
 The binding is app-local. Configuration sources don't support global bindings or
 refresh global configuration. Changing initialization environment variables
@@ -125,21 +119,23 @@ new defaults automatically. To refresh the selected app's saved configuration:
 aspire update --config-source
 ```
 
-For a branch/default-branch binding, this applies the currently published
-configuration. For a full-commit binding, it reads the same pinned commit. To
-advance a pin, review the new commit and change the app's `configSource.ref`
-before running the refresh command. Keep unrelated app settings, and let the CLI
-record the new `appliedVersion`; don't substitute a commit ID for that blob ID.
+If the source is bound to a branch or uses the repository's default branch, this
+applies the current configuration. If it's bound to a full commit, the CLI reads
+that pinned commit. To advance a pin, review the new commit and change the app's
+`configSource.ref` before refreshing. Keep unrelated app settings, and let the CLI
+record the new `appliedVersion`; don't substitute a commit ID for the blob ID.
 
-A supplied persisted section replaces the corresponding local section, including
-local edits and entries omitted by the publisher. An omitted section leaves
-existing values unchanged. Review the app diff before committing it.
+If the source supplies a `skillSources` or `integrationSources` section, it
+replaces the corresponding section in the app's local configuration, including
+local edits and entries the source omits. If the source omits a section entirely,
+the app's existing values remain unchanged. Review the app diff before committing
+it.
 
 Refresh doesn't update the CLI or SDK, regenerate an app, install integration
-packages, or reconcile existing agent registrations. Existing native agent pins
-are preserved; changing Aspire settings doesn't silently retarget an existing
-registration. Advance downstream refs through reviewed configuration changes,
-then use the corresponding consumer workflow to acquire the intended content.
+packages, or update existing agent registrations. Changing Aspire settings
+doesn't retarget an existing registration or change its native pins. To acquire
+updated content, update the refs in a reviewed configuration change, then use
+the relevant consumer's workflow.
 
 ## Create a configuration source
 
@@ -186,18 +182,17 @@ you want to supply. For example:
 
 Don't declare a `configSource` inside the shared file. The CLI creates that
 binding in the app; recursive configuration sources aren't supported. Keep the
-file reasonably sized and avoid unnecessarily broad feed patterns. Package
-patterns limit discovery, not publisher trust. Different names for the same
-integration feed combine their patterns by union.
+file focused and use narrow feed patterns. Package patterns limit discovery, not
+publisher trust. Patterns are combined when the same feed is configured under
+different names.
 
 ### Secure publication
 
-Treat write access to configuration and downstream content repositories as
-code-publication authority. Protect the publication branch with required reviews
+Treat write access to the configuration and referenced content repositories as
+permission to publish code. Protect publication branches with required reviews
 and checks, restrict who can push or merge, and control administrative bypasses.
-Review access for both people and automation identities. Prevent unreviewed
-force-pushes or branch deletion, and keep pinned commits available for Git
-acquisition.
+Review access for people and automation identities. Prevent unreviewed force
+pushes or branch deletion, and keep pinned commits available for Git acquisition.
 
 Apply these controls to the skill, template, and catalog repositories as well as
 the configuration repository. Use approved HTTPS feeds/catalogs or trusted SSH
@@ -227,14 +222,15 @@ Publish a README or documentation page that helps developers decide whether to
 accept the source. Explain:
 
 - Who owns the source and how to contact them.
-- Which skills, feeds, templates, and other suppliers it references.
-- What accepting the source changes, and how to opt out or update.
-- Which Git credentials and repository permissions developers need.
-- How commits are reviewed, pinned, and approved for distribution.
-- How to recover from compromised content that has already been acquired.
+- Which skills, feeds, templates, and suppliers it references, and what accepting
+  the source changes.
+- How developers can opt out or update, and which Git credentials and
+  repository permissions they need.
+- How commits are reviewed, pinned, and approved, and how to recover from
+  compromised content.
 
-Set `ASPIRE_INIT_SOURCE_README_URL` to the page's absolute HTTPS URL so the CLI
-shows a documentation link before acceptance.
+Set `ASPIRE_INIT_SOURCE_README_URL` to the page's absolute URL so the CLI shows a
+documentation link before acceptance. Use HTTPS for a secure connection.
 
 ### Configure the source settings
 
