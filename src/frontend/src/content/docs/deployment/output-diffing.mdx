@@ -45,8 +45,6 @@ await builder.build().run();
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-using Aspire.Hosting.Pipelines;
-
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddDockerComposeEnvironment("compose");
@@ -62,7 +60,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-`WithOutputDiffing` lives in the `Aspire.Hosting.Pipelines` namespace, which implicit usings don't include. It registers a comparison step named `publish-and-diff`. That step depends on `publish`, so it generates your deployment files and then compares them.
+`WithOutputDiffing` registers a comparison step named `publish-and-diff`. That step depends on `publish`, so it generates your deployment files and then compares them.
 
 ## Run the comparison
 
@@ -213,6 +211,8 @@ You can register more than one comparison target. Each target has its own baseli
 C# AppHosts can also pass a factory that returns a complete `PipelineStep`, which lets the comparison step declare its own dependencies, tags, and action:
 
 ```csharp title="AppHost.cs"
+using Aspire.Hosting.Pipelines;
+
 #pragma warning disable ASPIREPIPELINES005
 builder.WithOutputDiffing(() => new PipelineStep
 {
@@ -273,6 +273,7 @@ Configuration arrays merge by index across configuration providers. When you lay
 C# AppHosts can also configure the same options with the options pattern. Call `WithOutputDiffing` before you register `Configure` callbacks so that Aspire binds the configuration section first.
 
 ```csharp title="AppHost.cs"
+using Aspire.Hosting.Pipelines;
 using Microsoft.Extensions.DependencyInjection;
 
 #pragma warning disable ASPIREPIPELINES005
