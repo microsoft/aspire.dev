@@ -1,7 +1,7 @@
 ---
 title: "What's new in Aspire 17.0"
-seoTitle: 'Aspire 17.0: New features, updates, and upgrade guidance'
-description: 'Explore new features and improvements in Aspire 17.0, with upgrade guidance and breaking changes to review before updating your apps.'
+seoTitle: 'Aspire 17.0: Go AppHosts, a new dashboard, and deployment'
+description: 'Explore Go AppHosts, the redesigned dashboard, .NET project improvements, and new Azure integrations in Aspire 17.0, with actionable upgrade guidance.'
 sidebar:
   label: Aspire 17.0
   order: 0
@@ -10,12 +10,28 @@ tableOfContents:
   maxHeadingLevel: 2
 ---
 
-import { Icon, Steps } from '@astrojs/starlight/components';
+import { Icon, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 
-This page tracks changes for the upcoming Aspire 17.0 release.
+Aspire 17.0 lets you define your application in a **Go AppHost**, investigate it in a **redesigned dashboard**, and use a stable **.NET project integration** with SDK-style C#, F#, and Visual Basic projects. New preview integrations bring Microsoft Entra ID registrations and Azure API Management gateways into your app model.
+
+Aspire 17.0 is still in development. This page describes changes from Aspire 13.6.4; features and guidance may change before the release.
 
 We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and the community, or file feedback and issues on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues).
+
+Highlights include:
+
+- Go AppHosts without an experimental feature flag, with templates and generated integration APIs.
+- Stable .NET project hosting with path-based declarations and support for SDK-style F# and Visual Basic services.
+- A new dashboard Home view, a resource pane shared across telemetry pages, and a dedicated Terminals page.
+- Shell completion, agent plugin setup, and secret input that doesn't require values on the command line.
+- VS Code debugger attachment for running .NET and Go resources, plus Go AppHost debugging.
+- Stable Kubernetes hosting packages, existing AKS cluster support, and environment-specific deployment secrets.
+- Preview integrations for Microsoft Entra ID and Azure API Management.
+- Local Azure Web PubSub emulation and a configurable SQL Server backing store for the Service Bus emulator.
+- A newer default MongoDB container image.
+- …and much more.
 
 ## 🆙 Upgrade to Aspire 17.0
 
@@ -23,10 +39,17 @@ We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline'
 <br />
 
 :::caution
-Review the [Breaking changes](#breaking-changes) before upgrading.
+Review the [Breaking changes](#breaking-changes) before upgrading, especially the .NET 10 minimum, the AppHost SDK and project API deprecations, AKS deployment changes, and secret storage.
 :::
 
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
+
+Before upgrading:
+
+- Install the .NET 10 SDK or later for a C# AppHost. Applications that reference Aspire 17 library packages must target .NET 10 or later.
+- For a TypeScript AppHost, check the [supported Node.js versions and package managers](/app-host/typescript-apphost/).
+- For a Go AppHost, install the Go 1.26 toolchain or later. See [Go AppHost prerequisites](/app-host/go-apphost/#prerequisites).
+- Keep a supported [container runtime](/get-started/prerequisites/) available for container resources.
 
 Once Aspire 17.0 is available on the stable channel, use the [`aspire update` command](/reference/cli/commands/aspire-update/):
 
@@ -44,18 +67,387 @@ Once Aspire 17.0 is available on the stable channel, use the [`aspire update` co
    aspire update
    ```
 
+1. Apply the migrations relevant to your app, then start the AppHost and check its resources:
+
+   ```bash title="Aspire CLI — Check the upgraded application"
+   aspire run
+   ```
+
 </Steps>
+
+Updating packages doesn't replace the manual migration steps below.
 
 <LearnMore>
   For more details on installing the Aspire CLI, see [Install the
   CLI](/get-started/install-cli/).
 </LearnMore>
 
+## 🌐 Go AppHosts
+
+Define your app model in Go while using Aspire's resource orchestration and hosting integrations. Go is available in `aspire new` and `aspire init` without enabling an experimental language flag.
+
+Create a Go AppHost with a Go API and Redis:
+
+```bash title="Aspire CLI — Create and run the Go starter"
+aspire new aspire-go-starter -n aspire-app -o aspire-app
+cd aspire-app
+aspire run
+```
+
+The CLI generates the Go SDK under `.aspire/modules/` from the hosting packages in `aspire.config.json`. Use `aspire add` to add integrations and `aspire restore` to regenerate the SDK after changing package configuration.
+
+Start the AppHost through the Aspire CLI rather than running `go run .` directly. The CLI starts the AppHost server and supplies the connection information used by the generated SDK. In your Go code, check each resource handle's `Err()` as well as errors from building and running the application.
+
+<LearnMore>
+  See [Get started with the Go AppHost](/app-host/go-apphost/) and [Go AppHost
+  API conventions](/app-host/go-apphost-conventions/) for the generated API,
+  error handling, and project layout.
+</LearnMore>
+
+## 🧩 AppHost and .NET projects
+
+### Stable .NET project hosting
+
+Use the stable `Aspire.Hosting.Dotnet` integration to add SDK-style `.csproj`, `.fsproj`, and `.vbproj` services, or file-based C# apps, by path. New C# AppHost templates use explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` packages rather than `Aspire.AppHost.Sdk`.
+
+Add the integration to an existing AppHost:
+
+```bash title="Aspire CLI — Add .NET project hosting"
+aspire add Aspire.Hosting.Dotnet
+```
+
+Then reference the actual service project path, relative to the AppHost directory:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addDotnetProject('api', '../Api/Api.csproj');
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDotnetProject("api", "../Api/Api.csproj");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The integration coordinates compatible project builds and launches the resulting outputs. Use the resource's **Rebuild** action after source changes. The new service/AppHost watcher isn't implemented yet; Rebuild and debugger support don't imply `aspire run --watch` support for this model.
+
+Legacy `AddProject` and `AddCSharpApp` calls remain functional but are obsolete. Migrating also changes the resource type and build ownership, so review the [project API migration guidance](#project-api-migration) rather than treating this as a method rename.
+
+<LearnMore>
+  See the [.NET hosting
+  integration](/integrations/frameworks/dotnet/dotnet-host/) for project
+  configuration. The [17.0 migration
+  guide](https://github.com/microsoft/aspire/blob/cec195f2d0bf3f1d714badf74f205fa855fdf963/docs/migrate-from-addproject.md)
+  covers overloads, launch profiles, typed helpers, and retained legacy
+  scenarios.
+</LearnMore>
+
+### Author hosting integrations in TypeScript
+
+Hosting integration authors can export TypeScript APIs into generated AppHost SDKs. The integration runs in its own TypeScript host and configures the same resource model as the built-in hosting integrations.
+
+This is experimental. Enable `experimentalHostingIntegrations` in `aspire.config.json` and configure the installed integration's explicit entry-point path. `aspire add` doesn't discover npm integrations yet. The `@aspire/nuxt` preview demonstrates this model, but it hasn't been published to npm.
+
+<LearnMore>
+  See the [TypeScript integration design and current
+  limitations](https://github.com/microsoft/aspire/blob/cec195f2d0bf3f1d714badf74f205fa855fdf963/docs/specs/polyglot-integrations.md)
+  and the [Nuxt preview
+  setup](https://github.com/microsoft/aspire/blob/cec195f2d0bf3f1d714badf74f205fa855fdf963/src/Aspire.Hosting.Nuxt/README.md).
+</LearnMore>
+
+## 📊 Dashboard experience
+
+The redesigned dashboard brings the run's status, recent errors, slow endpoints, and resource activity together on a **Home** view. A shared resource pane lets you search, filter, group, and select resources while moving between logs, traces, and metrics. Telemetry pages follow the selected resources, so you don't have to select them again on each page.
+
+Metrics appear as instruments with live sparklines, with options to pin, group, and sort them. Resource overviews provide contextual actions, and the header lets you switch between the live run and recorded runs.
+
+The new experience is an early experiment and is the default in 17.0. You can switch back to the previous dashboard through **Settings** when that experience is available.
+
+### Terminals and graph export
+
+Use the dedicated **Terminals** page to work with interactive resource terminals. You can also export the resource graph as Mermaid from the dashboard or the CLI, making it easier to include the current app topology in documentation:
+
+```bash title="Aspire CLI — Export a running app's resource graph"
+aspire describe --format mermaid
+```
+
+Mermaid export is a snapshot; it doesn't support `--follow`.
+
+<LearnMore>
+  See [Explore the dashboard](/dashboard/explore/) and [`aspire
+  describe`](/reference/cli/commands/aspire-describe/). The [dashboard
+  redesign](https://github.com/microsoft/aspire/pull/21412) describes the new
+  experience.
+</LearnMore>
+
+## 🛠️ CLI and agent workflows
+
+### Shell completion
+
+Generate shell completion scripts for Bash, Zsh, Fish, or PowerShell. For example, write the Bash script to a file and source it from your shell configuration:
+
+```bash title="Aspire CLI — Generate Bash completion"
+aspire completions script bash > aspire-completion.bash
+```
+
+Use `zsh`, `fish`, or `pwsh` instead of `bash` to generate the corresponding script.
+
+### Agent plugins
+
+`aspire agent init` guides you through native Aspire plugin setup for GitHub Copilot, Claude Code, and OpenCode, with project or global scope. Aspire skills are no longer copied from a bundle embedded in the CLI.
+
+```bash title="Aspire CLI — Configure agent support"
+aspire agent init
+```
+
+Review the plugin source before enabling it. Existing local Aspire skills can override plugin-provided skills; setup warns about these conflicts. Optional companion tools remain separately selectable, and MCP configuration remains an explicit opt-in rather than a requirement for using Aspire skills.
+
+<LearnMore>
+  See [`aspire agent init`](/reference/cli/commands/aspire-agent-init/) for the
+  command entry point and the [17.0 plugin setup
+  change](https://github.com/microsoft/aspire/pull/20946) with the
+  [embedded-bundle removal](https://github.com/microsoft/aspire/pull/20947) for
+  the updated distribution model.
+</LearnMore>
+
+### Enter secrets without command-line values
+
+Omit the value in `aspire secret set` to enter it at a masked prompt:
+
+```bash title="Aspire CLI — Enter a secret interactively"
+aspire secret set Parameters:api_key
+```
+
+For automation, read a value from an environment variable that is already set in the CLI process:
+
+```bash title="Aspire CLI — Read a secret from the environment"
+aspire secret set Parameters:api_key --envvar API_KEY
+```
+
+Don't supply both a positional value and `--envvar`. Non-interactive commands require one of those explicit sources. Environment variables aren't encrypted storage and can still be inspected by appropriately privileged processes.
+
+<LearnMore>
+  See the [secret-input change](https://github.com/microsoft/aspire/pull/20984)
+  for validation and cancellation behavior.
+</LearnMore>
+
+## 🧰 VS Code debugging
+
+Attach a debugger to a running .NET or Go resource from the Aspire view. The extension resolves the application process rather than attaching to the `dotnet run`, `dotnet watch`, or `go run` launcher. Copilot can request the same operation through the `aspire_resource_debug` tool, with confirmation before attachment.
+
+You can also launch and debug a Go AppHost from the Aspire view or with **F5**. Install the Go extension and its Delve debugger for Go debugging, or the C# debugger extension for .NET resources.
+
+Attachment to a `dotnet watch` launch isn't supported when its arguments follow the first `--`. Use a normal `dotnet run` launch for that attachment scenario.
+
+<LearnMore>
+  See the [Aspire VS Code extension](/get-started/aspire-vscode-extension/),
+  [resource debugger
+  attachment](https://github.com/microsoft/aspire/pull/18602), and [Go AppHost
+  debugging](https://github.com/microsoft/aspire/pull/21187).
+</LearnMore>
+
+## 🚢 Deployment
+
+### Stable Kubernetes hosting packages
+
+`Aspire.Hosting.Kubernetes` and `Aspire.Hosting.Azure.Kubernetes` can now ship stable 17.0 packages. This doesn't change the status of individual APIs that are still marked experimental.
+
+Deploy to a pre-provisioned AKS cluster with the existing-resource APIs, without having Aspire reconfigure its node pools, networking, or add-ons. Keep a shared cluster outside the application's resource group if it must survive `aspire destroy`, which deletes that resource group.
+
+For Aspire-managed clusters, the default control-plane tier changes from Free to **Standard**, which includes a cluster-management charge. Applying updated infrastructure can change an existing cluster's tier; upgrading the package alone doesn't modify it. Review the [AKS migration guidance](#aks-deployment-changes) before redeploying.
+
+<LearnMore>
+  See [Deploy to Kubernetes](/deployment/kubernetes/), [Deploy to
+  AKS](/deployment/kubernetes/aks/), and [existing AKS cluster
+  configuration](https://github.com/microsoft/aspire/blob/cec195f2d0bf3f1d714badf74f205fa855fdf963/src/Aspire.Hosting.Azure.Kubernetes/README.md).
+</LearnMore>
+
+### Environment-specific secrets
+
+Prepare deployment configuration without putting every environment's values in Development secrets. Secret commands accept `--environment` (or `-e`) and continue to default to `Development`.
+
+With `API_KEY` already set in the CLI process, store a Staging value and deploy using that environment:
+
+```bash title="Aspire CLI — Configure a deployment environment"
+aspire secret set Parameters:api_key --envvar API_KEY --environment Staging
+aspire deploy --environment Staging --non-interactive
+```
+
+The deployment still requires its other inputs and credentials to be configured. Secret files are local plaintext files, not a remote secret vault. `aspire secret get` and `aspire secret list` display values, so avoid sending their output to shared logs.
+
+<LearnMore>
+  See [deployment environments](/deployment/environments/) and the
+  [environment-specific secrets
+  change](https://github.com/microsoft/aspire/pull/20135). Review the
+  [secret-storage migration](#secret-storage-migration) if existing tools edit
+  .NET user-secrets files directly.
+</LearnMore>
+
+## ✨ New integrations
+
+### Microsoft Entra ID
+
+Model application registrations and their service principals with the preview `Aspire.Hosting.Azure.EntraId` integration. You can provision registrations, reference existing registrations, declare API scopes and roles, and supply identity configuration to consuming resources.
+
+```bash title="Aspire CLI — Add Entra ID hosting"
+aspire add Aspire.Hosting.Azure.EntraId
+```
+
+Creating registrations requires an Azure subscription, permissions to create applications and service principals in its tenant, and Azure CLI with Bicep 0.36.1 or later. Referencing an existing registration is configuration-only and doesn't require Azure or Microsoft Graph access.
+
+Adding a reference supplies configuration; it doesn't install authentication middleware or protect your application's routes. Configure authentication and authorization in the workload, and register redirect paths that match its sign-in flow.
+
+<LearnMore>
+  See the [Entra ID integration
+  guide](https://github.com/microsoft/aspire/blob/cec195f2d0bf3f1d714badf74f205fa855fdf963/src/Aspire.Hosting.Azure.EntraId/README.md)
+  for C# and TypeScript examples, provisioning permissions, redirect URIs, and
+  credentials.
+</LearnMore>
+
+### Azure API Management
+
+The preview `Aspire.Hosting.Azure.ApiManagement` integration models an API gateway alongside your services. Route APIs to deployed compute resources, import OpenAPI documents, and configure backends, policies, products, and subscriptions in the app model.
+
+```bash title="Aspire CLI — Add API Management hosting"
+aspire add Aspire.Hosting.Azure.ApiManagement
+```
+
+API Management resources are omitted during `aspire run`, because the cloud-hosted gateway can't reach localhost backends. Use `aspire deploy` to provision the gateway and exercise its routing. APIs require a subscription key by default; disable that requirement only when the API is intended to be callable without one.
+
+<LearnMore>
+  See the [API Management integration
+  guide](https://github.com/microsoft/aspire/blob/cec195f2d0bf3f1d714badf74f205fa855fdf963/src/Aspire.Hosting.Azure.ApiManagement/README.md)
+  for C# and TypeScript examples, OpenAPI import, existing services, and
+  managed-identity configuration.
+</LearnMore>
+
+## 📦 Integration updates
+
+### Azure Web PubSub emulator
+
+Run Azure Web PubSub locally with `RunAsEmulator` / `runAsEmulator`, using the new `mcr.microsoft.com/webpubsub/emulator:1.0.0-beta.2` image. Aspire provides the local endpoint and access key, while publishing continues to provision the Azure service.
+
+The emulator uses HTTP for local event callbacks and doesn't support event-handler authentication. JavaScript clients using `@azure/web-pubsub` need `allowInsecureConnection: true` for its local HTTP endpoint, not for the deployed Azure service.
+
+<LearnMore>
+  See [Web PubSub emulator
+  setup](https://github.com/microsoft/aspire/blob/cec195f2d0bf3f1d714badf74f205fa855fdf963/src/Aspire.Hosting.Azure.WebPubSub/README.md#run-locally-with-the-emulator).
+</LearnMore>
+
+### Service Bus emulator SQL Server
+
+Choose the SQL Server resource used by the Service Bus emulator instead of locating and modifying an internal companion container. Reuse an existing SQL Server resource with `WithSqlServer` / `withSqlServer`, or use the C# configuration callback to customize the emulator's own instance.
+
+The emulator waits for the selected SQL Server to become healthy. Reusing an existing instance and customizing the built-in instance are mutually exclusive. The resource-taking overload is available to TypeScript AppHosts; the C# customization callback isn't exported.
+
+<LearnMore>
+  See the [Service Bus emulator SQL
+  configuration](https://github.com/microsoft/aspire/pull/17885) for the
+  supported overloads and examples.
+</LearnMore>
+
+## 🐳 Default container image updates
+
+The MongoDB hosting integration changes its default server image:
+
+| Image                     | Aspire 13.6.4 | Aspire 17.0 |
+| ------------------------- | ------------- | ----------- |
+| `docker.io/library/mongo` | `8.3`         | `9.0`       |
+
+If you reuse a MongoDB data volume, plan and test the database upgrade before starting it with the new default. You can pin the image tag explicitly with `WithImageTag` / `withImageTag` while preparing the migration.
+
+<LearnMore>
+  See [MongoDB hosting](/integrations/databases/mongodb/mongodb-host/) and the
+  [default image update](https://github.com/microsoft/aspire/pull/21218).
+</LearnMore>
+
+## 🐛 Bug fixes
+
+For the source changes since Aspire 13.6.4, see the [17.0 branch comparison](https://github.com/microsoft/aspire/compare/v13.6.4...release/17.0). The final release notes will be available when Aspire 17.0 is published.
+
+## 🙏 Community
+
+Aspire is built in the open. Thank you to everyone contributing fixes, integrations, tests, and feedback for 17.0, including [@thomhurst](https://github.com/thomhurst) for making the Service Bus emulator's SQL Server configurable.
+
+<ReleaseCommunity version="17.0" />
+
 ## ⚠️ Breaking changes
 
 <span id="breaking-changes"></span>
 
-#### Legacy RabbitMQ and MongoDB client packages removed
+### .NET 10 minimum
+
+Applications that reference Aspire 17 library packages must target .NET 10 or later. C# templates no longer offer .NET 8 or .NET 9 and default to `net10.0`.
+
+Retarget affected projects and update their SDK and compatible dependencies before adopting the new packages. This library requirement doesn't mean that every workload orchestrated by Aspire must use .NET.
+
+### Project API migration
+
+All legacy .NET-hosting `AddProject` overloads and `AddCSharpApp` are obsolete, including their exported AppHost APIs. They remain functional for staged migration.
+
+Add `Aspire.Hosting.Dotnet` and replace ordinary .NET service declarations with `AddDotnetProject` / `addDotnetProject`, using each service's real path. The result is a `DotnetProjectResource`, not a `ProjectResource` or `CSharpAppResource`; update explicitly typed variables, helper methods, and model queries.
+
+Check launch-profile semantics during migration. In the legacy C# string overload, `launchProfileName: null` disabled launch profiles. Its replacement is `options => options.ExcludeLaunchProfile = true`, not `LaunchProfileName = null`, which selects the default profile. Legacy exported APIs have different null semantics; use the [overload migration guide](https://github.com/microsoft/aspire/blob/cec195f2d0bf3f1d714badf74f205fa855fdf963/docs/migrate-from-addproject.md) for your language and overload.
+
+Azure Functions and MAUI have specialized launch behavior and aren't converted by this ordinary-project migration.
+
+### AppHost SDK deprecation and required CLI bundle
+
+`Aspire.AppHost.Sdk` is obsolete and produces `ASPIRE012`, but remains functional for staged migration. There is no agreed removal date.
+
+To migrate, use `Microsoft.NET.Sdk` with explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` package references, then migrate ordinary project resources as described above. Keep project references that are still needed for assembly references, build inputs, or retained legacy resources.
+
+The Aspire CLI bundle supplies the dashboard and DCP. The bundle is enabled by default and can't be disabled; setting `AspireUseCliBundle` to `false` produces the unsuppressible `ASPIRE010` error.
+
+If you use Central Package Management, put versions in `Directory.Packages.props` and remove `Version` attributes from the corresponding `PackageReference` items. New templates emit explicit versions and need this adjustment under an existing CPM root to avoid `NU1008`. Keep the explicit `Aspire.Hosting.AppHost` reference.
+
+<LearnMore>
+  Follow [Migrating off
+  Aspire.AppHost.Sdk](https://github.com/microsoft/aspire/blob/cec195f2d0bf3f1d714badf74f205fa855fdf963/docs/migrate-from-apphost-sdk.md)
+  for project-based and file-based AppHosts, build ownership, and package
+  configuration.
+</LearnMore>
+
+### AKS deployment changes
+
+The default AKS control-plane tier changes from Free to Standard. Applying updated infrastructure to an Aspire-managed cluster can introduce a cluster-management charge. If you need Free for development or testing, set the tier explicitly through `ConfigureInfrastructure` before redeploying.
+
+Node-pool configuration in TypeScript, Python, Java, and other generated AppHost SDKs now uses callbacks rather than scalar options. For example, replace `aks.addNodePool("workers", { minCount: 0 })` with `aks.addNodePool("workers", async pool => { pool.minCount = 0; })` in TypeScript. Set DTO properties directly in the callback; don't use remote setters or `await` each property assignment. Existing parameter-based C# overloads remain supported.
+
+<LearnMore>
+  See the [AKS tier change](https://github.com/microsoft/aspire/pull/20917) for
+  the Free-tier override, and [node-pool
+  configuration](https://github.com/microsoft/aspire/blob/cec195f2d0bf3f1d714badf74f205fa855fdf963/src/Aspire.Hosting.Azure.Kubernetes/README.md#node-pool-configuration)
+  for C# and TypeScript callbacks.
+</LearnMore>
+
+### Secret storage migration
+
+Secrets managed by `aspire secret` now live in environment-specific Aspire files under `~/.aspire/secrets/<apphost-id>/<environment>.json`. Existing Development .NET user secrets are imported when the Aspire file doesn't exist.
+
+After import, editing an existing key in the legacy user-secrets file doesn't override the value in the Aspire file. Update scripts and tools to use `aspire secret` for changes and `aspire secret path` to locate the active file. Environment variables and command-line configuration retain higher precedence.
+
+### Agent setup options
+
+The embedded Aspire skills bundle and `aspire agent init --aspire-source` option have been removed. Re-run `aspire agent init` to configure the native Aspire plugin for your selected agent clients. Review existing local Aspire skills that may override the plugin's skills.
+
+### Legacy RabbitMQ and MongoDB client packages removed
 
 Starting in Aspire 17.0, new releases no longer include `Aspire.RabbitMQ.Client.v6` or `Aspire.MongoDB.Driver.v2`. Previously published versions of these packages remain available on NuGet.
 
