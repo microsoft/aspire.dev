@@ -406,6 +406,44 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure API Management',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-get-started',
+                },
+                {
+                  label: 'APIs and operations',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-apis',
+                },
+                {
+                  label: 'OpenAPI import',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-openapi',
+                },
+                {
+                  label: 'Backends and pools',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-backends',
+                },
+                {
+                  label: 'Policies and named values',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-policies',
+                },
+                {
+                  label: 'Products and subscriptions',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-products',
+                },
+                {
+                  label: 'Service configuration',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-service',
+                },
+                {
+                  label: 'Networking',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-networking',
+                },
+              ],
+            },
+            {
               label: 'Azure App Configuration',
               collapsed: true,
               items: [

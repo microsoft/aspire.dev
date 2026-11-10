@@ -1,0 +1,319 @@
+---
+title: Get started with Azure API Management
+description: Add the Aspire Azure API Management hosting integration, route a workload through an APIM gateway, and provision the service with aspire deploy.
+---
+
+import { Image } from 'astro:assets';
+import { CardGrid, LinkCard, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import azureIcon from '@assets/icons/azure-icon.png';
+
+<Image
+  src={azureIcon}
+  alt="Azure logo"
+  width={100}
+  height={100}
+  fit="contain"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Azure API Management](https://learn.microsoft.com/azure/api-management/) (APIM) is a managed gateway for publishing, securing, and observing APIs. The Aspire Azure API Management hosting integration models an APIM service and the resources beneath it, such as APIs, backends, policies, and products, as resources in your AppHost.
+
+:::caution[Prerelease]
+The `Aspire.Hosting.Azure.ApiManagement` package is a prerelease package, and its APIs might change in future releases.
+:::
+
+APIM is a deploy-only resource. Aspire omits it during `aspire run` and provisions it when you run `aspire deploy`, along with the APIs, backends, policies, and other resources that you declare beneath it. You don't need an execution-mode guard in your AppHost.
+
+## Hosting integration
+
+To access the APIM types and APIs, add the [📦 Aspire.Hosting.Azure.ApiManagement](https://www.nuget.org/packages/Aspire.Hosting.Azure.ApiManagement) NuGet package to your AppHost project. The package ships only prerelease versions, and the `*` version that most package references use selects only stable releases, so you must opt in to prerelease versions:
+
+<Tabs syncKey="aspire-install">
+<TabItem label="Aspire CLI">
+
+```bash title="Aspire CLI — Add the Aspire.Hosting.Azure.ApiManagement package"
+aspire add azure-apimanagement --version <prerelease-version>
+```
+
+Replace `<prerelease-version>` with the latest prerelease version listed on NuGet. Alternatively, use a `staging` or `dev` quality CLI, which discovers prerelease packages without the `--version` option. For more information, see [`aspire add`](/reference/cli/commands/aspire-add/) and the [install script options](/reference/cli/install-script/#options).
+
+</TabItem>
+<TabItem label="apphost.cs (C# file-based app)">
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Azure.ApiManagement@17.0.0-*
+```
+
+</TabItem>
+<TabItem label="PackageReference (*.csproj)">
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.ApiManagement" Version="17.0.0-*" />
+```
+
+</TabItem>
+</Tabs>
+
+The `17.0.0-*` version range selects the latest 17.0 prerelease of the package.
+
+The quickstart in the next section also uses an Azure Container Apps environment, which comes from a separate package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.AppContainers" />
+
+### Add a service and route a workload
+
+Call `AddAzureApiManagement` to add the service, then call `AddApi` with a compute resource to publish that workload through the gateway:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const environment = await builder.addAzureContainerAppEnvironment("env");
+
+const catalog = await builder.addProject("catalog", "../Catalog/Catalog.csproj")
+    .withComputeEnvironment(environment)
+    .withExternalHttpEndpoints();
+
+const apim = await builder.addAzureApiManagement("apim", {
+    publisherEmail: "api-owners@example.com",
+    publisherName: "Contoso APIs",
+});
+
+await apim.addApi("catalog-api", catalog, "catalog", {
+    subscriptionRequired: false,
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var environment = builder.AddAzureContainerAppEnvironment("env");
+
+var catalog = builder.AddProject<Projects.Catalog>("catalog")
+    .WithComputeEnvironment(environment)
+    .WithExternalHttpEndpoints();
+
+var apim = builder.AddAzureApiManagement("apim", new()
+{
+    PublisherEmail = "api-owners@example.com",
+    PublisherName = "Contoso APIs",
+});
+
+apim.AddApi(
+    "catalog-api",
+    catalog,
+    path: "catalog",
+    subscriptionRequired: false);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The preceding code:
+
+- Adds an Azure Container Apps environment. APIM routes to the workload's deployed endpoint, so the workload needs an Azure compute environment when you publish or deploy.
+- Adds a `catalog` project that exposes external HTTP endpoints, which the APIM gateway can reach.
+- Adds an APIM service with the required publisher email and name. The service uses the Developer tier unless you set another [SKU](#choose-a-pricing-tier).
+- Publishes `catalog` at the `catalog` path of the gateway.
+
+The compute-targeted `AddApi` overload creates an API, a reusable APIM backend, and catch-all operations that forward requests to the workload's deployed endpoint. APIs require an APIM subscription key by default. The example sets `subscriptionRequired` to `false` so that you can call the gateway without a key. Keep the default for APIs that you don't intend to expose anonymously, and see [Products and subscriptions](/integrations/cloud/azure/azure-api-management/azure-api-management-products/) for how to issue keys.
+
+### Deploy the gateway
+
+APIM is omitted when you run `aspire run`, because a cloud-hosted APIM instance can't reach a backend that runs on localhost, and Azure compute environments don't materialize public endpoints in run mode. Your other resources continue to run locally as usual.
+
+To provision the service and exercise its routing, deploy the AppHost:
+
+```bash title="Aspire CLI — Deploy the AppHost"
+aspire deploy
+```
+
+To generate the Bicep without deploying, use `aspire publish`. For more information, see [Deploy to Azure](/deployment/azure/) and the [`aspire deploy` command](/reference/cli/commands/aspire-deploy/).
+
+After deployment, call the gateway at `https://<service-name>.azure-api.net/catalog`, where `<service-name>` is the generated APIM service name. The `gatewayUrl` deployment output contains the gateway base URL.
+
+### Choose a pricing tier
+
+Set `Sku` and `Capacity` on the options object that you pass to `AddAzureApiManagement`. Aspire validates the combination when you add the resource and throws an `ArgumentException` for an invalid capacity.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { AzureApiManagementSku, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const apim = await builder.addAzureApiManagement("apim", {
+    publisherEmail: "api-owners@example.com",
+    publisherName: "Contoso APIs",
+    sku: AzureApiManagementSku.StandardV2,
+    capacity: 2,
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apim = builder.AddAzureApiManagement("apim", new()
+{
+    PublisherEmail = "api-owners@example.com",
+    PublisherName = "Contoso APIs",
+    Sku = AzureApiManagementSku.StandardV2,
+    Capacity = 2,
+});
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The options have these properties:
+
+| Option | Required | Default | Description |
+| ------ | -------- | ------- | ----------- |
+| `PublisherEmail` | Yes | None | The publisher email address that APIM shows. Maximum 100 characters. |
+| `PublisherName` | Yes | None | The publisher name that APIM shows. Maximum 100 characters. |
+| `Sku` | No | `Developer` | The pricing tier. |
+| `Capacity` | No | `0` for Consumption, otherwise `1` | The number of capacity units. |
+
+The integration supports the following tiers. Capacity is the range of scale units that Aspire accepts for the tier.
+
+| `Sku` value | Capacity | Notes |
+| ----------- | -------- | ----- |
+| `Consumption` | 0 | Serverless. Doesn't support backend circuit breakers, Azure OpenAI and Foundry backends, or private endpoints. Supports one custom domain for the gateway endpoint only. |
+| `Developer` | 1 | Non-production. Supports classic virtual network injection and multiple gateway custom domains. |
+| `Basic` | 1 to 2 | Classic Basic tier. |
+| `BasicV2` | 1 to 10 | Doesn't support private endpoints. |
+| `Standard` | 1 to 4 | Classic Standard tier. |
+| `StandardV2` | 1 to 10 | Supports outbound virtual network integration. |
+| `Premium` | 1 to 12 | Supports classic virtual network injection and multiple gateway custom domains. |
+| `PremiumV2` | 1 to 30 | Supports outbound virtual network integration, virtual network injection, and multiple gateway custom domains. |
+
+Tier capabilities differ substantially for networking, scale, availability zones, and multi-region deployment. For the full comparison, see [API Management tier features](https://learn.microsoft.com/azure/api-management/api-management-features). For networking requirements by tier, see [Virtual networking](/integrations/cloud/azure/azure-api-management/azure-api-management-networking/).
+
+### Service outputs
+
+The deployed service exposes the following outputs. They're available as `BicepOutputReference` properties on the C# `AzureApiManagementResource` and aren't projected to TypeScript AppHosts.
+
+| Property | Value |
+| -------- | ----- |
+| `NameOutputReference` | The physical APIM service name (`name` output). |
+| `Id` | The Azure resource ID of the service (`id` output). |
+| `GatewayUrl` | The default gateway URL (`gatewayUrl` output). |
+| `PrincipalId` | The principal ID of the user-assigned managed identity that APIM uses. |
+
+The `Identity` property returns the user-assigned identity resource. For more information about how APIM uses it, see [Service configuration](/integrations/cloud/azure/azure-api-management/azure-api-management-service/#managed-identity).
+
+### Resource types
+
+The integration models the service as `AzureApiManagementResource`. Each part of the service is a child resource of that type:
+
+| Resource type | Created by | Represents |
+| ------------- | ---------- | ---------- |
+| `AzureApiManagementApiResource` | `AddApi`, `AddOpenAIApi` | An API published at a path on the gateway. |
+| `AzureApiManagementOperationResource` | `AddOperation` | An explicitly modeled operation of an API. |
+| `AzureApiManagementBackendResource` | `AddBackend`, `AddAzureOpenAIBackend`, `AddFoundryBackend`, `AddBlobStorageBackend` | A reusable backend service. |
+| `AzureApiManagementBackendPoolResource` | `AddBackendPool` | A weighted or priority-based group of backends. |
+| `AzureApiManagementPolicyFragmentResource` | `AddPolicyFragment` | A reusable policy fragment. |
+| `AzureApiManagementNamedValueResource` | `AddNamedValue`, `AddSecretNamedValue`, `AddKeyVaultNamedValue` | A named value that policies can reference. |
+| `AzureApiManagementProductResource` | `AddProduct` | A product that groups APIs. |
+| `AzureApiManagementSubscriptionResource` | `AddSubscription` | A product-scoped subscription. |
+
+### Customize provisioning
+
+Use `ConfigureInfrastructure` to customize the generated resources through the types in `Azure.Provisioning.ApiManagement`, such as `ApiManagementService`, `ApiManagementApi`, and `ApiManagementBackend`. For more information, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/).
+
+:::note
+`ConfigureInfrastructure` works with .NET `Azure.Provisioning` types, so it's available only to C# AppHosts. TypeScript AppHosts use the APIs that the integration exports.
+:::
+
+### Security considerations
+
+The integration creates a reverse proxy with configurable public ingress, and it accepts arbitrary APIM policy XML. Consider the following defaults and requirements:
+
+- APIs require an APIM subscription key unless you set `subscriptionRequired` to `false`.
+- Backend TLS certificate-chain and hostname validation are enabled by default. Disable them only for a specific backend that needs it.
+- Specialized Azure backends use APIM's user-assigned managed identity and least-privilege service roles. For more information, see [Backends and backend pools](/integrations/cloud/azure/azure-api-management/azure-api-management-backends/).
+- Creating role assignments requires `Microsoft.Authorization/roleAssignments/write` on each target scope. The principal that runs `aspire deploy` needs that permission, for example through the User Access Administrator or Owner role.
+- Key Vault-backed named values and certificates use the same user-assigned identity, so Aspire grants it only the Key Vault roles that it needs.
+
+### Current limitations
+
+The integration doesn't currently model the following capabilities:
+
+- Automatic disabling of public network access.
+- Backend client certificates and credential collections.
+- Consumer-safe references to subscription keys.
+- Structured gateway URL references.
+- Multi-region, availability zone, and autoscale configuration.
+- API versions and revisions.
+
+## Next steps
+
+<CardGrid>
+  <LinkCard
+    title="APIs and operations"
+    description="Route workloads, define operations, and add OpenAI-compatible APIs"
+    href="/integrations/cloud/azure/azure-api-management/azure-api-management-apis/"
+  />
+  <LinkCard
+    title="OpenAPI import"
+    description="Import operations from a file or a deployed workload"
+    href="/integrations/cloud/azure/azure-api-management/azure-api-management-openapi/"
+  />
+  <LinkCard
+    title="Backends and pools"
+    description="Add backends, circuit breakers, and weighted or priority pools"
+    href="/integrations/cloud/azure/azure-api-management/azure-api-management-backends/"
+  />
+  <LinkCard
+    title="Policies and named values"
+    description="Compose policies, fragments, and named values"
+    href="/integrations/cloud/azure/azure-api-management/azure-api-management-policies/"
+  />
+  <LinkCard
+    title="Products and subscriptions"
+    description="Group APIs and manage consumer access"
+    href="/integrations/cloud/azure/azure-api-management/azure-api-management-products/"
+  />
+  <LinkCard
+    title="Service configuration"
+    description="Identity, diagnostics, custom domains, and existing services"
+    href="/integrations/cloud/azure/azure-api-management/azure-api-management-service/"
+  />
+  <LinkCard
+    title="Virtual networking"
+    description="VNet injection, integration, and private endpoints"
+    href="/integrations/cloud/azure/azure-api-management/azure-api-management-networking/"
+  />
+</CardGrid>
+
+## See also
+
+- [Azure API Management documentation](https://learn.microsoft.com/azure/api-management/)
+- [Azure integrations overview](/integrations/cloud/azure/overview/)
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
+- [Azure role assignments](/integrations/cloud/azure/role-assignments/)
+- [📦 Aspire.Hosting.Azure.ApiManagement](https://www.nuget.org/packages/Aspire.Hosting.Azure.ApiManagement)
