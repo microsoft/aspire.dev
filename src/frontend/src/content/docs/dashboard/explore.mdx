@@ -329,6 +329,24 @@ For more information about configuring a resource service, see [Dashboard config
 </LearnMore>
 </Aside>
 
+### Resource display order
+
+By default, the dashboard sorts resources by name. To control where a resource appears, call `WithDisplayOrder` in the AppHost. It's a relative sort key: resources with a higher value appear first, and resources without a value count as `0`.
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api")
+                 .WithDisplayOrder(10);
+
+var worker = builder.AddProject<Projects.Worker>("worker")
+                    .WithDisplayOrder(5);
+
+builder.Build().Run();
+```
+
+In the preceding example, `api` appears before `worker`, and both appear before resources that don't set a display order.
+
 ## Monitoring pages
 
 The Aspire dashboard provides various ways to view logs, traces, and metrics for your app. This information enables you to track the behavior and performance of your app and to diagnose any issues that arise.
