@@ -1125,10 +1125,6 @@ export const docsTopics = {
       },
       items: [
         {
-          label: 'Configuration sources',
-          slug: 'extensibility/config-sources',
-        },
-        {
           label: 'Custom resources',
           slug: 'extensibility/custom-resources',
         },
@@ -1172,6 +1168,10 @@ export const docsTopics = {
           label: 'TypeScript hosting integrations',
           slug: 'extensibility/typescript-hosting-integrations',
           badge: 'Experimental',
+        },
+        {
+          label: 'Configuration sources',
+          slug: 'extensibility/config-sources',
         },
       ],
     },
