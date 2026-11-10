@@ -1125,6 +1125,10 @@ export const docsTopics = {
       },
       items: [
         {
+          label: 'Configuration sources',
+          slug: 'extensibility/config-sources',
+        },
+        {
           label: 'Custom resources',
           slug: 'extensibility/custom-resources',
         },

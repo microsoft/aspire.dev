@@ -1,0 +1,276 @@
+---
+title: Configuration sources
+description: Learn how to use a configuration source and create, secure, and distribute organization-specific Aspire defaults.
+---
+
+Configuration sources let an organization share Aspire defaults from a Git-hosted
+`aspire.config.json`. Use them to offer custom agent skills, integration feeds,
+and project templates without maintaining a separate Aspire CLI distribution.
+
+These are optional defaults, not enforced policy. Developers can decline a source
+or edit the resulting app configuration.
+
+- [Use a configuration source](#use-a-configuration-source) to accept or decline
+  shared defaults, understand what they control, and manage updates.
+- [Create a configuration source](#create-a-configuration-source) to publish
+  defaults, secure their content, and distribute settings to developers.
+
+All repositories, feeds, documentation URLs, and commit IDs in these examples are
+illustrative. Replace them with your organization's locations and reviewed full
+commit IDs before running the commands.
+
+## Use a configuration source
+
+### Decide what to trust
+
+:::caution[Only use sources you trust]
+Content selected by a configuration source can run code on your machine or
+influence an agent's actions. Only accept publishers and content suppliers you
+trust. Run Aspire commands only from trusted directories and repositories, even
+when you select an AppHost in another directory. See the
+[Aspire CLI overview](/reference/cli/overview/).
+:::
+
+Before accepting, check who owns the configuration repository and read the linked
+source documentation. Review the skill repositories, feeds, catalogs, and
+templates it selects: trusting the configuration publisher also means trusting
+those suppliers.
+
+### Opt in or out
+
+Install the [Aspire CLI](/get-started/install-cli/) and Git. Aspire fetches
+configuration sources using your existing Git credentials.
+
+Your organization can [configure a source](#configure-the-source-settings) in
+your environment. When you run `aspire new` or `aspire init`, the CLI displays
+source details, a documentation link if provided, and a trust warning before
+asking whether to use it. Accept to apply the shared defaults, or decline to
+continue with standard Aspire defaults and record an app-local opt-out.
+
+To opt out of an existing app's source, replace only the `configSource` property
+in the app's `aspire.config.json` with:
+
+```json title="App configuration excerpt"
+{
+  "configSource": {
+    "optOut": true
+  }
+}
+```
+
+This stops configuration-source update checks and refreshes. It doesn't remove
+previously applied settings, uninstall plugins, remove persisted NuGet mappings,
+or undo generated code.
+
+To opt in for an existing app that has no `configSource` property, run
+`aspire update --use-config-source`. This command also performs normal project
+updates. If the app has an opt-out, remove that `configSource` property first,
+leaving other settings intact.
+
+### Understand what the source controls
+
+| Section              | Purpose                                                                  |
+| -------------------- | ------------------------------------------------------------------------ |
+| `skillSources`       | Agent marketplace/plugin repositories and optional OpenCode catalogs     |
+| `integrationSources` | NuGet feeds or local package directories searched for integrations       |
+| `templateSources`    | Git repositories or local directories used to discover project templates |
+
+The CLI persists `skillSources` and `integrationSources` in the app's local
+configuration. Template sources are available during app creation but aren't
+copied into the generated app. Unrelated settings in the shared file aren't
+imported.
+
+Skill initialization registers sources in the selected agent's native settings;
+the agent acquires the content. Integration selection can add a package and
+persist its feed mapping. Template selection generates an app. Applying the
+configuration alone doesn't install every referenced item.
+
+Built-in skill and integration sources remain enabled unless you explicitly
+disable or override their `default` entries. Normal global/local consumer
+configuration precedence still applies; configuration sources aren't an
+administrative allowlist.
+
+### Understand the saved binding
+
+After acceptance, the app's `aspire.config.json` contains the applied skill and
+integration settings and a binding like this:
+
+```json title="App configuration excerpt"
+{
+  "configSource": {
+    "repository": "https://github.com/contoso/aspire-config.git",
+    "path": "teams/platform/aspire.config.json",
+    "ref": "0123456789abcdef0123456789abcdef01234567",
+    "appliedVersion": "abcdef0123456789abcdef0123456789abcdef01"
+  }
+}
+```
+
+`ref` selects a configuration branch or **commit**. `appliedVersion` identifies the
+configuration file's Git **blob** last applied to the app. It is an update-tracking
+value, not a pin, signature, or approval record. Git object IDs have 40 characters
+for SHA-1 repositories or 64 for SHA-256 repositories.
+
+The binding is app-local. Configuration sources don't support global bindings or
+refresh global configuration. Changing initialization environment variables
+doesn't retarget an existing binding, and cloning the app brings its saved
+configuration with it without repeating the original acceptance prompt.
+
+### Update the app's configuration
+
+Project commands can report that configuration has changed, but they don't apply
+new defaults automatically. To refresh the selected app's saved configuration:
+
+```powershell
+aspire update --config-source
+```
+
+For a branch/default-branch binding, this applies the currently published
+configuration. For a full-commit binding, it reads the same pinned commit. To
+advance a pin, review the new commit and change the app's `configSource.ref`
+before running the refresh command. Keep unrelated app settings, and let the CLI
+record the new `appliedVersion`; don't substitute a commit ID for that blob ID.
+
+A supplied persisted section replaces the corresponding local section, including
+local edits and entries omitted by the publisher. An omitted section leaves
+existing values unchanged. Review the app diff before committing it.
+
+Refresh doesn't update the CLI or SDK, regenerate an app, install integration
+packages, or reconcile existing agent registrations. Existing native agent pins
+are preserved; changing Aspire settings doesn't silently retarget an existing
+registration. Advance downstream refs through reviewed configuration changes,
+then use the corresponding consumer workflow to acquire the intended content.
+
+## Create a configuration source
+
+### Host the configuration on Git
+
+Create a Git repository and check in an `aspire.config.json`. You can place it at
+the repository root or in a subdirectory and select its path through the
+[source settings](#configure-the-source-settings).
+
+Repository addresses can use HTTPS, SSH URLs, or SCP-style SSH syntax. Absolute
+local Git repository paths are also supported, but saved paths are
+machine-specific. Relative repository paths and `file://` URLs aren't supported.
+Use a repository that your developers can access with their existing Git
+credentials. Keep credentials out of repository URLs and configuration files.
+
+Include the `skillSources`, `integrationSources`, and `templateSources` sections
+you want to supply. For example:
+
+```json title="aspire.config.json in the configuration repository"
+{
+  "skillSources": {
+    "contoso": {
+      "repository": "https://github.com/contoso/aspire-skills.git",
+      "ref": "89abcdef0123456789abcdef0123456789abcdef",
+      "marketplace": "contoso",
+      "plugins": ["aspire"]
+    }
+  },
+  "integrationSources": {
+    "contoso": {
+      "source": "https://packages.contoso.com/nuget/v3/index.json",
+      "patterns": ["Contoso.Hosting.*"]
+    }
+  },
+  "templateSources": {
+    "contoso": {
+      "repository": "https://github.com/contoso/aspire-templates.git",
+      "ref": "fedcba9876543210fedcba9876543210fedcba98",
+      "path": "templates"
+    }
+  }
+}
+```
+
+Don't declare a `configSource` inside the shared file. The CLI creates that
+binding in the app; recursive configuration sources aren't supported. Keep the
+file reasonably sized and avoid unnecessarily broad feed patterns. Package
+patterns limit discovery, not publisher trust. Different names for the same
+integration feed combine their patterns by union.
+
+### Secure publication
+
+Treat write access to configuration and downstream content repositories as
+code-publication authority. Protect the publication branch with required reviews
+and checks, restrict who can push or merge, and control administrative bypasses.
+Review access for both people and automation identities. Prevent unreviewed
+force-pushes or branch deletion, and keep pinned commits available for Git
+acquisition.
+
+Apply these controls to the skill, template, and catalog repositories as well as
+the configuration repository. Use approved HTTPS feeds/catalogs or trusted SSH
+transport, and keep credentials and other secrets out of published content.
+
+### Pin each part of the supply chain
+
+A trusted repository can still receive an unintended change or be compromised.
+Pinning to an approved full commit ID prevents a later branch update from
+silently selecting different Git content. A branch name, tag, or omitted ref isn't
+an immutable content pin. For configuration-source and skill-source selectors,
+use a branch or full commit ID rather than an abbreviated hash or tag.
+
+Pin each layer independently:
+
+- **Skill marketplaces**: Set each `skillSources.<name>.ref` to an approved full
+  commit ID.
+- **Templates**: Set each Git-backed `templateSources.<name>.ref` to an approved
+  full commit ID.
+- **Integration packages**: A feed URL or package-ID pattern isn't a content pin.
+  Review selected package versions and use your organization's NuGet source,
+  restore, and package-integrity controls.
+
+### Provide a README
+
+Publish a README or documentation page that helps developers decide whether to
+accept the source. Explain:
+
+- Who owns the source and how to contact them.
+- Which skills, feeds, templates, and other suppliers it references.
+- What accepting the source changes, and how to opt out or update.
+- Which Git credentials and repository permissions developers need.
+- How commits are reviewed, pinned, and approved for distribution.
+- How to recover from compromised content that has already been acquired.
+
+Set `ASPIRE_INIT_SOURCE_README_URL` to the page's absolute HTTPS URL so the CLI
+shows a documentation link before acceptance.
+
+### Configure the source settings
+
+To select a custom source, set `ASPIRE_INIT_SOURCE_URL` in the developer's
+environment. The other settings are optional:
+
+| Variable                        | Purpose                                                                      | Default                                            |
+| ------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------- |
+| `ASPIRE_INIT_SOURCE_URL`        | Git repository URL or absolute local Git repository path, not a raw JSON URL | No source, except for detected Microsoft employees |
+| `ASPIRE_INIT_SOURCE_PATH`       | Optional repository-relative configuration file path, using `/` separators   | `aspire.config.json`                               |
+| `ASPIRE_INIT_SOURCE_REF`        | Optional branch name or full commit ID                                       | The repository's current default branch            |
+| `ASPIRE_INIT_SOURCE_README_URL` | Optional HTTP or HTTPS documentation link shown before acceptance            | No link, except for the Microsoft source           |
+
+An explicit `ASPIRE_INIT_SOURCE_URL` takes precedence over employee detection.
+Path and ref overrides apply only when the URL is explicitly set.
+
+Test the settings in a PowerShell session before distributing them:
+
+```powershell
+$env:ASPIRE_INIT_SOURCE_URL = 'https://github.com/contoso/aspire-config.git'
+$env:ASPIRE_INIT_SOURCE_PATH = 'teams/platform/aspire.config.json'
+$env:ASPIRE_INIT_SOURCE_REF = '0123456789abcdef0123456789abcdef01234567'
+$env:ASPIRE_INIT_SOURCE_README_URL = 'https://engineering.contoso.com/aspire'
+aspire new
+```
+
+An explicitly configured initialization-source URL can also provide a runtime-only
+template discovery overlay without saving those definitions globally or into an
+app. Employee detection alone doesn't enable that overlay.
+
+### Distribute settings across your organization
+
+Set the variables through your existing device-management or developer-onboarding
+tools: Group Policy or Intune on Windows, Jamf on macOS, Ansible on Linux, or
+shared setup scripts and shell profiles across platforms. Ensure new terminal
+and IDE sessions inherit the settings.
+
+This makes the source available; it doesn't accept it for developers or change
+existing app bindings.
