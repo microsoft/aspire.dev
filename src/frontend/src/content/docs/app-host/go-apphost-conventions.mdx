@@ -41,18 +41,20 @@ if err := db.Err(); err != nil {
 }
 ```
 
-A failed `Add` call records its error on the handle that it returns, not on the builder, so `builder.Err()` doesn't report it. To check several resources at once, put them in a slice of `aspire.Resource`:
+The builder collects the error of every failed resource wrapper, and independent resource additions continue after an earlier one fails. `builder.Err()` and `Build` return all of these errors joined with `errors.Join`, so you don't need to check each handle yourself. An error that propagates through an already-failed chain is recorded only once:
 
 ```go title="apphost.go"
-cache := builder.AddRedis("cache")
-api := builder.AddGoApp("api", "./api").WithReference(cache)
+builder.AddRedis("")
+builder.AddPostgres("")
 
-for _, resource := range []aspire.Resource{cache, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
+app, err := builder.Build()
+if err != nil {
+	// The message includes both resource failures.
+	log.Fatal(aspire.FormatError(err))
 }
 ```
+
+`Build` doesn't call the build capability after errors were collected. You can still check a handle with `Err()` to find out early whether a specific resource failed.
 
 Methods that return a value return a `(T, error)` pair, and `Build` and `Run` return an `error`:
 
@@ -65,7 +67,7 @@ if err != nil {
 log.Println("AppHost directory:", dir)
 ```
 
-`aspire.FormatError` turns an error into a message that is ready to log. When the AppHost server returns an error for a call, the error is an `*aspire.CapabilityError`, and `FormatError` adds its error code and the capability that failed. Use `errors.As` and the `Code`, `Message`, and `Capability` methods to read these values yourself. For any other error, `FormatError` returns `err.Error()`.
+`aspire.FormatError` turns an error into a message that is ready to log. When the AppHost server returns an error for a call, the error is an `*aspire.CapabilityError`, and `FormatError` adds its error code and the capability that failed. Use `errors.As` and the `Code`, `Message`, and `Capability` methods to read these values yourself. When the error joins several errors, `FormatError` renders every `CapabilityError` and includes any ordinary errors. For any other error, `FormatError` returns `err.Error()`.
 
 ## Cancellation
 
