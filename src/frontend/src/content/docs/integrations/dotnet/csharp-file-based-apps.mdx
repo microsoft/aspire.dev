@@ -230,6 +230,20 @@ builder.Build().Run();
 
 Use `#:package` directives to add NuGet package references directly in the source file instead of a `.csproj`.
 
+### Central Package Management
+
+When your repository uses [Central Package Management](https://learn.microsoft.com/nuget/consume-packages/central-package-management), package versions come from `Directory.Packages.props`, and an inline `@version` in a `#:package` directive fails restore with `NU1008`. Omit the version instead:
+
+```csharp title="apphost.cs"
+#:package Aspire.Hosting.AppHost
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.Build().Run();
+```
+
+The Aspire CLI recognizes a versionless `#:package Aspire.Hosting.AppHost` directive as an AppHost. The file is discovered by `aspire ls`, and `aspire run` and `aspire start` accept it through the `--apphost` option. You don't need the obsolete `#:sdk Aspire.AppHost.Sdk@<version>` directive, which produces the `ASPIRE012` warning.
+
 :::note
 A TypeScript AppHost (`apphost.mts`) is already a file-based script with no project file required. The `#:sdk` and `#:package` directives are specific to the C# file-based AppHost feature and have no TypeScript equivalent.
 :::
