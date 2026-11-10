@@ -13,14 +13,14 @@ When you deploy Aspire apps to Azure, the base security posture comes from the d
 ## Choose the networking model you need
 
 - **Azure Container Apps** can expose internal-only or public endpoints. Use a delegated subnet when you want the environment inside your virtual network.
-- **Azure App Service** is a public website model for web-facing apps and APIs. You can disable public network access on the websites by connecting Azure Front Door to them over Private Link. Use managed Azure services for databases, caches, brokers, and other backing infrastructure instead of trying to run them on App Service.
+- **Azure App Service** is a public website model for web-facing apps and APIs. Use managed Azure services for databases, caches, brokers, and other backing infrastructure instead of trying to run them on App Service.
 
 Aspire supports both of these Azure networking models:
 
 | Model | What it means |
 | --- | --- |
 | Default public model | Your compute uses the target's normal public ingress behavior, and managed Azure services stay on their standard public endpoints. |
-| Private-networked model | Your Azure Container Apps environment runs in a delegated subnet, your managed Azure services are exposed through private endpoints, and/or Azure Front Door reaches your apps over Private Link instead of public network access. |
+| Private-networked model | Your apps and services avoid public network access through any combination of a delegated subnet for the Azure Container Apps environment, private endpoints for managed Azure services, and Azure Front Door Private Link for app ingress. |
 
 Azure Container Apps supports both models. If you don't attach a delegated subnet, Aspire leaves the environment on the default platform-managed network. Azure App Service websites are public by default, so private networking there is primarily about the backing Azure services. To make the websites private, connect Azure Front Door to them over Private Link.
 
@@ -92,7 +92,7 @@ This pattern has a few important behaviors:
 
 If you omit `WithDelegatedSubnet` and `AddPrivateEndpoint`, Aspire keeps using the default public model.
 
-If you deploy compute to App Service instead of Azure Container Apps, the same private-endpoint guidance still applies to your backing Azure services. The App Service websites stay public unless you connect Azure Front Door to them over Private Link.
+If you deploy compute to App Service instead of Azure Container Apps, the same private-endpoint guidance still applies to your backing Azure services.
 
 You can also add NSG rules to the delegated and private-endpoint subnets, and attach a NAT gateway when you need tighter ingress and egress control or deterministic outbound IP addresses.
 
@@ -106,7 +106,7 @@ For service-specific requirements such as Service Bus Premium tier support and A
 
 ### Restrict ingress to Azure Front Door
 
-Private endpoints and delegated subnets protect the traffic between your apps and their backing services. To control how users reach the apps, put [Azure Front Door](/integrations/cloud/azure/azure-front-door/) in front of them and connect it over Private Link. Call `WithAzureFrontDoorPrivateLink` (`withAzureFrontDoorPrivateLink` in TypeScript) on an Azure Container Apps or Azure App Service environment. Aspire then disables public network access on the environment, uses the Front Door Premium tier, and creates a managed private endpoint for each origin. The connection stays pending until you approve it on the target resource, so no traffic reaches the apps before then.
+Private endpoints and delegated subnets protect traffic between your apps and their backing services. To also control how users reach the apps, put [Azure Front Door](/integrations/cloud/azure/azure-front-door/) in front of them and call `WithAzureFrontDoorPrivateLink` (`withAzureFrontDoorPrivateLink` in TypeScript). Aspire disables public network access on the Azure Container Apps environment or on each Azure App Service website. No traffic reaches the apps until you approve the private endpoint connections.
 
 <LearnMore>
 For examples, requirements, and approval steps, see [Private Link origins](/integrations/cloud/azure/azure-front-door/#private-link-origins).
