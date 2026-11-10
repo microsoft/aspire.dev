@@ -1,5 +1,8 @@
 ---
 title: "What's new in Aspire 17.0"
+resourceImage:
+  light: ~/assets/whats-new/aspire-17/dashboard-summary-light.png
+  dark: ~/assets/whats-new/aspire-17/dashboard-summary-dark.png
 seoTitle: 'Aspire 17.0: Go AppHosts, a new dashboard, and deployment'
 description: 'Explore Go AppHosts, the redesigned dashboard, .NET project improvements, and new Azure integrations in Aspire 17.0, with actionable upgrade guidance.'
 sidebar:
@@ -13,6 +16,21 @@ tableOfContents:
 import { Icon, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ReleaseCommunity from '@components/ReleaseCommunity.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import dashboardSummaryLight from '@assets/whats-new/aspire-17/dashboard-summary-light.png';
+import dashboardSummaryDark from '@assets/whats-new/aspire-17/dashboard-summary-dark.png';
+import dashboardGraphLight from '@assets/whats-new/aspire-17/dashboard-graph-light.png';
+import dashboardGraphDark from '@assets/whats-new/aspire-17/dashboard-graph-dark.png';
+import dashboardResourceLight from '@assets/whats-new/aspire-17/dashboard-resource-light.png';
+import dashboardResourceDark from '@assets/whats-new/aspire-17/dashboard-resource-dark.png';
+import dashboardLogsLight from '@assets/whats-new/aspire-17/dashboard-logs-light.png';
+import dashboardLogsDark from '@assets/whats-new/aspire-17/dashboard-logs-dark.png';
+import dashboardTraceLight from '@assets/whats-new/aspire-17/dashboard-trace-light.png';
+import dashboardTraceDark from '@assets/whats-new/aspire-17/dashboard-trace-dark.png';
+import dashboardMetricsLight from '@assets/whats-new/aspire-17/dashboard-metrics-light.png';
+import dashboardMetricsDark from '@assets/whats-new/aspire-17/dashboard-metrics-dark.png';
+import dashboardSettingsLight from '@assets/whats-new/aspire-17/dashboard-settings-light.png';
+import dashboardSettingsDark from '@assets/whats-new/aspire-17/dashboard-settings-dark.png';
 
 Aspire 17.0 lets you define your application in a **Go AppHost**, investigate it in a **redesigned dashboard**, and use a stable **.NET project integration** with SDK-style C#, F#, and Visual Basic projects. New preview integrations bring Microsoft Entra ID registrations and Azure API Management gateways into your app model.
 
@@ -24,7 +42,7 @@ Highlights include:
 
 - Go AppHosts without an experimental feature flag, with templates and generated integration APIs.
 - Stable .NET project hosting with path-based declarations and support for SDK-style F# and Visual Basic services.
-- A new dashboard Home view, a resource pane shared across telemetry pages, and a dedicated Terminals page.
+- A redesigned dashboard with application health summaries, resource details, and a resource selection shared across telemetry views.
 - Shell completion, agent plugin setup, and secret input that doesn't require values on the command line.
 - VS Code debugger attachment for running .NET and Go resources, plus Go AppHost debugging.
 - Stable Kubernetes hosting packages, existing AKS cluster support, and environment-specific deployment secrets.
@@ -173,15 +191,100 @@ This is experimental. Enable `experimentalHostingIntegrations` in `aspire.config
 
 ## 📊 Dashboard experience
 
-The redesigned dashboard brings the run's status, recent errors, slow endpoints, and resource activity together on a **Home** view. A shared resource pane lets you search, filter, group, and select resources while moving between logs, traces, and metrics. Telemetry pages follow the selected resources, so you don't have to select them again on each page.
+The redesigned dashboard helps you check whether your application is healthy, open its endpoints, and investigate a problem in context. The resource list stays beside your work, and the tabs across the top change how you inspect the selected resources: **Overview**, **Console logs**, **Structured logs**, **Traces**, and **Metrics**.
 
-Metrics appear as instruments with live sparklines, with options to pin, group, and sort them. Resource overviews provide contextual actions, and the header lets you switch between the live run and recorded runs.
+:::caution[An experience we're still building]
+The new dashboard is enabled by default in 17.0, but it is still experimental. You can [switch back to the previous dashboard](#switch-back-to-the-previous-dashboard) while we continue building it.
 
-The new experience is an early experiment and is the default in 17.0. You can switch back to the previous dashboard through **Settings** when that experience is available.
+The screenshots below show [TestShop](https://github.com/microsoft/aspire/tree/031536bc9eea22ee9ce2cc1d31bfd30d0c14cfd2/playground/TestShop) running daily build `17.1.0-preview.1.26559.12`. They show the latest development experience, not a finalized 17.0 UI.
+:::
+
+### Check the application, then follow the problem
+
+Select **All resources** to see an application-wide summary. The **Summary** layout brings together resource states, missing parameter values, live request activity, recent errors, and failed traces. Slow endpoints and busy resources give you a starting point for investigating performance. Follow a log or trace link to inspect the underlying telemetry.
+
+Switch to **Graph** when you need to understand the connections between services, databases, and containers. These layouts also work with a selection of resources, so you can narrow an investigation without losing the surrounding application.
+
+<Tabs>
+<TabItem label="Application summary">
+
+<ThemeImage
+  light={dashboardSummaryLight}
+  dark={dashboardSummaryDark}
+  alt="TestShop application summary with resource health, request activity, slow endpoints, and links to recent errors and failed traces."
+/>
+
+</TabItem>
+<TabItem label="Resource graph">
+
+<ThemeImage
+  light={dashboardGraphLight}
+  dark={dashboardGraphDark}
+  alt="TestShop resource graph showing the frontend, catalog replicas, basket service, PostgreSQL, Redis, RabbitMQ, and their relationships."
+/>
+
+</TabItem>
+</Tabs>
+
+### Choose the resources once
+
+Use the resource list to search and filter the application, or group resources by tags, resource type, or state. Select one resource to focus on it. Hold **Ctrl** on Windows or Linux, or **Command** on macOS, while clicking to select several resources; use **Shift** to select a range.
+
+The **Overview** for a single resource puts its status, endpoints, telemetry summaries, and contextual actions together. In TestShop, you can open the storefront, inspect the frontend's health checks, and follow its calls to the catalog and basket services. Parameters have their own entries, including an editor for missing values.
+
+<ThemeImage
+  light={dashboardResourceLight}
+  dark={dashboardResourceDark}
+  alt="TestShop frontend overview with tags, running and healthy status, storefront endpoints, a pinned metric, console output, and telemetry summaries."
+/>
+
+### Keep your context across telemetry views
+
+After selecting the resources you want to investigate, move between the telemetry tabs without selecting them again. For example, select the TestShop frontend and a catalog replica, inspect their logs together, then switch to traces or metrics with the same scope.
+
+<Tabs>
+<TabItem label="Structured logs">
+
+Filter logs by level or message and follow a log's trace link to inspect the request that produced it. The shared resource selection makes it easier to follow a conversation between services instead of examining each service separately. **Console logs** uses the same resource selection for process output.
+
+<ThemeImage
+  light={dashboardLogsLight}
+  dark={dashboardLogsDark}
+  alt="Structured logs for the selected TestShop frontend and catalog replica, with resource names, messages, and links to correlated traces."
+/>
+
+</TabItem>
+<TabItem label="Traces">
+
+Open a trace to follow a request across resource boundaries. This TestShop request passes through the frontend to the catalog and basket services, with PostgreSQL and Redis spans in the same waterfall. Selecting resources scopes the trace search; the trace detail still shows the participating services needed to understand the request.
+
+<ThemeImage
+  light={dashboardTraceLight}
+  dark={dashboardTraceDark}
+  alt="TestShop distributed trace waterfall with nested frontend, catalog, PostgreSQL, basket service, and Redis spans."
+/>
+
+</TabItem>
+<TabItem label="Metrics">
+
+Browse instruments with live sparklines, filter by meter or instrument name, and pin the metrics you return to most often. Grouping and sorting help you compare instruments across the selected resources. Open an instrument to inspect its measurements in more detail.
+
+<ThemeImage
+  light={dashboardMetricsLight}
+  dark={dashboardMetricsDark}
+  alt="Metrics browser comparing active HTTP requests and request duration for the selected TestShop frontend and catalog replica, with pinned instruments and sparklines."
+/>
+
+</TabItem>
+</Tabs>
+
+The header also lets you switch between the live run and recorded runs. Check which run you are viewing when comparing telemetry with the current state of your application.
 
 ### Terminals and graph export
 
-Use the dedicated **Terminals** page to work with interactive resource terminals. You can also export the resource graph as Mermaid from the dashboard or the CLI, making it easier to include the current app topology in documentation:
+Interactive resource terminals remain available alongside the investigation. Open a terminal from its resource overview, or use the terminal dock to keep it available while you move between views.
+
+You can also export the resource graph as Mermaid from the dashboard or the CLI, making it easier to include the current app topology in documentation:
 
 ```bash title="Aspire CLI — Export a running app's resource graph"
 aspire describe --format mermaid
@@ -189,11 +292,31 @@ aspire describe --format mermaid
 
 Mermaid export is a snapshot; it doesn't support `--follow`.
 
+### Switch back to the previous dashboard
+
+You don't have to use the new experience while it is under development. In dashboard builds that include the previous experience:
+
+<Steps>
+
+1. Open **Settings** using the gear button in the header.
+2. Under **Dashboard experience**, choose **Previous dashboard**.
+3. In the feedback dialog, choose **Skip and switch** to switch immediately without submitting feedback. You can also complete the feedback flow if you want to share what didn't work for you.
+
+</Steps>
+
+The dashboard remembers the choice in this browser. To try the new experience again, open **Settings** in the previous dashboard and select **New dashboard**.
+
+<ThemeImage
+  light={dashboardSettingsLight}
+  dark={dashboardSettingsDark}
+  alt="Dashboard Settings showing the New dashboard and Previous dashboard choices in the Dashboard experience section."
+/>
+
 <LearnMore>
   See [Explore the dashboard](/dashboard/explore/) and [`aspire
-  describe`](/reference/cli/commands/aspire-describe/). The [dashboard
-  redesign](https://github.com/microsoft/aspire/pull/21412) describes the new
-  experience.
+  describe`](/reference/cli/commands/aspire-describe/). Share feedback through
+  the dashboard or [report an
+  issue](https://github.com/microsoft/aspire/issues).
 </LearnMore>
 
 ## 🛠️ CLI and agent workflows
