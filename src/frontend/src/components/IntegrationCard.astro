@@ -6,7 +6,7 @@ import csharpIcon from '@assets/icons/csharp.svg';
 import typescriptIcon from '@assets/icons/typescript.svg';
 import goIcon from '@assets/icons/go.svg';
 import { generateFriendlyName } from '@utils/helpers';
-import { supportsGoAppHost } from '@utils/go-apphost-support';
+import { hasGoAppHostDocs } from '@utils/go-apphost-support';
 import ReadableText from '@components/ReadableText.astro';
 
 // Helper to abbreviate download counts
@@ -69,8 +69,9 @@ function withLang(docs: string, lang: 'csharp' | 'typescript' | 'go'): string {
 // that can render `<Tabs syncKey="aspire-lang">`. External hrefs (AWS, etc.)
 // are skipped.
 const supportsLangTabs = !!pkg.docs && pkg.docs.startsWith('/');
-// The Go button only appears for packages that expose a Go AppHost API.
-const showGoButton = supportsLangTabs && supportsGoAppHost(pkg.title);
+// The Go button only appears when the destination article has a Go tab.
+const showGoButton =
+  supportsLangTabs && (await hasGoAppHostDocs(pkg.title, hostingDocsUrl(pkg.docs!)));
 
 // Title links to the integration's get-started landing page (or external docs
 // page when the integration ships docs off-site). The docs map already points

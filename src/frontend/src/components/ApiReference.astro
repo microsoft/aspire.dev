@@ -34,14 +34,17 @@ const diagnosticText = resolution.diagnostics.map((diagnostic) => diagnostic.mes
 const languages: Array<{ id: string; icon: string; displayName: string }> = [
   { id: 'csharp', icon: 'i-material-icon-theme:csharp', displayName: 'C#' },
   { id: 'typescript', icon: 'i-material-icon-theme:typescript', displayName: 'TypeScript' },
+    { id: 'go', icon: 'i-material-icon-theme:go', displayName: 'Go' },
 ];
 ---
 
 <span class="api-reference not-content" data-status={resolution.status}>
   {
     languages.map(({ id, icon, displayName }) => {
+      if (id === 'go' && !resolution.targets?.go) return null;
       const target =
-        resolution.targets?.[id] ?? (id === 'csharp' ? resolution.csharp : resolution.typescript);
+        resolution.targets?.[id] ??
+        (id === 'typescript' ? resolution.typescript : resolution.csharp);
       const href = target.path ? `${base}${target.path}` : undefined;
       const diagnostic = href
         ? undefined
@@ -91,7 +94,7 @@ const languages: Array<{ id: string; icon: string; displayName: string }> = [
   }
 
   :global(html[data-apphost-lang='csharp']) .ar-lang[data-lang='csharp'],
-  :global(html[data-apphost-lang='go']) .ar-lang[data-lang='csharp'],
+  :global(html[data-apphost-lang='go']) .ar-lang[data-lang='go'],
   :global(html[data-apphost-lang='typescript']) .ar-lang[data-lang='typescript'] {
     display: inline;
   }
