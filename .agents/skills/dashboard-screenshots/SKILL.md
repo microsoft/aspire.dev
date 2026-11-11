@@ -78,3 +78,8 @@ The run prints captured/failed counts and lists unreproducible or skipped images
 - Needs replicas (`console-logs-with-replicas`, `telemetry-resource-filter`): add `WithReplicas(2)` to the demo temporarily.
 - Needs other setups: login, terminals, copilot, mcp-dialog, standalone, dashboard-run-selector, `trace-view-filter-advanced`, `trace-page-from-exemplars`, `project-graphs`, `settings-manage-telemetry`.
 - Not dashboard captures: architecture diagrams, `.excalidraw` files, GIFs.
+
+## Theme gotcha
+
+The dashboard persists its theme in the `currentTheme` cookie (`Dark`/`Light`), which `localStorage.clear()` does not reset. `run.ts` clears cookies and sets the cookie per shot, and treats a capture as failed unless `documentElement.dataset.theme` matches the requested theme. After a run, scan mean luminance: `-light` files should be bright, all others dark.
+

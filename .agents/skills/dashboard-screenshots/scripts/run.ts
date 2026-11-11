@@ -138,7 +138,7 @@ function shotCode(shot: any, theme: "dark" | "light", file: string) {
   const shoot = shot.clip
     ? `const e=page.locator(${q(shot.clip)}).first(); const b=await e.boundingBox(); await page.screenshot({path:${q(file)},clip:{x:Math.max(0,b.x-${pad}),y:Math.max(0,b.y-${pad}),width:Math.min(${manifest.viewport.width},b.width+${pad * 2}),height:Math.min(${manifest.viewport.height},b.height+${pad * 2})}});`
     : `await page.screenshot({path:${q(file)}});`;
-  return `async page => { ${DISMISS_JS} await page.setViewportSize({width:${manifest.viewport.width},height:${shot.height ?? manifest.viewport.height}}); await page.emulateMedia({colorScheme:${q(theme)}}); await page.evaluate(()=>localStorage.clear()); await page.goto('http://localhost:${port}/${shot.route}'); await page.waitForTimeout(3500); ${clear} await page.waitForTimeout(500); ${steps} ${final} ${callouts} ${shoot} return 'ok'; }`.replace(/\r?\n/g, " ");
+  return `async page => { ${DISMISS_JS} await page.setViewportSize({width:${manifest.viewport.width},height:${shot.height ?? manifest.viewport.height}}); await page.emulateMedia({colorScheme:${q(theme)}}); await page.context().clearCookies(); await page.context().addCookies([{name:'currentTheme',value:'${theme === "dark" ? "Dark" : "Light"}',url:'http://localhost:${port}'}]); await page.evaluate(()=>localStorage.clear()); await page.goto('http://localhost:${port}/${shot.route}'); await page.waitForTimeout(3500); ${clear} await page.waitForTimeout(500); ${steps} ${final} ${callouts} ${shoot} return 'ok:' + (await page.evaluate(()=>document.documentElement.dataset.theme)); }`.replace(/\r?\n/g, " ");
 }
 
 // Crops trailing blank page area (keeping padding) so sparse pages like Resources do not ship as half-empty images.
@@ -176,7 +176,7 @@ async function capture() {
       for (let attempt = 0; attempt < 2 && !ok; attempt++) {
         tmp = `${base}-${Date.now()}-${attempt}.png`;
         const r = pw("shots", "run-code", shotCode(shot, theme, tmp.replace(/\\/g, "/")));
-        ok = r.ok && existsSync(tmp) && !/### Error/.test(r.out);
+        ok = r.ok && existsSync(tmp) && !/### Error/.test(r.out) && r.out.includes(`ok:${theme}`);
         if (!ok) console.error(`${shot.id}/${theme} attempt ${attempt}: ${r.out.split("\n").filter((l: string) => /Error|error/.test(l)).slice(0, 3).join(" | ")}`);
       }
       if (!ok) { failed.push(`${shot.id}/${theme}`); continue; }
