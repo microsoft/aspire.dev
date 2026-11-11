@@ -79,12 +79,14 @@ jobs:
             -f base="$BRANCH" \
             --jq '.[0].html_url // empty')
 
-          if [[ -n "$existing" ]]; then
-            echo "::notice::Skipping sync: repair PR $existing is still open."
-            echo "## Release sync skipped" >> "$GITHUB_STEP_SUMMARY"
-            echo "Repair PR $existing is open. Resolve and merge it with **Create a merge commit** to resume syncing." >> "$GITHUB_STEP_SUMMARY"
-          fi
           echo "url=$existing" >> "$GITHUB_OUTPUT"
+          if [[ -n "$existing" ]]; then
+            echo "## Release sync blocked" >> "$GITHUB_STEP_SUMMARY"
+            echo "Repair PR $existing is open, so \`$BRANCH\` was not updated. Resolve and merge it with **Create a merge commit** to resume syncing." >> "$GITHUB_STEP_SUMMARY"
+            # Fail so a stalled release branch is visible instead of a green no-op.
+            echo "::error::$BRANCH was not updated: repair PR $existing is still open."
+            exit 1
+          fi
 
       - name: Checkout release branch
         if: ${{ steps.find-branch.outputs.branch != '' && steps.repair-pr.outputs.url == '' }}
@@ -246,8 +248,9 @@ jobs:
             --title "Resolve release sync conflicts for $BRANCH" \
             --body-file "$body_file")
 
-          echo "::warning::Release sync needs human review: $pr_url"
           {
             echo "## Release sync needs human review"
             echo "Opened repair PR: $pr_url"
           } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::$BRANCH was not updated: merge conflicts need human review in $pr_url"
+          exit 1
