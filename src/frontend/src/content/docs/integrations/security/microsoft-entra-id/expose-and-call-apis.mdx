@@ -158,6 +158,15 @@ A created client can also declare permissions to an existing API. For an existin
 
 Without `WithAdminConsent`, no extra privileges are needed. With it, the deploying identity needs the consent privileges listed in [Required permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#required-permissions). Grant only the permissions that the application needs, because application permissions such as `Directory.Read.All` reach the whole tenant.
 
+:::caution[Review consent like any other privileged change]
+`WithAdminConsent` grants consent on behalf of the whole tenant, and nobody is prompted. Aspire can't grant more than the deploying identity is allowed to grant, but an identity that holds these privileges applies whatever the AppHost declares.
+
+- Application permissions to Microsoft Graph let the app act as itself across the tenant. A deployed app that authenticates with [managed identity federation](/integrations/security/microsoft-entra-id/client-credentials/#managed-identity-federation) gets those permissions through its managed identity.
+- Treat `Directory.*`, `RoleManagement.*`, and `AppRoleAssignment.ReadWrite.All` as especially privileged. Other `*.ReadWrite.All` application permissions still grant broad access to their resource type. Check each permission's scope, and grant only what's needed.
+- Review changes to `WithAdminConsent` and `WithApiPermissions` in pull requests, the same way that you review changes to role assignments.
+- Deploy from CI with a dedicated identity that has only the consent privileges that the AppHost needs, rather than a broadly privileged administrator account.
+:::
+
 ### Understand what consent replaces
 
 `WithAdminConsent` sets the all-users grant from a client to an API to exactly the scopes that you pass.
