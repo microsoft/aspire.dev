@@ -1,0 +1,147 @@
+---
+title: aspire template source command
+description: Learn how to add, remove, and list global template sources with the aspire template source commands, so aspire new can discover templates from local directories and Git repositories.
+---
+
+import Include from '@components/Include.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+## Name
+
+`aspire template source` - Manage global template sources.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire template source add <name> (--path <path> | --repository <url>) [--ref <ref>] [options]
+aspire template source remove <name> [options]
+aspire template source list [--format <Json|Table>] [options]
+```
+
+## Description
+
+A template source is a named location that contains reusable templates. A source is either a local directory or a Git repository. Sources are stored in the global Aspire configuration file (`~/.aspire/aspire.config.json`) under the `templateSources` key, and they apply to every project on the machine.
+
+When at least one source is configured, interactive [`aspire new`](../aspire-new/) adds a **Search for more templates** option to its template list. Searches match a template's short name, display name, and description from its `template.json` file, case-insensitively. An empty search lists every template. Results show the name of the source that provided each template.
+
+The `aspire template source` commands require the modern `aspire.config.json` format. If only legacy configuration exists, the commands report an error that directs you to run `aspire config info` to migrate it.
+
+## Commands
+
+| Command                                      | Function                                    |
+| -------------------------------------------- | ------------------------------------------- |
+| `aspire template source add <name>`          | Add or update a global template source.     |
+| `aspire template source remove <name>`       | Remove a global template source.            |
+| `aspire template source list`                | List the configured global template sources. |
+
+### `aspire template source add`
+
+Adds a named source. Provide either `--path` for a local directory, or `--repository` for a Git repository. When you use `--repository`, `--path` optionally selects a subdirectory within the repository, and `--ref` selects a branch, tag, or commit. If you omit `--ref` it defaults to `HEAD`, and if you omit `--path` it defaults to `.`.
+
+- `<name>`
+
+  The name of the source. Names are compared case-insensitively and can't contain dots, colons, or control characters.
+
+- `--path <path>`
+
+  The absolute path to a local directory that contains templates, or, with `--repository`, the subdirectory within the repository.
+
+- `--repository <url>`
+
+  The Git repository URL. HTTPS and SSH URLs are accepted. SCP-style shorthand and URLs with embedded credentials aren't accepted.
+
+- `--ref <ref>`
+
+  The Git branch, tag, or commit to use. Applies to `--repository`.
+
+### `aspire template source remove`
+
+Removes the source with the given name from the global configuration.
+
+### `aspire template source list`
+
+Lists the configured sources without discovering templates or contacting repositories. Incomplete definitions are included.
+
+- `--format <Json|Table>`
+
+  The output format. The default is `Table`, which shows bold column headers and a dash for empty cells. `Json` writes an object keyed by source name, sorted by name, to stdout. The output preserves the configured fields and doesn't add defaults.
+
+## Options
+
+The following options are available:
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
+
+- <Include relativePath="reference/cli/includes/option-wait.md" />
+
+## Configuration file format
+
+Sources are objects registered under the global `templateSources` key:
+
+```json title="~/.aspire/aspire.config.json"
+{
+  "templateSources": {
+    "company": {
+      "path": "/absolute/path/to/company-templates"
+    },
+    "release": {
+      "repository": "https://github.com/microsoft/aspire-templates",
+      "ref": "release/17.0",
+      "path": "templates"
+    }
+  }
+}
+```
+
+Project-level `templateSources` settings aren't used. Unknown fields are ignored when the configuration is read, and edits made by these commands preserve fields they don't recognize.
+
+If a configured source fails discovery during `aspire new`, the command warns about that source and continues with the healthy ones. Malformed configuration fails the command instead of being skipped silently.
+
+<Aside type="note">
+Configured templates can't be combined with the `--source`, `--version`, `--channel`, or `--language` options of `aspire new`.
+</Aside>
+
+## Examples
+
+- Add a local directory as a source:
+
+  ```bash title="Aspire CLI"
+  aspire template source add company --path /absolute/path/to/company-templates
+  ```
+
+- Add a Git repository as a source:
+
+  ```bash title="Aspire CLI"
+  aspire template source add examples --repository https://github.com/microsoft/aspire-templates
+  ```
+
+- Add a Git repository pinned to a ref and subdirectory:
+
+  ```bash title="Aspire CLI"
+  aspire template source add release --repository https://github.com/microsoft/aspire-templates --ref release/17.0 --path templates
+  ```
+
+- List sources as JSON:
+
+  ```bash title="Aspire CLI"
+  aspire template source list --format json
+  ```
+
+- Remove a source:
+
+  ```bash title="Aspire CLI"
+  aspire template source remove examples
+  ```
+
+## See also
+
+- [aspire new command](../aspire-new/)
+- [aspire template command](../aspire-template/)
