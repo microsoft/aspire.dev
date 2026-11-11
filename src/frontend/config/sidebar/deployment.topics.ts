@@ -148,6 +148,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/javascript-apps',
     },
     {
+      label: 'Go apps',
+      slug: 'deployment/go-apps',
+    },
+    {
       label: 'Docker Compose',
       slug: 'deployment/docker-compose',
     },
