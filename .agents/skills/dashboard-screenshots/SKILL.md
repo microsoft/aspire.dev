@@ -48,7 +48,7 @@ Recapturing is not enough: the UX may have gained surfaces the docs never showed
 ## Rules
 
 - **Themes**: capture every shot once per theme. Dark is the base name (or `-dark`), light is `-light`. Docs must use `<ThemeImage dark={x} light={xLight} alt="..." />` from `@components/ThemeImage.astro`; verify flags pages that reference only one theme. Fix those in MDX.
-- **Alerts**: before each capture the script dismisses banners, toasts, welcome and update messages (`.dashboard-message-bar-dismiss`). Set `keepAlerts: true` only when the alert is the subject. The Notifications panel is not closed by Escape; use a fresh navigation.
+- **Alerts**: before each capture the script dismisses banners, toasts, welcome and update messages (`.dashboard-message-bar-dismiss`). Bars can arrive late or reappear after steps, so a final dismiss pass (plus a CSS hide of the message-bar provider) runs immediately before callouts and the screenshot. Always scan contact sheets (`sheet.ts`) for leftover bars, and sidebar drag/resize applies only to Graph and telemetry pages. Set `keepAlerts: true` only when the alert is the subject. The Notifications panel is not closed by Escape; use a fresh navigation.
 - **Callouts**: red (`#e8212e`, ~3px) rectangles around the selector in `callout`, matching old images that had them.
 - **Framing**: avoid large blank areas. Use `height` for short pages, `autoCrop` to trim trailing blank space, `clip` for regions. Keep resolution consistent.
 - **Graph view**: Settings > Overview layout > Graph, close dialog, click the Overview tab.

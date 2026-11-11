@@ -23,7 +23,8 @@ sealed class TrafficGenerator(IHttpClientFactory factory, ILogger<TrafficGenerat
         {
             try
             {
-                var path = i % 6 == 5 ? "/forecast/unavailable" : "/weatherforecast";
+                // Only a few early failures so error badges stay small and realistic.
+                var path = i is 5 or 17 or 29 ? "/forecast/unavailable" : "/weatherforecast";
                 using var response = await client.GetAsync(path, stoppingToken);
                 logger.LogInformation("GET {Path} returned {StatusCode}", path, (int)response.StatusCode);
                 response.EnsureSuccessStatusCode();

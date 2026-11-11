@@ -122,12 +122,14 @@ function shotCode(shot: any, theme: "dark" | "light", file: string) {
   const pad = manifest.padding;
   const clear = shot.keepAlerts ? "" : "await dismiss();";
   const keepMouse = shot.keepAlerts ? "" : "await dismiss(false);";
+  const final = shot.keepAlerts ? "" : "await dismiss(false); await page.waitForTimeout(600); await dismiss(false); await page.addStyleTag({content:'.top-messagebar,.fluent-message-bar-provider,.messagebar-container{display:none!important}'}); await page.waitForTimeout(200);";
   const steps = (shot.steps ?? []).map((s: any) =>
     (s.click ? `await page.getByText(${q(s.click)}).first().click();` :
     s.closeDialog ? `await page.getByRole("button",{name:"Close",exact:true}).last().click();` :
     s.clickSel ? `await page.locator(${q(s.clickSel)}).first().click();` :
     s.hover ? `await page.getByText(${q(s.hover)}).first().hover();` :
     s.hoverSel ? `await page.locator(${q(s.hoverSel)}).first().hover();` :
+    s.dragSel ? `{const bb = await page.locator(${q(s.dragSel)}).first().boundingBox(); await page.mouse.move(bb.x + bb.width / 2, bb.y + 300); await page.mouse.down(); await page.mouse.move(${Number(s.dragTo ?? 0)}, bb.y + 300, {steps: 10}); await page.mouse.up(); await page.mouse.move(1000, 2);}` :
     s.fill ? `await page.locator(${q(s.fill[0])}).first().fill(${q(s.fill[1])});` :
     s.press ? `await page.keyboard.press(${q(s.press)});` :
     s.js ? `${s.js};` :
@@ -136,7 +138,7 @@ function shotCode(shot: any, theme: "dark" | "light", file: string) {
   const shoot = shot.clip
     ? `const e=page.locator(${q(shot.clip)}).first(); const b=await e.boundingBox(); await page.screenshot({path:${q(file)},clip:{x:Math.max(0,b.x-${pad}),y:Math.max(0,b.y-${pad}),width:Math.min(${manifest.viewport.width},b.width+${pad * 2}),height:Math.min(${manifest.viewport.height},b.height+${pad * 2})}});`
     : `await page.screenshot({path:${q(file)}});`;
-  return `async page => { ${DISMISS_JS} await page.setViewportSize({width:${manifest.viewport.width},height:${shot.height ?? manifest.viewport.height}}); await page.emulateMedia({colorScheme:${q(theme)}}); await page.evaluate(()=>localStorage.clear()); await page.goto('http://localhost:${port}/${shot.route}'); await page.waitForTimeout(3500); ${clear} await page.waitForTimeout(500); ${steps} ${callouts} ${shoot} return 'ok'; }`.replace(/\r?\n/g, " ");
+  return `async page => { ${DISMISS_JS} await page.setViewportSize({width:${manifest.viewport.width},height:${shot.height ?? manifest.viewport.height}}); await page.emulateMedia({colorScheme:${q(theme)}}); await page.evaluate(()=>localStorage.clear()); await page.goto('http://localhost:${port}/${shot.route}'); await page.waitForTimeout(3500); ${clear} await page.waitForTimeout(500); ${steps} ${final} ${callouts} ${shoot} return 'ok'; }`.replace(/\r?\n/g, " ");
 }
 
 // Crops trailing blank page area (keeping padding) so sparse pages like Resources do not ship as half-empty images.
@@ -161,7 +163,8 @@ async function capture() {
   mkdirSync(scratch, { recursive: true });
   const cfg = join(scratch, "cfg.json");
   writeFileSync(cfg, JSON.stringify({ browser: { contextOptions: { viewport: { width: manifest.viewport.width, height: manifest.viewport.height }, deviceScaleFactor: manifest.viewport.deviceScaleFactor } } }));
-  pw("shots", "close"); pw("shots", "open", `http://localhost:${port}`, "--browser=msedge", `--config=${cfg}`);
+  pw("shots", "close");
+  let o = pw("shots", "open", `http://localhost:${port}`, "--browser=msedge", `--config=${cfg}`);
   if (!o.ok) o = pw("shots", "open", `http://localhost:${port}`, `--config=${cfg}`);
   const failed: string[] = [];
   const done: string[] = [];
@@ -174,6 +177,7 @@ async function capture() {
         tmp = `${base}-${Date.now()}-${attempt}.png`;
         const r = pw("shots", "run-code", shotCode(shot, theme, tmp.replace(/\\/g, "/")));
         ok = r.ok && existsSync(tmp) && !/### Error/.test(r.out);
+        if (!ok) console.error(`${shot.id}/${theme} attempt ${attempt}: ${r.out.split("\n").filter((l: string) => /Error|error/.test(l)).slice(0, 3).join(" | ")}`);
       }
       if (!ok) { failed.push(`${shot.id}/${theme}`); continue; }
       const dest = join(assets, shot.out[theme]);
