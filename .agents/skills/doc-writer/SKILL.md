@@ -526,12 +526,6 @@ func main() {
 	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
 		WithReference(cache)
 
-	for _, resource := range []aspire.Resource{cache, api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
-
 	app, err := builder.Build()
 	if err != nil {
 		log.Fatal(aspire.FormatError(err))
@@ -561,7 +555,7 @@ If a section heading should appear in the **On this page** table of contents, ke
 | Tab item         | `<TabItem id='typescript' label='TypeScript'>`                                                                      | `<TabItem id='csharp' label='C#'>`              | `<TabItem id='go' label='Go'>`                           |
 | Builder creation | `import { createBuilder } from './.aspire/modules/aspire.mjs';` then newline for space followed by `await createBuilder();` | `DistributedApplication.CreateBuilder(args)`    | `aspire.CreateBuilder()` (returns `builder, err`)        |
 | Method casing    | camelCase (`addRedis`)                                                                                              | PascalCase (`AddRedis`)                         | PascalCase (`AddRedis`)                                  |
-| Async pattern    | `await` each builder call                                                                                           | Synchronous fluent calls                        | Synchronous fluent calls; check `resource.Err()`         |
+| Async pattern    | `await` each builder call                                                                                           | Synchronous fluent calls                        | Synchronous fluent calls; errors surface at `Build()`    |
 | Build & run      | `await builder.build().run()`                                                                                       | `builder.Build().Run()`                         | `app, err := builder.Build()` then `app.Run()`           |
 
 ### Prose Guidelines

@@ -69,10 +69,7 @@ func main() {
 		log.Fatal(aspire.FormatError(err))
 	}
 
-	sharedMi := builder.AddAzureUserAssignedIdentity("custom-umi")
-	if err := sharedMi.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
+	builder.AddAzureUserAssignedIdentity("custom-umi")
 
 	// After adding all resources, run the app...
 	app, err := builder.Build()
@@ -160,12 +157,6 @@ func main() {
 	sharedMi := builder.AddAzureUserAssignedIdentity("custom-umi")
 	sharedMi.PublishAsExisting(miName, aspire.PublishAsExistingResourceGroup(miResourceGroup))
 
-	for _, resource := range []aspire.Resource{miName, miResourceGroup, sharedMi} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
-
 	// After adding all resources, run the app...
 	app, err := builder.Build()
 	if err != nil {
@@ -240,12 +231,6 @@ func main() {
 
 	secrets := builder.AddAzureKeyVault("secrets")
 	sharedMi.WithKeyVaultRoleAssignments(secrets, []aspire.AzureKeyVaultRole{aspire.AzureKeyVaultRoleKeyVaultSecretsUser})
-
-	for _, resource := range []aspire.Resource{sharedMi, secrets} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	// After adding all resources, run the app...
 	app, err := builder.Build()

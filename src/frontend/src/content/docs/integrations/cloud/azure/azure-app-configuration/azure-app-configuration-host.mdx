@@ -145,12 +145,6 @@ appConfig := builder.AddAzureAppConfiguration("config")
 web := builder.AddGoApp("web", "./web").
 	WithReference(appConfig)
 
-for _, resource := range []aspire.Resource{appConfig, web} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
-
 // After adding all resources, run the app...
 app, err := builder.Build()
 if err != nil {
@@ -332,12 +326,8 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-appConfig := builder.AddAzureAppConfiguration("config").
+builder.AddAzureAppConfiguration("config").
 	RunAsEmulator()
-
-if err := appConfig.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -406,16 +396,12 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-appConfig := builder.AddAzureAppConfiguration("config").
+builder.AddAzureAppConfiguration("config").
 	RunAsEmulator(&aspire.RunAsEmulatorOptions{
 		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
 			emulator.WithHostPort(aspire.IntPtr(28000))
 		},
 	})
-
-if err := appConfig.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
 
 // After adding all resources, run the app...
 ```
@@ -471,16 +457,12 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-appConfig := builder.AddAzureAppConfiguration("config").
+builder.AddAzureAppConfiguration("config").
 	RunAsEmulator(&aspire.RunAsEmulatorOptions{
 		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
 			emulator.WithLifetime(aspire.ContainerLifetimePersistent)
 		},
 	})
-
-if err := appConfig.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
 
 // After adding all resources, run the app...
 ```
@@ -534,16 +516,12 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-appConfig := builder.AddAzureAppConfiguration("config").
+builder.AddAzureAppConfiguration("config").
 	RunAsEmulator(&aspire.RunAsEmulatorOptions{
 		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
 			emulator.WithDataVolume()
 		},
 	})
-
-if err := appConfig.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
 
 // After adding all resources, run the app...
 ```
@@ -599,7 +577,7 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-appConfig := builder.AddAzureAppConfiguration("config").
+builder.AddAzureAppConfiguration("config").
 	RunAsEmulator(&aspire.RunAsEmulatorOptions{
 		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
 			emulator.WithDataBindMount(&aspire.WithDataBindMountOptions{
@@ -607,10 +585,6 @@ appConfig := builder.AddAzureAppConfiguration("config").
 			})
 		},
 	})
-
-if err := appConfig.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
 
 // After adding all resources, run the app...
 ```
@@ -676,12 +650,8 @@ if err != nil {
 configName := builder.AddParameter("configName")
 configResourceGroupName := builder.AddParameter("configResourceGroupName")
 
-appConfig := builder.AddAzureAppConfiguration("config").
+builder.AddAzureAppConfiguration("config").
 	AsExisting(configName, &aspire.AsExistingOptions{ResourceGroup: configResourceGroupName})
-
-if err := appConfig.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -749,12 +719,6 @@ config := builder.AddConnectionString("config")
 
 web := builder.AddGoApp("web", "./web").
 	WithReference(config)
-
-for _, resource := range []aspire.Resource{config, web} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -840,12 +804,6 @@ web := builder.AddGoApp("web", "./web").
 web.WithAppConfigurationRoleAssignments(appConfig, []aspire.AzureAppConfigurationRole{
 	aspire.AzureAppConfigurationRoleAppConfigurationDataReader,
 })
-
-for _, resource := range []aspire.Resource{appConfig, web} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 // After adding all resources, run the app...
 app, err := builder.Build()

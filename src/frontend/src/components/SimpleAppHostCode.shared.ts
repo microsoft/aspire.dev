@@ -283,12 +283,6 @@ ${apiResource}
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		WithReference(api)
 
-	for _, resource := range []aspire.Resource{postgres, api, frontend} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
-
 	app, err := builder.Build()
 	if err != nil {
 		log.Fatal(aspire.FormatError(err))

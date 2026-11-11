@@ -494,12 +494,6 @@ func main() {
 	frontend := builder.AddViteApp("frontend", "../frontend").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
 
-	for _, resource := range []aspire.Resource{frontend} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
-
 	app, err := builder.Build()
 	if err != nil {
 		log.Fatal(aspire.FormatError(err))
@@ -527,14 +521,8 @@ func main() {
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
-
-	for _, resource := range []aspire.Resource{frontend, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -559,19 +547,13 @@ func main() {
 	}
 
 	// Add database
-	postgres := builder.AddPostgres("db").
+	builder.AddPostgres("db").
 		WithDataVolume().
 		AddDatabase("appdata")
 
 	// Add Vite frontend
 	frontend := builder.AddViteApp("frontend", "../frontend").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
-
-	for _, resource := range []aspire.Resource{postgres, frontend} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -596,7 +578,7 @@ func main() {
 	}
 
 	// Add database
-	postgres := builder.AddPostgres("db").
+	builder.AddPostgres("db").
 		WithDataVolume().
 		AddDatabase("appdata")
 
@@ -605,14 +587,8 @@ func main() {
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
-
-	for _, resource := range []aspire.Resource{postgres, frontend, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -645,12 +621,6 @@ func main() {
 	frontend := builder.AddViteApp("frontend", "../frontend").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		WithReference(api)
-
-	for _, resource := range []aspire.Resource{api, frontend} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -685,14 +655,8 @@ func main() {
 		WithReference(api)
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
-
-	for _, resource := range []aspire.Resource{api, frontend, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -731,12 +695,6 @@ func main() {
 	frontend := builder.AddViteApp("frontend", "../frontend").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		WithReference(api)
-
-	for _, resource := range []aspire.Resource{postgres, api, frontend} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -777,14 +735,8 @@ func main() {
 		WithReference(api)
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
-
-	for _, resource := range []aspire.Resource{postgres, api, frontend, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -809,15 +761,9 @@ func main() {
 	}
 
 	// Add database
-	postgres := builder.AddPostgres("db").
+	builder.AddPostgres("db").
 		WithDataVolume().
 		AddDatabase("appdata")
-
-	for _, resource := range []aspire.Resource{postgres} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -842,19 +788,13 @@ func main() {
 	}
 
 	// Add database
-	postgres := builder.AddPostgres("db").
+	builder.AddPostgres("db").
 		WithDataVolume().
 		AddDatabase("appdata")
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
-
-	for _, resource := range []aspire.Resource{postgres, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -882,12 +822,6 @@ func main() {
 	api := builder.AddNodeApp("api", "../api", "src/index.ts").
 		WithNpm().
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
-
-	for _, resource := range []aspire.Resource{api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -917,14 +851,8 @@ func main() {
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
-
-	for _, resource := range []aspire.Resource{api, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -958,12 +886,6 @@ func main() {
 		WithNpm().
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		WithReference(postgres)
-
-	for _, resource := range []aspire.Resource{postgres, api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -999,14 +921,8 @@ func main() {
 		WithReference(postgres)
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
-
-	for _, resource := range []aspire.Resource{postgres, api, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1031,14 +947,8 @@ func main() {
 	}
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
-
-	for _, resource := range []aspire.Resource{customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1066,12 +976,6 @@ func main() {
 	frontend := builder.AddViteApp("frontend", "../frontend").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		PublishAsDockerFile(func(container aspire.ContainerResource) {})
-
-	for _, resource := range []aspire.Resource{frontend} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1101,15 +1005,9 @@ func main() {
 		PublishAsDockerFile(func(container aspire.ContainerResource) {})
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
 		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
-
-	for _, resource := range []aspire.Resource{frontend, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1134,7 +1032,7 @@ func main() {
 	}
 
 	// Add database
-	postgres := builder.AddAzurePostgresFlexibleServer("db").
+	builder.AddAzurePostgresFlexibleServer("db").
 		RunAsContainer().
 		AddDatabase("appdata")
 
@@ -1142,12 +1040,6 @@ func main() {
 	frontend := builder.AddViteApp("frontend", "../frontend").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		PublishAsDockerFile(func(container aspire.ContainerResource) {})
-
-	for _, resource := range []aspire.Resource{postgres, frontend} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1172,7 +1064,7 @@ func main() {
 	}
 
 	// Add database
-	postgres := builder.AddAzurePostgresFlexibleServer("db").
+	builder.AddAzurePostgresFlexibleServer("db").
 		RunAsContainer().
 		AddDatabase("appdata")
 
@@ -1182,15 +1074,9 @@ func main() {
 		PublishAsDockerFile(func(container aspire.ContainerResource) {})
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
 		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
-
-	for _, resource := range []aspire.Resource{postgres, frontend, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1225,12 +1111,6 @@ func main() {
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		WithReference(api).
 		PublishAsDockerFile(func(container aspire.ContainerResource) {})
-
-	for _, resource := range []aspire.Resource{api, frontend} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1267,15 +1147,9 @@ func main() {
 		PublishAsDockerFile(func(container aspire.ContainerResource) {})
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
 		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
-
-	for _, resource := range []aspire.Resource{api, frontend, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1316,12 +1190,6 @@ func main() {
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		WithReference(api).
 		PublishAsDockerFile(func(container aspire.ContainerResource) {})
-
-	for _, resource := range []aspire.Resource{postgres, api, frontend} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1364,15 +1232,9 @@ func main() {
 		PublishAsDockerFile(func(container aspire.ContainerResource) {})
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
 		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
-
-	for _, resource := range []aspire.Resource{postgres, api, frontend, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1397,15 +1259,9 @@ func main() {
 	}
 
 	// Add database
-	postgres := builder.AddAzurePostgresFlexibleServer("db").
+	builder.AddAzurePostgresFlexibleServer("db").
 		RunAsContainer().
 		AddDatabase("appdata")
-
-	for _, resource := range []aspire.Resource{postgres} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1430,20 +1286,14 @@ func main() {
 	}
 
 	// Add database
-	postgres := builder.AddAzurePostgresFlexibleServer("db").
+	builder.AddAzurePostgresFlexibleServer("db").
 		RunAsContainer().
 		AddDatabase("appdata")
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
 		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
-
-	for _, resource := range []aspire.Resource{postgres, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1472,12 +1322,6 @@ func main() {
 		WithNpm().
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
-
-	for _, resource := range []aspire.Resource{api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1508,15 +1352,9 @@ func main() {
 		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
 		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
-
-	for _, resource := range []aspire.Resource{api, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1551,12 +1389,6 @@ func main() {
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		WithReference(postgres).
 		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
-
-	for _, resource := range []aspire.Resource{postgres, api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1593,15 +1425,9 @@ func main() {
 		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
 
 	// Add custom container
-	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
 		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
-
-	for _, resource := range []aspire.Resource{postgres, api, customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -1629,12 +1455,6 @@ func main() {
 	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
 		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
-
-	for _, resource := range []aspire.Resource{customContainer} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {

@@ -101,13 +101,6 @@ func main() {
 		WithExternalHttpEndpoints().
 		WithOtlpExporter()
 
-	// Each call records its failure on the handle that it returns, so check every resource.
-	for _, resource := range []aspire.Resource{cache, api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
-
 	app, err := builder.Build()
 	if err != nil {
 		log.Fatal(aspire.FormatError(err))
@@ -122,7 +115,7 @@ The program has three parts:
 
 1. `aspire.CreateBuilder()` connects to the AppHost server that the CLI starts and returns the builder.
 2. `AddRedis` and `AddGoApp` add resources. Each call returns a handle, so `WithReference`, `WaitFor`, and the other configuration methods chain onto it.
-3. A loop checks the handle of each resource with `Err()`, because a failed call records its error on the handle that it returns, not on the builder. `builder.Build()` creates the application, and `app.Run()` blocks until the AppHost stops. Both return an error. See [Go AppHost API conventions](/app-host/go-apphost-conventions/#errors) for how to check handles and format errors.
+3. `builder.Build()` creates the application, and `app.Run()` blocks until the AppHost stops. Both return an error. You don't check each resource: errors from the `Add` and `With` calls are collected and reported together when you call `Build`. See [Go AppHost API conventions](/app-host/go-apphost-conventions/#errors) for how errors are reported and formatted.
 
 ## aspire.config.json
 
@@ -259,13 +252,6 @@ func main() {
 		WithExternalHttpEndpoints().
 		WithOtlpExporter()
 
-	// Each call records its failure on the handle that it returns, so check every resource.
-	for _, resource := range []aspire.Resource{cache, db, api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
-
 	app, err := builder.Build()
 	if err != nil {
 		log.Fatal(aspire.FormatError(err))
@@ -279,7 +265,7 @@ func main() {
 - `AddPostgres` adds the PostgreSQL server, and `AddDatabase` returns a handle for a database on that server.
 - `WithReference(db)` passes the connection details to the API as environment variables named after the resource, such as `POSTGRESDB_URI`. See [Connect to PostgreSQL](/integrations/databases/postgres/postgres-connect/) for a Go example that reads them.
 - `WaitFor(db)` starts the API after the database is ready.
-- The loop checks each handle with `Err()` before `Build`, because a failed call records its error on the handle that it returns.
+- Any error from these calls is reported when you call `Build`.
 
 ## Orchestrate apps in other languages
 
@@ -322,12 +308,6 @@ func main() {
 		WithReference(api).
 		WithReference(recommender).
 		WaitFor(api)
-
-	for _, resource := range []aspire.Resource{cache, api, recommender, web} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {

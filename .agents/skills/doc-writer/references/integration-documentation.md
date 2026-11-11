@@ -95,9 +95,6 @@ func main() {
 	}
 
 	tech := builder.AddTechnology("tech")
-	if err := tech.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
 
 	app, err := builder.Build()
 	if err != nil {
@@ -184,12 +181,6 @@ func main() {
 	tech := builder.AddTechnology("tech")
 	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
 		WithReference(tech)
-
-	for _, resource := range []aspire.Resource{tech, api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {

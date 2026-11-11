@@ -163,12 +163,6 @@ foundry := builder.AddFoundry("foundry")
 api := builder.AddGoApp("api", "./api").
 	WithReference(foundry)
 
-for _, resource := range []aspire.Resource{foundry, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
-
 // After adding all resources, run the app...
 app, err := builder.Build()
 if err != nil {
@@ -258,12 +252,6 @@ api := builder.AddGoApp("api", "./api").
 	WithReference(chat).
 	WaitFor(chat)
 
-for _, resource := range []aspire.Resource{foundry, chat, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
-
 app, err := builder.Build()
 if err != nil {
 	log.Fatal(aspire.FormatError(err))
@@ -344,12 +332,6 @@ chat := foundry.AddDeployment("chat", &aspire.FoundryModel{
 api := builder.AddGoApp("api", "./api").
 	WithReference(chat).
 	WaitFor(chat)
-
-for _, resource := range []aspire.Resource{foundry, chat, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 app, err := builder.Build()
 if err != nil {
@@ -450,12 +432,6 @@ api := builder.AddGoApp("api", "./api").
 	WithReference(chat).
 	WaitFor(chat)
 
-for _, resource := range []aspire.Resource{foundry, project, chat, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
-
 app, err := builder.Build()
 if err != nil {
 	log.Fatal(aspire.FormatError(err))
@@ -530,9 +506,6 @@ project := foundry.AddProject("my-project").
 	WithKeyVault(keyVault).
 	WithContainerRegistry(registry)
 
-if err := project.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
 ```
 
 </TabItem>
@@ -645,12 +618,6 @@ toolbox := project.AddToolbox("field-tools").
 api := builder.AddGoApp("api", "./api").
 	WithReference(toolbox).
 	WaitFor(toolbox)
-
-for _, resource := range []aspire.Resource{foundry, project, search, toolbox, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 app, err := builder.Build()
 if err != nil {
@@ -787,12 +754,6 @@ agentDotnet := builder.AddDotnetProject("agent-dotnet", "../Agent/Agent.csproj")
 	WithReference(project).
 	WithReference(chat)
 agentDotnet.AsHostedAgent(project)
-
-for _, resource := range []aspire.Resource{foundry, project, chat, agentPython, agentDotnet} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 app, err := builder.Build()
 if err != nil {
@@ -989,19 +950,13 @@ chat := project.AddModelDeployment("chat", "gpt-5-mini", &aspire.AddModelDeploym
 
 webSearch := project.AddWebSearchTool("web-search")
 
-webResearcher := project.AddPromptAgent("web-researcher", chat, &aspire.AddPromptAgentOptions{
+project.AddPromptAgent("web-researcher", chat, &aspire.AddPromptAgentOptions{
 	Instructions: aspire.StringPtr(`
 You are the Web Researcher. Use web search for current information,
 cite sources, summarize tradeoffs, and keep answers concise and practical.
 `),
 }).
 	WithTool(webSearch)
-
-for _, resource := range []aspire.Resource{foundry, project, chat, webSearch, webResearcher} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 app, err := builder.Build()
 if err != nil {
@@ -1108,12 +1063,6 @@ foundry := builder.AddFoundry("foundry").
 api := builder.AddGoApp("api", "./api").
 	WithReference(foundry)
 
-for _, resource := range []aspire.Resource{foundry, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
-
 app, err := builder.Build()
 if err != nil {
 	log.Fatal(aspire.FormatError(err))
@@ -1205,12 +1154,6 @@ chat := foundry.AddDeployment("chat", &aspire.FoundryModel{
 api := builder.AddGoApp("api", "./api").
 	WithReference(chat).
 	WaitFor(chat)
-
-for _, resource := range []aspire.Resource{foundry, chat, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 app, err := builder.Build()
 if err != nil {
@@ -1349,12 +1292,6 @@ foundry := builder.AddFoundry("chat")
 api := builder.AddGoApp("api", "./api").
 	WithFoundryRoleAssignments(foundry, []aspire.FoundryRole{aspire.FoundryRoleCognitiveServicesUser}).
 	WithReference(foundry)
-
-for _, resource := range []aspire.Resource{foundry, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 app, err := builder.Build()
 if err != nil {

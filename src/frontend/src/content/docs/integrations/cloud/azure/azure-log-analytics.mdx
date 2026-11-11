@@ -145,10 +145,7 @@ func main() {
 		log.Fatal(aspire.FormatError(err))
 	}
 
-	logAnalytics := builder.AddAzureLogAnalyticsWorkspace("log-analytics")
-	if err := logAnalytics.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
+	builder.AddAzureLogAnalyticsWorkspace("log-analytics")
 
 	// After adding all resources, run the app...
 	app, err := builder.Build()
@@ -239,12 +236,6 @@ func main() {
 
 	api := builder.AddNodeApp("api", "./api", "index.js").
 		WithReference(appInsights)
-
-	for _, resource := range []aspire.Resource{logAnalytics, appInsights, api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {

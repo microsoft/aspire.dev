@@ -147,15 +147,9 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-appServiceEnv := builder.AddAzureAppServiceEnvironment("app-service-env")
+builder.AddAzureAppServiceEnvironment("app-service-env")
 
 api := builder.AddGoApp("api", "./api")
-
-for _, resource := range []aspire.Resource{appServiceEnv, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -264,16 +258,10 @@ if err != nil {
 existingAppServicePlanName := builder.AddParameter("existingAppServicePlanName")
 existingResourceGroup := builder.AddParameter("existingResourceGroup")
 
-appServiceEnv := builder.AddAzureAppServiceEnvironment("app-service-env").
+builder.AddAzureAppServiceEnvironment("app-service-env").
 	AsExisting(existingAppServicePlanName, &aspire.AsExistingOptions{ResourceGroup: existingResourceGroup})
 
 api := builder.AddGoApp("api", "./api")
-
-for _, resource := range []aspire.Resource{appServiceEnv, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -347,7 +335,7 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-appServiceEnv := builder.AddAzureAppServiceEnvironment("app-service-env")
+builder.AddAzureAppServiceEnvironment("app-service-env")
 
 api := builder.AddGoApp("api", "./api")
 api.PublishAsAzureAppServiceWebsite(&aspire.PublishAsAzureAppServiceWebsiteOptions{
@@ -355,12 +343,6 @@ api.PublishAsAzureAppServiceWebsite(&aspire.PublishAsAzureAppServiceWebsiteOptio
 		// Customize infrastructure here using Azure Provisioning APIs
 	},
 })
-
-for _, resource := range []aspire.Resource{appServiceEnv, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 app, err := builder.Build()
 if err != nil {
@@ -451,7 +433,7 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-appServiceEnv := builder.AddAzureAppServiceEnvironment("appservice").
+builder.AddAzureAppServiceEnvironment("appservice").
 	WithDeploymentSlot("staging")
 
 apiService := builder.AddGoApp("apiservice", "./apiservice").
@@ -463,12 +445,6 @@ web := builder.AddGoApp("webfrontend", "./web").
 	WithHttpHealthCheck(&aspire.WithHttpHealthCheckOptions{Path: aspire.StringPtr("/health")}).
 	WithReference(apiService).
 	WaitFor(apiService)
-
-for _, resource := range []aspire.Resource{appServiceEnv, apiService, web} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
 
 app, err := builder.Build()
 if err != nil {
@@ -541,14 +517,10 @@ if err != nil {
 
 slotName := builder.AddParameter("deploymentSlot")
 
-appServiceEnv := builder.AddAzureAppServiceEnvironment("appservice").
+builder.AddAzureAppServiceEnvironment("appservice").
 	WithDeploymentSlot(slotName)
 
 // Add your projects and other resources...
-
-if err := appServiceEnv.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
 
 app, err := builder.Build()
 if err != nil {
@@ -680,12 +652,6 @@ appServiceEnv.WithDelegatedSubnet(subnet)
 
 api := builder.AddGoApp("api", "./api")
 
-for _, resource := range []aspire.Resource{vnet, subnet, appServiceEnv, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
-}
-
 app, err := builder.Build()
 if err != nil {
 	log.Fatal(aspire.FormatError(err))
@@ -779,10 +745,6 @@ appServiceEnv := builder.AddAzureAppServiceEnvironment("app-service-env")
 appServiceEnv.ConfigureInfrastructure(func(infra aspire.AzureResourceInfrastructure) {
 	// Customize Azure Provisioning resources here
 })
-
-if err := appServiceEnv.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
 
 app, err := builder.Build()
 if err != nil {
