@@ -141,6 +141,16 @@ describe('validateGeneratedApiData', () => {
     expect(validateGeneratedApiData(input).errors).toEqual([]);
   });
 
+  test('allows catalog packages excluded from API reference generation to have no output', () => {
+    const input = createValidInput();
+    input.catalog.push({
+      title: 'Particular.Aspire.Hosting.ServicePlatform',
+      version: '1.1.0',
+      apiReference: false,
+    });
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+  });
+
   test('accepts semantically faithful generated data', () => {
     expect(validateGeneratedApiData(createValidInput()).errors).toEqual([]);
   });

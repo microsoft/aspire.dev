@@ -7,6 +7,7 @@ import { readEnumDeclarations } from './supplement-ats-enums';
 interface CatalogEntry {
   title: string;
   version: string;
+  apiReference?: boolean;
 }
 
 interface PackageMetadata {
@@ -377,7 +378,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
   );
 
   for (const entry of input.catalog) {
-    if (!isPackageOutputExpected(entry.title)) continue;
+    if (!isPackageOutputExpected(entry.title) || entry.apiReference === false) continue;
     const key = `${entry.title}@${entry.version}`;
     if (!packageByIdentity.has(key)) {
       errors.push(`Missing C# API output for catalog package ${key}.`);

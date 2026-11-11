@@ -107,7 +107,9 @@ function Remove-StalePackageJsonFiles {
 
 $integrationsFile = [System.IO.Path]::Combine($RepoRoot, "src", "frontend", "src", "data", "aspire-integrations.json")
 $integrations = if (Test-Path $integrationsFile) {
-    @(Get-Content $integrationsFile -Raw | ConvertFrom-Json)
+    # Entries marked `"apiReference": false` (third-party packages) are not documented here.
+    @(Get-Content $integrationsFile -Raw | ConvertFrom-Json |
+        Where-Object { $_.apiReference -ne $false })
 }
 else {
     @()
