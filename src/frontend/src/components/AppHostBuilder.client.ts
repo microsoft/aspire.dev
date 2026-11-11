@@ -146,6 +146,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
   let desiredVariant = currentVariant;
   let pendingAnnouncement = 'TypeScript AppHost code showing Front end.';
   let processing = false;
+  let requestRevision = 0;
   let caretLineIndex = 0;
   let caretColumn = 0;
   const examples = document.createElement('template');
@@ -300,7 +301,8 @@ function initializeAppHostBuilder(root: HTMLElement): void {
 
   const selectAndDeleteLines = async (
     startIndex: number,
-    deleteCount: number
+    deleteCount: number,
+    isCurrentRequest: () => boolean
   ): Promise<boolean> => {
     const lines = getLines(stage);
     const selectedLines = lines.slice(startIndex, startIndex + deleteCount);
@@ -310,13 +312,14 @@ function initializeAppHostBuilder(root: HTMLElement): void {
 
     setEditorState('navigating');
     await updateCaretPosition(lastLine, getLineText(lastLine).length, 220);
-    if (!isEditorMotionAllowed()) return false;
+    if (!isEditorMotionAllowed() || !isCurrentRequest()) return false;
 
     selectedLines.forEach((line) => line.setAttribute('data-editor-selection', ''));
     setEditorState('selecting');
     await updateCaretPosition(firstLine, 0, 160);
+    if (!isCurrentRequest()) return false;
     await wait(260);
-    if (!isEditorMotionAllowed()) return false;
+    if (!isEditorMotionAllowed() || !isCurrentRequest()) return false;
 
     const removals = selectedLines.map(
       (line) =>
@@ -333,7 +336,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
         ).finished
     );
     await Promise.all(removals);
-    if (!isEditorMotionAllowed()) return false;
+    if (!isEditorMotionAllowed() || !isCurrentRequest()) return false;
     selectedLines.forEach((line) => line.remove());
     return true;
   };
@@ -341,7 +344,8 @@ function initializeAppHostBuilder(root: HTMLElement): void {
   const typeLine = async (
     sourceLine: HTMLElement,
     outputLine: HTMLElement,
-    charactersPerStep: number
+    charactersPerStep: number,
+    isCurrentRequest: () => boolean
   ): Promise<boolean> => {
     const sourceCode = sourceLine.querySelector<HTMLElement>('.code');
     const outputCode = outputLine.querySelector<HTMLElement>('.code');
@@ -363,7 +367,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
       if (!segment.output) continue;
 
       for (let offset = 0; offset < segment.value.length; offset += charactersPerStep) {
-        if (!isEditorMotionAllowed()) return false;
+        if (!isEditorMotionAllowed() || !isCurrentRequest()) return false;
         const nextOffset = Math.min(segment.value.length, offset + charactersPerStep);
         segment.output.data = segment.value.slice(0, nextOffset);
         typedCharacters += nextOffset - offset;
@@ -371,6 +375,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
 
         const lastCharacter = segment.value[nextOffset - 1] ?? '';
         await wait(/[;{}()[\]]/.test(lastCharacter) ? 22 : lastCharacter === ' ' ? 7 : 12);
+        if (!isCurrentRequest()) return false;
       }
     }
 
@@ -382,7 +387,8 @@ function initializeAppHostBuilder(root: HTMLElement): void {
   const insertLines = async (
     code: HTMLElement,
     startIndex: number,
-    sourceLines: HTMLElement[]
+    sourceLines: HTMLElement[],
+    isCurrentRequest: () => boolean
   ): Promise<boolean> => {
     const totalCharacters = sourceLines.reduce(
       (total, line) => total + getLineText(line).length,
@@ -392,7 +398,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
 
     setEditorState('typing');
     for (let index = 0; index < sourceLines.length; index += 1) {
-      if (!isEditorMotionAllowed()) return false;
+      if (!isEditorMotionAllowed() || !isCurrentRequest()) return false;
       const sourceLine = sourceLines[index];
       const outputLine = sourceLine.cloneNode(true);
       if (!(outputLine instanceof HTMLElement)) continue;
@@ -408,20 +414,27 @@ function initializeAppHostBuilder(root: HTMLElement): void {
       code.insertBefore(outputLine, referenceLine);
 
       await updateCaretPosition(outputLine, 0, index === 0 ? 180 : 55);
-      if (!(await typeLine(sourceLine, outputLine, charactersPerStep))) return false;
+      if (!(await typeLine(sourceLine, outputLine, charactersPerStep, isCurrentRequest))) {
+        return false;
+      }
       delete outputLine.dataset.editorInserting;
       await wait(34);
+      if (!isCurrentRequest()) return false;
     }
     return true;
   };
 
-  const animateVariantChange = async (language: AppHostLanguage, targetVariant: string) => {
+  const animateVariantChange = async (
+    language: AppHostLanguage,
+    targetVariant: string,
+    isCurrentRequest: () => boolean
+  ): Promise<boolean> => {
     const frame = stage.querySelector<HTMLElement>('[data-editor-frame]');
     const code = frame?.querySelector<HTMLElement>('pre > code');
     const template = getTemplate(language, targetVariant);
     if (!frame || !code || !template) {
       mountFrame(language, targetVariant);
-      return;
+      return true;
     }
 
     const oldLines = getLines(frame);
@@ -434,10 +447,8 @@ function initializeAppHostBuilder(root: HTMLElement): void {
       const editIndex = hunk.startOld + lineOffset;
 
       if (hunk.deleteCount > 0) {
-        if (!(await selectAndDeleteLines(editIndex, hunk.deleteCount))) {
-          mountFrame(language, targetVariant);
-          await placeCaretAtEnd();
-          return;
+        if (!(await selectAndDeleteLines(editIndex, hunk.deleteCount, isCurrentRequest))) {
+          return false;
         }
       }
 
@@ -445,10 +456,8 @@ function initializeAppHostBuilder(root: HTMLElement): void {
         .map((lineIndex) => targetLines[lineIndex])
         .filter((line): line is HTMLElement => line !== undefined);
       if (insertedLines.length > 0) {
-        if (!(await insertLines(code, editIndex, insertedLines))) {
-          mountFrame(language, targetVariant);
-          await placeCaretAtEnd();
-          return;
+        if (!(await insertLines(code, editIndex, insertedLines, isCurrentRequest))) {
+          return false;
         }
       } else {
         const remainingLines = getLines(stage);
@@ -461,6 +470,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
         }
       }
 
+      if (!isCurrentRequest()) return false;
       lineOffset += insertedLines.length - hunk.deleteCount;
     }
 
@@ -475,9 +485,14 @@ function initializeAppHostBuilder(root: HTMLElement): void {
     } else {
       stage.dataset.codeVariant = targetVariant;
     }
+    return true;
   };
 
-  const switchLanguage = async (language: AppHostLanguage, variant: string) => {
+  const switchLanguage = async (
+    language: AppHostLanguage,
+    variant: string,
+    isCurrentRequest: () => boolean
+  ): Promise<boolean> => {
     const currentFrame = stage.querySelector<HTMLElement>('[data-editor-frame]');
     setEditorState('switching');
 
@@ -496,8 +511,9 @@ function initializeAppHostBuilder(root: HTMLElement): void {
       if (!isEditorMotionAllowed()) {
         mountFrame(language, variant);
         await placeCaretAtEnd();
-        return;
+        return true;
       }
+      if (!isCurrentRequest()) return false;
     }
 
     const nextFrame = mountFrame(language, variant);
@@ -513,9 +529,11 @@ function initializeAppHostBuilder(root: HTMLElement): void {
           fill: 'both',
         }
       ).finished;
+      if (!isCurrentRequest()) return false;
     }
 
     await placeCaretAtEnd();
+    return true;
   };
 
   const processRequestedState = async () => {
@@ -558,16 +576,27 @@ function initializeAppHostBuilder(root: HTMLElement): void {
       ) {
         const nextLanguage = desiredLanguage;
         const nextVariant = desiredVariant;
+        const revision = requestRevision;
+        const isCurrentRequest = () => revision === requestRevision;
         const shouldAnimate = isEditorMotionAllowed();
+        let completed = true;
 
         codeDisplay.dataset.editorMotion = shouldAnimate ? 'animated' : 'reduced';
         if (!shouldAnimate) {
           mountFrame(nextLanguage, nextVariant);
           await placeCaretAtEnd();
         } else if (currentLanguage !== nextLanguage) {
-          await switchLanguage(nextLanguage, nextVariant);
+          completed = await switchLanguage(nextLanguage, nextVariant, isCurrentRequest);
         } else {
-          await animateVariantChange(nextLanguage, nextVariant);
+          completed = await animateVariantChange(nextLanguage, nextVariant, isCurrentRequest);
+        }
+
+        if (!completed) {
+          mountFrame(desiredLanguage, desiredVariant);
+          await placeCaretAtEnd();
+          currentLanguage = desiredLanguage;
+          currentVariant = desiredVariant;
+          continue;
         }
 
         currentLanguage = nextLanguage;
@@ -666,6 +695,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
 
       desiredLanguage = language;
       desiredVariant = getVariantKey();
+      requestRevision += 1;
       pendingAnnouncement = `AppHost code language changed to ${button.textContent?.trim() ?? language}.`;
       root.dispatchEvent(
         new CustomEvent('aspire:apphost-language-change', {
@@ -682,6 +712,7 @@ function initializeAppHostBuilder(root: HTMLElement): void {
       const isSelected = button.classList.toggle('active');
       button.setAttribute('aria-pressed', String(isSelected));
       desiredVariant = getVariantKey();
+      requestRevision += 1;
 
       const label = button.textContent?.trim() ?? 'Option';
       pendingAnnouncement = `${label} ${isSelected ? 'added to' : 'removed from'} the AppHost.`;
