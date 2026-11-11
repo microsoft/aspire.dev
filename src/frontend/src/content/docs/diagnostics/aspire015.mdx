@@ -1,0 +1,45 @@
+---
+title: Compiler Warning ASPIRE015
+seoTitle: 'ASPIRE015: AspireCliPath overrides AspireCliInvocationMode · Aspire'
+description: Learn what causes Aspire compiler warning ASPIRE015 when AspireCliPath overrides a Dnx or DnxPinned AspireCliInvocationMode, and how to correct it.
+---
+
+> '[ProjectName]': AspireCliInvocationMode=[Dnx|DnxPinned] is ignored because AspireCliPath is set.
+
+This diagnostic warning is reported when an AppHost project explicitly sets `AspireCliInvocationMode` to `Dnx` or `DnxPinned`, but `AspireCliPath` is also set. An explicit `AspireCliPath` takes precedence over `AspireCliInvocationMode`, so the AppHost runs the CLI at that path instead of invoking it through DNX. Precedence is unchanged; the warning only makes the override visible.
+
+`AspireCliPath` is often inherited from the environment. For example, the Aspire VS Code extension sets it for its terminals, so a project can silently run the installed CLI instead of DNX.
+
+## Example
+
+The following configuration produces `ASPIRE015` when `AspireCliPath` is set in the environment or elsewhere:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireCliInvocationMode>DnxPinned</AspireCliInvocationMode>
+</PropertyGroup>
+```
+
+## To correct this warning
+
+Use one of the following remedies:
+
+1. Clear `AspireCliPath` in the AppHost project so the configured DNX mode is used:
+
+   ```xml title="MyApp.AppHost.csproj"
+   <PropertyGroup>
+     <AspireCliInvocationMode>DnxPinned</AspireCliInvocationMode>
+     <AspireCliPath></AspireCliPath>
+   </PropertyGroup>
+   ```
+
+2. Remove `AspireCliInvocationMode` if you intend to use the CLI at `AspireCliPath`.
+3. Suppress the warning by adding `ASPIRE015` to `NoWarn`:
+
+   ```xml title="MyApp.AppHost.csproj"
+   <PropertyGroup>
+     <NoWarn>$(NoWarn);ASPIRE015</NoWarn>
+   </PropertyGroup>
+   ```
+
+For more information, see [Use the Aspire CLI bundle for orchestration dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies).
