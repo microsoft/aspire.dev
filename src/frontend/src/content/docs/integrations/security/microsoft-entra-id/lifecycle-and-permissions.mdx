@@ -122,16 +122,16 @@ Removal never revokes tokens that were already issued. Tokens stay valid until t
 
 ### Revoke what remains
 
-To remove access that Aspire no longer manages, use the [Microsoft Entra admin center](https://entra.microsoft.com) or Microsoft Graph. With the Azure CLI, pass the client's application ID or the service principal's object ID from the `servicePrincipalId` deployment output:
+To remove access that Aspire no longer manages, use the [Microsoft Entra admin center](https://entra.microsoft.com) or Microsoft Graph. With the Azure CLI, use the client's application ID to list delegated grants. For app role assignments, use the object ID of the service principal that received the assignment. For `PublishWithAppRoleAssignment`, use the caller managed identity's principal ID, not the API's `servicePrincipalId` deployment output. For a client's application permissions, use the client's service principal ID.
 
 ```bash title="Terminal"
 # List and delete delegated permission grants of a client.
 az ad app permission list-grants --id <client-app-id>
 az rest --method DELETE --url "https://graph.microsoft.com/v1.0/oauth2PermissionGrants/<grant-id>"
 
-# List and delete app role assignments, including application permissions.
-az rest --method GET --url "https://graph.microsoft.com/v1.0/servicePrincipals/<service-principal-id>/appRoleAssignments"
-az rest --method DELETE --url "https://graph.microsoft.com/v1.0/servicePrincipals/<service-principal-id>/appRoleAssignments/<assignment-id>"
+# List and delete app role assignments for the principal you are cleaning up.
+az rest --method GET --url "https://graph.microsoft.com/v1.0/servicePrincipals/<principal-service-principal-id>/appRoleAssignments"
+az rest --method DELETE --url "https://graph.microsoft.com/v1.0/servicePrincipals/<principal-service-principal-id>/appRoleAssignments/<assignment-id>"
 
 # List and delete certificate credentials, such as a local developer certificate.
 az ad app credential list --id <app-id> --cert
