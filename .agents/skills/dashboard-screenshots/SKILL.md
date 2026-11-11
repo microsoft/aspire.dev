@@ -63,3 +63,18 @@ Recapturing is not enough: the UX may have gained surfaces the docs never showed
 ## Report
 
 The run prints captured/failed counts and lists unreproducible or skipped images (old UX concepts, terminals, Copilot/MCP dialogs, GIFs). Review captured images visually before committing. Never run `bun run build`; `git restore` any `.starlight-icons` churn.
+
+## Known selectors and gotchas
+
+- Console log "Download logs" lives in the log pane's settings (sliders) menu: `fluent-button.toolbar-button[aria-label='Settings']` (last). There is no toolbar Download button.
+- Row actions: hover the row, then force-click `[aria-label='Actions for <name>']`; pick items with `getByRole('menuitem',{name})` and `click({force:true})`. Notifications bell is `getByRole('button',{name:'Notifications'})`.
+- Resource sidebar: drag `.resource-pane-resizer`; collapse via "Collapse resource list", then use `.resource-picker-button` (Filter box, All resources, Ctrl+click multi-select, Shift+click range).
+- Aspire Outage: `[aria-label='Play Aspire Outage']`; modes `.resource-graph-game-button` (Normal) / `.resource-graph-game-hardcore` (Hard); Esc exits.
+- A final dismiss pass runs before every capture; message bars can reappear, so never capture without it.
+- Error badge counts grow over time; recapture soon after startup.
+
+## Not captured by this manifest
+
+- Needs replicas (`console-logs-with-replicas`, `telemetry-resource-filter`): add `WithReplicas(2)` to the demo temporarily.
+- Needs other setups: login, terminals, copilot, mcp-dialog, standalone, dashboard-run-selector, `trace-view-filter-advanced`, `trace-page-from-exemplars`, `project-graphs`, `settings-manage-telemetry`.
+- Not dashboard captures: architecture diagrams, `.excalidraw` files, GIFs.
