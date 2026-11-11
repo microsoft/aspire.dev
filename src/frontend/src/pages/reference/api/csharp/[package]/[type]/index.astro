@@ -6,6 +6,7 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
+import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import TypeHero from '@components/api-reference/TypeHero.astro';
 import MemberOverviewList from '@components/api-reference/MemberOverviewList.astro';
@@ -30,7 +31,10 @@ import {
   packageSlug,
   getPackages,
   getPackageDocument,
+<<<<<<< HEAD
   getPackageType,
+=======
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
 } from '@utils/packages';
 import type { PackageTypeRouteProps } from '@utils/packages';
 
@@ -40,17 +44,27 @@ export async function getStaticPaths() {
   const packages = await getPackages();
   const paths: Array<{ params: { package: string; type: string }; props: Props }> = [];
   for (const pkg of packages) {
+<<<<<<< HEAD
     for (const [typeIndex, t] of pkg.data.types.entries()) {
+=======
+    const cacheKey = apiDocumentCacheKey(pkg.data);
+    for (const t of pkg.data.types) {
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
       const typeSlug = slugify(t.name, genericArity(t));
       if (!typeSlug) continue;  // skip types with empty names (e.g. C# 14 extension types)
       paths.push({
+        cacheKey,
         params: {
           package: packageSlug(pkg.data.package.name),
           type: typeSlug,
         },
         props: {
           packageName: pkg.data.package.name,
+<<<<<<< HEAD
           typeIndex,
+=======
+          type: t,
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
         },
       });
     }
@@ -58,9 +72,14 @@ export async function getStaticPaths() {
   return paths;
 }
 
+<<<<<<< HEAD
 const { packageName, typeIndex: sourceTypeIndex } = Astro.props;
 const pkg = await getPackageDocument(packageName);
 const type = getPackageType(pkg, sourceTypeIndex);
+=======
+const { packageName, type } = Astro.props;
+const pkg = await getPackageDocument(packageName);
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
 const allTypes = pkg.types;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const apiSidebar = await getApiReferenceSidebar({ packageName: pkg.package.name });

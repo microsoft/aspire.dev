@@ -16,11 +16,19 @@ import {
   renderCSharpMemberKindMarkdown,
   renderCSharpTypeMarkdown,
 } from '@utils/csharp-api-markdown';
+<<<<<<< HEAD
 import { getPackageDocument, getPackageType, memberKindSlugs, resolveMemberAnchors } from '@utils/packages';
 import { getTsModuleDocument, tsSlugify } from '@utils/ts-modules';
 import { getTsHandleMethod, getTsRouteItem } from '@utils/ts-api-routes';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsDtoType, TsEnumType, TsFunction, TsHandleType, TsItem } from '@utils/ts-modules';
+=======
+import { memberKindSlugs, resolveMemberAnchors } from '@utils/packages';
+import { getTsModuleDocument, getTsModules, tsSlugify } from '@utils/ts-modules';
+import { getTsHandleMethod, getTsRouteItem } from '@utils/ts-api-routes';
+import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
+import type { TsApiDocument, TsFunction, TsHandleType } from '@utils/ts-modules';
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
 
 vi.mock('astro:content', async (importOriginal) => {
   const actual = await importOriginal<typeof import('astro:content')>();
@@ -174,19 +182,32 @@ describe('API markdown routes', () => {
   });
 
   it('returns markdown for a TypeScript handle route', async () => {
+<<<<<<< HEAD
     const route = await findStaticRoute(
       typeScriptItemRoute.getStaticPaths,
       async (candidate) =>
         candidate.props.itemKind === 'handle' &&
         !!(await tsItem(candidate) as TsHandleType).capabilities?.some(
+=======
+    const { route, item } = await findItemRoute(
+      'handle',
+      (candidate) =>
+        candidate.capabilities?.some(
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
           (capability: any) => capability.kind === 'Method' || capability.kind === 'InstanceMethod'
         ),
       'TypeScript handle route'
     );
+<<<<<<< HEAD
     const item = await tsItem(route) as TsHandleType;
     const method = item.capabilities!.find(
       (capability) => capability.kind === 'Method' || capability.kind === 'InstanceMethod'
     )!;
+=======
+    const method = item.capabilities.find(
+      (capability: any) => capability.kind === 'Method' || capability.kind === 'InstanceMethod'
+    );
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
     const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
 
     expect(markdown).toContain(`# ${item.name}`);
@@ -197,44 +218,74 @@ describe('API markdown routes', () => {
   });
 
   it('returns markdown for a TypeScript DTO route', async () => {
+<<<<<<< HEAD
     const route = await findStaticRoute(
       typeScriptItemRoute.getStaticPaths,
       async (candidate) =>
         candidate.props.itemKind === 'dto' &&
         ((await tsItem(candidate) as TsDtoType).fields?.length ?? 0) > 0,
+=======
+    const { route, item } = await findItemRoute(
+      'dto',
+      (candidate) => (candidate.fields?.length ?? 0) > 0,
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
       'TypeScript DTO route'
     );
     const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
 
+<<<<<<< HEAD
     expect(markdown).toContain(`# ${(await tsItem(route)).name}`);
+=======
+    expect(markdown).toContain(`# ${item.name}`);
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
     expect(markdown).toContain('## Fields');
   });
 
   it('returns markdown for a TypeScript enum route', async () => {
+<<<<<<< HEAD
     const route = await findStaticRoute(
       typeScriptItemRoute.getStaticPaths,
       async (candidate) =>
         candidate.props.itemKind === 'enum' &&
         ((await tsItem(candidate) as TsEnumType).members?.length ?? 0) > 0,
+=======
+    const { route, item } = await findItemRoute(
+      'enum',
+      (candidate) => (candidate.members?.length ?? 0) > 0,
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
       'TypeScript enum route'
     );
     const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
 
+<<<<<<< HEAD
     expect(markdown).toContain(`# ${(await tsItem(route)).name}`);
+=======
+    expect(markdown).toContain(`# ${item.name}`);
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
     expect(markdown).toContain('## Values');
   });
 
   it('returns markdown for a TypeScript function route', async () => {
+<<<<<<< HEAD
     const route = await findStaticRoute(
       typeScriptItemRoute.getStaticPaths,
       async (candidate) =>
         candidate.props.itemKind === 'function' &&
         ((await tsItem(candidate) as TsFunction).parameters?.length ?? 0) > 0,
+=======
+    const { route, item } = await findItemRoute(
+      'function',
+      (candidate) => (candidate.parameters?.length ?? 0) > 0,
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
       'TypeScript function route'
     );
     const markdown = await readMarkdown(typeScriptItemRoute.GET?.({ props: route.props } as any));
 
+<<<<<<< HEAD
     expect(markdown).toContain(`# ${(await tsItem(route)).name}`);
+=======
+    expect(markdown).toContain(`# ${item.name}`);
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
     expect(markdown).toContain('## Parameters');
     expect(markdown).toContain('## Returns');
   });
@@ -249,8 +300,16 @@ describe('API markdown routes', () => {
 
     const pkg = await getTsModuleDocument(route.props.packageName);
     const { parentType, method } = getTsHandleMethod<TsFunction, TsHandleType>(
+<<<<<<< HEAD
       pkg.handleTypes, route.props.handleIndex, route.props.methodIndex
     );
+=======
+      pkg.handleTypes,
+      route.props.handleIndex,
+      route.props.methodIndex
+    );
+
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
     expect(markdown).toContain(`# ${parentType.name}.${method.name}`);
     expect(markdown).toContain('## Signature');
     expect(markdown).toContain(`/reference/api/typescript/${route.params.module}/${route.params.item}.md`);
@@ -489,4 +548,21 @@ async function findStaticRoute(
     if (await predicate(route)) return route;
   }
   throw new Error(`Expected a representative ${label}.`);
+}
+
+// Item routes carry an index into the loaded document, so resolve the item the way GET does.
+async function findItemRoute(
+  itemKind: string,
+  predicate: (item: any) => boolean,
+  label: string
+): Promise<{ route: StaticRoute; item: any }> {
+  const docs = new Map((await getTsModules()).map(({ data }) => [data.package.name, data]));
+  const resolve = (candidate: StaticRoute) =>
+    getTsRouteItem<any>(docs.get(candidate.props.packageName)!, candidate.props.itemKind, candidate.props.itemIndex);
+  const route = await findStaticRoute(
+    typeScriptItemRoute.getStaticPaths,
+    (candidate) => candidate.props.itemKind === itemKind && predicate(resolve(candidate)),
+    label
+  );
+  return { route, item: resolve(route) };
 }

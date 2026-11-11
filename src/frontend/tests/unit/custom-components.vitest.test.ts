@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import heroImage from '@assets/aspire-hero.png';
@@ -1285,6 +1288,37 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('fit="contain"');
   });
 
+  it('ThemeImage changes development URLs only when image contents change', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'theme-image-'));
+    const path = join(directory, 'diagram.png');
+    const contents = await readFile(new URL('../../src/assets/aspire-hero.png', import.meta.url));
+    const image = { ...heroImage, src: `/@fs/${path.replaceAll('\\', '/')}` };
+    const render = async () =>
+      normalizeHtml(
+        await renderComponent(ThemeImage, {
+          props: { light: image, dark: image, alt: 'Versioned diagram', zoomable: false },
+        })
+      );
+    const sources = (html: string) => [
+      html.match(/data-light="([^"]+)"/)?.[1],
+      html.match(/data-dark="([^"]+)"/)?.[1],
+    ];
+
+    try {
+      await writeFile(path, contents);
+      const first = sources(await render());
+      expect(first.every(Boolean)).toBe(true);
+      expect(sources(await render())).toEqual(first);
+
+      await writeFile(path, Buffer.concat([contents, Buffer.from('updated')]));
+      const updated = sources(await render());
+      expect(updated[0]).not.toEqual(first[0]);
+      expect(updated[1]).not.toEqual(first[1]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('LoopingImage defers themed requests until the page theme is known', async () => {
     const html = normalizeHtml(
       await renderComponent(LoopingImage, {
@@ -1916,6 +1950,28 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('footer-mobile-tool');
     expect(html).not.toContain('data-cookie-manage-consent');
     expect(html).not.toContain('data-open-install-modal');
+  });
+
+  it('links Aspire software to its MIT license without replacing website legal links', async () => {
+    const html = normalizeHtml(
+      await renderComponent(FooterLegal, {
+        locals: { t: createTestTranslator(enTranslations) },
+      })
+    );
+
+    expect(html).toMatch(
+      /<a[^>]*href="https:\/\/github\.com\/microsoft\/aspire\/blob\/main\/LICENSE\.TXT"[^>]*>\s*Aspire software: MIT License\s*<\/a>/
+    );
+    for (const href of [
+      'https://aka.ms/yourcaliforniaprivacychoices',
+      'https://go.microsoft.com/fwlink/?LinkId=521839',
+      'https://go.microsoft.com/fwlink/?LinkID=206977',
+      'https://go.microsoft.com/fwlink/?linkid=2196228',
+      '/support/',
+    ]) {
+      expect(html).toContain(`href="${href}"`);
+    }
+    expect(html).toContain('Terms of Use');
   });
 
   it('renders a unique scanner-addressable Manage Cookies action under Legal', async () => {

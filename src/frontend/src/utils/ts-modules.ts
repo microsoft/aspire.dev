@@ -119,9 +119,22 @@ export function getTsModules(): Promise<TsModuleCollectionEntry[]> {
   return tsModulesPromise;
 }
 
+<<<<<<< HEAD
 export async function getTsModuleDocument(packageName: string): Promise<TsApiDocument> {
   const entry = (await getTsModules()).find(({ data }) => data.package.name === packageName);
   if (!entry) throw new Error(`Unknown TypeScript API package: ${packageName}`);
+=======
+/**
+ * Resolve a TypeScript module document by package name. Routes pass this name
+ * through `props` instead of the document itself so that parallel prerender
+ * workers do not receive a structured clone of the full module for every page.
+ */
+export async function getTsModuleDocument(packageName: string): Promise<TsApiDocument> {
+  const entry = (await getTsModules()).find(({ data }) => data.package.name === packageName);
+  if (!entry) {
+    throw new Error(`TypeScript module "${packageName}" was not found in the tsModules collection.`);
+  }
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
   return entry.data;
 }
 

@@ -3,9 +3,16 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { expect, test, vi } from 'vitest';
+<<<<<<< HEAD
 import type { TsApiDocument, TsFunction, TsHandleType, TsItem } from '@utils/ts-modules';
 import { formatTsSignature, getTsModules } from '@utils/ts-modules';
 import { getTsHandleMethod, getTsItemSlug, getTsMethods, getTsMethodSlug, getTsRouteItem, getTsTopLevelRouteItems, prepareTsApiRoutes, tsSlugify } from '@utils/ts-api-routes';
+=======
+import type { TsApiDocument, TsFunction, TsHandleType } from '@utils/ts-modules';
+import { formatTsSignature, getTsModules } from '@utils/ts-modules';
+import { getTsHandleMethod, getTsItemSlug, getTsMethods, getTsMethodSlug, getTsRouteItem, getTsTopLevelRouteItems, prepareTsApiRoutes, tsSlugify } from '@utils/ts-api-routes';
+import type { TsTopLevelRouteItemLike } from '@utils/ts-api-routes';
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import { getStaticPaths as itemPaths } from '../../src/pages/reference/api/typescript/[module]/[item].md';
 import { getStaticPaths as memberPaths } from '../../src/pages/reference/api/typescript/[module]/[item]/[member].md';
@@ -32,14 +39,26 @@ test('every catalog HTML item/member path has a Markdown peer and legacy exports
   const itemUrls = new Set(items.map(({ params }) => `${params.module}/${params.item}`));
   const memberUrls = new Set(members.map(({ params }) => `${params.module}/${params.item}/${params.member}`));
   const docs = new Map((await getTsModules()).map(({ data }) => [data.package.name, data]));
+<<<<<<< HEAD
   const itemProps = new Map(items.map(({ params, props }) => [
     `${params.module}/${params.item}`,
     getTsRouteItem<TsItem>(docs.get(props.packageName)!, props.itemKind, props.itemIndex),
+=======
+  const memberDocs = docs;
+  const itemProps = new Map(items.map(({ params, props }) => [
+    `${params.module}/${params.item}`,
+    getTsRouteItem<TsTopLevelRouteItemLike>(docs.get(props.packageName)!, props.itemKind, props.itemIndex),
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
   ]));
   const memberProps = new Map(members.map(({ params, props }) => [
     `${params.module}/${params.item}/${params.member}`,
     getTsHandleMethod<TsFunction, TsHandleType>(docs.get(props.packageName)!.handleTypes, props.handleIndex, props.methodIndex).method,
   ]));
+<<<<<<< HEAD
+=======
+  // Props are resolved from freshly loaded documents, so compare by content rather than identity.
+  const sameData = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
   let canonicalCount = 0;
   let legacyCount = 0;
   const legacyMismatches: string[] = [];
@@ -79,13 +98,14 @@ test('every catalog HTML item/member path has a Markdown peer and legacy exports
           legacyCount++;
         }
       }
-      // Astro's keyed static-path cache resolves duplicate paths to the last entry.
-      for (const [url, item] of legacyItems) {
-        if (itemProps.get(url) !== item) legacyMismatches.push(url);
-      }
-      for (const [url, method] of legacyMembers) {
-        if (memberProps.get(url) !== method) legacyMismatches.push(url);
-      }
+    }
+    // Astro's keyed static-path cache resolves duplicate paths to the last entry.
+    // Compare once per module: content equality is too costly to repeat for every handle.
+    for (const [url, item] of legacyItems) {
+      if (!sameData(itemProps.get(url), item)) legacyMismatches.push(url);
+    }
+    for (const [url, method] of legacyMembers) {
+      if (!sameData(memberProps.get(url), method)) legacyMismatches.push(url);
     }
     expect(legacyMismatches).toEqual([]);
   }

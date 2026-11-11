@@ -1,24 +1,41 @@
 import type { APIRoute } from 'astro';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
+import { withApiCacheKeys } from '@utils/api-cache-key';
 import { renderTypeScriptMemberMarkdownPage } from '@utils/typescript-api-markdown';
+<<<<<<< HEAD
 import type { TsFunction, TsHandleType, TsMemberRouteProps } from '@utils/ts-modules';
+=======
+import type { TsFunction, TsHandleType } from '@utils/ts-modules';
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
 import { getTsModuleDocument, getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
 import { getTsHandleMethod, getTsItemSlug, getTsMethods, getTsMethodSlug, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 
 export const prerender = true;
 
+<<<<<<< HEAD
 type RouteProps = TsMemberRouteProps;
+=======
+type RouteProps = {
+  handleIndex: number;
+  methodIndex: number;
+  packageName: string;
+};
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
 
 type StaticPath = {
   params: { item: string; member: string; module: string };
   props: RouteProps;
 };
 
-export async function getStaticPaths(): Promise<StaticPath[]> {
+export async function getStaticPaths(): Promise<Array<StaticPath & { cacheKey: string }>> {
   const packages = await getTsModules();
   const paths: StaticPath[] = [];
+<<<<<<< HEAD
   const names = new Map<StaticPath, { item: string; member: string }>();
+=======
+  const names = new Map<StaticPath, { member: string; item: string }>();
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
 
   for (const entry of packages) {
     const pkg = entry.data;
@@ -45,8 +62,13 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
             module: pkgSlug,
           },
           props: {
+<<<<<<< HEAD
             methodIndex,
             handleIndex,
+=======
+            handleIndex,
+            methodIndex,
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
             packageName: pkg.package.name,
           },
         };
@@ -65,7 +87,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
       legacy.set(key, { ...path, params: { ...path.params, item, member } });
     }
   }
-  return [...paths, ...legacy.values()];
+  return withApiCacheKeys([...paths, ...legacy.values()], packages);
 }
 
 export const GET: APIRoute = async ({ props }) => {
@@ -73,7 +95,13 @@ export const GET: APIRoute = async ({ props }) => {
   const routeProps = props as RouteProps;
   const pkg = await getTsModuleDocument(routeProps.packageName);
   const { parentType, method } = getTsHandleMethod<TsFunction, TsHandleType>(
+<<<<<<< HEAD
     pkg.handleTypes, routeProps.handleIndex, routeProps.methodIndex
+=======
+    pkg.handleTypes,
+    routeProps.handleIndex,
+    routeProps.methodIndex
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
   );
 
   return markdownResponse(

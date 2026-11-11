@@ -118,6 +118,7 @@ export function getPackages(): Promise<PackageCollectionEntry[]> {
   return packagesPromise;
 }
 
+<<<<<<< HEAD
 export async function getPackageDocument(packageName: string): Promise<PackageApiDocument> {
   const entry = (await getPackages()).find(({ data }) => data.package.name === packageName);
   if (!entry) throw new Error(`Unknown C# API package: ${packageName}`);
@@ -130,6 +131,21 @@ export function getPackageType(document: PackageApiDocument, index: number): Pac
   return type;
 }
 
+=======
+/**
+ * Resolve a package document by name. Routes pass this name through `props`
+ * instead of the document itself so that parallel prerender workers do not
+ * receive a structured clone of the full package for every generated page.
+ */
+export async function getPackageDocument(packageName: string): Promise<PackageApiDocument> {
+  const entry = (await getPackages()).find(({ data }) => data.package.name === packageName);
+  if (!entry) {
+    throw new Error(`Package "${packageName}" was not found in the packages collection.`);
+  }
+  return entry.data;
+}
+
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
 /** Count generic type parameters on a type object. */
 export function genericArity(type: { genericParameters?: GenericParameter[] }): number {
   return type.genericParameters?.length ?? 0;

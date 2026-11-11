@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Net.WebSockets;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -26,37 +27,6 @@ public sealed class LiveEndpointsTests
         Assert.NotNull(snapshot);
         Assert.True(snapshot.IsLive);
         Assert.Equal("video-123", snapshot.YouTube.VideoId);
-    }
-
-    [Fact]
-    public async Task Stream_ReturnsSseHeadersAndStopsWhenHttpClientDisconnects()
-    {
-        await using var server = await LiveHttpServer.StartAsync();
-        using var disconnect = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/live/stream");
-        using var response = await server.Client.SendAsync(
-            request, HttpCompletionOption.ResponseHeadersRead, disconnect.Token);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        AssertNoStore(response);
-        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal("no", Assert.Single(response.Headers.GetValues("X-Accel-Buffering")));
-        using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(disconnect.Token));
-        Assert.Equal("event: state", await reader.ReadLineAsync(disconnect.Token));
-        Assert.StartsWith("data: ", await reader.ReadLineAsync(disconnect.Token));
-        Assert.Equal("", await reader.ReadLineAsync(disconnect.Token));
-
-        await server.Broadcaster.UpdateAsync(new LiveStatusUpdate
-        {
-            Twitch = new TwitchStatus(true, "aspiredotdev", null),
-        });
-        Assert.Equal("event: state", await reader.ReadLineAsync(disconnect.Token));
-        Assert.Contains("\"isLive\":true", await reader.ReadLineAsync(disconnect.Token));
-
-        reader.Dispose();
-        response.Dispose();
-        await disconnect.CancelAsync();
-        await server.StreamEnded.Task.WaitAsync(TimeSpan.FromSeconds(10));
     }
 
     [Theory]
@@ -571,14 +541,15 @@ public sealed class LiveEndpointsTests
         $"/api/live/youtube/webhook?hub.mode={Uri.EscapeDataString(mode)}&hub.topic={Uri.EscapeDataString(pending.Topic)}" +
         $"&hub.verify_token={Uri.EscapeDataString(pending.VerifyToken)}&hub.lease_seconds={lease}&hub.challenge={Uri.EscapeDataString(challenge)}";
 
-    private sealed class LiveHttpServer(
+    internal sealed class LiveHttpServer(
         WebApplication app, HttpClient client, FakeTimeProvider time,
-        TaskCompletionSource streamEnded, YouTubeRecordingLogger<LiveEndpointsTests> logs) : IAsyncDisposable
+        TaskCompletionSource socketEnded, YouTubeRecordingLogger<LiveEndpointsTests> logs) : IAsyncDisposable
     {
         public const string WebhookSecret = "test-webhook-secret";
         public HttpClient Client { get; } = client;
         public FakeTimeProvider Time { get; } = time;
-        public TaskCompletionSource StreamEnded { get; } = streamEnded;
+        public TaskCompletionSource SocketEnded { get; } = socketEnded;
+        public IHostApplicationLifetime Lifetime => app.Lifetime;
         public LiveStatusBroadcaster Broadcaster => app.Services.GetRequiredService<LiveStatusBroadcaster>();
         public YouTubeRecordingLogger<LiveEndpointsTests> Logs { get; } = logs;
         public SingleInstanceLiveStatusCoordination Coordination =>
@@ -586,8 +557,13 @@ public sealed class LiveEndpointsTests
         public YouTubeWebSubSubscriptionState Subscriptions =>
             (YouTubeWebSubSubscriptionState)app.Services.GetRequiredService<IYouTubeWebSubSubscriptionState>();
 
+        public Task<WebSocket> ConnectAsync(CancellationToken cancellationToken) =>
+            app.GetTestServer().CreateWebSocketClient()
+                .ConnectAsync(new Uri("ws://localhost/api/live/ws"), cancellationToken);
+
         public static async Task<LiveHttpServer> StartAsync(
-            string environment = "Production", bool enableDev = true, bool youtubeConfigured = true)
+            string environment = "Production", bool enableDev = true, bool youtubeConfigured = true,
+            int streamMaxLifetimeSeconds = 600)
         {
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions
             {
@@ -603,6 +579,7 @@ public sealed class LiveEndpointsTests
                 EnableDevEndpoint = enableDev,
                 DevCommandSecret = "local-test-command",
                 CoalesceWindowMs = 0,
+                StreamMaxLifetimeSeconds = streamMaxLifetimeSeconds,
                 Twitch = new TwitchOptions { WebhookSecret = WebhookSecret },
                 YouTube = new YouTubeOptions
                 {
@@ -621,7 +598,7 @@ public sealed class LiveEndpointsTests
             builder.Services.AddSingleton<LiveStatusBroadcaster>();
             builder.Services.AddSingleton<YouTubeLiveConfirmationQueue>();
             var app = builder.Build();
-            var streamEnded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var socketEnded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             app.Use(async (context, next) =>
             {
                 try
@@ -630,15 +607,16 @@ public sealed class LiveEndpointsTests
                 }
                 finally
                 {
-                    if (context.Request.Path == "/api/live/stream")
+                    if (context.Request.Path == "/api/live/ws")
                     {
-                        streamEnded.TrySetResult();
+                        socketEnded.TrySetResult();
                     }
                 }
             });
+            app.UseWebSockets();
             app.MapLiveStatus();
             await app.StartAsync();
-            return new LiveHttpServer(app, app.GetTestClient(), time, streamEnded, logs);
+            return new LiveHttpServer(app, app.GetTestClient(), time, socketEnded, logs);
         }
 
         private sealed class WebhookLoggerProvider(ILogger logger) : ILoggerProvider

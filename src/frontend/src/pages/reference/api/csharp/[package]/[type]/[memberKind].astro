@@ -7,6 +7,7 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
+import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import MemberCard from '@components/api-reference/MemberCard.astro';
 import DocContent from '@components/api-reference/DocContent.astro';
@@ -21,7 +22,10 @@ import {
   typeHref,
   getPackages,
   getPackageDocument,
+<<<<<<< HEAD
   getPackageType,
+=======
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
   memberDisplayName,
   resolveMemberAnchors,
 } from '@utils/packages';
@@ -39,7 +43,12 @@ export async function getStaticPaths() {
   const paths: Array<{ params: { package: string; type: string; memberKind: string }; props: Props }> = [];
 
   for (const pkg of packages) {
+<<<<<<< HEAD
     for (const [typeIndex, t] of pkg.data.types.entries()) {
+=======
+    const cacheKey = apiDocumentCacheKey(pkg.data);
+    for (const t of pkg.data.types) {
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
       const typeSlug = slugify(t.name, genericArity(t));
       if (!typeSlug) continue;
 
@@ -51,6 +60,7 @@ export async function getStaticPaths() {
         if (!members.some((m: any) => m.kind === kind)) continue;
 
         paths.push({
+          cacheKey,
           params: {
             package: packageSlug(pkg.data.package.name),
             type: typeSlug,
@@ -58,8 +68,13 @@ export async function getStaticPaths() {
           },
           props: {
             packageName: pkg.data.package.name,
+<<<<<<< HEAD
             typeIndex,
             memberKind: kind,
+=======
+            type: t,
+            kind,
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
           },
         });
       }
@@ -69,9 +84,14 @@ export async function getStaticPaths() {
   return paths;
 }
 
+<<<<<<< HEAD
 const { packageName, typeIndex, memberKind: kind } = Astro.props;
 const pkg = await getPackageDocument(packageName);
 const type = getPackageType(pkg, typeIndex);
+=======
+const { packageName, type, kind } = Astro.props;
+const pkg = await getPackageDocument(packageName);
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1
 const allTypes = pkg.types;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const apiSidebar = await getApiReferenceSidebar({ packageName: pkg.package.name });

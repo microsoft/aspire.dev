@@ -148,10 +148,53 @@ index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe
 +  document.addEventListener("astro:before-swap", () => listeners?.abort());
  </script>
 diff --git a/components/PageActions.astro b/components/PageActions.astro
-index c431e5f8076182c5dbca12de6a441dbc30cf9c21..9d3c3f2a04e5a73fbb6127f56602632bd5bd45a3 100644
+index c431e5f8076182c5dbca12de6a441dbc30cf9c21..deb51b1eecc1005933ead49de4a8df5fc2227f91 100644
 --- a/components/PageActions.astro
 +++ b/components/PageActions.astro
-@@ -446,38 +446,48 @@ const shareOptions = [
+@@ -52,7 +52,14 @@ const currentPath = Astro.url.pathname.replace(/\/$/, "");
+ const currentUrl = Astro.url.href;
+ const currentLocale = Astro.currentLocale;
+ const { actions, share } = config;
+-const { title, pageActions } = (Astro.locals as any).starlightRoute.entry.data;
++const { entry, isFallback, locale } = (Astro.locals as any).starlightRoute;
++const { title, pageActions } = entry.data;
++// Untranslated locale pages render the default-locale entry. Its Markdown copy has no
++// locale prefix, so `/de/guide.md` would 404 while `/guide.md` exists.
++const markdownPath =
++  isFallback && locale && currentPath.startsWith(`/${locale}/`)
++    ? currentPath.slice(locale.length + 1)
++    : currentPath;
+ 
+ const userPrompt = getLocaleConfig(config, currentLocale, "prompt");
+ const localeActions = getLocaleConfig(config, currentLocale, "actions");
+@@ -111,7 +118,7 @@ const defaultOptions: Array<OptionsProps & { id: DefaultActionId }> = [
+   },
+   {
+     label: Astro.locals.t("view.markdown"),
+-    href: `${currentPath}.md`,
++    href: `${markdownPath}.md`,
+     id: "markdown",
+     icon: MarkdownIcon,
+   },
+@@ -212,7 +219,7 @@ const shareOptions = [
+   (pageActions || typeof pageActions === "undefined") &&
+   variant === "page-title" ? (
+     <div class="actions-container">
+-      <Button dataPath={currentPath} data-page-action="copy-markdown">
++      <Button dataPath={markdownPath} data-page-action="copy-markdown">
+         <MarkdownIcon
+           class="icon-default copy-markdown-icon"
+           aria-hidden="true"
+@@ -243,7 +250,7 @@ const shareOptions = [
+     <div class="toc-actions">
+       <button
+         class="toc-action"
+-        data-path={currentPath}
++        data-path={markdownPath}
+         data-page-action="copy-markdown"
+       >
+         <MarkdownIcon
+@@ -446,38 +453,48 @@ const shareOptions = [
  </style>
  
  <script>

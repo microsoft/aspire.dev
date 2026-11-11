@@ -20,7 +20,7 @@ public static class LiveStatusServiceCollectionExtensions
     /// </summary>
     /// <remarks>
     /// Missing secrets are <b>non-fatal</b>: the corresponding worker logs a
-    /// warning at startup and stays idle. The SSE endpoint still works and
+    /// warning at startup and stays idle. The WebSocket endpoint still works and
     /// reports <c>{ isLive: false }</c>. This means the site ships fine before
     /// any keys have been provisioned.
     /// </remarks>

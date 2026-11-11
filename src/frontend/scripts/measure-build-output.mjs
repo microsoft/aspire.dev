@@ -84,7 +84,7 @@ async function main() {
     runner: process.env.RUNNER_NAME,
     runnerImage: process.env.ImageVersion,
     contentCacheHit: process.env.ASTRO_CACHE_HIT === 'true',
-    lockfileSha256: createHash('sha256').update(await readFile('pnpm-lock.yaml')).digest('hex'),
+    lockfileSha256: createHash('sha256').update(await readFile('bun.lock')).digest('hex'),
     fileCount: output.files.length,
     totalBytes: output.totalBytes,
     directories: output.groups,

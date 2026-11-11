@@ -1,7 +1,15 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 
+<<<<<<< HEAD:src/frontend/src/pages/og/[...slug].png.ts
 import { isDefaultLocaleEntry, shouldSkipDynamicOgImage } from '@utils/page-metadata';
+=======
+import {
+  isDefaultLocaleEntry,
+  shouldSkipDynamicOgImage,
+} from '@utils/page-metadata';
+import { ogCardCacheKey } from '@utils/og-cache-key';
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1:src/frontend/src/pages/og/[...slug].ts
 import { renderOgImagePng } from '@utils/og-image-renderer';
 import { getTopicForEntry } from '@utils/topic-resolver';
 
@@ -32,7 +40,7 @@ interface OgEntryProps {
 
 export async function getStaticPaths() {
   const docs = await getCollection('docs');
-  const paths: Array<{ params: { slug: string }; props: OgEntryProps }> = [];
+  const paths: Array<{ cacheKey: string; params: { slug: string }; props: OgEntryProps }> = [];
 
   for (const entry of docs) {
     if (!isDefaultLocaleEntry(entry.id)) continue;
@@ -55,7 +63,18 @@ export async function getStaticPaths() {
     const topic = getTopicForEntry(contentBasePath);
 
     paths.push({
+<<<<<<< HEAD:src/frontend/src/pages/og/[...slug].png.ts
       params: { slug: contentBasePath },
+=======
+      cacheKey: ogCardCacheKey({
+        title: entry.data.title,
+        description: entry.data.description,
+        topicId: topic.id,
+        topicLabel: topic.label,
+        topicIconSvg: topic.iconSvg,
+      }),
+      params: { slug: `${contentBasePath}.png` },
+>>>>>>> fc59c3d689464ce2d5e0d309eed81e181cd000c1:src/frontend/src/pages/og/[...slug].ts
       props: {
         title: entry.data.title,
         description: entry.data.description,
