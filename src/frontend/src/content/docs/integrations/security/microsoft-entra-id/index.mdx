@@ -1,7 +1,7 @@
 ---
 title: Microsoft Entra ID integration
 seoTitle: Microsoft Entra ID integration for Aspire AppHosts
-description: Model Microsoft Entra ID app registrations in your AppHost, create them with Azure provisioning or reference existing ones, and pass settings to workloads.
+description: Model Microsoft Entra ID app registrations in your AppHost, create them with Azure provisioning or reference existing ones, and pass settings to apps.
 ---
 
 import { Badge, CardGrid, LinkCard, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -11,10 +11,10 @@ import InstallPackage from '@components/InstallPackage.astro';
 
 The Microsoft Entra ID hosting integration models Microsoft Entra ID application registrations in your AppHost. Aspire can create a registration and its service principal, or you can reference a registration that already exists. Either way, the integration passes the registration's settings to the resources that reference it as environment variables.
 
-The integration configures registrations and the settings that workloads read. It doesn't install authentication middleware or protect routes. Use [Microsoft.Identity.Web](https://learn.microsoft.com/entra/msal/dotnet/microsoft-identity-web/) or the equivalent library for your app's language to sign users in and validate tokens, and validate scopes or roles in your API.
+The integration configures registrations and the settings that apps read. It doesn't install authentication middleware or protect routes. Use [Microsoft.Identity.Web](https://learn.microsoft.com/entra/msal/dotnet/microsoft-identity-web/) or the equivalent library for your app's language to sign users in and validate tokens, and validate scopes or roles in your API.
 
 :::caution[Preview]
-The Entra ID integration is a preview in Aspire 17.0. The `Aspire.Hosting.Azure.EntraId` package ships with a preview version, and its APIs can change before the integration is stable. The opt-in `Aspire.Hosting.Azure.Provisioning.EntraId` package, which [customizes the generated infrastructure](/integrations/security/microsoft-entra-id/customize-infrastructure/) from TypeScript and other polyglot AppHosts, is experimental and reports `ASPIREAZUREPROVISIONING001`.
+The Entra ID integration is a preview in Aspire 17.0. The `Aspire.Hosting.Azure.EntraId` package ships with a preview version, and its APIs can change before the integration is stable. The opt-in `Aspire.Hosting.Azure.Provisioning.EntraId` package, which [customizes the generated infrastructure](/integrations/security/microsoft-entra-id/customize-infrastructure/) from TypeScript and other polyglot AppHosts, is experimental.
 :::
 
 ## Prerequisites
@@ -37,7 +37,7 @@ The examples add .NET projects with `AddDotnetProject`, which comes from the [Do
 
 ## Add a registration and reference it
 
-`AddEntraIdApplication` adds a registration that Aspire creates. Reference it from a workload with `WithReference` to give that workload the registration's settings.
+`AddEntraIdApplication` adds a registration that Aspire creates. Reference it from an app with `WithReference` to give that app the registration's settings.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -49,15 +49,17 @@ const builder = await createBuilder();
 
 const entraApi = await builder.addEntraIdApplication("entra-api");
 
-const entraWeb = await builder.addEntraIdApplication("entra-web")
-    .withRedirectUris("https://localhost:7123/signin-oidc")
-    .withRedirectUris("https://localhost:7123/signout-callback-oidc");
+const entraWeb = await builder.addEntraIdApplication("entra-web");
 
 const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(entraApi);
 
 const web = await builder.addDotnetProject("web", "../Web/Web.csproj");
 await web.withReference(entraWeb);
+
+await entraWeb.withRedirectUris(await web.getEndpoint("https"), {
+    callbackPaths: ["/signin-oidc", "/signout-callback-oidc"],
+});
 
 await builder.build().run();
 ```
@@ -70,16 +72,15 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var entraApi = builder.AddEntraIdApplication("entra-api");
 
-var entraWeb = builder.AddEntraIdApplication("entra-web")
-    .WithRedirectUris(
-        "https://localhost:7123/signin-oidc",
-        "https://localhost:7123/signout-callback-oidc");
+var entraWeb = builder.AddEntraIdApplication("entra-web");
 
 builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(entraApi);
 
-builder.AddDotnetProject("web", "../Web/Web.csproj")
+var web = builder.AddDotnetProject("web", "../Web/Web.csproj")
     .WithReference(entraWeb);
+
+entraWeb.WithRedirectUris(web.GetEndpoint("https"), "/signin-oidc", "/signout-callback-oidc");
 
 // After adding all resources, run the app...
 builder.Build().Run();
@@ -88,7 +89,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-In TypeScript, `withRedirectUris` takes one URI per call, so call it once for each URI.
+`WithRedirectUris` derives the sign-in and sign-out callbacks from the web app's HTTPS endpoint, so you don't hard-code a port or host name. For more information, see [Redirect URIs and sign-in](/integrations/security/microsoft-entra-id/redirect-uris-and-sign-in/).
 
 When the AppHost starts, Aspire creates the registration and its service principal. The registration is created in the subscription's tenant, which isn't necessarily your account's home tenant. Configure [local Azure provisioning](/integrations/cloud/azure/local-provisioning/) with your subscription and location, and sign in to the Azure CLI before you run the AppHost.
 
@@ -99,9 +100,9 @@ The registration appears in the dashboard as a resource:
 
 If tenant policy prevents creating registrations, use [`AddExistingEntraApplication`](/integrations/security/microsoft-entra-id/existing-registrations/) for a configuration-only reference.
 
-## Settings that workloads receive
+## Settings that apps receive
 
-`WithReference` injects settings as environment variables. The names depend on the kind of workload.
+`WithReference` injects settings as environment variables. The names depend on the kind of app.
 
 - .NET projects receive keys in the form `AzureAd__{Key}`, such as `AzureAd__TenantId` and `AzureAd__ClientId`. .NET configuration maps them to the `AzureAd` section that Microsoft.Identity.Web reads.
 - Other resources receive uppercase snake-case names that start with the registration's resource name, such as `ENTRA_API_TENANT_ID` and `ENTRA_API_CLIENT_ID` for the `entra-api` resource.
@@ -148,7 +149,7 @@ var worker = builder.AddContainer("worker", "my-worker-image")
 </TabItem>
 </Tabs>
 
-This reference produces names such as `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID`. For .NET projects, a colon in the connection name becomes a double underscore, so `Authentication:AzureAd` produces `Authentication__AzureAd__ClientId`.
+This reference produces names such as `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID`. For .NET projects, a colon in the connection name becomes a double underscore, so `Entra:Web` produces `Entra__Web__ClientId`.
 
 For .NET projects, `DownstreamApis` entries ignore the connection name. For other resources, they're nested under it, such as `ENTRA_DOWNSTREAM_APIS_...`. To change the `DownstreamApis` prefix, see [Settings that the caller receives](/integrations/security/microsoft-entra-id/expose-and-call-apis/#settings-that-the-caller-receives).
 
@@ -162,7 +163,7 @@ The same registration can behave differently when you run the AppHost and when y
 | Existing registration | Configuration only. Aspire doesn't deploy Bicep or query Microsoft Graph. | Configuration only, and excluded from the publish manifest. |
 | Redirect URIs from an endpoint | Uses the endpoint's finalized browser URL. | Uses the compute environment's host and requires TLS. |
 | Local developer certificate | Provisions a short-lived certificate credential. | Isn't used. |
-| Managed identity federation that Aspire creates | Isn't used. | Trusts the workload's user-assigned managed identity. |
+| Managed identity federation that Aspire creates | Isn't used. | Trusts the app's user-assigned managed identity. |
 | Managed identity federation that you configured | Applies. | Applies. |
 | App-role assignments to managed identities | Isn't used. | Assigned during deployment. |
 

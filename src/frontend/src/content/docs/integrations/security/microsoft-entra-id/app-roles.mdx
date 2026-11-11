@@ -91,7 +91,7 @@ Removing the last declared role from the AppHost doesn't delete it from the regi
 
 The role must be declared, enabled, and allow `Application` members. Declare the role with `WithAppRole` before you call `PublishWithAppRoleAssignment`. Aspire creates assignments only when you publish, not when you run locally.
 
-You can pass the managed identity or the workload that uses it. When you pass a workload, Aspire uses its attached identity. If the workload has none, a supported Azure deployment environment creates one. In C#, separate overloads accept the identity or the workload. In TypeScript, one method accepts either.
+You can pass the managed identity or the app that uses it. When you pass an app, Aspire uses its attached identity. If the app has none, a supported Azure deployment environment creates one. In C#, separate overloads accept the identity or the app. In TypeScript, one method accepts either.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -121,7 +121,7 @@ const entraApi = await builder.addEntraIdApplication("entra-api")
 const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(entraApi);
 
-// Alternatively, pass the workload instead of the identity:
+// Alternatively, pass the app instead of the identity:
 // await entraApi.publishWithAppRoleAssignment(worker, ["Orders.Read"]);
 
 await builder.build().run();
@@ -153,7 +153,7 @@ var entraApi = builder.AddEntraIdApplication("entra-api")
 builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(entraApi);
 
-// Alternatively, pass the workload instead of the identity:
+// Alternatively, pass the app instead of the identity:
 // entraApi.PublishWithAppRoleAssignment(worker, "Orders.Read");
 
 // After adding all resources, run the app...
@@ -169,7 +169,7 @@ The default application ID URI is `api://{clientId}`, and the client ID exists o
 
 Configure the two sides differently.
 
-- Reference the API's registration from the API workload, not from the caller. The registration's settings identify the API, so the API validates tokens with them.
+- Reference the API's registration from the API app, not from the caller. The registration's settings identify the API, so the API validates tokens with them.
 - Call `WithAllowWebApiToBeAuthorizedByACL` on the API's registration. It stops Microsoft.Identity.Web from requiring a `roles` or `scp` claim in the token, so a token that has no roles reaches your authorization policy instead of being rejected during authentication.
 - Give the caller the API's URL and the application ID URI as separate settings. The caller requests a token for the application ID URI followed by `/.default`.
 

@@ -21,9 +21,9 @@ The identity that provisions your Azure resources also creates the registrations
 | `WithAdminConsent` for Microsoft Graph application permissions | Privileged Role Administrator or a custom role, or the `AppRoleAssignment.ReadWrite.All` Graph permission when deploying as an application. |
 | `PublishWithAppRoleAssignment` | `AppRoleAssignment.ReadWrite.All` and `Application.Read.All` with administrator consent. Delegated deployments also need a supported directory role. An Azure subscription Owner or Contributor role alone isn't enough. |
 
-When `WithCertificateFromKeyVault` references a Key Vault resource in the AppHost, Aspire also assigns the **Key Vault Certificate User** role on that vault. Your developer identity receives it when you run, and referencing workloads receive it when you publish.
+When `WithCertificateFromKeyVault` references a Key Vault resource in the AppHost, Aspire also assigns the **Key Vault Certificate User** role on that vault. Your developer identity receives it when you run, and referencing apps receive it when you publish.
 
-Workloads that run your app don't need these Graph permissions. Without consent calls, `WithApiPermissions` only lists permissions, so it needs nothing beyond creating the registration.
+Your apps don't need these Graph permissions. Without consent calls, `WithApiPermissions` only lists permissions, so it needs nothing beyond creating the registration.
 
 To avoid these requirements, reference an [existing registration](/integrations/security/microsoft-entra-id/existing-registrations/), which needs no Azure or Microsoft Graph access.
 
@@ -42,7 +42,7 @@ Each deployment replaces the registration's application roles, scopes, and pre-a
 
 ### Separate registrations with a tenant-scoped suffix
 
-Different resource groups don't isolate registrations in the same tenant. If two developers or two AppHosts use the same name and suffix, they update the same registration and overwrite each other's settings. Use a tenant-scoped suffix to separate them. With the suffix `dev-a`, the resource `entra-web` creates `entra-web-dev-a`. The Aspire resource name and the environment variable names that workloads receive don't change.
+Different resource groups don't isolate registrations in the same tenant. If two developers or two AppHosts use the same name and suffix, they update the same registration and overwrite each other's settings. Use a tenant-scoped suffix to separate them. With the suffix `dev-a`, the resource `entra-web` creates `entra-web-dev-a`. The Aspire resource name and the environment variable names that apps receive don't change.
 
 - When you run the AppHost, enter the suffix in the **Tenant-scoped resource suffix** field of the Azure provisioning dialog, or set the `Azure:TenantResourceSuffix` configuration key. Change or clear it with **Change Azure context** in the dashboard.
 - Interactive `aspire deploy` prompts for a suffix when `Azure:TenantResourceSuffix` isn't configured. Set the key, even to an empty string, to skip the prompt. Non-interactive deployments use no suffix unless you configure one.

@@ -143,11 +143,9 @@ public class WeatherForecastController : ControllerBase
 The web app signs users in with OpenID Connect and acquires a token for the API on behalf of the signed-in user. Referencing the web registration sets the `AzureAd__*` settings and a `DownstreamApis__apiservice__Scopes__0` entry with the value `api://{apiClientId}/access_as_user`. The entry is named `apiservice` because that resource references the API registration.
 
 ```csharp title="Web/Program.cs"
-var apiScopes = builder.Configuration.GetSection("DownstreamApis:apiservice:Scopes").Get<string[]>();
-
 builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApp(builder.Configuration)
-    .EnableTokenAcquisitionToCallDownstreamApi(apiScopes)
+    .EnableTokenAcquisitionToCallDownstreamApi()
     .AddInMemoryTokenCaches();
 
 builder.Services.AddHttpClient<WeatherApiClient>(client => client.BaseAddress = new("https+http://apiservice"))
@@ -155,14 +153,14 @@ builder.Services.AddHttpClient<WeatherApiClient>(client => client.BaseAddress = 
         builder.Configuration.GetSection("DownstreamApis:apiservice"), "DownstreamApis:apiservice");
 ```
 
-Passing the API scope as an initial scope asks the user to consent at sign-in. `WeatherApiClient` is your own typed `HttpClient` class. The `DownstreamApis` entry holds scopes, not the API's address, so the code sets the base address with service discovery. The message handler acquires a token for the entry's scopes and adds it to each request. To call APIs through `IDownstreamApi` instead, call `AddDownstreamApis(builder.Configuration.GetSection("DownstreamApis"))` from the [📦 Microsoft.Identity.Web.DownstreamApi](https://www.nuget.org/packages/Microsoft.Identity.Web.DownstreamApi) package. For the sign-in pages and authorization of your app model, follow the [Microsoft.Identity.Web documentation](https://learn.microsoft.com/entra/msal/dotnet/microsoft-identity-web/).
+`WeatherApiClient` is your own typed `HttpClient` class. The `DownstreamApis` entry holds scopes, not the API's address, so the code sets the base address with service discovery. The message handler acquires a token for the entry's scopes and adds it to each request. To call APIs through `IDownstreamApi` instead, call `AddDownstreamApis(builder.Configuration.GetSection("DownstreamApis"))` from the [📦 Microsoft.Identity.Web.DownstreamApi](https://www.nuget.org/packages/Microsoft.Identity.Web.DownstreamApi) package. For the sign-in pages and authorization of your app model, follow the [Microsoft.Identity.Web documentation](https://learn.microsoft.com/entra/msal/dotnet/microsoft-identity-web/).
 
 ## Run the scenario locally
 
 1. Start the AppHost with `aspire run`.
 1. When the dashboard prompts for Azure provisioning settings, select the subscription, resource group, and location. You can also set an optional **Tenant-scoped resource suffix** so that your registrations don't collide with a teammate's. For more information, see [Separate registrations with a tenant-scoped suffix](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#separate-registrations-with-a-tenant-scoped-suffix).
 1. Wait for `apiservice-entra` and `webfrontend-entra` to reach the **Running** state. Aspire creates both registrations and their service principals the first time. The resources show links to the app registration in the Azure portal.
-1. Open the `webfrontend` endpoint and sign in. Because nobody consented to `access_as_user` yet, Entra ID asks you to consent to it when you first sign in.
+1. Open the `webfrontend` endpoint and sign in. If nobody consented to `access_as_user` yet, Entra ID asks you to consent to it.
 1. Use a page of the web app that calls the API. The web app redeems the authorization code with the developer certificate and calls the API with a token for `api://{apiClientId}/access_as_user`.
 
 Locally, the web app receives the developer certificate as a base64-encoded credential in `AzureAd__ClientCredentials`. Use it for development only, as described in [Local developer certificate](/integrations/security/microsoft-entra-id/client-credentials/#local-developer-certificate).
@@ -190,7 +188,7 @@ Each container app receives these settings:
 | `apiservice` | `AzureAd__Instance`, `AzureAd__TenantId`, and `AzureAd__ClientId` |
 | `apiservice` | `AzureAd__Scopes` set to `access_as_user` |
 
-After the deployment, open the web app's address and sign in. Entra ID asks for consent at the first sign-in, unless you or an administrator already consented. Then use a page that calls the API.
+After the deployment, open the web app's address and sign in. Entra ID asks for consent unless you or an administrator already consented. Then use a page that calls the API.
 
 The deploying identity needs the permissions that [Lifecycle and permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#required-permissions) describes. Deleting the resource group doesn't delete the registrations, so [clean them up separately](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#clean-up-registrations).
 

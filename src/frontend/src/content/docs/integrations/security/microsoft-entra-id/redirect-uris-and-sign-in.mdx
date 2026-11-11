@@ -22,15 +22,15 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
+const entraWeb = await builder.addEntraIdApplication("entra-web");
+
 const web = await builder.addDotnetProject("web", "../Web/Web.csproj");
 await web.withExternalHttpEndpoints();
+await web.withReference(entraWeb);
 
-const entraWeb = await builder.addEntraIdApplication("entra-web");
 await entraWeb.withRedirectUris(await web.getEndpoint("https"), {
     callbackPaths: ["/signin-oidc", "/signout-callback-oidc"],
 });
-
-await web.withReference(entraWeb);
 
 await builder.build().run();
 ```
@@ -41,13 +41,13 @@ await builder.build().run();
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
+var entraWeb = builder.AddEntraIdApplication("entra-web");
+
 var web = builder.AddDotnetProject("web", "../Web/Web.csproj")
-    .WithExternalHttpEndpoints();
+    .WithExternalHttpEndpoints()
+    .WithReference(entraWeb);
 
-var entraWeb = builder.AddEntraIdApplication("entra-web")
-    .WithRedirectUris(web.GetEndpoint("https"), "/signin-oidc", "/signout-callback-oidc");
-
-web.WithReference(entraWeb);
+entraWeb.WithRedirectUris(web.GetEndpoint("https"), "/signin-oidc", "/signout-callback-oidc");
 
 // After adding all resources, run the app...
 builder.Build().Run();
@@ -173,14 +173,14 @@ entraWeb.WithSignInAudience(EntraIdSignInAudience.AzureADMultipleOrgs);
 </TabItem>
 </Tabs>
 
-| Sign-in audience | Who can sign in | `TenantId` value that workloads receive |
+| Sign-in audience | Who can sign in | `TenantId` value that apps receive |
 | ---------------- | --------------- | --------------------------------------- |
 | `AzureADMyOrg` (default) | Accounts in the home tenant | The home tenant ID |
 | `AzureADMultipleOrgs` | Accounts in any Microsoft Entra tenant | `organizations` |
 | `AzureADandPersonalMicrosoftAccount` | Accounts in any Microsoft Entra tenant and personal Microsoft accounts | `common` |
 | `PersonalMicrosoftAccount` | Personal Microsoft accounts only | `consumers` |
 
-For the audiences other than `AzureADMyOrg`, workloads also receive the home tenant ID as `AppHomeTenantId`. Microsoft.Identity.Web needs it when the app acquires tokens as itself. Always pass the home tenant ID, not `organizations`, `common`, or `consumers`, when you [reference an existing registration](/integrations/security/microsoft-entra-id/existing-registrations/).
+For the audiences other than `AzureADMyOrg`, apps also receive the home tenant ID as `AppHomeTenantId`. Microsoft.Identity.Web needs it when the app acquires tokens as itself. Always pass the home tenant ID, not `organizations`, `common`, or `consumers`, when you [reference an existing registration](/integrations/security/microsoft-entra-id/existing-registrations/).
 
 For registrations that Aspire creates, `WithSignInAudience` also sets the registration's supported account types. For existing registrations, it configures only the apps that reference the registration, so set the matching account types in the Microsoft Entra admin center.
 
