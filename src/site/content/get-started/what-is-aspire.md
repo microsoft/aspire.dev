@@ -8,7 +8,7 @@ next:
   link: /get-started/first-app/
 ---
 
-Aspire is a code-first orchestration and observability layer for distributed applications.
+Aspire is a code-first orchestration and observability layer for distributed applications. It is open-source software licensed under the [MIT License](https://github.com/microsoft/aspire/blob/main/LICENSE.TXT).
 
 Use Aspire to model the services, frontends, databases, queues, caches, containers, and cloud dependencies that make up your app. In production they work together as one system, but during development they often need to be started separately, configured by hand, and debugged across multiple terminals and dashboards. Aspire gives you one place to define that system, one command to run it, and one toolchain to observe it.
 
@@ -122,7 +122,7 @@ var api = builder.AddProject<Projects.Api>("api")
 var worker = builder.AddPythonApp("worker", "../worker", "main.py")
     .WithReference(db);
 
-builder.AddNpmApp("frontend", "../frontend")
+builder.AddViteApp("frontend", "../frontend")
     .WithReference(api);
 
 builder.Build().Run();

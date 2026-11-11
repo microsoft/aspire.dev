@@ -351,7 +351,7 @@ Keycloak startup arguments. You don't need an extra `WithArgs("start",
 
 **Initialization service**: Create a separate initialization service or job
 that uses the [Keycloak Admin REST API](https://www.keycloak.org/docs-api/latest/rest-api/index.html)
-or [Keycloak Admin Client](https://www.nuget.org/packages/Keycloak.AuthServices.Sdk.Admin)
+or [Keycloak Admin Client](https://www.nuget.org/packages/Keycloak.AuthServices.Sdk)
 to create and configure realms, clients, and users when the Keycloak instance
 first starts.
 

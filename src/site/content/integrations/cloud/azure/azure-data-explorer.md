@@ -295,11 +295,11 @@ output kustoClusterUri string = kusto.properties.uri
 
 The preceding Bicep provisions an Azure Data Explorer cluster with a dev/test SKU and a read-write database.
 
-The generated Bicep is a starting point — customise it through the C# provisioning APIs, not by editing the file directly, as direct edits are overwritten on the next publish.
+The generated Bicep is a starting point — customize it through the C# provisioning APIs, not by editing the file directly, as direct edits are overwritten on the next publish.
 
 ### Customize provisioning infrastructure
 
-All Aspire Azure resources subclass `AzureProvisioningResource`. The {% api "Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" %} API lets you customise the generated Bicep with a fluent callback:
+All Aspire Azure resources subclass `AzureProvisioningResource`. The {% api "Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" %} API lets you customize the generated Bicep with a fluent callback:
 
 {% tabs sync: "aspire-lang" %}
 {% tab "TypeScript", id: "typescript" %}

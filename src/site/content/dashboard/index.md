@@ -28,10 +28,10 @@ props:
     href: /dashboard/explore/
   image_showcase_cta_2:
     label: Learn about tracing
-    href: /dashboard/explore/#traces
+    href: /dashboard/explore/#traces-page
   image_showcase_cta_3:
     label: View log features
-    href: /dashboard/explore/#structured-logs
+    href: /dashboard/explore/#structured-logs-page
   image_showcase_cta_4:
     label: Use AI coding agents
     href: /dashboard/ai-coding-agents/
@@ -43,15 +43,15 @@ props:
     - icon: magnifier
       title: Distributed tracing
       description: Follow requests across service boundaries with span-level detail. Identify bottlenecks and errors instantly.
-      href: /dashboard/explore/#traces
+      href: /dashboard/explore/#traces-page
     - icon: document
       title: Structured & console logs
       description: View structured and console logs from every resource with powerful filtering, search, and error highlighting.
-      href: /dashboard/explore/#structured-logs
+      href: /dashboard/explore/#structured-logs-page
     - icon: bars
       title: Metrics & monitoring
       description: Track request counts, error rates, and custom metrics with interactive charts and exemplar linking.
-      href: /dashboard/explore/#metrics
+      href: /dashboard/explore/#metrics-page
     - icon: open-book
       title: OpenTelemetry native
       description: Built on OTLP — the open standard for telemetry. Works with any language or framework that supports OpenTelemetry.

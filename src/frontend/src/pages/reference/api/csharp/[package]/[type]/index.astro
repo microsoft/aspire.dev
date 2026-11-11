@@ -6,6 +6,7 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
+import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import TypeHero from '@components/api-reference/TypeHero.astro';
 import MemberOverviewList from '@components/api-reference/MemberOverviewList.astro';
@@ -29,24 +30,26 @@ import {
   groupMembersByKind,
   packageSlug,
   getPackages,
+  getPackageDocument,
 } from '@utils/packages';
 
 export async function getStaticPaths() {
   const packages = await getPackages();
   const paths: any[] = [];
   for (const pkg of packages) {
+    const cacheKey = apiDocumentCacheKey(pkg.data);
     for (const t of pkg.data.types) {
       const typeSlug = slugify(t.name, genericArity(t));
       if (!typeSlug) continue;  // skip types with empty names (e.g. C# 14 extension types)
       paths.push({
+        cacheKey,
         params: {
           package: packageSlug(pkg.data.package.name),
           type: typeSlug,
         },
         props: {
-          pkg: pkg.data,
+          packageName: pkg.data.package.name,
           type: t,
-          allTypes: pkg.data.types,
         },
       });
     }
@@ -54,7 +57,9 @@ export async function getStaticPaths() {
   return paths;
 }
 
-const { pkg, type, allTypes } = Astro.props;
+const { packageName, type } = Astro.props;
+const pkg = await getPackageDocument(packageName);
+const allTypes = pkg.types;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const apiSidebar = await getApiReferenceSidebar({ packageName: pkg.package.name });
 

@@ -85,6 +85,44 @@ export function getTsMethods<T extends TsRouteCallableLike>(
   return methods;
 }
 
+/**
+ * Resolve a handle and one of its methods from their positions. Member routes
+ * pass indexes through `props` so the handle is not cloned for every method.
+ */
+export function getTsHandleMethod<M extends TsRouteCallableLike, H extends { capabilities?: M[] }>(
+  handles: H[] | undefined,
+  handleIndex: number,
+  methodIndex: number
+): { parentType: H; method: M } {
+  const parentType = handles?.[handleIndex];
+  const method = parentType ? getTsMethods<M>(parentType)[methodIndex] : undefined;
+  if (!parentType || !method) {
+    throw new Error(`TypeScript method ${handleIndex}/${methodIndex} was not found.`);
+  }
+  return { parentType, method };
+}
+
+/**
+ * Resolve a top-level item from its kind and position. Item routes pass indexes
+ * through `props` so rendering reads the item from the loaded document, where its
+ * slug index lives, rather than from a structured clone made for a prerender worker.
+ */
+export function getTsRouteItem<T extends TsTopLevelRouteItemLike>(
+  doc: { handleTypes?: T[]; dtoTypes?: T[]; enumTypes?: T[]; functions?: T[] },
+  kind: 'handle' | 'dto' | 'enum' | 'function',
+  index: number
+): T {
+  const items = kind === 'handle' ? doc.handleTypes
+    : kind === 'dto' ? doc.dtoTypes
+    : kind === 'enum' ? doc.enumTypes
+    : getTsStandaloneFunctions(doc);
+  const item = items?.[index];
+  if (!item) {
+    throw new Error(`TypeScript ${kind} ${index} was not found.`);
+  }
+  return item;
+}
+
 export function tsSlugify(name: string): string {
   return name
     .toLowerCase()

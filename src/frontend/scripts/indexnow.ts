@@ -31,7 +31,7 @@
  * every URL as new.
  *
  * Usage (from src/frontend):
- *   pnpm indexnow --state-dir <dir> [--mode daily|flush] [--limit <n>] [--release <X.Y>]
+ *   bun run indexnow --state-dir <dir> [--mode daily|flush] [--limit <n>] [--release <X.Y>]
  *                 [--trigger <name>] [--dry-run] [--allow-shrink]
  */
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';

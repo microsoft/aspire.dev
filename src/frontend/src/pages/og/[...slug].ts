@@ -5,6 +5,7 @@ import {
   isDefaultLocaleEntry,
   shouldSkipDynamicOgImage,
 } from '@utils/page-metadata';
+import { ogCardCacheKey } from '@utils/og-cache-key';
 import { renderOgImagePng } from '@utils/og-image-renderer';
 import { getTopicForEntry } from '@utils/topic-resolver';
 
@@ -35,7 +36,7 @@ interface OgEntryProps {
 
 export async function getStaticPaths() {
   const docs = await getCollection('docs');
-  const paths: Array<{ params: { slug: string }; props: OgEntryProps }> = [];
+  const paths: Array<{ cacheKey: string; params: { slug: string }; props: OgEntryProps }> = [];
 
   for (const entry of docs) {
     if (!isDefaultLocaleEntry(entry.id)) continue;
@@ -58,6 +59,13 @@ export async function getStaticPaths() {
     const topic = getTopicForEntry(contentBasePath);
 
     paths.push({
+      cacheKey: ogCardCacheKey({
+        title: entry.data.title,
+        description: entry.data.description,
+        topicId: topic.id,
+        topicLabel: topic.label,
+        topicIconSvg: topic.iconSvg,
+      }),
       params: { slug: `${contentBasePath}.png` },
       props: {
         title: entry.data.title,

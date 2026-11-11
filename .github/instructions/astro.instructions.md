@@ -14,24 +14,24 @@ Astro guidance is adapted from [Awesome GitHub Copilot's Astro development instr
 - **Astro 7.x** with **Starlight** documentation theme and the **Content Layer API**
 - **TypeScript** (strict mode, `astro/tsconfigs/strict`)
 - **Static site generation** (SSG) with selective client-side interactivity
-- **pnpm** as the package manager (`pnpm install`, `pnpm dev`)
+- **Bun** as the package manager and script runner (`bun install`, `bun run dev`). The production Astro build runs on the Bun runtime; the dev server, Vitest, ESLint, and Playwright run on Node.js
 - **15 locales** with Lunaria translation tracking
 
 ## Running Locally
 
 ```bash
 cd src/frontend
-pnpm install
-pnpm dev        # starts dev server at http://localhost:4321
+bun install
+bun run dev     # starts dev server at http://localhost:4321
 ```
 
-Search is disabled in dev mode. Running `pnpm dev` is sufficient to verify documentation rendering changes. Prefer CI for production builds and search validation; never run `pnpm build` locally without explicit user permission. Use `pnpm preview` when a production build is already available.
+Search is disabled in dev mode. Running `bun run dev` is sufficient to verify documentation rendering changes. Prefer CI for production builds and search validation; never run `bun run build` locally without explicit user permission. Use `bun run preview` when a production build is already available.
 
 ## Astro Architecture and Type Safety
 
 - Render content at build time in `.astro` frontmatter by default. Keep the static-site architecture; Astro Actions, sessions, server islands (`server:defer`), and on-demand API routes require server runtime support and are not drop-in additions to this site.
 - Prefer existing `.astro` components and browser scripts or Web Components for interactivity. Add a UI framework only when the task needs it; hydrate framework islands selectively with `client:load`, `client:idle`, or `client:visible`.
-- Preserve `astro/tsconfigs/strict` and the generated `.astro/types.d.ts` include. Run `pnpm exec astro sync` from `src/frontend` after changing collections or Astro configuration; do not edit generated types.
+- Preserve `astro/tsconfigs/strict` and the generated `.astro/types.d.ts` include. Run `bunx astro sync` from `src/frontend` after changing collections or Astro configuration; do not edit generated types.
 - Define component props with a TypeScript `Props` interface, use explicit defaults where appropriate, and keep components focused and composable.
 - Write fully closed HTML with valid nesting. Astro 7 rejects unclosed tags rather than repairing them.
 - Account for Astro 7's default JSX-style whitespace handling (`compressHTML: 'jsx'`): use explicit `{' '}` between inline elements when a visible space is required.
@@ -47,7 +47,7 @@ The existing `src/components/starlight/Head.astro` override renders `<ClientRout
 
 ## Two-slash TypeScript Examples
 
-Use the `twoslash-validator` skill whenever you add or edit a `twoslash` TypeScript code fence, TypeScript AppHost sample, or generated TypeScript API data. The site must not ship rendered two-slash diagnostics; run `pnpm test:unit:twoslash-blocks` from `src/frontend` and fix every reported diagnostic instead of adding allowlists or suppressions.
+Use the `twoslash-validator` skill whenever you add or edit a `twoslash` TypeScript code fence, TypeScript AppHost sample, or generated TypeScript API data. The site must not ship rendered two-slash diagnostics; run `bun run test:unit:twoslash-blocks` from `src/frontend` and fix every reported diagnostic instead of adding allowlists or suppressions.
 
 ## Project Structure
 
@@ -367,7 +367,7 @@ Sidebar topics are defined in `config/sidebar/` as separate modules and aggregat
 | `samples.json` | Sample app definitions with tags and thumbnails |
 | `testimonials.json` | Developer testimonials |
 | `github-stats.json` | GitHub repository statistics |
-| `github-contributors.json` | Contributors page avatars (`pnpm update:contributors`); the build never calls the GitHub API |
+| `github-contributors.json` | Contributors page avatars (`bun run update:contributors`); the build never calls the GitHub API |
 | `pkgs/*.json` | Per-package API reference schemas |
 
 ## Cookie Consent
@@ -388,7 +388,7 @@ When making visual changes or preparing PR screenshots, use the `playwright-cli`
 
 ### Workflow for Taking Screenshots
 
-1. Start the dev server (`pnpm dev`) in the background
+1. Start the dev server (`bun run dev`) in the background
 2. Open the browser and navigate to the page:
    ```bash
    playwright-cli open http://localhost:4321
@@ -429,12 +429,12 @@ If a banner is present, dismiss it before any screenshot or visual verification.
 
 | Script | Purpose |
 |---|---|
-| `pnpm dev` | Start dev server with hot reload |
-| `pnpm build` | Production build (CI preferred; explicit user permission required locally) |
-| `pnpm preview` | Preview production build |
-| `pnpm lint` | ESLint (zero warnings allowed) |
-| `pnpm format` | Prettier formatting |
-| `pnpm update:integrations` | Sync NuGet integration data |
-| `pnpm update:samples` | Sync sample data from GitHub |
-| `pnpm update:contributors` | Refresh Contributors page data from GitHub |
-| `pnpm update:all` | Run all data updates |
+| `bun run dev` | Start dev server with hot reload |
+| `bun run build` | Production build (CI preferred; explicit user permission required locally) |
+| `bun run preview` | Preview production build |
+| `bun run lint` | ESLint (zero warnings allowed) |
+| `bun run format` | Prettier formatting |
+| `bun run update:integrations` | Sync NuGet integration data |
+| `bun run update:samples` | Sync sample data from GitHub |
+| `bun run update:contributors` | Refresh Contributors page data from GitHub |
+| `bun run update:all` | Run all data updates |

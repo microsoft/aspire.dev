@@ -70,7 +70,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var db = builder.AddPostgres("pg");
 var api = builder.AddProject("api").WithReference(db);
-var web = builder.AddNpmApp("web").WithReference(api);
+var web = builder.AddJavaScriptApp("web", "../web").WithReference(api);
 
 builder.Build().Run();
 ```
@@ -304,7 +304,7 @@ builder.Build().Run();
 
 ### 割り当て済みエンドポイントへ安全にアクセスする
 
-エンドポイント解決は `DistributedApplication` の起動シーケンス中に行われます。エンドポイント値（`Url`、`Host`、`Port` など）へ安全にアクセスするには、割り当て完了まで待つ必要があります。Aspire は `AfterEndpointsAllocatedEvent` などのイベント API を提供し、割り当て後にエンドポイントへアクセスできます。これにより、エンドポイント準備完了後にのみコードが実行されます。
+エンドポイント解決は `DistributedApplication` の起動シーケンス中に行われます。エンドポイント値（`Url`、`Host`、`Port` など）へ安全にアクセスするには、割り当て完了まで待つ必要があります。Aspire は `ResourceEndpointsAllocatedEvent` などのイベント API を提供し、割り当て後にエンドポイントへアクセスできます。これにより、エンドポイント準備完了後にのみコードが実行されます。
 
 ```csharp title="例 — 割り当て確認とイベント使用"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -328,9 +328,9 @@ catch (Exception ex)
     Console.WriteLine($"Error accessing Url: {ex.Message}");
 }
 
-// 解決済みプロパティを得るため AfterEndpointsAllocatedEvent を購読
-builder.Eventing.Subscribe<AfterEndpointsAllocatedEvent>(
-    (@event, cancellationToken) =>
+// 解決済みプロパティを得るため ResourceEndpointsAllocatedEvent を購読
+redis.OnResourceEndpointsAllocated(
+    (resource, @event, cancellationToken) =>
     {
         Console.WriteLine($"Endpoint allocated: {endpoint.IsAllocated}");
         Console.WriteLine($"Resolved Url: {endpoint.Url}");
@@ -414,8 +414,8 @@ C# では `endpoint.Property(...)` を呼び出してそのフィールドを取
 
 {% tabs sync: "aspire-lang" %}
 {% tab "TypeScript", id: "typescript" %}
-```typescript title="TypeScript — apphost.ts"
-import { createBuilder, EndpointProperty } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 

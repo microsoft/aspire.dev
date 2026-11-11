@@ -117,7 +117,7 @@ internal static class RedisResourceBuilderExtensions
     private static ResourceCommandState OnUpdateResourceState(
         UpdateCommandStateContext context)
     {
-        var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var logger = context.Services.GetRequiredService<ILogger<Program>>();
         if (logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
@@ -282,7 +282,7 @@ The earlier example gates the `clear-cache` command on the Redis resource being 
 private static ResourceCommandState OnUpdateResourceState(
     UpdateCommandStateContext context)
 {
-    var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var logger = context.Services.GetRequiredService<ILogger<Program>>();
 
     if (logger.IsEnabled(LogLevel.Information))
     {
@@ -403,7 +403,7 @@ In addition to executing commands through the [Aspire dashboard](/dashboard/over
 - Automate command execution as part of a workflow
 - Build custom tooling that needs to control resources
 
-The most common scenario is to call commands from within other custom command implementations. In C#, use `ExecuteCommandContext.ServiceProvider` to retrieve the `ResourceCommandService`. In TypeScript, resolve the service from the AppHost execution context before registering the command, then capture it in the callback.
+The most common scenario is to call commands from within other custom command implementations. In C#, use `ExecuteCommandContext.Services` to retrieve the `ResourceCommandService`. In TypeScript, resolve the service from the AppHost execution context before registering the command, then capture it in the callback.
 
 ### Execute commands from a custom command
 
@@ -480,7 +480,7 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithReference(database)
     .WithCommand("reset-all", "Reset Everything", async (context, ct) =>
     {
-        var commandService = context.ServiceProvider.GetRequiredService<ResourceCommandService>();
+        var commandService = context.Services.GetRequiredService<ResourceCommandService>();
 
         context.Logger.LogInformation("Starting full system reset...");
 

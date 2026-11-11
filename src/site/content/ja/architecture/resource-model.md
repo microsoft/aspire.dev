@@ -16,7 +16,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var db = builder.AddPostgres("pg").AddDatabase("appdata");
 var api = builder.AddProject<Projects.Api>("api").WithReference(db);
-var web = builder.AddNpmApp("web", "../web").WithReference(api);
+var web = builder.AddJavaScriptApp("web", "../web").WithReference(api);
 
 builder.Build().Run();
 ```
@@ -102,7 +102,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var db = builder.AddPostgres("pg").AddDatabase("appdata");
 var api = builder.AddProject<Projects.Api>("api").WithReference(db);
-var web = builder.AddNpmApp("web", "../web").WithReference(api);
+var web = builder.AddJavaScriptApp("web", "../web").WithReference(api);
 
 builder.Build().Run();
 ```

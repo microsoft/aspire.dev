@@ -7,6 +7,7 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
+import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import MemberCard from '@components/api-reference/MemberCard.astro';
 import DocContent from '@components/api-reference/DocContent.astro';
@@ -20,6 +21,7 @@ import {
   shortTypeName,
   typeHref,
   getPackages,
+  getPackageDocument,
   memberDisplayName,
   resolveMemberAnchors,
 } from '@utils/packages';
@@ -34,6 +36,7 @@ export async function getStaticPaths() {
   const paths: any[] = [];
 
   for (const pkg of packages) {
+    const cacheKey = apiDocumentCacheKey(pkg.data);
     for (const t of pkg.data.types) {
       const typeSlug = slugify(t.name, genericArity(t));
       if (!typeSlug) continue;
@@ -46,15 +49,15 @@ export async function getStaticPaths() {
         if (!members.some((m: any) => m.kind === kind)) continue;
 
         paths.push({
+          cacheKey,
           params: {
             package: packageSlug(pkg.data.package.name),
             type: typeSlug,
             memberKind: slug,
           },
           props: {
-            pkg: pkg.data,
+            packageName: pkg.data.package.name,
             type: t,
-            allTypes: pkg.data.types,
             kind,
           },
         });
@@ -65,7 +68,9 @@ export async function getStaticPaths() {
   return paths;
 }
 
-const { pkg, type, allTypes, kind } = Astro.props;
+const { packageName, type, kind } = Astro.props;
+const pkg = await getPackageDocument(packageName);
+const allTypes = pkg.types;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const apiSidebar = await getApiReferenceSidebar({ packageName: pkg.package.name });
 

@@ -571,7 +571,7 @@ Now that you've created the MailKit client integration and updated the Newslette
 
 {% image dark: "/assets/images/integrations/custom-integrations/maildev-with-newsletterservice-dashboard.png", light: "/assets/images/integrations/custom-integrations/maildev-with-newsletterservice-dashboard-light.png", alt: "Aspire dashboard: MailDev and Newsletter resources running." %}
 
-Once the application is running, navigate to the Scalar UI by seleting the added Scalar link from the dashboard on the `newsletterservice` resource and test the `/subscribe` and `/unsubscribe` endpoints. Select the down arrow to expand the endpoint:
+Once the application is running, navigate to the Scalar UI by selecting the added Scalar link from the dashboard on the `newsletterservice` resource and test the `/subscribe` and `/unsubscribe` endpoints. Select the down arrow to expand the endpoint:
 
 {% image dark: "/assets/images/integrations/custom-integrations/scalar-ui.png", light: "/assets/images/integrations/custom-integrations/scalar-ui-light.png", alt: "Scalar UI: Subscribe endpoint." %}
 

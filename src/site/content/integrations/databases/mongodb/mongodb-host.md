@@ -402,7 +402,7 @@ Data bind mounts rely on the host machine's filesystem to persist the MongoDB se
 
 ## Add MongoDB server resource with init files
 
-Use initialization files to seed the MongoDB server with data or run scripts at startup. The C# AppHost exposes `WithInitBindMount(...)`, while the TypeScript AppHost exposes `withInitFiles(...)`.
+Use initialization files to seed the MongoDB server with data or run scripts at startup. Call `WithInitFiles(...)` in a C# AppHost or `withInitFiles(...)` in a TypeScript AppHost to copy the files from the specified directory into the container's initialization folder.
 
 {% tabs sync: "aspire-lang" %}
 {% tab "TypeScript", id: "typescript" %}
@@ -423,17 +423,13 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-
-:::note
-The TypeScript AppHost exposes `withInitFiles(source)` instead of `withInitBindMount(source)`. The {% api "Aspire.Hosting.MongoDBBuilderExtensions.WithInitFiles" %} method copies the specified files into the container's init folder, whereas the C# `WithInitBindMount` performs a host bind mount. The functional outcome — running initialization scripts at container startup — is the same.
-:::
 {% endtab %}
 {% tab "C#", id: "csharp" %}
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mongo = builder.AddMongoDB("mongo")
-                   .WithInitBindMount(source: @"C:\MongoDB\Init")
+                   .WithInitFiles("./mongodb-init")
                    .WithLifetime(ContainerLifetime.Persistent);
 
 var mongodb = mongo.AddDatabase("mongodb");

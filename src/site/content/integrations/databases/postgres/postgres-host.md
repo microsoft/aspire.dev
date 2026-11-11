@@ -448,9 +448,9 @@ Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have lim
 
 Data bind mounts rely on the host machine's filesystem to persist the PostgreSQL server data across container restarts. The data bind mount is mounted at the `C:\PostgreSQL\Data` on Windows (or `/PostgreSQL/Data` on Unix) path on the host machine in the PostgreSQL server container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
-## Add PostgreSQL server resource with init bind mount
+## Add PostgreSQL server resource with init files
 
-Use initialization files to seed the PostgreSQL server. The C# AppHost exposes `WithInitBindMount(...)`, while the TypeScript AppHost exposes `withInitFiles(...)`.
+Use initialization files to seed the PostgreSQL server. Call `WithInitFiles(...)` in a C# AppHost or `withInitFiles(...)` in a TypeScript AppHost to copy the files from the specified directory into the container's initialization folder.
 
 {% tabs sync: "aspire-lang" %}
 {% tab "TypeScript", id: "typescript" %}
@@ -469,15 +469,13 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-
-The TypeScript AppHost doesn't currently expose a `withInitBindMount(...)` API for PostgreSQL. Use {% api "Aspire.Hosting.PostgresBuilderExtensions.WithInitFiles" %} when you want to copy initialization files into the container instead.
 {% endtab %}
 {% tab "C#", id: "csharp" %}
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
-    .WithInitBindMount(@"C:\PostgreSQL\Init");
+    .WithInitFiles("./postgres-init");
 
 var postgresdb = postgres.AddDatabase("postgresdb");
 
@@ -489,7 +487,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 {% endtab %}
 {% endtabs %}
 
-The init bind mount relies on the host machine's filesystem to initialize the PostgreSQL server database with the container's _init_ folder. This folder is used for initialization, running any executable shell scripts or _.sql_ command files after the _postgres-data_ folder is created. The init bind mount is mounted at the `C:\PostgreSQL\Init` on Windows (or `/PostgreSQL/Init` on Unix) path on the host machine in the PostgreSQL server container.
+The files in the specified directory are copied into the PostgreSQL server container's _init_ folder. This folder is used for initialization, running any executable shell scripts or _.sql_ command files after the _postgres-data_ folder is created.
 
 ## Add PostgreSQL server resource with parameters
 

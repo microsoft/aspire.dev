@@ -857,7 +857,7 @@ Aspire のオーケストレーションや [リソースモデル](/architectur
 
 {% steps %}
 1. `BeforeStartEvent`: AppHost がサービス起動を開始する前に発生します。
-1. `AfterEndpointsAllocatedEvent`: サービスのエンドポイントが割り当てられた後に発生します。
+1. `ResourceEndpointsAllocatedEvent`: リソースごとに、そのエンドポイントが割り当てられた後に発生します。
 1. `AfterResourcesCreatedEvent`: すべてのリソースが作成された後に発生します。
 {% endsteps %}
 

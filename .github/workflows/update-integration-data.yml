@@ -33,10 +33,11 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+      issues: write
     steps:
       - name: Create GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
           private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
@@ -69,19 +70,19 @@ jobs:
           echo "$aspire_bin" >> "$GITHUB_PATH"
           "$aspire_bin/aspire" --version --banner
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
 
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24.x"
-          cache: pnpm
-          cache-dependency-path: src/frontend/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: src/frontend
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: bun install --frozen-lockfile
 
       - name: Update integration data and official blog archive
         id: update
@@ -111,6 +112,7 @@ jobs:
           git add -- \
             src/frontend/src/data/aspire-integrations.json \
             src/frontend/src/data/integration-docs.json \
+            src/frontend/src/data/api-generation-failures.json \
             src/frontend/src/data/github-stats.json \
             src/frontend/src/data/github-contributors.json \
             src/frontend/src/data/samples.json \
@@ -176,6 +178,42 @@ jobs:
               --label ":octocat: auto-merge")
             echo "Created $new_pr"
           fi
+
+      - name: Report failure
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # One tracking issue for consecutive failures: comment on it while it is
+          # open, so a broken updater is noticed without a daily issue flood.
+          title="Integration Data Updater is failing"
+          existing=$(gh issue list \
+            --state open \
+            --search "\"$title\" in:title" \
+            --json number,title \
+            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Scheduled run failed again: $RUN_URL"
+          else
+            gh issue create \
+              --title "$title" \
+              --body "The scheduled [Integration Data Updater]($RUN_URL) run failed. This issue is updated on each consecutive failure; close it once the workflow is green."
+          fi
+
+      - name: Track API generation failures
+        if: ${{ always() && steps.update.outputs.api_failures_checked == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FAILURES: ${{ steps.update.outputs.api_failures }}
+        run: node src/frontend/scripts/report-api-generation-failures.mjs
 
       - name: Summary
         if: ${{ always() }}

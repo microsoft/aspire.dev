@@ -846,7 +846,7 @@ You can hook into lifecycle events to run custom logic during startup and resour
 
 {% steps %}
 1. `BeforeStartEvent`: Raised before the AppHost begins starting services.
-1. `AfterEndpointsAllocatedEvent`: Raised after endpoints are allocated for services.
+1. `ResourceEndpointsAllocatedEvent`: Raised per resource after its endpoints are allocated.
 1. `AfterResourcesCreatedEvent`: Raised after all resources are created.
 {% endsteps %}
 

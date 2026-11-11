@@ -566,7 +566,7 @@ When code generation fails, the CLI exits immediately and prints:
 ```
 
 :::tip
-Prior to this improvement, a CLI/SDK version mismatch produced an empty `System.TypeLoadException` message followed by a 60-second timeout. If you saw that behaviour, update the CLI with `aspire update`.
+Prior to this improvement, a CLI/SDK version mismatch produced an empty `System.TypeLoadException` message followed by a 60-second timeout. If you saw that behavior, update the CLI with `aspire update`.
 :::
 
 ### Getting full diagnostic details

@@ -52,7 +52,7 @@ If you prefer to work locally, you can set up a development environment on your 
 Before you begin, ensure you have the following installed:
 
 - [Node.js](https://nodejs.org/en/download) (LTS version recommended) - For running the development server
-- [pnpm](https://pnpm.io/installation) - Fast, disk space efficient package manager
+- [Bun](https://bun.sh/docs/installation) - Fast JavaScript runtime and package manager that installs dependencies, runs scripts, and builds the site
 - [Visual Studio Code](https://code.visualstudio.com/) - Recommended code editor
 - [Git](https://git-scm.com/downloads) - For version control
 
@@ -73,33 +73,18 @@ Before you begin, ensure you have the following installed:
 
 1. Install dependencies
 
-    {% tabs sync: "pkg-mgr" %}
-{% tab "pnpm", icon: "pnpm" %}
-```bash
-  pnpm install
-  ```
-{% endtab %}
-{% tab "npm", icon: "npm" %}
-```bash
-npm install
-```
+    ```bash
+    bun install
+    ```
 
-:::tip[Stop using npm]{icon='seti:todo'}
-If you're not already using `pnpm`, consider switching! {% image dark: "/assets/images/icons/pnpm.svg", light: "/assets/images/icons/pnpm-light.svg", alt: "pnpm logo", zoomable: false, class: "inline", href: "https://pnpm.io/installation" %} It's faster and more efficient than `npm` or `yarn`.
-
-Install globally with:
-
-```bash
-npm install -g pnpm
-```
-:::
-{% endtab %}
-{% endtabs %}
+    :::note
+    This repository uses [Bun](https://bun.sh/docs/installation) to install dependencies and run scripts. Other package managers don't use the repository's `bun.lock` or apply its dependency patches.
+    :::
 
 1. Run the development server
 
     ```bash
-    pnpm dev
+    bun run dev
     ```
 
     This starts the Vite development server for the frontend and provide hot-reload capabilities.
@@ -109,13 +94,13 @@ npm install -g pnpm
     Open your browser to `http://localhost:4321` (or the port shown in your terminal)
 
     :::tip
-    During local development, the site search functionality is disabled. This is normal behavior as the search index is built during the production build process. To test search functionality, run a production build locally using `pnpm build` and then preview it with `pnpm preview`.
+    During local development, the site search functionality is disabled. This is normal behavior as the search index is built during the production build process. To test search functionality, run a production build locally using `bun run build` and then preview it with `bun run preview`.
     :::
 {% endsteps %}
 
 ### Known formatting limitations
 
-We expose `lint` and `format` scripts in the `package.json` to help maintain code quality and consistency. This isn't something that you're need to run manually. However, regardless of whether or not you run these scrips, be aware of the following known limitation when working with MDX files.
+We expose `lint` and `format` scripts in the `package.json` to help maintain code quality and consistency. This isn't something that you need to run manually. However, regardless of whether or not you run these scripts, be aware of the following known limitation when working with MDX files.
 
 :::caution
 **Prettier and Steps components**
@@ -136,7 +121,7 @@ The Prettier formatter has a known limitation when formatting MDX files containi
 </Steps>
 ```
 
-Without the blank lines between steps, the inner content won't render correctly. If you notice steps appearing malformed after running `pnpm format`, manually add the blank lines back before committing.
+Without the blank lines between steps, the inner content won't render correctly. If you notice steps appearing malformed after running `bun run format`, manually add the blank lines back before committing.
 :::
 
 ## ➡️ Git workflow
@@ -197,7 +182,7 @@ If you've built a new Community Toolkit hosting integration (e.g. `CommunityTool
     ```
 {% endsteps %}
 
-After making these changes, run `pnpm dev` (or `aspire start`) locally to verify the page renders correctly, the sidebar navigation works, and the icon displays as expected.
+After making these changes, run `bun run dev` (or `aspire start`) locally to verify the page renders correctly, the sidebar navigation works, and the icon displays as expected.
 
 ## ✍️ Writing style guide
 
@@ -345,7 +330,7 @@ Renders as:
 :::note
 Site relative links should always include a trailing slash `/` at the end to ensure proper navigation.
 {% learnmore %}
-This is confugred by default for `aspire.dev`, for more information see [Astro Docs: trailingSlash](https://docs.astro.build/en/reference/configuration-reference/#trailingslash).
+This is configured by default for `aspire.dev`, for more information see [Astro Docs: trailingSlash](https://docs.astro.build/en/reference/configuration-reference/#trailingslash).
 {% endlearnmore %}
 :::
 
@@ -865,7 +850,7 @@ Please give our [repository a star on GitHub! ⭐](https://github.com/microsoft/
 
 Glossary definitions and examples live in `src/content/glossary/`. Follow an existing term as a template, keep filenames (term IDs) stable, and preserve `legacyAnchors` so existing links continue to work.
 
-To refresh the official blog archive used by Browse, run `pnpm update:blogs` from `src/frontend`. The Hub's featured posts remain curated separately in `src/data/dev-hub.ts`.
+To refresh the official blog archive used by Browse, run `bun run update:blogs` from `src/frontend`. The Hub's featured posts remain curated separately in `src/data/dev-hub.ts`.
 
 When changing interactive search components, reuse `SearchField` and the shared search styles rather than overriding input heights, typography, colors, or clear icons per page. Keep contextual layouts, but use the same full-size input treatment; compact navigation controls can use the shared small variant.
 

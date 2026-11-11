@@ -369,7 +369,7 @@ Data bind mounts rely on the host machine's filesystem to persist the MySQL serv
 
 ## Add MySQL resource with init files
 
-Use initialization files to seed or configure the MySQL server at startup. The C# AppHost exposes `WithInitBindMount(...)`, while the TypeScript AppHost exposes `withInitFiles(...)`.
+Use initialization files to seed or configure the MySQL server at startup. Call `WithInitFiles(...)` in a C# AppHost or `withInitFiles(...)` in a TypeScript AppHost to copy the files from the specified directory into the container's initialization folder.
 
 {% tabs sync: "aspire-lang" %}
 {% tab "TypeScript", id: "typescript" %}
@@ -389,15 +389,13 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ```
-
-The TypeScript AppHost doesn't currently expose a `withInitBindMount(...)` API for MySQL. Use {% api "Aspire.Hosting.MySqlBuilderExtensions.WithInitFiles" %} to copy initialization files into the container instead.
 {% endtab %}
 {% tab "C#", id: "csharp" %}
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql")
-    .WithInitBindMount(@"C:\MySQL\Init");
+    .WithInitFiles("./mysql-init");
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 

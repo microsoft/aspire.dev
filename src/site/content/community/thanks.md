@@ -793,7 +793,6 @@ Aspire speaks many languages — thanks to these communities.
 
 <div class="thanks-grid not-content">
 <div class="thanks-card" style="--card-accent: var(--sl-color-orange);">
-
 <div class="thanks-card-header">
 
 {% image "/assets/images/icons/bun-icon.png", alt: "Bun logo", width: 32, height: 32, zoomable: false %}
@@ -804,7 +803,12 @@ Aspire speaks many languages — thanks to these communities.
 
 </div>
 
-<p>The all-in-one JavaScript runtime and toolkit built for speed.</p>
+<p>
+
+The all-in-one JavaScript runtime and toolkit built for speed. It also
+installs dependencies and builds this site.
+
+</p>
 
 <div class="thanks-card-links">
 <a href="/integrations/frameworks/bun-apps/" class="thanks-link-docs">
@@ -819,7 +823,6 @@ bun.sh {% icon "external", size: "small", class: "thanks-link-icon" %}
 
 </a>
 </div>
-
 </div>
 
 <div class="thanks-card" style="--card-accent: var(--sl-color-purple);">
@@ -1493,33 +1496,6 @@ on this site.
 sharp.pixelplumbing.com 
 
 {% icon "external", size: "small", class: "thanks-link-icon" %}
-
-</a>
-</div>
-</div>
-
-<div class="thanks-card" style="--card-accent: var(--sl-color-orange);">
-<div class="thanks-card-header">
-
-{% image dark: "/assets/images/icons/pnpm.svg", light: "/assets/images/icons/pnpm-light.svg", alt: "pnpm logo", zoomable: false, width: 32, height: 32, class: "thanks-header-icon borderless" %}
-
-<strong>pnpm</strong>
-
-{% license_badge title: "MIT: https://github.com/pnpm/pnpm/blob/main/LICENSE" %}
-
-</div>
-
-<p>
-
-The fast, disk-space efficient package manager that builds the aspire.dev
-frontend.
-
-</p>
-
-<div class="thanks-card-links">
-<a href="https://pnpm.io" class="thanks-link-project">
-
-pnpm.io {% icon "external", size: "small", class: "thanks-link-icon" %}
 
 </a>
 </div>

@@ -116,7 +116,7 @@ internal static class RedisResourceBuilderExtensions
     private static ResourceCommandState OnUpdateResourceState(
         UpdateCommandStateContext context)
     {
-        var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var logger = context.Services.GetRequiredService<ILogger<Program>>();
         if (logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
@@ -281,7 +281,7 @@ C# ではパラメーター型は `Func<UpdateCommandStateContext, ResourceComma
 private static ResourceCommandState OnUpdateResourceState(
     UpdateCommandStateContext context)
 {
-    var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var logger = context.Services.GetRequiredService<ILogger<Program>>();
 
     if (logger.IsEnabled(LogLevel.Information))
     {
@@ -402,7 +402,7 @@ builder.Build().Run();
 - ワークフローの一部としてコマンド実行を自動化する
 - リソース制御が必要なカスタム ツールを構築する
 
-最も一般的なシナリオは、他のカスタム コマンド実装からコマンドを呼び出すことです。C# では `ExecuteCommandContext.ServiceProvider` を使って `ResourceCommandService` を取得します。TypeScript では、コマンドを登録する前に AppHost の実行コンテキストからサービスを解決し、コールバックでキャプチャします。
+最も一般的なシナリオは、他のカスタム コマンド実装からコマンドを呼び出すことです。C# では `ExecuteCommandContext.Services` を使って `ResourceCommandService` を取得します。TypeScript では、コマンドを登録する前に AppHost の実行コンテキストからサービスを解決し、コールバックでキャプチャします。
 
 ### カスタム コマンドからコマンドを実行する
 
@@ -479,7 +479,7 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithReference(database)
     .WithCommand("reset-all", "Reset Everything", async (context, ct) =>
     {
-        var commandService = context.ServiceProvider.GetRequiredService<ResourceCommandService>();
+        var commandService = context.Services.GetRequiredService<ResourceCommandService>();
         
         context.Logger.LogInformation("Starting full system reset...");
         

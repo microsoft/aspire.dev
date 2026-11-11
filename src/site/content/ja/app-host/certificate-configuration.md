@@ -202,7 +202,7 @@ builder.AddContainer("api", "my-api:latest")
 
 // パスワードパラメーターを使用して証明書を使用する
 var certPassword = builder.AddParameter("cert-password", secret: true);
-builder.AddNpmApp("frontend", "../frontend")
+builder.AddJavaScriptApp("frontend", "../frontend")
     .WithHttpsCertificate(certificate, certPassword);
 
 builder.Build().Run();
@@ -374,7 +374,7 @@ await builder.build().run();
 var builder = DistributedApplication.CreateBuilder(args);
 
 // 開発証明書の信頼を明示的に有効にする
-var nodeApp = builder.AddNpmApp("frontend", "../frontend")
+var nodeApp = builder.AddJavaScriptApp("frontend", "../frontend")
     .WithDeveloperCertificateTrust(trust: true);
 
 // 開発証明書の信頼を無効にする
@@ -406,7 +406,7 @@ var certBundle = builder.AddCertificateAuthorityCollection("my-bundle")
     .WithCertificates(certificates);
 
 // 証明書バンドルをリソースに適用する
-builder.AddNpmApp("my-project", "../myapp")
+builder.AddJavaScriptApp("my-project", "../myapp")
     .WithCertificateAuthorityCollection(certBundle);
 
 builder.Build().Run();
@@ -663,7 +663,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // HTTPS エンドポイントに開発者証明書を使用するようにサービスを設定する
 // また、送信接続（ダッシュボードテレメトリなど）のために開発者証明書を信頼する
-var frontend = builder.AddNpmApp("frontend", "../frontend")
+var frontend = builder.AddJavaScriptApp("frontend", "../frontend")
     .WithHttpsDeveloperCertificate()      // HTTPS エンドポイント用サーバー証明書
     .WithDeveloperCertificateTrust(true); // ダッシュボード用クライアント信頼
 

@@ -287,7 +287,7 @@ const api = await builder
 
 const storefront = await aks.addGateway('storefront');
 await storefront.withLoadBalancer(publicLb);
-await storefront.withRoute('/', api.getEndpoint('http'));
+await storefront.withGatewayPathRoute('/', api.getEndpoint('http'));
 ```
 {% endtab %}
 {% tab "C#", id: "csharp" %}
@@ -332,8 +332,8 @@ await letsencrypt.withHttp01Solver();
 
 const storefront = await aks.addGateway('storefront');
 await storefront.withLoadBalancer(publicLb);
-await storefront.withRoute('/', api.getEndpoint('http'));
-await storefront.withTls(letsencrypt);
+await storefront.withGatewayPathRoute('/', api.getEndpoint('http'));
+await storefront.withGatewayTlsIssuer(letsencrypt);
 ```
 {% endtab %}
 {% tab "C#", id: "csharp" %}
@@ -433,9 +433,9 @@ const hostname = builder.addParameter('hostname'); // e.g. "api.contoso.com"
 
 const storefront = await aks.addGateway('storefront');
 await storefront.withLoadBalancer(publicLb);
-await storefront.withHostname(hostname);
-await storefront.withRoute('/', api.getEndpoint('http'));
-await storefront.withTls(letsencrypt);
+await storefront.withGatewayHostnameParam(hostname);
+await storefront.withGatewayPathRoute('/', api.getEndpoint('http'));
+await storefront.withGatewayTlsIssuer(letsencrypt);
 ```
 {% endtab %}
 {% tab "C#", id: "csharp" %}
@@ -451,11 +451,24 @@ aks.AddGateway("storefront")
 {% endtab %}
 {% endtabs %}
 
-Provide the hostname value at deploy time:
+Provide the hostname value at deploy time by setting the `Parameters__hostname` environment variable, then run `aspire deploy`:
 
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
 ```bash title="Deploy with the hostname parameter"
-aspire deploy --parameter hostname=api.contoso.com
+export Parameters__hostname=api.contoso.com
+
+aspire deploy
 ```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell title="Deploy with the hostname parameter"
+$env:Parameters__hostname = "api.contoso.com"
+
+aspire deploy
+```
+{% endtab %}
+{% endos_tabs %}
 
 ### Point your DNS at the AGC frontend
 

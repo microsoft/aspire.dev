@@ -1,10 +1,11 @@
 import type { APIRoute } from 'astro';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
+import { withApiCacheKeys } from '@utils/api-cache-key';
 import { renderTypeScriptItemMarkdown } from '@utils/typescript-api-markdown';
-import type { TsApiDocument, TsDtoType, TsEnumType, TsFunction, TsHandleType } from '@utils/ts-modules';
-import { getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
-import { getTsItemSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import type { TsDtoType, TsEnumType, TsFunction, TsHandleType } from '@utils/ts-modules';
+import { getTsModuleDocument, getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
+import { getTsItemSlug, getTsRouteItem, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 
 export const prerender = true;
 
@@ -12,9 +13,9 @@ type TypeScriptItemKind = 'handle' | 'dto' | 'enum' | 'function';
 type TypeScriptItem = TsHandleType | TsDtoType | TsEnumType | TsFunction;
 
 type RouteProps = {
-  item: TypeScriptItem;
+  itemIndex: number;
   itemKind: TypeScriptItemKind;
-  pkg: TsApiDocument;
+  packageName: string;
 };
 
 type StaticPath = {
@@ -22,89 +23,98 @@ type StaticPath = {
   props: RouteProps;
 };
 
-export async function getStaticPaths(): Promise<StaticPath[]> {
+export async function getStaticPaths(): Promise<Array<StaticPath & { cacheKey: string }>> {
   const packages = await getTsModules();
   const paths: StaticPath[] = [];
+  const names = new Map<StaticPath, string>();
 
   for (const entry of packages) {
     const pkg = entry.data;
     const pkgSlug = tsModuleSlug(pkg.package.name);
     const items = getTsTopLevelRouteItems(pkg);
 
-    for (const handle of pkg.handleTypes ?? []) {
+    for (const [itemIndex, handle] of (pkg.handleTypes ?? []).entries()) {
       const itemSlug = getTsItemSlug(handle, items);
       if (!itemSlug) {
         continue;
       }
 
-      paths.push({
+      const path: StaticPath = {
         params: {
           item: itemSlug,
           module: pkgSlug,
         },
         props: {
-          item: handle,
+          itemIndex,
           itemKind: 'handle',
-          pkg,
+          packageName: pkg.package.name,
         },
-      });
+      };
+      paths.push(path);
+      names.set(path, tsSlugify(handle.name));
     }
 
-    for (const dto of pkg.dtoTypes ?? []) {
+    for (const [itemIndex, dto] of (pkg.dtoTypes ?? []).entries()) {
       const itemSlug = getTsItemSlug(dto, items);
       if (!itemSlug) {
         continue;
       }
 
-      paths.push({
+      const path: StaticPath = {
         params: {
           item: itemSlug,
           module: pkgSlug,
         },
         props: {
-          item: dto,
+          itemIndex,
           itemKind: 'dto',
-          pkg,
+          packageName: pkg.package.name,
         },
-      });
+      };
+      paths.push(path);
+      names.set(path, tsSlugify(dto.name));
     }
 
-    for (const enumType of pkg.enumTypes ?? []) {
+    for (const [itemIndex, enumType] of (pkg.enumTypes ?? []).entries()) {
       const itemSlug = getTsItemSlug(enumType, items);
       if (!itemSlug) {
         continue;
       }
 
-      paths.push({
+      const path: StaticPath = {
         params: {
           item: itemSlug,
           module: pkgSlug,
         },
         props: {
-          item: enumType,
+          itemIndex,
           itemKind: 'enum',
-          pkg,
+          packageName: pkg.package.name,
         },
-      });
+      };
+      paths.push(path);
+      names.set(path, tsSlugify(enumType.name));
     }
 
-    for (const fn of getTsStandaloneFunctions(pkg)) {
+    for (const [itemIndex, fn] of getTsStandaloneFunctions(pkg).entries()) {
       const itemSlug = getTsItemSlug(fn, items);
       if (!itemSlug) {
         continue;
       }
 
-      paths.push({
+      const path: StaticPath = {
         params: {
           item: itemSlug,
           module: pkgSlug,
         },
         props: {
-          item: fn,
+          itemIndex,
           itemKind: 'function',
-          pkg,
+          packageName: pkg.package.name,
         },
-      });
+      };
+      paths.push(path);
+      names.set(path, tsSlugify(fn.name));
     }
   }
 
@@ -112,20 +122,22 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   const canonical = new Set(paths.map(({ params }) => `${params.module}/${params.item}`));
   const legacy = new Map<string, StaticPath>();
   for (const path of paths) {
-    const item = tsSlugify(path.props.item.name);
+    const item = names.get(path)!;
     const key = `${path.params.module}/${item}`;
     if (item && !canonical.has(key)) {
       legacy.set(key, { ...path, params: { ...path.params, item } });
     }
   }
-  return [...paths, ...legacy.values()];
+  return withApiCacheKeys([...paths, ...legacy.values()], packages);
 }
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = async ({ props }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const routeProps = props as RouteProps;
+  const pkg = await getTsModuleDocument(routeProps.packageName);
+  const item = getTsRouteItem<TypeScriptItem>(pkg, routeProps.itemKind, routeProps.itemIndex);
 
   return markdownResponse(
-    renderTypeScriptItemMarkdown(routeProps.pkg, routeProps.item, routeProps.itemKind, base)
+    renderTypeScriptItemMarkdown(pkg, item, routeProps.itemKind, base)
   );
 };

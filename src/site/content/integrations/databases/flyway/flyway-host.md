@@ -1,0 +1,110 @@
+---
+title: Flyway integration in the AppHost
+description: Add Flyway as an Aspire container resource and configure the mounted migration directory and optional telemetry opt-in.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+This page covers the `CommunityToolkit.Aspire.Hosting.Flyway` AppHost APIs. For an overview and prerequisites, see [Get started with the Flyway integration](/integrations/databases/flyway/flyway-get-started/).
+
+## Installation
+
+Install the package in the AppHost:
+
+{% install_package "CommunityToolkit.Aspire.Hosting.Flyway", short_name: "flyway" %}
+
+The package requires .NET 10 or later. Docker must be available to run the Flyway container.
+
+## Add a Flyway resource
+
+Use `AddFlyway` to mount the migration scripts directory from the host into `/flyway/sql` in the container. `migrationScriptsPath` can be absolute or relative to the AppHost working directory, and Docker must be able to access it.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const flyway = await builder.addFlyway('flyway', './migrations');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+using CommunityToolkit.Aspire.Hosting.Flyway;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var flyway = builder.AddFlyway("flyway", "./migrations");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The resource uses the `flyway/flyway:13` container image, sets `FLYWAY_LOCATIONS` to `filesystem:/flyway/sql`, disables Redgate telemetry by default, and bind-mounts the scripts directory read-only.
+
+## Configure migration scripts
+
+Place SQL migrations in the directory passed to `AddFlyway`, following Flyway's naming and versioning rules. The integration does not copy files into the container; it mounts the host path. Keep the files present and readable for the lifetime of the container.
+
+## Configure the database provider
+
+The generic Flyway package does not add a database connection to the resource. Add the database resource to the AppHost and use the database provider's Flyway extension to configure Flyway for that engine. The PostgreSQL extension configures Flyway's connection arguments but does not add a resource dependency. Add an explicit dependency with `flywayMigration.WaitFor(postgresDb)` in C# or `flywayMigration.waitFor(postgresDb)` in TypeScript so the database is ready before the migration runs.
+
+## Opt in to Flyway telemetry
+
+Flyway telemetry is disabled by default through `REDGATE_DISABLE_TELEMETRY=true`. Call `WithTelemetryOptIn` only when you choose to send Flyway usage data to Redgate:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const flyway = await builder.addFlyway('flyway', './migrations');
+await flyway.withTelemetryOptIn();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+using CommunityToolkit.Aspire.Hosting.Flyway;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var flyway = builder.AddFlyway("flyway", "./migrations")
+    .WithTelemetryOptIn();
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Health and lifecycle
+
+Flyway is modeled as a container resource. This package does not add an application-level health check or a consuming-app client integration. Use the dashboard logs and state to inspect the Flyway process, and consult the provider-specific extension for its migration lifecycle behavior.
+
+:::note
+The migration resource is a container, not a long-running database service.
+This package does not expose a database client or add a server health probe.
+:::
+
+## Exported AppHost API
+
+- `AddFlyway(name, migrationScriptsPath)` creates the Flyway container and mounts the script directory.
+- `WithTelemetryOptIn()` changes `REDGATE_DISABLE_TELEMETRY` to `false`.
+
+These are the complete AppHost APIs exported by this package.
+
+## See also
+
+- [Get started with the Flyway integration](/integrations/databases/flyway/flyway-get-started/)
+- [Flyway documentation](https://documentation.red-gate.com/flyway)
+- [📦 CommunityToolkit.Aspire.Hosting.Flyway](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Flyway)

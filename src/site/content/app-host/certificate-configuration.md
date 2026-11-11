@@ -239,7 +239,7 @@ builder.AddContainer("api", "my-api:latest")
 
 // Use certificate with a password parameter
 var certPassword = builder.AddParameter("cert-password", secret: true);
-builder.AddNpmApp("frontend", "../frontend")
+builder.AddJavaScriptApp("frontend", "../frontend")
     .WithHttpsCertificate(certificate, certPassword);
 
 builder.Build().Run();
@@ -425,7 +425,7 @@ await builder.build().run();
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Explicitly enable development certificate trust
-var nodeApp = builder.AddNpmApp("frontend", "../frontend")
+var nodeApp = builder.AddJavaScriptApp("frontend", "../frontend")
     .WithDeveloperCertificateTrust(trust: true);
 
 // Disable development certificate trust
@@ -457,7 +457,7 @@ var certBundle = builder.AddCertificateAuthorityCollection("my-bundle")
     .WithCertificates(certificates);
 
 // Apply the certificate bundle to resources
-builder.AddNpmApp("my-project", "../myapp")
+builder.AddJavaScriptApp("my-project", "../myapp")
     .WithCertificateAuthorityCollection(certBundle);
 
 builder.Build().Run();
@@ -730,7 +730,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // Configure the service to use developer certificate for HTTPS endpoints
 // and trust the developer certificate for outbound connections (like dashboard telemetry)
-var frontend = builder.AddNpmApp("frontend", "../frontend")
+var frontend = builder.AddJavaScriptApp("frontend", "../frontend")
     .WithHttpsDeveloperCertificate()      // Server cert for HTTPS endpoints
     .WithDeveloperCertificateTrust(true); // Client trust for dashboard
 

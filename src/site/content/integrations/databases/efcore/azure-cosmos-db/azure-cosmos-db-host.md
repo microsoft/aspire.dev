@@ -69,7 +69,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const cosmos = await builder.addAzureCosmosDb("cosmos-db");
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
 
 // After adding all resources, run the app...
 ```
@@ -100,7 +100,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const cosmos = await builder.addAzureCosmosDb("cosmos-db");
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
 const db = await cosmos.addCosmosDatabase("db");
 const container = await db.addContainer("entries", "/id");
 
@@ -145,7 +145,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const cosmos = await builder.addAzureCosmosDb("cosmos-db");
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
 await cosmos.runAsEmulator();
 
 // After adding all resources, run the app...

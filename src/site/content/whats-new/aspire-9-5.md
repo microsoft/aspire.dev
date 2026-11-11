@@ -45,7 +45,7 @@ Moving between minor releases of Aspire is simple:
     <Sdk Name="Aspire.AppHost.Sdk" Version="9.5.2" />
     ```
 
-    For more information, see [Aspire SDK](`microsoft/aspire/sdk`).
+    For more information, see [Aspire SDK](/get-started/aspire-sdk/).
 
 1. Check for any NuGet package updates, either using the NuGet Package Manager in Visual Studio or the **Update NuGet Package** command from C# Dev Kit in Visual Studio (VS) Code.
 
@@ -105,7 +105,7 @@ aspire config set features.singlefileAppHostEnabled true
 aspire config set features.minimumSdkCheckEnabled false
 ```
 
-For more information, see [aspire config set command](cli-reference/aspire-config-set/).
+For more information, see [aspire config set command](/reference/cli/commands/aspire-config-set/).
 
 **SDK version requirements:**
 
@@ -138,8 +138,6 @@ Aspire 9.5 builds on the 9.4 preview and adds several key improvements:
 - Fail-fast argument validation with clearer error messages.
 - Improved help and usage text for better developer experience.
 
-For more information, see [aspire exec command](cli-reference/aspire-exec/) reference.
-
 #### Basic usage examples
 
 ```bash title='Aspire CLI'
@@ -167,7 +165,7 @@ This command is disabled by default. To use it, turn on the feature toggle by ru
 aspire config set features.execCommandEnabled true
 ```
 
-For more information, see [aspire config command](cli-reference/aspire-config/).
+For more information, see [aspire config command](/reference/cli/commands/aspire-config/).
 :::
 
 ### Other tweaks
@@ -398,7 +396,7 @@ var frontend = builder.AddYarp("frontend")
 builder.Build().Run();
 ```
 
-For more information, see [Multi-stage Docker builds](https://aspire.dev/integrations/reverse-proxies/yarp/#multi-stage-docker-builds).
+For more information, see [Multi-stage Docker builds](https://aspire.dev/integrations/reverse-proxies/yarp/#static-file-serving).
 
 **Hybrid static + API gateway:**
 
@@ -468,7 +466,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddRabbitMQClient("messaging", o => o.DisableAutoActivation = false);
 ```
 
-For more information, see [RabbitMQ integration - Auto activation](/integrations/messaging/rabbitmq/rabbitmq-client/#auto-activation).
+For more information, see [RabbitMQ integration - Auto activation](/integrations/messaging/rabbitmq/rabbitmq-connect/#auto-activation).
 
 ### Redis integration improvements
 

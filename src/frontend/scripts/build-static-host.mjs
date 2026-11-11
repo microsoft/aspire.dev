@@ -42,9 +42,9 @@ try {
   preserve(join(staticHostWwwroot, 'scalar'), 'scalar');
   preserve(join(staticHostWwwroot, '.gitignore'), '.gitignore');
 
-  run('pnpm git-env');
+  run('bun run git-env');
   run(
-    `pnpm exec astro build${skipSearch ? ' --mode skip-search' : ''}`,
+    `bunx --bun astro build${skipSearch ? ' --mode skip-search' : ''}`,
     {
       ...process.env,
       ASTRO_OUT_DIR: staticHostWwwroot,
