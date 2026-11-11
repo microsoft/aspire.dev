@@ -227,8 +227,8 @@ const sqldb = await sql.addDatabase("sqldb");
 
 A container can have only one mount for each target path. `WithBindMount` enforces this when you call it:
 
-- **Identical mount**: If the resource already has a bind mount with the same source, target, and `isReadOnly` value, the call is a no-op. Fully qualified sources are normalized before comparison, so relative, absolute, and trailing-separator forms of the same path are treated as identical. On Windows, fully qualified paths are compared case-insensitively. Rooted but unqualified paths, such as a Docker socket path on Windows, are resolved by the container runtime and must match exactly.
-- **Conflicting mount**: If the resource already has a different mount on the same target (a bind mount with a different source or read-only flag, or a volume), `WithBindMount` throws an `InvalidOperationException` that names both mounts, instead of failing later when the container starts.
+- **Identical mount**: If the resource already has a bind mount with the same source, target, and `isReadOnly` value, the call does nothing. Fully qualified sources are normalized before comparison, so relative, absolute, and trailing-separator forms of the same path are treated as identical. On Windows, fully qualified paths are compared case-insensitively. Rooted but unqualified paths, such as a Docker socket path on Windows, are resolved by the container runtime and must match exactly.
+- **Conflicting mount**: If the resource already has a different mount on the same target, `WithBindMount` throws an `InvalidOperationException` that names both mounts, instead of failing later when the container starts. Such a conflicting mount must be a bind mount with a different source or read-only flag, or a volume.
 
 Because identical mounts are ignored, it's safe to call `WithBindMount` from code that can run more than once for the same resource, such as layered extension methods or a `BeforeResourceStartedEvent` handler that runs again on each restart.
 
