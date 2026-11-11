@@ -8,13 +8,15 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 This walkthrough models a common scenario in one AppHost. An API exposes a delegated scope, and a web app signs users in with Microsoft Entra ID and calls the API on their behalf. You run it locally, and then deploy it to Azure Container Apps. The web app authenticates to Entra ID with a developer certificate locally and with a managed identity in Azure, so no client secret is involved.
 
-Aspire creates the two registrations and passes their settings to your apps. Your apps still need Microsoft.Identity.Web, or an equivalent library, to sign in users and validate tokens. For the integration overview, see [Microsoft Entra ID integration](/integrations/security/microsoft-entra-id/).
+Aspire creates the two registrations and passes their settings to your apps. For the integration overview, see [Microsoft Entra ID integration](/integrations/security/microsoft-entra-id/).
 
 ## Prerequisites
 
 - An AppHost with the [📦 Aspire.Hosting.Azure.EntraId](https://www.nuget.org/packages/Aspire.Hosting.Azure.EntraId) package. For the other prerequisites, see [Microsoft Entra ID integration](/integrations/security/microsoft-entra-id/#prerequisites).
 - The [📦 Aspire.Hosting.Azure.AppContainers](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppContainers) package, for the Azure Container Apps environment.
 - A web project and an API project that use .NET. The AppHost adds them with `AddDotnetProject`, which comes from the [Dotnet hosting integration](/integrations/frameworks/dotnet/dotnet-host/).
+- [Service defaults](/get-started/csharp-service-defaults/) in both projects. Their `MapDefaultEndpoints` method maps the `/health` endpoint that the AppHost probes.
+- The [📦 Microsoft.Identity.Web](https://www.nuget.org/packages/Microsoft.Identity.Web) package in the web and API projects, to sign in users and validate tokens. The app code uses its `Microsoft.Identity.Web` and `Microsoft.Identity.Web.Resource` namespaces.
 - [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/) configured with your subscription and location.
 
 ## Model the AppHost
@@ -106,6 +108,8 @@ The AppHost does the following:
 The API validates bearer tokens that Microsoft Entra ID issued for its registration. Referencing the API registration sets `AzureAd__Instance`, `AzureAd__TenantId`, `AzureAd__ClientId`, and `AzureAd__Scopes`. The `AzureAd` section is where Microsoft.Identity.Web looks for its settings.
 
 ```csharp title="ApiService/Program.cs"
+builder.AddServiceDefaults();
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
@@ -116,6 +120,7 @@ var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapDefaultEndpoints();
 
 app.Run();
 ```
@@ -138,9 +143,11 @@ public class WeatherForecastController : ControllerBase
 The web app signs users in with OpenID Connect and acquires a token for the API on behalf of the signed-in user. Referencing the web registration sets the `AzureAd__*` settings and a `DownstreamApis__apiservice__Scopes__0` entry with the value `api://{apiClientId}/access_as_user`. The entry is named `apiservice` because that resource references the API registration.
 
 ```csharp title="Web/Program.cs"
+var apiScopes = builder.Configuration.GetSection("DownstreamApis:apiservice:Scopes").Get<string[]>();
+
 builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApp(builder.Configuration)
-    .EnableTokenAcquisitionToCallDownstreamApi()
+    .EnableTokenAcquisitionToCallDownstreamApi(apiScopes)
     .AddInMemoryTokenCaches();
 
 builder.Services.AddHttpClient<WeatherApiClient>(client => client.BaseAddress = new("https+http://apiservice"))
@@ -148,17 +155,17 @@ builder.Services.AddHttpClient<WeatherApiClient>(client => client.BaseAddress = 
         builder.Configuration.GetSection("DownstreamApis:apiservice"), "DownstreamApis:apiservice");
 ```
 
-The `DownstreamApis` entry holds scopes, not the API's address, so the code sets the base address with service discovery. The message handler acquires a token for the entry's scopes and adds it to each request. For the sign-in pages and authorization of your app model, follow the [Microsoft.Identity.Web documentation](https://learn.microsoft.com/entra/msal/dotnet/microsoft-identity-web/).
+Passing the API scope as an initial scope asks the user to consent at sign-in. `WeatherApiClient` is your own typed `HttpClient` class. The `DownstreamApis` entry holds scopes, not the API's address, so the code sets the base address with service discovery. The message handler acquires a token for the entry's scopes and adds it to each request. To call APIs through `IDownstreamApi` instead, call `AddDownstreamApis(builder.Configuration.GetSection("DownstreamApis"))` from the [📦 Microsoft.Identity.Web.DownstreamApi](https://www.nuget.org/packages/Microsoft.Identity.Web.DownstreamApi) package. For the sign-in pages and authorization of your app model, follow the [Microsoft.Identity.Web documentation](https://learn.microsoft.com/entra/msal/dotnet/microsoft-identity-web/).
 
 ## Run the scenario locally
 
 1. Start the AppHost with `aspire run`.
-1. When the dashboard prompts for Azure provisioning settings, select the subscription, resource group, and location. You can also set an optional **Tenant-scoped resource suffix** so that your registrations don't collide with a teammate's.
+1. When the dashboard prompts for Azure provisioning settings, select the subscription, resource group, and location. You can also set an optional **Tenant-scoped resource suffix** so that your registrations don't collide with a teammate's. For more information, see [Separate registrations with a tenant-scoped suffix](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#separate-registrations-with-a-tenant-scoped-suffix).
 1. Wait for `apiservice-entra` and `webfrontend-entra` to reach the **Running** state. Aspire creates both registrations and their service principals the first time. The resources show links to the app registration in the Azure portal.
-1. Open the `webfrontend` endpoint and sign in. Because nobody consented to `access_as_user` yet, Entra ID prompts you to consent when the app first requests a token for that scope.
+1. Open the `webfrontend` endpoint and sign in. Because nobody consented to `access_as_user` yet, Entra ID asks you to consent to it when you first sign in.
 1. Use a page of the web app that calls the API. The web app redeems the authorization code with the developer certificate and calls the API with a token for `api://{apiClientId}/access_as_user`.
 
-Locally, the web app receives the developer certificate as a base64-encoded credential in `AzureAd__ClientCredentials`. The certificate is for local development only, so use a separate registration, through a different name or suffix, for anything that isn't development. For more information, see [Local developer certificate](/integrations/security/microsoft-entra-id/client-credentials/#local-developer-certificate).
+Locally, the web app receives the developer certificate as a base64-encoded credential in `AzureAd__ClientCredentials`. Use it for development only, as described in [Local developer certificate](/integrations/security/microsoft-entra-id/client-credentials/#local-developer-certificate).
 
 If `webfrontend-entra` reports `Missing subscription configuration`, Azure provisioning isn't configured. See [Lifecycle and permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#troubleshoot-entra-id-errors).
 
@@ -168,8 +175,8 @@ Run `aspire deploy` from the AppHost directory. For more information about deplo
 
 When you deploy:
 
-- Aspire creates or updates both registrations with the Microsoft Graph Bicep extension, together with the user-assigned managed identity of the web container app.
-- `PublishWithFederatedManagedIdentityCredential` adds a federated credential to the web registration. It trusts the tenant's v2.0 issuer, uses the managed identity's principal ID as the subject, and uses `api://AzureADTokenExchange` as the audience.
+- Aspire creates or updates both registrations and a user-assigned managed identity for the web container app.
+- `PublishWithFederatedManagedIdentityCredential` adds a federated credential to the web registration that trusts the web container app's managed identity.
 - `WithRedirectUris` registers `https://{web-fqdn}/signin-oidc` and `https://{web-fqdn}/signout-callback-oidc` for the container app's fully qualified domain name.
 - The `RunWithLocalDeveloperCertificateCredential` call does nothing, because it applies only when you run locally.
 
@@ -183,9 +190,9 @@ Each container app receives these settings:
 | `apiservice` | `AzureAd__Instance`, `AzureAd__TenantId`, and `AzureAd__ClientId` |
 | `apiservice` | `AzureAd__Scopes` set to `access_as_user` |
 
-After the deployment, open the web app's address, sign in, and call the API. Entra ID prompts for consent when the app first requests the scope, unless an administrator consented.
+After the deployment, open the web app's address and sign in. Entra ID asks for consent at the first sign-in, unless you or an administrator already consented. Then use a page that calls the API.
 
-The deploying identity needs the permissions that [Lifecycle and permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#required-permissions) describes. The registrations remain in the tenant when you delete the resource group, so clean them up separately.
+The deploying identity needs the permissions that [Lifecycle and permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#required-permissions) describes. Deleting the resource group doesn't delete the registrations, so [clean them up separately](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#clean-up-registrations).
 
 ## See also
 

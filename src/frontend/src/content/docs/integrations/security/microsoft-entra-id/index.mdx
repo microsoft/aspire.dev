@@ -31,7 +31,7 @@ Add the [📦 Aspire.Hosting.Azure.EntraId](https://www.nuget.org/packages/Aspir
 
 <InstallPackage packageName="Aspire.Hosting.Azure.EntraId" />
 
-The integration is available in C#, TypeScript, Python, Go, Java, and Rust AppHosts with the same behavior. Method names follow each language's conventions, and optional arguments are passed as options objects or keyword arguments. For example, Python's generator abbreviates `Application` to `app`, as in `add_entra_id_app` and `with_app_owners`. The examples on these pages use C# and TypeScript.
+The integration is available in C#, TypeScript, Python, Go, Java, and Rust AppHosts with the same behavior. Method names follow each language's conventions, and optional arguments are passed as options objects or keyword arguments. The examples on these pages use C# and TypeScript.
 
 The examples add .NET projects with `AddDotnetProject`, which comes from the [Dotnet hosting integration](/integrations/frameworks/dotnet/dotnet-host/).
 
@@ -88,15 +88,14 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-When the AppHost starts, Aspire creates the registration and its service principal through the Microsoft Graph Bicep extension. The registration is created in the subscription's tenant, which isn't necessarily your account's home tenant. Configure [local Azure provisioning](/integrations/cloud/azure/local-provisioning/) with your subscription and location, and sign in to the Azure CLI before you run the AppHost.
+In TypeScript, `withRedirectUris` takes one URI per call, so call it once for each URI.
+
+When the AppHost starts, Aspire creates the registration and its service principal. The registration is created in the subscription's tenant, which isn't necessarily your account's home tenant. Configure [local Azure provisioning](/integrations/cloud/azure/local-provisioning/) with your subscription and location, and sign in to the Azure CLI before you run the AppHost.
 
 The registration appears in the dashboard as a resource:
 
-- It starts in the **Waiting** state until its tenant ID and client ID are known, then validates its settings and reports **Running**.
-- It links to the app registration in the Azure portal and to the tenant's OpenID Connect discovery document.
-- Its properties show the tenant ID, client ID, sign-in audience, instance, and configured credential types.
-- If a setting is invalid, such as a malformed tenant ID, the resource reports **Failed to start** and its console logs explain why.
-- If the Azure subscription, location, or resource group settings are missing, the resource reports **Missing subscription configuration**, like other Azure resources.
+- When it's ready, it reports **Running**, links to the tenant's OpenID Connect discovery document, and shows its tenant ID, client ID, and other settings as properties. In the Azure public cloud and national clouds, it also links to the app registration in the Azure portal.
+- If a setting is invalid, it reports **Failed to start**, and its console logs explain why. If Azure provisioning isn't configured, it reports **Missing subscription configuration**. To resolve these and other errors, see [Troubleshoot Entra ID errors](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#troubleshoot-entra-id-errors).
 
 If tenant policy prevents creating registrations, use [`AddExistingEntraApplication`](/integrations/security/microsoft-entra-id/existing-registrations/) for a configuration-only reference.
 
@@ -104,8 +103,8 @@ If tenant policy prevents creating registrations, use [`AddExistingEntraApplicat
 
 `WithReference` injects settings as environment variables. The names depend on the kind of workload.
 
-- .NET projects receive keys in the form `AzureAd__{Key}`, such as `AzureAd__Instance`, `AzureAd__TenantId`, and `AzureAd__ClientId`. .NET configuration maps them to the `AzureAd` section that Microsoft.Identity.Web reads without glue code.
-- Other resources receive uppercase snake-case names that start with the registration's resource name, such as `ENTRA_API_TENANT_ID` and `ENTRA_API_CLIENT_ID` for the `entra-api` resource. Configuration values keep their original casing.
+- .NET projects receive keys in the form `AzureAd__{Key}`, such as `AzureAd__TenantId` and `AzureAd__ClientId`. .NET configuration maps them to the `AzureAd` section that Microsoft.Identity.Web reads.
+- Other resources receive uppercase snake-case names that start with the registration's resource name, such as `ENTRA_API_TENANT_ID` and `ENTRA_API_CLIENT_ID` for the `entra-api` resource.
 
 A .NET project reads the settings as ordinary configuration. For example, an API validates tokens with the injected `AzureAd` section:
 
@@ -122,13 +121,13 @@ Other apps read the variables and map them into their authentication library's o
 | `AppHomeTenantId` | The sign-in audience allows other tenants. `TenantId` then holds `organizations`, `common`, or `consumers`. |
 | `ClientCredentials` entries | A credential is configured. See [client credentials](/integrations/security/microsoft-entra-id/client-credentials/). |
 | `Scopes` | The registration exposes enabled scopes. See [expose and call APIs](/integrations/security/microsoft-entra-id/expose-and-call-apis/). |
-| `DownstreamApis` entries | The registration declares permissions to other APIs. For .NET projects, the section is a sibling of `AzureAd` and ignores the connection name. |
+| `DownstreamApis` entries | The registration declares permissions to other APIs. For .NET projects, the `DownstreamApis` section is a sibling of `AzureAd`. |
 | `Audiences` entries | `WithAudience` is called. |
 | `ClientCapabilities`, `SendX5C`, `AllowWebApiToBeAuthorizedByACL`, `ExtraQueryParameters` | The matching `WithClientCapability`, `WithSendX5C`, `WithAllowWebApiToBeAuthorizedByACL`, or `WithExtraQueryParameter` method is called. |
 
 ### Change the environment variable names
 
-Use `connectionName` to change the prefix for one reference. Each consumer chooses its own name without affecting other references to the same registration.
+Use `connectionName` to change the prefix for one reference. Each referencing app chooses its own name without affecting other references to the same registration.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -136,9 +135,6 @@ Use `connectionName` to change the prefix for one reference. Each consumer choos
 ```typescript title="apphost.mts"
 const worker = await builder.addContainer("worker", "my-worker-image");
 await worker.withReference(entraApi, { connectionName: "ENTRA" });
-
-const customApi = await builder.addDotnetProject("custom-api", "../Api/Api.csproj");
-await customApi.withReference(entraApi, { connectionName: "Authentication:AzureAd" });
 ```
 
 </TabItem>
@@ -147,21 +143,14 @@ await customApi.withReference(entraApi, { connectionName: "Authentication:AzureA
 ```csharp title="AppHost.cs"
 var worker = builder.AddContainer("worker", "my-worker-image")
     .WithReference(entraApi, connectionName: "ENTRA");
-
-var customApi = builder.AddDotnetProject("custom-api", "../Api/Api.csproj")
-    .WithReference(entraApi, connectionName: "Authentication:AzureAd");
 ```
 
 </TabItem>
 </Tabs>
 
-The first reference produces names such as `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID`, and the second produces `Authentication__AzureAd__ClientId`. Several rules apply to connection names:
+This reference produces names such as `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID`. For .NET projects, a colon in the connection name becomes a double underscore, so `Authentication:AzureAd` produces `Authentication__AzureAd__ClientId`.
 
-- For .NET projects, a colon in the name becomes a double underscore.
-- For other resources, the name is normalized to uppercase snake case, so `MyAuth` produces `MY_AUTH_CLIENT_ID`.
-- An empty connection name omits the prefix and its separator, so `ClientId` becomes `CLIENT_ID` for other resources and stays `ClientId` for .NET projects.
-- The naming convention also applies to nested settings and array entries, such as `ENTRA_CLIENT_CREDENTIALS_0_SOURCE_TYPE`.
-- The `DownstreamApis` prefix is separate from the connection name. To change it, see [Settings that the caller receives](/integrations/security/microsoft-entra-id/expose-and-call-apis/#settings-that-the-caller-receives).
+For .NET projects, `DownstreamApis` entries ignore the connection name. For other resources, they're nested under it, such as `ENTRA_DOWNSTREAM_APIS_...`. To change the `DownstreamApis` prefix, see [Settings that the caller receives](/integrations/security/microsoft-entra-id/expose-and-call-apis/#settings-that-the-caller-receives).
 
 ## Run and publish behavior
 
@@ -169,7 +158,7 @@ The same registration can behave differently when you run the AppHost and when y
 
 | Behavior | Run | Publish and deploy |
 | -------- | --- | ------------------ |
-| Created registration | Created through Azure provisioning when the AppHost starts. | Emitted as a Bicep module that deploys with the rest of your Azure resources. |
+| Created registration | Created through Azure provisioning when the AppHost starts. | Deployed with the rest of your Azure resources. |
 | Existing registration | Configuration only. Aspire doesn't deploy Bicep or query Microsoft Graph. | Configuration only, and excluded from the publish manifest. |
 | Redirect URIs from an endpoint | Uses the endpoint's finalized browser URL. | Uses the compute environment's host and requires TLS. |
 | Local developer certificate | Provisions a short-lived certificate credential. | Isn't used. |

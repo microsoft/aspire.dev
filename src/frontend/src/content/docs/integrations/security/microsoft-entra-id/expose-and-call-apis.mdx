@@ -45,7 +45,7 @@ var entraApi = builder.AddEntraIdApplication("entra-api")
         scope.RequiresAdminConsent = true;
     });
 
-builder.AddDotnetProject("apiservice", "../Api/Api.csproj")
+var apiService = builder.AddDotnetProject("apiservice", "../Api/Api.csproj")
     .WithReference(entraApi);
 
 // After adding all resources, run the app...
@@ -57,22 +57,13 @@ builder.Build().Run();
 
 In TypeScript, `withScope` accepts an options object with `displayName`, `userConsentDisplayName`, `userConsentDescription`, `requiresAdminConsent`, `isEnabled`, and `id`. In C#, the same settings are properties of the `EntraIdScope` that the callback receives.
 
-Referencing a registration that exposes scopes also sets `AzureAd__Scopes` to the space-separated names of its enabled scopes. The `[RequiredScope]` attribute doesn't read that key unless you name it, and it enforces nothing without `[Authorize]`:
-
-```csharp title="WeatherController.cs"
-[Authorize]
-[RequiredScope(RequiredScopesConfigurationKey = "AzureAd:Scopes")]
-public class WeatherController : ControllerBase
-{
-    // ...
-}
-```
+Referencing the API registration sets `AzureAd__Scopes` to its enabled scope names, which you can require with `[RequiredScope(RequiredScopesConfigurationKey = "AzureAd:Scopes")]`, as shown in [Protect the API](/integrations/security/microsoft-entra-id/secure-web-and-api/#protect-the-api).
 
 For guidance on scope names, including the `Resource.Operation[.Constraint]` pattern, see [Add a scope requiring admin and user consent](https://learn.microsoft.com/entra/identity-platform/quickstart-configure-app-expose-web-apis#add-a-scope-requiring-admin-and-user-consent).
 
 ### Set the application ID URI
 
-The client ID exists only after Microsoft Graph creates the registration, so Aspire sets the default `api://{clientId}` URI in a second update of the registration in the same deployment. To use a custom URI, call `WithApplicationIdUri`. The URI must be unique in the tenant.
+Without a custom URI, Aspire uses `api://{clientId}`. To use another URI, call `WithApplicationIdUri`. The URI must be unique in the tenant.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -91,7 +82,7 @@ entraApi.WithApplicationIdUri("api://contoso-orders");
 </TabItem>
 </Tabs>
 
-Calling `WithApplicationIdUri` without a URI, or adding a scope, uses the default URI. Aspire always sets `requestedAccessTokenVersion` to 2, which exempts the URI from the tenant's default identifier URI policy. A stricter tenant policy still fails the deployment. For more information, see [identifier URI formatting errors](https://aka.ms/identifier-uri-formatting-error).
+Calling `WithApplicationIdUri` without a URI uses the default URI. A strict tenant identifier-URI policy can reject a custom URI and fail the deployment. For more information, see [identifier URI formatting errors](https://aka.ms/identifier-uri-formatting-error).
 
 `GetScopeUri` returns the full scope name that clients request, such as `api://{clientId}/Weather.Read`. The value resolves once the application ID URI is known.
 
@@ -99,26 +90,26 @@ Calling `WithApplicationIdUri` without a URI, or adding a scope, uses the defaul
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-const web = await builder.addDotnetProject("web", "../Web/Web.csproj");
+const worker = await builder.addContainer("worker", "my-worker-image");
 
 const scopeUri = await entraApi.getScopeUri("Weather.Read");
-await web.withEnvironment("API_SCOPE", scopeUri);
+await worker.withEnvironment("API_SCOPE", scopeUri);
 ```
 
 </TabItem>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-var web = builder.AddDotnetProject("web", "../Web/Web.csproj");
+var worker = builder.AddContainer("worker", "my-worker-image");
 
 var scopeUri = entraApi.Resource.GetScopeUri("Weather.Read");
-web.WithEnvironment("API_SCOPE", scopeUri);
+worker.WithEnvironment("API_SCOPE", scopeUri);
 ```
 
 </TabItem>
 </Tabs>
 
-Scope IDs derive from the registration and scope names, so they're the same in every deployment and tenant. Set the scope's `id` to adopt an existing scope.
+Scope IDs stay the same across deployments. Set the scope's `id` to adopt an existing scope.
 
 ## Declare permissions and consent
 
@@ -161,36 +152,31 @@ var webFrontend = builder.AddDotnetProject("webfrontend", "../Web/Web.csproj")
 </TabItem>
 </Tabs>
 
-A created client can also consent to an existing API. Aspire doesn't modify an existing client registration. For an existing client, `WithApiPermissions` only produces the consumer's `DownstreamApis` configuration and `WithAdminConsent` throws, so declare the permissions and grant consent in the Microsoft Entra admin center.
+A created client can also declare permissions to an existing API. For an existing client, `WithApiPermissions` only produces the referencing app's `DownstreamApis` configuration and `WithAdminConsent` throws, so grant consent in the Microsoft Entra admin center. For more information, see [Existing registrations](/integrations/security/microsoft-entra-id/existing-registrations/).
 
 ### Required privileges for consent
 
-Without `WithAdminConsent`, nothing is granted and no extra privileges are needed. Consent needs a deploying identity that can grant it.
-
-- For delegated permissions, the identity needs a directory role such as Privileged Role Administrator, Cloud Application Administrator, or Application Administrator, or the `DelegatedPermissionGrant.ReadWrite.All` Microsoft Graph permission.
-- For Microsoft Graph application permissions, the identity needs Privileged Role Administrator or a custom role, or the `AppRoleAssignment.ReadWrite.All` permission when it deploys as an application. Cloud Application Administrator and Application Administrator aren't enough.
-
-For more information, see [Grant tenant-wide admin consent](https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent#prerequisites). Grant only the permissions that the application needs. Application permissions such as `Directory.Read.All` reach the whole tenant.
+Without `WithAdminConsent`, no extra privileges are needed. With it, the deploying identity needs the consent privileges listed in [Required permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#required-permissions). Grant only the permissions that the application needs, because application permissions such as `Directory.Read.All` reach the whole tenant.
 
 ### Understand what consent replaces
 
-`WithAdminConsent` declares the all-users grant from a client to an API in full. Aspire sets the grant to exactly the scopes that you pass for that pair of registrations.
+`WithAdminConsent` sets the all-users grant from a client to an API to exactly the scopes that you pass.
 
-- A scope that was granted to the pair in the portal is revoked by the next deployment.
-- A scope that you remove from `WithAdminConsent` is revoked while other scopes remain.
-- Once no `WithAdminConsent` call remains for a pair, Aspire sends nothing and the existing grant stays.
-- Application permissions are granted as one app role assignment per permission. Aspire creates the assignment when you consent to an application permission, but it doesn't delete it if you later remove that consent. Remove it in the [Microsoft Entra admin center](https://entra.microsoft.com).
+- The next deployment revokes scopes that were granted to the pair in the portal.
+- Removing a scope from `WithAdminConsent` revokes only that scope.
+- Once no `WithAdminConsent` call remains for the pair, Aspire stops managing the grant, and it stays in the tenant.
+- Removing consent to an application permission doesn't delete its app role assignment. Remove it in the [Microsoft Entra admin center](https://entra.microsoft.com).
 
 ## Settings that the caller receives
 
-Referencing the client registration gives the consumer a `DownstreamApis` entry for each API that the client declared permissions to.
+Referencing the client registration gives the referencing app a `DownstreamApis` entry for each API that the client declared permissions to.
 
-- Delegated permissions produce `DownstreamApis__{name}__Scopes__{index}`, such as the value `api://{clientId}/Weather.Read`.
-- Application permissions produce a separate `{name}AppOnly` entry with the `/.default` scope and `RequestAppToken` set to `true`, because a token request covers one resource and one flow.
-- `{name}` is the name of each resource that references the API registration, such as `apiservice`. If no resource references it, `{name}` is the registration's name with characters other than letters, digits, and underscores replaced by underscores, such as `apiservice_entra`. First-party APIs use `MicrosoftGraph`, `AzureResourceManager`, or `AzureStorage`. A custom API uses the letters and digits of the display name that you pass, so `Contoso API` becomes `ContosoAPI`.
-- Other languages get uppercase snake case, such as `ENTRA_WEB_DOWNSTREAM_APIS_APISERVICE_SCOPES_0` for the `entra-web` registration and an `apiservice` resource.
+- Delegated permissions produce scope entries, such as `DownstreamApis__apiservice__Scopes__0` with the value `api://{clientId}/Weather.Read`.
+- The entry name, such as `apiservice`, is the name of the resource that references the API registration. For first-party APIs, it's `MicrosoftGraph`, `AzureResourceManager`, or `AzureStorage`.
+- Application permissions produce a separate entry with the `AppOnly` suffix, such as `MicrosoftGraphAppOnly`, with the `/.default` scope and `RequestAppToken` set to `true`.
+- Resources that aren't .NET programs, such as containers and executables, get uppercase snake case, such as `ENTRA_WEB_DOWNSTREAM_APIS_APISERVICE_SCOPES_0`.
 
-Entries that would collide are rejected before anything starts. Reference API registrations that one client calls from different resources, and give one of two registrations that call the same API its own `downstreamApisPrefix`. In TypeScript, use `withEntraIdReference` to set the prefix. In C#, pass `downstreamApisPrefix` to `WithReference`.
+If two entries would get the same name, Aspire fails at startup. Give one of the references its own `downstreamApisPrefix`. In TypeScript, reference the registration with `withEntraIdReference` instead of `withReference`. In C#, pass `downstreamApisPrefix` in the `WithReference` call.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -212,20 +198,7 @@ webFrontend.WithReference(entraWeb, connectionName: "AzureAd", downstreamApisPre
 </TabItem>
 </Tabs>
 
-For an API registration in your AppHost, the entry holds scopes and not the API's URL, so set the client's address yourself, for example with service discovery. Entries for Microsoft Graph and Azure Resource Manager also include a `BaseUrl`. The recommended path is a typed `HttpClient` with Aspire service discovery and `AddMicrosoftIdentityMessageHandler`:
-
-```csharp title="Program.cs"
-builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApp(builder.Configuration)
-    .EnableTokenAcquisitionToCallDownstreamApi()
-    .AddInMemoryTokenCaches();
-
-builder.Services.AddHttpClient<WeatherApiClient>(client => client.BaseAddress = new("https+http://apiservice"))
-    .AddMicrosoftIdentityMessageHandler(
-        builder.Configuration.GetSection("DownstreamApis:apiservice"), "DownstreamApis:apiservice");
-```
-
-`AddDownstreamApis(builder.Configuration.GetSection("DownstreamApis"))` registers every entry for `IDownstreamApi` by name instead.
+For an API registration in your AppHost, the entry holds scopes, not the URL, so set the client's address yourself, for example with service discovery. Microsoft Graph and Azure Resource Manager entries also include `BaseUrl`. To attach tokens to a typed `HttpClient`, see [Sign in users and call the API](/integrations/security/microsoft-entra-id/secure-web-and-api/#sign-in-users-and-call-the-api).
 
 A token request covers the scopes of one API. Request the scopes of your API and Microsoft Graph separately, because mixing them fails with `AADSTS28000`.
 
@@ -254,11 +227,11 @@ entraApi.WithPreAuthorizedApplication(entraDaemon, "Weather.Read");
 </TabItem>
 </Tabs>
 
-Each registration deploys as its own module. Pre-authorization makes the API's module wait for the client's ID, while a declaration makes the client's module wait for the API's ID. A pair of registrations can't use both, and Aspire rejects the second call. Use a declaration with `WithAdminConsent` on the client, or use pre-authorization alone. An existing client can still be pre-authorized by a registration that Aspire creates.
+A pair of registrations can use a declaration or pre-authorization, not both. Aspire rejects the second call. Use a declaration with `WithAdminConsent` on the client, or pre-authorization alone. An existing client can still be pre-authorized by a registration that Aspire creates.
 
 ## Call Microsoft Graph and other first-party APIs
 
-An API that isn't an Aspire resource is identified by its application ID. Microsoft Graph, Azure Resource Manager, and Azure Storage know their common permissions by name, and you pass other permissions with their ID. Unknown names are rejected when you write the AppHost.
+An API that isn't an Aspire resource is identified by its application ID. Microsoft Graph, Azure Resource Manager, and Azure Storage know their common permissions by name, and you pass other permissions with their ID. Aspire rejects unknown names when the call runs.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -269,7 +242,7 @@ import {
     EntraIdWellKnownApi,
 } from './.aspire/modules/aspire.mjs';
 
-const entraWeb = await builder.addEntraIdApplication("entra-web")
+const entraGraphClient = await builder.addEntraIdApplication("entra-graph-client")
     // Delegated permissions act on behalf of a signed-in user.
     // Application permissions act as the application itself.
     .withExternalApiPermissions(EntraIdWellKnownApi.MicrosoftGraph, [
@@ -289,7 +262,7 @@ const entraWeb = await builder.addEntraIdApplication("entra-web")
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Azure;
 
-var entraWeb = builder.AddEntraIdApplication("entra-web")
+var entraGraphClient = builder.AddEntraIdApplication("entra-graph-client")
     // Delegated permissions act on behalf of a signed-in user.
     .WithApiPermissions(EntraIdApi.MicrosoftGraph, EntraIdApiPermission.Delegated("User.Read"))
     // Application permissions act as the application itself. They're separate
@@ -306,7 +279,7 @@ var entraWeb = builder.AddEntraIdApplication("entra-web")
 </TabItem>
 </Tabs>
 
-Delegated permissions let the application act for a signed-in user. Application permissions let it act as itself and always need an administrator's consent. The two kinds are separate permissions, even when they share a name. In TypeScript, the external API methods take a well-known API or a custom API, and a permission is delegated unless its `type` is `EntraIdPermissionType.Application`.
+Delegated permissions let the application act for a signed-in user. Application permissions let it act as itself and always need an administrator's consent. The two kinds are separate permissions, even when they share a name. In TypeScript, the external API methods take a well-known API or a custom API, and a permission is delegated unless its `type` is `EntraIdPermissionType.Application`. In C#, `EntraIdApi` and `EntraIdApiPermission` are in the `Aspire.Hosting.Azure` namespace.
 
 For other APIs, define the API with its application ID, its application ID URI, which is the prefix of its scopes, and an optional base URL. Aspire sets `BaseUrl` in the API's `DownstreamApis` entry when you provide one. Permissions of a custom API, and permissions that a well-known API doesn't list by name, need an explicit ID. To look up an ID, read the `oauth2PermissionScopes` for delegated permissions or the `appRoles` for application permissions of the API's service principal, for example with `az ad sp show --id 00000003-0000-0000-c000-000000000000`.
 
@@ -314,14 +287,15 @@ For other APIs, define the API with its application ID, its application ID URI, 
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-await entraWeb.withExternalApiPermissions(
-    {
-        displayName: "Microsoft Graph",
-        applicationId: "00000003-0000-0000-c000-000000000000",
-        resourceUri: "https://graph.microsoft.us",
-        baseUrl: "https://graph.microsoft.us/v1.0",
-    },
-    [{ name: "User.Read", id: "e1fe6dd8-ba31-4d61-89e7-88639da4683d" }]);
+const entraGovWeb = await builder.addEntraIdApplication("entra-gov-web")
+    .withExternalApiPermissions(
+        {
+            displayName: "Microsoft Graph",
+            applicationId: "00000003-0000-0000-c000-000000000000",
+            resourceUri: "https://graph.microsoft.us",
+            baseUrl: "https://graph.microsoft.us/v1.0",
+        },
+        [{ name: "User.Read", id: "e1fe6dd8-ba31-4d61-89e7-88639da4683d" }]);
 ```
 
 </TabItem>
@@ -336,19 +310,20 @@ var graph = EntraIdApi.FromApplicationId(
     "https://graph.microsoft.us",
     baseUrl: "https://graph.microsoft.us/v1.0");
 
-entraWeb.WithApiPermissions(
-    graph,
-    EntraIdApiPermission.Delegated("User.Read", new Guid("e1fe6dd8-ba31-4d61-89e7-88639da4683d")));
+var entraGovWeb = builder.AddEntraIdApplication("entra-gov-web")
+    .WithApiPermissions(
+        graph,
+        EntraIdApiPermission.Delegated("User.Read", new Guid("e1fe6dd8-ba31-4d61-89e7-88639da4683d")));
 ```
 
 </TabItem>
 </Tabs>
 
-This example targets Microsoft Graph in the Azure Government cloud. Pair it with `WithInstance` as described in [Target a sovereign cloud](/integrations/security/microsoft-entra-id/redirect-uris-and-sign-in/#target-a-sovereign-cloud).
+This example targets Microsoft Graph in the Azure Government cloud. Pair it with `WithInstance` as described in [Target a sovereign cloud](/integrations/security/microsoft-entra-id/redirect-uris-and-sign-in/#target-a-sovereign-cloud). Use a custom Microsoft Graph definition instead of the well-known `MicrosoftGraph` API, not alongside it. Permissions to the same application ID on one registration share one API definition.
 
 ## Validate audiences
 
-`WithAudience` adds an accepted audience to the consumer's configuration, such as `api://<client-id>`. It configures token validation in the consuming app only. It doesn't change the application ID URIs of created or existing registrations.
+`WithAudience` adds an accepted audience to the referencing app's configuration, such as `api://{clientId}`. It configures token validation in that app only. It doesn't change the application ID URIs of created or existing registrations.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -369,26 +344,24 @@ entraApi.WithAudience("api://contoso-orders");
 
 ## Retire scopes and understand what deployments remove
 
-Microsoft Graph keeps properties that a deployment omits, so the rules for removal depend on how the registration is declared.
+What a deployment removes depends on whether the registration declares an API.
 
 ### Retire a scope
 
-Graph rejects removing or renaming an enabled scope, so retire a scope in two deployments:
+Microsoft Graph doesn't allow removing or renaming an enabled scope, so retire a scope in two deployments:
 
 1. In the first deployment, set `isEnabled` to `false` on the scope, and remove every `WithApiPermissions`, `WithAdminConsent`, and `WithPreAuthorizedApplication` reference to it. A disabled scope can't be requested, declared, or pre-authorized, and Aspire fails the deployment if a reference remains.
 2. In the second deployment, remove the scope.
 
-When you retire the last scope, keep `WithApplicationIdUri()` for the second deployment so that Aspire still sends the empty scope list.
+When you retire the last scope, keep a `WithApplicationIdUri` call, with your custom URI if you use one, for the second deployment.
 
-### What a deployment sends
+### What a deployment manages
 
-While a registration is declared as an API, which means it has scopes or a `WithApplicationIdUri` call, Aspire sends its application ID URIs, scopes, and pre-authorized clients in full, even when a list is empty. Graph replaces each list, so anything that isn't listed is removed. For example, a client that you pre-authorized in the portal is removed.
-
-Removing the last `WithPreAuthorizedApplication` call therefore revokes that pre-authorization. Once nothing declares the API, Aspire sends nothing, and earlier scopes, URIs, pre-authorized clients, and `WithApiPermissions` declarations stay in the tenant. Remove pre-authorized clients first, and keep `WithApplicationIdUri()` for one deployment.
+While a registration declares an API, which means it has scopes or a `WithApplicationIdUri` call, the AppHost defines its complete list of application ID URIs, scopes, and pre-authorized clients. Changes made elsewhere, such as a client pre-authorized in the portal, are removed by the next deployment. Once nothing declares the API, Aspire stops managing these settings and they stay in the tenant.
 
 ## Existing API registrations
 
-Aspire doesn't modify existing registrations. To reference an existing API's scopes, supply its registered URI with `WithApplicationIdUri` and describe its scopes with `WithScope`. Set the scope's ID to the registered scope ID when callers declare permissions to it. For more information, see [Existing registrations](/integrations/security/microsoft-entra-id/existing-registrations/).
+To call an existing API, describe its application ID URI and scopes as shown in [Describe an existing API](/integrations/security/microsoft-entra-id/existing-registrations/#describe-an-existing-api).
 
 ## See also
 

@@ -6,7 +6,7 @@ description: Add tags and a service management reference to the Microsoft Graph 
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Aspire generates a Bicep module for each registration that it creates. The module uses the Microsoft Graph Bicep extension to declare the application, the service principal, and any federated credentials, permission grants, and role assignments that your AppHost configuration requires. Use `ConfigureInfrastructure` to change properties of those declarations that Aspire doesn't model, such as tags and the service management reference.
+For each registration that Aspire creates, it generates Bicep that declares the application, its service principal, and any federated credentials, permission grants, and role assignments. Use `ConfigureInfrastructure` to set properties that Aspire doesn't model, such as tags and the service management reference. You don't need a `bicepconfig.json`.
 
 `ConfigureInfrastructure` applies only to registrations that Aspire creates. References to existing registrations produce no infrastructure. For more information, see [Existing registrations](/integrations/security/microsoft-entra-id/existing-registrations/). For the shared pattern across Azure integrations, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/).
 
@@ -17,11 +17,15 @@ The Graph models are public in the `Aspire.Hosting.Azure.EntraId.Provisioning` n
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-TypeScript AppHosts need the experimental `Aspire.Hosting.Azure.Provisioning.EntraId` package, which generates typed proxies for the Graph models. Add it with the Aspire CLI:
+TypeScript AppHosts need the `Aspire.Hosting.Azure.Provisioning.EntraId` package, which generates typed proxies for the Graph models. Add it with the Aspire CLI:
 
 ```bash title="Add typed Microsoft Graph infrastructure customization"
 aspire add Aspire.Hosting.Azure.Provisioning.EntraId
 ```
+
+:::caution[Experimental API]
+The `Aspire.Hosting.Azure.Provisioning.EntraId` package is experimental and reports the `ASPIREAZUREPROVISIONING001` diagnostic. Typed provisioning proxies for TypeScript and other polyglot AppHosts can change in a later release.
+:::
 
 ```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -32,12 +36,10 @@ const serviceReference = await builder.addParameter("service-reference");
 const entra = await builder.addEntraIdApplication("entra");
 
 await entra.configureInfrastructure(async (infrastructure) => {
-    const bicep = await infrastructure.bicep();
-
     const application = await infrastructure.getMicrosoftGraphApplicationByIdentifier("application");
     const tags = await application.tags.get();
     await tags.add("department:engineering");
-    await application.serviceManagementReference.set(await bicep.parameter(serviceReference));
+    await application.serviceManagementReference.set(infrastructure.bicep().parameter(serviceReference));
 
     const principal = await infrastructure.getMicrosoftGraphServicePrincipalByIdentifier("servicePrincipal");
     const principalTags = await principal.tags.get();
@@ -70,7 +72,7 @@ var entra = builder.AddEntraIdApplication("entra")
 
         var principal = infrastructure.GetProvisionableResources()
             .OfType<MicrosoftGraphServicePrincipal>()
-            .Single();
+            .Single(r => r.BicepIdentifier == "servicePrincipal");
         principal.Tags.Add("department:engineering");
     });
 
@@ -81,10 +83,6 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-:::caution[Experimental API]
-The `Aspire.Hosting.Azure.Provisioning.EntraId` package is experimental and reports the `ASPIREAZUREPROVISIONING001` diagnostic. Typed provisioning proxies for TypeScript and other polyglot AppHosts can change in a later release.
-:::
-
 ## Understand tags and the service management reference
 
 Microsoft Graph [application](https://learn.microsoft.com/graph/templates/bicep/reference/applications) and [service principal](https://learn.microsoft.com/graph/templates/bicep/reference/serviceprincipals) tags are string arrays, not Azure key and value tags. Add the exact string that you need. Applications also have a `serviceManagementReference` property, which holds a reference to a service or asset management database.
@@ -93,26 +91,9 @@ Add to the service principal's tags and don't replace them. Aspire sets the `Win
 
 ## Select the right declaration
 
-Each registration declares one application and one service principal. A registration that exposes an API with the default `api://{clientId}` application ID URI declares the application a second time, because the client ID is known only after the first declaration deploys. The second declaration repeats the display name and unique name. Select the application by its Bicep identifier rather than assuming that there's one `MicrosoftGraphApplication`, as in the example.
+Select the application by the identifier `application`. A registration that uses the default `api://{clientId}` URI has a second `MicrosoftGraphApplication` declaration with the identifier `applicationIdentity`.
 
-The generated module also contains declarations for federated identity credentials, delegated permission grants, and application role assignments when your configuration needs them. The provisioning package generates proxies for these Graph models:
-
-- `MicrosoftGraphApplication`
-- `MicrosoftGraphServicePrincipal`
-- `MicrosoftGraphExistingServicePrincipal`
-- `MicrosoftGraphFederatedIdentityCredential`
-- `MicrosoftGraphOAuth2PermissionGrant`
-- `MicrosoftGraphAppRoleAssignedTo`
-
-Aspire generates properties such as the display name, unique name, redirect URIs, roles, and scopes from your AppHost configuration. Use the Aspire APIs for those settings, and use `ConfigureInfrastructure` for properties that Aspire doesn't model.
-
-## Know how the module is generated
-
-- The module declares the Microsoft Graph Bicep extension from a pinned registry reference, `br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0`. You don't need a `bicepconfig.json`, including when Aspire copies the module into temporary or published output.
-- The first Bicep compilation downloads the extension from `mcr.microsoft.com`, which must be reachable.
-- The module outputs `clientId`, `tenantId`, `objectId`, `servicePrincipalId`, and `uniqueName`. It also outputs `applicationIdUri` when the registration has an application ID URI.
-
-To inspect the module, see [Inspect generated Bicep](/integrations/cloud/azure/customize-resources/#inspect-generated-bicep).
+Use the Aspire APIs for settings that Aspire models, such as the display name, redirect URIs, roles, and scopes. To inspect the module, see [Inspect generated Bicep](/integrations/cloud/azure/customize-resources/#inspect-generated-bicep).
 
 ## See also
 

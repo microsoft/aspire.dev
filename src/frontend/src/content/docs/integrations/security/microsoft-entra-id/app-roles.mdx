@@ -8,7 +8,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Application roles appear in the `roles` claim of tokens that Microsoft Entra ID issues for your API, so the API can tell a caller that holds `Orders.Read` from one that doesn't. They're separate from delegated scopes, from consent, and from Azure role-based access control (RBAC) roles. For the scope-based model, see [Expose and call APIs](/integrations/security/microsoft-entra-id/expose-and-call-apis/).
 
-Aspire declares roles on registrations that it creates, and it can assign a role to a managed identity when you publish. It doesn't assign roles to users, groups, or applications.
+Aspire declares roles on registrations that it creates, and it can assign a role to a managed identity when you publish. It doesn't assign roles to users, groups, or applications, including client registrations in your AppHost.
 
 ## Declare application roles
 
@@ -64,25 +64,15 @@ In TypeScript, you pass the values of the role to `withAppRole` and the optional
 | `value` | The value in the `roles` claim, such as `Admin`. It must be unique for the application. |
 | `displayName` | The name that the Microsoft Entra admin center shows. |
 | `description` | The text that assignment and consent experiences show. |
-| `allowedMemberTypes` | The kinds of principals that can hold the role, passed through to Microsoft Graph. Use `User` for users and groups and `Application` for applications and managed identities. The default is `User`. |
-| `id` | An optional GUID for the role. When omitted, Aspire derives a stable ID from the registration's resource name and the role value. |
+| `allowedMemberTypes` | Passed through to [Microsoft Graph](https://learn.microsoft.com/graph/api/resources/approle), such as `User` or `Application`. Include `Application` to let managed identities hold the role. The default is `User`. |
+| `id` | Optional. When omitted, the ID is derived from the resource name and role value, so changing either creates a different role. |
 | `isEnabled` | Whether the role can be assigned. The default is `true`. |
 
-A role value can have at most 120 characters, can't start with a period, and can contain only ASCII letters, digits, and the punctuation that [Microsoft Graph allows](https://learn.microsoft.com/graph/api/resources/approle). Aspire rejects spaces and quotation marks when you write the AppHost. Two roles on one registration can't share an ID.
-
-Role IDs stay the same across deployments, and changing a role's value or ID creates a different role.
-
-:::caution
-`WithAppRole` throws for registrations that you add with `AddExistingEntraApplication`, because Aspire never modifies an existing registration. For more information, see [Existing registrations](/integrations/security/microsoft-entra-id/existing-registrations/).
-:::
+A role value can have at most 120 characters, can't start with a period, and can contain only ASCII letters, digits, and the punctuation that [Microsoft Graph allows](https://learn.microsoft.com/graph/api/resources/approle). Aspire rejects spaces and quotation marks when the call runs. Two roles on one registration can't share an ID.
 
 ### Understand how deployments update roles
 
-Whenever a registration declares at least one role, Aspire sends the complete `appRoles` collection, and Microsoft Graph replaces what's stored. Include every role that you want to keep, including roles that someone added outside the AppHost.
-
-- A role that you leave out fails the deployment with `CannotDeleteOrUpdateEnabledEntitlement` if it's still enabled.
-- A role that you leave out is deleted if it's already disabled.
-- When a registration declares no roles, Aspire doesn't send `appRoles`, so roles that the AppHost never declared are left alone.
+Each deployment replaces the registration's roles with the roles the AppHost declares. Include every role that you want to keep, including roles added outside the AppHost. Leaving out an enabled role fails the deployment with `CannotDeleteOrUpdateEnabledEntitlement`, and leaving out a disabled role deletes it. If the AppHost declares no roles, Aspire leaves the registration's roles unchanged.
 
 ### Retire a role
 
@@ -91,15 +81,17 @@ Retire a role in two steps.
 1. Remove the `PublishWithAppRoleAssignment` calls for the role, set `isEnabled` to `false`, and leave the role declared. Deploy.
 2. Remove the role from the AppHost and deploy again, while other roles remain declared.
 
-A disabled role can't be assigned to anyone new. Microsoft Entra ID [keeps issuing it in tokens for existing assignments](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps#app-roles-ui), so disabling isn't access revocation. Remove the existing assignments separately. You can't remove the last declared role from the AppHost. Keep it declared with `isEnabled` set to `false`, or delete it in the Microsoft Entra admin center.
+A disabled role can't be assigned to anyone new. Microsoft Entra ID [keeps issuing it in tokens for existing assignments](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps#app-roles-ui), so disabling isn't access revocation. Remove the existing assignments separately.
+
+Removing the last declared role from the AppHost doesn't delete it from the registration. Keep it declared with `isEnabled` set to `false`, or delete it in the Microsoft Entra admin center.
 
 ## Assign roles to managed identities
 
 `PublishWithAppRoleAssignment` grants a user-assigned managed identity an application role on an API registration that Aspire creates. A caller then authenticates directly as its managed identity, so it needs no registration of its own and no federated credential.
 
-The role must be declared, enabled, and allow `Application` members. Aspire validates the role names when you write the AppHost, but it records the assignment only when you publish. Assignments don't apply when you run locally.
+The role must be declared, enabled, and allow `Application` members. Declare the role with `WithAppRole` before you call `PublishWithAppRoleAssignment`. Aspire creates assignments only when you publish, not when you run locally.
 
-You can pass the managed identity or the workload that uses it. The workload overload uses the workload's attached identity. If the workload has none, a supported Azure deployment environment creates one.
+You can pass the managed identity or the workload that uses it. When you pass a workload, Aspire uses its attached identity. If the workload has none, a supported Azure deployment environment creates one. In C#, separate overloads accept the identity or the workload. In TypeScript, one method accepts either.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -111,7 +103,12 @@ const builder = await createBuilder();
 
 await builder.addAzureContainerAppEnvironment("env");
 
-const worker = await builder.addContainer("worker", "my-worker-image");
+const callerIdentity = await builder.addAzureUserAssignedIdentity("caller-identity");
+
+const worker = await builder.addDotnetProject("worker", "../Worker/Worker.csproj");
+await worker.withAzureUserAssignedIdentity(callerIdentity);
+// The caller requests a token for the API's application ID URI.
+await worker.withEnvironment("ORDERS_API_SCOPE", "api://orders/.default");
 
 const entraApi = await builder.addEntraIdApplication("entra-api")
     .withApplicationIdUri({ applicationIdUri: "api://orders" })
@@ -119,13 +116,13 @@ const entraApi = await builder.addEntraIdApplication("entra-api")
     .withAppRole("Orders.Read", "Read orders", "Read orders.", {
         allowedMemberTypes: ["Application"],
     })
-    .publishWithAppRoleAssignment(worker, ["Orders.Read"]);
+    .publishWithAppRoleAssignment(callerIdentity, ["Orders.Read"]);
 
-const api = await builder.addContainer("api", "my-api-image");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(entraApi);
 
-// The caller requests a token for the API's application ID URI.
-await worker.withEnvironment("ORDERS_API_SCOPE", "api://orders/.default");
+// Alternatively, pass the workload instead of the identity:
+// await entraApi.publishWithAppRoleAssignment(worker, ["Orders.Read"]);
 
 await builder.build().run();
 ```
@@ -166,9 +163,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-In C#, `PublishWithAppRoleAssignment` has an overload for the identity and an overload for the workload. In TypeScript, one `publishWithAppRoleAssignment` method accepts either.
-
-The default application ID URI is `api://{clientId}`, and the client ID exists only after the deployment creates the registration. This example sets an explicit URI so that the caller's scope is known when you write the AppHost. For other ways to set the URI, see [Set the application ID URI](/integrations/security/microsoft-entra-id/expose-and-call-apis/#set-the-application-id-uri).
+The default application ID URI is `api://{clientId}`, and the client ID exists only after the deployment creates the registration. This example sets an explicit URI so that the caller's scope is known before deployment. For other ways to set the URI, see [Set the application ID URI](/integrations/security/microsoft-entra-id/expose-and-call-apis/#set-the-application-id-uri).
 
 ### Configure the caller and the API
 
@@ -178,23 +173,31 @@ Configure the two sides differently.
 - Call `WithAllowWebApiToBeAuthorizedByACL` on the API's registration. It stops Microsoft.Identity.Web from requiring a `roles` or `scp` claim in the token, so a token that has no roles reaches your authorization policy instead of being rejected during authentication.
 - Give the caller the API's URL and the application ID URI as separate settings. The caller requests a token for the application ID URI followed by `/.default`.
 
-In the Azure Container Apps template that Aspire generates, a workload with a user-assigned identity gets the `AZURE_CLIENT_ID` environment variable, set to the identity's client ID. The caller uses it to request a token as that identity:
+In Azure Container Apps, the caller receives its identity's client ID as `AZURE_CLIENT_ID`:
 
-```csharp title="Worker.cs"
-var identityClientId = builder.Configuration["AZURE_CLIENT_ID"]!;
+```csharp title="Worker/Program.cs"
+using Azure.Core;
+using Azure.Identity;
+
+var builder = Host.CreateApplicationBuilder(args);
+
 var credential = new ManagedIdentityCredential(
-    ManagedIdentityId.FromUserAssignedClientId(identityClientId));
+    ManagedIdentityId.FromUserAssignedClientId(builder.Configuration["AZURE_CLIENT_ID"]!));
 
 AccessToken token = await credential.GetTokenAsync(
-    new TokenRequestContext([builder.Configuration["ORDERS_API_SCOPE"]!]),
-    cancellationToken);
+    new TokenRequestContext([builder.Configuration["ORDERS_API_SCOPE"]!]));
 
 // Send token.Token to the API as a bearer token.
 ```
 
 The API validates the token with Microsoft.Identity.Web and requires the assigned role on protected routes. An identity without the assignment can receive a token, but the token has no `roles` claim, so the authorization policy rejects the request with a 403 response. Authentication alone doesn't grant access.
 
-```csharp title="Program.cs"
+```csharp title="Api/Program.cs"
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Identity.Web;
+
+var builder = WebApplication.CreateBuilder(args);
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
@@ -213,25 +216,21 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/orders", () => "orders").RequireAuthorization("orders");
+
+app.Run();
 ```
 
 ### Grant the deployer the required permissions
 
-Assigning a role is a Microsoft Graph operation, and Azure subscription roles such as Owner or Contributor don't cover it. The identity that deploys needs `AppRoleAssignment.ReadWrite.All` and `Application.Read.All`, or a higher permission that covers reads. Application permissions require administrator consent. A delegated deployment, which runs as a signed-in user, also needs a [supported Microsoft Entra directory role](https://learn.microsoft.com/graph/api/serviceprincipal-post-approleassignedto#permissions). The callers don't need these Graph permissions.
-
-Aspire assigns the role to the identity's principal (object) ID, not to its client ID.
+Assigning a role is a Microsoft Graph operation that Azure subscription roles such as Owner or Contributor don't cover. The identity that deploys needs the Microsoft Graph permissions and directory roles listed in [Required permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/#required-permissions), and the callers need none of them.
 
 :::caution
 Removing an assignment call, changing its target, or excluding a caller doesn't revoke an existing grant. Remove grants explicitly through Microsoft Graph or the Microsoft Entra admin center. Existing tokens stay valid until they expire, and managed identity token caches can delay when callers observe a change.
 :::
 
-For the full permissions matrix, see [Lifecycle and permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/).
-
 ## Limitations
 
-- `PublishWithAppRoleAssignment` throws for existing registrations. Create the assignment in the Microsoft Entra admin center instead.
-- Aspire can't assign roles to users, groups, or applications. That includes giving a client registration an app role that an API in your AppHost declares.
-- Aspire can't delete the last declared role, because it sends no `appRoles` when none remain. Keep the last role declared with `isEnabled` set to `false`, or delete it in the Microsoft Entra admin center.
+`WithAppRole` and `PublishWithAppRoleAssignment` throw for [existing registrations](/integrations/security/microsoft-entra-id/existing-registrations/). Declare roles and create assignments for those registrations in the Microsoft Entra admin center.
 
 ## See also
 
