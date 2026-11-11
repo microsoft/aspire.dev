@@ -62,6 +62,11 @@ function setup() {
   if (!existsSync(clone)) {
     log(`cloning microsoft/aspire@${branch}`);
     if (!sh(["git", "clone", "--depth", "1", "--branch", branch, "https://github.com/microsoft/aspire.git", clone]).ok) throw new Error("clone failed");
+  } else {
+    // The clone is cached between runs; always move it to the tip of the requested branch.
+    log(`refreshing cached clone to origin/${branch}`);
+    if (!sh(["git", "fetch", "--depth", "1", "origin", branch], { cwd: clone }).ok) throw new Error(`fetch of ${branch} failed`);
+    if (!sh(["git", "checkout", "--force", "FETCH_HEAD"], { cwd: clone }).ok) throw new Error(`checkout of ${branch} failed`);
   }
   const restore = process.platform === "win32" ? ["cmd", "/c", "restore.cmd"] : ["bash", "./restore.sh"];
   if (!existsSync(join(clone, ".dotnet"))) { log("restoring SDK (slow)"); if (!sh(restore, { cwd: clone }).ok) throw new Error("restore failed"); }
@@ -75,8 +80,11 @@ function setup() {
 }
 
 function startApp(dotnet: string, dest: string) {
-  const dll = sh(["powershell", "-NoProfile", "-Command", `(Get-ChildItem -Recurse '${clone}\\artifacts\\bin\\AspireApp.AppHost' -Filter AspireApp.AppHost.dll | select -First 1).FullName`]).out.trim();
-  const dllPath = process.platform === "win32" ? dll : sh(["bash", "-c", `find ${clone}/artifacts/bin/AspireApp.AppHost -name AspireApp.AppHost.dll | head -1`]).out.trim();
+  const win = process.platform === "win32";
+  const dllPath = win
+    ? sh(["powershell", "-NoProfile", "-Command", `(Get-ChildItem -Recurse '${clone}\\artifacts\\bin\\AspireApp.AppHost' -Filter AspireApp.AppHost.dll | select -First 1).FullName`]).out.trim()
+    : sh(["bash", "-c", `find ${clone}/artifacts/bin/AspireApp.AppHost -name AspireApp.AppHost.dll | head -1`]).out.trim();
+  if (!dllPath) throw new Error("AspireApp.AppHost.dll not found after build");
   log(`starting AppHost on :${port}`);
   return Bun.spawn([dotnet, dllPath], {
     cwd: join(dest, "AspireApp.AppHost"), stdout: "ignore", stderr: "ignore",
@@ -86,10 +94,12 @@ function startApp(dotnet: string, dest: string) {
 
 async function waitReady() {
   const until = Date.now() + 180_000;
-  while (Date.now() < until) {
-    try { if ((await fetch(`http://localhost:${port}/`)).ok) break; } catch {}
-    await Bun.sleep(2000);
+  let up = false;
+  while (Date.now() < until && !up) {
+    try { up = (await fetch(`http://localhost:${port}/`)).ok; } catch {}
+    if (!up) await Bun.sleep(2000);
   }
+  if (!up) throw new Error(`dashboard did not respond on :${port} within 180s`);
   log("dashboard up; letting telemetry accumulate (60s)");
   await Bun.sleep(60_000);
 }
@@ -98,7 +108,7 @@ const q = (s: string) => JSON.stringify(s);
 
 // Clears everything that is not the subject of a shot: top message bars (update, unsecured endpoint,
 // feedback), toasts, and open popups. Runs after navigation and after every step unless a shot sets keepAlerts.
-const DISMISS_JS = `const dismiss=async()=>{
+const DISMISS_JS = `const dismiss=async(move=true)=>{
   for(let i=0;i<10;i++){
     const bar=page.locator('.dashboard-message-bar-dismiss, .dashboard-message-bar [aria-label*="Dismiss" i]').first();
     const toast=page.locator('fluent-toast [aria-label*="Dismiss" i], fluent-toast [aria-label*="Close" i], .fluent-toast-provider button[aria-label*="Close" i]').first();
@@ -106,19 +116,22 @@ const DISMISS_JS = `const dismiss=async()=>{
     for(const t of [bar,toast]){ if(await t.count()){ await t.click({timeout:1500}).catch(()=>{}); hit=true; await page.waitForTimeout(250);} }
     if(!hit)break;
   }
-  await page.mouse.move(0,0);
+  if(move) await page.mouse.move(0,0);
 };`;
 function shotCode(shot: any, theme: "dark" | "light", file: string) {
   const pad = manifest.padding;
   const clear = shot.keepAlerts ? "" : "await dismiss();";
+  const keepMouse = shot.keepAlerts ? "" : "await dismiss(false);";
   const steps = (shot.steps ?? []).map((s: any) =>
     (s.click ? `await page.getByText(${q(s.click)}).first().click();` :
     s.closeDialog ? `await page.getByRole("button",{name:"Close",exact:true}).last().click();` :
     s.clickSel ? `await page.locator(${q(s.clickSel)}).first().click();` :
     s.hover ? `await page.getByText(${q(s.hover)}).first().hover();` :
+    s.hoverSel ? `await page.locator(${q(s.hoverSel)}).first().hover();` :
     s.fill ? `await page.locator(${q(s.fill[0])}).first().fill(${q(s.fill[1])});` :
     s.press ? `await page.keyboard.press(${q(s.press)});` :
-    s.wait ? `await page.waitForTimeout(${s.wait});` : "") + (s.wait ? "" : clear)).join("");
+    s.js ? `${s.js};` :
+    s.wait ? `await page.waitForTimeout(${s.wait});` : "") + (s.wait ? "" : keepMouse)).join("").replaceAll("{{Theme}}", theme === "dark" ? "Dark" : "Light");
   const callouts = (shot.callouts ?? []).map((c: string) => `{const e=page.locator(${q(c)}).first(); const b=await e.boundingBox(); if(b) await page.evaluate(b=>{const d=document.createElement('div');d.style.cssText='position:fixed;z-index:99999;pointer-events:none;border:3px solid #e8212e;left:'+(b.x-3)+'px;top:'+(b.y-3)+'px;width:'+(b.width+6)+'px;height:'+(b.height+6)+'px';document.body.appendChild(d);},b);}`).join("");
   const shoot = shot.clip
     ? `const e=page.locator(${q(shot.clip)}).first(); const b=await e.boundingBox(); await page.screenshot({path:${q(file)},clip:{x:Math.max(0,b.x-${pad}),y:Math.max(0,b.y-${pad}),width:Math.min(${manifest.viewport.width},b.width+${pad * 2}),height:Math.min(${manifest.viewport.height},b.height+${pad * 2})}});`
@@ -148,18 +161,19 @@ async function capture() {
   mkdirSync(scratch, { recursive: true });
   const cfg = join(scratch, "cfg.json");
   writeFileSync(cfg, JSON.stringify({ browser: { contextOptions: { viewport: { width: manifest.viewport.width, height: manifest.viewport.height }, deviceScaleFactor: manifest.viewport.deviceScaleFactor } } }));
-  pw("shots", "close-all");
-  let o = pw("shots", "open", `http://localhost:${port}`, "--browser=msedge", `--config=${cfg}`);
+  pw("shots", "close"); pw("shots", "open", `http://localhost:${port}`, "--browser=msedge", `--config=${cfg}`);
   if (!o.ok) o = pw("shots", "open", `http://localhost:${port}`, `--config=${cfg}`);
   const failed: string[] = [];
   const done: string[] = [];
-  for (const shot of manifest.shots.filter((s: any) => !only || s.id.includes(only))) {
+  for (const shot of manifest.shots.filter((s: any) => !only || only.split(",").some((o: string) => s.id.includes(o)))) {
     for (const theme of ["dark", "light"] as const) {
-      const tmp = join(scratch, `${shot.id}-${theme}.png`);
+      const base = join(scratch, `${shot.id}-${theme}`);
+      let tmp = "";
       let ok = false;
       for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+        tmp = `${base}-${Date.now()}-${attempt}.png`;
         const r = pw("shots", "run-code", shotCode(shot, theme, tmp.replace(/\\/g, "/")));
-        ok = existsSync(tmp) && !/### Error/.test(r.out);
+        ok = r.ok && existsSync(tmp) && !/### Error/.test(r.out);
       }
       if (!ok) { failed.push(`${shot.id}/${theme}`); continue; }
       const dest = join(assets, shot.out[theme]);
@@ -167,9 +181,13 @@ async function capture() {
       const buf = shot.clip || shot.autoCrop !== true ? await sharp(tmp).png({ compressionLevel: 9 }).toBuffer() : await autoCrop(tmp);
       await sharp(buf).toFile(dest);
       done.push(shot.out[theme]);
+      // Extra file names that docs reference for the same capture (e.g. legacy "-dark" duplicates).
+      for (const extra of shot.also?.[theme] ?? []) { await sharp(buf).toFile(join(assets, extra)); done.push(extra); }
+      // Reduced-size copy for thumbnails.
+      if (shot.thumb?.[theme]) { await sharp(buf).resize({ width: shot.thumb.width }).png({ compressionLevel: 9 }).toFile(join(assets, shot.thumb[theme])); done.push(shot.thumb[theme]); }
     }
   }
-  pw("shots", "close-all");
+  if (!opt("keep")) pw("shots", "close");
   return { done, failed };
 }
 
@@ -188,12 +206,13 @@ function checkThemePairs(): string[] {
   for (const s of manifest.shots) {
     const { dark, light } = s.out;
     const expected = dark.replace(/-dark(\.png)$/, "$1").replace(/\.png$/, "-light.png");
-    if (light !== expected) issues.push(`${s.id}: light "${light}" should be "${expected}"`);
+    if (light !== expected && !s.legacyLight) issues.push(`${s.id}: light "${light}" should be "${expected}"`);
     for (const f of [dark, light]) if (!existsSync(join(assets, f))) issues.push(`${s.id}: missing ${f}`);
-    const refs = text.filter((t) => t.body.includes(`/${dark}`) || t.body.includes(`/${light}`));
+    const darks = [dark, ...(s.also?.dark ?? [])];
+    const refs = text.filter((t) => darks.some((d) => t.body.includes(`/${d}`)) || t.body.includes(`/${light}`));
     for (const r of refs) {
-      const both = r.body.includes(`/${dark}`) && r.body.includes(`/${light}`);
-      const themed = r.body.includes("ThemeImage") || r.body.includes("theme-image");
+      const both = darks.some((d) => r.body.includes(`/${d}`)) && r.body.includes(`/${light}`);
+      const themed = r.body.includes("ThemeImage") || r.body.includes("theme-image") || r.body.includes("darkImage");
       if (!both) issues.push(`${s.id}: ${r.file.slice(repoRoot.length + 1)} references only one theme`);
       else if (!themed) issues.push(`${s.id}: ${r.file.slice(repoRoot.length + 1)} should use <ThemeImage dark light alt>`);
     }
