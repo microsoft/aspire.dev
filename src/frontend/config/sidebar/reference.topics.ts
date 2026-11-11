@@ -876,6 +876,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE009', link: '/diagnostics/aspire009' },
             { label: 'ASPIRE011', link: '/diagnostics/aspire011' },
             { label: 'ASPIRE013', link: '/diagnostics/aspire013' },
+            { label: 'ASPIRE015', link: '/diagnostics/aspire015' },
             {
               label: 'ASPIREACADOMAIN001',
               link: '/diagnostics/aspireacadomains001',
