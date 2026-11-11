@@ -74,6 +74,49 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	environment := builder.AddAzureAppServiceEnvironment("production")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithExternalHttpEndpoints()
+
+	frontdoor := builder.AddAzureFrontDoor("frontdoor").
+		WithOrigin(api)
+
+	for _, resource := range []aspire.Resource{environment, api, frontdoor} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code:
@@ -138,6 +181,52 @@ await frontdoor.withOrigin(api);
 await frontdoor.withOrigin(web);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	environment := builder.AddAzureAppServiceEnvironment("production")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithExternalHttpEndpoints()
+
+	web := builder.AddDotnetProject("web", "../Web/Web.csproj").
+		WithExternalHttpEndpoints()
+
+	frontdoor := builder.AddAzureFrontDoor("frontdoor").
+		WithOrigin(api).
+		WithOrigin(web)
+
+	for _, resource := range []aspire.Resource{environment, api, web, frontdoor} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>
@@ -363,6 +452,52 @@ builder.Build().Run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	environment := builder.AddAzureContainerAppEnvironment("env")
+	frontDoor := builder.AddAzureFrontDoor("frontdoor")
+	environment.WithAzureFrontDoorPrivateLink(frontDoor)
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithExternalHttpEndpoints()
+	web := builder.AddDotnetProject("web", "../Web/Web.csproj").
+		WithExternalHttpEndpoints().
+		WithReference(api)
+
+	frontDoor.WithOrigin(api).WithOrigin(web)
+
+	for _, resource := range []aspire.Resource{environment, frontDoor, api, web} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 Aspire disables public network access on the Container Apps environment. Apps in the environment still reach each other directly, because [calls between apps in an environment](https://learn.microsoft.com/azure/container-apps/connect-apps) stay inside the environment. Callers outside the environment must use the Front Door endpoint.
@@ -413,6 +548,51 @@ var web = builder.AddDotnetProject("web", "../Web/Web.csproj")
 frontDoor.WithOrigin(api).WithOrigin(web);
 
 builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	environment := builder.AddAzureAppServiceEnvironment("env")
+	frontDoor := builder.AddAzureFrontDoor("frontdoor")
+	environment.WithAzureFrontDoorPrivateLink(frontDoor)
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithExternalHttpEndpoints()
+	web := builder.AddDotnetProject("web", "../Web/Web.csproj").
+		WithExternalHttpEndpoints()
+
+	frontDoor.WithOrigin(api).WithOrigin(web)
+
+	for _, resource := range []aspire.Resource{environment, frontDoor, api, web} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>

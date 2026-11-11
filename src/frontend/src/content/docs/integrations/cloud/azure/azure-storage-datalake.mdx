@@ -68,6 +68,27 @@ This updates your `aspire.config.json` with the Azure Storage hosting integratio
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Storage": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Add Azure Data Lake resource
@@ -105,6 +126,46 @@ await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage")
+	dataLake := storage.AddDataLake("datalake")
+
+	api := builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj").
+		WithReference(dataLake).
+		WaitFor(dataLake)
+
+	for _, resource := range []aspire.Resource{storage, dataLake, api} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 </TabItem>
 </Tabs>
@@ -158,6 +219,51 @@ await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage")
+	dataLake := storage.AddDataLake("datalake")
+	dataLakeFileSystemName := "analytics-data"
+	fileSystem := storage.AddDataLakeFileSystem("analytics", &aspire.AddDataLakeFileSystemOptions{
+		DataLakeFileSystemName: &dataLakeFileSystemName,
+	})
+
+	api := builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj").
+		WithReference(dataLake).
+		WithReference(fileSystem).
+		WaitFor(dataLake)
+
+	for _, resource := range []aspire.Resource{storage, dataLake, fileSystem, api} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 </TabItem>
 </Tabs>

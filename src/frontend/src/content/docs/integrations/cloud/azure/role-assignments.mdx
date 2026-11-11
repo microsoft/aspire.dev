@@ -50,6 +50,35 @@ await api.withReference(search);
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	search := builder.AddAzureSearch("search")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+	api.WithReference(search)
+
+	for _, resource := range []aspire.Resource{search, api} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+}
+```
+</TabItem>
 </Tabs>
 
 In the example code, the `api` project resource depends on the Azure `search` resource, meaning it references the `search` resource. By default, the `search` resource is assigned the following built-in roles:
@@ -90,6 +119,36 @@ await api.withSearchRoleAssignments(search, [AzureSearchRole.SearchIndexDataRead
 await api.withReference(search);
 ````
 
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	search := builder.AddAzureSearch("search")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+	api.WithSearchRoleAssignments(search, []aspire.AzureSearchRole{aspire.AzureSearchRoleSearchIndexDataReader})
+	api.WithReference(search)
+
+	for _, resource := range []aspire.Resource{search, api} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+}
+```
 </TabItem>
 </Tabs>
 

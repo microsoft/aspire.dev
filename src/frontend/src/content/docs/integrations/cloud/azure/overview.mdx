@@ -18,7 +18,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-Aspire provides a comprehensive set of integrations for Azure services that enable you to build cloud-native distributed applications. These integrations handle configuration, health checks, telemetry, and deployment for various Azure services. Use the AppHost APIs to model Azure resources alongside your application services—Aspire provisions them automatically during local development and generates Bicep templates for production deployments. Both C# and TypeScript AppHosts are supported, with consistent API conventions across all Azure integrations.
+Aspire provides a comprehensive set of integrations for Azure services that enable you to build cloud-native distributed applications. These integrations handle configuration, health checks, telemetry, and deployment for various Azure services. Use the AppHost APIs to model Azure resources alongside your application services—Aspire provisions them automatically during local development and generates Bicep templates for production deployments. C#, TypeScript, and Go AppHosts are supported, with consistent API conventions across all Azure integrations.
 
 ## Connect your app to Azure Blob Storage
 
@@ -58,6 +58,48 @@ builder.AddProject<Projects.Api>("api")
     .WaitFor(blobs);
 
 builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage")
+	storage.RunAsEmulator()
+	blobs := storage.AddBlobs("blobs")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+	api.WithReference(blobs)
+	api.WaitFor(blobs)
+
+	for _, resource := range []aspire.Resource{storage, blobs, api} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>
@@ -244,6 +286,35 @@ await serviceBus.runAsExisting(existingServiceBusName, existingServiceBusResourc
 await serviceBus.addServiceBusQueue("queue");
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	existingServiceBusName := builder.AddParameter("existingServiceBusName")
+	existingServiceBusResourceGroup := builder.AddParameter("existingServiceBusResourceGroup")
+
+	serviceBus := builder.AddAzureServiceBus("messaging")
+	serviceBus.RunAsExisting(existingServiceBusName, aspire.RunAsExistingResourceGroup(existingServiceBusResourceGroup))
+
+	serviceBus.AddServiceBusQueue("queue")
+	if err := serviceBus.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+</TabItem>
 </Tabs>
 
 The preceding code:
@@ -289,6 +360,35 @@ const serviceBus = await builder.addAzureServiceBus("messaging");
 await serviceBus.publishAsExisting(existingServiceBusName, existingServiceBusResourceGroup);
 
 await serviceBus.addServiceBusQueue("queue");
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	existingServiceBusName := builder.AddParameter("existingServiceBusName")
+	existingServiceBusResourceGroup := builder.AddParameter("existingServiceBusResourceGroup")
+
+	serviceBus := builder.AddAzureServiceBus("messaging")
+	serviceBus.PublishAsExisting(existingServiceBusName, aspire.PublishAsExistingResourceGroup(existingServiceBusResourceGroup))
+
+	serviceBus.AddServiceBusQueue("queue")
+	if err := serviceBus.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 </TabItem>
 </Tabs>
@@ -378,6 +478,35 @@ await serviceBus.asExisting(existingServiceBusName, existingServiceBusResourceGr
 await serviceBus.addServiceBusQueue("queue");
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	existingServiceBusName := builder.AddParameter("existingServiceBusName")
+	existingServiceBusResourceGroup := builder.AddParameter("existingServiceBusResourceGroup")
+
+	serviceBus := builder.AddAzureServiceBus("messaging")
+	serviceBus.AsExisting(existingServiceBusName, aspire.AsExistingResourceGroup(existingServiceBusResourceGroup))
+
+	serviceBus.AddServiceBusQueue("queue")
+	if err := serviceBus.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+</TabItem>
 </Tabs>
 
 The preceding code:
@@ -427,6 +556,44 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(storage);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	isPublish, err := builder.ExecutionContext().IsPublishMode()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	var storage aspire.Resource
+	if isPublish {
+		storage = builder.AddAzureStorage("storage")
+	} else {
+		storage = builder.AddConnectionString("storage")
+	}
+
+	api := builder.AddNodeApp("api", "./api", "index.js")
+	api.WithReference(storage)
+	if err := api.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>

@@ -75,6 +75,27 @@ This updates your `aspire.config.json` with the Orleans hosting integration pack
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Orleans
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Orleans hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Orleans": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Add an Orleans resource
@@ -104,6 +125,29 @@ const builder = await createBuilder();
 const orleans = await builder.addOrleans("default");
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+orleans := builder.AddOrleans("default")
+if err := orleans.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -159,6 +203,35 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+clusteringTable := storage.AddTables("clustering")
+grainStorage := storage.AddBlobs("grainstate")
+
+orleans := builder.AddOrleans("default").
+	WithClustering(clusteringTable).
+	WithGrainStorage("Default", grainStorage)
+if err := orleans.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 Any project that references the Orleans resource also inherits a reference to the `clusteringTable` resource automatically.
@@ -211,6 +284,38 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+clusteringTable := storage.AddTables("clustering")
+grainStorage := storage.AddBlobs("grainstate")
+
+orleans := builder.AddOrleans("default").
+	WithClustering(clusteringTable).
+	WithGrainStorage("Default", grainStorage)
+
+server := builder.AddDotnetProject("orleans-server", "../OrleansServer/OrleansServer.csproj").
+	WithOrleansReference(orleans)
+if err := server.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 When you reference the Orleans resource from a project, the dependent storage resources are also referenced transitively.
@@ -260,6 +365,38 @@ const client = await builder.addProject("orleans-client", "../OrleansClient/Orle
     .withOrleansClientReference(orleans.asClient());
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+clusteringTable := storage.AddTables("clustering")
+grainStorage := storage.AddBlobs("grainstate")
+
+orleans := builder.AddOrleans("default").
+	WithClustering(clusteringTable).
+	WithGrainStorage("Default", grainStorage)
+
+client := builder.AddDotnetProject("orleans-client", "../OrleansClient/OrleansClient.csproj").
+	WithOrleansClientReference(orleans.AsClient())
+if err := client.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

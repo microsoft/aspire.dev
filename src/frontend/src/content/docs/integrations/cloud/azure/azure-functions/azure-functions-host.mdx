@@ -20,7 +20,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Functions Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure Functions project resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Functions Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure Functions project resource in your [`AppHost`](/get-started/app-host/) project.
 
 If you are new to the Azure Functions integration, start with the [Get started with the Azure Functions integration](/integrations/cloud/azure/azure-functions/azure-functions-get-started/) guide. For how your Functions code reads the connection information this page sets up, see [Azure Functions runtime configuration](../azure-functions-connect/).
 
@@ -71,6 +71,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-functions
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Functions hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Functions": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add azure-functions
@@ -160,6 +181,31 @@ await builder.addNodeApp("api", "./api", "index.js")
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+functions := builder.AddAzureFunctionsProject("functions", "../MyFunctions/MyFunctions.csproj").
+	WithExternalHttpEndpoints()
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(functions).
+	WaitFor(functions)
+
+for _, resource := range []aspire.Resource{functions, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 <Steps>
@@ -216,6 +262,30 @@ const functions = await builder.addAzureFunctionsProject(
     "../MyFunctions/MyFunctions.csproj"
 );
 await functions.withHostStorage(storage);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator()
+
+functions := builder.AddAzureFunctionsProject("functions", "../MyFunctions/MyFunctions.csproj").
+	WithHostStorage(storage)
+
+for _, resource := range []aspire.Resource{storage, functions} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 
 // After adding all resources, run the app...
 ```
@@ -294,6 +364,32 @@ await functions.withReference(blobs);
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator()
+blobs := storage.AddBlobs("blobs")
+
+functions := builder.AddAzureFunctionsProject("functions", "../MyFunctions/MyFunctions.csproj").
+	WithHostStorage(storage).
+	WithReference(blobs)
+
+for _, resource := range []aspire.Resource{storage, blobs, functions} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 The connection information required to connect to the `blobs` resource is automatically injected into the Azure Functions project, enabling the project to define a `BlobTrigger` that uses the `blobs` resource. For how your function code reads the injected connection information, see [Azure Functions runtime configuration](../azure-functions-connect/).
@@ -327,6 +423,25 @@ const functions = await builder.addAzureFunctionsProject(
     "../MyFunctions/MyFunctions.csproj"
 );
 await functions.withExternalHttpEndpoints();
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+functions := builder.AddAzureFunctionsProject("functions", "../MyFunctions/MyFunctions.csproj").
+	WithExternalHttpEndpoints()
+
+if err := functions.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 
 // After adding all resources, run the app...
 ```
@@ -395,6 +510,36 @@ const functions = await builder.addAzureFunctionsProject(
 );
 await functions.withHostStorage(storage);
 await functions.withReference(taskHub);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator()
+
+scheduler := builder.AddDurableTaskScheduler("scheduler").
+	RunAsEmulator()
+
+taskHub := scheduler.AddTaskHub("taskhub")
+
+functions := builder.AddAzureFunctionsProject("functions", "../MyFunctions/MyFunctions.csproj").
+	WithHostStorage(storage).
+	WithReference(taskHub)
+
+for _, resource := range []aspire.Resource{storage, scheduler, taskHub, functions} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 
 // After adding all resources, run the app...
 ```

@@ -80,6 +80,48 @@ builder.AddProject<Projects.Frontend>("frontend")
 builder.Build().Run();
 `;
 
+const modelAppHostGo = `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	postgres := builder.AddPostgres("postgres").
+		AddDatabase("catalogdb")
+	cache := builder.AddRedis("basketcache")
+
+	catalog := builder.
+		AddNodeApp("catalogservice", "./catalog", "src/index.ts").
+		WithReference(postgres)
+
+	frontend := builder.AddViteApp("frontend", "./frontend").
+		WithReference(catalog).
+		WithReference(cache)
+
+	for _, r := range []aspire.Resource{postgres, cache, catalog, frontend} {
+		if err := r.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+`;
+
 const frontendResourceIcons = [reactIcon, typescriptIcon, javascriptIcon] as const;
 const apiResourceIcons = [csharpIcon, javaIcon, pythonIcon, goIcon] as const;
 const databaseResourceIcons = [postgresqlIcon, mongodbIcon, mysqlIcon, sqliteIcon] as const;
@@ -252,6 +294,13 @@ const localizedPrinciples = principles.map((principle) => ({
                       width="18"
                       height="18"
                     />
+                    <Image
+                      src={goIcon}
+                      alt=""
+                      class="model-tab-lang-icon model-tab-lang-go"
+                      width="18"
+                      height="18"
+                    />
                   </span>
                   <span class="model-tab-text">AppHost</span>
                 </button>
@@ -315,6 +364,10 @@ const localizedPrinciples = principles.map((principle) => ({
 
                   <div class="model-code-variant" data-model-code-language="csharp">
                     <Code code={modelAppHostCsharp} lang="csharp" frame="none" />
+                  </div>
+
+                  <div class="model-code-variant" data-model-code-language="go">
+                    <Code code={modelAppHostGo} lang="go" frame="none" />
                   </div>
                 </div>
 
@@ -697,12 +750,12 @@ const localizedPrinciples = principles.map((principle) => ({
   import { loadLazyImagesNearViewport } from '@utils/lazy-images';
   import { createViewportActivationObserver } from '@utils/viewport-activation';
 
-  type AppHostLanguage = 'csharp' | 'typescript';
+  type AppHostLanguage = 'csharp' | 'typescript' | 'go';
   type ModelStoryStage = 'code' | 'topology' | 'dashboard';
   type TerminalStatus = 'checking' | 'building' | 'preparing' | 'connecting' | 'dashboard';
 
   function isAppHostLanguage(value: unknown): value is AppHostLanguage {
-    return value === 'csharp' || value === 'typescript';
+    return value === 'csharp' || value === 'typescript' || value === 'go';
   }
 
   function randomizeLanguageOrder(page: HTMLElement) {
@@ -848,8 +901,14 @@ const localizedPrinciples = principles.map((principle) => ({
       toggle.setAttribute('aria-label', manuallyPaused ? playLabel : pauseLabel);
     };
 
-    const getAppHostFileName = () =>
-      storyLanguage === 'typescript' ? 'apphost.mts' : 'apphost.cs';
+    const appHostFileNames: Record<AppHostLanguage, string> = {
+      csharp: 'apphost.cs',
+      typescript: 'apphost.mts',
+      go: 'apphost.go',
+    };
+    const getAppHostFileName = () => appHostFileNames[storyLanguage];
+    // C# AppHosts are built with the .NET SDK; TypeScript and Go AppHosts use a generated SDK.
+    const usesGeneratedSdk = () => storyLanguage !== 'csharp';
 
     const getStatusText = (status: TerminalStatus) => {
       switch (status) {
@@ -938,7 +997,7 @@ const localizedPrinciples = principles.map((principle) => ({
       command.textContent = commandText;
       root.removeAttribute('data-terminal-typing');
       if (stage === 'code') {
-        showStatus(storyLanguage === 'typescript' ? 'preparing' : 'checking');
+        showStatus(usesGeneratedSdk() ? 'preparing' : 'checking');
       } else if (stage === 'topology') {
         showStatus('connecting');
       } else {
@@ -961,10 +1020,7 @@ const localizedPrinciples = principles.map((principle) => ({
     const setLanguage = (language: AppHostLanguage) => {
       storyLanguage = language;
       root.dataset.storyLanguage = language;
-      if (
-        language === 'typescript' &&
-        (activeStatus === 'checking' || activeStatus === 'building')
-      ) {
+      if (language !== 'csharp' && (activeStatus === 'checking' || activeStatus === 'building')) {
         activeStatus = 'preparing';
       } else if (language === 'csharp' && activeStatus === 'preparing') {
         activeStatus = 'building';
@@ -1019,7 +1075,7 @@ const localizedPrinciples = principles.map((principle) => ({
       });
 
       scheduleAt(
-        () => showStatus(storyLanguage === 'typescript' ? 'preparing' : 'checking'),
+        () => showStatus(usesGeneratedSdk() ? 'preparing' : 'checking'),
         1_250
       );
       scheduleAt(() => {
@@ -1979,7 +2035,8 @@ const localizedPrinciples = principles.map((principle) => ({
   }
 
   .model-proof[data-story-language='typescript'] :global(.model-tab-lang-typescript),
-  .model-proof[data-story-language='csharp'] :global(.model-tab-lang-csharp) {
+  .model-proof[data-story-language='csharp'] :global(.model-tab-lang-csharp),
+  .model-proof[data-story-language='go'] :global(.model-tab-lang-go) {
     display: block;
   }
 
@@ -2100,7 +2157,9 @@ const localizedPrinciples = principles.map((principle) => ({
   .model-proof[data-story-language='typescript']
     .model-code-variant[data-model-code-language='typescript'],
   .model-proof[data-story-language='csharp']
-    .model-code-variant[data-model-code-language='csharp'] {
+    .model-code-variant[data-model-code-language='csharp'],
+  .model-proof[data-story-language='go']
+    .model-code-variant[data-model-code-language='go'] {
     display: block;
   }
 

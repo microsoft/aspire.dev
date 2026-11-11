@@ -27,7 +27,7 @@ import appServiceIcon from '@assets/icons/azure-app-services.svg';
 
 <Badge text="🧪 Preview" variant="note" size="large" />
 
-This article is the reference for the Aspire Azure App Service Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure App Service environment in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure App Service Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure App Service environment in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure App Service integration, start with the [Get started with the Azure App Service integration](/integrations/cloud/azure/azure-app-service/azure-app-service-get-started/) guide. For how deployed apps consume the runtime configuration this integration injects, see [Azure App Service runtime configuration](../azure-app-service-connect/).
 
@@ -59,6 +59,28 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Azure.AppService
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.AppService": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add Aspire.Hosting.Azure.AppService
@@ -114,6 +136,35 @@ const appServiceEnv =
 await builder.addProject('api', '../WebApi/WebApi.csproj');
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+appServiceEnv := builder.AddAzureAppServiceEnvironment("app-service-env")
+
+api := builder.AddGoApp("api", "./api")
+
+for _, resource := range []aspire.Resource{appServiceEnv, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -202,6 +253,39 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingAppServicePlanName := builder.AddParameter("existingAppServicePlanName")
+existingResourceGroup := builder.AddParameter("existingResourceGroup")
+
+appServiceEnv := builder.AddAzureAppServiceEnvironment("app-service-env").
+	AsExisting(existingAppServicePlanName, &aspire.AsExistingOptions{ResourceGroup: existingResourceGroup})
+
+api := builder.AddGoApp("api", "./api")
+
+for _, resource := range []aspire.Resource{appServiceEnv, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 For more information on treating Azure resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
@@ -252,6 +336,39 @@ await api.publishAsAzureAppServiceWebsite({
 });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+appServiceEnv := builder.AddAzureAppServiceEnvironment("app-service-env")
+
+api := builder.AddGoApp("api", "./api")
+api.PublishAsAzureAppServiceWebsite(&aspire.PublishAsAzureAppServiceWebsiteOptions{
+	Configure: func(infra aspire.AzureResourceInfrastructure, website aspire.WebSite) {
+		// Customize infrastructure here using Azure Provisioning APIs
+	},
+})
+
+for _, resource := range []aspire.Resource{appServiceEnv, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -326,6 +443,43 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+appServiceEnv := builder.AddAzureAppServiceEnvironment("appservice").
+	WithDeploymentSlot("staging")
+
+apiService := builder.AddGoApp("apiservice", "./apiservice").
+	WithHttpHealthCheck(&aspire.WithHttpHealthCheckOptions{Path: aspire.StringPtr("/health")}).
+	WithExternalHttpEndpoints()
+
+web := builder.AddGoApp("webfrontend", "./web").
+	WithExternalHttpEndpoints().
+	WithHttpHealthCheck(&aspire.WithHttpHealthCheckOptions{Path: aspire.StringPtr("/health")}).
+	WithReference(apiService).
+	WaitFor(apiService)
+
+for _, resource := range []aspire.Resource{appServiceEnv, apiService, web} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code configures all App Service websites to be deployed to a `staging` slot.
@@ -377,6 +531,35 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+slotName := builder.AddParameter("deploymentSlot")
+
+appServiceEnv := builder.AddAzureAppServiceEnvironment("appservice").
+	WithDeploymentSlot(slotName)
+
+// Add your projects and other resources...
+
+if err := appServiceEnv.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 With this configuration, provide a value for the `deploymentSlot` parameter when running [`aspire deploy`](/reference/cli/commands/aspire-deploy/).
@@ -415,6 +598,21 @@ await api.publishAsAzureAppServiceWebsite({
     // Deployment slot customizations
   },
 });
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+api := builder.AddGoApp("api", "./api")
+api.PublishAsAzureAppServiceWebsite(&aspire.PublishAsAzureAppServiceWebsiteOptions{
+	Configure: func(infra aspire.AzureResourceInfrastructure, website aspire.WebSite) {
+		// Production website customizations
+	},
+	ConfigureSlot: func(infra aspire.AzureResourceInfrastructure, slot aspire.WebSiteSlot) {
+		// Deployment slot customizations
+	},
+})
 ```
 
 </TabItem>
@@ -463,6 +661,38 @@ const appServiceEnv = await builder
 await builder.addProject('api', '../WebApi/WebApi.csproj');
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+vnet := builder.AddAzureVirtualNetwork("vnet")
+subnet := vnet.AddSubnet("app-service-subnet", "10.0.0.0/24")
+
+appServiceEnv := builder.AddAzureAppServiceEnvironment("app-service-env")
+appServiceEnv.WithDelegatedSubnet(subnet)
+
+api := builder.AddGoApp("api", "./api")
+
+for _, resource := range []aspire.Resource{vnet, subnet, appServiceEnv, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -534,6 +764,33 @@ await (
 });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+appServiceEnv := builder.AddAzureAppServiceEnvironment("app-service-env")
+appServiceEnv.ConfigureInfrastructure(func(infra aspire.AzureResourceInfrastructure) {
+	// Customize Azure Provisioning resources here
+})
+
+if err := appServiceEnv.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

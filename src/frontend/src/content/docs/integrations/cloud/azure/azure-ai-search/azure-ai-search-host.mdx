@@ -18,7 +18,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure AI Search Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure AI Search resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure AI Search Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure AI Search resource in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure AI Search integration, start with the [Get started with Azure AI Search integrations](/integrations/cloud/azure/azure-ai-search/azure-ai-search-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure AI Search](../azure-ai-search-connect/).
 
@@ -49,6 +49,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-search
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure AI Search hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Search": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add azure-search
@@ -102,6 +123,34 @@ await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj"
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+search := builder.AddAzureSearch("search")
+
+api := builder.AddGoApp("apiservice", "./api").
+	WithReference(search)
+
+for _, resource := range []aspire.Resource{search, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -158,6 +207,37 @@ await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj"
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingSearchName := builder.AddParameter("existingSearchName")
+
+search := builder.AddAzureSearch("search").
+	AsExisting(existingSearchName)
+
+api := builder.AddGoApp("apiservice", "./api").
+	WithReference(search)
+
+for _, resource := range []aspire.Resource{search, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -272,6 +352,31 @@ await search.configureInfrastructure(async (infra) => {
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+search := builder.AddAzureSearch("search")
+search.ConfigureInfrastructure(func(infra aspire.AzureResourceInfrastructure) {
+	// Customize the provisioning infrastructure here.
+})
+
+if err := search.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 The preceding C# code:
@@ -325,6 +430,40 @@ const api = await builder.addProject("apiservice", "../ExampleProject/ExamplePro
 await search.withRoleAssignments(api, [AzureSearchRole.SearchIndexDataReader]);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+Use `WithSearchRoleAssignments` to assign specific roles from the `AzureSearchRole` enum to a resource:
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+search := builder.AddAzureSearch("search")
+
+api := builder.AddGoApp("apiservice", "./api").
+	WithReference(search)
+
+// Assign only the data-reader role to the api project
+api.WithSearchRoleAssignments(search, []aspire.AzureSearchRole{aspire.AzureSearchRoleSearchIndexDataReader})
+
+for _, resource := range []aspire.Resource{search, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

@@ -17,7 +17,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure user-assigned managed identity (UMI) support. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to add, reference, and assign roles to user-assigned managed identities in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure user-assigned managed identity (UMI) support. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to add, reference, and assign roles to user-assigned managed identities in your [`AppHost`](/get-started/app-host/) project.
 
 A user-assigned managed identity is a standalone Azure resource that you assign to one or more Azure service resources, giving you explicit control over identity management and resource access.
 
@@ -49,6 +49,40 @@ const sharedMi = await builder.addAzureUserAssignedIdentity("custom-umi");
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	sharedMi := builder.AddAzureUserAssignedIdentity("custom-umi")
+	if err := sharedMi.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>
@@ -103,6 +137,47 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	miName := builder.AddParameter("miName")
+	miResourceGroup := builder.AddParameter("miResourceGroup")
+
+	sharedMi := builder.AddAzureUserAssignedIdentity("custom-umi")
+	sharedMi.PublishAsExisting(miName, aspire.PublishAsExistingResourceGroup(miResourceGroup))
+
+	for _, resource := range []aspire.Resource{miName, miResourceGroup, sharedMi} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 In the preceding example, parameters supply the name and resource group of the existing identity so the AppHost references it rather than creating a new one.
@@ -141,6 +216,46 @@ await sharedMi.withRoleAssignments(secrets, [AzureKeyVaultRole.KeyVaultSecretsUs
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	sharedMi := builder.AddAzureUserAssignedIdentity("custom-umi")
+
+	secrets := builder.AddAzureKeyVault("secrets")
+	sharedMi.WithKeyVaultRoleAssignments(secrets, []aspire.AzureKeyVaultRole{aspire.AzureKeyVaultRoleKeyVaultSecretsUser})
+
+	for _, resource := range []aspire.Resource{sharedMi, secrets} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>

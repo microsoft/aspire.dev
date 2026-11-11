@@ -52,6 +52,38 @@ const dataProcessor = await builder.addProject("data-processor", "../DataProcess
 await dataProcessor.publishAsScheduledAzureContainerAppJob("0 0 * * *"); // Every day at midnight
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	dataProcessor := builder.AddDotnetProject("data-processor", "../DataProcessor/DataProcessor.csproj")
+	dataProcessor.PublishAsScheduledAzureContainerAppJob("0 0 * * *") // Every day at midnight
+	if err := dataProcessor.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+</TabItem>
 </Tabs>
 
 ## Job trigger types

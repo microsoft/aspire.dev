@@ -64,6 +64,45 @@ builder.Build().Run();
 ````
 
 </TabItem>
+
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	existingBusName := builder.AddParameter("existingServiceBusName")
+	existingBusResourceGroup := builder.AddParameter("existingServiceBusResourceGroup")
+
+	serviceBus := builder.AddAzureServiceBus("messaging")
+	serviceBus.PublishAsExisting(existingBusName, aspire.PublishAsExistingResourceGroup(existingBusResourceGroup))
+
+	for _, resource := range []aspire.Resource{existingBusName, existingBusResourceGroup, serviceBus} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+</TabItem>
 </Tabs>
 
 Use `RunAsExisting` when only local run mode should use the existing resource, `PublishAsExisting` when only deployed Azure environments should use it, and `AsExisting` when both modes should point at the same Azure resource.
@@ -102,6 +141,39 @@ builder.AddAzureServiceBus("messaging")
 builder.Build().Run();
 ````
 
+</TabItem>
+
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	serviceBus := builder.AddAzureServiceBus("messaging")
+	serviceBus.ClearDefaultRoleAssignments()
+	if err := serviceBus.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
 </TabItem>
 </Tabs>
 
@@ -144,6 +216,45 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ````
 
+</TabItem>
+
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	identity := builder.AddAzureUserAssignedIdentity("identity")
+	clientId := identity.GetOutput("clientId")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+	api.WithEnvironment("IDENTITY_CLIENT_ID", clientId)
+
+	for _, resource := range []aspire.Resource{identity, api} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
 </TabItem>
 </Tabs>
 
@@ -673,6 +784,49 @@ builder.Build().Run();
 ```
 
 </TabItem>
+
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	vnet := builder.AddAzureVirtualNetwork("vnet")
+	peSubnet := vnet.AddSubnet("pe-subnet", "10.0.1.0/24")
+
+	storage := builder.AddAzureStorage("storage")
+	blobs := storage.AddBlobs("blobs")
+
+	peSubnet.AddPrivateEndpoint(blobs)
+
+	for _, resource := range []aspire.Resource{vnet, peSubnet, storage, blobs} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 When no Aspire-native resource builder exists for what you need, fall back to `ConfigureInfrastructure` to add an `Azure.Provisioning` construct directly. See the [Azure.Provisioning API reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning) for the available construct types and their properties.
@@ -812,6 +966,49 @@ builder.Build().Run();
 ```
 
 </TabItem>
+
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddBicepTemplate("storage", "./custom-storage.bicep")
+	storage.WithParameter("storageAccountName", aspire.ParameterValue("mystorageaccount"))
+
+	storageAccountName := storage.GetOutput("storageAccountName")
+
+	webapp := builder.AddDotnetProject("webapp", "../WebApp/WebApp.csproj")
+	webapp.WithEnvironment("STORAGE_ACCOUNT_NAME", storageAccountName)
+
+	for _, resource := range []aspire.Resource{storage, webapp} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="tip">
@@ -892,6 +1089,52 @@ builder.AddProject<Projects.Api>("api")
        .WithEnvironment("SQL_SERVER_NAME", sql.GetOutput("sqlServerName"));
 
 builder.Build().Run();
+```
+
+</TabItem>
+
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	secret := true
+	adminPassword := builder.AddParameter("adminPassword", &aspire.AddParameterOptions{Secret: &secret})
+
+	sql := builder.AddBicepTemplate("sql", "./custom-sql.bicep")
+	sql.WithParameter("administratorLoginPassword", aspire.ParameterValue(adminPassword))
+
+	sqlServerName := sql.GetOutput("sqlServerName")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+	api.WithEnvironment("SQL_SERVER_NAME", sqlServerName)
+
+	for _, resource := range []aspire.Resource{adminPassword, sql, api} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>

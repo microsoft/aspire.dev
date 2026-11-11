@@ -448,6 +448,117 @@ var customContainer = builder.AddContainer("mycustomcontainer", "myregistry/myap
 builder.Build().Run();`,
 };
 
+// Go variants are composed from the same variant keys used by the C# and TypeScript maps.
+function buildGoCode(key: string): string {
+  const deploy = key.endsWith('Deployment');
+  const has = (part: string) => key.includes(part);
+  const hasDb = has('database');
+  const hasApi = has('api');
+  const hasFrontend = has('frontend');
+  const hasContainer = has('ontainer') && key.replace('Deployment', '').toLowerCase().includes('container');
+  const names: string[] = [];
+  const blocks: string[] = [];
+
+  if (hasDb) {
+    names.push('postgres');
+    blocks.push(
+      deploy
+        ? `	// Add database
+	postgres := builder.AddAzurePostgresFlexibleServer("db").
+		RunAsContainer().
+		AddDatabase("appdata")`
+        : `	// Add database
+	postgres := builder.AddPostgres("db").
+		WithDataVolume().
+		AddDatabase("appdata")`
+    );
+  }
+  if (hasApi) {
+    names.push('api');
+    const lines = [
+      `	// Add Node.js API${hasDb ? ' and reference the database' : ''}`,
+      `	api := builder.AddNodeApp("api", "../api", "src/index.ts").`,
+      `		WithNpm().`,
+      `		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})`,
+    ];
+    if (hasDb) lines[lines.length - 1] += '.';
+    if (hasDb) lines.push(`		WithReference(postgres)`);
+    if (deploy) {
+      lines[lines.length - 1] += '.';
+      lines.push(`		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})`);
+    }
+    blocks.push(lines.join('\n'));
+  }
+  if (hasFrontend) {
+    names.push('frontend');
+    const lines = [
+      `	// Add Vite frontend${hasApi ? ' and reference the API' : ''}`,
+      `	frontend := builder.AddViteApp("frontend", "../frontend").`,
+      `		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})`,
+    ];
+    if (hasApi) {
+      lines[lines.length - 1] += '.';
+      lines.push(`		WithReference(api)`);
+    }
+    if (deploy) {
+      lines[lines.length - 1] += '.';
+      lines.push(`		PublishAsDockerFile(func(container aspire.ContainerResource) {})`);
+    }
+    blocks.push(lines.join('\n'));
+  }
+  if (hasContainer) {
+    names.push('customContainer');
+    const lines = [
+      `	// Add custom container`,
+      `	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").`,
+      `		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})`,
+    ];
+    if (deploy) {
+      lines[lines.length - 1] += '.';
+      lines.push(`		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})`);
+    }
+    blocks.push(lines.join('\n'));
+  }
+
+  const body = names.length
+    ? `${blocks.join('\n\n')}
+
+	for _, resource := range []aspire.Resource{${names.join(', ')}} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+`
+    : `	// This would be a rather boring AppHost ☹️...
+	// Toggle the options above to see what an AppHost might look like.
+	// For example, select "Front end" to add a frontend service.
+`;
+
+  return `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+${body}
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`;
+}
+
 // Define all possible code combinations — TypeScript
 const tsCodes: Record<string, string> = {
   empty: `import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -1037,6 +1148,7 @@ await builder.build().run();`,
         TypeScript
       </button>
       <button class="lang-toggle" data-lang="csharp" aria-pressed="false">C#</button>
+      <button class="lang-toggle" data-lang="go" aria-pressed="false">Go</button>
     </div>
 
     <div class="toggles">
@@ -1231,6 +1343,21 @@ await builder.build().run();`,
             style={key === 'frontend' ? '' : 'display: none;'}
           >
             <Code code={code} lang="ts" title="apphost.mts" />
+          </div>
+        ))
+      }
+    </div>
+
+    <!-- Go variants -->
+    <div class="code-lang-group" data-code-lang="go" style="display: none;">
+      {
+        Object.keys(tsCodes).map((key) => (
+          <div
+            class="code-variant"
+            data-variant={key}
+            style={key === 'frontend' ? '' : 'display: none;'}
+          >
+            <Code code={buildGoCode(key)} lang="go" title="apphost.go" />
           </div>
         ))
       }

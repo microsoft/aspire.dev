@@ -4,7 +4,9 @@ import { Code } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import csharpIcon from '@assets/icons/csharp.svg';
 import typescriptIcon from '@assets/icons/typescript.svg';
+import goIcon from '@assets/icons/go.svg';
 import { generateFriendlyName } from '@utils/helpers';
+import { supportsGoAppHost } from '@utils/go-apphost-support';
 import ReadableText from '@components/ReadableText.astro';
 
 // Helper to abbreviate download counts
@@ -57,7 +59,7 @@ function hostingDocsUrl(docs: string): string {
 // Append the global aspire-lang query param so the destination page's synced
 // Tabs (and any PivotSelector with key="aspire-lang") pre-select the right
 // language without depending on prior browser state.
-function withLang(docs: string, lang: 'csharp' | 'typescript'): string {
+function withLang(docs: string, lang: 'csharp' | 'typescript' | 'go'): string {
   const url = hostingDocsUrl(docs);
   const sep = url.includes('?') ? '&' : '?';
   return `${url}${sep}aspire-lang=${lang}`;
@@ -67,6 +69,8 @@ function withLang(docs: string, lang: 'csharp' | 'typescript'): string {
 // that can render `<Tabs syncKey="aspire-lang">`. External hrefs (AWS, etc.)
 // are skipped.
 const supportsLangTabs = !!pkg.docs && pkg.docs.startsWith('/');
+// The Go button only appears for packages that expose a Go AppHost API.
+const showGoButton = supportsLangTabs && supportsGoAppHost(pkg.title);
 
 // Title links to the integration's get-started landing page (or external docs
 // page when the integration ships docs off-site). The docs map already points
@@ -181,6 +185,17 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
               >
                 <Image src={csharpIcon} alt="" width={22} height={22} aria-hidden="true" />
               </a>
+              {showGoButton && (
+                <a
+                  class="lang-button"
+                  href={withLang(pkg.docs!, 'go')}
+                  aria-label={Astro.locals.t('integrations.viewGoDocs', { title: pkg.title })}
+                  data-tooltip-placement="top"
+                  title={Astro.locals.t('integrations.viewGoDocs', { title: pkg.title })}
+                >
+                  <Image src={goIcon} alt="" width={22} height={22} aria-hidden="true" />
+                </a>
+              )}
             </div>
           ) : (
             pkg.docs && (
@@ -440,6 +455,9 @@ const titleIsExternal = !!titleHref && !titleHref.startsWith('/');
       border-top-right-radius: 0;
       border-bottom-left-radius: 0.375rem;
       border-bottom-right-radius: 0;
+    }
+
+    .card .lang-button:not(:last-child) {
       border-right-width: 0;
     }
 

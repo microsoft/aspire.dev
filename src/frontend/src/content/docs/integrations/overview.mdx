@@ -105,6 +105,57 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```mermaid
+architecture-beta
+
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
+
+  service pghosting(server)[PostgreSQL hosting integration] in apphost
+  service postgres(logos:postgresql)[PostgreSQL server] in apphost
+  service redishosting(server)[Redis hosting integration] in apphost
+  service redis(logos:redis)[Redis cache] in apphost
+
+  service app(server)[App] in consumer
+
+  pghosting:R --> L:postgres
+  postgres:R --> L:app
+
+  redishosting:R --> L:redis
+  redis:R --> T:app
+```
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache")
+db := builder.AddPostgres("postgres").AddDatabase("appdb")
+
+api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+	WithReference(cache).
+	WithReference(db)
+
+for _, r := range []aspire.Resource{cache, db, api} {
+	if err := r.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Environment variables set by references

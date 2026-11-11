@@ -177,6 +177,38 @@ await builder.addNodeApp("webapp", "./webapp", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage")
+	blobs := storage.AddBlobs("blobs")
+
+	webapp := builder.AddNodeApp("webapp", "./webapp", "index.js")
+	webapp.WithReference(blobs)
+
+	for _, resource := range []aspire.Resource{storage, blobs, webapp} {
+		if err := resource.Err(); err != nil {
+			log.Fatal(aspire.FormatError(err))
+		}
+	}
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 Once your AppHost is configured, run the application and Aspire automatically provisions the referenced Azure resources:

@@ -66,6 +66,23 @@ This updates your `aspire.config.json` with the Docker hosting integration packa
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add docker
+```
+
+This updates your `aspire.config.json` with the Docker hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Docker": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Add Docker Compose environment resource
@@ -132,6 +149,48 @@ await web.publishAsDockerComposeService(async (resource, service) => {
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+compose := builder.AddDockerComposeEnvironment("compose")
+
+cache := builder.AddRedis("cache")
+cache.PublishAsDockerComposeService(func(resource aspire.DockerComposeServiceResource, service aspire.Service) {
+	service.SetName("redis")
+})
+
+api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+api.WithReference(cache)
+api.PublishAsDockerComposeService(func(resource aspire.DockerComposeServiceResource, service aspire.Service) {
+	service.SetName("api")
+})
+
+web := builder.AddDotnetProject("web", "../Web/Web.csproj")
+web.WithReference(cache)
+web.WithReference(api)
+web.PublishAsDockerComposeService(func(resource aspire.DockerComposeServiceResource, service aspire.Service) {
+	service.SetName("web")
+})
+
+for _, r := range []aspire.Resource{compose, cache, api, web} {
+	if err := r.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 The preceding code:
@@ -166,6 +225,14 @@ When a Docker Compose environment is present, all resources are automatically pu
   await api.withComputeEnvironment(compose);
   ```
   </TabItem>
+  <TabItem id='go' label='Go'>
+  ```go title="apphost.go"
+  compose := builder.AddDockerComposeEnvironment("compose")
+
+  api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+  api.WithComputeEnvironment(compose)
+  ```
+  </TabItem>
   </Tabs>
 </Aside>
 
@@ -195,6 +262,19 @@ await compose.withProperties(async (environment) => {
 });
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+compose := builder.AddDockerComposeEnvironment("compose")
+compose.WithProperties(func(environment aspire.DockerComposeEnvironmentResource) {
+	environment.SetDashboardEnabled(true)
+})
 ```
 </TabItem>
 </Tabs>
@@ -233,6 +313,25 @@ await compose.configureComposeFile(async (composeFile) => {
 });
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+compose := builder.AddDockerComposeEnvironment("compose")
+compose.ConfigureComposeFile(func(composeFile aspire.ComposeFile) {
+	composeFile.SetName(aspire.StringPtr("my-app"))
+
+	api, err := composeFile.Services().Get("api")
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	api.SetPullPolicy(aspire.StringPtr("always"))
+})
 ```
 </TabItem>
 </Tabs>
@@ -276,6 +375,22 @@ await compose.withDashboard({ enabled: false });
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+compose := builder.AddDockerComposeEnvironment("compose")
+compose.ConfigureDashboard(func(dashboard aspire.DockerComposeAspireDashboardResource) {
+	dashboard.WithHostPort(&aspire.WithHostPortOptions{Port: aspire.IntPtr(8080)})
+	dashboard.WithForwardedHeaders(&aspire.WithForwardedHeadersOptions{Enabled: aspire.BoolPtr(true)})
+})
+
+compose.WithDashboard(&aspire.WithDashboardOptions{Enabled: aspire.BoolPtr(false)})
+```
+</TabItem>
 </Tabs>
 
 The <ApiReference name="Aspire.Hosting.DockerComposeAspireDashboardResourceBuilderExtensions.WithHostPort" /> method configures the port used to access the Aspire dashboard from a browser. The <ApiReference name="Aspire.Hosting.DockerComposeAspireDashboardResourceBuilderExtensions.WithForwardedHeaders" /> method enables forwarded headers processing when the dashboard is accessed through a reverse proxy or load balancer.
@@ -313,6 +428,22 @@ await api.withHttpEndpoint({ name: "http", targetPort: 80 });
 
 const apiEndpoint = await api.getEndpoint("http");
 const apiHost = await compose.getHostAddressExpression(apiEndpoint);
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+compose := builder.AddDockerComposeEnvironment("compose")
+
+api := builder.AddContainer("api", "nginx:alpine")
+api.WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: aspire.StringPtr("http"), TargetPort: aspire.IntPtr(80)})
+
+apiEndpoint := api.GetEndpoint("http")
+apiHost := compose.GetHostAddressExpression(apiEndpoint)
 ```
 </TabItem>
 </Tabs>
@@ -364,6 +495,27 @@ await compose.configureEnvFile(async (envVars) => {
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddContainer("api", "nginx:alpine")
+api.WithBindMount("/host/path/data", "/container/data")
+
+compose := builder.AddDockerComposeEnvironment("compose")
+compose.ConfigureEnvFile(func(envVars *aspire.Dict[string, aspire.CapturedEnvironmentVariable]) {
+	bindMount, err := envVars.Get("API_BINDMOUNT_0")
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	bindMount.SetDescription(aspire.StringPtr("Customized bind mount source"))
+	bindMount.SetDefaultValue(aspire.StringPtr("./data"))
+})
+```
+</TabItem>
 </Tabs>
 
 This is useful when you need to add custom environment variables to the generated `.env` file or modify how environment variables are captured.
@@ -413,6 +565,28 @@ await cache.publishAsDockerComposeService(async (composeService, service) => {
 });
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddDockerComposeEnvironment("compose")
+
+containerName := builder.AddParameter("container-name")
+cache := builder.AddContainer("cache", "redis:latest")
+cache.PublishAsDockerComposeService(func(composeService aspire.DockerComposeServiceResource, service aspire.Service) {
+	name, err := containerName.AsEnvironmentPlaceholder(composeService)
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	service.SetContainerName(aspire.StringPtr(name))
+	service.Labels().Set("com.example.team", "backend")
+	service.SetRestart(aspire.StringPtr("unless-stopped"))
+})
 ```
 </TabItem>
 </Tabs>
@@ -488,6 +662,29 @@ await builder.addDockerfileBuilder("frontend", "../frontend", configureDockerfil
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddDockerfileBuilder("frontend", "../frontend", func(context aspire.DockerfileBuilderCallbackContext) {
+	dockerfile := context.Builder()
+
+	dockerfile.From("node:22-alpine", &aspire.FromOptions{StageName: aspire.StringPtr("build")}).
+		WorkDir("/app").
+		Copy("package*.json", "./").
+		Run("npm ci").
+		Copy(".", ".").
+		Run("npm run build")
+
+	dockerfile.From("nginx:alpine", &aspire.FromOptions{StageName: aspire.StringPtr("runtime")}).
+		CopyFrom("build", "/app/dist", "/usr/share/nginx/html").
+		Expose(80)
+}, &aspire.AddDockerfileBuilderOptions{Stage: aspire.StringPtr("runtime")})
+```
+</TabItem>
 </Tabs>
 
 ## Configure image pull policy
@@ -524,6 +721,20 @@ await container.withImagePullPolicy(ImagePullPolicy.Always);
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+container := builder.AddContainer("mycontainer", &aspire.AddContainerOptions{
+	Image: "myimage",
+	Tag:   aspire.StringPtr("latest"),
+})
+container.WithImagePullPolicy(aspire.ImagePullPolicyAlways)
+```
+</TabItem>
 </Tabs>
 
 ### Use `Never` with locally-built images
@@ -549,6 +760,20 @@ const app = await builder.addContainer("myapp", { image: "my-local-image", tag: 
 await app.withImagePullPolicy(ImagePullPolicy.Never);
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app := builder.AddContainer("myapp", &aspire.AddContainerOptions{
+	Image: "my-local-image",
+	Tag:   aspire.StringPtr("dev"),
+})
+app.WithImagePullPolicy(aspire.ImagePullPolicyNever)
 ```
 </TabItem>
 </Tabs>
@@ -609,6 +834,21 @@ await api.withRemoteImageName("myorg/myapi");
 await api.withRemoteImageTag("v1.0.0");
 ```
 </TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+api.PublishAsDockerComposeService(func(resource aspire.DockerComposeServiceResource, service aspire.Service) {
+	service.SetName("api")
+})
+api.WithRemoteImageName("myorg/myapi")
+api.WithRemoteImageTag("v1.0.0")
+```
+</TabItem>
 </Tabs>
 
 ### Advanced customization with callbacks
@@ -655,6 +895,32 @@ await api
     context.options.setRemoteImageName(`myorg/${imageName}`);
     context.options.setRemoteImageTag("latest");
   });
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+api.PublishAsDockerComposeService(func(resource aspire.DockerComposeServiceResource, service aspire.Service) {
+	service.SetName("api")
+})
+api.WithImagePushOptions(func(context aspire.ContainerImagePushOptionsCallbackContext) {
+	resource, ok := context.Resource().(interface{ GetResourceName() (string, error) })
+	if !ok {
+		log.Fatal("resource has no name")
+	}
+	imageName, err := resource.GetResourceName()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	options := context.Options()
+	options.SetRemoteImageName(aspire.StringPtr("myorg/" + strings.ToLower(imageName)))
+	options.SetRemoteImageTag(aspire.StringPtr("latest"))
+})
 ```
 </TabItem>
 </Tabs>
@@ -704,6 +970,26 @@ async function loadImageConfiguration() {
     imageTag: "latest",
   };
 }
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+api.PublishAsDockerComposeService(func(resource aspire.DockerComposeServiceResource, service aspire.Service) {
+	service.SetName("api")
+})
+api.WithImagePushOptions(func(context aspire.ContainerImagePushOptionsCallbackContext) {
+	// loadImageConfiguration is your own function that returns the image name and tag.
+	config := loadImageConfiguration()
+	options := context.Options()
+	options.SetRemoteImageName(aspire.StringPtr(config.imageName))
+	options.SetRemoteImageTag(aspire.StringPtr(config.imageTag))
+})
 ```
 </TabItem>
 </Tabs>
@@ -761,6 +1047,26 @@ await api.publishAsDockerComposeService(async (resource, service) => {
   await service.name.set("api");
 });
 await api.withContainerRegistry(registry);
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+// Add a container registry
+registry := builder.AddContainerRegistry("ghcr", "ghcr.io", &aspire.AddContainerRegistryOptions{
+	Repository: aspire.StringPtr("your-github-username/your-repo"),
+})
+
+// Associate resources with the registry
+api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+api.PublishAsDockerComposeService(func(resource aspire.DockerComposeServiceResource, service aspire.Service) {
+	service.SetName("api")
+})
+api.WithContainerRegistry(registry)
 ```
 </TabItem>
 </Tabs>
@@ -822,6 +1128,29 @@ await api.publishAsDockerComposeService(async (resource, service) => {
   await service.name.set("api");
 });
 await api.withContainerRegistry(registry);
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+// Define parameters from configuration (reads from environment variables)
+registryEndpoint := builder.AddParameterFromConfiguration("registryEndpoint", "REGISTRY_ENDPOINT")
+registryRepository := builder.AddParameterFromConfiguration("registryRepository", "REGISTRY_REPOSITORY")
+
+// Add registry with parameters
+registry := builder.AddContainerRegistry("my-registry", registryEndpoint, &aspire.AddContainerRegistryOptions{
+	Repository: registryRepository,
+})
+
+api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+api.PublishAsDockerComposeService(func(resource aspire.DockerComposeServiceResource, service aspire.Service) {
+	service.SetName("api")
+})
+api.WithContainerRegistry(registry)
 ```
 </TabItem>
 </Tabs>

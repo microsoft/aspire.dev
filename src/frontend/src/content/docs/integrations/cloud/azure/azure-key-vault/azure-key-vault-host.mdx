@@ -18,7 +18,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Key Vault Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure Key Vault resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Key Vault Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure Key Vault resource in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Key Vault integration, start with the [Get started with Azure Key Vault integrations](/integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Key Vault](../azure-key-vault-connect/).
 
@@ -49,6 +49,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-key-vault
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Key Vault hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.KeyVault": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add azure-key-vault
@@ -104,6 +125,35 @@ await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj"
     .withReference(keyVault);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+keyVault := builder.AddAzureKeyVault("key-vault")
+
+api := builder.AddGoApp("apiservice", "./api").
+	WithReference(keyVault)
+
+for _, resource := range []aspire.Resource{keyVault, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -173,6 +223,39 @@ await builder.build().run();
 </Aside>
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingKeyVaultName := builder.AddParameter("existingKeyVaultName")
+existingKeyVaultResourceGroup := builder.AddParameter("existingKeyVaultResourceGroup")
+
+keyVault := builder.AddAzureKeyVault("key-vault").
+	AsExisting(existingKeyVaultName, &aspire.AsExistingOptions{ResourceGroup: existingKeyVaultResourceGroup})
+
+api := builder.AddGoApp("apiservice", "./api").
+	WithReference(keyVault)
+
+for _, resource := range []aspire.Resource{keyVault, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="note">
@@ -217,6 +300,37 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+keyVault := builder.AddAzureKeyVault("key-vault")
+
+api := builder.AddGoApp("apiservice", "./api")
+api.WithKeyVaultRoleAssignments(keyVault, []aspire.AzureKeyVaultRole{
+	aspire.AzureKeyVaultRoleKeyVaultSecretsUser,
+})
+
+for _, resource := range []aspire.Resource{keyVault, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 To clear the default role assignments and configure only specific roles, call <ApiReference name="Aspire.Hosting.AzureResourceExtensions.ClearDefaultRoleAssignments" /> before adding the roles you need.
@@ -258,6 +372,33 @@ const apiKey = await builder.addParameter("api-key", { secret: true });
 await keyVault.addSecret("my-api-key", apiKey);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+keyVault := builder.AddAzureKeyVault("key-vault")
+
+apiKey := builder.AddParameter("api-key", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+keyVault.AddSecret("my-api-key", apiKey)
+
+if err := keyVault.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -307,6 +448,40 @@ await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj"
     .withEnvironment("API_KEY", secretRef);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingKeyVaultName := builder.AddParameter("existingKeyVaultName")
+existingKeyVaultResourceGroup := builder.AddParameter("existingKeyVaultResourceGroup")
+
+keyVault := builder.AddAzureKeyVault("key-vault").
+	AsExisting(existingKeyVaultName, &aspire.AsExistingOptions{ResourceGroup: existingKeyVaultResourceGroup})
+
+api := builder.AddGoApp("apiservice", "./api").
+	WithReference(keyVault).
+	WithEnvironment("API_KEY", keyVault.GetSecret("my-api-key"))
+
+for _, resource := range []aspire.Resource{keyVault, api} {
+	if err := resource.Err(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -420,6 +595,33 @@ await keyVault.configureInfrastructure(async (infra) => {
 });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+keyVault := builder.AddAzureKeyVault("key-vault")
+keyVault.ConfigureInfrastructure(func(infra aspire.AzureResourceInfrastructure) {
+	// Customize the generated Bicep resources here.
+})
+
+if err := keyVault.Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
