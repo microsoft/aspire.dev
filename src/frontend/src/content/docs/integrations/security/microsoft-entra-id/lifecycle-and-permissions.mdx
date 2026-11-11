@@ -21,7 +21,9 @@ The identity that provisions your Azure resources also creates the registrations
 | `WithAdminConsent` for Microsoft Graph application permissions | Privileged Role Administrator or a custom role, or the `AppRoleAssignment.ReadWrite.All` Graph permission when deploying as an application. |
 | `PublishWithAppRoleAssignment` | `AppRoleAssignment.ReadWrite.All` and `Application.Read.All` with administrator consent. Delegated deployments also need a supported directory role. An Azure subscription Owner or Contributor role alone isn't enough. |
 
-When `WithCertificateFromKeyVault` references a Key Vault resource in the AppHost, Aspire also assigns the **Key Vault Certificate User** role on that vault. Your developer identity receives it when you run, and referencing apps receive it when you publish.
+When `WithCertificateFromKeyVault` references a Key Vault resource in the AppHost, Aspire also assigns the **Key Vault Certificate User** role on that vault. Your developer identity receives it when you run, and referencing apps receive it when you publish. The role applies to the whole vault. For more information, see [Role assignments for certificate access](/integrations/security/microsoft-entra-id/client-credentials/#role-assignments-for-certificate-access).
+
+Aspire never grants more than the deploying identity is allowed to grant. However, a privileged identity applies whatever the AppHost declares. When you deploy from CI, use a dedicated identity with only the permissions that the features you use need, and review changes to consent, owners, and app role assignments in the AppHost as privileged changes.
 
 Your apps don't need these Graph permissions. Without consent calls, `WithApiPermissions` only lists permissions, so it needs nothing beyond creating the registration.
 
@@ -117,6 +119,26 @@ Removing a call from your AppHost doesn't always remove what it created in the t
 | Local developer certificate | Publishing doesn't revoke a key that an earlier run registered. |
 
 Removal never revokes tokens that were already issued. Tokens stay valid until they expire.
+
+### Revoke what remains
+
+To remove access that Aspire no longer manages, use the [Microsoft Entra admin center](https://entra.microsoft.com) or Microsoft Graph. With the Azure CLI, pass the client's application ID or the service principal's object ID from the `servicePrincipalId` deployment output:
+
+```bash title="Terminal"
+# List and delete delegated permission grants of a client.
+az ad app permission list-grants --id <client-app-id>
+az rest --method DELETE --url "https://graph.microsoft.com/v1.0/oauth2PermissionGrants/<grant-id>"
+
+# List and delete app role assignments, including application permissions.
+az rest --method GET --url "https://graph.microsoft.com/v1.0/servicePrincipals/<service-principal-id>/appRoleAssignments"
+az rest --method DELETE --url "https://graph.microsoft.com/v1.0/servicePrincipals/<service-principal-id>/appRoleAssignments/<assignment-id>"
+
+# List and delete certificate credentials, such as a local developer certificate.
+az ad app credential list --id <app-id> --cert
+az ad app credential delete --id <app-id> --key-id <key-id> --cert
+```
+
+The identity that runs these commands needs the same kind of privileges as the identity that granted the access.
 
 ## Clean up registrations
 
