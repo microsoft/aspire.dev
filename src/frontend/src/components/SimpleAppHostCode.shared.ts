@@ -11,7 +11,9 @@ function shiftLine(line: number, offset: number): number {
   return line + offset;
 }
 
-function shiftRange(value: string, offset: number): string {
+// A collapsed range that starts at line 1 must keep covering the extra header lines
+// (imports, builder creation) that the TypeScript and Go samples add before line 1 of the C# sample.
+function shiftRange(value: string, offset: number, anchorFirstLine = false): string {
   const [startText, endText] = value.split('-');
   const start = Number.parseInt(startText, 10);
 
@@ -25,7 +27,7 @@ function shiftRange(value: string, offset: number): string {
     return value;
   }
 
-  const shiftedStart = shiftLine(start, offset);
+  const shiftedStart = anchorFirstLine && start === 1 ? 1 : shiftLine(start, offset);
   const shiftedEnd = shiftLine(end, offset);
 
   return shiftedStart === shiftedEnd ? `${shiftedStart}` : `${shiftedStart}-${shiftedEnd}`;
@@ -69,10 +71,10 @@ export function shiftCollapseValue(value: CollapseValueType, offset: number): Co
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => shiftRange(item, offset));
+    return value.map((item) => shiftRange(item, offset, true));
   }
 
-  return shiftRange(value, offset);
+  return shiftRange(value, offset, true);
 }
 
 const csharp = `
@@ -279,7 +281,7 @@ func main() {
 ${apiResource}
 
 	// Add frontend service and reference the API
-	frontend := builder.AddViteApp("frontend", "../frontend").
+	builder.AddViteApp("frontend", "../frontend").
 		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
 		WithReference(api)
 
