@@ -1669,7 +1669,51 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Безпека та ідентичність',
         'zh-CN': '安全与身份',
       },
-      items: [{ label: 'Keycloak', slug: 'integrations/security/keycloak' }],
+      items: [
+        { label: 'Keycloak', slug: 'integrations/security/keycloak' },
+        {
+          label: 'Microsoft Entra ID',
+          collapsed: true,
+          items: [
+            {
+              label: 'Overview',
+              slug: 'integrations/security/microsoft-entra-id',
+            },
+            {
+              label: 'Secure a web app and API',
+              slug: 'integrations/security/microsoft-entra-id/secure-web-and-api',
+            },
+            {
+              label: 'Redirect URIs and sign-in',
+              slug: 'integrations/security/microsoft-entra-id/redirect-uris-and-sign-in',
+            },
+            {
+              label: 'Client credentials',
+              slug: 'integrations/security/microsoft-entra-id/client-credentials',
+            },
+            {
+              label: 'Expose and call APIs',
+              slug: 'integrations/security/microsoft-entra-id/expose-and-call-apis',
+            },
+            {
+              label: 'Application roles',
+              slug: 'integrations/security/microsoft-entra-id/app-roles',
+            },
+            {
+              label: 'Existing registrations',
+              slug: 'integrations/security/microsoft-entra-id/existing-registrations',
+            },
+            {
+              label: 'Customize infrastructure',
+              slug: 'integrations/security/microsoft-entra-id/customize-infrastructure',
+            },
+            {
+              label: 'Lifecycle and permissions',
+              slug: 'integrations/security/microsoft-entra-id/lifecycle-and-permissions',
+            },
+          ],
+        },
+      ],
     },
     {
       label: 'Observability & logging',
