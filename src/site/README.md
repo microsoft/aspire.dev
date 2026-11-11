@@ -7,7 +7,7 @@ describes what is generated, the fidelity and the build times.
 
 ## Prerequisites
 
-- Node 24 and pnpm 11, outside the build only: the client bundle and icon sprite scripts, the API data script and
+- Node 24 and Bun 1.4, outside the build only: the client bundle and icon sprite scripts, the API data script and
   Playwright. The build itself runs no Node: Douze highlights the code blocks and downloads Pagefind's and Lightning
   CSS's native binaries on first use.
 - The .NET SDK 10 or later on `PATH`: the C# hovers of the code blocks (`hover-csharp` step).
@@ -31,11 +31,11 @@ Run from the repository root:
 
 ```bash
 # Node dependencies of the Astro folder (it still holds the API index script, esbuild and the client packages, Playwright)
-pnpm --dir src/frontend install --frozen-lockfile
+(cd src/frontend && bun install --frozen-lockfile)
 
 # API reference data: route index, cross references, search indexes, sidebars, and the copy of the API data the pages
 # read (again when the API data changes)
-pnpm --dir src/frontend exec tsx ../site/scripts/api/build-api-index.ts
+(cd src/frontend && bunx tsx ../site/scripts/api/build-api-index.ts)
 
 # assets: icon sprite and client bundle (again after a template or script change), and the build's commit for the
 # footer (again after a commit); the build makes the stylesheet

@@ -37,9 +37,13 @@ class SearchKeyboardNav {
   private activeIndex = -1;
   private wired = false;
   private suppressFocusinSync = false;
+    // Only a highlight the user moved (arrow keys, Home/End, Tab, focus)
+    // survives re-renders; otherwise each render re-highlights the first result.
+    private userNavigated = false;
   private readonly keydownHandler: (e: KeyboardEvent) => void;
   private readonly focusinHandler: (e: FocusEvent) => void;
   private readonly dialogStateHandler: () => void;
+    private readonly queryInputHandler: () => void;
   private readonly resultsContainerId = 'aspire-search-results';
   private readonly targetSelector =
     '.pagefind-ui__result-link, .pagefind-ui__button, a[data-api-search-link]';
@@ -48,6 +52,9 @@ class SearchKeyboardNav {
     this.dialog = dialog;
     this.keydownHandler = (e) => this.handleKey(e);
     this.focusinHandler = (e) => this.handleFocusIn(e);
+      this.queryInputHandler = () => {
+        this.userNavigated = false;
+      };
     this.dialogStateHandler = () => {
       this.input?.setAttribute('aria-expanded', this.dialog.open ? 'true' : 'false');
     };
@@ -69,6 +76,7 @@ class SearchKeyboardNav {
       this.dialog.addEventListener('keydown', this.keydownHandler, true);
       this.dialog.addEventListener('focusin', this.focusinHandler);
       this.dialog.addEventListener('close', this.dialogStateHandler);
+        input.addEventListener('input', this.queryInputHandler);
       this.wired = true;
     }
 
@@ -82,6 +90,11 @@ class SearchKeyboardNav {
       // reference is never broken by an upstream id assignment.
       resultsContainer.id = this.resultsContainerId;
       resultsContainer.setAttribute('role', 'listbox');
+        // Pagefind wraps each option link in list items and paragraphs. Make
+        // those wrappers presentational so the listbox owns its options.
+        resultsContainer
+          .querySelectorAll('li, p')
+          .forEach((el) => el.setAttribute('role', 'none'));
     }
 
     const newTargets = Array.from(
@@ -105,7 +118,9 @@ class SearchKeyboardNav {
     // Capture the previously-active *result link* (not button). Buttons
     // are stable across renders so they don't need preservation, and we
     // don't want to auto-park the highlight on them.
+      const previousActive = this.activeIndex >= 0 ? this.targets[this.activeIndex] : undefined;
     const previousLink =
+        this.userNavigated &&
       this.activeIndex >= 0 &&
       this.targets[this.activeIndex] instanceof HTMLAnchorElement &&
       this.targets[this.activeIndex]?.classList.contains('pagefind-ui__result-link')
@@ -131,6 +146,9 @@ class SearchKeyboardNav {
       }
     }
     this.targets = newTargets;
+      // Re-index the surviving active element so `setActive` clears it rather
+      // than whichever new target now occupies its old index.
+      this.activeIndex = previousActive ? this.targets.indexOf(previousActive) : -1;
 
     if (this.targets.length === 0) {
       this.activeIndex = -1;
@@ -203,6 +221,7 @@ class SearchKeyboardNav {
     } else {
       this.input?.removeAttribute('aria-activedescendant');
     }
+      if (moveFocus) this.userNavigated = true;
     if (moveFocus && document.activeElement !== el) {
       this.suppressFocusinSync = true;
       el.focus({ preventScroll: true });
@@ -255,7 +274,11 @@ class SearchKeyboardNav {
     const target = e.target;
     if (!(target instanceof HTMLElement)) return;
     const idx = this.targets.indexOf(target);
-    if (idx >= 0 && idx !== this.activeIndex) {
+      if (idx < 0) return;
+      // Focusing the auto-highlighted result still counts as navigation, so
+      // a later re-render must not move the highlight away from focus.
+      this.userNavigated = true;
+      if (idx !== this.activeIndex) {
       this.setActive(idx, /* moveFocus */ false, /* scroll */ false);
     }
   }
@@ -264,6 +287,7 @@ class SearchKeyboardNav {
     this.dialog.removeEventListener('keydown', this.keydownHandler, true);
     this.dialog.removeEventListener('focusin', this.focusinHandler);
     this.dialog.removeEventListener('close', this.dialogStateHandler);
+      this.input?.removeEventListener('input', this.queryInputHandler);
   }
 }
 

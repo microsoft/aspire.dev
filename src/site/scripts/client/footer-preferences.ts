@@ -1,12 +1,9 @@
 // Ported from src/frontend/src/components/FooterPreferences.astro (<script>), M3 of docs/douze-migration-plan.md.
 // Astro view transition events removed: every page load is a full document load.
-import { isApiReferencePath, stripApiReferenceLocale } from '@utils/api-reference-routes';
 import { getStoredPreference, setStoredPreference } from '@utils/browser-storage';
+import { getLanguageSwitchPath, getSelectedLocaleForPath } from '@utils/language-switch';
 import {
-  addLocaleToPath,
-  getLocaleFromPath,
   normalizeLocale,
-  stripLocaleFromPath,
   DEFAULT_LOCALE,
   PREFERRED_LOCALE_STORAGE_KEY,
   appendSearchAndHash,
@@ -118,10 +115,7 @@ function initFooterPreferences() {
     const storedPreferredLocale = normalizeLocale(
       getStoredPreference(PREFERRED_LOCALE_STORAGE_KEY)
     );
-    const currentLang =
-      getLocaleFromPath(currentPath) ??
-      (isApiReferencePath(currentPath) ? storedPreferredLocale : undefined) ??
-      DEFAULT_LOCALE;
+    const currentLang = getSelectedLocaleForPath(currentPath, storedPreferredLocale);
     languageSelect.value = getLanguageOptionValue(currentLang);
     languageSelect.dispatchEvent(new Event('aspire:custom-select-sync'));
 
@@ -129,17 +123,8 @@ function initFooterPreferences() {
       const target = e.target as HTMLSelectElement;
       const newLang = normalizeLocale(target.value) ?? DEFAULT_LOCALE;
       const currentPath = window.location.pathname;
-      const isApiReference = isApiReferencePath(currentPath);
       setStoredPreference(PREFERRED_LOCALE_STORAGE_KEY, newLang);
-
-      // Remove current language prefix if present
-      const pathWithoutLang =
-        stripApiReferenceLocale(currentPath) ?? stripLocaleFromPath(currentPath);
-
-      // Build new URL
-      const newPath = isApiReference
-        ? pathWithoutLang
-        : addLocaleToPath(pathWithoutLang, newLang);
+      const newPath = getLanguageSwitchPath(currentPath, newLang);
 
       window.location.href = appendSearchAndHash(
         newPath,

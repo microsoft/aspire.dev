@@ -4,7 +4,7 @@
 // Every url, slug and anchor comes from the route utilities of the Astro site (src/frontend/src/utils), loaded
 // unmodified through frontend.ts, so the pages keep the urls they have today.
 //
-//   pnpm --dir src/frontend exec tsx ../site/scripts/api/build-api-index.ts
+//   (cd src/frontend && bunx tsx ../site/scripts/api/build-api-index.ts)
 //
 // Writes src/site/data/api/ (replaced on every run):
 //   routes/indexes.json                 the two landing pages

@@ -44,7 +44,7 @@ function loadEsbuild() {
       return createRequire(base)('esbuild');
     } catch {}
   }
-  throw new Error('esbuild not found: install it (pnpm --dir src/frontend add -D esbuild) or run pnpm install.');
+  throw new Error('esbuild not found: run `bun install` in src/frontend.');
 }
 
 const esbuild = loadEsbuild();

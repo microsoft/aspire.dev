@@ -26,7 +26,6 @@ export function initHomeEnvironment(): void {
     let activeId = root.dataset.environmentState ?? 'local';
     let stageVisible = false;
     let manuallyPaused = false;
-    let panelTransitionTimer = 0;
 
     const updateControl = () => {
       motionControl.hidden = reducedMotion.matches;
@@ -51,7 +50,6 @@ export function initHomeEnvironment(): void {
     };
 
     const settlePanels = () => {
-      window.clearTimeout(panelTransitionTimer);
       panels.forEach((panel) => {
         const selected = panel.dataset.environmentPanel === activeId;
         panel.hidden = !selected;
@@ -67,7 +65,6 @@ export function initHomeEnvironment(): void {
       const previousId = activeId;
       const previousPanel = panels.find((panel) => panel.dataset.environmentPanel === previousId);
       const nextPanel = panels.find((panel) => panel.dataset.environmentPanel === id);
-      window.clearTimeout(panelTransitionTimer);
       panels.forEach((panel) => delete panel.dataset.transition);
       activeId = id;
       root.dataset.environmentState = id;
@@ -97,7 +94,25 @@ export function initHomeEnvironment(): void {
         });
         void nextPanel.offsetWidth;
         nextPanel.dataset.transition = 'fade-in';
-        panelTransitionTimer = window.setTimeout(settlePanels, 200);
+        // getAnimations() flushes style so the fade starts now; a click-time timer could
+        // otherwise remove the attribute before a delayed frame ever started the animation.
+        const fade = nextPanel
+          .getAnimations()
+          .find(
+            (animation) =>
+              animation instanceof CSSAnimation &&
+              animation.animationName === 'environment-panel-fade-in'
+          );
+        if (fade) {
+          fade.finished.then(
+            () => {
+              if (activeId === id && nextPanel.dataset.transition) settlePanels();
+            },
+            () => {}
+          );
+        } else {
+          settlePanels();
+        }
       } else {
         settlePanels();
       }

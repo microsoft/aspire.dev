@@ -3,7 +3,7 @@
 // only kept to regenerate them while src/frontend still exists.
 //
 // Run from the repository root (tsx evaluates the TypeScript modules):
-//   pnpm --dir src/frontend exec tsx ../site/scripts/sidebar-from-ts.mjs
+//   (cd src/frontend && bunx tsx ../site/scripts/sidebar-from-ts.mjs)
 //
 // Output shape (also written as a comment at the top of each file):
 //   topic:  { label: <English>, translations?: { <lang tag>: <label> }, link, icon, badge?, id?, items }

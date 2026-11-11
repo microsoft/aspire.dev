@@ -3,8 +3,8 @@
   the current link has `active` and its groups `open`) and sb_nested. Groups are <details> open when they hold the
   current page or are not `collapsed`; each has an <sl-sidebar-restore data-index> (SidebarRestorePoint.astro) with a
   running index (`sb_group_index`, which the include passes back to the caller: include assignments reach the
-  parent scope). Internal links get the locale prefix (sl_prefix), except the API reference (English only, as
-  route-data-middleware.ts did). `attrs` of links are not rendered (the data has none).
+  parent scope). Internal links get the locale prefix (sl_prefix), except the English-only pages (the API reference,
+  /hub/: partials/default-locale-only), as route-data-middleware.ts does. `attrs` of links are not rendered (the data has none).
   Root class: cid-sl-sidebar-sublist.
 {%- endcomment -%}
 <ul class="{% unless sb_nested %}top-level {% endunless %}cid-sl-sidebar-sublist">
@@ -19,7 +19,7 @@
 {%- else -%}
 {%- assign sb_href = sb_entry.link -%}
 {%- assign sb_first = sb_href | slice: 0 -%}
-{%- if sb_first == "/" and sl_prefix != "" -%}{%- unless sb_href contains "/reference/api/" -%}{%- assign sb_href = sl_prefix | append: sb_href -%}{%- endunless -%}{%- endif %}
+{%- if sb_first == "/" and sl_prefix != "" -%}{%- assign dlo_path = sb_href | split: "#" | first -%}{%- include "partials/default-locale-only" -%}{%- unless dlo -%}{%- assign sb_href = sl_prefix | append: sb_href -%}{%- endunless -%}{%- endif %}
 <a href="{{ sb_href }}"{% if sb_entry.active %} aria-current="page"{% endif %}{% unless sb_nested %} class="large"{% endunless %}><span>{{ sb_label }}</span>{% if sb_badge_text %}{% badge sb_badge_text, variant: sb_badge_variant, size: nil, class: nil %}{% endif %}</a>
 {%- endif %}
 </li>

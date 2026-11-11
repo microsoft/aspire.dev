@@ -3,7 +3,7 @@
 // src/site has no node_modules of its own yet, and pnpm does not hoist transitive packages (remark-parse,
 // remark-mdx, acorn, yaml) to the top of src/frontend/node_modules: they live in node_modules/.pnpm/node_modules.
 // This resolver looks in both places and imports the package's ESM entry by file URL, so the converter runs with
-// `pnpm --dir src/frontend exec tsx ../site/scripts/convert-mdx/convert.ts` without adding dependencies.
+// `(cd src/frontend && bunx tsx ../site/scripts/convert-mdx/convert.ts)` without adding dependencies.
 // CONVERT_MDX_NODE_MODULES overrides the folder.
 
 import { existsSync, readFileSync } from 'node:fs';

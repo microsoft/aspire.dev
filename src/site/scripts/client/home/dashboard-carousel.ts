@@ -385,8 +385,9 @@ export function initDashboardCarousel(): void {
           ) {
             viewportActivated = true;
             clearViewportFailSafe();
+            // Playback cannot advance before activation, so the active view is either the
+            // first slide or one the reader chose; keep it rather than resetting to 0.
             progress = 0;
-            setActive(0);
             updateProgressUI();
           } else if (failSafeEligible && viewportFailSafeTimer === null && !viewportFailSafeReady) {
             viewportFailSafeTimer = window.setTimeout(() => {

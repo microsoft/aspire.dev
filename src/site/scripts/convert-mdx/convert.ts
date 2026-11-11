@@ -2,7 +2,7 @@
 //
 // Usage, from the repository root:
 //
-//   pnpm --dir src/frontend exec tsx ../site/scripts/convert-mdx/convert.ts [options]
+//   (cd src/frontend && bunx tsx ../site/scripts/convert-mdx/convert.ts [options])
 //
 // With no option, converts the whole content:
 //   src/frontend/src/content/docs/**/*.mdx  -> src/site/content/**/*.md   (English, ja/ and the locale index pages;

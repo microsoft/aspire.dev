@@ -1,7 +1,7 @@
 // Checks that src/site/data/api/xref-names.json renders every <ApiReference> of the docs exactly as the Astro
 // component does today.
 //
-//   pnpm --dir src/frontend exec tsx ../site/scripts/api/check-xref.ts
+//   (cd src/frontend && bunx tsx ../site/scripts/api/check-xref.ts)
 //
 // Scans every `<ApiReference ... />` tag of src/frontend/src/content/docs/**/*.mdx, resolves it with today's
 // resolver (`resolveApiReference` of src/frontend/src/utils/api-reference.ts) and with xref-names.json, and
