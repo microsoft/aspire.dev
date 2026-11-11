@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { dismissCookieConsentIfVisible, getSiteNavigationLink } from '@tests/e2e/helpers';
 import { createRequire } from 'node:module';
@@ -52,6 +53,21 @@ async function openSearchDialog(page: Page): Promise<boolean> {
 async function typeSearchQuery(page: Page, query: string): Promise<void> {
   const input = page.locator('site-search dialog input.pagefind-ui__search-input');
   await input.fill(query);
+}
+
+// Scans the open, populated search UI (query combobox and results listbox) in
+// its current selection state.
+async function expectOpenSearchDialogAccessible(page: Page, state: string): Promise<void> {
+  const results = await new AxeBuilder({ page })
+    .include('site-search dialog[open] #starlight__search')
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+  const violations = results.violations.map(({ id, impact, nodes }) => ({
+    id,
+    impact,
+    nodes: nodes.map(({ target, failureSummary }) => ({ target, failureSummary })),
+  }));
+  expect(violations, `${state}: ${JSON.stringify(violations, null, 2)}`).toEqual([]);
 }
 
 async function navigateClient(page: Page, navigate: () => Promise<unknown>): Promise<void> {
@@ -579,6 +595,192 @@ test.describe('site search dialog', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(input).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('auto-highlights the first result when later results render first', async ({ page }) => {
+    // Pagefind renders each result once its own fragment loads. Hold the
+    // first result's fragment so later results render before it.
+    let fragmentRequests = 0;
+    let releaseFirstFragment = () => {};
+    const firstFragmentReleased = new Promise<void>((resolve) => {
+      releaseFirstFragment = resolve;
+    });
+    await page.route('**/pagefind/fragment/**', async (route) => {
+      if (fragmentRequests++ === 0) await firstFragmentReleased;
+      await route.continue();
+    });
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const ready = await openSearchDialog(page);
+    test.skip(!ready, 'Pagefind is not available in dev mode; keyboard nav runs against astro preview.');
+
+    await typeSearchQuery(page, 'aspire');
+
+    const dialog = page.locator('site-search dialog[open]');
+    const input = dialog.locator('input.pagefind-ui__search-input');
+    const firstResult = dialog.locator('.pagefind-ui__result').first();
+    const activeTargets = dialog.locator('[data-search-active="true"]');
+
+    await expect(activeTargets).toHaveCount(1);
+    await expect(firstResult.locator('.pagefind-ui__result-link')).toHaveCount(0);
+
+    releaseFirstFragment();
+
+    const firstLink = firstResult.locator('.pagefind-ui__result-link').first();
+    await expect(firstLink).toBeVisible();
+    await expect(firstLink).toHaveAttribute('data-search-active', 'true');
+    await expect(firstLink).toHaveAttribute('aria-selected', 'true');
+    await expect(activeTargets).toHaveCount(1);
+    const firstId = (await firstLink.getAttribute('id'))!;
+    await expect(input).toHaveAttribute('aria-activedescendant', firstId);
+    await expectOpenSearchDialogAccessible(page, 'after out-of-order first result');
+
+    const firstHref = (await firstLink.getAttribute('href'))!;
+    await input.press('Enter');
+    await expect(page).toHaveURL(new URL(firstHref, page.url()).href);
+  });
+
+  test('keeps the highlight on a focused result when an earlier result renders later', async ({
+    page,
+  }) => {
+    let fragmentRequests = 0;
+    let releaseFirstFragment = () => {};
+    const firstFragmentReleased = new Promise<void>((resolve) => {
+      releaseFirstFragment = resolve;
+    });
+    await page.route('**/pagefind/fragment/**', async (route) => {
+      if (fragmentRequests++ === 0) await firstFragmentReleased;
+      await route.continue();
+    });
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const ready = await openSearchDialog(page);
+    test.skip(!ready, 'Pagefind is not available in dev mode; keyboard nav runs against astro preview.');
+
+    await typeSearchQuery(page, 'aspire');
+
+    const dialog = page.locator('site-search dialog[open]');
+    const firstResult = dialog.locator('.pagefind-ui__result').first();
+    const activeTargets = dialog.locator('[data-search-active="true"]');
+
+    await expect(activeTargets).toHaveCount(1);
+    await expect(firstResult.locator('.pagefind-ui__result-link')).toHaveCount(0);
+
+    // Focus the result that was auto-highlighted before the first one loaded.
+    const focusedHref = (await activeTargets.getAttribute('href'))!;
+    await activeTargets.focus();
+    await expect(activeTargets).toBeFocused();
+
+    releaseFirstFragment();
+
+    const firstLink = firstResult.locator('.pagefind-ui__result-link').first();
+    await expect(firstLink).toBeVisible();
+    await expect(firstLink).not.toHaveAttribute('data-search-active', 'true');
+    await expect(firstLink).not.toHaveAttribute('aria-selected', 'true');
+    await expect(activeTargets).toHaveCount(1);
+    await expect(activeTargets).toHaveAttribute('href', focusedHref);
+    await expect(activeTargets).toBeFocused();
+    await expectOpenSearchDialogAccessible(page, 'after preserving the focused result');
+  });
+
+  test('a query change hands the highlight back to the new first result', async ({ page }) => {
+    // A deterministic backend whose results for the second query still
+    // include the user's selection, but not first.
+    const pages = {
+      first: '/get-started/install-cli/',
+      selected: '/get-started/app-host/',
+      third: '/get-started/aspire-sdk/',
+      newFirst: '/get-started/deploy-first-app/',
+    };
+    await page.route('**/pagefind/pagefind.js', (route) =>
+      route.fulfill({
+        contentType: 'text/javascript',
+        body: `
+          const pages = ${JSON.stringify(pages)};
+          const result = (id) => ({
+            id,
+            score: 1,
+            words: [],
+            data: async () => ({
+              url: pages[id],
+              meta: { title: id },
+              excerpt: id,
+              sub_results: [],
+              content: id,
+              word_count: 1,
+              filters: {},
+              anchors: [],
+              weighted_locations: [],
+              locations: [],
+              raw_content: id,
+              raw_url: pages[id],
+            }),
+          });
+          const resultsFor = (term) =>
+            term === 'alpha' ? ['first', 'selected', 'third']
+            : term === 'alpha beta' ? ['newFirst', 'selected']
+            : [];
+          export async function options() {}
+          export async function filters() { return {}; }
+          export async function preload() {}
+          export async function search(term) {
+            const results = resultsFor(term).map(result);
+            return { results, filters: {}, unfilteredResultCount: results.length };
+          }
+        `,
+      })
+    );
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const ready = await openSearchDialog(page);
+    test.skip(
+      !ready,
+      'Pagefind is not available in dev mode; keyboard nav runs against astro preview.'
+    );
+
+    const dialog = page.locator('site-search dialog[open]');
+    const input = dialog.locator('input.pagefind-ui__search-input');
+    const links = dialog.locator('.pagefind-ui__result-link');
+    const activeTargets = dialog.locator('[data-search-active="true"]');
+
+    await typeSearchQuery(page, 'alpha');
+    await expect(links).toHaveCount(3);
+    await expect(links.first()).toHaveAttribute('data-search-active', 'true');
+
+    // Explicitly select the second result.
+    await input.press('ArrowDown');
+    const selected = dialog.locator(`.pagefind-ui__result-link[href="${pages.selected}"]`);
+    await expect(selected).toHaveAttribute('data-search-active', 'true');
+    await expect(selected).toBeFocused();
+
+    // Return to the input and refine the query; the selection survives in the
+    // new results, but the new first result must take over the highlight.
+    await input.focus();
+    await typeSearchQuery(page, 'alpha beta');
+    await expect(links).toHaveCount(2);
+    const newFirst = links.first();
+    await expect(newFirst).toHaveAttribute('href', pages.newFirst);
+    await expect(selected).toBeVisible();
+
+    await expect(newFirst).toHaveAttribute('data-search-active', 'true');
+    await expect(newFirst).toHaveAttribute('aria-selected', 'true');
+    await expect(selected).not.toHaveAttribute('data-search-active', 'true');
+    await expect(selected).not.toHaveAttribute('aria-selected', 'true');
+    await expect(activeTargets).toHaveCount(1);
+    await expect(input).toHaveAttribute(
+      'aria-activedescendant',
+      (await newFirst.getAttribute('id'))!
+    );
+    await expectOpenSearchDialogAccessible(page, 'after a query change');
+
+    await input.press('Enter');
+    await expect(page).toHaveURL(new URL(pages.newFirst, page.url()).href);
   });
 
   test('arrow nav also cycles through the C#/TypeScript API buttons', async ({ page }) => {
