@@ -195,7 +195,7 @@ async function capture() {
   return { done, failed };
 }
 
-// Theme contract: every shot is captured once per theme (dark = base name or "-dark", light = "-light"),
+// Theme contract: every shot is captured once per theme (dark = the bare name, light = "-light"; a "-dark" suffix is never used),
 // and docs must reference both through <ThemeImage dark light alt /> so the right one shows per site theme.
 function checkThemePairs(): string[] {
   const issues: string[] = [];
@@ -209,7 +209,8 @@ function checkThemePairs(): string[] {
   walk(docs);
   for (const s of manifest.shots) {
     const { dark, light } = s.out;
-    const expected = dark.replace(/-dark(\.png)$/, "$1").replace(/\.png$/, "-light.png");
+    if (/-dark\.[a-z]+$/.test(dark) || (s.also?.dark ?? []).some((d) => /-dark\.[a-z]+$/.test(d))) issues.push(`${s.id}: dark names must not use a "-dark" suffix`);
+    const expected = dark.replace(/\.png$/, "-light.png");
     if (light !== expected && !s.legacyLight) issues.push(`${s.id}: light "${light}" should be "${expected}"`);
     for (const f of [dark, light]) if (!existsSync(join(assets, f))) issues.push(`${s.id}: missing ${f}`);
     const darks = [dark, ...(s.also?.dark ?? [])];
