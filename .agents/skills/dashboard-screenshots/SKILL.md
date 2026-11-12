@@ -104,3 +104,12 @@ The dashboard persists its theme in the `currentTheme` cookie (`Dark`/`Light`), 
 ## Do not shrink the viewport
 
 Never set a small per-shot `height` (under ~700): the dashboard footer and layout collapse and the capture shows cut-off content. Use `autoCrop` (trims trailing blank space) or `clip` (element crop). `verify` flags any non-clip image under half the viewport height; open every flagged image and check it shows the intended UI.
+
+## Intent lessons from review
+
+- Quote comma lists: `--only "a,b"` (unquoted PowerShell splits it and captures nothing).
+- `js` steps run in Playwright, not the page; use `page.evaluate` for DOM access.
+- Notifications only appear after an action: trigger Rebuild on `webfrontend` (wait ~15s) before opening the bell or View response.
+- Error logs and traces come from `apiservice` (`/forecast/unavailable`), not `webfrontend`.
+- Metrics filters: use `webfrontend` > `Microsoft.AspNetCore.Hosting` > `http.server.request.duration`, and open a filter that exists (`http.response.status_code`).
+- `sidebar-grayed-resources` shows dimmed resources that have no data for the current page.
