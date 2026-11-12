@@ -1,7 +1,13 @@
 {%- comment -%}
-  A code block for the chrome (Starlight's <Code> in the install CLI modal): a fence as the `markdown` step writes
-  them, with frame=none, which the `highlight-chrome` step renders in Expressive Code's markup once the `layout` step
-  wrote the chrome (the `highlight` step runs before it).
+  A one-line code block of the chrome (Starlight's <Code> in the install CLI modal), with frame=none, in the markup
+  that templates/code/block.liquid gives a highlighted fence. The layouts write the chrome after the `highlight` step,
+  and the commands are the same on every page, so the highlighted line comes from data/chrome_code.yml instead of a
+  `highlight` step going over every laid out page. The copy texts are those of code/block.liquid for the page's locale.
   Include arguments: cp_code (text), cp_lang.
 {%- endcomment -%}
-<pre data-lang="{{ cp_lang }}" data-meta="frame=none"><code>{{ cp_code }}</code></pre>
+{%- assign cp_entry = chrome_code | where: "code", cp_code | first -%}
+{%- assign cp_texts = code_texts[lang] | default: code_texts.en -%}
+{%- assign cp_overrides = i18n[locale].expressiveCode -%}
+{%- assign cp_copy = cp_overrides.copyButtonTooltip | default: cp_texts.copy -%}
+{%- assign cp_copied = cp_overrides.copyButtonCopied | default: cp_texts.copied -%}
+<div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="{{ cp_lang }}"><code><div class="ec-line"><div class="code">{% if cp_entry %}{{ cp_entry.html | raw }}{% else %}{{ cp_code }}{% endif %}</div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="{{ cp_copy }}" data-copied="{{ cp_copied }}" data-code="{{ cp_code }}"><div></div></button></div></figure></div>
