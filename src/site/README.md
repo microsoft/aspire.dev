@@ -12,8 +12,9 @@ describes what is generated, the fidelity and the build times.
   CSS's native binaries on first use.
 - The .NET SDK 10 or later on `PATH`: the C# hovers of the code blocks (`hover-csharp` step).
 - Douze (below).
-- About 8 GB of memory for a clean build (a build with the disk cache warm needs about 2 GB). A lower `-p` holds less,
-  for a slower build: about 6.5 GB at `-p 4` (32 s instead of 19 s on a 14-core M4 Pro).
+- About 8 GB of memory for a clean build (a build with the disk cache warm needs 3 to 5 GB). `-p` defaults to the
+  number of cores; neither a lower nor a higher one is faster: about the same from 7 to 14 on a 14-core M4 Pro, and
+  about 50 s instead of 25 s at 28.
 
 ## Install Douze
 
@@ -54,10 +55,10 @@ Into StaticHost's web root, what production serves:
 douze -s src/site -o src/statichost/StaticHost/wwwroot
 ```
 
-The first build takes about half a minute. The disk cache in
-`src/site/.douze/` makes later builds incremental: a build with nothing changed takes a few seconds. `--no-cache`
-forces a clean build, `--timeline timeline.html` writes a timeline of the steps, `douze doctor -s src/site` checks
-the requirements without building.
+The first build takes about 25 s on a 14-core M4 Pro (Astro: 3.5 min). The disk cache in `src/site/.douze/` makes
+later builds incremental: about 7 s after an edit to an article, 3 s with nothing changed. `--no-cache` ignores the
+cache and does not write it (delete `src/site/.douze/` for a clean build that fills it), `--timeline timeline.html`
+writes a timeline of the steps, `douze doctor -s src/site` checks the requirements without building.
 
 ## Serve while editing
 

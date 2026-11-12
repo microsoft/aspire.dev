@@ -197,14 +197,18 @@ or different in *colors* or in *markup*.
 
 ### Build time
 
-| | Astro (`pnpm build` in `src/frontend`) | Douze |
+| | Astro (`bun run build` in `src/frontend`) | Douze 0.5.0 |
 |---|---|---|
-| Clean build | 8 min 14 s | 28 s with the native highlighter (the default); 1 min 55 s to 2 min 40 s with the Node worker |
-| Rebuild, nothing changed | 8 min 14 s | 3 s (every unit replayed from the disk cache, Pagefind's included) |
-| One article changed | 8 min 14 s | a few seconds with `douze watch` / `douze serve` (the page, its twin, the search index) |
+| Clean build | 3 min 27 s, 15.4 GB | 22 to 27 s, 7 to 9 GB |
+| One article changed | 2 min 33 s, 13.8 GB | 6.6 to 7.3 s, 4.1 to 4.6 GB |
+| Rebuild, nothing changed | (every page rendered again) | 3 s, 2.7 GB (every unit replayed from the disk cache, Pagefind's included) |
 
-Measured on the same machine (Apple Silicon, 12 cores); the Douze rows: see "Before and after the native
-highlighter" and "Before and after the twoslash step" below.
+Measured on 2026-11-12 on a 14-core M4 Pro (48 GB), both sites at aspire.dev `e0fd8488` (the Douze site with the
+content converted from it), with `/usr/bin/time -l` (peak: the largest process). Clean: Astro in a fresh worktree
+(no `dist/`, no `.astro/`), Douze without `.douze/`; Douze's downloaded tools and Astro's `node_modules` installed.
+One article changed: a line appended to `get-started/app-host` in both, built over the previous output and caches;
+Astro 6 restores some cached pages but renders all 33,173 again. Each Astro build ran once, the Douze ones three times.
+The earlier measurements (Astro 8 min 14 s with pnpm, Douze 28 s on 2026-10-22) are in the sections below.
 
 #### Before and after the native highlighter
 
