@@ -96,6 +96,15 @@ The run prints captured/failed counts and lists unreproducible or skipped images
 - Needs other setups: login, terminals, copilot, mcp-dialog, standalone, dashboard-run-selector, `trace-view-filter-advanced`, `trace-page-from-exemplars`, `project-graphs`, `settings-manage-telemetry`.
 - Not dashboard captures: architecture diagrams, `.excalidraw` files, GIFs.
 
+## Dashboard images outside `assets/dashboard` (manual, starter-based)
+
+These are captured ad hoc against real starters, not the demo AppHost:
+
+- `assets/get-started/{csharp,javascript}-aspire-dashboard(-light).png`: `aspire new aspire-starter` / `aspire-ts-starter` with `--non-interactive --use-config-source false`, then `aspire run --non-interactive` (run it in the background; it blocks). Capture `/resources` at 1100x300 (C#) or 1100x400 (JS), 2x, message bars hidden.
+- `assets/fundamentals/dashboard-unresolved-parameters-message(-light).png`: add `addParameter("api-key", { secret: true })` with no value; 1000x520 @2x, hide the feedback bar with `.dashboard-message-bar.intent-info{display:none!important}`.
+- `assets/fundamentals/health-checks-dashboard-status(-light).png`: add `.withHttpHealthCheck({ path: "/health" })`, select the resource, clip 1100x345 so the Status card shows Health state.
+- Still old UI and unrefreshed: `whats-new/dashboard-update-notification` (needs a newer-version "Update now" bar), `integrations/custom-integrations/*` (need the MailDev/MailKit sample apps), `integrations/efcore/dashboard-post-migration-*`. Version-specific `whats-new/aspire-9.x` images stay historical.
+
 ## Theme gotcha
 
 The dashboard persists its theme in the `currentTheme` cookie (`Dark`/`Light`), which `localStorage.clear()` does not reset. `run.ts` clears cookies and sets the cookie per shot, and treats a capture as failed unless `documentElement.dataset.theme` matches the requested theme. After a run, scan mean luminance: `-light` files should be bright, all others dark.
