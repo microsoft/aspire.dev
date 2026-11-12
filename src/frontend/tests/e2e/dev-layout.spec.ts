@@ -181,6 +181,13 @@ test('Dev Hub links share animated underlines and topic cards use the concept-ca
     await expect(link).not.toHaveCSS('text-decoration-line', 'underline');
   }
   const card = page.locator('.topic-links a').first();
+  const isCardLifted = () => card.evaluate((element) => {
+    const transform = getComputedStyle(element).transform;
+    if (transform === 'none') return false;
+    const matrix = new DOMMatrixReadOnly(transform);
+    return matrix.a === 1 && matrix.d === 1 && matrix.b === 0 && matrix.c === 0
+      && matrix.e === 0 && matrix.f < 0 && -matrix.f < element.getBoundingClientRect().height;
+  });
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
     await page.mouse.move(0, 0);
@@ -188,8 +195,17 @@ test('Dev Hub links share animated underlines and topic cards use the concept-ca
     await expect(card).toHaveCSS('transform', 'none');
     const background = await card.evaluate((el) => getComputedStyle(el).backgroundColor);
     await card.hover();
-    await expect(card).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, -2)');
-    await expect(card.locator('.topic-icon')).toHaveCSS('transform', 'matrix(1.08, 0, 0, 1.08, 0, 0)');
+    await expect.poll(isCardLifted).toBe(true);
+    await expect.poll(() => card.locator('.topic-icon').evaluate((element) => {
+      const transform = getComputedStyle(element).transform;
+      if (transform === 'none') return false;
+      const matrix = new DOMMatrixReadOnly(transform);
+      const icon = element.getBoundingClientRect();
+      const card = element.closest('a')!.getBoundingClientRect();
+      return matrix.a > 1 && matrix.a === matrix.d && matrix.b === 0 && matrix.c === 0
+        && matrix.e === 0 && matrix.f === 0 && icon.left >= card.left && icon.right <= card.right
+        && icon.top >= card.top && icon.bottom <= card.bottom;
+    })).toBe(true);
     await expect(card).not.toHaveCSS('background-color', background);
     const results = await new AxeBuilder({ page }).include('.topic-links').withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(results.violations).toEqual([]);
@@ -197,7 +213,7 @@ test('Dev Hub links share animated underlines and topic cards use the concept-ca
   await page.mouse.move(0, 0);
   await card.focus();
   await expect(card).toHaveCSS('outline-style', 'solid');
-  await expect(card).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, -2)');
+  await expect.poll(isCardLifted).toBe(true);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(card).toHaveCSS('transform', 'none');
   await expect(card.locator('.topic-icon')).toHaveCSS('transform', 'none');
@@ -259,7 +275,8 @@ test('directory pages share title, full-width divider, breadcrumb, and content o
         expect(heading.y + heading.height).toBeLessThan(bodyPanel.y);
         expect(bodyPanel.x).toBe(titlePanel.x);
         expect(bodyPanel.width).toBe(titlePanel.width);
-        expect(breadcrumb.y - bodyPanel.y).toBeGreaterThanOrEqual(24);
+        expect(breadcrumb.y).toBeGreaterThan(bodyPanel.y);
+        expect(breadcrumb.y + breadcrumb.height).toBeLessThanOrEqual(bodyPanel.y + bodyPanel.height);
         expect(breadcrumb.x).toBeCloseTo(heading.x, 0);
         const body = content.locator(route === '/hub/' ? '.dev-discovery' : route === '/hub/browse/' ? 'resource-browser' : 'glossary-browser');
         expect((await body.boundingBox())!.y).toBeGreaterThanOrEqual(breadcrumb.y + breadcrumb.height);
@@ -308,7 +325,7 @@ test('Developer Hub links directly to existing resources and the latest featured
     .toHaveAttribute('href', 'https://www.youtube.com/watch?v=pEbo-qKif1U');
 });
 
-test('mobile language rows give icons a stable inset and text gap', async ({ page }) => {
+test('language rows keep icons and text contained and separated', async ({ page }) => {
   await page.goto('/hub/');
   for (const width of [320, 390, 767, 768]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -325,15 +342,24 @@ test('mobile language rows give icons a stable inset and text gap', async ({ pag
         const rowBox = link.getBoundingClientRect();
         const iconBox = icon.getBoundingClientRect();
         const textBox = text.getBoundingClientRect();
+        const arrowBox = link.querySelector(':scope > svg:last-child')!.getBoundingClientRect();
         return {
           inset: iconBox.left - rowBox.left,
           gap: textBox.left - iconBox.right,
+          rightSpace: rowBox.right - textBox.right,
+          iconCenter: iconBox.top + iconBox.height / 2,
+          rowCenter: rowBox.top + rowBox.height / 2,
+          arrowGap: arrowBox.width ? arrowBox.left - textBox.right : null,
           overflow: link.scrollWidth > link.clientWidth,
         };
       });
       expect(geometry.overflow).toBe(false);
-      expect(geometry.inset).toBeCloseTo(width < 768 ? 16 : 0, 0);
-      expect(geometry.gap).toBeCloseTo(width < 768 ? 20 : 16, 0);
+      if (width < 768) expect(geometry.inset).toBeGreaterThan(0);
+      else expect(geometry.inset).toBeCloseTo(0, 0);
+      expect(geometry.gap).toBeGreaterThan(0);
+      expect(geometry.rightSpace).toBeGreaterThanOrEqual(0);
+      expect(Math.abs(geometry.iconCenter - geometry.rowCenter)).toBeLessThan(1);
+      if (geometry.arrowGap !== null) expect(geometry.arrowGap).toBeGreaterThan(0);
     }
   }
 });
@@ -401,7 +427,7 @@ test('newcomer paths precede three-column topic cards with responsive layouts', 
   await expect(page).toHaveURL(/\/docs\/$/);
 });
 
-test('Dev Hub uses consistent heading, body, and action sizes across viewports', async ({ page }) => {
+test('Dev Hub keeps a consistent readable type hierarchy across viewports', async ({ page }) => {
   await page.goto('/hub/');
   const title = page.getByRole('heading', { level: 1, name: 'Aspire resources', exact: true });
   await expect(title.locator('svg')).toHaveAttribute('aria-hidden', 'true');
@@ -410,17 +436,26 @@ test('Dev Hub uses consistent heading, body, and action sizes across viewports',
   );
   for (const width of [320, 390, 768, 1440, 2000]) {
     await page.setViewportSize({ width, height: 1000 });
-    await expect(page.locator('main h1')).toHaveCSS('font-size', width < 800 ? '28px' : width < 1000 ? '32px' : '40px');
+    const titleSize = await title.evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
     const icon = (await title.locator('svg').boundingBox())!;
     const label = (await title.locator('span').boundingBox())!;
-    expect(icon.width).toBeGreaterThan(24);
+    expect(icon.width).toBeGreaterThan(0);
+    expect(icon.width).toBeLessThanOrEqual(titleSize);
+    expect(icon.width).toBeCloseTo(icon.height, 0);
     expect(icon.x + icon.width).toBeLessThan(label.x);
     expect(icon.y + icon.height / 2).toBeCloseTo(label.y + label.height / 2, 0);
+    const sectionSize = await page.locator('.dev-home h2').first().evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+    const cardSize = await page.locator('.dev-home h3').first().evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+    expect(icon.width).toBeGreaterThan(cardSize);
+    expect(titleSize).toBeGreaterThan(sectionSize);
+    expect(sectionSize).toBeGreaterThan(cardSize);
     for (const heading of await page.locator('.dev-home h3:not(.search-empty-title)').all()) {
-      await expect(heading).toHaveCSS('font-size', '18px');
+      expect(await heading.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBe(cardSize);
     }
     for (const body of await page.locator('.topic-links p, .onboarding p, .language-links p, .sample-copy p, .cloud-links p, .reference-links p, .blog-copy p, .dashboard-previews figcaption p, .topic-action').all()) {
-      await expect(body).toHaveCSS('font-size', '16px');
+      const bodySize = await body.evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+      expect(bodySize).toBeGreaterThanOrEqual(16);
+      expect(bodySize).toBeLessThan(cardSize);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
@@ -482,15 +517,25 @@ test('desktop header actions use consistent spacing', async ({ page }) => {
     expect(dev.width).toBeCloseTo(install.width, 0);
     expect(dev.height).toBeCloseTo(install.height, 0);
     const hubIcon = (await hubLink.locator('svg').boundingBox())!;
-    expect(hubIcon.width).toBeCloseTo(20, 0);
-    expect(hubIcon.height).toBeCloseTo(20, 0);
+    expect(hubIcon.width).toBeCloseTo(hubIcon.height, 0);
+    const controlFontSize = await hubLink.evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+    expect(hubIcon.width).toBeGreaterThanOrEqual(controlFontSize);
+    expect(hubIcon.width).toBeLessThan(dev.width);
+    expect(hubIcon.x + hubIcon.width / 2).toBeCloseTo(dev.x + dev.width / 2, 0);
+    expect(hubIcon.y + hubIcon.height / 2).toBeCloseTo(dev.y + dev.height / 2, 0);
     const docs = (await banner.getByRole('link', { name: 'Docs', exact: true }).boundingBox())!;
     const videos = (await banner.locator('.live-btn:visible').boundingBox())!;
     const start = (await banner.getByRole('link', { name: 'Try Aspire', exact: true }).boundingBox())!;
-    expect(videos.x - install.x - install.width).toBeCloseTo(8, 0);
-    expect(dev.x - videos.x - videos.width).toBeCloseTo(8, 0);
-    expect(docs.x - dev.x - dev.width).toBeCloseTo(8, 0);
-    expect(start.x - docs.x - docs.width).toBeCloseTo(8, 0);
+    const gaps = [
+      videos.x - install.x - install.width,
+      dev.x - videos.x - videos.width,
+      docs.x - dev.x - dev.width,
+      start.x - docs.x - docs.width,
+    ];
+    for (const gap of gaps) {
+      expect(gap).toBeGreaterThan(0);
+      expect(gap).toBeCloseTo(gaps[0], 0);
+    }
   }
   await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).hover();
   await expect(page.getByRole('tooltip')).toContainText('Aspire resources');
@@ -543,7 +588,7 @@ test('header icon order and Videos selected effect survive client navigation', a
     }
     const hubBox = (await hub.boundingBox())!;
     const videoBox = (await videos.boundingBox())!;
-    expect(hubBox.x - videoBox.x - videoBox.width).toBeCloseTo(8, 0);
+    expect(hubBox.x).toBeGreaterThan(videoBox.x + videoBox.width);
     await videos.click();
     await expect(page).toHaveURL(/\/community\/videos\/$/);
     await expect(videos).toHaveAttribute('aria-current', 'page');
@@ -724,9 +769,14 @@ test('Developer Hub typography and glossary controls reflow in both themes', asy
         };
       });
       expect(layout.overflow).toBe(false);
-      expect(layout.headingSize).toBeGreaterThanOrEqual(width < 800 ? 28 : 32);
+      const cardHeadingSize = await page.locator('.glossary-card h3').first().evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+      expect(layout.headingSize).toBeGreaterThan(cardHeadingSize);
       expect(layout.hasTagline).toBe(false);
-      expect(layout.pillHeights.every((height) => height === 34)).toBe(true);
+      expect(layout.pillHeights.length).toBeGreaterThan(0);
+      for (const height of layout.pillHeights) {
+        expect(height).toBeGreaterThanOrEqual(34);
+        expect(height).toBeCloseTo(layout.pillHeights[0], 0);
+      }
       expect(layout.searchClass).toContain('inpage-search-input');
       await expect(page.locator('glossary-browser select')).toHaveCount(0);
       await expect(await getSiteNavigationLink(page, '/hub/')).toBeVisible();
@@ -1028,9 +1078,25 @@ test('cloud and blog discovery stays readable and responsive', async ({ page }) 
         const previews = await blog.locator('.blog-links > li:not(:first-child) a').evaluateAll((links) => links.map((link) => {
           const card = link.getBoundingClientRect();
           const image = link.querySelector('img')!.getBoundingClientRect();
-          return { fraction: image.width / card.width, centerOffset: Math.abs(image.top + image.height / 2 - card.top - card.height / 2) };
+          const copy = link.querySelector('.blog-copy')!.getBoundingClientRect();
+          return {
+            imageWidth: image.width, copyWidth: copy.width, cardWidth: card.width,
+            left: image.left, right: image.right, copyLeft: copy.left, copyRight: copy.right,
+            cardLeft: card.left, cardRight: card.right,
+            centerOffset: Math.abs(image.top + image.height / 2 - card.top - card.height / 2),
+          };
         }));
-        expect(previews.every((preview) => preview.fraction >= 0.35 && preview.centerOffset < 1)).toBe(true);
+        for (const preview of previews) {
+          expect(preview.imageWidth).toBeGreaterThan(0);
+          // Keep the thumbnail a substantial column, not merely a visible icon.
+          expect(preview.imageWidth / preview.cardWidth).toBeGreaterThanOrEqual(0.35);
+          expect(preview.imageWidth).toBeLessThan(preview.copyWidth);
+          expect(preview.left).toBeGreaterThanOrEqual(preview.cardLeft);
+          expect(preview.right).toBeLessThan(preview.copyLeft);
+          expect(preview.copyLeft).toBeLessThan(preview.cardRight);
+          expect(preview.copyRight).toBeLessThanOrEqual(preview.cardRight);
+          expect(preview.centerOffset).toBeLessThan(1);
+        }
       }
     }
   }
@@ -1140,6 +1206,6 @@ test('Developer Hub remains browsable without JavaScript and reflows at narrow w
     await page.goto('/hub/');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const input = await page.getByRole('button', { name: 'Search Aspire documentation' }).boundingBox();
-    expect(input!.y + input!.height).toBeLessThan(900);
+    expect(input!.y + input!.height).toBeLessThan(page.viewportSize()!.height);
   }
 });

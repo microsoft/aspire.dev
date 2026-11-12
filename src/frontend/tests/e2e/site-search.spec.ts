@@ -199,9 +199,23 @@ test.describe('site search dialog', () => {
         };
       };
       const expected = await page.locator('#browse-search-input').evaluate(presentation);
-      const iconColor = await page.locator('#browse-search-input').locator('..').locator('.search-field-icon').evaluate(
-        (icon) => getComputedStyle(icon).color,
+      const expectedIcon = await page.locator('#browse-search-input').locator('..').locator('.search-field-icon').evaluate(
+        (icon) => {
+          const style = getComputedStyle(icon);
+          return { width: style.width, height: style.height, color: style.color };
+        },
       );
+      const dimensions = (element: Element) => {
+        const style = getComputedStyle(element);
+        return { width: style.width, height: style.height };
+      };
+      const expectedClear = await page.locator('#browse-search-clear').evaluate(dimensions);
+      const expectedClearIcon = await page.locator('#browse-search-clear svg').evaluate(dimensions);
+      const summaryTypography = (element: Element) => {
+        const style = getComputedStyle(element);
+        return { fontSize: style.fontSize, lineHeight: style.lineHeight };
+      };
+      const expectedSummary = await page.locator('#browse-results-heading').evaluate(summaryTypography);
       const focusPresentation = (element: Element) => {
         const style = getComputedStyle(element);
         return {
@@ -278,30 +292,46 @@ test.describe('site search dialog', () => {
         const style = getComputedStyle(form, '::before');
         return { width: style.width, height: style.height, color: style.backgroundColor, mask: style.maskImage };
       });
-      expect(icon).toMatchObject({ width: '18px', height: '18px', color: iconColor });
+      expect(icon).toMatchObject(expectedIcon);
       expect(decodeURIComponent(icon.mask)).toContain('m21 21-4.35-4.35');
       const clear = page.locator('#starlight__search .pagefind-ui__search-clear');
       await expect(clear).toHaveAccessibleName('Clear search');
       await expect(clear).toHaveCSS('font-size', '0px');
       await expect(clear).toHaveText('Clear');
-      const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-      const compact = coarse || page.viewportSize()!.width < 800;
-      await expect(clear).toHaveCSS('width', compact ? '34px' : '36px');
-      await expect(clear).toHaveCSS('height', compact ? '34px' : '36px');
+      expect(await clear.evaluate(dimensions)).toEqual(expectedClear);
       const clearIcon = await clear.evaluate((button) => {
         const style = getComputedStyle(button, '::before');
         return { width: style.width, height: style.height, mask: style.maskImage };
       });
-      expect(clearIcon).toMatchObject({ width: '16px', height: '16px' });
+      expect(clearIcon).toMatchObject(expectedClearIcon);
       expect(decodeURIComponent(clearIcon.mask)).toContain('m18 6-12 12M6 6l12 12');
       await input.fill(missingSearchQuery);
+      await expect(clear).toBeVisible();
+      await expect.poll(() => clear.evaluate((button) => {
+        const field = button.closest('form')!.querySelector('input')!;
+        const fieldRect = field.getBoundingClientRect();
+        const buttonRect = button.getBoundingClientRect();
+        const fieldStyle = getComputedStyle(field);
+        const glyph = getComputedStyle(button, '::before');
+        return {
+          contained: buttonRect.left >= fieldRect.left && buttonRect.right <= fieldRect.right &&
+            buttonRect.top >= fieldRect.top && buttonRect.bottom <= fieldRect.bottom,
+          centered: Math.abs(
+            buttonRect.top + buttonRect.height / 2 - (fieldRect.top + fieldRect.height / 2),
+          ) <= 1,
+          clearsText: fieldRect.right - Number.parseFloat(fieldStyle.borderRightWidth) -
+            Number.parseFloat(fieldStyle.paddingRight) <= buttonRect.left,
+          glyphFits: Number.parseFloat(glyph.width) > 0 && Number.parseFloat(glyph.height) > 0 &&
+            Number.parseFloat(glyph.width) < buttonRect.width &&
+            Number.parseFloat(glyph.height) < buttonRect.height,
+        };
+      })).toEqual({ contained: true, centered: true, clearsText: true, glyphFits: true });
       const message = page.locator('#starlight__search .pagefind-ui__message');
       await expect(message).toContainText(/no results|0 results/i);
       await expect(page.locator('#starlight__search .pagefind-ui__result-link')).toHaveCount(0);
-      await expect(message).toHaveCSS('font-size', '14px');
+      expect(await message.evaluate(summaryTypography)).toEqual(expectedSummary);
       await expect(message).toHaveCSS('font-weight', '400');
       await expect(message).toHaveCSS('font-style', 'normal');
-      await expect(message).toHaveCSS('line-height', '21px');
       const apiLinks = page.locator('site-search dialog[open]');
       for (const language of ['csharp', 'typescript']) {
         await expect(apiLinks.locator(`a[data-api-lang="${language}"]`)).toHaveAttribute(

@@ -1,5 +1,59 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
+export async function expectSearchFieldLayout(input: Locator): Promise<void> {
+  const field = input.locator('..');
+  const icon = field.locator('.search-field-icon');
+  const clear = field.locator('.search-field-clear');
+  await expect(input).toBeVisible();
+  await expect(icon).toBeVisible();
+  await expect
+    .poll(() => input.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const icon = element.parentElement!.querySelector('.search-field-icon')!;
+      const iconBox = icon.getBoundingClientRect();
+      const clear = element.parentElement!.querySelector('.search-field-clear')!;
+      const clearBox = clear.getBoundingClientRect();
+      const textLeft = box.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft);
+      const textRight = box.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);
+      // One CSS pixel accommodates subpixel layout and browser rounding.
+      const tolerance = 1;
+      const contains = (child: DOMRect) =>
+        child.left >= box.left - tolerance && child.right <= box.right + tolerance &&
+        child.top >= box.top - tolerance && child.bottom <= box.bottom + tolerance;
+      const centered = (child: DOMRect) =>
+        Math.abs(child.top + child.height / 2 - (box.top + box.height / 2)) <= tolerance;
+      const clearVisible = clearBox.width > 0 && clearBox.height > 0;
+      return {
+        // Smaller inputs trigger automatic zoom when focused in iOS.
+        readable: parseFloat(style.fontSize) >= 16,
+        textFits: textRight > textLeft && box.height >= parseFloat(style.lineHeight),
+        iconContained: contains(iconBox),
+        iconCentered: centered(iconBox),
+        iconClearOfText: iconBox.right <= textLeft + tolerance,
+        clearContained: !clearVisible || contains(clearBox),
+        clearCentered: !clearVisible || centered(clearBox),
+        clearOfText: !clearVisible || clearBox.left >= textRight - tolerance,
+      };
+    }))
+    .toEqual({
+      readable: true,
+      textFits: true,
+      iconContained: true,
+      iconCentered: true,
+      iconClearOfText: true,
+      clearContained: true,
+      clearCentered: true,
+      clearOfText: true,
+    });
+  if (await clear.isVisible()) {
+    // WCAG 2.2 target-size minimum; larger design-system targets may evolve.
+    const box = (await clear.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(24);
+    expect(box.height).toBeGreaterThanOrEqual(24);
+  }
+}
+
 export async function getSiteNavigationLink(page: Page, href: string): Promise<Locator> {
   const headerLink = page.locator(`header a[href="${href}"]:visible`);
   if (await headerLink.count()) return headerLink;

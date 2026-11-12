@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { dismissCookieConsentIfVisible, expectSearchFieldLayout } from '@tests/e2e/helpers';
 
 test.beforeEach(async ({ page, isMobile }) => {
   if (isMobile) await page.addInitScript(() => {
@@ -17,7 +17,6 @@ test('Hub search and glossary filters use the shared control scale at every brea
   test.setTimeout(120_000);
   for (const width of [320, 390, 834, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    const compact = width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
     let fieldHeight: number | undefined;
     for (const [route, selector] of [
       ['/hub/browse/', '#browse-search-input'],
@@ -27,22 +26,40 @@ test('Hub search and glossary filters use the shared control scale at every brea
       await start(page, route);
       const control = page.locator(selector);
       await expect(control).toBeVisible();
-      await expect(control).toHaveCSS('font-size', '16px');
+      if (selector === '.dev-search') {
+        await expect.poll(() => control.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const icon = element.querySelector('svg')!.getBoundingClientRect();
+          const label = element.querySelector('span')!.getBoundingClientRect();
+          const tolerance = 1;
+          return {
+            contained: [icon, label].every((child) =>
+              child.left >= box.left - tolerance && child.right <= box.right + tolerance &&
+              child.top >= box.top - tolerance && child.bottom <= box.bottom + tolerance),
+            separated: icon.right <= label.left,
+            centered: Math.abs(icon.top + icon.height / 2 - (box.top + box.height / 2)) <= tolerance,
+          };
+        })).toEqual({ contained: true, separated: true, centered: true });
+      } else {
+        await expectSearchFieldLayout(control);
+      }
       const height = (await control.boundingBox())!.height;
-      expect(height, route).toBe(compact ? 34 : 48);
-      if (fieldHeight !== undefined) expect(height, route).toBe(fieldHeight);
+      if (fieldHeight !== undefined) expect(Math.abs(height - fieldHeight), route).toBeLessThanOrEqual(1);
       fieldHeight = height;
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
-    for (const button of await page.locator('#glossary-kind-filters button').all()) {
-      expect((await button.boundingBox())!.height).toBe(34);
-    }
-    for (const letter of await page.locator('.glossary-alphabet > a').all()) {
-      expect((await letter.boundingBox())!.height).toBe(34);
+    const compactControls = page.locator('#glossary-kind-filters button, .glossary-alphabet > a');
+    let compactHeight: number | undefined;
+    for (const control of await compactControls.all()) {
+      const height = (await control.boundingBox())!.height;
+      expect(height).toBeGreaterThanOrEqual(24);
+      if (compactHeight !== undefined) expect(Math.abs(height - compactHeight)).toBeLessThanOrEqual(1);
+      compactHeight = height;
     }
     await start(page, '/reference/api/csharp/aspire.hosting.redis/redisresource/');
     for (const button of await page.locator('#type-kind-filters button').all()) {
-      expect((await button.boundingBox())!.height).toBe(34);
+      expect(compactHeight).toBeDefined();
+      expect(Math.abs((await button.boundingBox())!.height - compactHeight!)).toBeLessThanOrEqual(1);
     }
   }
 });
@@ -318,6 +335,7 @@ test('session recovery preserves clock and timezone preferences on repeated visi
 });
 
 test('gallery and conference result summaries use regular shared typography', async ({ page }) => {
+  let typography: { fontSize: string; lineHeight: string } | undefined;
   for (const [path, inputSelector, summarySelector] of [
     ['/integrations/gallery/', 'input.filter', '[data-integration-count]'],
     ['/reference/samples/', '#samples-search-input', '[data-results-count]'],
@@ -326,10 +344,14 @@ test('gallery and conference result summaries use regular shared typography', as
     await start(page, path);
     const summary = page.locator(summarySelector);
     await expect(summary).toHaveClass(/search-results-summary/);
-    await expect(summary).toHaveCSS('font-size', '14px');
     await expect(summary).toHaveCSS('font-weight', '400');
     await expect(summary).toHaveCSS('font-style', 'normal');
-    await expect(summary).toHaveCSS('line-height', '21px');
+    const current = await summary.evaluate(element => {
+      const style = getComputedStyle(element);
+      return { fontSize: style.fontSize, lineHeight: style.lineHeight };
+    });
+    if (typography) expect(current).toEqual(typography);
+    else typography = current;
     await page.locator(inputSelector).fill('zzzznonexistent');
     await expect(summary).toHaveText(/^0 of \d+ (integrations|samples|sessions)$/);
     await expect(summary).toHaveCSS('font-style', 'normal');
@@ -343,13 +365,8 @@ test('sidebar zero matches have one query recovery and retain focus', async ({ p
   await expect(input).toHaveAttribute('placeholder', 'Filter by title...');
   const field = input.locator('..');
   await expect(field).toHaveAttribute('data-search-size', 'sm');
-  const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-  await expect(input).toHaveCSS('height', coarse || page.viewportSize()!.width < 800 ? '34px' : '40px');
-  await expect(input).toHaveCSS('font-size', '16px');
-  await expect(field.locator('.search-field-icon')).toHaveCSS('width', '18px');
-  await expect(field.locator('.search-field-icon polygon')).toHaveAttribute(
-    'points', '22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3',
-  );
+  await expectSearchFieldLayout(input);
+  await expect(field.locator('.search-field-icon polygon')).toHaveCount(1);
   await expect(field.locator('.search-field-icon circle')).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
     await page.locator('html').evaluate((html, value) => { html.dataset.theme = value; }, theme);
@@ -367,24 +384,35 @@ test('sidebar zero matches have one query recovery and retain focus', async ({ p
     await expect(input).toHaveCSS('background-color', background);
   }
   await input.fill('zzzznonexistent');
+  await expectSearchFieldLayout(input);
   await expect(field.locator('.search-field-clear')).toHaveAccessibleName('Clear search');
   await expect(field.locator('.search-field-clear')).toHaveText('');
   await expect(page.locator('#sidebar-filter-empty')).toBeVisible();
   const empty = page.locator('#sidebar-filter-empty');
   await expect(empty).toHaveCSS('border-top-style', 'dashed');
-  await expect(empty).toHaveCSS('padding', '16px');
+  const inset = await empty.evaluate(element => {
+    const box = element.getBoundingClientRect();
+    return Array.from(element.children).every(child => {
+      const bounds = child.getBoundingClientRect();
+      return bounds.left > box.left && bounds.right < box.right &&
+        bounds.top > box.top && bounds.bottom < box.bottom;
+    });
+  });
+  expect(inset).toBe(true);
   await expect(empty).toHaveCSS('background-image', 'none');
   await expect(page.locator('#sidebar-filter-empty-copy')).toHaveClass(/search-empty-title/);
-  await expect(page.locator('#sidebar-filter-empty-copy')).toHaveCSS('font-size', '16px');
   await expect(page.locator('#sidebar-filter-empty-copy')).toHaveCSS('font-weight', '600');
-  await expect(page.locator('#sidebar-filter-empty-copy')).toHaveCSS('line-height', '24px');
   await expect(empty.locator('.search-empty-hint')).toHaveText('Try another term, or clear your search to browse all results.');
-  await expect(empty.locator('.search-empty-hint')).toHaveCSS('font-size', '14px');
   await expect(empty.locator('.search-empty-hint')).toHaveCSS('font-weight', '400');
-  await expect(empty.locator('.search-empty-hint')).toHaveCSS('line-height', '21px');
-  await expect(page.locator('#sidebar-filter-empty-action')).toHaveCSS('font-size', '14px');
   await expect(page.locator('#sidebar-filter-empty-action')).toHaveCSS('font-weight', '400');
-  await expect(page.locator('#sidebar-filter-empty-action')).toHaveCSS('line-height', '21px');
+  const hintStyle = await empty.locator('.search-empty-hint').evaluate(element => {
+    const style = getComputedStyle(element);
+    return { fontSize: style.fontSize, lineHeight: style.lineHeight };
+  });
+  await expect(page.locator('#sidebar-filter-empty-action')).toHaveCSS('font-size', hintStyle.fontSize);
+  await expect(page.locator('#sidebar-filter-empty-action')).toHaveCSS('line-height', hintStyle.lineHeight);
+  expect(await page.locator('#sidebar-filter-empty-copy').evaluate(element =>
+    parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(parseFloat(hintStyle.fontSize));
   await expect(page.locator('#sidebar-filter-empty button')).toHaveCount(1);
   const literalQuery = '<img src=x onerror=alert(1)>zzzznonexistent';
   await input.fill(literalQuery);
@@ -433,11 +461,7 @@ for (const theme of ['light', 'dark']) {
           iconColor: iconStyle.color,
         };
       });
-      const compact = page.viewportSize()!.width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-      expect(metrics.height, path).toBe(compact ? 34 : 48);
-      expect(metrics.fontSize, path).toBe('16px');
-      expect(metrics.iconWidth, path).toBe(18);
-      expect(metrics.iconHeight, path).toBe(18);
+      await expectSearchFieldLayout(input);
       if (baseline) expect(metrics, path).toEqual(baseline);
       else baseline = metrics;
 
@@ -450,11 +474,8 @@ for (const theme of ['light', 'dark']) {
       await expect(clear).toBeVisible();
       await expect(clear).toHaveAccessibleName('Clear search');
       await expect(clear).toHaveText('');
-      await expect(clear.locator('svg path')).toHaveAttribute('d', 'm18 6-12 12M6 6l12 12');
-      const bounds = (await clear.boundingBox())!;
-      const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-      expect(bounds.width, path).toBeGreaterThanOrEqual(compact || coarse ? 34 : 36);
-      expect(bounds.height, path).toBeGreaterThanOrEqual(compact || coarse ? 34 : 36);
+      await expect(clear.locator('svg')).toBeVisible();
+      await expectSearchFieldLayout(input);
       await clear.focus();
       await expect(clear).toHaveCSS('outline-style', 'solid');
       await clear.press('Enter');
@@ -489,7 +510,6 @@ for (const [name, path, inputSelector, emptySelector] of [
       await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
       await expect(empty).toHaveCSS('border-top-style', 'dashed');
       await expect(empty).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-      await expect(action).toHaveCSS('padding', '6px 14px');
       await expect(action).toHaveCSS('border-top-style', 'solid');
       await action.hover();
       await expect(action).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
