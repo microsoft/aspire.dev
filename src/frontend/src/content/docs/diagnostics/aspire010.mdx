@@ -1,7 +1,7 @@
 ---
-title: Compiler Warning ASPIRE010
-seoTitle: 'ASPIRE010: Aspire CLI bundle opt-out warning · Aspire'
-description: Learn what causes Aspire compiler warning ASPIRE010 — the AppHost has opted out of the Aspire CLI bundle — and how to enable or suppress it.
+title: Compiler Error ASPIRE010
+seoTitle: 'ASPIRE010: The Aspire CLI bundle is required'
+description: Learn why disabling the required Aspire CLI bundle produces error ASPIRE010 in Aspire 17.0 and how to correct it.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -13,9 +13,9 @@ import { Badge } from '@astrojs/starlight/components';
   class:list={'mb-1'}
 />
 
-> '[ProjectName]' is configured with AspireUseCliBundle=false. Some Aspire features require the Aspire CLI bundle. Set AspireUseCliBundle=true to enable those features, or suppress ASPIRE010 to continue without the bundle. See https://aka.ms/aspire/diagnostics/aspire010 for more information.
+> [ProjectName] requires the Aspire CLI bundle. Remove AspireUseCliBundle or set it to true, and install the matching Aspire CLI from https://get.aspire.dev. ASPIRE010 cannot be suppressed to disable the bundle. See https://aka.ms/aspire/diagnostics/aspire010 for more information.
 
-This diagnostic warning is reported when an AppHost project has `AspireUseCliBundle` set to `false` (the default). Launching the AppHost directly with `dotnet run` or an IDE continues to work without the Aspire CLI, but features that depend on the CLI bundle — such as resolving DCP and the Aspire Dashboard from the installed Aspire CLI instead of NuGet packages — remain unavailable.
+Introduced as a warning in Aspire 13.5, this diagnostic is an **error in Aspire 17.0** when a C# AppHost disables the required CLI bundle. `AspireUseCliBundle` now defaults to `true`. This applies both to package-based AppHosts and projects retaining `Aspire.AppHost.Sdk`.
 
 ## Example
 
@@ -27,11 +27,11 @@ The following configuration produces `ASPIRE010`:
 </PropertyGroup>
 ```
 
-`ASPIRE010` is also reported when `AspireUseCliBundle` isn't set at all, because `false` is the default.
+Leaving `AspireUseCliBundle` unset uses the enabled default and doesn't produce this error.
 
-## To correct this warning
+## To correct this error
 
-Set `AspireUseCliBundle` to `true` to opt in to CLI bundle delegation:
+Remove the `false` setting or set `AspireUseCliBundle` to `true`, and [install a compatible Aspire CLI](/get-started/install-cli/):
 
 ```xml title="MyApp.AppHost.csproj"
 <PropertyGroup>
@@ -39,17 +39,10 @@ Set `AspireUseCliBundle` to `true` to opt in to CLI bundle delegation:
 </PropertyGroup>
 ```
 
-When you opt in, an explicit `AspireCliPath` is authoritative. Otherwise, the default `Path` invocation mode selects a compatible `aspire` on `PATH`, with the SDK-paired Aspire CLI package through DNX as a fallback. Setting `AspireCliInvocationMode=Dnx` selects the unversioned package through DNX so a tool manifest can apply, while `DnxPinned` selects the version paired with the AppHost SDK. `AspireCliBundlePath` is a bundle-layout input, not an executable invocation candidate.
+An explicit `AspireCliPath` is authoritative. Otherwise, the default `Path` invocation mode selects a compatible `aspire` on `PATH`, with the CLI package paired with `Aspire.Hosting.AppHost` through DNX as a fallback. `AspireCliInvocationMode=Dnx` selects the unversioned package through DNX so a tool manifest can apply, while `DnxPinned` selects the AppHost-package-paired version. `AspireCliBundlePath` is a bundle-layout input, not an executable invocation candidate.
 
 An unresolved bundle layout reports [`ASPIRE009`](/diagnostics/aspire009/). [`ASPIRE011`](/diagnostics/aspire011/) is limited to the run preflight when `Dnx` or `DnxPinned` mode can't find `dnx`; it doesn't represent every CLI resolution failure.
 
-If you intend to keep using NuGet-restored orchestration dependencies, suppress `ASPIRE010`:
-
-```xml title="MyApp.AppHost.csproj"
-<PropertyGroup>
-  <AspireUseCliBundle>false</AspireUseCliBundle>
-  <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
-</PropertyGroup>
-```
+`NoWarn=ASPIRE010` doesn't suppress this error or make a bundle opt-out valid. Earlier versions' warning suppression guidance doesn't apply to Aspire 17.0.
 
 For more information, see [Use the Aspire CLI bundle for orchestration dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies).

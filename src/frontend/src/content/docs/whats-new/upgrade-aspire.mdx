@@ -43,6 +43,14 @@ If you're new to Aspire, there's no reason to upgrade anything. See [prerequisit
 For more information, see [`aspire update` command reference](/reference/cli/commands/aspire-update/).
 </LearnMore>
 
+## Migrate C# AppHosts for Aspire 17.0
+
+Updating package versions isn't the same as migrating AppHost resources. In Aspire 17.0, the default C# AppHost uses `Microsoft.NET.Sdk` with explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` references and `AddDotnetProject` declarations.
+
+Follow [Migrate from the AppHost SDK](/get-started/migrate-apphost-sdk/) to replace the obsolete SDK and service project references while preserving resource configuration. `Aspire.AppHost.Sdk` remains functional for staged migration; `AddProject` isn't deprecated by this SDK change. Retained `AddProject` references need explicit resource metadata after SDK removal.
+
+The CLI bundle is required and enabled by default. Remove `AspireUseCliBundle=false`: [ASPIRE010](/diagnostics/aspire010/) is now an error, and warning suppression doesn't permit opting out. Keep service projects in solution/CI builds after removing their AppHost project references. If you use central package management, move inline package versions to `Directory.Packages.props` manually to avoid `NU1008`.
+
 ## Update standalone dashboard container references
 
 If you manage the standalone dashboard as a container, its stable image repository is now `mcr.microsoft.com/aspire/dashboard`; nightly images use `mcr.microsoft.com/aspire/nightly/dashboard`. Updating the Aspire CLI or packages doesn't rewrite image references in your own Docker commands, Compose files, or Kubernetes manifests.

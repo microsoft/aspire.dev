@@ -1020,6 +1020,10 @@ export const docsTopics = {
                   slug: 'get-started/aspire-sdk',
                 },
                 {
+                  label: 'Migrate from the AppHost SDK',
+                  slug: 'get-started/migrate-apphost-sdk',
+                },
+                {
                   label: 'Aspire templates',
                   slug: 'get-started/aspire-sdk-templates',
                 },
