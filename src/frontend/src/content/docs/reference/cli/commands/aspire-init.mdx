@@ -44,6 +44,19 @@ When a `.sln` or `.slnx` is present, the C# option creates a **project-based App
 
 In all cases, the AppHost language does not limit what you can orchestrate — C#, JavaScript, Python, Go, Rust, Java, containers, and more can all be modeled in the same application model.
 
+### Default hosting packages
+
+For non-C# AppHosts, `aspire init` records the hosting package for your language in the AppHost `aspire.config.json`, so you can use its resource APIs without running `aspire add` first. The packages are restored and code generated together with the language support package, using the AppHost's effective SDK version, which falls back to the CLI's SDK version when none is configured. An entry that already exists in `aspire.config.json` is kept.
+
+| Language | Default hosting packages |
+| -------- | ------------------------ |
+| TypeScript | `Aspire.Hosting.JavaScript` |
+| Python | `Aspire.Hosting.Python` |
+| Go | `Aspire.Hosting.Go` |
+| Java, Rust | None because `Aspire.Hosting.Java` and `Aspire.Hosting.Rust` are in preview. When these packages ship stable versions, `aspire init` will list them. |
+
+File-based C# AppHosts reference their packages with `#:package` directives instead. Project-based C# AppHosts use `PackageReference` items in the project file. An empty AppHost created with `aspire new` gets the same defaults.
+
 ### Skipping solution discovery with --file-based
 
 Repositories can contain incidental `.sln` or `.slnx` files that aren't meant to back the AppHost — they cause `aspire init` to prompt for a solution or scaffold a project-based AppHost even when you only want a minimal, file-based AppHost at the repository root.
