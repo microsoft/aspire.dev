@@ -825,6 +825,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
           items: [
             {
+              label: 'Database patterns',
+              slug: 'fundamentals/database-patterns',
+            },
+            {
               label: 'Persist data with volumes',
               slug: 'fundamentals/persist-data-volumes',
               translations: {
