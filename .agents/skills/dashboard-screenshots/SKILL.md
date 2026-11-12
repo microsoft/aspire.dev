@@ -124,3 +124,14 @@ Never set a small per-shot `height` (under ~700): the dashboard footer and layou
 - `sidebar-grayed-resources` shows dimmed resources that have no data for the current page.
 - **Metrics instrument detail:** never `scrollIntoViewIfNeeded` (it scrolls the chart out of view) and do not collapse the sidebar (a wide chart leaves a blank band above Filters). Load the instrument by URL (`?meter=...&instrument=...&duration=5`), use `height: 1000` so chart + Filters + open filter menu all fit.
 - **Structured logs:** errors come from `inventoryservice`; `traceId` is a URL param; row menus use `td.log-row-error fluent-button[aria-label='Actions']`; the Add filter flyout is `.filter-dialog-form`.
+
+## Process lessons (apply on every run)
+
+- **Judge by intent, not file existence.** Several early "successful" captures showed the wrong UI (e.g. the Add filter flyout in place of health status, empty notification flyouts). For every image, read the doc that embeds it, open the old image, and compare what it was meant to show.
+- **Find every consumer before renaming.** Search `src/frontend/src` for each asset name (en and `ja` docs, `DashboardCarousel.astro`) and update imports in the same commit. Naming: bare name = dark, `-light` = light, never `-dark`.
+- **Audit the whole site, not just `assets/dashboard`.** Grep all of `src/frontend/src/assets` for dashboard captures (get-started, fundamentals, integrations, whats-new) and the landing carousel; see the manual section above.
+- **Add new UI to docs and carousel in the same pass.** New dashboard features (density, overview panels, metrics filters, show-empty-panels toggle) need doc prose plus shots; landing images are 2560x1600 so never `autoCrop` them.
+- **Keep PRs split:** skill and manifest on one branch, generated images and MDX on another; push manifest changes first, then move the PNGs.
+- **Match the product version.** Record which dashboard build was used (demo AppHost on release/17.0 vs. the installed CLI's bundled dashboard) in the PR body.
+- **CI quirks:** frontend build ~9 min, E2E 10-20 min; rerun only failed jobs for flakes. Never run a local site build.
+- **Tooling quirks:** `aspire run` blocks (start it hidden/background); `run-code` screenshot paths must be inline forward-slash absolute paths; the `view` tool needs a copy to a fresh temp name; the playwright session can die, so re-running `--only` reopens it.
