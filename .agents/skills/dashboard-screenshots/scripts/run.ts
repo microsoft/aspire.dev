@@ -138,7 +138,7 @@ function shotCode(shot: any, theme: "dark" | "light", file: string) {
   const shoot = shot.clip
     ? `const e=page.locator(${q(shot.clip)}).first(); const b=await e.boundingBox(); await page.screenshot({path:${q(file)},clip:{x:Math.max(0,b.x-${pad}),y:Math.max(0,b.y-${pad}),width:Math.min(${manifest.viewport.width},b.width+${pad * 2}),height:Math.min(${manifest.viewport.height},b.height+${pad * 2})}});`
     : `await page.screenshot({path:${q(file)}});`;
-  return `async page => { ${DISMISS_JS} await page.setViewportSize({width:${manifest.viewport.width},height:${shot.height ?? manifest.viewport.height}}); await page.emulateMedia({colorScheme:${q(theme)}}); await page.context().clearCookies(); await page.context().addCookies([{name:'currentTheme',value:'${theme === "dark" ? "Dark" : "Light"}',url:'http://localhost:${port}'}]); await page.evaluate(()=>localStorage.clear()); await page.goto('http://localhost:${port}/${shot.route}'); await page.waitForTimeout(3500); ${clear} await page.waitForTimeout(500); ${steps} ${final} ${callouts} ${shoot} return 'ok:' + (await page.evaluate(()=>document.documentElement.dataset.theme)); }`.replace(/\r?\n/g, " ");
+  return `async page => { ${DISMISS_JS} await page.setViewportSize({width:${manifest.viewport.width},height:${shot.height ?? manifest.viewport.height}}); await page.emulateMedia({colorScheme:${q(theme)}}); await page.goto(\x27http://localhost:${port}/\x27).catch(()=>{}); await page.evaluate(()=>localStorage.clear()).catch(()=>{}); await page.context().clearCookies(); await page.context().addCookies([{name:'currentTheme',value:'${theme === "dark" ? "Dark" : "Light"}',url:'http://localhost:${port}'}]); await page.goto('http://localhost:${port}/${shot.route}'); await page.waitForTimeout(3500); ${clear} await page.waitForTimeout(500); ${shot.collapseSidebar ? "{const c=page.locator(\"[aria-label=\x27Collapse resource list\x27]\").first(); if(await c.count()){await c.click({force:true}); await page.waitForTimeout(900);} await dismiss(false);}" : ""} ${steps} ${final} ${callouts} ${shoot} return 'ok:' + (await page.evaluate(()=>document.documentElement.dataset.theme)); }`.replace(/\r?\n/g, " ");
 }
 
 // Crops trailing blank page area (keeping padding) so sparse pages like Resources do not ship as half-empty images.
@@ -229,6 +229,10 @@ async function verify(done: string[]) {
   for (const f of done) {
     const { data, info } = await sharp(join(assets, f)).raw().toBuffer({ resolveWithObject: true });
     if (info.width < 1000) issues.push(`${f}: narrow ${info.width}px`);
+    // Shrinking the viewport squeezes the dashboard layout (footer overlaps content), so a short full-page image is a bad capture.
+    const isClip = manifest.shots.some((s: any) => s.clip && [s.out.dark, s.out.light, ...(s.also?.dark ?? []), ...(s.also?.light ?? []), s.thumb?.dark, s.thumb?.light].includes(f));
+    const isThumb = manifest.shots.some((s: any) => s.thumb && [s.thumb.dark, s.thumb.light].includes(f));
+    if (!isClip && !isThumb && info.height < manifest.viewport.height * manifest.viewport.deviceScaleFactor * 0.5) issues.push(`${f}: too short (${info.height}px) - do not set a small "height"; use autoCrop or clip`);
     // fraction of pixels equal to the dominant background colour in the bottom third
     let same = 0, total = 0;
     const ref = data.subarray(((info.height - 1) * info.width + Math.floor(info.width / 2)) * info.channels, ((info.height - 1) * info.width + Math.floor(info.width / 2)) * info.channels + 3);

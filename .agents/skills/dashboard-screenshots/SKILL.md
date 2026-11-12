@@ -50,7 +50,7 @@ Recapturing is not enough: the UX may have gained surfaces the docs never showed
 - **Themes**: capture every shot once per theme. Dark is the base name (or `-dark`), light is `-light`. Docs must use `<ThemeImage dark={x} light={xLight} alt="..." />` from `@components/ThemeImage.astro`; verify flags pages that reference only one theme. Fix those in MDX.
 - **Alerts**: before each capture the script dismisses banners, toasts, welcome and update messages (`.dashboard-message-bar-dismiss`). Bars can arrive late or reappear after steps, so a final dismiss pass (plus a CSS hide of the message-bar provider) runs immediately before callouts and the screenshot. Always scan contact sheets (`sheet.ts`) for leftover bars, and sidebar drag/resize applies only to Graph and telemetry pages. Set `keepAlerts: true` only when the alert is the subject. The Notifications panel is not closed by Escape; use a fresh navigation.
 - **Callouts**: red (`#e8212e`, ~3px) rectangles around the selector in `callout`, matching old images that had them.
-- **Framing**: avoid large blank areas. Use `height` for short pages, `autoCrop` to trim trailing blank space, `clip` for regions. Keep resolution consistent.
+- **Framing**: avoid large blank areas. Use `autoCrop` (not a small `height`) to trim trailing blank space, `clip` for regions. Keep resolution consistent.
 - **Graph view**: Settings > Overview layout > Graph, close dialog, click the Overview tab.
 - Row action buttons only appear on hover; hover first.
 
@@ -59,6 +59,23 @@ Recapturing is not enough: the UX may have gained surfaces the docs never showed
 - Invoke `node <npm root -g>\@playwright\cli\playwright-cli.js -s=<session> run-code "<js>"`.
 - Screenshot paths must be absolute with forward slashes.
 - Use `--browser=msedge`. No ffmpeg, so GIFs cannot be regenerated; report them as skipped.
+
+## Review phase (mandatory, after capturing, before committing)
+
+Scripted checks (`verify()`) are not enough. Look at every image and judge it:
+
+1. Build contact sheets (`bun scripts/sheet.ts <out.png> <paths>`) and view each shot next to its original (`git show origin/release/17.0:<path>`).
+2. For each, answer: Does it show the same UI the docs' alt text and surrounding prose describe (right page, dialog, menu, state)? Is it the right theme for its filename? Are all message bars dismissed? Is it framed well (no big blank areas, not squashed, similar size to the original)? Should the sidebar be collapsed to give the content room (for example traces and landing console)?
+3. Adjust the manifest (steps, route, callouts, `autoCrop`, collapse step) and recapture only the failing ids with `--attach --keep --only`.
+4. Repeat until every image passes. Record anything you could not make right in the report.
+
+Review checklist per image: same subject as the original and the docs' alt text (compare against `git show origin/release/17.0:<path>`); sidebar collapsed (`"collapseSidebar": true` or an explicit collapse step) unless the sidebar is the subject; no message bars or toasts; filters, menus and selections visible when the doc describes them; content rich enough (no trivial one-span traces or empty tables); no large blank areas; correct theme; `landing/*` exactly 2560x1600.
+
+## Rich demo telemetry
+
+The demo AppHost's `inventoryservice` exposes `/orders/{id}` with nested redis, postgres and rabbitmq spans, and the web traffic generator calls it regularly. Trace shots must open one of those traces (click the traces-list row `inventoryservice (6)`, then select a span via a `js` step using `getByText(...).locator('visible=true')`), not the default 2-span `/weatherforecast` trace. Wait about a minute after demo start for telemetry to accumulate.
+
+Capture-script lessons: reset `localStorage` only after navigating to the dashboard origin and before setting the theme cookie (otherwise `SecurityError` or a theme mismatch); fluent text fields cannot be `fill`ed, click then type; `--only` takes comma-separated id substrings and "trace" also matches `landing-trace-detail`, `traces-*` and `trace-view-*`.
 
 ## Report
 
@@ -83,3 +100,7 @@ The run prints captured/failed counts and lists unreproducible or skipped images
 
 The dashboard persists its theme in the `currentTheme` cookie (`Dark`/`Light`), which `localStorage.clear()` does not reset. `run.ts` clears cookies and sets the cookie per shot, and treats a capture as failed unless `documentElement.dataset.theme` matches the requested theme. After a run, scan mean luminance: `-light` files should be bright, all others dark.
 
+
+## Do not shrink the viewport
+
+Never set a small per-shot `height` (under ~700): the dashboard footer and layout collapse and the capture shows cut-off content. Use `autoCrop` (trims trailing blank space) or `clip` (element crop). `verify` flags any non-clip image under half the viewport height; open every flagged image and check it shows the intended UI.
