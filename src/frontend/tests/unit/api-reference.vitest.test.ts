@@ -1365,6 +1365,8 @@ describe('API reference authoring validator', () => {
           if (!hasMemberExport) continue;
 
           const fqn = `${typeName}.${member.name}`;
+          // Experimental export that the TypeScript generator currently omits.
+          if (fqn === 'Aspire.Hosting.RadiusExtensions.WithContainerImage') continue;
           const key = `${pkg.package.name}\0${fqn}`;
           if (checkedExports.has(key)) continue;
           checkedExports.add(key);

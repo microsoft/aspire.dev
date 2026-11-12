@@ -18,7 +18,7 @@ Aspire のホスティングインテグレーションとデプロイパブリ�
 
 TypeScript AppHost を実行すると、Aspire CLI は 2 つのプロセスをオーケストレーションします。
 
-- **ゲスト**: Node.js 上で動作する `apphost.ts` プロセス
+- **ゲスト**: Node.js 上で動作する `apphost.mts` プロセス
 - **ホスト**: .NET 上で動作する Aspire オーケストレーションサーバー
 
 ゲストはローカルトランスポート経由で JSON-RPC を使用してホストと通信します。macOS と Linux では Unix ソケット、Windows では名前付きパイプを使用します。コードが `addRedis()` や `withReference()` などのメソッドを呼び出すと、生成された SDK がそれらの呼び出しを RPC リクエストに変換します。
@@ -26,8 +26,8 @@ TypeScript AppHost を実行すると、Aspire CLI は 2 つのプロセスを�
 ```mermaid
 flowchart TB
     subgraph Guest["Guest Process (Node.js)"]
-        TS["apphost.ts"]
-        SDK["Generated SDK (.modules/)"]
+        TS["apphost.mts"]
+        SDK["Generated SDK (.aspire/modules/)"]
         Client["JSON-RPC Client"]
         TS --> SDK --> Client
     end
@@ -52,7 +52,7 @@ flowchart TB
 ## 起動シーケンス
 
 1. CLI が必要なホスティングパッケージを含むホストプロセスを準備します。
-2. ATS スキャナーがエクスポート用のアセンブリを検査し、TypeScript SDK を `.modules/` に生成します。
+2. ATS スキャナーがエクスポート用のアセンブリを検査し、TypeScript SDK を `.aspire/modules/` に生成します。
 3. CLI がホストプロセスを起動し、ローカルソケットまたはパイプエンドポイントを作成します。
 4. CLI がゲストプロセスを起動し、環境変数を通じて接続詳細を渡します。
 5. ゲストが接続し、<ApiReference name="Aspire.Hosting.DistributedApplication.CreateBuilder" />、`addRedis`、`build`、<ApiReference name="Aspire.Hosting.DistributedApplication.RunAsync" /> などの機能を呼び出します。
@@ -108,7 +108,7 @@ TypeScript SDK はホスティングインテグレーションのアセンブ�
 1. インテグレーションアセンブリを読み込みます。
 2. エクスポートされたメソッドと型をスキャンします。
 3. ポリモーフィズムのフラット化を含む ATS ルールを適用します。
-4. 型付き TypeScript ラッパーを `.modules/` に出力します。
+4. 型付き TypeScript ラッパーを `.aspire/modules/` に出力します。
 
 これにより SDK は .NET 実装と同期が保たれます。インテグレーション作者は TypeScript バインディングを手書きする必要はなく、.NET API をエクスポートすれば CLI がゲストサーフェスを自動的に生成します。
 
