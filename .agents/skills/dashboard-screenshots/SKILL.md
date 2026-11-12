@@ -113,3 +113,5 @@ Never set a small per-shot `height` (under ~700): the dashboard footer and layou
 - Error logs and traces come from `apiservice` (`/forecast/unavailable`), not `webfrontend`.
 - Metrics filters: use `webfrontend` > `Microsoft.AspNetCore.Hosting` > `http.server.request.duration`, and open a filter that exists (`http.response.status_code`).
 - `sidebar-grayed-resources` shows dimmed resources that have no data for the current page.
+- **Metrics instrument detail:** never `scrollIntoViewIfNeeded` (it scrolls the chart out of view) and do not collapse the sidebar (a wide chart leaves a blank band above Filters). Load the instrument by URL (`?meter=...&instrument=...&duration=5`), use `height: 1000` so chart + Filters + open filter menu all fit.
+- **Structured logs:** errors come from `inventoryservice`; `traceId` is a URL param; row menus use `td.log-row-error fluent-button[aria-label='Actions']`; the Add filter flyout is `.filter-dialog-form`.
