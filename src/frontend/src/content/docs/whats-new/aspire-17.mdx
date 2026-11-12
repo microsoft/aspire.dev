@@ -73,6 +73,52 @@ Without an explicit override, publishers resolve the dashboard tag from the Aspi
 
 <span id="breaking-changes"></span>
 
+| Change                                                                                              | Migration                                                                                              |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Docker Swarm `UpdateConfig.MaxFailureRatio` changed from `string?` to `double?`                    | Assign a number such as `0.3` instead of a string such as `"0.3"`.                                     |
+| Azure Cosmos DB `configureClientOptions` now receives `IServiceProvider`                            | Add the service-provider parameter to callbacks and rebuild binaries that call these methods.          |
+| `ResourceUrlAnnotation.DisplayOrder` changed from a field to a property                             | Rebuild assemblies that use the field; update reflection from `GetField` to `GetProperty`.              |
+
+### Docker Swarm `MaxFailureRatio` now requires a number
+
+The `MaxFailureRatio` property on Docker Swarm `UpdateConfig` changed from `string?` to `double?`. Docker Compose requires this value to be a number, so Aspire 17.0 publishes it without quotes.
+
+Change string assignments to numeric assignments:
+
+```diff title="UpdateConfig.cs"
+- MaxFailureRatio = "0.3"
++ MaxFailureRatio = 0.3
+```
+
+For details, see [microsoft/aspire#21512](https://github.com/microsoft/aspire/pull/21512).
+
+### Azure Cosmos DB client options callback receives a service provider
+
+The `configureClientOptions` parameter on the Azure Cosmos DB client integration now has the type `Action<IServiceProvider, CosmosClientOptions>` instead of `Action<CosmosClientOptions>`. This change applies to the client, container, and database registration methods, including their keyed variants.
+
+Add an `IServiceProvider` parameter to each callback. You can use it to resolve services while configuring the client:
+
+```csharp title="Program.cs"
+builder.AddAzureCosmosClient(
+    "cosmosdb",
+    configureClientOptions: static (services, options) =>
+    {
+        options.ApplicationName = "myapp";
+    });
+```
+
+The callback runs when the `CosmosClient` is first resolved from dependency injection, not during service registration. An exception in the callback therefore occurs when the client is resolved. Rebuild applications compiled against an earlier version: calls to these methods from older binaries throw `MissingMethodException`, even when they don't pass a callback.
+
+For details, see [microsoft/aspire#19349](https://github.com/microsoft/aspire/pull/19349).
+
+### `ResourceUrlAnnotation.DisplayOrder` is now a property
+
+`DisplayOrder` changed from an obsolete public field to a read/write property. Its behavior is unchanged: higher values display higher in the dashboard URL list.
+
+Rebuild assemblies that access the field. Typical C# reads and assignments need no changes, but reflection must use `Type.GetProperty` instead of `Type.GetField`. Passing `DisplayOrder` by `ref` or `out` no longer compiles.
+
+For details, see [microsoft/aspire#20637](https://github.com/microsoft/aspire/pull/20637).
+
 #### Legacy RabbitMQ and MongoDB client packages removed
 
 Starting in Aspire 17.0, new releases no longer include `Aspire.RabbitMQ.Client.v6` or `Aspire.MongoDB.Driver.v2`. Previously published versions of these packages remain available on NuGet.
