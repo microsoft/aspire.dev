@@ -514,8 +514,9 @@ steps:
     with:
       includes: templates/layouts
   # Pagefind over the pages it indexes (those with data-pagefind-body: the root locale's articles, the hub, the
-  # reference pages but the API's, which have none): its native binary (the extended build, which Douze downloads:
-  # `tool: pagefind`, the version of package.json) over the laid out pages written to a temporary folder, its index
+  # reference pages but the API's, which have none; not the HTML fragments of _astro/, which the home page fetches):
+  # its native binary (the extended build, which Douze downloads: `tool: pagefind`, the version of package.json) over
+  # the laid out pages written to a temporary folder, its index
   # read back as files for `write`. A batch step is one unit: replayed from the cache while no page changed, and run
   # concurrently with the API layout and the write. Its index has its own write step (`search-write`): `write` needing
   # it would wait for it; the pages that `search` does not match pass through it to `search-write`, which leaves them
@@ -525,7 +526,7 @@ steps:
     tool: pagefind
     run: "{{ tool }} --site {{ inputs }} --output-path {{ outputs }}/pagefind"
     mode: batch
-    match: ["**/*.html", "!reference/api/**", "!{da,de,es,fr,hi,id,it,ja,ko,pt-br,ru,tr,uk,zh-cn}/**"]
+    match: ["**/*.html", "!reference/api/**", "!_astro/**", "!{da,de,es,fr,hi,id,it,ja,ko,pt-br,ru,tr,uk,zh-cn}/**"]
     timeout: 20m
     stderr: warn
   # Static files of the content folder that the pages step leaves out (JSON is data there): the Mermaid icon pack
