@@ -1,9 +1,9 @@
 {%- comment -%}
   typeColorIndex of MemberCard.astro, as a value: h = ((h << 5) - h + code) | 0 over the characters, then
-  ((h % 4) + 4) % 4, which is the unsigned h modulo 4. An include used as a function: reads tc_in, sets tc_out.
-  Characters outside printable ASCII count as 0 (none in the type names). See ts-color.liquid (Math.abs variant).
+  ((h % 4) + 4) % 4, which is the unsigned h modulo 4. Rendered (by api/member-card, which cannot include) and
+  captured: reads tc_in, prints the index. Characters outside printable ASCII count as 0 (none in the type names). See ts-color.liquid (Math.abs variant).
 {%- endcomment -%}
-{%- unless tc_table -%}{%- capture tc_table %} !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~{% endcapture -%}{%- endunless -%}
+{%- capture tc_table %} !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~{% endcapture -%}
 {%- assign tc_h = 0 -%}
 {%- assign tc_chars = tc_in | default: "" | split: "" -%}
 {%- for tc_c in tc_chars -%}
@@ -13,4 +13,4 @@
   {%- endif -%}
   {%- assign tc_h = tc_h | times: 31 | plus: tc_code | modulo: 4294967296 -%}
 {%- endfor -%}
-{%- assign tc_out = tc_h | modulo: 4 -%}
+{{- tc_h | modulo: 4 -}}

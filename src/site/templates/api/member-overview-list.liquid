@@ -25,11 +25,9 @@
     {%- unless m.kind == mk.kind -%}{%- continue -%}{%- endunless -%}
     {%- assign mol_anchor = route.anchors[forloop.index0].exact -%}
     {%- assign mol_href = mol_kind_href | append: "#" | append: mol_anchor -%}
-    {%- assign fa_attrs = m.attributes -%}
-    {%- assign fa_name = "Obsolete" -%}{%- include 'api/find-attr' -%}{%- assign mol_obsolete = fa_out -%}
-    {%- assign fa_name = "Experimental" -%}{%- include 'api/find-attr' -%}{%- assign mol_experimental = fa_out -%}
-    {%- assign fa_name = "AspireExport" -%}{%- include 'api/find-attr' -%}{%- assign mol_export = fa_out -%}
-    {%- assign fa_name = "AspireExportIgnore" -%}{%- include 'api/find-attr' -%}{%- assign mol_ignored = fa_out -%}
+    {%- comment -%} api/find-attr, inline: a rendered template cannot include. {%- endcomment -%}
+    {%- assign mol_obsolete = nil -%}{%- assign mol_experimental = nil -%}{%- assign mol_export = nil -%}{%- assign mol_ignored = nil -%}
+    {%- for fa_a in m.attributes -%}{%- assign fa_short = fa_a.name | split: "." | last -%}{%- case fa_short -%}{%- when "Obsolete", "ObsoleteAttribute" -%}{%- unless mol_obsolete -%}{%- assign mol_obsolete = fa_a -%}{%- endunless -%}{%- when "Experimental", "ExperimentalAttribute" -%}{%- unless mol_experimental -%}{%- assign mol_experimental = fa_a -%}{%- endunless -%}{%- when "AspireExport", "AspireExportAttribute" -%}{%- unless mol_export -%}{%- assign mol_export = fa_a -%}{%- endunless -%}{%- when "AspireExportIgnore", "AspireExportIgnoreAttribute" -%}{%- unless mol_ignored -%}{%- assign mol_ignored = fa_a -%}{%- endunless -%}{%- endcase -%}{%- endfor -%}
 <div data-member-href="{{ mol_href }}" class="mol-row{% if mol_obsolete %} mol-obsolete{% endif %} mol-row-link" role="row" id="{{ mol_anchor }}"><div class="mol-name-col" role="cell"><a href="{{ mol_href }}" class="mol-name-link"><code class="mol-name">{% render 'api/member-display', m: m, ctor: type.name %}</code></a>
     {%- if m.isStatic and m.isExtension != true %}<span class="api-mod-badge mol-badge">static</span>{% endif -%}
     {%- if m.isExtension %}<span class="api-mod-badge mol-badge api-ext-badge">extension</span>{% endif -%}

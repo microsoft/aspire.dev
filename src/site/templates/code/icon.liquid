@@ -1,12 +1,13 @@
 {%- comment -%}
   The file icon of a code block's title (starlight-plugin-icons' Expressive Code plugin): the Material Icon Theme icon of
   the file name, of its extensions, of its language, else the document icon. The icon data is .starlight-icons/
-  (`material-icons` and `language-map`, the `code-icons` data step).
+  (`material-icons` and `language-map`, the `code-icons` data step). Its variables are not named `icon`: in an
+  include, the variable of the template's name is bound in its own scope and hides what the template assigns.
 {%- endcomment -%}
-{%- assign icon = nil -%}
+{%- assign ci_icon = nil -%}
 {%- assign title_end = code.title | slice: -10, 10 -%}
-{%- if title_end == '.svelte.js' -%}{%- assign icon = 'i-starlight-plugin-icons:svelte-js' -%}{%- elsif title_end == '.svelte.ts' -%}{%- assign icon = 'i-starlight-plugin-icons:svelte-ts' -%}{%- endif -%}
-{%- unless icon -%}
+{%- if title_end == '.svelte.js' -%}{%- assign ci_icon = 'i-starlight-plugin-icons:svelte-js' -%}{%- elsif title_end == '.svelte.ts' -%}{%- assign ci_icon = 'i-starlight-plugin-icons:svelte-ts' -%}{%- endif -%}
+{%- unless ci_icon -%}
 {%- assign file = code.title | split: '/' | last | downcase -%}
 {%- assign parts = file | split: '.' -%}
 {%- assign first = parts | first -%}
@@ -20,6 +21,6 @@
 {%- unless name and defs[name] -%}{%- assign name = language-map.fileExtensions[short_ext] -%}{%- endunless -%}
 {%- unless name and defs[name] -%}{%- assign name = nil -%}{%- assign first_char = file | slice: 0 -%}{%- unless first_char == '.' -%}{%- assign name = material-icons.fileNames[dotted] -%}{%- endunless -%}{%- endunless -%}
 {%- unless name and defs[name] -%}{%- assign name = material-icons.languageIds[code.language] -%}{%- endunless -%}
-{%- if name and defs[name] -%}{%- assign icon = 'i-material-icon-theme:' | append: name | replace: '_', '-' -%}{%- else -%}{%- assign icon = 'i-material-icon-theme:document' -%}{%- endif -%}
+{%- if name and defs[name] -%}{%- assign ci_icon = 'i-material-icon-theme:' | append: name | replace: '_', '-' -%}{%- else -%}{%- assign ci_icon = 'i-material-icon-theme:document' -%}{%- endif -%}
 {%- endunless -%}
-<span class="{{ icon }} code-block-icon" data-icon="{{ icon }}" data-language="{{ code.language }}"></span>
+<span class="{{ ci_icon }} code-block-icon" data-icon="{{ ci_icon }}" data-language="{{ code.language }}"></span>

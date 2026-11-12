@@ -5,9 +5,9 @@
   cid-api-reference-member-card. The member-kind pages pass no diagnostics to the Astro component, so experimental
   members have no "Learn more" link there either.
 {%- endcomment -%}
-{%- assign fa_attrs = member.attributes -%}
-{%- assign fa_name = "Obsolete" -%}{%- include 'api/find-attr' -%}{%- assign mc_obsolete = fa_out -%}
-{%- assign fa_name = "Experimental" -%}{%- include 'api/find-attr' -%}{%- assign mc_experimental = fa_out -%}
+{%- comment -%} api/find-attr, inline: a rendered template cannot include. {%- endcomment -%}
+{%- assign mc_obsolete = nil -%}{%- assign mc_experimental = nil -%}
+{%- for fa_a in member.attributes -%}{%- assign fa_short = fa_a.name | split: "." | last -%}{%- case fa_short -%}{%- when "Obsolete", "ObsoleteAttribute" -%}{%- unless mc_obsolete -%}{%- assign mc_obsolete = fa_a -%}{%- endunless -%}{%- when "Experimental", "ExperimentalAttribute" -%}{%- unless mc_experimental -%}{%- assign mc_experimental = fa_a -%}{%- endunless -%}{%- endcase -%}{%- endfor -%}
 {%- comment -%} the primary anchor is the first alias (other than the exact anchor), the others are hidden spans {%- endcomment -%}
 {%- assign mc_aliases = "" -%}
 {%- for a in aliases -%}{%- if a != anchor -%}{%- if mc_aliases == "" -%}{%- assign mc_aliases = a -%}{%- else -%}{%- assign mc_aliases = mc_aliases | append: "¦" | append: a -%}{%- endif -%}{%- endif -%}{%- endfor -%}
@@ -40,7 +40,7 @@
 {%- if member.returnType -%}
   {%- capture mc_return_raw %}{% render 'api/md/short-type', t: member.returnType %}{% endcapture -%}
   {%- capture mc_return_href %}{% render 'api/type-href', t: member.returnType %}{% endcapture -%}
-  {%- assign tc_in = mc_return_raw -%}{%- include 'api/cs-color' -%}{%- assign mc_return_color = tc_out -%}
+  {%- capture mc_return_color -%}{%- render 'api/cs-color', tc_in: mc_return_raw -%}{%- endcapture -%}
   {%- if member.returnType != "void" -%}
 <span class="mc-return-type mc-param-type-{{ mc_return_color }}">{% if mc_return_href != "" %}<a href="{{ mc_return_href }}" class="mc-param-type-link">{{ mc_return_raw | escape }}</a>{% else %}<code>{{ mc_return_raw | escape }}</code>{% endif %}</span>
   {%- endif -%}
@@ -63,7 +63,7 @@
 {%- for p in member.parameters -%}
   {%- capture mc_ptype %}{% render 'api/md/short-type', t: p.type %}{% endcapture -%}
   {%- capture mc_phref %}{% render 'api/type-href', t: p.type %}{% endcapture -%}
-  {%- assign tc_in = mc_ptype -%}{%- include 'api/cs-color' -%}
+  {%- capture tc_out -%}{%- render 'api/cs-color', tc_in: mc_ptype -%}{%- endcapture -%}
 <div class="mc-param"><span class="mc-param-header"><code class="mc-param-name">{{ p.name }}</code><span class="mc-param-type mc-param-type-{{ tc_out }}">{% if mc_phref != "" %}<a href="{{ mc_phref }}" class="mc-param-type-link">{{ mc_ptype | escape }}</a>{% else %}<code>{{ mc_ptype | escape }}</code>{% endif %}</span>{% if p.isOptional %}<span class="api-mod-badge">optional</span>{% endif %}</span>
 {%- assign mc_pdoc = member.docs.parameters[p.name] -%}
 {%- if mc_pdoc %}<span class="mc-param-desc">{% render 'api/doc-content', content: mc_pdoc, tag: "span" %}</span>{% endif -%}

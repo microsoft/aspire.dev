@@ -9,7 +9,7 @@
 {%- endcomment -%}
 {%- assign mcb_lang = lang | default: "typescript" -%}
 {%- assign mcb_has_return = false -%}
-{%- if return_type and return_type != "void" -%}{%- assign mcb_has_return = true -%}{%- assign tc_in = return_type -%}{%- include 'api/ts-color' -%}{%- assign mcb_ret_color = tc_out -%}{%- endif -%}
+{%- if return_type and return_type != "void" -%}{%- assign mcb_has_return = true -%}{%- capture mcb_ret_color -%}{%- render 'api/ts-color', tc_in: return_type -%}{%- endcapture -%}{%- endif -%}
 <div class="mc mcb not-content cid-api-reference-member-card-base"><div class="mc-header">
 {%- if kind_label %}<span class="api-kind-pill {{ kind_class | default: 'kind-method' }}">{{ kind_label }}</span>{% endif -%}
 {%- if href %}<a href="{{ href }}" class="mc-name-link"><code class="mc-param-name">{{ name }}</code></a>{% else %}<code class="mc-param-name">{{ name }}</code>{% endif -%}
@@ -19,7 +19,7 @@
 {%- if description %}<div class="mc-summary">{{ description }}</div>{% endif -%}
 {{- after_description -}}
 {%- if signature -%}
-  {%- if mcb_lang == "typescript" -%}{%- assign tfs_sig = signature -%}{%- include 'api/ts-format-sig' -%}{%- assign mcb_sig = tfs_out -%}{%- else -%}{%- assign mcb_sig = signature -%}{%- endif -%}
+  {%- if mcb_lang == "typescript" -%}{%- capture mcb_sig -%}{%- render 'api/ts-format-sig', tfs_sig: signature -%}{%- endcapture -%}{%- else -%}{%- assign mcb_sig = signature -%}{%- endif -%}
 <div class="mc-sig">{% render 'api/code-block', code: mcb_sig, lang: mcb_lang %}</div>
 {%- endif -%}
 {{- after_signature -}}
@@ -28,7 +28,7 @@
   {%- for p in parameters -%}
     {%- assign mcb_type = p.type -%}
     {%- if callback_types and p.isCallback and p.callbackSignature -%}{%- assign mcb_type = p.callbackSignature -%}{%- endif -%}
-    {%- assign tc_in = mcb_type -%}{%- include 'api/ts-color' -%}
+    {%- capture tc_out -%}{%- render 'api/ts-color', tc_in: mcb_type -%}{%- endcapture -%}
 <div class="mc-param"><span class="mc-param-header"><code class="mc-param-name">{{ p.name }}</code><span class="mc-param-type mc-param-type-{{ tc_out }}"><code>{{ mcb_type }}</code></span>{% if p.isOptional %}<span class="api-mod-badge">optional</span>{% endif %}{% if p.defaultValue %}<span class="api-mod-badge">= {{ p.defaultValue }}</span>{% endif %}</span>{% if p.description and description_params %}<span class="mc-param-desc">{{ p.description }}</span>{% endif %}</div>
   {%- endfor -%}
 </div></div>

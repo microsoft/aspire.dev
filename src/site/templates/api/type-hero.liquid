@@ -16,9 +16,9 @@
 {%- endcase -%}
 {%- assign th_sealed_kind = true -%}
 {%- if type.kind == "enum" or type.kind == "delegate" or type.kind == "struct" or type.kind == "record struct" -%}{%- assign th_sealed_kind = false -%}{%- endif -%}
-{%- assign fa_attrs = type.attributes -%}
-{%- assign fa_name = "Obsolete" -%}{%- include 'api/find-attr' -%}{%- assign th_obsolete = fa_out -%}
-{%- assign fa_name = "Experimental" -%}{%- include 'api/find-attr' -%}{%- assign th_experimental = fa_out -%}
+{%- comment -%} api/find-attr, inline: a rendered template cannot include. {%- endcomment -%}
+{%- assign th_obsolete = nil -%}{%- assign th_experimental = nil -%}
+{%- for fa_a in type.attributes -%}{%- assign fa_short = fa_a.name | split: "." | last -%}{%- case fa_short -%}{%- when "Obsolete", "ObsoleteAttribute" -%}{%- unless th_obsolete -%}{%- assign th_obsolete = fa_a -%}{%- endunless -%}{%- when "Experimental", "ExperimentalAttribute" -%}{%- unless th_experimental -%}{%- assign th_experimental = fa_a -%}{%- endunless -%}{%- endcase -%}{%- endfor -%}
 {%- assign th_source = nil -%}
 {%- if pkg.package.sourceRepository and pkg.package.sourceCommit -%}
   {%- if type.sourceFile -%}{%- assign th_source = pkg.package.sourceRepository | append: "/blob/" | append: pkg.package.sourceCommit | append: "/" | append: type.sourceFile -%}

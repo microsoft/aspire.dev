@@ -70,7 +70,7 @@ permalink: "{{ route.url }}"
       {%- assign raw_sig = raw_sig | append: ": " | append: p_type -%}
     {%- endfor -%}
     {%- assign raw_sig = raw_sig | append: "): " | append: m.returnType | append: ";" -%}
-    {%- assign tfs_sig = raw_sig -%}{%- include 'api/ts-format-sig' -%}
+    {%- capture tfs_out -%}{%- render 'api/ts-format-sig', tfs_sig: raw_sig -%}{%- endcapture -%}
     {%- assign indented = tfs_out | split: nl | join: "¶  " | prepend: "  " | replace: "¶", nl -%}
     {%- assign decl_members = decl_members | append: nl | append: indented -%}
   {%- endfor -%}
@@ -110,12 +110,12 @@ permalink: "{{ route.url }}"
   {%- assign fn_return = item.returnType | default: "void" -%}
   {%- assign member_sig = member_sig | append: "): " | append: fn_return -%}
   {%- if extension_style -%}
-    {%- assign tfs_sig = member_sig | append: ";" -%}{%- include 'api/ts-format-sig' -%}
+    {%- assign tfs_sig = member_sig | append: ";" -%}{%- capture tfs_out -%}{%- render 'api/ts-format-sig', tfs_sig: tfs_sig -%}{%- endcapture -%}
     {%- assign indented = tfs_out | split: nl | join: "¶  " | prepend: "  " | replace: "¶", nl -%}
     {%- assign tsi_in = item.expandedTargetTypes[0] -%}{%- include 'api/ts-simplify' -%}
     {%- assign decl = "interface " | append: tsi_out | append: " {" | append: nl | append: "  // ... omitted for brevity" | append: nl | append: indented | append: nl | append: "}" -%}
   {%- else -%}
-    {%- assign tfs_sig = member_sig -%}{%- include 'api/ts-format-sig' -%}
+    {%- capture tfs_out -%}{%- render 'api/ts-format-sig', tfs_sig: member_sig -%}{%- endcapture -%}
     {%- assign decl = "function " | append: tfs_out -%}
   {%- endif -%}
 {%- endif -%}
