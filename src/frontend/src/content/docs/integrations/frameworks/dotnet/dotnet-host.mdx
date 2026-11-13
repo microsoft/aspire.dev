@@ -94,6 +94,28 @@ This updates your `aspire.config.json` with the Dotnet hosting integration packa
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Dotnet
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Dotnet hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Dotnet": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add a C# project or file-based app by path
@@ -126,6 +148,28 @@ await api.withHttpEndpoint({ port: 8080 });
 await api.withExternalHttpEndpoints();
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddDotnetProject("api", "../api/api.csproj")
+api.WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(8080)})
+api.WithExternalHttpEndpoints()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -162,6 +206,13 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService.cs")
+```
+
+</TabItem>
 </Tabs>
 
 ## Configure options
@@ -192,6 +243,15 @@ await builder.addDotnetProject('inventoryservice', '../InventoryService.cs', {
 });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService.cs", &aspire.AddDotnetProjectOptions{
+	Options: &aspire.DotnetProjectOptions{LaunchProfileName: aspire.StringPtr("https")},
+})
 ```
 
 </TabItem>
@@ -232,6 +292,19 @@ await builder.addDotnetProject('inventoryservice', '../InventoryService.cs', {
 });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService.cs", &aspire.AddDotnetProjectOptions{
+	Options: &aspire.DotnetProjectOptions{
+		LaunchProfileName:       aspire.StringPtr("https"),
+		ExcludeLaunchProfile:    aspire.BoolPtr(false),
+		ExcludeKestrelEndpoints: aspire.BoolPtr(false),
+	},
+})
 ```
 
 </TabItem>

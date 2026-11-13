@@ -5,15 +5,21 @@ import {
 } from './api-reference-core';
 import { getPackages } from './packages';
 import { getTsModules } from './ts-modules';
+import { getGoModules } from './go-modules';
 
 let productionIndexPromise: Promise<ApiReferenceIndex> | undefined;
 const requestIndexPromises = new WeakMap<object, Promise<ApiReferenceIndex>>();
 
 async function createApiReferenceIndex(): Promise<ApiReferenceIndex> {
-  const [packages, modules] = await Promise.all([getPackages(), getTsModules()]);
+  const [packages, modules, goModules] = await Promise.all([
+    getPackages(),
+    getTsModules(),
+    getGoModules(),
+  ]);
   return buildApiReferenceIndex(
     packages.map((entry) => entry.data),
-    modules.map((entry) => entry.data)
+    modules.map((entry) => entry.data),
+    goModules.map((entry) => entry.data)
   );
 }
 

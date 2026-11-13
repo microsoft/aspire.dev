@@ -30,6 +30,7 @@ The Docker Compose examples on this page intentionally select `mcr.microsoft.com
     options={[
         { id: "csharp", title: "C#" },
         { id: "typescript", title: "TypeScript" },
+        { id: "go", title: "Go" },
     ]}
 />
 
@@ -97,6 +98,42 @@ The React (Vite) and Express starter template consists of two resources that are
 
 <LearnMore>
   This tutorial uses the **backend serves frontend** deployment model. For the other production patterns available to <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" /> and <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddJavaScriptApp" />, including reverse proxy and gateway/BFF approaches, see [Deploy JavaScript apps](/deployment/javascript-apps/).
+</LearnMore>
+
+</Pivot>
+
+<Pivot id="go">
+
+In this tutorial, you take the app you created in the [Build your first Aspire app — Go AppHost](/get-started/first-app/) quickstart and deploy it. This can be broken down into several key steps:
+
+<Steps>
+
+1. [Add deployment package](#add-deployment-package) - Add the hosting package for your target.
+1. [Update your AppHost](#update-your-apphost) - Configure the environment API.
+1. [Deploy your app](#deploy-your-app) - Deploy using the Aspire CLI.
+1. [Verify your deployment](#verify-your-deployment) - Ensure your app is running as expected.
+1. [Clean up resources](#clean-up-resources) - Remove any deployed resources to avoid incurring costs.
+
+</Steps>
+
+The following diagram shows the architecture of the sample app you're deploying:
+
+```mermaid
+architecture-beta
+  group docker(logos:docker-icon)[Go API and static site container]
+
+  service api(logos:go)[API service] in docker
+  service http(iconoir:server-connection)[https] in docker
+  service frontend(logos:react)[React frontend] in docker
+
+  frontend:L --> R:http
+  http:L --> R:api
+```
+
+The Go and React (Vite) starter template consists of two resources that are deployed as a single container image. The `app` resource is the Go API, and `PublishWithContainerFiles` copies the built React frontend into that image under `./static`. At run time, the Go server serves both the `/api/weatherforecast` API and the static frontend files, so there's one container to deploy and one URL to open.
+
+<LearnMore>
+  This tutorial uses the **backend serves frontend** deployment model. For more information, see [Deploy Go apps](/deployment/go-apps/) and [Deploy JavaScript apps](/deployment/javascript-apps/).
 </LearnMore>
 
 </Pivot>
@@ -173,6 +210,45 @@ Depending on where you want to deploy your Aspire app, ensure you have the follo
 
 </Pivot>
 
+<Pivot id="go">
+
+Depending on where you want to deploy your Aspire app, ensure you have the following prerequisites installed and configured:
+
+<Tabs syncKey="deploy-target">
+  <TabItem id="docker-compose" label="Docker Compose">
+    <div class="sl-flex sl-gap-4 sl-items-center sl-mb-4">
+      <div>
+        <Image src={dockerIcon} alt="Docker logo" class="icon md" data-zoom-off />
+      </div>
+      <ul>
+        <li>
+          <a href="https://www.docker.com/products/docker-desktop">Docker Desktop</a>{' '}installed and running.
+        </li>
+        <li>
+          <a href="https://podman.io/getting-started/installation">Podman (alternative to Docker)</a>{' '}installed and running. For more information, see <a href="/get-started/prerequisites/#install-an-oci-compliant-container-runtime">OCI-compatible container runtime</a>.
+        </li>
+      </ul>
+    </div>
+  </TabItem>
+  <TabItem id="azure" label="Azure">
+    <div class="sl-flex sl-gap-4 sl-items-center sl-mb-4">
+      <div>
+        <Image src={azureIcon} alt="Azure logo" class="icon md" data-zoom-off />
+      </div>
+      <ul>
+        <li>
+          <a href="https://azure.microsoft.com/free/">Azure account</a> with an active subscription.
+        </li>
+        <li>
+          <a href="https://learn.microsoft.com/cli/azure/install-azure-cli">Azure CLI</a>{' '}installed and configured. You should be logged in using <code>az login</code>.
+        </li>
+      </ul>
+    </div>
+  </TabItem>
+</Tabs>
+
+</Pivot>
+
 ## Add deployment package
 
 <Pivot id="csharp">
@@ -212,6 +288,42 @@ In the root directory of your Aspire solution that you created in the previous q
 <Pivot id="typescript">
 
 In the root directory of your Aspire app that you created in the previous quickstart, add the appropriate hosting deployment package by running the following command in your terminal:
+
+<Tabs syncKey="deploy-target">
+    <TabItem id="docker-compose" label="Docker Compose">
+
+        [Docker Compose](https://docs.docker.com/compose/) is a tool for defining and running multi-container Docker applications. It allows you to use a YAML file to configure your application's services, networks, and volumes, making it easier to manage and deploy complex applications locally or in various environments.
+
+        ```bash title="Aspire CLI — Add Docker Compose"
+        aspire add docker
+        ```
+
+        The Aspire CLI is interactive, be sure to select the appropriate search result for the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) version you want to add.
+
+    </TabItem>
+    <TabItem id="azure" label="Azure">
+
+        ```bash title="Aspire CLI — Add Azure App Containers"
+        aspire add azure-appcontainers
+        ```
+
+        The Aspire CLI is interactive, be sure to select the appropriate search result for the [📦 Aspire.Hosting.Azure.AppContainers](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppContainers) version you want to add.
+
+    </TabItem>
+
+    If prompted for additional selections, use the <Kbd windows="↑" mac="↑" /> and <Kbd windows="↓" mac="↓" /> keys to navigate the options. Press <Kbd windows="Enter" mac="Return" /> to confirm your selection.
+
+    <LearnMore>
+    Learn more about the `aspire add` command in the [reference docs](/reference/cli/commands/aspire-add/).
+    </LearnMore>
+
+</Tabs>
+
+</Pivot>
+
+<Pivot id="go">
+
+In the root directory of your Aspire app that you created in the previous quickstart, add the appropriate hosting deployment package by running the following command in your terminal. The Aspire CLI adds the package to `aspire.config.json` and regenerates the Go SDK in `.aspire/modules`.
 
 <Tabs syncKey="deploy-target">
     <TabItem id="docker-compose" label="Docker Compose">
@@ -369,6 +481,111 @@ After installing a new deployment package, you can run `aspire deploy --list-ste
 
   </TabItem>
 
+</Tabs>
+
+<Aside type="tip" title="CLI protip" icon="forward-slash">
+  After installing a new deployment package, you can run `aspire deploy --list-steps` in your terminal to see the pipeline steps that would be executed for the deploy. For more information, see the [aspire deploy](/reference/cli/commands/aspire-deploy/) reference docs.
+</Aside>
+
+</Pivot>
+
+<Pivot id="go">
+
+<Tabs syncKey="deploy-target">
+  <TabItem id="docker-compose" label="Docker Compose">
+
+    ```go title="apphost.go" {15-16}
+    package main
+
+    import (
+    	"log"
+
+    	"apphost/modules/aspire"
+    )
+
+    func main() {
+    	builder, err := aspire.CreateBuilder()
+    	if err != nil {
+    		log.Fatal(aspire.FormatError(err))
+    	}
+
+    	// Add the following line to configure the Docker Compose environment
+    	builder.AddDockerComposeEnvironment("env")
+
+    	app := builder.AddGoApp("app", "./api").
+    		WithModTidy().
+    		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
+    		WithHttpHealthCheck(aspire.HttpHealthCheckPath("/health")).
+    		WithExternalHttpEndpoints().
+    		WithOtlpExporter()
+
+    	frontend := builder.AddViteApp("frontend", "./frontend", nil).
+    		WithReference(app).
+    		WaitFor(app)
+
+    	app.PublishWithContainerFiles(frontend, "./static")
+
+    	application, err := builder.Build()
+    	if err != nil {
+    		log.Fatal(aspire.FormatError(err))
+    	}
+    	if err := application.Run(); err != nil {
+    		log.Fatal(aspire.FormatError(err))
+    	}
+    }
+    ```
+
+    - <ApiReference name="Aspire.Hosting.DockerComposeEnvironmentExtensions.AddDockerComposeEnvironment" /> - Configures the Docker Compose environment for deployment. This call implicitly adds support for containerizing resources in the AppHost as part of deployment.
+    - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" /> - Exposes HTTP endpoints for the resource when deployed.
+
+  </TabItem>
+  <TabItem id="azure" label="Azure">
+
+    ```go title="apphost.go" {15-16}
+    package main
+
+    import (
+    	"log"
+
+    	"apphost/modules/aspire"
+    )
+
+    func main() {
+    	builder, err := aspire.CreateBuilder()
+    	if err != nil {
+    		log.Fatal(aspire.FormatError(err))
+    	}
+
+    	// Add the following line to configure the Azure App Container environment
+    	builder.AddAzureContainerAppEnvironment("env")
+
+    	app := builder.AddGoApp("app", "./api").
+    		WithModTidy().
+    		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
+    		WithHttpHealthCheck(aspire.HttpHealthCheckPath("/health")).
+    		WithExternalHttpEndpoints().
+    		WithOtlpExporter()
+
+    	frontend := builder.AddViteApp("frontend", "./frontend", nil).
+    		WithReference(app).
+    		WaitFor(app)
+
+    	app.PublishWithContainerFiles(frontend, "./static")
+
+    	application, err := builder.Build()
+    	if err != nil {
+    		log.Fatal(aspire.FormatError(err))
+    	}
+    	if err := application.Run(); err != nil {
+    		log.Fatal(aspire.FormatError(err))
+    	}
+    }
+    ```
+
+    - <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.AddAzureContainerAppEnvironment" /> - Configures the Azure App Container environment for deployment. This call implicitly adds support for containerizing resources in the AppHost as part of deployment.
+    - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" /> - Exposes HTTP endpoints for the resource when deployed.
+
+  </TabItem>
 </Tabs>
 
 <Aside type="tip" title="CLI protip" icon="forward-slash">
@@ -1025,6 +1242,79 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
 
 </Pivot>
 
+<Pivot id="go">
+
+Now that you've added the deployment package and updated your AppHost, you can deploy your Aspire app.
+
+<Tabs syncKey="deploy-target">
+
+    <TabItem id="docker-compose" label="Docker Compose">
+
+    Deploying to Docker Compose builds the container images and starts the services locally using Docker Compose.
+
+    ```bash title="Aspire CLI — Deploy your app"
+    aspire deploy
+    ```
+
+    The deploy builds one image for the `app` resource. For a Go app, Aspire generates a multi-stage Dockerfile that builds the Go binary, then copies in the React build output from the `frontend` resource at `./static`. When the deployment finishes, the output includes a `print-app-summary` step with the local URL for the app.
+
+    </TabItem>
+
+    <TabItem id="azure" label="Azure">
+
+    Deploying to Azure App Containers provisions the Azure resources, builds and pushes the container image, and deploys the app.
+
+    ```bash title="Aspire CLI — Deploy your app"
+    aspire deploy
+    ```
+
+    The Aspire CLI prompts for the Azure subscription, location, and resource group if they aren't already configured. The deploy builds one image for the `app` resource (the Go API with the bundled React frontend), pushes it to an Azure Container Registry, and deploys it to an Azure Container Apps environment.
+
+    </TabItem>
+
+</Tabs>
+
+<LearnMore>
+  For more information, see [aspire deploy](/reference/cli/commands/aspire-deploy/) and [Deploy Go apps](/deployment/go-apps/).
+</LearnMore>
+
+### Post deployment output
+
+After a deployment, the Aspire CLI writes to the provided output path (or the default output path if none is provided) a set of files based on your deployment target.
+
+<Tabs syncKey="deploy-target">
+    <TabItem id="docker-compose" label="Docker Compose">
+
+        <FileTree>
+        - aspire-output
+          - .env
+          - .env.Production
+          - app.Dockerfile
+          - docker-compose.yaml
+        </FileTree>
+
+        The `aspire-output` directory contains the generated environment variables, an `app.Dockerfile`, and the Docker Compose configuration. These files are generated for you, so you don't need to write them yourself. The `app.Dockerfile` is a multi-stage Dockerfile that builds the Go API and includes the React frontend under `./static`, and the `docker-compose.yaml` file defines the `app` service alongside the Aspire dashboard.
+
+    </TabItem>
+    <TabItem id="azure" label="Azure">
+
+    After deploying to Azure App Containers, the Aspire CLI saves the deployment state file to your local machine.
+
+        <FileTree>
+        - $HOME
+          - .aspire/deployments/[AppHost-Sha256]/production.json
+        </FileTree>
+
+    <Aside type="tip" title="AppHost SHA256">
+    The deployment state is saved in a directory named after the SHA256 hash of your full AppHost path. This ensures that deployments for different applications or versions are kept separate.
+    </Aside>
+
+    </TabItem>
+
+</Tabs>
+
+</Pivot>
+
 ## Verify your deployment
 
 <Pivot id="csharp">
@@ -1133,6 +1423,40 @@ To verify that your application is running as expected after deployment, follow 
 
 </Pivot>
 
+<Pivot id="go">
+
+To verify that your application is running as expected after deployment, follow the instructions for your chosen deployment target below.
+
+<Tabs syncKey="deploy-target">
+  <TabItem id="docker-compose" label="Docker Compose">
+
+    When deploying to Docker Compose, the `aspire deploy` command displays the URLs where your services are running. Look for the `print-*-summary` steps in the deployment output, which show the localhost URLs for each service that has been configured with `WithExternalHttpEndpoints`.
+
+    For this app, look for the `print-app-summary` step, which reports the URL for the `app` resource. Open your web browser and navigate to that URL to see your deployed application.
+
+    The frontend displays the weather forecast data in a React template. Both the Go API and the React frontend are served from the same Docker container.
+
+  </TabItem>
+
+  <TabItem id="azure" label="Azure">
+
+    When deploying to Azure App Containers, you can verify that your Go/React application is running by navigating to the URL provided in the deployment output. Look for the `print-app-summary` step, which reports the URL for the `app` resource:
+
+    ```bash title="Aspire CLI - Deployment summary"
+    (print-app-summary) i [INF] Successfully deployed app to
+      https://{NAME}.{LOCATION}.azurecontainerapps.io
+    ```
+
+    Open your web browser and navigate to the provided URL to see your deployed application.
+
+    The frontend displays the weather forecast data in a React template. Both the Go API and the React frontend are served from the same container.
+
+  </TabItem>
+
+</Tabs>
+
+</Pivot>
+
 ## Clean up resources
 
 <Pivot id="csharp">
@@ -1160,6 +1484,31 @@ You've just built your first Aspire app and deployed it to production. Now you m
 
 </Pivot>
 <Pivot id="typescript">
+
+After deploying your application, it's important to clean up resources to avoid incurring unnecessary costs or consuming local system resources.
+
+Use `aspire destroy` to tear down the deployed environment. The command discovers the deployment, shows what will be removed, and prompts for confirmation before continuing.
+
+```bash title="Aspire CLI - Destroy the deployed environment"
+aspire destroy
+```
+
+<Aside type="caution">
+  `aspire destroy` permanently removes deployed resources. For Azure
+  deployments it deletes the entire resource group and everything in it; for
+  Docker Compose it stops and removes the running containers, networks, and
+  volumes. This action cannot be undone.
+</Aside>
+
+<LearnMore>
+  For a deep-dive into the related foundational concepts, see [Pipelines and app topology](/deployment/pipelines/).
+</LearnMore>
+
+You've just built your first Aspire app and deployed it to production. Now you might be wondering: "How do I make sure all these services actually work together correctly?" That's where integration testing comes in. Aspire makes it easy to test your entire application stack, including service-to-service communication and resource dependencies. Ready to learn how? [Write your first test](/testing/write-your-first-test/)
+
+</Pivot>
+
+<Pivot id="go">
 
 After deploying your application, it's important to clean up resources to avoid incurring unnecessary costs or consuming local system resources.
 

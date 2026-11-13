@@ -10,18 +10,18 @@ The Aspire CLI generates the Go SDK from the integrations in your `aspire.config
 
 Every integration adds its methods to the `aspire` package, and method names are PascalCase. The TypeScript method `addRedis` is `AddRedis` in Go.
 
-Methods that add a resource, such as `AddRedis` and `AddGoApp`, return a _handle_. A handle is a Go interface that stands for the resource in the app model, for example `aspire.RedisResource`. Methods that configure a resource return the same handle type, so calls chain. Every handle has an `Err() error` method, which is described in [Errors](#errors).
+Methods that add a resource, such as `AddRedis` and `AddGoApp`, return a _handle_. A handle is a Go interface that stands for the resource in the app model, for example `aspire.RedisResource`. Methods that configure a resource return the same handle type, so calls chain. Errors are reported when you call `Build`, as described in [Errors](#errors).
 
 ## Optional parameters
 
 Optional parameters go in a trailing variadic options argument. Leave it out to use the defaults. The argument is usually a struct named `<Method>Options`, such as `*aspire.WithHttpEndpointOptions`. Methods with the same name share one struct when their optional parameters match. If they don't match, or if another type already has the name, the name starts with the type that defines the method, such as `*aspire.ExecutableResourceWithVolumeOptions` for `WithVolume` on a Go app. A few methods take an existing type instead, such as `*aspire.DelveServerOptions` for `WithDelveServer`, and that type declares its own field types.
 
-In a `<Method>Options` struct, scalar fields (string, number, bool, and enum) are pointers, so a field that you don't set stays `nil`. Use `aspire.StringPtr`, `aspire.BoolPtr`, and `aspire.Float64Ptr` to create the values. Numeric fields are `*float64`. Slice, map, callback, and `any` fields can already be `nil`, so they aren't pointers. For example, `AddGoAppOptions.BuildTags` is a `[]string`.
+In a `<Method>Options` struct, scalar fields (string, number, bool, and enum) are pointers, so a field that you don't set stays `nil`. Use `aspire.StringPtr`, `aspire.BoolPtr`, `aspire.IntPtr`, and `aspire.Float64Ptr` to create the values. Numeric fields use the type that matches the option: for example, ports are `*int` and durations expressed in milliseconds are `*float64`. Slice, map, callback, and `any` fields can already be `nil`, so they aren't pointers. For example, `AddGoAppOptions.BuildTags` is a `[]string`.
 
 ```go title="apphost.go"
 builder.AddGoApp("api", "./api").
 	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
-		Port: aspire.Float64Ptr(8080),
+		Port: aspire.IntPtr(8080),
 		Env:  aspire.StringPtr("PORT"),
 	})
 ```
@@ -32,25 +32,15 @@ The [`WithHttpEndpoint` API reference](/reference/api/go/aspire.hosting/withhttp
 
 The SDK reports errors in two ways.
 
-Methods that add or configure a resource return a handle instead of an error. The handle records the first failure, later calls on it do nothing, and `Err()` returns the recorded error. A child resource, such as a database that you add to a server, inherits the error of its parent, so checking the last handle in a chain is enough:
-
-```go title="apphost.go"
-db := builder.AddPostgres("postgres").AddDatabase("postgresdb")
-if err := db.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
-```
-
-A failed `Add` call records its error on the handle that it returns, not on the builder, so `builder.Err()` doesn't report it. To check several resources at once, put them in a slice of `aspire.Resource`:
+Methods that add or configure a resource return a handle instead of an error, so you can add many resources without checking each call. The SDK aggregates the errors and reports them when you call `Build`:
 
 ```go title="apphost.go"
 cache := builder.AddRedis("cache")
-api := builder.AddGoApp("api", "./api").WithReference(cache)
+builder.AddGoApp("api", "./api").WithReference(cache)
 
-for _, resource := range []aspire.Resource{cache, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
 }
 ```
 

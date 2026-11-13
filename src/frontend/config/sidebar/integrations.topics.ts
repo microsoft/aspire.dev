@@ -128,24 +128,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
-          label: 'GitHub Models',
-          collapsed: true,
-          items: [
-            {
-              label: 'Get started',
-              slug: 'integrations/ai/github-models/github-models-get-started',
-            },
-            {
-              label: 'Set up GitHub Models in the AppHost',
-              slug: 'integrations/ai/github-models/github-models-host',
-            },
-            {
-              label: 'Connect to GitHub Models',
-              slug: 'integrations/ai/github-models/github-models-connect',
-            },
-          ],
-        },
-        {
           label: 'Ollama',
           collapsed: true,
           items: [
@@ -178,6 +160,42 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Connect to OpenAI',
               slug: 'integrations/ai/openai/openai-connect',
+            },
+          ],
+        },
+        {
+          label: 'Squad',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/ai/squad/squad-get-started',
+            },
+            {
+              label: 'Set up Squad in the AppHost',
+              slug: 'integrations/ai/squad/squad-host',
+            },
+            {
+              label: 'Connect to a Squad team',
+              slug: 'integrations/ai/squad/squad-connect',
+            },
+          ],
+        },
+        {
+          label: 'Stable Diffusion.cpp',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-get-started',
+            },
+            {
+              label: 'Set up Stable Diffusion.cpp in the AppHost',
+              slug: 'integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-host',
+            },
+            {
+              label: 'Connect to Stable Diffusion.cpp',
+              slug: 'integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-connect',
             },
           ],
         },
@@ -402,6 +420,58 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                       slug: 'integrations/cloud/azure/azure-openai/azure-openai-connect',
                     },
                   ],
+                },
+                {
+                  label: 'Stripe',
+                  collapsed: true,
+                  items: [
+                    {
+                      label: 'Get started',
+                      slug: 'integrations/cloud/stripe/stripe-get-started',
+                    },
+                    {
+                      label: 'Set up Stripe in the AppHost',
+                      slug: 'integrations/cloud/stripe/stripe-host',
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              label: 'Azure API Management',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-get-started',
+                },
+                {
+                  label: 'APIs and operations',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-apis',
+                },
+                {
+                  label: 'OpenAPI import',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-openapi',
+                },
+                {
+                  label: 'Backends and pools',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-backends',
+                },
+                {
+                  label: 'Policies and named values',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-policies',
+                },
+                {
+                  label: 'Products and subscriptions',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-products',
+                },
+                {
+                  label: 'Service configuration',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-service',
+                },
+                {
+                  label: 'Networking',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-networking',
                 },
               ],
             },
@@ -664,6 +734,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/azure-storage-datalake',
             },
             {
+              label: 'Azure Storage Explorer',
+              slug: 'integrations/cloud/azure/azure-storage-explorer',
+            },
+            {
               label: 'Azure Storage Queues',
               collapsed: true,
               items: [
@@ -878,6 +952,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         { label: 'Docker', slug: 'integrations/compute/docker' },
         { label: 'Floci', slug: 'integrations/compute/floci' },
         { label: 'K3s', slug: 'integrations/compute/k3s' },
+        {
+          label: 'Kind',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/compute/kind/kind-get-started',
+            },
+            {
+              label: 'Set up Kind in the AppHost',
+              slug: 'integrations/compute/kind/kind-host',
+            },
+          ],
+        },
         { label: 'Kubernetes', slug: 'integrations/compute/kubernetes' },
       ],
     },
@@ -903,6 +991,18 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
+          label: 'Chroma',
+          collapsed: true,
+          items: [
+            { label: 'Get started', slug: 'integrations/databases/chroma/chroma-get-started' },
+            {
+              label: 'Set up Chroma in the AppHost',
+              slug: 'integrations/databases/chroma/chroma-host',
+            },
+            { label: 'Connect to Chroma', slug: 'integrations/databases/chroma/chroma-connect' },
+          ],
+        },
+        {
           label: 'ClickHouse',
           collapsed: true,
           items: [
@@ -921,6 +1021,18 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: 'DuckDB',
+          collapsed: true,
+          items: [
+            { label: 'Get started', slug: 'integrations/databases/duckdb/duckdb-get-started' },
+            {
+              label: 'Set up DuckDB in the AppHost',
+              slug: 'integrations/databases/duckdb/duckdb-host',
+            },
+            { label: 'Connect to DuckDB', slug: 'integrations/databases/duckdb/duckdb-connect' },
+          ],
+        },
+        {
           label: 'Elasticsearch',
           collapsed: true,
           items: [
@@ -935,6 +1047,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Connect to Elasticsearch',
               slug: 'integrations/databases/elasticsearch/elasticsearch-connect',
+            },
+            {
+              label: 'Community extensions',
+              slug: 'integrations/databases/elasticsearch/elasticsearch-extensions',
             },
           ],
         },
@@ -1077,6 +1193,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/sql-server/sql-server-connect',
                 },
               ],
+            },
+            {
+              label: 'SQLite',
+              slug: 'integrations/databases/efcore/sqlite',
+            },
+          ],
+        },
+        {
+          label: 'Flyway',
+          collapsed: true,
+          items: [
+            { label: 'Get started', slug: 'integrations/databases/flyway/flyway-get-started' },
+            {
+              label: 'Set up Flyway in the AppHost',
+              slug: 'integrations/databases/flyway/flyway-host',
             },
           ],
         },
@@ -1234,6 +1365,45 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               label: 'Connect to RavenDB',
               slug: 'integrations/databases/ravendb/ravendb-connect',
             },
+          ],
+        },
+        {
+          label: 'RustFS',
+          collapsed: true,
+          items: [
+            { label: 'Get started', slug: 'integrations/databases/rustfs/rustfs-get-started' },
+            {
+              label: 'Set up RustFS in the AppHost',
+              slug: 'integrations/databases/rustfs/rustfs-host',
+            },
+            { label: 'Connect to RustFS', slug: 'integrations/databases/rustfs/rustfs-connect' },
+          ],
+        },
+        {
+          label: 'SeaweedFS',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/seaweedfs/seaweedfs-get-started',
+            },
+            {
+              label: 'Set up SeaweedFS in the AppHost',
+              slug: 'integrations/databases/seaweedfs/seaweedfs-host',
+            },
+            {
+              label: 'Connect to SeaweedFS',
+              slug: 'integrations/databases/seaweedfs/seaweedfs-connect',
+            },
+          ],
+        },
+        {
+          label: 'Solr',
+          collapsed: true,
+          items: [
+            { label: 'Get started', slug: 'integrations/databases/solr/solr-get-started' },
+            { label: 'Set up Solr in the AppHost', slug: 'integrations/databases/solr/solr-host' },
+            { label: 'Connect to Solr', slug: 'integrations/databases/solr/solr-connect' },
           ],
         },
         {
@@ -1534,6 +1704,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
+          label: 'ActiveMQ',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/activemq/activemq-get-started',
+            },
+            {
+              label: 'Set up ActiveMQ in the AppHost',
+              slug: 'integrations/messaging/activemq/activemq-host',
+            },
+          ],
+        },
+        {
           label: 'Apache Kafka',
           collapsed: true,
           items: [
@@ -1570,6 +1754,34 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: 'Listmonk',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/listmonk/listmonk-get-started',
+            },
+            {
+              label: 'Set up listmonk in the AppHost',
+              slug: 'integrations/messaging/listmonk/listmonk-host',
+            },
+          ],
+        },
+        {
+          label: 'Mosquitto',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/mosquitto/mosquitto-get-started',
+            },
+            {
+              label: 'Set up Mosquitto in the AppHost',
+              slug: 'integrations/messaging/mosquitto/mosquitto-host',
+            },
+          ],
+        },
+        {
           label: 'NATS',
           collapsed: true,
           items: [
@@ -1588,8 +1800,40 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: 'Papercut SMTP',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/papercut-smtp/papercut-smtp-get-started',
+            },
+            {
+              label: 'Set up Papercut SMTP in the AppHost',
+              slug: 'integrations/messaging/papercut-smtp/papercut-smtp-host',
+            },
+          ],
+        },
+        {
           label: 'Particular Service Platform',
           link: 'https://docs.particular.net/platform/aspire/',
+        },
+        {
+          label: 'Posta',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/posta/posta-get-started',
+            },
+            {
+              label: 'Set up Posta in the AppHost',
+              slug: 'integrations/messaging/posta/posta-host',
+            },
+            {
+              label: 'Connect to Posta',
+              slug: 'integrations/messaging/posta/posta-connect',
+            },
+          ],
         },
         {
           label: 'RabbitMQ',
@@ -1606,6 +1850,38 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Connect to RabbitMQ',
               slug: 'integrations/messaging/rabbitmq/rabbitmq-connect',
+            },
+          ],
+        },
+        {
+          label: 'Redpanda',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/redpanda/redpanda-get-started',
+            },
+            {
+              label: 'Set up Redpanda in the AppHost',
+              slug: 'integrations/messaging/redpanda/redpanda-host',
+            },
+          ],
+        },
+        {
+          label: 'SFTP',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/sftp/sftp-get-started',
+            },
+            {
+              label: 'Set up SFTP in the AppHost',
+              slug: 'integrations/messaging/sftp/sftp-host',
+            },
+            {
+              label: 'Connect to an SFTP server',
+              slug: 'integrations/messaging/sftp/sftp-connect',
             },
           ],
         },
@@ -1631,7 +1907,105 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Безпека та ідентичність',
         'zh-CN': '安全与身份',
       },
-      items: [{ label: 'Keycloak', slug: 'integrations/security/keycloak' }],
+      items: [
+        {
+          label: 'Bitwarden Secrets Manager',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/security/bitwarden-secret-manager/bitwarden-secret-manager-get-started',
+            },
+            {
+              label: 'Set up Bitwarden Secrets Manager in the AppHost',
+              slug: 'integrations/security/bitwarden-secret-manager/bitwarden-secret-manager-host',
+            },
+            {
+              label: 'Connect to Bitwarden Secrets Manager',
+              slug: 'integrations/security/bitwarden-secret-manager/bitwarden-secret-manager-connect',
+            },
+          ],
+        },
+        { label: 'Keycloak', slug: 'integrations/security/keycloak' },
+        {
+          label: 'Microsoft Entra ID',
+          collapsed: true,
+          items: [
+            {
+              label: 'Overview',
+              slug: 'integrations/security/microsoft-entra-id',
+            },
+            {
+              label: 'Secure a web app and API',
+              slug: 'integrations/security/microsoft-entra-id/secure-web-and-api',
+            },
+            {
+              label: 'Redirect URIs and sign-in',
+              slug: 'integrations/security/microsoft-entra-id/redirect-uris-and-sign-in',
+            },
+            {
+              label: 'Client credentials',
+              slug: 'integrations/security/microsoft-entra-id/client-credentials',
+            },
+            {
+              label: 'Expose and call APIs',
+              slug: 'integrations/security/microsoft-entra-id/expose-and-call-apis',
+            },
+            {
+              label: 'Application roles',
+              slug: 'integrations/security/microsoft-entra-id/app-roles',
+            },
+            {
+              label: 'Existing registrations',
+              slug: 'integrations/security/microsoft-entra-id/existing-registrations',
+            },
+            {
+              label: 'Customize infrastructure',
+              slug: 'integrations/security/microsoft-entra-id/customize-infrastructure',
+            },
+            {
+              label: 'Lifecycle and permissions',
+              slug: 'integrations/security/microsoft-entra-id/lifecycle-and-permissions',
+            },
+          ],
+        },
+        {
+          label: 'Logto',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/security/logto/logto-get-started',
+            },
+            {
+              label: 'Set up Logto in the AppHost',
+              slug: 'integrations/security/logto/logto-host',
+            },
+            {
+              label: 'Connect to Logto',
+              slug: 'integrations/security/logto/logto-connect',
+            },
+          ],
+        },
+        {
+          label: 'ZITADEL',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/security/zitadel/zitadel-get-started',
+            },
+            {
+              label: 'Set up ZITADEL in the AppHost',
+              slug: 'integrations/security/zitadel/zitadel-host',
+            },
+            {
+              label: 'Connect to ZITADEL',
+              slug: 'integrations/security/zitadel/zitadel-connect',
+            },
+          ],
+        },
+      ],
     },
     {
       label: 'Observability & logging',
@@ -1654,6 +2028,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         'zh-CN': '可观察性与日志记录',
       },
       items: [
+        {
+          label: 'OpenTelemetry Collector',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/observability/opentelemetry-collector/opentelemetry-collector-get-started',
+            },
+            {
+              label: 'Set up the Collector in the AppHost',
+              slug: 'integrations/observability/opentelemetry-collector/opentelemetry-collector-host',
+            },
+          ],
+        },
         {
           label: 'Seq',
           collapsed: true,
@@ -1695,6 +2083,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         'zh-CN': '反向代理和API',
       },
       items: [
+        {
+          label: 'Ngrok',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/reverse-proxies/ngrok/ngrok-get-started',
+            },
+            {
+              label: 'Set up Ngrok in the AppHost',
+              slug: 'integrations/reverse-proxies/ngrok/ngrok-host',
+            },
+          ],
+        },
         {
           label: 'YARP (Yet Another Reverse Proxy)',
           slug: 'integrations/reverse-proxies/yarp',
@@ -1831,6 +2233,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: 'MCP Inspector',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/mcp-inspector/mcp-inspector-get-started',
+            },
+            {
+              label: 'Configure MCP Inspector in the AppHost',
+              slug: 'integrations/devtools/mcp-inspector/mcp-inspector-host',
+            },
+          ],
+        },
+        {
           label: 'SQL Database Projects',
           collapsed: true,
           items: [
@@ -1841,6 +2257,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Set up SQL projects in the AppHost',
               slug: 'integrations/devtools/sql-projects/sql-projects-host',
+            },
+          ],
+        },
+        {
+          label: 'Umami',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/umami/umami-get-started',
+            },
+            {
+              label: 'Set up Umami in the AppHost',
+              slug: 'integrations/devtools/umami/umami-host',
             },
           ],
         },

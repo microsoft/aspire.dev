@@ -62,7 +62,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // In CI the preceding `pnpm build:production` step has already produced
+    // In CI the preceding `bun run build:production` step has already produced
     // `dist/`, so serve the built site via `astro preview`. Under `astro dev`
     // the first request to each page triggers twoslash processing, which
     // stacks up under parallel test workers and blows past the default
@@ -70,7 +70,7 @@ export default defineConfig({
     // doesn't require a full rebuild.
     command: isCI
       ? `astro preview --host 127.0.0.1 --port ${e2ePort}`
-      : `pnpm git-env && pnpm check-data && astro dev --host 127.0.0.1 --port ${e2ePort}`,
+      : `bun run git-env && bun run check-data && astro dev --host 127.0.0.1 --port ${e2ePort}`,
     env: {
       ...process.env,
       ASTRO_TELEMETRY_DISABLED: '1',

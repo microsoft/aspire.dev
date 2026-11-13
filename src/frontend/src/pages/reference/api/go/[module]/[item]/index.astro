@@ -14,12 +14,14 @@ import {
   buildGoFunctionDefinition,
   buildGoHandleDefinition,
   getGoHandleAppliesTo,
+  getGoItem,
+  getGoModuleDocument,
   getGoModules,
   getGoPropertyValueType,
   getGoTypeHref,
   goModuleSlug,
 } from '@utils/go-modules';
-import type { GoApiDocument, GoDtoType, GoEnumType, GoFunction, GoHandleType } from '@utils/go-modules';
+import type { GoDtoType, GoEnumType, GoFunction, GoHandleType, GoItemRouteProps } from '@utils/go-modules';
 import { getGoApiReferenceSidebar } from '@utils/go-api-sidebar';
 import { getGoFunctionDisplayKind, getGoFunctionDisplayLabel } from '@utils/go-api-function-kind';
 import {
@@ -36,51 +38,53 @@ import GoDocText from '@components/api-reference/GoDocText.astro';
 import GoMemberCard from '@components/api-reference/GoMemberCard.astro';
 import { toSearchGoDocText } from '@utils/go-doc-text';
 
+type Props = GoItemRouteProps;
+
 export async function getStaticPaths() {
   const packages = await getGoModules();
-  const paths: any[] = [];
+  const paths: Array<{ params: { module: string; item: string }; props: GoItemRouteProps }> = [];
 
   for (const pkg of packages) {
     const pkgSlug = goModuleSlug(pkg.data.package.name);
     const topLevelItems = getGoTopLevelRouteItems(pkg.data);
 
     // Handle types
-    for (const handle of pkg.data.handleTypes ?? []) {
+    for (const [itemIndex, handle] of (pkg.data.handleTypes ?? []).entries()) {
       const slug = getGoItemSlug(handle, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: handle, itemKind: 'handle' },
+        props: { packageName: pkg.data.package.name, itemIndex, itemKind: 'handle' },
       });
     }
 
     // DTO types
-    for (const dto of pkg.data.dtoTypes ?? []) {
+    for (const [itemIndex, dto] of (pkg.data.dtoTypes ?? []).entries()) {
       const slug = getGoItemSlug(dto, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: dto, itemKind: 'dto' },
+        props: { packageName: pkg.data.package.name, itemIndex, itemKind: 'dto' },
       });
     }
 
     // Enum types
-    for (const enumType of pkg.data.enumTypes ?? []) {
+    for (const [itemIndex, enumType] of (pkg.data.enumTypes ?? []).entries()) {
       const slug = getGoItemSlug(enumType, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: enumType, itemKind: 'enum' },
+        props: { packageName: pkg.data.package.name, itemIndex, itemKind: 'enum' },
       });
     }
 
     // Standalone functions (no dot in qualifiedName)
-    for (const fn of getGoStandaloneFunctions(pkg.data)) {
+    for (const [itemIndex, fn] of getGoStandaloneFunctions(pkg.data).entries()) {
       const slug = getGoItemSlug(fn, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
-        props: { pkg: pkg.data, item: fn, itemKind: 'function' },
+        props: { packageName: pkg.data.package.name, itemIndex, itemKind: 'function' },
       });
     }
   }
@@ -88,11 +92,9 @@ export async function getStaticPaths() {
   return paths;
 }
 
-const { pkg, item, itemKind } = Astro.props as {
-  pkg: GoApiDocument;
-  item: GoHandleType | GoDtoType | GoEnumType | GoFunction;
-  itemKind: 'handle' | 'dto' | 'enum' | 'function';
-};
+const { packageName, itemIndex, itemKind } = Astro.props;
+const pkg = await getGoModuleDocument(packageName);
+const item = getGoItem(pkg, itemKind, itemIndex);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pkgSlug = goModuleSlug(pkg.package.name);
 const topLevelItems = getGoTopLevelRouteItems(pkg);

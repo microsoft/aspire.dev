@@ -5,7 +5,9 @@
 import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
 import {
+  getGoMethods,
   getGoItemSlug,
+  getGoStandaloneFunctions,
   getGoTopLevelRouteItems,
   getGoTypeByName,
   goSlugify,
@@ -154,6 +156,22 @@ export interface GoApiDocument {
   exportedValues?: GoExportedValue[];
 }
 
+export type GoItemKind = 'handle' | 'dto' | 'enum' | 'function';
+export type GoItem = GoHandleType | GoDtoType | GoEnumType | GoFunction;
+
+// Only identifiers cross prerender workers; resolve documents and items when rendering.
+export interface GoItemRouteProps {
+  packageName: string;
+  itemKind: GoItemKind;
+  itemIndex: number;
+}
+
+export interface GoMemberRouteProps {
+  packageName: string;
+  handleIndex: number;
+  methodIndex: number;
+}
+
 export type GoModuleCollectionEntry = Omit<CollectionEntry<'goModules'>, 'data'> & {
   data: GoApiDocument;
 };
@@ -175,6 +193,39 @@ export function getGoModules(): Promise<GoModuleCollectionEntry[]> {
     return entries;
   });
   return goModulesPromise;
+}
+
+export async function getGoModuleDocument(packageName: string): Promise<GoApiDocument> {
+  const entry = (await getGoModules()).find(({ data }) => data.package.name === packageName);
+  if (!entry) throw new Error(`Unknown Go API package: ${packageName}`);
+  return entry.data;
+}
+
+/** Resolve compact route props against the worker's own collection, preserving object identity. */
+export function getGoItem(document: GoApiDocument, kind: GoItemKind, index: number): GoItem {
+  const collections = {
+    handle: document.handleTypes,
+    dto: document.dtoTypes,
+    enum: document.enumTypes,
+    function: getGoStandaloneFunctions(document),
+  };
+  const item = Number.isInteger(index) && index >= 0 ? collections[kind]?.[index] : undefined;
+  if (!item) throw new Error(`Unknown Go API ${kind} index ${index} in ${document.package.name}`);
+  return item;
+}
+
+export function getGoHandleMethod(document: GoApiDocument, handleIndex: number, methodIndex: number): {
+  parentType: GoHandleType;
+  method: GoFunction;
+} {
+  const parentType = Number.isInteger(handleIndex) && handleIndex >= 0
+    ? document.handleTypes?.[handleIndex] : undefined;
+  const method = parentType && Number.isInteger(methodIndex) && methodIndex >= 0
+    ? getGoMethods(parentType)[methodIndex] : undefined;
+  if (!parentType || !method) {
+    throw new Error(`Unknown Go API method ${handleIndex}/${methodIndex} in ${document.package.name}`);
+  }
+  return { parentType, method };
 }
 
 /** Normalize a module name for use in a URL path segment. */

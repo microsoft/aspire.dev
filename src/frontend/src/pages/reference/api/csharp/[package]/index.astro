@@ -7,8 +7,9 @@
  * and collapsible namespace sections.
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import { genericArity, typeDisplayName, groupTypesByNamespace, typeHref, nugetHref, packageSlug, slugify, getPackages, resolveMemberAnchors } from '@utils/packages';
+import { genericArity, typeDisplayName, groupTypesByNamespace, typeHref, nugetHref, packageSlug, slugify, getPackageDocument, getPackages, resolveMemberAnchors } from '@utils/packages';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
+import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import Expand from '@components/Expand.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
@@ -16,15 +17,21 @@ import DocContent from '@components/api-reference/DocContent.astro';
 import NuGetButton from '@components/api-reference/NuGetButton.astro';
 import { hasAttribute } from '@utils/api-attributes';
 
+interface Props {
+  packageName: string;
+}
+
 export async function getStaticPaths() {
   const packages = await getPackages();
   return packages.map(pkg => ({
     params: { package: packageSlug(pkg.data.package.name) },
-    props: { pkg: pkg.data },
+    props: { packageName: pkg.data.package.name },
+    cacheKey: apiDocumentCacheKey(pkg.data),
   }));
 }
 
-const { pkg } = Astro.props;
+const { packageName } = Astro.props;
+const pkg = await getPackageDocument(packageName);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const validTypes = pkg.types.filter((t: any) => t.name);  // skip types with empty names
 const isOfficial = pkg.package.name.startsWith('Aspire.');
