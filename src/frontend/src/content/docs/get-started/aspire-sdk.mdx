@@ -105,7 +105,7 @@ The Aspire SDK can source the binaries for these dependencies from platform-spec
 
 When it uses the Aspire CLI bundle, those binaries update when you update the Aspire CLI through [`aspire update --self`](/reference/cli/commands/aspire-update/). Without the bundle, the Aspire SDK version used by the AppHost determines the binaries by adding implicit references to the RID-specific `Aspire.Hosting.Orchestration.*` and `Aspire.Dashboard.Sdk.*` packages.
 
-New C# AppHost projects created with `aspire new` or `dotnet new`, and new single-file AppHosts created with `aspire init`, set `AspireUseCliBundle` to `true` automatically. For existing AppHosts, set `AspireUseCliBundle` to `true` to enable the CLI bundle. We recommend enabling it now because the CLI bundle will become the only supported source for orchestration dependencies in an upcoming Aspire release. The SDK property currently defaults to `false`, so launching a C# AppHost with `dotnet run` or an IDE continues to work without requiring the Aspire CLI. C# AppHosts require the CLI bundle, so setting `AspireUseCliBundle` to `false` reports error [`ASPIRE013`](/diagnostics/aspire013/), and suppressing `ASPIRE013` doesn't bypass the requirement. Non-C# AppHosts that set it to `false` report the suppressible warning [`ASPIRE010`](/diagnostics/aspire010/).
+C# AppHosts (`.csproj` projects and single-file `apphost.cs` AppHosts) require the Aspire CLI bundle. `AspireUseCliBundle` defaults to `true` for them, so you don't need to set it. Setting it to any other value reports error [`ASPIRE013`](/diagnostics/aspire013/), and suppressing `ASPIRE013` doesn't bypass the requirement. Non-C# AppHosts, such as F# or Visual Basic projects, default to `false` and restore orchestration dependencies from NuGet packages. They report the suppressible warning [`ASPIRE010`](/diagnostics/aspire010/) until you set `AspireUseCliBundle` to `true`.
 
 When `AspireUseCliBundle` is `true`:
 
@@ -122,18 +122,12 @@ When `AspireUseCliBundle` is `true`:
 
 #### Enable the CLI bundle
 
-Set `AspireUseCliBundle` in your AppHost `.csproj`:
+C# AppHosts use the CLI bundle by default. To opt a non-C# AppHost, such as an F# project, in to the bundle, set `AspireUseCliBundle` in its project file:
 
-```xml title="MyApp.AppHost.csproj"
+```xml title="MyApp.AppHost.fsproj"
 <PropertyGroup>
   <AspireUseCliBundle>true</AspireUseCliBundle>
 </PropertyGroup>
-```
-
-For an existing single-file AppHost, set the equivalent `#:property` directive:
-
-```csharp title="apphost.cs"
-#:property AspireUseCliBundle=true
 ```
 
 :::note[Advanced scenario: Override the bundle path]
