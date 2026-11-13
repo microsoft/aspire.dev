@@ -30,21 +30,23 @@ import {
   getStaticPaths as memberPaths,
 } from '../../src/pages/reference/api/go/[module]/[item]/[member].md';
 
-vi.mock('astro:content', () => ({
-  getCollection: () => {
-    const directory = fileURLToPath(new URL('../../src/data/go-modules/', import.meta.url));
-    return Promise.resolve(
-      readdirSync(directory)
+vi.mock('astro:content', () => {
+  let entries: Array<{ id: string; data: GoApiDocument }>;
+  return {
+    getCollection: () => {
+      const directory = fileURLToPath(new URL('../../src/data/go-modules/', import.meta.url));
+      entries ??= readdirSync(directory)
         .filter((name) => name.endsWith('.json'))
         .sort()
         .map((file) => {
           const data = JSON.parse(readFileSync(join(directory, file), 'utf8')) as GoApiDocument;
           prepareGoApiRoutes(data);
           return { id: file, data };
-        })
-    );
-  },
-}));
+        });
+      return Promise.resolve(entries);
+    },
+  };
+});
 
 /* ---- Inline fixture: a small Redis-like module ---------------------- */
 
@@ -1023,7 +1025,7 @@ describe('Go member markdown', () => {
 
 /* ---- Route handlers against the real seed ----------------------------- */
 
-type Props = Record<string, unknown>;
+type Props = { packageName: string };
 
 function context(props?: Props): Parameters<APIRoute>[0] {
   return { props } as unknown as Parameters<APIRoute>[0];
@@ -1160,15 +1162,15 @@ describe('Go markdown pages across the whole seed', () => {
 
     const pages: Array<[string, string]> = [['index', await read(getIndex(context()))]];
     for (const { params, props } of modules) {
-      pages.push([`${params.module}`, renderGoModuleMarkdown(props.pkg, base)]);
+      pages.push([`${params.module}`, await read(getModule(context(props)))]);
     }
     for (const { params, props } of items) {
-      pages.push([`${params.module}/${params.item}`, renderGoItemMarkdown(props.pkg, props.item, props.itemKind, base)]);
+      pages.push([`${params.module}/${params.item}`, await read(getItem(context(props)))]);
     }
     for (const { params, props } of members) {
       pages.push([
         `${params.module}/${params.item}/${params.member}`,
-        renderGoMemberMarkdownPage(props.pkg, props.parentType, props.method, base),
+        await read(getMember(context(props))),
       ]);
     }
 
@@ -1197,7 +1199,7 @@ describe('Go markdown pages across the whole seed', () => {
     const notSingleLine: string[] = [];
     let checkedValues = 0;
     for (const { params, props } of await modulePaths()) {
-      const markdown = renderGoModuleMarkdown(props.pkg, base);
+      const markdown = await read(getModule(context(props)));
       if (markdown.includes('\r')) withCarriageReturn.push(params.module);
       if (!markdown.includes('\n## Exported values\n')) continue;
       for (const line of sectionOf(markdown, 'Exported values').split('\n')) {

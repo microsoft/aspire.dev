@@ -1,0 +1,97 @@
+---
+title: Elasticsearch extensions integration
+description: Add the Elasticvue management interface to the official Aspire Elasticsearch resource with the Community Toolkit hosting extension.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Badge } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import elasticIcon from '@assets/icons/elastic-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={elasticIcon}
+  alt="Elasticsearch logo"
+  width={100}
+  height={100}
+  fit="contain"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This add-on extends the official Aspire Elasticsearch hosting resource with [Elasticvue](https://github.com/cars10/elasticvue), a browser-based Elasticsearch administration interface. It is not a separate Elasticsearch server integration.
+
+## Prerequisites
+
+- Add the official [📦 Aspire.Hosting.Elasticsearch](https://www.nuget.org/packages/Aspire.Hosting.Elasticsearch) package to the AppHost.
+- Use Docker to run the Elasticsearch and Elasticvue containers.
+
+## Install the extension
+
+Install the Community Toolkit extension in the AppHost:
+
+<InstallPackage
+  packageName="CommunityToolkit.Aspire.Hosting.Elasticsearch.Extensions"
+  shortName="communitytoolkit-elasticsearch-extensions"
+/>
+
+## Add Elasticvue to an Elasticsearch resource
+
+Call `WithElasticvue` on the official Elasticsearch resource. Elasticvue waits for Elasticsearch to become ready. The extension also enables Elasticsearch CORS for the Elasticvue endpoint and configures Elasticvue to connect using the resource's `elastic` credentials.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var elasticsearch = builder.AddElasticsearch("elasticsearch")
+    .WithElasticvue();
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(elasticsearch);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+<Aside type="note">
+  The extension exports a TypeScript `withElasticvue` capability, but the
+  official Elasticsearch hosting package does not currently expose a TypeScript
+  `addElasticsearch` resource builder. TypeScript AppHost support for the
+  complete Elasticsearch extension flow is not yet available.
+</Aside>
+
+The extension reads the Elasticsearch resource's generated password when it configures Elasticvue. Keep the official resource name, such as `elasticsearch`, consistent with the name used by dependent projects.
+
+Multiple calls to `WithElasticvue` reuse one Elasticvue container and add the Elasticsearch clusters to its configuration. The Elasticvue container is excluded from the deployment manifest and has no dedicated health check; its readiness dependency is the Elasticsearch resource.
+
+## Configure the Elasticvue container
+
+The optional `configureContainer` callback lets you configure the Elasticvue container builder. Use its exported `WithHostPort` method to choose a stable local port instead of Aspire assigning one:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var elasticsearch = builder.AddElasticsearch("elasticsearch")
+    .WithElasticvue(configureContainer: elasticvue =>
+        elasticvue.WithHostPort(8080));
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+`containerName` optionally changes the Elasticvue resource name. It defaults to `elasticvue`. The host port is optional; omit it to let Aspire assign a port.
+Elasticvue listens on container port `8080`; `WithHostPort` selects the corresponding fixed host port.
+
+## Exported AppHost API
+
+The extension package exports these APIs:
+
+- `WithElasticvue(configureContainer, containerName)` adds and configures the Elasticvue container for an official `ElasticsearchResource`.
+- `WithHostPort(port)` sets the host port on the Elasticvue resource builder. Call it from `configureContainer`; the extension does not expose a public method to add Elasticvue independently.
+
+## See also
+
+- [Elasticsearch hosting integration](/integrations/databases/elasticsearch/elasticsearch-host/)
+- [Connect to Elasticsearch](/integrations/databases/elasticsearch/elasticsearch-connect/)
+- [Elasticvue](https://github.com/cars10/elasticvue)
+- [📦 CommunityToolkit.Aspire.Hosting.Elasticsearch.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Elasticsearch.Extensions)

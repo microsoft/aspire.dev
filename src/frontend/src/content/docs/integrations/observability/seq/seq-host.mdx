@@ -70,6 +70,27 @@ This updates your `aspire.config.json` with the Seq hosting integration package:
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add seq
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Seq hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Seq": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Seq resource
@@ -107,6 +128,20 @@ await seq.withEnvironment("ACCEPT_EULA", "Y");
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(seq)
     .waitFor(seq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+adminPassword := builder.AddParameter("seq-admin-password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+seq := builder.AddSeq("seq", adminPassword).
+	WithLifetime(aspire.ContainerLifetimePersistent).
+	WithEnvironment("ACCEPT_EULA", "Y")
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(seq).
+	WaitFor(seq)
 
 // After adding all resources, run the app...
 ```
@@ -182,6 +217,24 @@ await myService
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+adminPassword := builder.AddParameter("seq-admin-password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+seq := builder.AddSeq("seq", adminPassword).
+	WithDataVolume().
+	ExcludeFromManifest().
+	WithLifetime(aspire.ContainerLifetimePersistent).
+	WithEnvironment("ACCEPT_EULA", "Y")
+
+builder.AddDotnetProject("example", "../ExampleProject/ExampleProject.csproj").
+	WithReference(seq).
+	WaitFor(seq)
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 The data volume is used to persist the Seq data outside the lifecycle of its container. The data volume is mounted at `/data` in the Seq container, and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-seq-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
@@ -223,6 +276,21 @@ await seq.withEnvironment("ACCEPT_EULA", "Y");
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(seq)
     .waitFor(seq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+adminPassword := builder.AddParameter("seq-admin-password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+seq := builder.AddSeq("seq", adminPassword).
+	WithDataBindMount("/Seq/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)}).
+	WithLifetime(aspire.ContainerLifetimePersistent).
+	WithEnvironment("ACCEPT_EULA", "Y")
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(seq).
+	WaitFor(seq)
 
 // After adding all resources, run the app...
 ```

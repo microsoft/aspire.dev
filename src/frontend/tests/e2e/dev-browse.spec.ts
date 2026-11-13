@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import blogPosts from '../../src/data/aspire-blog-posts.json' with { type: 'json' };
-import { getSiteNavigationLink } from './helpers';
+import { getSiteNavigationLink, emulateConsentNotRequiredRegion } from './helpers';
 
 const results = (page: import('@playwright/test').Page) => page.locator('.browse-result:not([hidden])');
 const openFacet = async (page: import('@playwright/test').Page, name: string) => {
@@ -13,6 +13,7 @@ const openFacet = async (page: import('@playwright/test').Page, name: string) =>
 };
 
 test.beforeEach(async ({ page }) => {
+  await emulateConsentNotRequiredRegion(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
