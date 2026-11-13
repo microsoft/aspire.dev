@@ -2158,7 +2158,7 @@ test('keeps every dashboard screenshot loaded and fully contained in both themes
           })
         )
         .toEqual({
-          naturalSize: [1680, 1050],
+          naturalSize: [2560, 1600],
           contained: true,
         });
     }
