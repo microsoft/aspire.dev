@@ -75,6 +75,23 @@ This updates your `aspire.config.json` with the Dev Tunnels hosting integration 
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add devtunnels
+```
+
+This updates your `aspire.config.json` with the Dev Tunnels hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.DevTunnels": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Add a dev tunnel resource
@@ -102,6 +119,20 @@ const web = await builder.addNodeApp("web", "../web", "index.js");
 
 const tunnel = await builder.addDevTunnel("my-tunnel")
     .withReference(web);
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+web := builder.AddNodeApp("web", "../web", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+tunnel := builder.AddDevTunnel("my-tunnel").
+	WithTunnelReferenceAll(web, false)
 ```
 </TabItem>
 </Tabs>
@@ -135,6 +166,21 @@ const web = await builder.addNodeApp("web", "../web", "index.js");
 const tunnel = await builder.addDevTunnel("public-api")
     .withReference(web)
     .withAnonymousAccess();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+web := builder.AddNodeApp("web", "../web", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+tunnel := builder.AddDevTunnel("public-api").
+	WithTunnelReferenceAll(web, true).
+	WithAnonymousAccess()
 ```
 </TabItem>
 </Tabs>
@@ -173,6 +219,25 @@ const tunnel = await builder.addDevTunnel("qa", "my-tunnel-id", false, "QA envir
     .withReference(web);
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+web := builder.AddNodeApp("web", "../web", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+tunnel := builder.AddDevTunnel("qa", &aspire.AddDevTunnelOptions{
+	TunnelId:       aspire.StringPtr("my-tunnel-id"),
+	AllowAnonymous: aspire.BoolPtr(false),
+	Description:    aspire.StringPtr("QA environment tunnel"),
+	Labels:         []string{"qa", "testing"},
+}).
+	WithTunnelReferenceAll(web, false)
+```
+</TabItem>
 </Tabs>
 
 ### Configure for mixed access
@@ -202,6 +267,22 @@ const api = await builder.addNodeApp("api", "../api", "index.js");
 const tunnel = await builder.addDevTunnel("mixed-access")
     .withReference(api, "public", { allowAnonymous: true })
     .withReference(api, "admin", { allowAnonymous: false });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "../api", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: aspire.StringPtr("public"), Env: aspire.StringPtr("PUBLIC_PORT")}).
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: aspire.StringPtr("admin"), Env: aspire.StringPtr("ADMIN_PORT")})
+
+tunnel := builder.AddDevTunnel("mixed-access").
+	WithTunnelReferenceAnonymous(api.GetEndpoint("public"), true).
+	WithTunnelReferenceAnonymous(api.GetEndpoint("admin"), false)
 ```
 </TabItem>
 </Tabs>

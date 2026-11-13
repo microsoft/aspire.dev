@@ -35,7 +35,7 @@ To get started with the Aspire Community Toolkit MySQL hosting extensions, insta
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.MySql.Extensions" />
 
-For TypeScript AppHosts, add the Community Toolkit MySQL extensions package to `aspire.config.json`:
+For TypeScript and Go AppHosts, add the Community Toolkit MySQL extensions package to `aspire.config.json`:
 
 ```json title="aspire.config.json" ins={3}
 {
@@ -84,6 +84,30 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mysql := builder.AddMySql("mysql").
+	WithDbGate()
+
+builder.AddGoApp("api", "./api").
+	WithReference(mysql)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 This adds a new DbGate resource to the AppHost which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your MySQL databases.
@@ -122,6 +146,30 @@ const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withReference(mysql);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mysql := builder.AddMySql("mysql").
+	WithAdminer()
+
+builder.AddGoApp("api", "./api").
+	WithReference(mysql)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -168,6 +216,31 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mysql := builder.AddMySql("mysql").
+	WithDbGate().
+	WithAdminer()
+
+builder.AddGoApp("api", "./api").
+	WithReference(mysql)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### dbx management UI
@@ -204,9 +277,33 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddMySql("mysql").
+	WithDbx(&aspire.WithDbxOptions{
+		ContainerName: aspire.StringPtr("mysql-dbx"),
+		ImageTag:      aspire.StringPtr("0.5.33"),
+	})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
-The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript and Go bindings accept optional `containerName` and `imageTag` values.
 
 ## See also
 

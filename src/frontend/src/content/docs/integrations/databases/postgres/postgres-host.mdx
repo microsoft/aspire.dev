@@ -20,7 +20,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire PostgreSQL Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model PostgreSQL server and database resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire PostgreSQL Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model PostgreSQL server and database resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the PostgreSQL integration, start with the [Get started with PostgreSQL integrations](/integrations/databases/postgres/postgres-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to PostgreSQL](../postgres-connect/). For the PostgreSQL Entity Framework Core (EF Core) client integration, see [Get started with the PostgreSQL Entity Framework Core integrations](/integrations/databases/efcore/postgres/postgresql-get-started/).
 
@@ -51,6 +51,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add postgres
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the PostgreSQL hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.PostgreSQL": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add postgres
@@ -102,6 +123,22 @@ const postgresdb = await postgres.addDatabase("postgresdb");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(postgresdb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres")
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
 
 // After adding all resources, run the app...
 ```
@@ -184,6 +221,31 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres")
+
+databaseName := "app_db"
+creationScript := `
+-- Create the database
+CREATE DATABASE ` + databaseName + `;
+`
+
+db := postgres.AddDatabase(databaseName).
+	WithCreationScript(creationScript)
+
+builder.AddGoApp("api", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The preceding example creates a database named `app_db`. The script is run when the database resource is created. The script is passed as a string to the database resource's creation-script API and then run in the context of the PostgreSQL resource.
@@ -225,6 +287,24 @@ const postgresdb = await postgres.addDatabase("postgresdb");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(postgresdb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithPgAdmin()
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
 
 // After adding all resources, run the app...
 ```
@@ -278,6 +358,28 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithPgAdmin(&aspire.WithPgAdminOptions{
+		ConfigureContainer: func(pgAdmin aspire.PgAdminContainerResource) {
+			pgAdmin.WithHostPort(aspire.IntPtr(5050))
+		},
+	})
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The preceding code adds and configures the host port for the pgAdmin container. The host port is otherwise randomly assigned.
@@ -315,6 +417,24 @@ const postgresdb = await postgres.addDatabase("postgresdb");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(postgresdb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithPgWeb()
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
 
 // After adding all resources, run the app...
 ```
@@ -366,6 +486,28 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithPgWeb(&aspire.WithPgWebOptions{
+		ConfigureContainer: func(pgWeb aspire.PgWebContainerResource) {
+			pgWeb.WithHostPort(aspire.IntPtr(5050))
+		},
+	})
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The preceding code adds and configures the host port for the pgWeb container. The host port is otherwise randomly assigned.
@@ -403,6 +545,24 @@ const postgresdb = await postgres.addDatabase("postgresdb");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(postgresdb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
 
 // After adding all resources, run the app...
 ```
@@ -460,6 +620,24 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithDataBindMount("/PostgreSQL/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 <Aside type="note">
@@ -506,6 +684,26 @@ await builder.addNodeApp("api", "./api", "index.js")
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithInitFiles("./postgres-init")
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
+
+// After adding all resources, run the app...
+```
+
+The Go AppHost doesn't expose the obsolete bind-mount API for PostgreSQL initialization. Use <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithInitFiles" /> to copy initialization files into the container instead.
+</TabItem>
 </Tabs>
 
 The files in the specified directory are copied into the PostgreSQL server container's _init_ folder. This folder is used for initialization, running any executable shell scripts or _.sql_ command files after the _postgres-data_ folder is created.
@@ -545,6 +743,28 @@ const postgresdb = await postgres.addDatabase("postgresdb");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(postgresdb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+postgres := builder.AddPostgres("postgres", &aspire.AddPostgresOptions{
+	UserName: &userName,
+	Password: &password,
+})
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
 
 // After adding all resources, run the app...
 ```
@@ -600,6 +820,34 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres")
+database := postgres.AddDatabase("myDatabase")
+postgresEndpoint := postgres.GetEndpoint("tcp")
+
+builder.AddGoApp("my-app", "./app").
+	WithReference(database).
+	WithEnvironment("POSTGRES_HOST", postgresEndpoint.Property(aspire.EndpointPropertyHost)).
+	WithEnvironment("POSTGRES_PORT", postgresEndpoint.Property(aspire.EndpointPropertyPort)).
+	WithEnvironment("POSTGRES_USER", postgres.UserNameParameter()).
+	WithEnvironment("POSTGRES_PASSWORD", postgres.PasswordParameter()).
+	WithEnvironment("POSTGRES_DATABASE", "myDatabase")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 ## PostgreSQL 18 data directory change
@@ -645,6 +893,20 @@ await postgres.withDataVolume();
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("pgsql").
+	WithImageTag("17.6").
+	WithDataVolume()
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 <Aside type="caution">
@@ -680,6 +942,26 @@ const builder = await createBuilder();
 await builder.addPostgres('postgres').withRepl();
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddPostgres("postgres").WithRepl()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

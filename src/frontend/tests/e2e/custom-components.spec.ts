@@ -125,7 +125,7 @@ test('app host builder swaps visible code when toggles and language change', asy
   const typeScriptToggle = builder.locator('.lang-toggle[data-lang="typescript"]');
   const csharpToggle = builder.locator('.lang-toggle[data-lang="csharp"]');
 
-  await expect(languageToggles).toHaveText(['TypeScript', 'C#']);
+  await expect(languageToggles).toHaveText(['TypeScript', 'C#', 'Go']);
   await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'true');
   await expect(csharpToggle).toHaveAttribute('aria-pressed', 'false');
   await expect(codeStage).toBeVisible();

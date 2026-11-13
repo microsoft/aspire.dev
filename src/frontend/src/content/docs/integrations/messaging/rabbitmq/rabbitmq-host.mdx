@@ -71,6 +71,27 @@ This updates your `aspire.config.json` with the RabbitMQ hosting integration pac
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add rabbitmq
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the RabbitMQ hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.RabbitMQ": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="tip">
@@ -104,6 +125,16 @@ const rabbitmq = await builder.addRabbitMQ("messaging");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(rabbitmq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddRabbitMQ("messaging")
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(rabbitmq)
 
 // After adding all resources, run the app...
 ```
@@ -159,6 +190,17 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddRabbitMQ("messaging").
+	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(rabbitmq)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The data volume is used to persist RabbitMQ server data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/rabbitmq` path in the RabbitMQ server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-rabbitmq-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
@@ -194,6 +236,17 @@ await rabbitmq.withDataBindMount("/RabbitMQ/Data", { isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(rabbitmq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddRabbitMQ("messaging").
+	WithDataBindMount("/RabbitMQ/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(rabbitmq)
 
 // After adding all resources, run the app...
 ```
@@ -243,6 +296,22 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+rabbitmq := builder.AddRabbitMQ("messaging", &aspire.AddRabbitMQOptions{
+	UserName: &userName,
+	Password: &password,
+})
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(rabbitmq)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method.
@@ -286,6 +355,22 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+rabbitmq := builder.AddRabbitMQ("messaging", &aspire.AddRabbitMQOptions{
+	UserName: &userName,
+	Password: &password,
+}).WithManagementPlugin()
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(rabbitmq)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The RabbitMQ management plugin provides an HTTP-based API for management and monitoring of your RabbitMQ server. Aspire adds another container image using the [`docker.io/library/rabbitmq`](https://hub.docker.com/_/rabbitmq) management variant to the AppHost that runs the management plugin on port `15672` by default. You can access the management UI from the Aspire dashboard by selecting the endpoint for your RabbitMQ resource.
@@ -302,6 +387,12 @@ var rabbitmq = builder.AddRabbitMQ("messaging")
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="apphost.mts"
 await rabbitmq.withManagementPlugin({ port: 15672 });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddRabbitMQ("messaging").
+	WithManagementPlugin(&aspire.WithManagementPluginOptions{Port: aspire.IntPtr(15672)})
 ```
 </TabItem>
 </Tabs>
@@ -351,6 +442,19 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddRabbitMQ("messaging")
+rabbitmqEndpoint := rabbitmq.GetEndpoint("tcp")
+
+builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(rabbitmq).
+	WithEnvironment("RABBITMQ_HOST", rabbitmqEndpoint.Property(aspire.EndpointPropertyHost)).
+	WithEnvironment("RABBITMQ_PORT", rabbitmqEndpoint.Property(aspire.EndpointPropertyPort)).
+	WithEnvironment("RABBITMQ_USER", rabbitmq.UserNameParameter()).
+	WithEnvironment("RABBITMQ_PASSWORD", rabbitmq.PasswordParameter())
+```
+</TabItem>
 </Tabs>
 
 ## Connect to an existing RabbitMQ instance
@@ -383,6 +487,14 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddConnectionString("messaging")
+
+builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(rabbitmq)
 ```
 </TabItem>
 </Tabs>
