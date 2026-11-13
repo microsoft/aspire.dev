@@ -3,6 +3,8 @@ title: Configuration sources
 description: Learn how to use a configuration source and create, secure, and distribute organization-specific Aspire defaults.
 ---
 
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+
 Aspire configuration sources provide organization-specific developer defaults
 through a Git-hosted `aspire.config.json` file. Use a configuration source to
 share custom agent skills, integration feeds, and project templates tailored to
@@ -17,6 +19,8 @@ commit IDs before running the commands.
 
 ## Use a configuration source
 
+Review the source and its referenced content before accepting its defaults.
+
 ### Decide what to trust
 
 :::caution[Only use sources you trust]
@@ -26,6 +30,10 @@ trust. Run Aspire commands only from trusted directories and repositories, even
 when you select an AppHost in another directory. See the
 [Aspire CLI overview](/reference/cli/overview/).
 :::
+
+The CLI displays the warning "Only use sources you trust. Content from these
+sources can run code on your machine." when it offers or fetches a configuration
+source. `--use-config-source` and `--yes` don't suppress this warning.
 
 Before accepting, review the configuration repository, its linked documentation,
 and every skill, feed, catalog, and template it references. Trusting the
@@ -115,7 +123,7 @@ configuration with it without repeating the original acceptance prompt.
 Project commands can report that configuration has changed, but they don't apply
 new defaults automatically. To refresh the selected app's saved configuration:
 
-```powershell
+```bash title="Refresh the saved configuration source"
 aspire update --config-source
 ```
 
@@ -138,6 +146,9 @@ updated content, update the refs in a reviewed configuration change, then use
 the relevant consumer's workflow.
 
 ## Create a configuration source
+
+Create and publish a Git-hosted configuration file, then make its location
+available to developers.
 
 ### Host the configuration on Git
 
@@ -247,15 +258,32 @@ environment. The other settings are optional:
 An explicit `ASPIRE_INIT_SOURCE_URL` takes precedence over employee detection.
 Path and ref overrides apply only when the URL is explicitly set.
 
-Test the settings in a PowerShell session before distributing them:
+Test the settings in a terminal session before distributing them:
 
-```powershell
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash title="Configure and use a source"
+export ASPIRE_INIT_SOURCE_URL='https://github.com/contoso/aspire-config.git'
+export ASPIRE_INIT_SOURCE_PATH='teams/platform/aspire.config.json'
+export ASPIRE_INIT_SOURCE_REF='0123456789abcdef0123456789abcdef01234567'
+export ASPIRE_INIT_SOURCE_README_URL='https://engineering.contoso.com/aspire'
+aspire new
+```
+
+</div>
+<div slot="windows">
+
+```powershell title="Configure and use a source"
 $env:ASPIRE_INIT_SOURCE_URL = 'https://github.com/contoso/aspire-config.git'
 $env:ASPIRE_INIT_SOURCE_PATH = 'teams/platform/aspire.config.json'
 $env:ASPIRE_INIT_SOURCE_REF = '0123456789abcdef0123456789abcdef01234567'
 $env:ASPIRE_INIT_SOURCE_README_URL = 'https://engineering.contoso.com/aspire'
 aspire new
 ```
+
+</div>
+</OsAwareTabs>
 
 An explicitly configured initialization-source URL can also provide a runtime-only
 template discovery overlay without saving those definitions globally or into an
