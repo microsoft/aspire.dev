@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import {
+  getSiteNavigationLink,
+  emulateConsentNotRequiredRegion,
+  revealMobileSiteMenu,
+} from './helpers';
+
+test.beforeEach(async ({ page }) => {
+  await emulateConsentNotRequiredRegion(page);
+});
 
 test('production Dev Hub scripts, styles, and Pagefind load from static assets', async ({ page, request }) => {
   const pagefind = await request.get('/pagefind/pagefind.js');
@@ -397,11 +406,11 @@ test('Dev Hub uses consistent heading, body, and action sizes across viewports',
   const title = page.getByRole('heading', { level: 1, name: 'Aspire resources', exact: true });
   await expect(title.locator('svg')).toHaveAttribute('aria-hidden', 'true');
   expect(await title.locator('svg').innerHTML()).toBe(
-    await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML(),
+    await page.locator('header .right-group .dev-center-btn svg').innerHTML(),
   );
   for (const width of [320, 390, 768, 1440, 2000]) {
     await page.setViewportSize({ width, height: 1000 });
-    await expect(page.locator('main h1')).toHaveCSS('font-size', width < 1000 ? '32px' : '40px');
+    await expect(page.locator('main h1')).toHaveCSS('font-size', width < 800 ? '28px' : width < 1000 ? '32px' : '40px');
     const icon = (await title.locator('svg').boundingBox())!;
     const label = (await title.locator('span').boundingBox())!;
     expect(icon.width).toBeGreaterThan(24);
@@ -457,6 +466,7 @@ test('mobile section headings keep browse links inline when they fit', async ({ 
 
 test('desktop header actions use consistent spacing', async ({ page }) => {
   await page.goto('/hub/');
+  await page.evaluate(() => document.fonts.ready);
   for (const width of [1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
     const banner = page.getByRole('banner');
@@ -489,31 +499,29 @@ test('desktop header actions use consistent spacing', async ({ page }) => {
 test('mobile header controls share an inactive border in both themes', async ({ page }) => {
   await page.goto('/reference/samples/');
   const banner = page.getByRole('banner');
-  const hub = banner.getByRole('link', { name: 'Aspire resources', exact: true });
+  const primary = banner.locator('.try-aspire-btn-mobile');
   for (const width of [320, 640, 799]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
       await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
-      await expect(hub).not.toHaveAttribute('aria-current');
-      await expect(hub).toHaveCSS('border-width', '1px');
-      await expect(hub).toHaveCSS('border-style', 'solid');
-      await expect(hub).toHaveCSS('border-radius', '6px');
-      const borderColor = await hub.evaluate((element) => getComputedStyle(element).borderColor);
+      await expect(primary).toBeVisible();
+      const search = banner.locator('button[data-open-modal]:visible');
+      const borderColor = await search.evaluate((element) => getComputedStyle(element).borderColor);
       for (const control of [
         banner.locator('button[data-open-modal]:visible'),
-        banner.locator('.live-btn:visible'),
         page.locator('starlight-menu-button button'),
       ]) {
         await expect(control).toHaveCSS('border-width', '1px');
         await expect(control).toHaveCSS('border-style', 'solid');
         await expect(control).toHaveCSS('border-color', borderColor);
-        await expect(control).toHaveCSS('border-radius', '6px');
+        await expect(control).toHaveCSS('border-radius', '8px');
       }
     }
   }
 });
 
 test('header icon order and Videos selected effect survive client navigation', async ({ page }) => {
+  test.skip(page.viewportSize()!.width < 800, 'Phone site links are covered by the shared-menu regression.');
   for (const theme of ['light', 'dark']) {
     await page.goto('/hub/');
     await page.evaluate((value) => {
@@ -527,7 +535,7 @@ test('header icon order and Videos selected effect survive client navigation', a
       return { color: style.color, background: style.backgroundColor, radius: style.borderRadius };
     });
     await expect(videos).not.toHaveAttribute('aria-current');
-    for (const group of ['.right-group', '.right-group-mobile']) {
+    for (const group of ['.right-group']) {
       await expect(page.locator(`header ${group} > .header-icon-btn`).nth(0)).toHaveClass(/install-cli-btn/);
       await expect(page.locator(`header ${group} > .header-icon-btn`).nth(1)).toHaveClass(/live-btn/);
       await expect(page.locator(`header ${group} > .header-icon-btn`).nth(2)).toHaveClass(/dev-center-btn/);
@@ -555,6 +563,7 @@ test('header icon order and Videos selected effect survive client navigation', a
 });
 
 test('Dev Hub has a distinct active header button on hub and browse routes in both themes', async ({ page }) => {
+  test.skip(page.viewportSize()!.width < 800, 'Phone site links are covered by the shared-menu regression.');
   for (const route of ['/hub/', '/hub/browse/', '/']) {
     await page.goto(route);
     const hub = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
@@ -715,12 +724,12 @@ test('Developer Hub typography and glossary controls reflow in both themes', asy
         };
       });
       expect(layout.overflow).toBe(false);
-      expect(layout.headingSize).toBeGreaterThanOrEqual(32);
+      expect(layout.headingSize).toBeGreaterThanOrEqual(width < 800 ? 28 : 32);
       expect(layout.hasTagline).toBe(false);
-      expect(layout.pillHeights.every((height) => height >= (width <= 600 ? 44 : 36))).toBe(true);
+      expect(layout.pillHeights.every((height) => height === 34)).toBe(true);
       expect(layout.searchClass).toContain('inpage-search-input');
       await expect(page.locator('glossary-browser select')).toHaveCount(0);
-      await expect(page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true })).toBeVisible();
+      await expect(await getSiteNavigationLink(page, '/hub/')).toBeVisible();
     }
   }
 });
@@ -763,9 +772,27 @@ test('unpublished dev routes do not duplicate the canonical hub pages or Markdow
 
 test('localized navigation keeps the English Developer Hub destination', async ({ page }) => {
   await page.goto('/de/docs/');
-  const link = page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true });
+  const link = await getSiteNavigationLink(page, '/hub/');
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute('href', '/hub/');
+});
+
+test('localized docs sidebar opens the English Glossary and keeps translated docs localized', async ({ page }) => {
+  await page.goto('/de/docs/');
+  await revealMobileSiteMenu(page);
+  const sidebar = page.locator('#starlight__sidebar');
+  const sidebarLink = (label: string) => sidebar.locator('a', { hasText: new RegExp(`^\\s*${label}\\s*$`) });
+  await expect(sidebarLink('Ressourcen verstehen')).toHaveAttribute('href', '/de/get-started/resources/');
+
+  const glossary = sidebarLink('Glossar');
+  await expect(glossary).toHaveAttribute('href', '/hub/glossary/');
+  for (const summary of await glossary.locator('xpath=ancestor::details[not(@open)]/summary').all()) {
+    await summary.click();
+  }
+  await glossary.click();
+
+  await expect(page).toHaveURL(/\/hub\/glossary\/$/);
+  await expect(page.getByRole('heading', { name: 'Aspire glossary', exact: true })).toBeVisible();
 });
 
 test('the hub and glossary retain accessible light and dark layouts', async ({ page }) => {
@@ -839,7 +866,7 @@ test('page-action menus stay within narrow viewports on glossary term pages', as
       await expect(actions).toBeVisible();
       for (const name of ['Open', 'Share']) {
         await actions.getByRole('button', { name, exact: true }).click();
-        const menu = actions.locator('[id="dropdown-menu"].show');
+        const menu = actions.locator('.dropdown-menu.show');
         await expect(menu).toBeVisible();
         const bounds = await menu.boundingBox();
         expect(bounds).not.toBeNull();
@@ -868,7 +895,9 @@ for (const language of ['', 'python']) {
     const trigger = page.getByRole('button', { name: 'Search Aspire documentation' });
     const dialog = page.locator('site-search dialog');
     await expect(page.locator('site-search')).toHaveCount(1);
-    await expect(page.getByRole('banner').locator('button[data-open-modal]')).toBeHidden();
+    const headerSearch = page.getByRole('banner').locator('button[data-open-modal]');
+    if (page.viewportSize()!.width < 800) await expect(headerSearch).toBeVisible();
+    else await expect(headerSearch).toBeHidden();
     await expect(trigger).toBeEnabled();
     await trigger.click();
     await expect(dialog).toBeVisible();
@@ -1082,12 +1111,8 @@ test('Developer Hub and glossary share content alignment and complete breadcrumb
       const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb', exact: true });
       const bounds = await breadcrumb.boundingBox();
       await expect(breadcrumb.locator('.current')).toHaveText(title);
-      if (width <= 480) {
-        await expect(breadcrumb.locator('.bc-toggle-label')).toHaveText(title);
-        await breadcrumb.locator('summary').click();
-      }
+      await expect(breadcrumb.locator('summary, select')).toHaveCount(0);
       await expect(breadcrumb.getByRole('link', { name: 'Aspire resources', exact: true })).toHaveAttribute('href', '/hub/');
-      if (width <= 480) await breadcrumb.locator('summary').click();
       expect(content!.x).toBeCloseTo(hub!.x, 0);
       expect(content!.width).toBeCloseTo(hub!.width, 0);
       expect(bounds!.x).toBeCloseTo(content!.x, 0);
@@ -1107,7 +1132,7 @@ test('Developer Hub remains browsable without JavaScript and reflows at narrow w
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   const staticPage = await context.newPage();
   await staticPage.goto('/hub/');
-  await expect(staticPage.locator('.onboarding-options > li, .language-links > li, .cloud-links > li, .featured-samples > li, .reference-links > li, #dashboard, .video-links > li, .blog-links > li')).toHaveCount(30);
+  await expect(staticPage.locator('.onboarding-options > li, .language-links > li, .cloud-links > li, .featured-samples > li, .reference-links > li, #dashboard, .video-links > li, .blog-links > li')).toHaveCount(31);
   await expect(staticPage.getByRole('button', { name: 'Search Aspire documentation' })).toBeDisabled();
   await context.close();
   for (const width of [320, 390, 640, 1024, 1440]) {

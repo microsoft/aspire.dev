@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Generates TypeScript API reference JSON files by running `aspire sdk dump --format json`
+    Generates TypeScript or Go API reference JSON files by running `aspire sdk dump --format json`
     for each Aspire or Community Toolkit hosting integration that has ATS capabilities.
 
 .DESCRIPTION
@@ -12,7 +12,7 @@
     For each eligible package, this script:
     1. Runs `aspire sdk dump --format json` to generate raw ATS capabilities JSON
     2. Runs the AtsJsonGenerator tool to transform it into docs-site JSON
-    3. Outputs to src/frontend/src/data/ts-modules/
+    3. Outputs to src/frontend/src/data/ts-modules/ (src/frontend/src/data/go-modules/ with -Language go)
 
 .PARAMETER AspireRepoPath
     Path to a local microsoft/aspire repository clone. Discovers projects with
@@ -25,7 +25,8 @@
 
 .PARAMETER OutputDir
     The directory to write the generated JSON files to.
-    Defaults to <repo-root>/src/frontend/src/data/ts-modules.
+    Defaults to <repo-root>/src/frontend/src/data/ts-modules, or
+    <repo-root>/src/frontend/src/data/go-modules with -Language go.
 
 .PARAMETER PackageFilter
     Optional wildcard filter to process only specific packages (e.g. "*Redis*").
@@ -34,6 +35,10 @@
     Path to a local Aspire.Cli.csproj to use instead of the globally installed
     `aspire` CLI. Useful for testing local CLI changes. When set, the script
     invokes `dotnet run --no-launch-profile --project <path> --` instead of `aspire`.
+
+.PARAMETER Language
+    The API reference language to generate: `typescript` (the default) or `go`.
+    Each run generates one language; run the script once per language.
 
 .ENVIRONMENT_VARIABLE ASPIRE_CLI_PATH
     Path to the installed Aspire CLI executable. Used when -AspireCliProject is
@@ -49,6 +54,9 @@
 
     # Filter to specific packages
     ./generate-ts-api-json.ps1 -AspireRepoPath D:\GitHub\aspire -PackageFilter "*Redis*"
+
+    # Generate the Go API reference instead of the TypeScript one
+    ./generate-ts-api-json.ps1 -Language go
 #>
 
 [CmdletBinding()]
@@ -61,7 +69,10 @@ param(
 
     [string]$PackageFilter,
 
-    [string]$AspireCliProject
+    [string]$AspireCliProject,
+
+    [ValidateSet("typescript", "go")]
+    [string]$Language = "typescript"
 )
 
 Set-StrictMode -Version Latest
@@ -90,11 +101,31 @@ $AspireCliPath = if ([string]::IsNullOrWhiteSpace($env:ASPIRE_CLI_PATH)) { "aspi
 # restore requires a feed that is unreachable (e.g. an authenticated internal feed).
 $CarryForwardOnDumpFailure = ($env:ASPIRE_TS_API_CARRY_FORWARD -eq '1')
 
+# Packages are generated concurrently. ASPIRE_TS_API_PARALLELISM overrides the
+# default worker count; set it to 1 to process packages one at a time.
+$Parallelism = [Math]::Min([Environment]::ProcessorCount, 8)
+if (-not [string]::IsNullOrWhiteSpace($env:ASPIRE_TS_API_PARALLELISM)) {
+    $parsedParallelism = 0
+    if (-not [int]::TryParse($env:ASPIRE_TS_API_PARALLELISM.Trim(), [ref]$parsedParallelism) -or $parsedParallelism -lt 1) {
+        throw "ASPIRE_TS_API_PARALLELISM must be a positive integer, but was '$($env:ASPIRE_TS_API_PARALLELISM)'."
+    }
+    $Parallelism = $parsedParallelism
+}
+
+# Each external tool invocation is bounded. Dump and export attempts that fail
+# without producing a result (crash, timeout, transient restore failure) are retried.
+$MaxToolAttempts = 3
+$CliTimeoutSeconds = 600
+$ToolTimeoutSeconds = 300
+
+$LanguageDisplayName = if ($Language -eq "go") { "Go" } else { "TypeScript" }
+
 $FinalOutputDir = if ($OutputDir) {
     [System.IO.Path]::GetFullPath($OutputDir)
 }
 else {
-    Join-Path $RepoRoot "src\frontend\src\data\ts-modules"
+    $defaultModulesDirectory = if ($Language -eq "go") { "go-modules" } else { "ts-modules" }
+    Join-Path $RepoRoot "src\frontend\src\data\$defaultModulesDirectory"
 }
 $OutputDir = Join-Path ([System.IO.Path]::GetDirectoryName($FinalOutputDir)) (
     ".$([System.IO.Path]::GetFileName($FinalOutputDir))-staging-$([Guid]::NewGuid().ToString('N'))")
@@ -154,7 +185,7 @@ function Remove-EmptyTsModuleFile {
     )
 
     if (-not (Test-Path $OutputFile)) {
-        throw "Cannot inspect missing TypeScript module file at $OutputFile"
+        throw "Cannot inspect missing $LanguageDisplayName module file at $OutputFile"
     }
 
     $json = Get-Content $OutputFile -Raw | ConvertFrom-Json
@@ -163,7 +194,7 @@ function Remove-EmptyTsModuleFile {
     }
 
     Remove-Item $OutputFile -Force
-    Write-Host "  Omitted empty TypeScript module for $PackageName" -ForegroundColor DarkYellow
+    Write-Host "  Omitted empty $LanguageDisplayName module for $PackageName" -ForegroundColor DarkYellow
     return $true
 }
 
@@ -501,7 +532,7 @@ if (-not $AspireRepoPath -and -not $hasExplicitNuGetPackageVersion) {
     $hostingPackages = @($generatedPackageMetadata)
 
     if ($hostingPackages.Count -eq 0) {
-        Write-Error "No TypeScript SDK package JSON files found in src/frontend/src/data/pkgs"
+        Write-Error "No $LanguageDisplayName SDK package JSON files found in src/frontend/src/data/pkgs"
         return
     }
 
@@ -510,82 +541,311 @@ if (-not $AspireRepoPath -and -not $hasExplicitNuGetPackageVersion) {
         $details = $duplicatePackages | ForEach-Object {
             "$($_.Name): $((@($_.Group) | ForEach-Object { "$($_.Version) [$($_.Path)]" }) -join ', ')"
         }
-        throw "Multiple generated C# package versions prevent deterministic TypeScript API generation:`n  $($details -join "`n  ")"
+        throw "Multiple generated C# package versions prevent deterministic $LanguageDisplayName API generation:`n  $($details -join "`n  ")"
     }
 
     # Build Name@Version entries directly from the generated C# package data.
     $NuGetPackageVersion = @($hostingPackages | ForEach-Object { "$($_.Name)@$($_.Version)" })
 
     if ($NuGetPackageVersion.Count -eq 0) {
-        Write-Error "No versioned TypeScript SDK package JSON files found in $packageJsonDir"
+        Write-Error "No versioned $LanguageDisplayName SDK package JSON files found in $packageJsonDir"
         return
     }
 
-    Write-Host "  Found $($NuGetPackageVersion.Count) TypeScript SDK packages to process" -ForegroundColor DarkGray
+    Write-Host "  Found $($NuGetPackageVersion.Count) $LanguageDisplayName SDK packages to process" -ForegroundColor DarkGray
 }
 
-# ── Helper: invoke the aspire CLI ──────────────────────────────────────────────
+# ── Helpers: generate one package ──────────────────────────────────────────────
+# These functions also run inside ForEach-Object -Parallel runspaces, so they
+# use only their parameters, never script-scope variables.
 
-function Invoke-AspireCli {
+function Invoke-CapturedProcess {
     param(
-        [string[]]$Arguments,
-        [string]$WorkingDirectory,
-        [string]$StderrFile,
-        [string]$StdoutFile
+        [Parameter(Mandatory)][string]$FileName,
+        [string[]]$Arguments = @(),
+        [Parameter(Mandatory)][string]$WorkingDirectory,
+        [Parameter(Mandatory)][int]$TimeoutSeconds
     )
 
     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $FileName
     $startInfo.WorkingDirectory = $WorkingDirectory
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
-    $startInfo.RedirectStandardOutput = -not [string]::IsNullOrWhiteSpace($StdoutFile)
-    if ($AspireCliProject) {
-        $startInfo.FileName = "dotnet"
-        $allArgs = @("run", "--no-launch-profile", "--no-build", "--project", $AspireCliProject, "--") + $Arguments
-    } else {
-        $startInfo.FileName = $AspireCliPath
-        $allArgs = $Arguments
-    }
-    foreach ($argument in $allArgs) {
+    foreach ($argument in $Arguments) {
         $startInfo.ArgumentList.Add($argument)
     }
+
     $process = [System.Diagnostics.Process]::new()
     $process.StartInfo = $startInfo
     try {
         if (-not $process.Start()) {
-            throw "Could not start $($startInfo.FileName)."
+            throw "Could not start $FileName."
         }
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
         $stderrTask = $process.StandardError.ReadToEndAsync()
-        $stdoutTask = if ($startInfo.RedirectStandardOutput) {
-            $process.StandardOutput.ReadToEndAsync()
-        } else { $null }
-        $process.WaitForExit()
-        [System.IO.File]::WriteAllText($StderrFile, $stderrTask.GetAwaiter().GetResult())
-        if ($stdoutTask) {
-            [System.IO.File]::WriteAllText($StdoutFile, $stdoutTask.GetAwaiter().GetResult())
+        $timedOut = -not $process.WaitForExit($TimeoutSeconds * 1000)
+        if ($timedOut) {
+            try { $process.Kill($true) } catch { }
+            [void]$process.WaitForExit(30000)
         }
-        $exitCode = $process.ExitCode
+        # Bound the wait in case an orphaned child process still holds the pipes.
+        try {
+            [void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]@($stdoutTask, $stderrTask), 30000)
+        }
+        catch { }
+
+        return [PSCustomObject]@{
+            ExitCode = if ($process.HasExited) { $process.ExitCode } else { -1 }
+            TimedOut = $timedOut
+            StdOut   = if ($stdoutTask.IsCompletedSuccessfully) { $stdoutTask.Result } else { "" }
+            StdErr   = if ($stderrTask.IsCompletedSuccessfully) { $stderrTask.Result } else { "" }
+        }
     }
     finally {
         $process.Dispose()
     }
+}
 
-    # Filter out update notices from stderr
-    if (Test-Path $StderrFile) {
-        $stderrContent = Get-Content $StderrFile -Raw -ErrorAction SilentlyContinue
-        if ($stderrContent -and $stderrContent -match "A new version of the Aspire CLI is available") {
-            # Strip the update notice lines and rewrite
-            $filtered = ($stderrContent -split "`r?`n" | Where-Object {
-                $_ -notmatch "A new version of the Aspire CLI is available" -and
-                $_ -notmatch "To update, run:" -and
-                $_ -notmatch "For more information, see:"
-            }) -join "`n"
-            Set-Content -Path $StderrFile -Value $filtered.Trim() -ErrorAction SilentlyContinue
-        }
+function Invoke-AspireCli {
+    param(
+        [Parameter(Mandatory)][string[]]$Arguments,
+        [Parameter(Mandatory)][hashtable]$Settings
+    )
+
+    if ($Settings.AspireCliProject) {
+        $fileName = "dotnet"
+        $allArguments = @("run", "--no-launch-profile", "--no-build", "--project", $Settings.AspireCliProject, "--") + $Arguments
+    }
+    else {
+        $fileName = $Settings.AspireCliPath
+        $allArguments = $Arguments
     }
 
-    return [PSCustomObject]@{ ExitCode = $exitCode }
+    $result = Invoke-CapturedProcess -FileName $fileName -Arguments $allArguments `
+        -WorkingDirectory $Settings.CliWorkingDirectory -TimeoutSeconds $Settings.CliTimeoutSeconds
+
+    # Filter out update notices from stderr
+    if ($result.StdErr -match "A new version of the Aspire CLI is available") {
+        $result.StdErr = (($result.StdErr -split "`r?`n" | Where-Object {
+            $_ -notmatch "A new version of the Aspire CLI is available" -and
+            $_ -notmatch "To update, run:" -and
+            $_ -notmatch "For more information, see:"
+        }) -join "`n").Trim()
+    }
+
+    return $result
+}
+
+# Dumps, optionally supplements, and transforms one package. Never throws: the
+# result carries the status and the log lines to print on the main thread.
+function Invoke-TsModulePackage {
+    param(
+        [Parameter(Mandatory)][hashtable]$Package,
+        [Parameter(Mandatory)][hashtable]$Settings
+    )
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $log = [System.Collections.Generic.List[object]]::new()
+    $tolerated = [System.Collections.Generic.List[string]]::new()
+    # Kind is Info, Detail, Success, or Warning.
+    function Write-PackageLog([string]$Text, [string]$Kind = "Info") {
+        $log.Add([PSCustomObject]@{ Text = $Text; Kind = $Kind })
+    }
+    function Get-ProcessOutput([psobject]$Result) {
+        $lines = @($Result.StdErr, $Result.StdOut) -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        return $lines -join "`n    "
+    }
+    function Get-FailureReason([psobject]$Result) {
+        if ($Result.TimedOut) { return "timed out after $($Settings.CliTimeoutSeconds)s" }
+        return "failed (exit $($Result.ExitCode))"
+    }
+
+    $name = $Package.Name
+    $version = $Package.Version
+    $fileBaseName = if ($version) { "$name.$version" } else { $name }
+    $outputFile = Join-Path $Settings.OutputDir "$fileBaseName.json"
+    $status = "Failed"
+
+    try {
+        # Keep each package's intermediate files apart from concurrently running packages.
+        $workDirectory = Join-Path $Settings.TempDir ([Guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Path $workDirectory -Force | Out-Null
+        $dumpFile = Join-Path $workDirectory "$name.json"
+
+        # Step 1: Run aspire sdk dump --format json
+        $contextOutputFile = $null
+        $dumpArgs = @("sdk", "dump", "--format", "json", "--non-interactive", "--nologo", "-o", $dumpFile) + $Package.DumpArgs
+        if ($Package.ContainsKey("ScanContext")) {
+            $context = $Package.ScanContext
+            $contextFileName = if ($context.Version) { "$($context.Name).$($context.Version).json" } else { "$($context.Name).json" }
+            $contextOutputFile = @(
+                (Join-Path $Settings.OutputDir $contextFileName),
+                (Join-Path $Settings.FinalOutputDir $contextFileName)
+            ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+            if (-not $contextOutputFile) {
+                throw "Generate $contextFileName before $name so supporting APIs can be excluded from its output."
+            }
+            $contextModel = Get-Content $contextOutputFile -Raw | ConvertFrom-Json
+            if ($contextModel.package.name -ne $context.Name -or ($context.Version -and $contextModel.package.version -ne $context.Version)) {
+                throw "Supporting API metadata does not match the exact scan context: $contextOutputFile"
+            }
+            $dumpArgs += $context.DumpArgs
+            Write-PackageLog "  Supporting scan context: $($context.DumpArgs -join ', ')" Detail
+        }
+
+        $dumpReportedDiagnostics = $false
+        for ($attempt = 1; ; $attempt++) {
+            Remove-Item $dumpFile -Force -ErrorAction SilentlyContinue
+            $dump = Invoke-AspireCli -Arguments $dumpArgs -Settings $Settings
+            $dumpCreated = Test-Path $dumpFile
+            if (-not $dump.TimedOut -and $dump.ExitCode -eq 0 -and $dumpCreated) {
+                break
+            }
+            if (-not $dump.TimedOut -and $dumpCreated) {
+                # The CLI writes the dump before it fails on error diagnostics. A retry
+                # reports the same errors, so the transform decides which are known defects.
+                $dumpReportedDiagnostics = $true
+                Write-PackageLog "  aspire sdk dump reported error diagnostics (exit $($dump.ExitCode))" Warning
+                break
+            }
+            $reason = if ($dump.TimedOut -or $dump.ExitCode -ne 0) { Get-FailureReason $dump } else { "did not create the dump file" }
+            if ($attempt -ge $Settings.MaxAttempts) {
+                throw "aspire sdk dump $reason after $attempt attempt(s):`n    $(Get-ProcessOutput $dump)"
+            }
+            Write-PackageLog "  aspire sdk dump $reason (attempt $attempt of $($Settings.MaxAttempts)); retrying..." Warning
+            Start-Sleep -Seconds (10 * $attempt)
+        }
+
+        # Step 2: Resolve canonical enum definitions for generated exports. Enum values are
+        # language-neutral, so the Go pass reuses the TypeScript export.
+        if ($Package.ContainsKey("HasGeneratedExports") -and $Package.HasGeneratedExports) {
+            $exportFile = Join-Path $workDirectory "$name.canonical.json"
+            $exportArgs = @("sdk", "export", "--language", "typescript", "--package", "$name@$version", "--non-interactive", "--nologo")
+            for ($attempt = 1; ; $attempt++) {
+                $export = Invoke-AspireCli -Arguments $exportArgs -Settings $Settings
+                if (-not $export.TimedOut -and $export.ExitCode -eq 0) {
+                    break
+                }
+                if ($attempt -ge $Settings.MaxAttempts) {
+                    throw "Canonical export $(Get-FailureReason $export) for $name after $attempt attempt(s):`n    $(Get-ProcessOutput $export)"
+                }
+                Write-PackageLog "  aspire sdk export $(Get-FailureReason $export) (attempt $attempt of $($Settings.MaxAttempts)); retrying..." Warning
+                Start-Sleep -Seconds (10 * $attempt)
+            }
+            [System.IO.File]::WriteAllText($exportFile, $export.StdOut)
+
+            $supplement = Invoke-CapturedProcess -FileName "node" `
+                -Arguments @($Settings.TsxCliPath, $Settings.SupplementScriptPath, $dumpFile, $exportFile) `
+                -WorkingDirectory $Settings.FrontendDir -TimeoutSeconds $Settings.ToolTimeoutSeconds
+            if ($supplement.TimedOut -or $supplement.ExitCode -ne 0) {
+                throw "Could not resolve canonical enum definitions for ${name}:`n    $(Get-ProcessOutput $supplement)"
+            }
+            foreach ($line in $supplement.StdOut -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
+                Write-PackageLog "  $line" Detail
+            }
+        }
+
+        # Step 3: Transform with AtsJsonGenerator, excluding core and supporting-context APIs
+        $transformArgs = @(
+            $Settings.TransformerPath,
+            "--input", $dumpFile,
+            "--output", $outputFile,
+            "--package-name", $name,
+            "--language", $Settings.Language
+        )
+        if ($Package.SourceRepository) {
+            $transformArgs += @("--source-repo", $Package.SourceRepository)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($Package.SourceCommit)) {
+            $transformArgs += @("--source-commit", $Package.SourceCommit)
+        }
+        if ($Settings.CoreOutputFile) {
+            $transformArgs += @("--base", $Settings.CoreOutputFile)
+        }
+        if ($contextOutputFile) {
+            $transformArgs += @("--base", $contextOutputFile)
+        }
+        if ($dumpReportedDiagnostics) {
+            $transformArgs += "--tolerate-known-scanner-diagnostics"
+        }
+
+        $transform = Invoke-CapturedProcess -FileName "dotnet" -Arguments $transformArgs `
+            -WorkingDirectory $Settings.RepoRoot -TimeoutSeconds $Settings.ToolTimeoutSeconds
+        if ($transform.TimedOut -or $transform.ExitCode -ne 0) {
+            throw "Transform $(if ($transform.TimedOut) { 'timed out' } else { "failed (exit $($transform.ExitCode))" }):`n    $(Get-ProcessOutput $transform)"
+        }
+
+        $toleratedPrefix = "Tolerated known ATS scanner diagnostic:"
+        foreach ($line in $transform.StdOut -split "`r?`n") {
+            if ($line.StartsWith($toleratedPrefix, [System.StringComparison]::Ordinal)) {
+                $tolerated.Add($line.Substring($toleratedPrefix.Length).Trim())
+            }
+            elseif ($line -match "^(Generated|Unchanged):") {
+                Write-PackageLog "  $line" Success
+            }
+            elseif ($line.StartsWith("Skipped ", [System.StringComparison]::Ordinal)) {
+                Write-PackageLog "  $line" Detail
+            }
+        }
+        if ($dumpReportedDiagnostics -and $tolerated.Count -eq 0) {
+            throw "aspire sdk dump failed (exit $($dump.ExitCode)) without reporting a known scanner defect:`n    $(Get-ProcessOutput $dump)"
+        }
+        foreach ($message in $tolerated) {
+            Write-PackageLog "  Tolerated known ATS scanner diagnostic: $message" Warning
+        }
+
+        $status = "Succeeded"
+    }
+    catch {
+        Write-PackageLog "  $($_.Exception.Message)" Warning
+        Remove-Item $outputFile -Force -ErrorAction SilentlyContinue
+    }
+
+    return [PSCustomObject]@{
+        Name                 = $name
+        Version              = $version
+        Status               = $status
+        OutputFile           = $outputFile
+        ToleratedDiagnostics = $tolerated.ToArray()
+        Elapsed              = $stopwatch.Elapsed
+        Log                  = $log.ToArray()
+    }
+}
+
+# Runs packages that do not depend on each other, streaming each result as it completes.
+function Invoke-TsModuleWave {
+    param(
+        [object[]]$WavePackages = @(),
+        [Parameter(Mandatory)][hashtable]$Settings
+    )
+
+    if ($WavePackages.Count -eq 0) {
+        return
+    }
+    if ($Settings.Parallelism -le 1 -or $WavePackages.Count -eq 1) {
+        foreach ($package in $WavePackages) {
+            Invoke-TsModulePackage -Package $package -Settings $Settings
+        }
+        return
+    }
+
+    $functionDefinitions = @{}
+    foreach ($functionName in @("Invoke-CapturedProcess", "Invoke-AspireCli", "Invoke-TsModulePackage")) {
+        $functionDefinitions[$functionName] = (Get-Command $functionName -CommandType Function).Definition
+    }
+
+    $WavePackages | ForEach-Object -ThrottleLimit $Settings.Parallelism -Parallel {
+        Set-StrictMode -Version Latest
+        $ErrorActionPreference = "Stop"
+        $definitions = $using:functionDefinitions
+        foreach ($functionName in $definitions.Keys) {
+            Set-Item -Path "function:$functionName" -Value ([scriptblock]::Create($definitions[$functionName]))
+        }
+        Invoke-TsModulePackage -Package $_ -Settings $using:Settings
+    }
 }
 
 # ── Collect packages to process ────────────────────────────────────────────────
@@ -618,7 +878,7 @@ if ($AspireRepoPath) {
         }
     }
 
-    # Only hosting packages expose ATS capabilities for the TypeScript SDK.
+    # Only hosting packages expose ATS capabilities for the polyglot SDKs.
     # Client/component packages (e.g. Aspire.Azure.Data.Tables) are not applicable.
     $hostingDirs = Get-ChildItem -Path $SrcDir -Directory -Filter "Aspire.Hosting.*" | Where-Object {
         $_.Name -notmatch "(Analyzers|CodeGeneration|RemoteHost|Tests)"
@@ -652,7 +912,7 @@ if ($AspireRepoPath) {
 }
 
 # ── Route 2: Name@Version NuGet package references ────────────────────────────
-# Only Aspire.Hosting.* packages expose ATS capabilities for the TypeScript SDK.
+# Only Aspire.Hosting.* packages expose ATS capabilities for the polyglot SDKs.
 # Client/component packages (e.g. Aspire.Azure.Data.Tables) are not applicable.
 if ($NuGetPackageVersion -and $NuGetPackageVersion.Count -gt 0) {
     foreach ($spec in $NuGetPackageVersion) {
@@ -703,8 +963,22 @@ foreach ($pkg in $Packages | Where-Object { $_.Name -eq "Aspire.Hosting.Radius" 
     }
 }
 
+# The generated Azure.Provisioning proxy packages (Aspire.Hosting.Azure.Provisioning.<Service>)
+# project every Azure.Provisioning type into Go: ~72 MB and tens of thousands of member pages,
+# against ~6 MB for every other package combined. The Go reference omits them; the base
+# Aspire.Hosting.Azure.Provisioning package is kept.
+if ($Language -eq "go") {
+    $omittedPackageNames = @($Packages | Where-Object {
+        $_.Name.StartsWith("Aspire.Hosting.Azure.Provisioning.", [System.StringComparison]::OrdinalIgnoreCase)
+    } | ForEach-Object { $_.Name })
+    if ($omittedPackageNames.Count -gt 0) {
+        Write-Host "Omitting $($omittedPackageNames.Count) Azure Provisioning proxy packages from the Go reference." -ForegroundColor DarkGray
+        $Packages = @($Packages | Where-Object { $omittedPackageNames -notcontains $_.Name })
+    }
+}
+
 if ($PackageFilter) {
-    $Packages = $Packages | Where-Object { $_.Name -like $PackageFilter }
+    $Packages = @($Packages | Where-Object { $_.Name -like $PackageFilter })
 }
 
 $branchName = Get-CurrentBranchName
@@ -722,7 +996,7 @@ if (-not $AspireRepoPath) {
     $aspireCliWorkingDirectory = New-TemporaryNuGetConfigDirectory -RestoreSources $restoreSources
 
     if ($officialFeed.IsRelease) {
-        Write-Host "Release branch detected ($($officialFeed.BranchName)). TypeScript module generation will resolve official Aspire packages from $($officialFeed.DisplayName)." -ForegroundColor Cyan
+        Write-Host "Release branch detected ($($officialFeed.BranchName)). $LanguageDisplayName module generation will resolve official Aspire packages from $($officialFeed.DisplayName)." -ForegroundColor Cyan
     }
 }
 
@@ -744,109 +1018,128 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+# Run the built assembly directly; `dotnet run` would evaluate the project again for every package.
+$transformerPath = @(& dotnet msbuild $ToolProject -nologo -getProperty:TargetPath) | Select-Object -Last 1
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($transformerPath) -or -not (Test-Path $transformerPath.Trim())) {
+    Write-Host "Could not locate the built AtsJsonGenerator assembly" -ForegroundColor Red
+    Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+
 # ── Generate ATS dumps ─────────────────────────────────────────────────────────
 
-# Process core Aspire.Hosting first so we can use it as a base for dedup
+if ($AspireRepoPath) {
+    # Dumping a local project builds the repo's shared projects; concurrent dumps would contend for their outputs.
+    $Parallelism = 1
+}
+Write-Host "Parallelism: $Parallelism" -ForegroundColor DarkGray
+
+$frontendDir = Join-Path $RepoRoot "src" "frontend"
+$settings = @{
+    AspireCliProject     = $AspireCliProject
+    AspireCliPath        = $AspireCliPath
+    CliWorkingDirectory  = if ($AspireRepoPath) { $AspireRepoPath } elseif ($aspireCliWorkingDirectory) { $aspireCliWorkingDirectory } else { $PWD.Path }
+    RepoRoot             = $RepoRoot
+    FrontendDir          = $frontendDir
+    TsxCliPath           = Join-Path $frontendDir "node_modules" "tsx" "dist" "cli.mjs"
+    SupplementScriptPath = Join-Path $frontendDir "scripts" "supplement-ats-enums.ts"
+    TransformerPath      = $transformerPath.Trim()
+    TempDir              = $TempDir
+    OutputDir            = $OutputDir
+    FinalOutputDir       = $FinalOutputDir
+    CoreOutputFile       = $null
+    MaxAttempts          = $MaxToolAttempts
+    CliTimeoutSeconds    = $CliTimeoutSeconds
+    ToolTimeoutSeconds   = $ToolTimeoutSeconds
+    Parallelism          = $Parallelism
+    Language             = $Language
+}
+
+# Core Aspire.Hosting runs first so integrations can exclude its APIs. Packages
+# that need a supporting scan context run last, after that context's module exists.
 $corePackages = @($Packages | Where-Object { $_.Name -eq "Aspire.Hosting" })
-$integrationPackages = @($Packages | Where-Object { $_.Name -ne "Aspire.Hosting" })
+$integrationPackages = @($Packages | Where-Object { $_.Name -ne "Aspire.Hosting" } | Sort-Object { $_.Name })
+$independentPackages = @($integrationPackages | Where-Object { -not $_.ContainsKey("ScanContext") })
+$scanContextPackages = @($integrationPackages | Where-Object { $_.ContainsKey("ScanContext") })
 
 $success = 0
 $failed = 0
 $skipped = 0
+$completed = 0
 $failedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
     [StringComparer]::OrdinalIgnoreCase)
 $skippedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
     [StringComparer]::OrdinalIgnoreCase)
+$toleratedDiagnosticsByPackage = @{}
+$failureReasons = @{}
 $coreOutputFile = $null
+$slowestResult = $null
+$generationStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-# Process core first
-foreach ($pkg in $corePackages) {
-    $name = $pkg.Name
-    $version = $pkg.Version
-    $fileBaseName = if ($version) { "$name.$version" } else { $name }
-    $dumpFile = Join-Path $TempDir "$name.json"
-    $outputFile = Join-Path $OutputDir "$fileBaseName.json"
+# Prints a package's buffered log and records its outcome on the main thread.
+function Complete-TsModuleResult {
+    param(
+        [Parameter(Mandatory, ValueFromPipeline)][psobject]$Result,
+        [switch]$IsCore
+    )
 
-    Write-Host ""
-    Write-Host "[$name] (core — processed first)" -ForegroundColor Cyan
-
-    # Step 1: Run aspire sdk dump --format json
-    Write-Host "  Dumping ATS capabilities..."
-    try {
-        $dumpArgs = @("sdk", "dump", "--format", "json", "--non-interactive", "--nologo", "-o", $dumpFile)
-        $dumpArgs += $pkg.DumpArgs
-
-        $workDir = if ($AspireRepoPath) { $AspireRepoPath } elseif ($aspireCliWorkingDirectory) { $aspireCliWorkingDirectory } else { $PWD.Path }
-        $proc = Invoke-AspireCli -Arguments $dumpArgs -WorkingDirectory $workDir `
-            -StderrFile (Join-Path $TempDir "$name.stderr.txt")
-
-        if ($proc.ExitCode -ne 0) {
-            $stderr = Get-Content (Join-Path $TempDir "$name.stderr.txt") -Raw -ErrorAction SilentlyContinue
-            Write-Warning "  aspire sdk dump failed (exit $($proc.ExitCode))"
-            if ($stderr) { Write-Warning "  $stderr" }
-            $failed++
-            [void]$failedPackageNames.Add($name)
-            continue
+    process {
+        $script:completed++
+        if ($null -eq $script:slowestResult -or $Result.Elapsed -gt $script:slowestResult.Elapsed) {
+            $script:slowestResult = $Result
         }
 
-        if (-not (Test-Path $dumpFile)) {
-            Write-Warning "  Dump file not created"
-            $failed++
-            [void]$failedPackageNames.Add($name)
-            continue
-        }
-
-    }
-    catch {
-        Write-Warning "  Error running aspire sdk dump: $_"
-        $failed++
-        [void]$failedPackageNames.Add($name)
-        continue
-    }
-
-    # Step 2: Transform (no --base for core)
-    Write-Host "  Transforming to docs JSON..."
-    try {
-        $transformArgs = @(
-            "run", "--project", $ToolProject, "--no-build", "--",
-            "--input", $dumpFile,
-            "--output", $outputFile,
-            "--package-name", $name
-        )
-        $sourceRepository = $pkg.SourceRepository
-        if ($sourceRepository) {
-            $transformArgs += @("--source-repo", $sourceRepository)
-        }
-        if (-not [string]::IsNullOrWhiteSpace($pkg.SourceCommit)) {
-            $transformArgs += @("--source-commit", $pkg.SourceCommit)
-        }
-
-        & dotnet @transformArgs 2>&1 | ForEach-Object {
-            if ($_ -match "Generated:") {
-                Write-Host "  $_" -ForegroundColor Green
-            } elseif ($_ -match "FAILED|Error") {
-                Write-Host "  $_" -ForegroundColor Red
+        $role = if ($IsCore) { "core — processed first, " } else { "" }
+        Write-Host ""
+        Write-Host ("[{0}] ({1}{2}/{3}, {4:N1}s)" -f $Result.Name, $role, $script:completed, $Packages.Count, $Result.Elapsed.TotalSeconds) -ForegroundColor Cyan
+        foreach ($entry in $Result.Log) {
+            switch ($entry.Kind) {
+                "Warning" { Write-Warning $entry.Text }
+                "Success" { Write-Host $entry.Text -ForegroundColor Green }
+                "Detail" { Write-Host $entry.Text -ForegroundColor DarkGray }
+                default { Write-Host $entry.Text }
             }
         }
 
-        if ($LASTEXITCODE -eq 0) {
-            $success++
-            $coreOutputFile = $outputFile
-            if ($version) {
-                Remove-StaleTsModuleFiles -PackageName $name -CurrentOutputFile $outputFile -OutputDirectory $OutputDir
-            }
-        } else {
-            Write-Warning "  Transform failed"
-            $failed++
-            [void]$failedPackageNames.Add($name)
+        if ($Result.Status -ne "Succeeded") {
+            $script:failed++
+            [void]$failedPackageNames.Add($Result.Name)
+            $failureReasons[$Result.Name] = ($Result.Log |
+                Where-Object Kind -eq 'Warning' |
+                Select-Object -Last 1).Text
+            return
         }
-    }
-    catch {
-        Write-Warning "  Error transforming: $_"
-        $failed++
-        [void]$failedPackageNames.Add($name)
+
+        try {
+            if ($Result.Version) {
+                Remove-StaleTsModuleFiles -PackageName $Result.Name -CurrentOutputFile $Result.OutputFile -OutputDirectory $OutputDir
+            }
+            if ($IsCore) {
+                $script:coreOutputFile = $Result.OutputFile
+                $script:success++
+            }
+            elseif (Remove-EmptyTsModuleFile -PackageName $Result.Name -OutputFile $Result.OutputFile) {
+                $script:skipped++
+                [void]$skippedPackageNames.Add($Result.Name)
+            }
+            else {
+                $script:success++
+            }
+            if ($Result.ToleratedDiagnostics.Count -gt 0) {
+                $toleratedDiagnosticsByPackage[$Result.Name] = $Result.ToleratedDiagnostics
+            }
+        }
+        catch {
+            Write-Warning "  $($_.Exception.Message)"
+            Remove-Item $Result.OutputFile -Force -ErrorAction SilentlyContinue
+            $script:failed++
+            [void]$failedPackageNames.Add($Result.Name)
+            $failureReasons[$Result.Name] = $_.Exception.Message
+        }
     }
 }
+
+Invoke-TsModuleWave -WavePackages $corePackages -Settings $settings | Complete-TsModuleResult -IsCore
 
 # Verify core was generated (needed as base for dedup)
 if (-not $coreOutputFile -or -not (Test-Path $coreOutputFile)) {
@@ -854,142 +1147,11 @@ if (-not $coreOutputFile -or -not (Test-Path $coreOutputFile)) {
     $coreOutputFile = $null
 }
 
-# Process integration packages with --base for dedup
-foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
-    $name = $pkg.Name
-    $version = $pkg.Version
-    $fileBaseName = if ($version) { "$name.$version" } else { $name }
-    $dumpFile = Join-Path $TempDir "$name.json"
-    $outputFile = Join-Path $OutputDir "$fileBaseName.json"
-
-    Write-Host ""
-    Write-Host "[$name]" -ForegroundColor Cyan
-
-    # Step 1: Run aspire sdk dump --format json
-    Write-Host "  Dumping ATS capabilities..."
-    try {
-        $contextOutputFile = $null
-        $dumpArgs = @("sdk", "dump", "--format", "json", "--non-interactive", "--nologo", "-o", $dumpFile)
-        $dumpArgs += $pkg.DumpArgs
-        if ($pkg.ContainsKey("ScanContext")) {
-            $context = $pkg.ScanContext
-            $contextFileName = if ($context.Version) { "$($context.Name).$($context.Version).json" } else { "$($context.Name).json" }
-            $contextOutputFile = @(
-                (Join-Path $OutputDir $contextFileName),
-                (Join-Path $FinalOutputDir $contextFileName)
-            ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-            if (-not $contextOutputFile) {
-                throw "Generate $contextFileName before Radius so supporting APIs can be excluded from Radius's output."
-            }
-            $contextModel = Get-Content $contextOutputFile -Raw | ConvertFrom-Json
-            if ($contextModel.package.name -ne $context.Name -or ($context.Version -and $contextModel.package.version -ne $context.Version)) {
-                throw "Supporting API metadata does not match the exact scan context: $contextOutputFile"
-            }
-            $dumpArgs += $context.DumpArgs
-            Write-Host "  Supporting scan context: $($context.DumpArgs -join ', ')" -ForegroundColor DarkGray
-        }
-
-        $workDir = if ($AspireRepoPath) { $AspireRepoPath } elseif ($aspireCliWorkingDirectory) { $aspireCliWorkingDirectory } else { $PWD.Path }
-        $proc = Invoke-AspireCli -Arguments $dumpArgs -WorkingDirectory $workDir `
-            -StderrFile (Join-Path $TempDir "$name.stderr.txt")
-
-        if ($proc.ExitCode -ne 0) {
-            $stderr = Get-Content (Join-Path $TempDir "$name.stderr.txt") -Raw -ErrorAction SilentlyContinue
-            Write-Warning "  aspire sdk dump failed (exit $($proc.ExitCode))"
-            if ($stderr) { Write-Warning "  $stderr" }
-            $failed++
-            [void]$failedPackageNames.Add($name)
-            continue
-        }
-
-        if (-not (Test-Path $dumpFile)) {
-            Write-Warning "  Dump file not created"
-            $failed++
-            [void]$failedPackageNames.Add($name)
-            continue
-        }
-
-    }
-    catch {
-        Write-Warning "  Error running aspire sdk dump: $_"
-        $failed++
-        [void]$failedPackageNames.Add($name)
-        continue
-    }
-
-    # Step 2: Transform with AtsJsonGenerator (with --base dedup)
-    Write-Host "  Transforming to docs JSON..."
-    try {
-        if ($pkg.ContainsKey("HasGeneratedExports") -and $pkg.HasGeneratedExports) {
-            $exportFile = Join-Path $TempDir "$name.canonical.json"
-            $exportResult = Invoke-AspireCli `
-                -Arguments @("sdk", "export", "--language", "typescript", "--package", "$name@$version", "--non-interactive", "--nologo") `
-                -WorkingDirectory $workDir `
-                -StderrFile (Join-Path $TempDir "$name.export.stderr.txt") `
-                -StdoutFile $exportFile
-            if ($exportResult.ExitCode -ne 0) {
-                $exportError = Get-Content (Join-Path $TempDir "$name.export.stderr.txt") -Raw
-                throw "Canonical export failed for $name (exit $($exportResult.ExitCode)): $exportError"
-            }
-            $frontend = Join-Path $RepoRoot "src" "frontend"
-            & node (Join-Path $frontend "node_modules" "tsx" "dist" "cli.mjs") `
-                (Join-Path $frontend "scripts" "supplement-ats-enums.ts") $dumpFile $exportFile
-            if ($LASTEXITCODE -ne 0) {
-                throw "Could not resolve canonical enum definitions for $name."
-            }
-        }
-        $transformArgs = @(
-            "run", "--project", $ToolProject, "--no-build", "--",
-            "--input", $dumpFile,
-            "--output", $outputFile,
-            "--package-name", $name
-        )
-        $sourceRepository = $pkg.SourceRepository
-        if ($sourceRepository) {
-            $transformArgs += @("--source-repo", $sourceRepository)
-        }
-        if (-not [string]::IsNullOrWhiteSpace($pkg.SourceCommit)) {
-            $transformArgs += @("--source-commit", $pkg.SourceCommit)
-        }
-
-        # Dedup against core if available
-        if ($coreOutputFile) {
-            $transformArgs += @("--base", $coreOutputFile)
-        }
-        if ($contextOutputFile) {
-            $transformArgs += @("--base", $contextOutputFile)
-        }
-
-        & dotnet @transformArgs 2>&1 | ForEach-Object {
-            if ($_ -match "Generated:") {
-                Write-Host "  $_" -ForegroundColor Green
-            } elseif ($_ -match "FAILED|Error") {
-                Write-Host "  $_" -ForegroundColor Red
-            }
-        }
-
-        if ($LASTEXITCODE -eq 0) {
-            if ($version) {
-                Remove-StaleTsModuleFiles -PackageName $name -CurrentOutputFile $outputFile -OutputDirectory $OutputDir
-            }
-            if (Remove-EmptyTsModuleFile -PackageName $name -OutputFile $outputFile) {
-                $skipped++
-                [void]$skippedPackageNames.Add($name)
-            } else {
-                $success++
-            }
-        } else {
-            Write-Warning "  Transform failed"
-            $failed++
-            [void]$failedPackageNames.Add($name)
-        }
-    }
-    catch {
-        Write-Warning "  Error transforming: $_"
-        $failed++
-        [void]$failedPackageNames.Add($name)
-    }
-}
+$integrationSettings = $settings.Clone()
+$integrationSettings.CoreOutputFile = $coreOutputFile
+Invoke-TsModuleWave -WavePackages $independentPackages -Settings $integrationSettings | Complete-TsModuleResult
+Invoke-TsModuleWave -WavePackages $scanContextPackages -Settings $integrationSettings | Complete-TsModuleResult
+$generationStopwatch.Stop()
 
 # ── Reconcile and cleanup ───────────────────────────────────────────────────────
 
@@ -998,10 +1160,26 @@ Write-Host "══════════════════════�
 Write-Host "Complete: $success succeeded, $failed failed, $skipped skipped" -ForegroundColor $(if ($failed -gt 0) { "Yellow" } else { "Green" })
 if ($failedPackageNames.Count -gt 0) {
     Write-Host "Failed packages: $(($failedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Red
+    foreach ($name in ($failedPackageNames | Sort-Object)) {
+        $reason = $failureReasons[$name] -replace '\r?\n', ' '
+        Write-Host "FAILURE ${name}: $reason" -ForegroundColor Red
+    }
 }
 if ($skippedPackageNames.Count -gt 0) {
     Write-Host "Skipped packages: $(($skippedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Yellow
 }
+if ($toleratedDiagnosticsByPackage.Count -gt 0) {
+    # update-integration-data.ps1 parses these lines to warn reviewers in the pull request.
+    $toleratedPackageNames = @($toleratedDiagnosticsByPackage.Keys | Sort-Object)
+    Write-Host "Packages with tolerated ATS diagnostics: $($toleratedPackageNames -join ', ')" -ForegroundColor Yellow
+    foreach ($packageName in $toleratedPackageNames) {
+        foreach ($diagnostic in $toleratedDiagnosticsByPackage[$packageName]) {
+            Write-Host "  [$packageName] $diagnostic" -ForegroundColor Yellow
+        }
+    }
+}
+$slowestSummary = if ($slowestResult) { " (slowest: $($slowestResult.Name), $('{0:N1}' -f $slowestResult.Elapsed.TotalSeconds)s)" } else { "" }
+Write-Host ("Generated in {0:mm\:ss} with parallelism {1}{2}" -f $generationStopwatch.Elapsed, $Parallelism, $slowestSummary) -ForegroundColor DarkGray
 
 # Clean up temp files
 if (Test-Path $TempDir) {

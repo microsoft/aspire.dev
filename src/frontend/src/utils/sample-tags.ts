@@ -11,6 +11,7 @@ export const TAG_LABELS: Record<string, string> = {
   'typescript': 'TypeScript',
   'node': 'Node.js',
   'go': 'Go',
+  'java': 'Java',
   'redis': 'Redis',
   'postgresql': 'PostgreSQL',
   'sql-server': 'SQL Server',

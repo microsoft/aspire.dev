@@ -76,6 +76,25 @@ for (const url of [
   });
 }
 
+for (const [url, ogType] of [
+  ['/', 'website'],
+  ['/da/', 'website'],
+  ['/support/', 'website'],
+  ['/fundamentals/telemetry/', 'article'],
+]) {
+  test(`emits a single og:type of ${ogType} for ${url}`, async ({ request }) => {
+    const response = await request.get(url);
+    expect(response.ok()).toBe(true);
+    const tree = unified()
+      .use(rehypeParse)
+      .parse(await response.text());
+    const ogTypes = selectAll('meta[property="og:type"]', tree);
+
+    expect(ogTypes).toHaveLength(1);
+    expect(ogTypes[0].properties.content).toBe(ogType);
+  });
+}
+
 test('preserves Starlight content languages and canonical links for translations and fallbacks', async ({
   request,
 }) => {
@@ -238,6 +257,38 @@ test('emits a resolvable og:image for samples without a primary thumbnail', asyn
   expect(imageResponse.headers()['content-type']).toMatch(/image\/png/i);
 });
 
+test('uses the data-driven release card for the support policy page', async ({
+  request,
+  baseURL,
+}) => {
+  // `support.mdx` is a splash page, which the generic `/og/<slug>.png` generator
+  // skips. Its `ogImage` frontmatter points at `src/pages/og/support.png.ts`,
+  // which renders the supported version and key dates from the page's own tables.
+  const ogImagePath = '/og/support.png';
+  const response = await request.get('/support/');
+  expect(response.ok(), 'support page should return 200').toBe(true);
+  const html = await response.text();
+
+  expect(html).toMatch(
+    new RegExp(`<meta\\b[^>]*property="og:image"[^>]*content="[^"]*${escape(ogImagePath)}"`, 'i')
+  );
+  expect(html).toMatch(
+    new RegExp(`<meta\\b[^>]*name="twitter:image"[^>]*content="[^"]*${escape(ogImagePath)}"`, 'i')
+  );
+  expect(html).toMatch(metaTagPattern('property', 'og:image:width', '1200'));
+  expect(html).toMatch(metaTagPattern('property', 'og:image:height', '630'));
+
+  const imageUrl = new URL(ogImagePath, baseURL).toString();
+  const imageResponse = await request.get(imageUrl);
+  expect(imageResponse.ok(), `${imageUrl} should resolve to a real PNG`).toBe(true);
+  expect(imageResponse.headers()['content-type']).toMatch(/image\/png/i);
+
+  // Read the width and height from the PNG IHDR chunk.
+  const png = await imageResponse.body();
+  expect(png.readUInt32BE(16)).toBe(1200);
+  expect(png.readUInt32BE(20)).toBe(630);
+});
+
 test('falls back to the site-wide image for the home page', async ({ request, baseURL }) => {
   const response = await request.get('/');
   expect(response.ok(), 'home page should return 200').toBe(true);
@@ -269,6 +320,26 @@ test('falls back to the site-wide image for generated API reference pages', asyn
     )
   );
   expect(html).not.toMatch(/\/og\/reference\/api\/typescript\//i);
+
+  const imageResponse = await request.get(new URL('/og-image.png', baseURL).toString());
+  expect(imageResponse.ok(), 'the fallback /og-image.png must exist').toBe(true);
+});
+
+test('falls back to the site-wide image for generated Go API reference pages', async ({
+  request,
+  baseURL,
+}) => {
+  const response = await request.get('/reference/api/go/aspire.hosting.redis/');
+  expect(response.ok(), 'Go API reference page should return 200').toBe(true);
+  const html = await response.text();
+
+  expect(html).toMatch(
+    new RegExp(
+      `<meta\\b[^>]*property="og:image"[^>]*content="[^"]*${escape('/og-image.png')}"`,
+      'i'
+    )
+  );
+  expect(html).not.toMatch(/\/og\/reference\/api\/go\//i);
 
   const imageResponse = await request.get(new URL('/og-image.png', baseURL).toString());
   expect(imageResponse.ok(), 'the fallback /og-image.png must exist').toBe(true);

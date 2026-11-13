@@ -9,6 +9,7 @@ import { Aside, Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/component
 import InstallPackage from '@components/InstallPackage.astro';
 import LearnMore from '@components/LearnMore.astro';
 import surrealdbIcon from '@assets/icons/surrealdb-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -47,6 +48,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.SurrealDb
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the SurrealDB hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.SurrealDb": "*"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add CommunityToolkit.Aspire.Hosting.SurrealDb
@@ -110,6 +132,32 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+surreal := builder.AddSurrealServer("surreal")
+ns := surreal.AddNamespace("ns")
+db := ns.AddDatabase("db")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Steps>
@@ -130,7 +178,7 @@ await builder.build().run();
 
 ## Add Surrealist
 
-To add [Surrealist](https://hub.docker.com/r/surrealdb/surrealist) to the SurrealDB server resource, call the `WithSurrealist` method:
+To add [Surrealist](https://hub.docker.com/r/surrealdb/surrealist) to the SurrealDB server resource, call the <ApiReference name="Aspire.Hosting.SurrealDbBuilderExtensions.WithSurrealist" /> method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -174,13 +222,41 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+surreal := builder.AddSurrealServer("surreal").
+	WithSurrealist()
+
+ns := surreal.AddNamespace("ns")
+db := ns.AddDatabase("db")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 Surrealist is a web-based user interface for interacting with your SurrealDB database visually. It lets you connect to any SurrealDB instance, execute queries, explore your tables, and design your schemas.
 
 ## Add SurrealDB resource with data bind mount
 
-To add a data bind mount to the SurrealDB resource, call the `WithDataBindMount` method:
+To add a data bind mount to the SurrealDB resource, call the <ApiReference name="Aspire.Hosting.SurrealDbBuilderExtensions.WithDataBindMount" /> method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -219,6 +295,34 @@ await exampleProject.withReference(db);
 await exampleProject.waitFor(db);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+surreal := builder.AddSurrealServer("surreal").
+	WithDataBindMount("./data/surreal/data")
+
+ns := surreal.AddNamespace("ns")
+db := ns.AddDatabase("db")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -271,13 +375,41 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+surreal := builder.AddSurrealServer("surreal", &aspire.AddSurrealServerOptions{Password: &password})
+ns := surreal.AddNamespace("ns")
+db := ns.AddDatabase("db")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 For more information on providing parameters, see [External parameters](/get-started/resources/).
 
 ## Configure logging
 
-To configure the log level for the SurrealDB container, call the `WithLogLevel` method:
+To configure the log level for the SurrealDB container, call the <ApiReference name="Aspire.Hosting.SurrealDbBuilderExtensions.WithLogLevel" /> method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -321,9 +453,37 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+surreal := builder.AddSurrealServer("surreal").
+	WithLogLevel("Debug")
+
+ns := surreal.AddNamespace("ns")
+db := ns.AddDatabase("db")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
-The `WithLogLevel` method enables verbose logging in the SurrealDB container, which is useful during development and debugging. The non-C# TypeScript AppHost accepts the log level as a string (for example, `"Trace"`, `"Debug"`, `"Information"`, `"Warning"`, `"Error"`, `"Critical"`, or `"None"`).
+The `WithLogLevel` method enables verbose logging in the SurrealDB container, which is useful during development and debugging. The non-C# TypeScript and Go AppHosts accept the log level as a string (for example, `"Trace"`, `"Debug"`, `"Information"`, `"Warning"`, `"Error"`, `"Critical"`, or `"None"`).
 
 ## Health checks
 

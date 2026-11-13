@@ -11,6 +11,11 @@ import ContainerImages from '@components/ContainerImages.astro';
 import Expand from '@components/Expand.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
+import BrandAssetGallery from '@components/brand/BrandAssetGallery.astro';
+import BrandCopyValue from '@components/brand/BrandCopyValue.astro';
+import BrandPalette from '@components/brand/BrandPalette.astro';
+import BrandWordmark from '@components/brand/BrandWordmark.astro';
+import BrandDownloadButton from '@components/brand/BrandDownloadButton.astro';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
 import HeroSection from '@components/HeroSection.astro';
 import IconAside from '@components/IconAside.astro';
@@ -36,6 +41,7 @@ import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
+import ReadableText from '@components/ReadableText.astro';
 import SampleCard from '@components/SampleCard.astro';
 import SampleDetail from '@components/SampleDetail.astro';
 import SampleGrid from '@components/SampleGrid.astro';
@@ -53,8 +59,35 @@ import VimeoGrid from '@components/VimeoGrid.astro';
 import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
+import { brandAssets, brandColors } from '@data/brand';
 
 type PropsOf<T extends (...args: never[]) => unknown> = ComponentProps<T>;
+
+const validBrandAssetProps = { assets: brandAssets } satisfies PropsOf<typeof BrandAssetGallery>;
+const validBrandPaletteProps = { colors: brandColors } satisfies PropsOf<typeof BrandPalette>;
+const validBrandWordmarkProps = { asset: brandAssets[0] } satisfies PropsOf<typeof BrandWordmark>;
+const validBrandDownloadProps = {
+  href: '/brand/aspire-icon-32.svg', name: 'Aspire icon, 32', kind: 'svg',
+} satisfies PropsOf<typeof BrandDownloadButton>;
+const validBrandCopyProps = {
+  value: '#7455DD', label: 'Aspire primary',
+} satisfies PropsOf<typeof BrandCopyValue>;
+void validBrandAssetProps;
+void validBrandPaletteProps;
+void validBrandWordmarkProps;
+void validBrandDownloadProps;
+void validBrandCopyProps;
+const validReadableTextProps = { text: 'RedisResource.withModule' } satisfies PropsOf<typeof ReadableText>;
+void validReadableTextProps;
+// @ts-expect-error Identifier content is required and must remain a string.
+const invalidReadableTextProps = { text: 123 } satisfies PropsOf<typeof ReadableText>;
+void invalidReadableTextProps;
+
+const validReadableTextProps = { text: 'RedisResource.withModule' } satisfies PropsOf<typeof ReadableText>;
+void validReadableTextProps;
+// @ts-expect-error Identifier content is required and must remain a string.
+const invalidReadableTextProps = { text: 123 } satisfies PropsOf<typeof ReadableText>;
+void invalidReadableTextProps;
 
 const validSearchFieldProps = {
   id: 'api-query', label: 'Search API entries', placeholder: 'Try Redis',
@@ -692,6 +725,7 @@ const validTerminalShowcaseProps = {
   description: 'Watch the Aspire CLI in action.',
   cast: '/casts/aspire-help.cast',
   rows: 12,
+  speed: 0.5,
   cta: { label: 'Get started', href: '/get-started/' },
 } satisfies PropsOf<typeof TerminalShowcase>;
 // @ts-expect-error TerminalShowcase should reject unknown props.

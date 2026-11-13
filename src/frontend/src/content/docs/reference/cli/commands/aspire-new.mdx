@@ -120,17 +120,25 @@ The following options are available:
 
   Requesting `--channel staging` explicitly only resolves on `stable` or `staging` Aspire CLI builds. Daily, local, and per-PR builds don't have a deterministic staging feed, so they refuse the request with an error naming the running CLI's identity and pointing at the recovery options: install a staging or stable Aspire CLI, or set [`overrideStagingFeed`](/reference/cli/configuration/#settings-surfaced-by-aspire-config) to point at the staging feed you want to use.
 
+- **`--language`**
+
+  The programming language for the AppHost, such as `csharp`, `typescript`, or `go`. When you don't pass a template, `aspire new` offers only the templates that support the language.
+
 - **`--suppress-agent-init`**
 
-  Suppress the prompt to initialize MCP server configuration for agent environments after project creation.
+  Skip AI agent setup after project creation. To configure MCP, use a standalone `aspire agent init` command.
 
-- **`--skill-locations <skill-locations>`**
+- **`--agents <agents>`**
 
-  Comma-separated list of skill locations to configure. Use `all` to configure all supported locations or `none` to skip skill location configuration. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available locations, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+  Comma-separated agent IDs: `copilot`, `claude`, or `opencode`. Use `all` to configure all supported agents or `none` to skip agent configuration. For selection defaults, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+
+- **`--scope <project|global>`**
+
+  Write agent configuration and companion skill files at the project or the user scope. Non-interactive setup defaults to `project`.
 
 - **`--skills <skills>`**
 
-  Comma-separated list of skills to install. Use `all` to install all available skills or `none` to skip skill installation. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available skills, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+  Comma-separated choices: `aspire`, `playwright-cli`, or `dotnet-inspect`. Use `all` for every applicable choice or `none` to skip them. Defaults to `aspire`, which applies all enabled skill sources. For details, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
@@ -148,14 +156,16 @@ The following options are available:
 
 Each command represents a template. Pass the `--help` parameter to the template command to print the options available to the template.
 
-| Command                | Template                          |
-| ---------------------- | --------------------------------- |
-| `aspire-starter`       | Starter App (ASP.NET Core/Blazor) |
-| `aspire-ts-cs-starter` | Starter App (ASP.NET Core/React)  |
-| `aspire-py-starter`    | Starter App (FastAPI/React)       |
-| `aspire-ts-starter`    | Starter App (Express/React)       |
-| `aspire-empty`         | Empty (C# AppHost)                |
-| `aspire-ts-empty`      | Empty (TypeScript AppHost)        |
+| Command                | Template                                 |
+| ---------------------- | ---------------------------------------- |
+| `aspire-starter`       | Starter App (ASP.NET Core/Blazor)        |
+| `aspire-ts-cs-starter` | Starter App (ASP.NET Core/React)         |
+| `aspire-py-starter`    | Starter App (FastAPI/React)              |
+| `aspire-ts-starter`    | Starter App (Express/React)              |
+| `aspire-go-starter`    | Starter App (Go API + Redis, Go AppHost) |
+| `aspire-empty`         | Empty (C# AppHost)                       |
+| `aspire-ts-empty`      | Empty (TypeScript AppHost)               |
+| `aspire-go-empty`      | Empty (Go AppHost)                       |
 
 ### aspire-py-starter options
 
@@ -189,16 +199,16 @@ The `aspire-py-starter` template accepts the following additional options:
   aspire new aspire-starter --channel daily
   ```
 
-- Create a new project non-interactively without installing any agent skills:
+- Create a new project non-interactively without configuring agents:
 
   ```bash title="Aspire CLI"
-  aspire new aspire-starter --name myapp --skills none --non-interactive
+  aspire new aspire-starter --name myapp --agents none --non-interactive
   ```
 
-- Create a new project non-interactively and install all skills in all supported locations:
+- Create a new project non-interactively and configure all supported agents at the project scope:
 
   ```bash title="Aspire CLI"
-  aspire new aspire-starter --name myapp --skill-locations all --skills all --non-interactive
+  aspire new aspire-starter --name myapp --agents all --skills aspire --scope project --non-interactive
   ```
 
 ## Troubleshooting
@@ -238,3 +248,15 @@ If the error persists, check the apphost server log for `Warning` entries that i
   detailed log file. Open the log and search for `LoaderExceptions` or
   `version mismatch` to identify the conflicting assembly.
 </Aside>
+
+### Git-backed configuration source or template failures
+
+When `aspire new` acquires a Git-backed configuration source or template, the CLI records Git `stdout` and `stderr` output as `Git stdout:` and `Git stderr:` entries in the CLI log file. These entries are written to the log file without `--debug`. With `--debug` or `--log-level Debug`, they also appear on the console.
+
+Git operations time out after five minutes, which allows time for browser sign-in, multifactor authentication, and credential-helper prompts. If acquiring a configuration source fails and a README URL is available, the error message includes a second line that links to that source's setup instructions.
+
+To capture the Git output for troubleshooting, specify a log file:
+
+```bash title="Aspire CLI"
+aspire new --log-file ./aspire-new.log
+```

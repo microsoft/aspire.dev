@@ -8,6 +8,7 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import serviceBusIcon from '@assets/icons/azure-servicebus-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={serviceBusIcon}
@@ -18,7 +19,7 @@ import serviceBusIcon from '@assets/icons/azure-servicebus-icon.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Service Bus Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure Service Bus namespace, queues, topics, and subscriptions as resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Service Bus Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure Service Bus namespace, queues, topics, and subscriptions as resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Service Bus integration, start with the [Get started with the Azure Service Bus integrations](/integrations/cloud/azure/azure-service-bus/azure-service-bus-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Service Bus](../azure-service-bus-connect/).
 
@@ -77,6 +78,27 @@ This updates your `aspire.config.json` with the Azure Service Bus hosting integr
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-service-bus
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Service Bus hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.ServiceBus": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Azure Service Bus resource
@@ -109,11 +131,31 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="caution">
-  When you call `AddAzureServiceBus` (C#) or `addAzureServiceBus` (TypeScript),
-  it implicitly calls `AddAzureProvisioning`—which adds support for generating
+  When you call <ApiReference name="Aspire.Hosting.AzureServiceBusExtensions.AddAzureServiceBus" />,
+  it implicitly calls <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" />—which adds support for generating
   Azure resources dynamically during app startup. The app must configure the
   appropriate subscription and location. For more information, see [Local
   provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -129,7 +171,7 @@ await builder.build().run();
 
 ## Connect to an existing Azure Service Bus namespace
 
-If you have an existing Azure Service Bus namespace, chain a call to `AsExisting` (C#) or `asExisting` (TypeScript) to connect to it instead of provisioning a new one:
+If you have an existing Azure Service Bus namespace, chain a call to <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" /> to connect to it instead of provisioning a new one:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -171,6 +213,33 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingServiceBusName := builder.AddParameter("existingServiceBusName")
+existingServiceBusResourceGroup := builder.AddParameter("existingServiceBusResourceGroup")
+
+serviceBus := builder.AddAzureServiceBus("messaging").
+	AsExisting(existingServiceBusName, aspire.AsExistingResourceGroup(existingServiceBusResourceGroup))
+
+builder.AddGoApp("web", "./web").
+	WithReference(serviceBus)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 For more information on treating Azure resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
@@ -185,7 +254,7 @@ For more information on treating Azure resources as existing resources, see [Use
 
 ## Add Azure Service Bus queue
 
-To add a queue to an Azure Service Bus namespace, call `AddServiceBusQueue` (C#) or `addServiceBusQueue` (TypeScript) on the Service Bus resource builder:
+To add a queue to an Azure Service Bus namespace, call <ApiReference name="Aspire.Hosting.AzureServiceBusExtensions.AddServiceBusQueue" /> on the Service Bus resource builder:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -221,13 +290,37 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging")
+queue := serviceBus.AddServiceBusQueue("queue")
+
+builder.AddGoApp("api", "./api").
+	WithReference(queue)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 This expresses an explicit parent-child relationship between the `messaging` Service Bus namespace and its child `queue`. The queue is created in the namespace that the `AzureServiceBusResource` represents. For more information, see [Queues, topics, and subscriptions in Azure Service Bus](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-queues-topics-subscriptions).
 
 ## Add Azure Service Bus topic
 
-To add a topic, call `AddServiceBusTopic` (C#) or `addServiceBusTopic` (TypeScript) on the Service Bus resource builder:
+To add a topic, call <ApiReference name="Aspire.Hosting.AzureServiceBusExtensions.AddServiceBusTopic" /> on the Service Bus resource builder:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -257,13 +350,34 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging")
+topic := serviceBus.AddServiceBusTopic("topic")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The topic is created in the namespace that the `AzureServiceBusResource` represents.
 
 ## Add Azure Service Bus subscription
 
-To add a subscription for a topic, call `AddServiceBusSubscription` (C#) or `addServiceBusSubscription` (TypeScript) on the topic resource builder:
+To add a subscription for a topic, call <ApiReference name="Aspire.Hosting.AzureServiceBusExtensions.AddServiceBusSubscription" /> on the topic resource builder:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -292,6 +406,28 @@ const topic = await serviceBus.addServiceBusTopic("topic");
 await topic.addServiceBusSubscription("sub1");
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging")
+topic := serviceBus.AddServiceBusTopic("topic")
+topic.AddServiceBusSubscription("sub1")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -343,7 +479,7 @@ builder.Build().Run();
 
 ## Add Azure Service Bus emulator resource
 
-For local development, Aspire can run the [Azure Service Bus Emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator) as a container. Chain a call to `RunAsEmulator` (C#) or `runAsEmulator` (TypeScript) on the Service Bus resource builder:
+For local development, Aspire can run the [Azure Service Bus Emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator) as a container. Chain a call to <ApiReference name="Aspire.Hosting.AzureServiceBusExtensions.RunAsEmulator" /> on the Service Bus resource builder:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -373,6 +509,27 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging").
+	RunAsEmulator()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 When you call `runAsEmulator`, Aspire provisions the `mcr.microsoft.com/azure-messaging/servicebus-emulator` container and its companion `mcr.microsoft.com/mssql/server` container locally. The emulator starts alongside your AppHost instead of requiring an Azure subscription. For more information, see [Container resource lifecycle](/architecture/resource-model/#built-in-resources-and-lifecycle).
@@ -388,7 +545,7 @@ By default, the Service Bus emulator container exposes the following endpoints:
 
 ### Configure the emulator host port
 
-By default, the host port is assigned dynamically. To pin it to a specific port, pass the `configureContainer` callback and call `withHostPort`:
+By default, the host port is assigned dynamically. To pin it to a specific port, pass the `configureContainer` callback and call <ApiReference name="Aspire.Hosting.AzureServiceBusExtensions.WithHostPort" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -425,6 +582,31 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(emulator aspire.AzureServiceBusEmulatorResource) {
+			emulator.WithHostPort(aspire.IntPtr(7777))
+		},
+	})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code maps the `emulator` endpoint to host port `7777`:
@@ -435,7 +617,7 @@ The preceding code maps the `emulator` endpoint to host port `7777`:
 
 ### Configure the emulator with a custom JSON file
 
-The Service Bus emulator generates its configuration automatically from the resources you've added. To provide a fully custom configuration file instead, call `WithConfigurationFile` (C#) or `withConfigurationFile` (TypeScript):
+The Service Bus emulator generates its configuration automatically from the resources you've added. To provide a fully custom configuration file instead, call <ApiReference name="Aspire.Hosting.AzureServiceBusExtensions.WithConfigurationFile" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -470,6 +652,31 @@ const serviceBus = await builder.addAzureServiceBus("messaging")
     });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(emulator aspire.AzureServiceBusEmulatorResource) {
+			emulator.WithConfigurationFile("./messaging/custom-config.json")
+		},
+	})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -569,7 +776,7 @@ For more information on the assigned role, see [Azure Service Bus Data Owner](ht
 
 ### Customize provisioning infrastructure
 
-All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables customization of the generated Bicep using the fluent `ConfigureInfrastructure` API. For example, you can configure the SKU, location, tags, and more:
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables customization of the generated Bicep using the fluent <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> API. For example, you can configure the SKU, location, tags, and more:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);

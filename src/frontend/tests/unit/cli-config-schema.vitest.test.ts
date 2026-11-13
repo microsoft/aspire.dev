@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
@@ -23,6 +23,10 @@ function schemaFilePath(version: string): string {
   return path.join(schemasDir, `aspire-config.${version}.schema.json`);
 }
 
+function compareVersions(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true });
+}
+
 describe('cli-config-schema data files', () => {
   test('index.json exists', () => {
     expect(existsSync(indexFile)).toBe(true);
@@ -39,6 +43,27 @@ describe('cli-config-schema data files', () => {
   test('index.latest is listed in index.versions', () => {
     const index = readIndex();
     expect(index.versions).toContain(index.latest);
+  });
+
+  test('index.versions is unique and sorted oldest to newest', () => {
+    const index = readIndex();
+    expect(new Set(index.versions).size).toBe(index.versions.length);
+    expect(index.versions).toEqual([...index.versions].sort(compareVersions));
+  });
+
+  test('index.latest is the highest version', () => {
+    const index = readIndex();
+    const sorted = [...index.versions].sort(compareVersions);
+    expect(index.latest).toBe(sorted[sorted.length - 1]);
+  });
+
+  test('every schema file is listed in index.json', () => {
+    const index = readIndex();
+    const fileVersions = readdirSync(schemasDir).flatMap((name) => {
+      const version = /^aspire-config\.(.+)\.schema\.json$/.exec(name)?.[1];
+      return version ? [version] : [];
+    });
+    expect(fileVersions.sort(compareVersions)).toEqual([...index.versions].sort(compareVersions));
   });
 
   test('all versions in index have corresponding schema files', () => {

@@ -10,6 +10,7 @@ import customClearCacheCommand from '@assets/fundamentals/custom-clear-cache-com
 import customClearCacheCommandLight from '@assets/fundamentals/custom-clear-cache-command-light.png';
 import customClearCacheCommandSucceeded from '@assets/fundamentals/custom-clear-cache-command-succeeded.png';
 import customClearCacheCommandSucceededLight from '@assets/fundamentals/custom-clear-cache-command-succeeded-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 Each resource in the Aspire app model is represented as an `IResource` and when added to the distributed application builder, it's the generic-type parameter of the `IResourceBuilder<T>` interface. You use the _resource builder_ API to chain calls, configuring the underlying resource, and in some situations, you might want to add custom commands to the resource. Some common scenario for creating a custom command might be running database migrations or seeding/resetting a database. In this article, you learn how to add a custom command to a Redis resource that clears the cache.
 
@@ -75,7 +76,7 @@ internal static class RedisResourceBuilderExtensions
     private static ResourceCommandState OnUpdateResourceState(
         UpdateCommandStateContext context)
     {
-        var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var logger = context.Services.GetRequiredService<ILogger<Program>>();
         if (logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
@@ -152,7 +153,7 @@ The preceding code:
 </TabItem>
 </Tabs>
 
-The `WithCommand` API adds the appropriate annotations to the resource, which are consumed in the [Aspire dashboard](/dashboard/overview/). The dashboard uses these annotations to render the command in the UI. Before getting too far into those details, let's ensure that you first understand the parameters of the `WithCommand` method:
+The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithCommand" /> API adds the appropriate annotations to the resource, which are consumed in the [Aspire dashboard](/dashboard/overview/). The dashboard uses these annotations to render the command in the UI. Before getting too far into those details, let's ensure that you first understand the parameters of the `WithCommand` method:
 
 - `name`: The name of the command to invoke.
 - `displayName`: The name of the command to display in the dashboard.
@@ -265,7 +266,7 @@ The earlier example gates the `clear-cache` command on the Redis resource being 
 private static ResourceCommandState OnUpdateResourceState(
     UpdateCommandStateContext context)
 {
-    var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var logger = context.Services.GetRequiredService<ILogger<Program>>();
 
     if (logger.IsEnabled(LogLevel.Information))
     {
@@ -432,7 +433,7 @@ In addition to executing commands through the [Aspire dashboard](/dashboard/over
 - Automate command execution as part of a workflow
 - Build custom tooling that needs to control resources
 
-The most common scenario is to call commands from within other custom command implementations. In C#, use `ExecuteCommandContext.ServiceProvider` to retrieve the `ResourceCommandService`. In TypeScript, resolve the service from the AppHost execution context before registering the command, then capture it in the callback.
+The most common scenario is to call commands from within other custom command implementations. In C#, use `ExecuteCommandContext.Services` to retrieve the `ResourceCommandService`. In TypeScript, resolve the service from the AppHost execution context before registering the command, then capture it in the callback.
 
 ### Execute commands from a custom command
 
@@ -462,7 +463,7 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithReference(database)
     .WithCommand("reset-all", "Reset Everything", async (context, ct) =>
     {
-        var commandService = context.ServiceProvider.GetRequiredService<ResourceCommandService>();
+        var commandService = context.Services.GetRequiredService<ResourceCommandService>();
 
         context.Logger.LogInformation("Starting full system reset...");
 
@@ -1476,7 +1477,7 @@ For more control over progress behavior, including custom work callbacks and pro
 ## Process-backed resource commands
 
 :::caution[Experimental API]
-`WithProcessCommand` is experimental and requires opting in to the [`ASPIREPROCESSCOMMAND001`](/diagnostics/aspireprocesscommand001/) diagnostic suppression. The API shape may change before it stabilizes.
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithProcessCommand" /> is experimental and requires opting in to the [`ASPIREPROCESSCOMMAND001`](/diagnostics/aspireprocesscommand001/) diagnostic suppression. The API shape may change before it stabilizes.
 :::
 
 The `WithProcessCommand` API provides a reusable helper for the common pattern of exposing a local-tool invocation as a resource command. Instead of managing process start, stdout/stderr capture, and cancellation yourself inside a `WithCommand` callback, `WithProcessCommand` does that for you:

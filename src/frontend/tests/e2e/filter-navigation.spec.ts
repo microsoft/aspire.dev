@@ -61,10 +61,10 @@ async function back(page: Page) {
   await expectClientNavigation(page);
 }
 
-test('version dropdowns rebind across API languages and repeated visits', async ({ page }) => {
+async function expectVersionFiltersRebind(page: Page, paths: readonly string[]) {
   await start(page, '/reference/api/csharp/');
 
-  for (const path of ['/reference/api/csharp/', '/reference/api/typescript/', '/reference/api/csharp/']) {
+  for (const path of paths) {
     if (new URL(page.url()).pathname !== path) await navigate(page, path);
     const button = page.locator('.version-filter-btn');
     const all = page.locator('.version-filter-cb[data-version="__all__"]');
@@ -84,7 +84,13 @@ test('version dropdowns rebind across API languages and repeated visits', async 
     await button.click();
     await expect(button).toHaveAttribute('aria-expanded', 'true');
     await page.keyboard.press('Escape');
-    const input = page.locator(path.includes('/typescript/') ? '#ts-api-search-input' : '#api-search-input');
+    const input = page.locator(
+      path.includes('/typescript/')
+        ? '#ts-api-search-input'
+        : path.includes('/go/')
+          ? '#go-api-search-input'
+          : '#api-search-input'
+    );
     await input.fill('Redis');
     await expect(page).toHaveURL(/q=Redis/);
     await navigate(page, '/reference/overview/');
@@ -94,6 +100,15 @@ test('version dropdowns rebind across API languages and repeated visits', async 
     await expect(button).toHaveAttribute('aria-expanded', 'true');
     await page.keyboard.press('Escape');
   }
+}
+
+test('version dropdowns rebind across API languages and repeated visits', async ({ page }) => {
+  await expectVersionFiltersRebind(page, ['/reference/api/csharp/', '/reference/api/typescript/', '/reference/api/csharp/']);
+});
+
+// Go has its own test so each language's version-dropdown scenario keeps a separate timeout budget.
+test('version dropdowns rebind on the Go API reference', async ({ page }) => {
+  await expectVersionFiltersRebind(page, ['/reference/api/go/']);
 });
 
 test('integration filters restore on Back and cancel input when leaving', async ({ page }) => {

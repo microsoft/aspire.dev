@@ -13,6 +13,40 @@ async function start(page: Page, path: string) {
   await dismissCookieConsentIfVisible(page);
 }
 
+test('Hub search and glossary filters use the shared control scale at every breakpoint', async ({ page }) => {
+  test.setTimeout(120_000);
+  for (const width of [320, 390, 834, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const compact = width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+    let fieldHeight: number | undefined;
+    for (const [route, selector] of [
+      ['/hub/browse/', '#browse-search-input'],
+      ['/hub/', '.dev-search'],
+      ['/hub/glossary/', '#glossary-search-input'],
+    ]) {
+      await start(page, route);
+      const control = page.locator(selector);
+      await expect(control).toBeVisible();
+      await expect(control).toHaveCSS('font-size', '16px');
+      const height = (await control.boundingBox())!.height;
+      expect(height, route).toBe(compact ? 34 : 48);
+      if (fieldHeight !== undefined) expect(height, route).toBe(fieldHeight);
+      fieldHeight = height;
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    for (const button of await page.locator('#glossary-kind-filters button').all()) {
+      expect((await button.boundingBox())!.height).toBe(34);
+    }
+    for (const letter of await page.locator('.glossary-alphabet > a').all()) {
+      expect((await letter.boundingBox())!.height).toBe(34);
+    }
+    await start(page, '/reference/api/csharp/aspire.hosting.redis/redisresource/');
+    for (const button of await page.locator('#type-kind-filters button').all()) {
+      expect((await button.boundingBox())!.height).toBe(34);
+    }
+  }
+});
+
 test('integration query, facets and recovery have independent scopes', async ({ page }) => {
   await start(page, '/integrations/gallery/?keep=1#catalog');
   const input = page.locator('input.filter');
@@ -310,7 +344,7 @@ test('sidebar zero matches have one query recovery and retain focus', async ({ p
   const field = input.locator('..');
   await expect(field).toHaveAttribute('data-search-size', 'sm');
   const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-  await expect(input).toHaveCSS('height', coarse ? '48px' : '40px');
+  await expect(input).toHaveCSS('height', coarse || page.viewportSize()!.width < 800 ? '34px' : '40px');
   await expect(input).toHaveCSS('font-size', '16px');
   await expect(field.locator('.search-field-icon')).toHaveCSS('width', '18px');
   await expect(field.locator('.search-field-icon polygon')).toHaveAttribute(
@@ -399,7 +433,8 @@ for (const theme of ['light', 'dark']) {
           iconColor: iconStyle.color,
         };
       });
-      expect(metrics.height, path).toBe(48);
+      const compact = page.viewportSize()!.width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+      expect(metrics.height, path).toBe(compact ? 34 : 48);
       expect(metrics.fontSize, path).toBe('16px');
       expect(metrics.iconWidth, path).toBe(18);
       expect(metrics.iconHeight, path).toBe(18);
@@ -418,8 +453,8 @@ for (const theme of ['light', 'dark']) {
       await expect(clear.locator('svg path')).toHaveAttribute('d', 'm18 6-12 12M6 6l12 12');
       const bounds = (await clear.boundingBox())!;
       const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-      expect(bounds.width, path).toBeGreaterThanOrEqual(coarse ? 44 : 36);
-      expect(bounds.height, path).toBeGreaterThanOrEqual(coarse ? 44 : 36);
+      expect(bounds.width, path).toBeGreaterThanOrEqual(compact || coarse ? 34 : 36);
+      expect(bounds.height, path).toBeGreaterThanOrEqual(compact || coarse ? 34 : 36);
       await clear.focus();
       await expect(clear).toHaveCSS('outline-style', 'solid');
       await clear.press('Enter');

@@ -6,6 +6,7 @@ description: Learn the main production deployment models for JavaScript app reso
 
 import { Aside, TabItem, Tabs } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 JavaScript app resources can represent static browser frontends, Node.js servers, SSR frameworks, and specialized resources such as Next.js apps. The deployment decision is less about which AppHost API you started with and more about **which resource owns the public HTTP surface in production**.
 
@@ -13,12 +14,12 @@ Use this table as the starting point:
 
 | What are you deploying?                               | Production entrypoint       | Aspire pattern              |
 | ----------------------------------------------------- | --------------------------- | --------------------------- |
-| Static frontend served by a backend                   | Backend, API, or web server | `PublishWithContainerFiles` |
-| Static frontend served by a gateway or BFF            | Reverse proxy               | `PublishWithStaticFiles`    |
-| Static frontend served by its own JavaScript resource | JavaScript app resource     | `PublishAsStaticWebsite`    |
-| SSR or Node.js app with a built server artifact       | JavaScript app resource     | `PublishAsNodeServer`       |
-| SSR or Node.js app started by a package script        | JavaScript app resource     | `PublishAsPackageScript`    |
-| Next.js standalone app                                | Next.js app resource        | `AddNextJsApp`              |
+| Static frontend served by a backend                   | Backend, API, or web server | <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.PublishWithContainerFiles" /> |
+| Static frontend served by a gateway or BFF            | Reverse proxy               | <ApiReference name="Aspire.Hosting.YarpResourceExtensions.PublishWithStaticFiles" />    |
+| Static frontend served by its own JavaScript resource | JavaScript app resource     | <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsStaticWebsite" />    |
+| SSR or Node.js app with a built server artifact       | JavaScript app resource     | <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsNodeServer" />       |
+| SSR or Node.js app started by a package script        | JavaScript app resource     | <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsPackageScript" />    |
+| Next.js standalone app                                | Next.js app resource        | <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddNextJsApp" />              |
 | Static frontend hosted separately from the backend    | Static host + separate API  | Custom topology             |
 
 This article is deployment-target agnostic. It explains the JavaScript hosting models you can use with Aspire, not the full steps for a specific deployment target.
@@ -109,7 +110,7 @@ await builder.build().run();
 
 ### How it works
 
-1. `AddViteApp` runs the Vite dev server during `aspire run`.
+1. <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" /> runs the Vite dev server during `aspire run`.
 2. During publish, Aspire builds the frontend and extracts its production output.
 3. `PublishWithContainerFiles` copies those files into the backend or web server container.
 4. The backend or web server becomes the deployed HTTP endpoint and serves the frontend files.
@@ -342,7 +343,7 @@ You can call `PublishAsStaticWebsite` without an API target when the static webs
 
 `PublishAsStaticWebsite` only takes effect at publish time. In run mode, each framework still uses its own dev server, and the browser hits the dev server's origin instead of YARP. To keep the same `/api/*` shape working in development, the dev server itself needs a small proxy config that forwards `/api/*` to the backend resource.
 
-When the frontend references a backend resource, either explicitly through `WithReference` or implicitly when you pass `apiTarget` to `PublishAsStaticWebsite`, Aspire exposes the backend URL through service-discovery environment variables. The variable name follows the pattern `<RESOURCENAME>_<SCHEME>` in upper case. For a backend resource named `api` with an `http` endpoint, that's `API_HTTP`. If you rename the resource, for example `weather`, or use `https`, the variable becomes `WEATHER_HTTP` or `API_HTTPS`. `apiTarget` adds the reference for you, so no extra `WithReference` call is required when you use `PublishAsStaticWebsite(apiPath, apiTarget)`.
+When the frontend references a backend resource, either explicitly through <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> or implicitly when you pass `apiTarget` to `PublishAsStaticWebsite`, Aspire exposes the backend URL through service-discovery environment variables. The variable name follows the pattern `<RESOURCENAME>_<SCHEME>` in upper case. For a backend resource named `api` with an `http` endpoint, that's `API_HTTP`. If you rename the resource, for example `weather`, or use `https`, the variable becomes `WEATHER_HTTP` or `API_HTTPS`. `apiTarget` adds the reference for you, so no extra `WithReference` call is required when you use `PublishAsStaticWebsite(apiPath, apiTarget)`.
 
 Each framework reads that variable from its own dev-server config:
 
@@ -518,7 +519,7 @@ ENTRYPOINT ["sh", "-c", "exec pnpm run start"]
 
 ## Next.js standalone apps
 
-Use `AddNextJsApp` for Next.js apps that use [standalone output](https://nextjs.org/docs/pages/api-reference/next-config-js/output). It is more specific than `AddJavaScriptApp` because it configures the Next.js development server port argument and publish-time standalone container shape, and it validates that the Next.js configuration enables `output: "standalone"`.
+Use `AddNextJsApp` for Next.js apps that use [standalone output](https://nextjs.org/docs/pages/api-reference/next-config-js/output). It is more specific than <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddJavaScriptApp" /> because it configures the Next.js development server port argument and publish-time standalone container shape, and it validates that the Next.js configuration enables `output: "standalone"`.
 
 Choose this method instead of `AddJavaScriptApp(...).PublishAsPackageScript(...)` for Next.js standalone deployments. Use the more general package-script publish method for frameworks where the production server should be started through the package manager and the framework does not have a dedicated Aspire resource.
 
@@ -713,13 +714,13 @@ await builder.build().run();
 
 - **Pit 1 - Runtime environment on the Vite resource**
 
-  Example: `WithEnvironment(...)` / `withEnvironment(...)` on `AddViteApp` / `addViteApp` to set `VITE_API_BASE_URL`.
+  Example: <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> on `AddViteApp` / `addViteApp` to set `VITE_API_BASE_URL`.
 
   Associated failure: Vite usually reads `VITE_*` values at build time, so the deployed browser app does not learn its backend URL from the Vite resource at runtime.
 
 - **Pit 2 - Switching the same value to a build arg**
 
-  Example: `WithBuildArg(...)` / `withBuildArg(...)` to set the backend URL during the frontend image build.
+  Example: <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithBuildArg" /> to set the backend URL during the frontend image build.
 
   Associated failure: the backend URL is usually not known when the frontend image is being built.
 
@@ -1207,7 +1208,7 @@ If a build-only JavaScript resource is not consumed by another resource, publish
 Build-only container resource(s) 'frontend' are not consumed by another resource and won't participate in publish or deploy. Reference them from another resource, for example using 'PublishWithContainerFiles' or 'PublishWithStaticFiles', or suppress this validation for the app by calling 'builder.Pipeline.DisableBuildOnlyContainerValidation()'.
 ```
 
-Prefer fixing the app model by choosing one of the deployment shapes in this article. The app-wide `DisableBuildOnlyContainerValidation()` escape hatch exists for exceptional cases, but it should not be the normal way to deploy JavaScript frontends.
+Prefer fixing the app model by choosing one of the deployment shapes in this article. The app-wide <ApiReference name="Aspire.Hosting.Pipelines.DistributedApplicationPipelineExtensions.DisableBuildOnlyContainerValidation" /> escape hatch exists for exceptional cases, but it should not be the normal way to deploy JavaScript frontends.
 
 To disable the validation for the whole app, call `DisableBuildOnlyContainerValidation` on the pipeline:
 
@@ -1261,7 +1262,7 @@ JavaScript app resource 'js' is configured to run script 'migrate', but publish 
 To resolve the conflict, choose one of the following options:
 
 - **Remove or rename the Dockerfile** so Aspire generates a new one that runs your requested script as the container entrypoint.
-- **Override the container entrypoint explicitly** by calling `PublishAsDockerFile(...)` and configuring the entrypoint directly on the container resource. This keeps the existing Dockerfile and gives you full control over what runs:
+- **Override the container entrypoint explicitly** by calling <ApiReference name="Aspire.Hosting.ExecutableResourceBuilderExtensions.PublishAsDockerFile" /> and configuring the entrypoint directly on the container resource. This keeps the existing Dockerfile and gives you full control over what runs:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>

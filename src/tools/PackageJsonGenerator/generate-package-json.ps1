@@ -7,7 +7,8 @@
 .DESCRIPTION
     For each package in the list, this script:
     1. Queries the NuGet V3 API for the latest stable version (or latest preview if no stable exists).
-    2. Restores each package into an isolated project.
+    2. Restores each package into an isolated project. Restores run in parallel,
+       and transient `dotnet restore` failures are retried.
     3. Reads NuGet's exact direct and transitive assets from project.assets.json.
     4. Runs the PackageJsonGenerator tool in batch mode, passing all packages at once
        for parallel processing.
@@ -25,7 +26,9 @@
     Defaults to "net10.0".
 
 .PARAMETER Parallelism
-    Maximum degree of parallelism for the batch tool. Defaults to processor count.
+    Maximum degree of parallelism for package restores and the batch tool.
+    Defaults to min(processor count, 8) for restores and processor count for
+    the batch tool.
 
 .PARAMETER Sequential
     Force sequential processing (one package at a time, legacy mode).
@@ -104,16 +107,26 @@ function Remove-StalePackageJsonFiles {
 
 $integrationsFile = [System.IO.Path]::Combine($RepoRoot, "src", "frontend", "src", "data", "aspire-integrations.json")
 $integrations = if (Test-Path $integrationsFile) {
-    @(Get-Content $integrationsFile -Raw | ConvertFrom-Json)
+    # Catalog fields are optional and StrictMode throws on missing properties, so
+    # read them through PSObject.Properties. Entries marked `"apiReference": false`
+    # (third-party packages) are not documented here.
+    @(Get-Content $integrationsFile -Raw | ConvertFrom-Json |
+        Where-Object {
+            $_.PSObject.Properties.Name -notcontains "apiReference" -or
+            $_.apiReference -ne $false
+        })
 }
 else {
     @()
 }
 $catalogVersions = @{}
 foreach ($integration in $integrations) {
-    if (-not [string]::IsNullOrWhiteSpace($integration.title) -and
-        -not [string]::IsNullOrWhiteSpace($integration.version)) {
-        $catalogVersions[$integration.title] = $integration.version
+    $title = $integration.PSObject.Properties['title']
+    $version = $integration.PSObject.Properties['version']
+    if ($title -and $version -and
+        -not [string]::IsNullOrWhiteSpace($title.Value) -and
+        -not [string]::IsNullOrWhiteSpace($version.Value)) {
+        $catalogVersions[$title.Value] = $version.Value
     }
 }
 
@@ -530,9 +543,20 @@ $hostingReference
         $configLines += '</configuration>'
         $configLines | Set-Content $nugetConfigPath -Encoding UTF8
 
-        $restoreResult = & dotnet restore $csprojPath --configfile $nugetConfigPath --verbosity quiet 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            throw "dotnet restore failed for $PackageId $Version`n$restoreResult"
+        # Retry transient feed and network failures. Deterministic failures,
+        # such as a missing version, still fail after the final attempt.
+        $maxRestoreAttempts = 3
+        for ($attempt = 1; ; $attempt++) {
+            $restoreResult = & dotnet restore $csprojPath --configfile $nugetConfigPath --verbosity quiet 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                break
+            }
+            if ($attempt -ge $maxRestoreAttempts) {
+                throw "dotnet restore failed for $PackageId $Version after $attempt attempts`n$restoreResult"
+            }
+            $retryDelaySeconds = 5 * $attempt
+            Write-Warning "dotnet restore failed for $PackageId $Version (attempt $attempt of $maxRestoreAttempts); retrying in ${retryDelaySeconds}s..."
+            Start-Sleep -Seconds $retryDelaySeconds
         }
 
         $assetsPath = [System.IO.Path]::Combine($restoreDir, "obj", "project.assets.json")
@@ -658,6 +682,59 @@ $hostingReference
     }
 }
 
+function Invoke-PackageRestore {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][object]$Request)
+
+    # This can run in a ForEach-Object -Parallel runspace, so it doesn't write to
+    # the host. Its status and retry warnings are returned as data for the main
+    # runspace to print as each restore completes. Failure details are reported
+    # in package order after all restores finish.
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $graph = $null
+    $errorMessage = $null
+    $restoreWarnings = @()
+    try {
+        $graph = Resolve-NuGetPackageRestoreGraph `
+            -PackageId $Request.PackageId `
+            -Version $Request.Version `
+            -RestoreSources $Request.RestoreSources `
+            -HostingVersion $Request.HostingVersion `
+            -WarningAction SilentlyContinue `
+            -WarningVariable restoreWarnings
+    }
+    catch {
+        $errorMessage = "$_"
+    }
+
+    return [PSCustomObject]@{
+        PackageId     = $Request.PackageId
+        Version       = $Request.Version
+        DisplaySource = $Request.DisplaySource
+        Graph         = $graph
+        Error         = $errorMessage
+        Warnings      = @($restoreWarnings | ForEach-Object { $_.Message })
+        Elapsed       = $stopwatch.Elapsed
+    }
+}
+
+# Prints a restore's retry warnings and status on the main runspace, then passes
+# the result through.
+function Write-PackageRestoreStatus {
+    [CmdletBinding()]
+    param([Parameter(Mandatory, ValueFromPipeline)][psobject]$Outcome)
+
+    process {
+        foreach ($warning in $Outcome.Warnings) {
+            Write-Warning $warning
+        }
+        $status = if ($null -eq $Outcome.Error) { "Restored" } else { "Restore failed" }
+        $color = if ($null -eq $Outcome.Error) { "Yellow" } else { "Red" }
+        Write-Host ("  {0}: {1} {2} from {3} ({4:N1}s)" -f $status, $Outcome.PackageId, $Outcome.Version, $Outcome.DisplaySource, $Outcome.Elapsed.TotalSeconds) -ForegroundColor $color
+        $Outcome
+    }
+}
+
 # ── Collect runtime reference assemblies ──────────────────────────────────────
 
 function Get-RuntimeReferenceAssemblies {
@@ -760,6 +837,22 @@ $skipCount = 0
 $runtimeRefsByTfm = @{}
 $failedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::OrdinalIgnoreCase)
+$failureReasons = @{}
+
+# Records why a package failed so the updater can surface an actionable reason
+# (for example an NU1102 missing dependency) instead of only the package name.
+function Add-PackageFailure {
+    param([string]$PackageId, [string]$Reason)
+    [void]$failedPackageNames.Add($PackageId)
+    $lines = @("$Reason" -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $line = $lines | Where-Object { $_ -match '\berror\s+[A-Z]+\d+:' } | Select-Object -First 1
+    if (-not $line) { $line = $lines | Select-Object -First 1 }
+    if (-not $line) { $line = 'unknown failure' }
+    $line = $line -replace '^.*?\berror\s+', 'error '
+    $line = $line -replace '\s*\[[^\]]*\.csproj\]\s*$', ''
+    if ($line.Length -gt 300) { $line = $line.Substring(0, 300) + '...' }
+    if (-not $failureReasons.ContainsKey($PackageId)) { $failureReasons[$PackageId] = $line }
+}
 $skippedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::OrdinalIgnoreCase)
 
@@ -833,7 +926,7 @@ if ($packagesToResolve.Count -gt 3 -and -not $Sequential) {
         if (-not $resolved.Version) {
             Write-Warning "Could not resolve version for $($resolved.PackageId) from $($resolved.Source)."
             $failCount++
-            [void]$failedPackageNames.Add($resolved.PackageId)
+            Add-PackageFailure $resolved.PackageId "could not resolve a version from $($resolved.Source)"
             continue
         }
         $packageInfos += $resolved
@@ -846,7 +939,7 @@ if ($packagesToResolve.Count -gt 3 -and -not $Sequential) {
         if (-not $version) {
             Write-Warning "Could not resolve version for $packageId from $($sourceInfo.DisplaySource)."
             $failCount++
-            [void]$failedPackageNames.Add($packageId)
+            Add-PackageFailure $packageId "could not resolve a version from $($sourceInfo.DisplaySource)"
             continue
         }
         $packageInfos += [PSCustomObject]@{ PackageId = $packageId; Version = $version }
@@ -874,25 +967,80 @@ if (-not $hostingVersion) {
     }
 }
 
+# Each package restores into its own project, so restores can run concurrently;
+# NuGet coordinates access to the shared global packages folder and HTTP cache.
+$restoreParallelism = if ($Sequential) {
+    1
+}
+elseif ($Parallelism -gt 0) {
+    $Parallelism
+}
+else {
+    [Math]::Min([Environment]::ProcessorCount, 8)
+}
+$restoreRequests = @(foreach ($info in $packageInfos) {
+        $sourceInfo = $packageSourceMetadata[$info.PackageId]
+        [PSCustomObject]@{
+            PackageId      = $info.PackageId
+            Version        = $info.Version
+            RestoreSources = @($sourceInfo.RestoreSources)
+            DisplaySource  = $sourceInfo.DisplaySource
+            HostingVersion = $hostingVersion
+        }
+    })
+
+Write-Host "  Restoring $($restoreRequests.Count) packages (parallelism $restoreParallelism)..."
+New-Item -ItemType Directory -Path (Join-Path $ScriptDir ".package-json-generator-work") -Force | Out-Null
+$restoreStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+$restoreResults = if ($restoreParallelism -le 1 -or $restoreRequests.Count -le 1) {
+    foreach ($request in $restoreRequests) {
+        Invoke-PackageRestore -Request $request | Write-PackageRestoreStatus
+    }
+}
+else {
+    $functionDefinitions = @{}
+    foreach ($functionName in @(
+            "ConvertTo-NativeAssetPath",
+            "Get-AssetPaths",
+            "Resolve-RestoredPackagePath",
+            "Resolve-NuGetPackageRestoreGraph",
+            "Invoke-PackageRestore")) {
+        $functionDefinitions[$functionName] = (Get-Command $functionName -CommandType Function).Definition
+    }
+
+    $restoreRequests | ForEach-Object -ThrottleLimit $restoreParallelism -Parallel {
+        Set-StrictMode -Version Latest
+        $ErrorActionPreference = "Stop"
+        $definitions = $using:functionDefinitions
+        foreach ($functionName in $definitions.Keys) {
+            Set-Item -Path "function:$functionName" -Value ([scriptblock]::Create($definitions[$functionName]))
+        }
+        # Resolve-NuGetPackageRestoreGraph reads these script-level values.
+        $ScriptDir = $using:ScriptDir
+        $Framework = $using:Framework
+        Invoke-PackageRestore -Request $_
+    } | Write-PackageRestoreStatus
+}
+
+$restoreResultsById = @{}
+foreach ($restoreOutcome in @($restoreResults)) {
+    $restoreResultsById[$restoreOutcome.PackageId] = $restoreOutcome
+}
+Write-Host ("  Restored package graphs in {0:mm\:ss}." -f $restoreStopwatch.Elapsed)
+
 foreach ($info in $packageInfos) {
     $packageId = $info.PackageId
     $version = $info.Version
-    $sourceInfo = $packageSourceMetadata[$packageId]
 
-    try {
-        Write-Host "  Restoring: $packageId $version from $($sourceInfo.DisplaySource)" -ForegroundColor Yellow
-        $restoreGraph = Resolve-NuGetPackageRestoreGraph `
-            -PackageId $packageId `
-            -Version $version `
-            -RestoreSources $sourceInfo.RestoreSources `
-            -HostingVersion $hostingVersion
-    }
-    catch {
-        Write-Warning "Failed to restore $packageId $version`: $_"
+    $restoreOutcome = $restoreResultsById[$packageId]
+    if ($null -eq $restoreOutcome -or $null -ne $restoreOutcome.Error) {
+        $restoreError = if ($null -eq $restoreOutcome) { "no restore result was produced." } else { $restoreOutcome.Error }
+        Write-Warning "Failed to restore $packageId $version`: $restoreError"
         $failCount++
-        [void]$failedPackageNames.Add($packageId)
+        Add-PackageFailure $packageId "restore $version`: $restoreError"
         continue
     }
+    $restoreGraph = $restoreOutcome.Graph
 
     if (-not $restoreGraph.InputAssembly) {
         Write-Warning "No compile/runtime assemblies selected by NuGet for $packageId $version — skipping."
@@ -927,11 +1075,6 @@ Write-Host "Prepared $($manifestEntries.Count) packages for generation."
 
 if ($manifestEntries.Count -eq 0) {
     Write-Host "`nNo packages to process." -ForegroundColor Yellow
-    if ($failCount -gt 0) {
-        Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item (Join-Path $ScriptDir ".package-json-generator-work") -Recurse -Force -ErrorAction SilentlyContinue
-        exit 1
-    }
 }
 
 # Phase 3: Generate JSON files
@@ -956,6 +1099,8 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
     $failedPackages = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $skippedPackages = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
+    $batchFailureReasons = @{}
+
     $batchOutput | ForEach-Object {
         if ($_ -match "^Generated:") {
             Write-Host "  $_" -ForegroundColor Green
@@ -969,8 +1114,9 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
             Write-Host "  $_" -ForegroundColor Yellow
         }
         elseif ($_ -match "^FAILED") {
-            if ($_ -match "^FAILED \[(.+)\]:") {
+            if ($_ -match "^FAILED \[(.+?)\]:\s*(.*)$") {
                 [void]$failedPackages.Add($Matches[1])
+                $batchFailureReasons[$Matches[1]] = $Matches[2]
             }
             Write-Host "  $_" -ForegroundColor Red
         }
@@ -982,8 +1128,13 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
         }
     }
 
-    if ($batchExitCode -ne 0) {
-        Write-Warning "Batch tool exited with code $batchExitCode; no reported result will be published."
+    $batchSummary = $batchOutput | Where-Object {
+        $_ -match '^Batch complete in .+: \d+ succeeded, \d+ failed, \d+ skipped$'
+    } | Select-Object -Last 1
+    if (-not $batchSummary -or
+        $batchExitCode -ne [int]($failedPackages.Count -gt 0) -or
+        ($succeededPackages.Count + $failedPackages.Count + $skippedPackages.Count) -ne $manifestEntries.Count) {
+        throw "Batch generation did not complete reliably (exit $batchExitCode). No API data will be published."
     }
 
     foreach ($entry in $manifestEntries) {
@@ -992,14 +1143,8 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
             [int]($skippedPackages.Contains($entry.packageName)) +
             [int]($failedPackages.Contains($entry.packageName))
 
-        if ($batchExitCode -ne 0) {
-            $failCount++
-            [void]$failedPackageNames.Add($entry.packageName)
-        }
-        elseif ($reportedStatusCount -ne 1) {
-            Write-Warning "Batch tool reported $reportedStatusCount terminal statuses for $($entry.packageName); expected exactly one."
-            $failCount++
-            [void]$failedPackageNames.Add($entry.packageName)
+        if ($reportedStatusCount -ne 1) {
+            throw "Batch tool reported $reportedStatusCount terminal statuses for $($entry.packageName); expected exactly one."
         }
         elseif ($succeededPackages.Contains($entry.packageName)) {
             if (Test-Path -LiteralPath $entry.output -PathType Leaf) {
@@ -1009,7 +1154,7 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
             else {
                 Write-Warning "Batch tool reported success for $($entry.packageName) without creating $($entry.output)."
                 $failCount++
-                [void]$failedPackageNames.Add($entry.packageName)
+                Add-PackageFailure $entry.packageName "batch tool reported success without creating the output file"
             }
         }
         elseif ($skippedPackages.Contains($entry.packageName)) {
@@ -1018,7 +1163,7 @@ if (-not $Sequential -and $manifestEntries.Count -gt 0) {
         }
         else {
             $failCount++
-            [void]$failedPackageNames.Add($entry.packageName)
+            Add-PackageFailure $entry.packageName "generation failed: $($batchFailureReasons[$entry.packageName])"
         }
     }
 
@@ -1077,7 +1222,8 @@ else {
         else {
             Write-Warning "Tool exited with code $generationExitCode for $($entry.packageName)"
             $failCount++
-            [void]$failedPackageNames.Add($entry.packageName)
+            $failedLine = $generationOutput | Where-Object { $_ -match '^FAILED ' } | Select-Object -First 1
+            Add-PackageFailure $entry.packageName "generation failed (exit $generationExitCode): $failedLine"
         }
     }
 }
@@ -1088,6 +1234,9 @@ Write-Host "`n══════════════════════
 Write-Host "Done! Success: $successCount | Failed: $failCount | Skipped: $skipCount" -ForegroundColor Cyan
 if ($failedPackageNames.Count -gt 0) {
     Write-Host "Failed packages: $(($failedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Red
+    foreach ($name in ($failedPackageNames | Sort-Object)) {
+        Write-Host "FAILURE $name`: $($failureReasons[$name])" -ForegroundColor Red
+    }
 }
 if ($skippedPackageNames.Count -gt 0) {
     Write-Host "Skipped packages: $(($skippedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Yellow
@@ -1097,8 +1246,17 @@ Write-Host "Output: $FinalOutputDir"
 Remove-Item (Join-Path $ScriptDir ".package-json-generator-work") -Recurse -Force -ErrorAction SilentlyContinue
 
 if ($failCount -gt 0) {
-    Remove-Item -Path $OutputDir -Recurse -Force -ErrorAction SilentlyContinue
-    exit 1
+    Write-Warning "Skipping $failCount package(s) that failed to generate; their existing data is kept."
+}
+
+# A failed package is non-fatal: keep its previously generated files so the rest
+# of the catalog can still be refreshed. The caller reports the failures.
+function Test-IsFailedPackageFile {
+    param([string]$FileName)
+    foreach ($failed in $failedPackageNames) {
+        if ($FileName -match ("^{0}\.\d.*\.json$" -f [regex]::Escape($failed))) { return $true }
+    }
+    return $false
 }
 
 New-Item -ItemType Directory -Path $FinalOutputDir -Force | Out-Null
@@ -1111,7 +1269,7 @@ foreach ($file in $stagedFiles) {
 
 if ($isFullReconciliation) {
     foreach ($existingFile in Get-ChildItem -Path $FinalOutputDir -Filter "*.json" -File) {
-        if (-not $stagedNames.Contains($existingFile.Name)) {
+        if (-not $stagedNames.Contains($existingFile.Name) -and -not (Test-IsFailedPackageFile $existingFile.Name)) {
             Remove-Item -Path $existingFile.FullName -Force
             Write-Host "Removed stale package data: $($existingFile.Name)" -ForegroundColor DarkYellow
         }
@@ -1121,7 +1279,7 @@ else {
     foreach ($packageId in $Packages) {
         $namePattern = "^{0}\.\d.*\.json$" -f [regex]::Escape($packageId)
         foreach ($existingFile in Get-ChildItem -Path $FinalOutputDir -Filter "*.json" -File) {
-            if ($existingFile.Name -match $namePattern -and -not $stagedNames.Contains($existingFile.Name)) {
+            if ($existingFile.Name -match $namePattern -and -not $stagedNames.Contains($existingFile.Name) -and -not (Test-IsFailedPackageFile $existingFile.Name)) {
                 Remove-Item -Path $existingFile.FullName -Force
                 Write-Host "Removed stale package data: $($existingFile.Name)" -ForegroundColor DarkYellow
             }

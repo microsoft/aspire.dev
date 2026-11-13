@@ -5,21 +5,23 @@
 
 .DESCRIPTION
     Refreshes the aspire.dev integration data and, when integration package
-    versions change, regenerates the C#/TypeScript API reference JSON and the
+    versions change, regenerates the C#/TypeScript/Go API reference JSON and the
     twoslash bundle. Replaces the former `gh aw` agentic workflow with plain,
     reliable scripting that runs identically in CI and locally.
 
     Phases:
-      1. `pnpm update:all` — integration metadata, GitHub stats, samples, official blog archive.
+      1. `bun run update:all` — integration metadata, GitHub stats, contributors, samples, official blog
+         archive, and Aspire CLI config schemas for new microsoft/aspire releases.
          Reconciles documentation mappings, then runs structured-data tests.
       2. Version-change detection — compares the committed
          aspire-integrations.json against the freshly written one by package
          title -> version. Metadata-only changes (icons, descriptions, download
          counts) do NOT trigger regeneration.
-      3. Conditional API-reference regeneration (only when a version changed):
+      3. API-reference regeneration (version changes or pending package failures):
            a. generate-package-json.ps1  -> src/data/pkgs/*.json (C# API)
-           b. pnpm update:ts-api         -> src/data/ts-modules/*.json (TS API)
+           b. bun run update:ts-api      -> src/data/ts-modules/*.json (TS API)
                                             + chains twoslash aspire.d.ts bundle
+           c. bun run update:go-api      -> src/data/go-modules/*.json (Go API)
       4. Semantic validation — cross-checks generated identities, provenance,
          DTO optionality, inheritance, options shapes, and attribute payloads.
       5. Scope check — the working tree must only contain allowed data files.
@@ -28,11 +30,12 @@
 
     Exit codes:
       0  success (whether or not there were changes)
-      1  a required phase failed (data update/validation, TS API regen, out-of-scope diff).
+      1  a required phase failed (data update/validation, TS/Go API regen, out-of-scope diff).
          The caller must NOT open a PR on a non-zero exit.
 
-    Packages without a public API surface are reported as explicit skips. Any
-    generation failure or semantic validation error fails the run.
+    Package failures retain last-good API data and are recorded for retry and
+    issue reporting. Infrastructure failures and unexpected semantic errors
+    still fail the run without publishing.
 
 .PARAMETER SkipRegen
     Skip the API-reference regeneration phase even when versions changed. Useful
@@ -66,6 +69,7 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..' '..' '..')).Path
 $FrontendDir = Join-Path $RepoRoot 'src' 'frontend'
 $DataDir = Join-Path $FrontendDir 'src' 'data'
 $IntegrationsJson = Join-Path $DataDir 'aspire-integrations.json'
+$ApiFailuresJson = Join-Path $DataDir 'api-generation-failures.json'
 $PkgGenScript = Join-Path $RepoRoot 'src' 'tools' 'PackageJsonGenerator' 'generate-package-json.ps1'
 
 # Working-tree paths that this automation is allowed to change. Anything outside
@@ -73,12 +77,16 @@ $PkgGenScript = Join-Path $RepoRoot 'src' 'tools' 'PackageJsonGenerator' 'genera
 $AllowedPaths = @(
     'src/frontend/src/data/aspire-integrations.json',
     'src/frontend/src/data/integration-docs.json',
+    'src/frontend/src/data/api-generation-failures.json',
     'src/frontend/src/data/github-stats.json',
+    'src/frontend/src/data/github-contributors.json',
     'src/frontend/src/data/samples.json',
     'src/frontend/src/data/aspire-blog-posts.json',
+    'src/frontend/src/data/schemas/',
     'src/frontend/src/assets/samples/',
     'src/frontend/src/data/pkgs/',
     'src/frontend/src/data/ts-modules/',
+    'src/frontend/src/data/go-modules/',
     'src/frontend/src/data/twoslash/aspire.d.ts'
 )
 
@@ -119,6 +127,68 @@ function Set-Output {
     }
 }
 
+function Read-ApiFailures {
+    param([string]$Log, [int]$ExpectedCount, [string]$Stage)
+
+    $failures = @{}
+    foreach ($line in $Log -split "`r?`n") {
+        if ($line -match '^\s*FAILURE (?<Name>\S+): (?<Reason>.+)$') {
+            $name = $Matches.Name
+            $reason = $Matches.Reason.Trim()
+            if (-not $newVersions.ContainsKey($name)) {
+                throw "Failure reported for unknown catalog package '$name'."
+            }
+            $failures[$name] = [PSCustomObject]@{
+                name = $name
+                version = $newVersions[$name]
+                stage = $Stage
+                reason = $reason
+            }
+        }
+    }
+    if ($failures.Count -ne $ExpectedCount) {
+        throw "$Stage reported $ExpectedCount failures but supplied $($failures.Count) package diagnostics."
+    }
+    $failures.Values | Sort-Object name
+}
+
+function Save-ApiFailures {
+    # Persist exact versions for validation in the generated PR, and emit the
+    # diagnostics before any subsequent normalization, bundling or validation.
+    ConvertTo-Json -InputObject @($apiFailures.ToArray()) -Depth 5 |
+        Set-Content -LiteralPath $ApiFailuresJson -Encoding utf8
+    $apiFailureDetails.Clear()
+    foreach ($failure in $apiFailures) {
+        $apiFailureDetails.Add("$($failure.stage) $($failure.name)@$($failure.version): $($failure.reason)")
+    }
+    Set-Output 'api_failures' ($apiFailureDetails -join "`n")
+    if ($apiFailures.Count -gt 0) {
+        Set-Output 'api_failures_checked' 'true'
+    }
+}
+
+function Restore-FailedApiPackage {
+    param([string]$Name)
+
+    # Keep C# and TypeScript as a matching pair when TS generation fails after
+    # C# has already advanced. A new package may have no last-good output.
+    foreach ($directory in @('pkgs', 'ts-modules')) {
+        $destination = Join-Path $script:ApiStageRoot $directory
+        foreach ($file in Get-ChildItem -LiteralPath $destination -Filter '*.json' -File) {
+            $metadata = (Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json).package
+            if ($metadata.name -eq $Name) {
+                Remove-Item -LiteralPath $file.FullName -Force
+            }
+        }
+        foreach ($file in Get-ChildItem -LiteralPath (Join-Path $DataDir $directory) -Filter '*.json' -File) {
+            $metadata = (Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json).package
+            if ($metadata.name -eq $Name) {
+                Copy-Item -LiteralPath $file.FullName -Destination $destination
+            }
+        }
+    }
+}
+
 function Test-PathAllowed {
     param([Parameter(Mandatory)][string]$RelPath)
     $normalized = $RelPath -replace '\\', '/'
@@ -135,7 +205,9 @@ function Restore-ApiEnvironment {
     foreach ($name in @(
         'ASPIRE_API_PKGS_DIR',
         'ASPIRE_API_TS_MODULES_DIR',
-        'ASPIRE_API_TWOSLASH_FILE'
+        'ASPIRE_API_GO_MODULES_DIR',
+        'ASPIRE_API_TWOSLASH_FILE',
+        'ASPIRE_TS_API_CARRY_FORWARD'
     )) {
         $previousValue = $script:PreviousApiEnvironment[$name]
         if ($null -eq $previousValue) {
@@ -173,6 +245,7 @@ function Publish-GeneratedApiData {
     param(
         [Parameter(Mandatory)][string]$PackageSource,
         [Parameter(Mandatory)][string]$ModuleSource,
+        [Parameter(Mandatory)][string]$GoModuleSource,
         [Parameter(Mandatory)][string]$TwoslashSource
     )
 
@@ -186,6 +259,11 @@ function Publish-GeneratedApiData {
             Source = $ModuleSource
             Destination = Join-Path $DataDir 'ts-modules'
             Backup = Join-Path $script:ApiStageRoot 'backup-ts-modules'
+        },
+        [PSCustomObject]@{
+            Source = $GoModuleSource
+            Destination = Join-Path $DataDir 'go-modules'
+            Backup = Join-Path $script:ApiStageRoot 'backup-go-modules'
         },
         [PSCustomObject]@{
             Source = $TwoslashSource
@@ -254,18 +332,18 @@ function Publish-GeneratedApiData {
 }
 
 # ── Phase 1: data update ────────────────────────────────────────────────────
-Write-Section 'Phase 1 — pnpm update:all'
+Write-Section 'Phase 1 — bun run update:all'
 Push-Location $FrontendDir
 try {
     # Capture combined output so icon-integrity warnings can be surfaced in the
     # PR body without re-running anything. Tee keeps the live log intact.
-    $updateLog = & pnpm run update:all 2>&1 | Tee-Object -Variable teed | Out-String
+    $updateLog = & bun run update:all 2>&1 | Tee-Object -Variable teed | Out-String
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "pnpm update:all failed (exit $LASTEXITCODE). Aborting; no PR will be opened."
+        Write-Error "bun run update:all failed (exit $LASTEXITCODE). Aborting; no PR will be opened."
         exit 1
     }
 
-    & pnpm run test:unit:structured-data
+    & bun run test:unit:structured-data
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Structured-data validation failed (exit $LASTEXITCODE). Aborting; no PR will be opened."
         exit 1
@@ -288,12 +366,13 @@ if ($iconLine) {
 
 # ── Detect any working-tree changes ─────────────────────────────────────────
 # Gate on the FULL working tree, not just the in-scope data paths. If
-# `pnpm run update:all` touched anything at all we must fall through to the
+# `bun run update:all` touched anything at all we must fall through to the
 # Phase 4 scope check, so that an out-of-scope-only change fails loudly there
 # instead of silently exiting 0 here.
 $statusLines = @(Invoke-Git @('status', '--porcelain') |
     Where-Object { $_ -and $_.Trim().Length -gt 0 })
-$anyChanges = $statusLines.Count -gt 0
+$pendingApiFailures = @(Get-Content -LiteralPath $ApiFailuresJson -Raw | ConvertFrom-Json)
+$anyChanges = $statusLines.Count -gt 0 -or $pendingApiFailures.Count -gt 0
 
 if (-not $anyChanges) {
     Write-Section 'Result — no changes'
@@ -314,6 +393,9 @@ function Get-VersionMap {
     if ([string]::IsNullOrWhiteSpace($JsonText)) { return $map }
     $entries = $JsonText | ConvertFrom-Json
     foreach ($entry in @($entries)) {
+        if ($entry.PSObject.Properties.Name -contains 'apiReference' -and $entry.apiReference -eq $false) {
+            continue
+        }
         if ($entry.PSObject.Properties.Name -contains 'title' -and
             $entry.PSObject.Properties.Name -contains 'version') {
             $title = [string]$entry.title
@@ -366,29 +448,49 @@ else {
 $regenRan = $false
 $pkgSummary = ''
 $pkgSkippedPackages = ''
+$pkgFailedPackages = ''
+$tsFailedPackages = ''
+$apiFailureDetails = [System.Collections.Generic.List[string]]::new()
+$apiFailures = [System.Collections.Generic.List[object]]::new()
 $tsApiSummary = ''
 $tsSkippedPackages = ''
+$tsToleratedPackages = ''
+$tsToleratedDiagnostics = [System.Collections.Generic.List[string]]::new()
+$goApiSummary = ''
+$goSkippedPackages = ''
+$goToleratedPackages = ''
 $twoslashSummary = ''
 $semanticSummary = ''
 
-if ($versionsChanged -and -not $SkipRegen) {
+if (($versionsChanged -or $pendingApiFailures.Count -gt 0) -and -not $SkipRegen) {
     Write-Section 'Phase 3 — API reference regeneration'
 
     $script:ApiStageRoot = Join-Path $DataDir ".api-generation-$([Guid]::NewGuid().ToString('N'))"
     New-Item -ItemType Directory -Path $script:ApiStageRoot -Force | Out-Null
     $pkgStageDir = Join-Path $script:ApiStageRoot 'pkgs'
     $tsStageDir = Join-Path $script:ApiStageRoot 'ts-modules'
+    $goStageDir = Join-Path $script:ApiStageRoot 'go-modules'
     $twoslashStageFile = Join-Path $script:ApiStageRoot 'twoslash' 'aspire.d.ts'
+    foreach ($directory in @('pkgs', 'ts-modules')) {
+        $destination = Join-Path $script:ApiStageRoot $directory
+        New-Item -ItemType Directory -Path $destination -Force | Out-Null
+        Get-ChildItem -LiteralPath (Join-Path $DataDir $directory) -Filter '*.json' -File |
+            Copy-Item -Destination $destination
+    }
     foreach ($name in @(
         'ASPIRE_API_PKGS_DIR',
         'ASPIRE_API_TS_MODULES_DIR',
-        'ASPIRE_API_TWOSLASH_FILE'
+        'ASPIRE_API_GO_MODULES_DIR',
+        'ASPIRE_API_TWOSLASH_FILE',
+        'ASPIRE_TS_API_CARRY_FORWARD'
     )) {
         $script:PreviousApiEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     }
     $env:ASPIRE_API_PKGS_DIR = $pkgStageDir
     $env:ASPIRE_API_TS_MODULES_DIR = $tsStageDir
+    $env:ASPIRE_API_GO_MODULES_DIR = $goStageDir
     $env:ASPIRE_API_TWOSLASH_FILE = $twoslashStageFile
+    $env:ASPIRE_TS_API_CARRY_FORWARD = '1'
 
     # 3a. C# API JSON.
     Write-Host "→ generate-package-json.ps1 (C# API → pkgs/)" -ForegroundColor Cyan
@@ -408,8 +510,13 @@ if ($versionsChanged -and -not $SkipRegen) {
         Stop-ApiRegeneration "C# API generation did not emit a valid completion summary. Aborting; no PR will be opened."
     }
     $pkgSummary = "Success: $($Matches.Succeeded) | Failed: $($Matches.Failed) | Skipped: $($Matches.Skipped)"
-    if ([int]$Matches.Failed -gt 0) {
-        Stop-ApiRegeneration "C# API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
+    $pkgFailureCount = [int]$Matches.Failed
+    $csharpFailures = @(Read-ApiFailures -Log $pkgLog -ExpectedCount $pkgFailureCount -Stage 'C#')
+    foreach ($failure in $csharpFailures) { $apiFailures.Add($failure) }
+    Save-ApiFailures
+    if ($pkgFailureCount -gt 0) {
+        $pkgFailedPackages = ($csharpFailures.name -join ', ')
+        Write-Warning "C# API generation failed for: $pkgFailedPackages. Continuing; existing data for these packages is kept."
     }
     $pkgSkippedLine = ($pkgLog -split "`n" |
         Where-Object { $_ -match '^\s*Skipped packages:' } |
@@ -424,10 +531,10 @@ if ($versionsChanged -and -not $SkipRegen) {
     # JSON so regenerated pkgs/ prose never trips the Forbidden Words check. The
     # ts-modules JSON is normalized inside update:ts-api below (before its
     # twoslash bundle), so only pkgs/ is handled here.
-    Write-Host "→ pnpm normalize:api-data --pkgs (Aspire terminology → pkgs/)" -ForegroundColor Cyan
+    Write-Host "→ bun run normalize:api-data --pkgs (Aspire terminology → pkgs/)" -ForegroundColor Cyan
     Push-Location $FrontendDir
     try {
-        $pkgNormLog = & pnpm run normalize:api-data -- --pkgs 2>&1 | Tee-Object -Variable pkgNormTeed | Out-String
+        $pkgNormLog = & bun run normalize:api-data -- --pkgs 2>&1 | Tee-Object -Variable pkgNormTeed | Out-String
         $pkgNormExit = $LASTEXITCODE
     }
     finally {
@@ -438,16 +545,31 @@ if ($versionsChanged -and -not $SkipRegen) {
     }
 
     # 3b. TS API JSON (+ chained twoslash bundle). Requires the Aspire CLI; the
-    # script honours ASPIRE_CLI_PATH. A non-zero exit here IS fatal — we must not
-    # ship a PR with C#-only pkgs updates.
-    Write-Host "→ pnpm update:ts-api (TS API → ts-modules/ + twoslash aspire.d.ts)" -ForegroundColor Cyan
+    # script honours ASPIRE_CLI_PATH and carries failed packages forward.
+    # A non-zero exit still indicates an infrastructure or bundling failure.
+    Write-Host "→ bun run update:ts-api (TS API → ts-modules/ + twoslash aspire.d.ts)" -ForegroundColor Cyan
     Push-Location $FrontendDir
     try {
-        $tsLog = & pnpm run update:ts-api 2>&1 | Tee-Object -Variable tsTeed | Out-String
+        $tsLog = & bun run update:ts-api 2>&1 | Tee-Object -Variable tsTeed | Out-String
         $tsExit = $LASTEXITCODE
     }
     finally {
         Pop-Location
+    }
+    # Capture package failures even if the wrapper failed later while bundling.
+    $tsApiDone = ($tsLog -split "`n" |
+        Where-Object { $_ -match 'Complete:\s+\d+\s+succeeded,\s+\d+\s+failed,\s+\d+\s+skipped' } |
+        Select-Object -First 1)
+    if ($tsApiDone -and
+        $tsApiDone -match 'Complete:\s+(?<Succeeded>\d+)\s+succeeded,\s+(?<Failed>\d+)\s+failed,\s+(?<Skipped>\d+)\s+skipped') {
+        $tsApiSummary = "$($Matches.Succeeded) succeeded, $($Matches.Failed) failed, $($Matches.Skipped) skipped"
+        $tsFailureCount = [int]$Matches.Failed
+        $typescriptFailures = @(Read-ApiFailures -Log $tsLog -ExpectedCount $tsFailureCount -Stage 'TypeScript')
+        foreach ($failure in $typescriptFailures) { $apiFailures.Add($failure) }
+        Save-ApiFailures
+    }
+    else {
+        Stop-ApiRegeneration "TypeScript API generation did not emit a valid completion summary.`n$tsLog"
     }
     if ($tsExit -ne 0) {
         # Distinguish phase-2 vs phase-3 failure using the script's log markers.
@@ -459,16 +581,20 @@ if ($versionsChanged -and -not $SkipRegen) {
         }
     }
 
-    $tsApiDone = ($tsLog -split "`n" |
-        Where-Object { $_ -match 'Complete:\s+\d+\s+succeeded,\s+\d+\s+failed,\s+\d+\s+skipped' } |
-        Select-Object -First 1)
-    if (-not $tsApiDone -or
-        $tsApiDone -notmatch 'Complete:\s+(?<Succeeded>\d+)\s+succeeded,\s+(?<Failed>\d+)\s+failed,\s+(?<Skipped>\d+)\s+skipped') {
-        Stop-ApiRegeneration "TypeScript API generation did not emit a valid completion summary. Aborting; no PR will be opened."
-    }
-    $tsApiSummary = "$($Matches.Succeeded) succeeded, $($Matches.Failed) failed, $($Matches.Skipped) skipped"
-    if ([int]$Matches.Failed -gt 0) {
-        Stop-ApiRegeneration "TypeScript API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
+    if ($tsFailureCount -gt 0) {
+        $tsFailedPackages = $typescriptFailures.name -join ', '
+        foreach ($failure in $typescriptFailures) {
+            Restore-FailedApiPackage -Name $failure.name
+        }
+        Write-Warning "TypeScript API generation failed for: $tsFailedPackages. Continuing."
+        Push-Location $FrontendDir
+        try {
+            & bun run twoslash-types
+            if ($LASTEXITCODE -ne 0) {
+                Stop-ApiRegeneration "Twoslash regeneration after restoring failed packages failed."
+            }
+        }
+        finally { Pop-Location }
     }
     $tsSkippedLine = ($tsLog -split "`n" |
         Where-Object { $_ -match '^\s*Skipped packages:' } |
@@ -478,14 +604,93 @@ if ($versionsChanged -and -not $SkipRegen) {
     }
     else { '' }
 
+    # The generator tolerates only the known duplicate inherited-capability scanner
+    # defect (fixed by microsoft/aspire#20443) and lists each tolerated diagnostic
+    # under this line as "  [Package] message". Surface them loudly for review.
+    $inToleratedSection = $false
+    foreach ($line in $tsLog -split "`r?`n") {
+        if ($line -match '^\s*Packages with tolerated ATS diagnostics:\s*(?<Packages>.+?)\s*$') {
+            $tsToleratedPackages = $Matches.Packages
+            $inToleratedSection = $true
+        }
+        elseif ($inToleratedSection -and $line -match '^\s+\[(?<Package>[^\]]+)\]\s+(?<Message>.+?)\s*$') {
+            $tsToleratedDiagnostics.Add("$($Matches.Package): $($Matches.Message)")
+        }
+        else {
+            $inToleratedSection = $false
+        }
+    }
+    if ($tsToleratedPackages) {
+        $toleratedWarning = "TypeScript modules were generated despite known ATS scanner diagnostics for: $tsToleratedPackages. " +
+            "Their APIs may be incomplete until the Aspire CLI includes microsoft/aspire#20443. The automation PR auto-merges once CI passes. Remove its auto-merge label to review these modules first."
+        Write-Warning $toleratedWarning
+        foreach ($diagnostic in $tsToleratedDiagnostics) {
+            Write-Warning "  $diagnostic"
+        }
+        if ($IsCI) {
+            Write-Host "::warning title=Tolerated ATS scanner diagnostics::$toleratedWarning"
+        }
+    }
+
     $twoslashSummary = 'succeeded'
 
-    # 3c. Cross-artifact semantic validation. This runs only after every
-    # generator has completed and must pass before the workflow can publish.
-    Write-Host "→ pnpm validate:api-data (semantic regression gate)" -ForegroundColor Cyan
+    # 3c. Go API JSON. The Go projection reads the same Aspire CLI dumps as the
+    # TS pass and only changes how they are rendered, so a failure here is fatal
+    # for the same reason: never publish a partially regenerated API reference.
+    Write-Host "→ bun run update:go-api (Go API → go-modules/)" -ForegroundColor Cyan
     Push-Location $FrontendDir
     try {
-        $validationLog = & pnpm run validate:api-data 2>&1 | Tee-Object -Variable validationTeed | Out-String
+        $goLog = & bun run update:go-api 2>&1 | Tee-Object -Variable goTeed | Out-String
+        $goExit = $LASTEXITCODE
+    }
+    finally {
+        Pop-Location
+    }
+    if ($goExit -ne 0) {
+        Stop-ApiRegeneration "Go API generation failed.`n$goLog`nAborting; no PR will be opened."
+    }
+
+    $goApiDone = ($goLog -split "`n" |
+        Where-Object { $_ -match 'Complete:\s+\d+\s+succeeded,\s+\d+\s+failed,\s+\d+\s+skipped' } |
+        Select-Object -First 1)
+    if (-not $goApiDone -or
+        $goApiDone -notmatch 'Complete:\s+(?<Succeeded>\d+)\s+succeeded,\s+(?<Failed>\d+)\s+failed,\s+(?<Skipped>\d+)\s+skipped') {
+        Stop-ApiRegeneration "Go API generation did not emit a valid completion summary. Aborting; no PR will be opened."
+    }
+    $goApiSummary = "$($Matches.Succeeded) succeeded, $($Matches.Failed) failed, $($Matches.Skipped) skipped"
+    if ([int]$Matches.Failed -gt 0) {
+        Stop-ApiRegeneration "Go API generation reported $($Matches.Failed) package failure(s). Aborting; no PR will be opened."
+    }
+    $goSkippedLine = ($goLog -split "`n" |
+        Where-Object { $_ -match '^\s*Skipped packages:' } |
+        Select-Object -First 1)
+    $goSkippedPackages = if ($goSkippedLine) {
+        ($goSkippedLine -replace '^\s*Skipped packages:\s*', '').Trim()
+    }
+    else { '' }
+    $goToleratedLine = ($goLog -split "`n" |
+        Where-Object { $_ -match '^\s*Packages with tolerated ATS diagnostics:' } |
+        Select-Object -First 1)
+    if ($goToleratedLine) {
+        $goToleratedPackages = ($goToleratedLine -replace '^\s*Packages with tolerated ATS diagnostics:\s*', '').Trim()
+        $goToleratedWarning = "Go modules were generated despite known ATS scanner diagnostics for: $goToleratedPackages. " +
+            "Their APIs may be incomplete until the Aspire CLI includes microsoft/aspire#20443; review them before merging."
+        Write-Warning $goToleratedWarning
+        if ($IsCI) {
+            Write-Host "::warning title=Tolerated ATS scanner diagnostics (Go)::$goToleratedWarning"
+        }
+    }
+
+    # Only a complete generation pass may clear a previously reported failure.
+    Set-Output 'regen_ran' 'true'
+    Set-Output 'api_failures_checked' 'true'
+
+    # 3d. Cross-artifact semantic validation. This runs only after every
+    # generator has completed and must pass before the workflow can publish.
+    Write-Host "→ bun run validate:api-data (semantic regression gate)" -ForegroundColor Cyan
+    Push-Location $FrontendDir
+    try {
+        $validationLog = & bun run validate:api-data 2>&1 | Tee-Object -Variable validationTeed | Out-String
         $validationExit = $LASTEXITCODE
     }
     finally {
@@ -500,6 +705,7 @@ if ($versionsChanged -and -not $SkipRegen) {
         Publish-GeneratedApiData `
             -PackageSource $pkgStageDir `
             -ModuleSource $tsStageDir `
+            -GoModuleSource $goStageDir `
             -TwoslashSource $twoslashStageFile
     }
     catch {
@@ -516,18 +722,33 @@ elseif ($versionsChanged -and $SkipRegen) {
 Write-Section 'Phase 5 — scope check'
 $allStatus = @(Invoke-Git @('status', '--porcelain') | Where-Object { $_ -and $_.Trim().Length -gt 0 })
 $outOfScope = [System.Collections.Generic.List[string]]::new()
+# A release's schema never changes after it ships, so the updater may only add
+# versioned schema files. Modifying, deleting, or renaming one is a violation.
+$publishedSchemaPattern = '^src/frontend/src/data/schemas/aspire-config\..+\.schema\.json$'
+$changedPublishedSchemas = [System.Collections.Generic.List[string]]::new()
 foreach ($line in $allStatus) {
     # Porcelain format: "XY <path>" (path starts at column 4). Handle renames "old -> new".
+    $statusCode = $line.Substring(0, 2)
     $path = ($line.Substring(3)).Trim()
     if ($path -match ' -> ') { $path = ($path -split ' -> ')[-1].Trim() }
     $path = $path.Trim('"')
     if (-not (Test-PathAllowed -RelPath $path)) {
         $outOfScope.Add($path)
     }
+    $isNewFile = $statusCode -eq '??' -or $statusCode[0] -eq 'A'
+    if (($path -replace '\\', '/') -match $publishedSchemaPattern -and -not $isNewFile) {
+        $changedPublishedSchemas.Add($path)
+    }
 }
 if ($outOfScope.Count -gt 0) {
     Write-Error ("Working tree contains changes outside the allowed data paths:`n  " +
         ($outOfScope -join "`n  ") +
+        "`nAborting; no PR will be opened.")
+    exit 1
+}
+if ($changedPublishedSchemas.Count -gt 0) {
+    Write-Error ("Published Aspire CLI config schemas never change, but these were modified, deleted, or renamed:`n  " +
+        ($changedPublishedSchemas -join "`n  ") +
         "`nAborting; no PR will be opened.")
     exit 1
 }
@@ -554,6 +775,7 @@ function Get-AreaCounts {
 
 $pkgsCounts = Get-AreaCounts -Prefix 'src/frontend/src/data/pkgs/'
 $tsModulesCounts = Get-AreaCounts -Prefix 'src/frontend/src/data/ts-modules/'
+$goModulesCounts = Get-AreaCounts -Prefix 'src/frontend/src/data/go-modules/'
 $twoslashChanged = @(Invoke-Git @('diff', '--name-only', 'HEAD', '--', 'src/frontend/src/data/twoslash/aspire.d.ts') |
     Where-Object { $_ -and $_.Trim().Length -gt 0 }).Count -gt 0
 
@@ -566,18 +788,22 @@ $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("Generated deterministically by ``src/frontend/scripts/update-integration-data.ps1`` (no agent inference).")
 [void]$sb.AppendLine("")
+[void]$sb.AppendLine("This PR is approved and squash-merged automatically once ``ci-gate`` passes, as configured in ``.github/policies/auto-merge.yml``. Remove the ``:octocat: auto-merge`` label to hold it for manual review.")
+[void]$sb.AppendLine("")
 [void]$sb.AppendLine("### What's updated")
 [void]$sb.AppendLine("- ``src/frontend/src/data/aspire-integrations.json`` — latest package information")
 [void]$sb.AppendLine("- ``src/frontend/src/data/integration-docs.json`` — documentation mappings, when packages are removed")
 [void]$sb.AppendLine("- ``src/frontend/src/data/github-stats.json`` — repository statistics")
+[void]$sb.AppendLine("- ``src/frontend/src/data/github-contributors.json`` — Contributors page avatars, when changed")
 [void]$sb.AppendLine("- ``src/frontend/src/data/samples.json`` — sample metadata, when changed")
 [void]$sb.AppendLine("- ``src/frontend/src/data/aspire-blog-posts.json`` — complete official Aspire blog metadata, when changed")
+[void]$sb.AppendLine("- ``src/frontend/src/data/schemas/`` — Aspire CLI config schemas, when microsoft/aspire ships a new release")
 [void]$sb.AppendLine("- ``src/frontend/src/assets/samples/`` — sample thumbnails, when changed")
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("### API reference regeneration")
 [void]$sb.AppendLine("")
 if ($regenRan) {
-    [void]$sb.AppendLine("Versions changed for the following packages, so the C# and TypeScript API reference data and the twoslash bundle were regenerated:")
+    [void]$sb.AppendLine("The C#, TypeScript, and Go API reference data and twoslash bundle were regenerated for version changes or to retry previously failed packages:")
     [void]$sb.AppendLine("")
     $shown = 0
     foreach ($change in $versionChanges) {
@@ -593,12 +819,14 @@ if ($regenRan) {
     [void]$sb.AppendLine("|---|---|---|---|")
     [void]$sb.AppendLine("| ``src/frontend/src/data/pkgs/**`` | $($pkgsCounts.Added) | $($pkgsCounts.Modified) | $($pkgsCounts.Removed) |")
     [void]$sb.AppendLine("| ``src/frontend/src/data/ts-modules/**`` | $($tsModulesCounts.Added) | $($tsModulesCounts.Modified) | $($tsModulesCounts.Removed) |")
+    [void]$sb.AppendLine("| ``src/frontend/src/data/go-modules/**`` | $($goModulesCounts.Added) | $($goModulesCounts.Modified) | $($goModulesCounts.Removed) |")
     [void]$sb.AppendLine("| ``src/frontend/src/data/twoslash/aspire.d.ts`` | — | $(if ($twoslashChanged) { 'yes' } else { 'no' }) | — |")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("Generator summary:")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("- C# API JSON (``generate-package-json.ps1`` → ``pkgs/``): $pkgSummary")
     [void]$sb.AppendLine("- TS API JSON (``update:ts-api`` → ``ts-modules/``): $tsApiSummary")
+    [void]$sb.AppendLine("- Go API JSON (``update:go-api`` → ``go-modules/``): $goApiSummary")
     [void]$sb.AppendLine("- Twoslash bundle (``twoslash/aspire.d.ts``): $twoslashSummary")
     [void]$sb.AppendLine("- Semantic generated-data validation: $semanticSummary")
     if ($pkgSkippedPackages) {
@@ -606,6 +834,41 @@ if ($regenRan) {
     }
     if ($tsSkippedPackages) {
         [void]$sb.AppendLine("- TypeScript packages skipped because they export no ATS functions: ``$tsSkippedPackages``")
+    }
+    if ($goSkippedPackages) {
+        [void]$sb.AppendLine("- Go packages skipped because they export no ATS functions: ``$goSkippedPackages``")
+    }
+    if ($goToleratedPackages) {
+        [void]$sb.AppendLine("- :warning: Go modules were generated despite tolerated ATS scanner diagnostics for: ``$goToleratedPackages``")
+    }
+    if ($pkgFailedPackages -or $tsFailedPackages) {
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("### :warning: API generation failures")
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("These packages failed to generate. Their last-good API data is retained when available; new packages have no API reference until generation succeeds. Exact versions and reasons are saved in ``api-generation-failures.json`` and the *Integration Data Updater: API generation failures* issue.")
+        [void]$sb.AppendLine("")
+        foreach ($detail in $apiFailureDetails) { [void]$sb.AppendLine("- ``$detail``") }
+    }
+    if ($tsToleratedPackages) {
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("### :warning: Tolerated ATS scanner diagnostics")
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("The Aspire CLI reported known duplicate inherited-capability diagnostics for the packages below. Their TypeScript modules were generated anyway, so the APIs named in these diagnostics may be incomplete until the CLI includes the scanner fix from microsoft/aspire#20443. **Remove the ``:octocat: auto-merge`` label to review these modules before this PR merges.**")
+        [void]$sb.AppendLine("")
+        foreach ($packageName in $tsToleratedPackages -split ',\s*') {
+            [void]$sb.AppendLine("- ``$packageName``")
+        }
+        if ($tsToleratedDiagnostics.Count -gt 0) {
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine("<details>")
+            [void]$sb.AppendLine("<summary>Tolerated diagnostics</summary>")
+            [void]$sb.AppendLine("")
+            foreach ($diagnostic in $tsToleratedDiagnostics) {
+                [void]$sb.AppendLine("- ``$diagnostic``")
+            }
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine("</details>")
+        }
     }
 }
 else {
@@ -620,14 +883,20 @@ if ($iconWarnings) {
     [void]$sb.AppendLine("``$iconWarnings``")
     [void]$sb.AppendLine("")
 }
-[void]$sb.AppendLine("### Review checklist")
+[void]$sb.AppendLine("### Manual review checklist")
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("- [ ] Integration data looks reasonable (no suspicious anomalies)")
 [void]$sb.AppendLine("- [ ] Package counts and versions updated appropriately")
 [void]$sb.AppendLine("- [ ] Official Aspire package icons still use package-specific NuGet icon URLs")
 if ($regenRan) {
-    [void]$sb.AppendLine("- [ ] New/removed ``pkgs/`` and ``ts-modules/`` files match the version changes")
+    [void]$sb.AppendLine("- [ ] New/removed ``pkgs/``, ``ts-modules/``, and ``go-modules/`` files match the version changes")
     [void]$sb.AppendLine("- [ ] ``src/frontend/src/data/twoslash/aspire.d.ts`` is included in the diff")
+    if ($tsToleratedPackages) {
+        [void]$sb.AppendLine("- [ ] TypeScript modules generated with tolerated ATS scanner diagnostics were reviewed")
+    }
+    if ($goToleratedPackages) {
+        [void]$sb.AppendLine("- [ ] Go modules generated with tolerated ATS scanner diagnostics were reviewed")
+    }
 }
 $prBody = $sb.ToString()
 
@@ -644,6 +913,7 @@ Set-Output 'semantic_validation' $(if ($regenRan) { $semanticSummary } else { 'n
 Set-Output 'pr_title' $prTitle
 Set-Output 'pr_body_file' $prBodyFile
 Set-Output 'icon_warnings' $iconWarnings
+Set-Output 'api_failures' ($apiFailureDetails -join "`n")
 
 Write-Host "PR title : $prTitle"
 Write-Host "PR body  : $prBodyFile"

@@ -8,6 +8,7 @@ import { Image } from 'astro:assets';
 import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import devTunnelsIcon from '@assets/icons/dev-tunnels-icon.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={devTunnelsIcon}
@@ -74,6 +75,23 @@ This updates your `aspire.config.json` with the Dev Tunnels hosting integration 
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add devtunnels
+```
+
+This updates your `aspire.config.json` with the Dev Tunnels hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.DevTunnels": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Add a dev tunnel resource
@@ -103,13 +121,27 @@ const tunnel = await builder.addDevTunnel("my-tunnel")
     .withReference(web);
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+web := builder.AddNodeApp("web", "../web", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+tunnel := builder.AddDevTunnel("my-tunnel").
+	WithTunnelReferenceAll(web, false)
+```
+</TabItem>
 </Tabs>
 
 When you run the AppHost, the dev tunnel is created to expose the web application endpoints publicly. The tunnel URLs are shown in the Aspire dashboard. By default, the tunnel requires authentication and is available only to the user who created it.
 
 ### Allow anonymous access
 
-To allow anonymous, public access to the entire tunnel, chain a call to the `WithAnonymousAccess` method:
+To allow anonymous, public access to the entire tunnel, chain a call to the <ApiReference name="Aspire.Hosting.DevTunnelsResourceBuilderExtensions.WithAnonymousAccess" /> method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -136,11 +168,26 @@ const tunnel = await builder.addDevTunnel("public-api")
     .withAnonymousAccess();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+web := builder.AddNodeApp("web", "../web", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+tunnel := builder.AddDevTunnel("public-api").
+	WithTunnelReferenceAll(web, true).
+	WithAnonymousAccess()
+```
+</TabItem>
 </Tabs>
 
 ### Configure dev tunnel options
 
-To configure other options for the dev tunnel, provide the `DevTunnelOptions` to the `AddDevTunnel` method:
+To configure other options for the dev tunnel, provide the `DevTunnelOptions` to the <ApiReference name="Aspire.Hosting.DevTunnelsResourceBuilderExtensions.AddDevTunnel" /> method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -172,11 +219,30 @@ const tunnel = await builder.addDevTunnel("qa", "my-tunnel-id", false, "QA envir
     .withReference(web);
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+web := builder.AddNodeApp("web", "../web", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+tunnel := builder.AddDevTunnel("qa", &aspire.AddDevTunnelOptions{
+	TunnelId:       aspire.StringPtr("my-tunnel-id"),
+	AllowAnonymous: aspire.BoolPtr(false),
+	Description:    aspire.StringPtr("QA environment tunnel"),
+	Labels:         []string{"qa", "testing"},
+}).
+	WithTunnelReferenceAll(web, false)
+```
+</TabItem>
 </Tabs>
 
 ### Configure for mixed access
 
-To allow anonymous access to specific endpoints, use the appropriate `WithReference` overload:
+To allow anonymous access to specific endpoints, use the appropriate <ApiReference name="Aspire.Hosting.DevTunnelsResourceBuilderExtensions.WithReference" parameterTypes={['Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>', 'Aspire.Hosting.ApplicationModel.EndpointReference', 'bool']} /> overload:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -201,6 +267,22 @@ const api = await builder.addNodeApp("api", "../api", "index.js");
 const tunnel = await builder.addDevTunnel("mixed-access")
     .withReference(api, "public", { allowAnonymous: true })
     .withReference(api, "admin", { allowAnonymous: false });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "../api", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: aspire.StringPtr("public"), Env: aspire.StringPtr("PUBLIC_PORT")}).
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: aspire.StringPtr("admin"), Env: aspire.StringPtr("ADMIN_PORT")})
+
+tunnel := builder.AddDevTunnel("mixed-access").
+	WithTunnelReferenceAnonymous(api.GetEndpoint("public"), true).
+	WithTunnelReferenceAnonymous(api.GetEndpoint("admin"), false)
 ```
 </TabItem>
 </Tabs>

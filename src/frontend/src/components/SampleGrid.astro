@@ -116,10 +116,8 @@ const tagCounts = new Map(
     </button>
   </div>
 
-  <!-- Filter chips: transparent by default so the wall feels lighter; active
-       chips fill with the accent color so they read as the only "loud" item
-       in the row. On mobile the row collapses to a two-row max-height with a
-       "Show all" expander to avoid the overwhelming 28-tag wall. -->
+  <!-- Mobile shows the first eight tags with a "Show all" disclosure.
+       Collapsed tags are hidden rather than clipped so they leave the tab order. -->
   <div class="tag-filters" id="sample-tags" data-tag-filters data-collapsed="true">
     {
       allTags.map((tag) => (
@@ -432,6 +430,9 @@ const tagCounts = new Map(
       else clearSearch();
     }, { signal });
 
+    readFiltersFromUrl();
+    applyFilters();
+
     // Mobile "Show all N tags" expander — only meaningful when there are
     // enough tags that the wall would feel overwhelming. The toggle button
     // is hidden on viewports wide enough to show every chip without
@@ -462,10 +463,6 @@ const tagCounts = new Map(
         tagToggle.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
       }, { signal });
     }
-
-    // Initialize
-    readFiltersFromUrl();
-    applyFilters();
   })();
 </script>
 
@@ -505,7 +502,7 @@ const tagCounts = new Map(
   }
 
   .tag-chip {
-    min-height: 2rem;
+    min-height: var(--aspire-touch-target);
     display: inline-flex;
     align-items: baseline;
     gap: 0.4rem;
@@ -514,7 +511,7 @@ const tagCounts = new Map(
     border-radius: 2rem;
     background: transparent;
     color: var(--sl-color-gray-2);
-    font-size: 0.78rem;
+    font-size: var(--aspire-text-small);
     cursor: pointer;
     transition:
       border-color 0.15s ease,
@@ -537,7 +534,7 @@ const tagCounts = new Map(
 
   .tag-count {
     color: var(--sl-color-gray-3);
-    font-size: 0.72rem;
+    font-size: var(--aspire-text-meta);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
@@ -564,9 +561,10 @@ const tagCounts = new Map(
     border: none;
     background: transparent;
     color: var(--sl-color-text-accent);
-    font-size: 0.78rem;
+    font-size: var(--aspire-text-small);
     font-weight: 500;
     cursor: pointer;
+    min-height: var(--aspire-touch-target);
   }
 
   .tag-toggle:hover {
@@ -586,13 +584,9 @@ const tagCounts = new Map(
       display: inline-flex;
     }
 
-    /* Cap the chip wall to ~2 rows on narrow viewports. The mask gives a
-       subtle fade so the cut-off feels intentional rather than clipped. */
-    .tag-filters[data-collapsed='true'] {
-      max-height: 4.5rem;
-      overflow: hidden;
-      mask-image: linear-gradient(to bottom, #000 60%, transparent);
-      -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent);
+    /* Match TAG_COLLAPSE_THRESHOLD so hidden filters leave the tab order. */
+    .tag-filters[data-collapsed='true'] .tag-chip:nth-child(n + 9) {
+      display: none;
     }
   }
 
@@ -682,11 +676,11 @@ const tagCounts = new Map(
   /* ---- Even tighter chips on very narrow screens ---- */
   @media (max-width: 480px) {
     .tag-chip {
-      font-size: 0.72rem;
+      font-size: var(--aspire-text-small);
       padding: 0.2rem 0.55rem;
     }
     .tag-count {
-      font-size: 0.68rem;
+      font-size: var(--aspire-text-meta);
     }
   }
 </style>

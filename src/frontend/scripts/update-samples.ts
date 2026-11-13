@@ -12,7 +12,7 @@ const DEFAULT_BRANCH = 'main';
 // `BRANCH` controls which ref of `microsoft/aspire-samples` is fetched (README,
 // AppHost code, raw assets, tree listing). The override exists so contributors
 // can stage `samples.json` against a still-open upstream PR by running the
-// script with `SAMPLES_BRANCH=<head-ref> pnpm run update:samples` — the output
+// script with `SAMPLES_BRANCH=<head-ref> bun run update:samples` — the output
 // is identical to what the next normal run will produce after that PR merges,
 // so the staged data PR is idempotent with the upstream merge.
 const BRANCH = process.env.SAMPLES_BRANCH ?? DEFAULT_BRANCH;
@@ -147,6 +147,10 @@ const TAG_RULES: TagRule[] = [
     patterns: [/\bTypeScript\b/i, /\bts-node\b/i, /\bapphost\.m?ts\b/i, /\.m?tsx?\b/],
   },
   { tag: 'node', patterns: [/\bNode\.?js\b/i, /\bnpm\b/i] },
+  {
+    tag: 'java',
+    patterns: [/\bJava\b/i, /\bSpring\s+Boot\b/i, /\bQuarkus\b/i, /\bMaven\b/i, /\bGradle\b/i, /\bmvnw\b/i],
+  },
   {
     tag: 'go',
     patterns: [

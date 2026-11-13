@@ -9,6 +9,7 @@ import {
 test('isApiReferencePath recognizes API page and markdown routes', () => {
   expect(isApiReferencePath('/reference/api/csharp/')).toBe(true);
   expect(isApiReferencePath('/reference/api/typescript/aspire.hosting.md')).toBe(true);
+  expect(isApiReferencePath('/reference/api/go/aspire.hosting.md')).toBe(true);
   expect(isApiReferencePath('/fr/reference/api/csharp/')).toBe(true);
   expect(isApiReferencePath('reference/api/csharp/')).toBe(true);
   expect(isApiReferencePath('/reference/overview/')).toBe(false);
@@ -17,6 +18,9 @@ test('isApiReferencePath recognizes API page and markdown routes', () => {
 test('stripApiReferenceLocale returns the canonical API path for localized API URLs', () => {
   expect(stripApiReferenceLocale('/fr/reference/api/csharp/')).toBe('/reference/api/csharp/');
   expect(stripApiReferenceLocale('/ja/reference/api/typescript/')).toBe('/reference/api/typescript/');
+  expect(stripApiReferenceLocale('/ko/reference/api/go/aspire.hosting.redis/')).toBe(
+    '/reference/api/go/aspire.hosting.redis/'
+  );
   expect(stripApiReferenceLocale('/zh-CN/reference/api/csharp/communitytoolkit.aspire.hosting.activemq.md')).toBe(
     '/reference/api/csharp/communitytoolkit.aspire.hosting.activemq.md'
   );
@@ -42,4 +46,15 @@ test('sidebar canonicalization preserves TypeScript section anchors after Starli
   expect(normalizeApiReferenceSidebarHref('/reference/api/csharp/#methods/')).toBe('/reference/api/csharp/#methods/');
   expect(normalizeApiReferenceSidebarHref('/docs/#heading/')).toBe('/docs/#heading/');
   expect(normalizeApiReferenceSidebarHref('https://example.com/#heading/')).toBe('https://example.com/#heading/');
+});
+
+test('sidebar canonicalization preserves Go section anchors after Starlight formatting', () => {
+  const typePath = '/reference/api/go/aspire.hosting.redis/redisresource/';
+  expect(normalizeApiReferenceSidebarHref(`${typePath}#properties/`)).toBe(`${typePath}#properties`);
+  expect(normalizeApiReferenceSidebarHref(`/de${typePath}#methods/`)).toBe(`${typePath}#methods`);
+  expect(normalizeApiReferenceSidebarHref(`${typePath}withdatavolume/#defined-on/`)).toBe(
+    `${typePath}withdatavolume/#defined-on`
+  );
+  expect(normalizeApiReferenceSidebarHref(`${typePath}#methods`)).toBe(`${typePath}#methods`);
+  expect(normalizeApiReferenceSidebarHref(typePath)).toBe(typePath);
 });

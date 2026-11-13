@@ -9,6 +9,7 @@ import customClearCacheCommand from '@assets/fundamentals/custom-clear-cache-com
 import customClearCacheCommandLight from '@assets/fundamentals/custom-clear-cache-command-light.png';
 import customClearCacheCommandSucceeded from '@assets/fundamentals/custom-clear-cache-command-succeeded.png';
 import customClearCacheCommandSucceededLight from '@assets/fundamentals/custom-clear-cache-command-succeeded-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire アプリ モデル内の各リソースは `IResource` として表現され、分散アプリケーション ビルダーに追加されると、`IResourceBuilder<T>` インターフェイスのジェネリック型パラメーターになります。_resource builder_ API を使って呼び出しを連鎖し、基になるリソースを構成できます。状況によっては、そのリソースにカスタム コマンドを追加したいことがあります。カスタム コマンドを作成する一般的なシナリオには、データベース移行の実行やデータベースのシード/リセットなどがあります。この記事では、キャッシュをクリアする Redis リソースにカスタム コマンドを追加する方法を学びます。
 
@@ -74,7 +75,7 @@ internal static class RedisResourceBuilderExtensions
     private static ResourceCommandState OnUpdateResourceState(
         UpdateCommandStateContext context)
     {
-        var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var logger = context.Services.GetRequiredService<ILogger<Program>>();
         if (logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
@@ -151,7 +152,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`WithCommand` API は、リソースに適切な注釈を追加し、それらは [Aspire ダッシュボード](/ja/dashboard/overview/) で利用されます。ダッシュボードはこれらの注釈を使って UI にコマンドを描画します。詳細へ進む前に、まず `WithCommand` メソッドのパラメーターを理解しておきましょう。
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithCommand" /> API は、リソースに適切な注釈を追加し、それらは [Aspire ダッシュボード](/ja/dashboard/overview/) で利用されます。ダッシュボードはこれらの注釈を使って UI にコマンドを描画します。詳細へ進む前に、まず `WithCommand` メソッドのパラメーターを理解しておきましょう。
 
 - `name`: 呼び出すコマンド名。
 - `displayName`: ダッシュボードに表示するコマンド名。
@@ -264,7 +265,7 @@ C# ではパラメーター型は `Func<UpdateCommandStateContext, ResourceComma
 private static ResourceCommandState OnUpdateResourceState(
     UpdateCommandStateContext context)
 {
-    var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var logger = context.Services.GetRequiredService<ILogger<Program>>();
 
     if (logger.IsEnabled(LogLevel.Information))
     {
@@ -431,7 +432,7 @@ await builder.build().run();
 - ワークフローの一部としてコマンド実行を自動化する
 - リソース制御が必要なカスタム ツールを構築する
 
-最も一般的なシナリオは、他のカスタム コマンド実装からコマンドを呼び出すことです。C# では `ExecuteCommandContext.ServiceProvider` を使って `ResourceCommandService` を取得します。TypeScript では、コマンドを登録する前に AppHost の実行コンテキストからサービスを解決し、コールバックでキャプチャします。
+最も一般的なシナリオは、他のカスタム コマンド実装からコマンドを呼び出すことです。C# では `ExecuteCommandContext.Services` を使って `ResourceCommandService` を取得します。TypeScript では、コマンドを登録する前に AppHost の実行コンテキストからサービスを解決し、コールバックでキャプチャします。
 
 ### カスタム コマンドからコマンドを実行する
 
@@ -461,7 +462,7 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithReference(database)
     .WithCommand("reset-all", "Reset Everything", async (context, ct) =>
     {
-        var commandService = context.ServiceProvider.GetRequiredService<ResourceCommandService>();
+        var commandService = context.Services.GetRequiredService<ResourceCommandService>();
         
         context.Logger.LogInformation("Starting full system reset...");
         

@@ -9,6 +9,7 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import rabbitmqIcon from '@assets/icons/rabbitmq-icon.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={rabbitmqIcon}
@@ -70,6 +71,27 @@ This updates your `aspire.config.json` with the RabbitMQ hosting integration pac
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add rabbitmq
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the RabbitMQ hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.RabbitMQ": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="tip">
@@ -103,6 +125,16 @@ const rabbitmq = await builder.addRabbitMQ("messaging");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(rabbitmq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddRabbitMQ("messaging")
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(rabbitmq)
 
 // After adding all resources, run the app...
 ```
@@ -158,6 +190,17 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddRabbitMQ("messaging").
+	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(rabbitmq)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The data volume is used to persist RabbitMQ server data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/rabbitmq` path in the RabbitMQ server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-rabbitmq-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
@@ -193,6 +236,17 @@ await rabbitmq.withDataBindMount("/RabbitMQ/Data", { isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(rabbitmq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddRabbitMQ("messaging").
+	WithDataBindMount("/RabbitMQ/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(rabbitmq)
 
 // After adding all resources, run the app...
 ```
@@ -242,13 +296,29 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+rabbitmq := builder.AddRabbitMQ("messaging", &aspire.AddRabbitMQOptions{
+	UserName: &userName,
+	Password: &password,
+})
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(rabbitmq)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method.
 
 ## Add RabbitMQ server resource with management plugin
 
-To add the [RabbitMQ management plugin](https://www.rabbitmq.com/docs/management) as a sub-resource, call `WithManagementPlugin` (or `withManagementPlugin`). You'll need the credentials you configured to log in to the management UI:
+To add the [RabbitMQ management plugin](https://www.rabbitmq.com/docs/management) as a sub-resource, call <ApiReference name="Aspire.Hosting.RabbitMQBuilderExtensions.WithManagementPlugin" />. You'll need the credentials you configured to log in to the management UI:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -285,6 +355,22 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+rabbitmq := builder.AddRabbitMQ("messaging", &aspire.AddRabbitMQOptions{
+	UserName: &userName,
+	Password: &password,
+}).WithManagementPlugin()
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(rabbitmq)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The RabbitMQ management plugin provides an HTTP-based API for management and monitoring of your RabbitMQ server. Aspire adds another container image using the [`docker.io/library/rabbitmq`](https://hub.docker.com/_/rabbitmq) management variant to the AppHost that runs the management plugin on port `15672` by default. You can access the management UI from the Aspire dashboard by selecting the endpoint for your RabbitMQ resource.
@@ -301,6 +387,12 @@ var rabbitmq = builder.AddRabbitMQ("messaging")
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="apphost.mts"
 await rabbitmq.withManagementPlugin({ port: 15672 });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddRabbitMQ("messaging").
+	WithManagementPlugin(&aspire.WithManagementPluginOptions{Port: aspire.IntPtr(15672)})
 ```
 </TabItem>
 </Tabs>
@@ -350,11 +442,24 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddRabbitMQ("messaging")
+rabbitmqEndpoint := rabbitmq.GetEndpoint("tcp")
+
+builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(rabbitmq).
+	WithEnvironment("RABBITMQ_HOST", rabbitmqEndpoint.Property(aspire.EndpointPropertyHost)).
+	WithEnvironment("RABBITMQ_PORT", rabbitmqEndpoint.Property(aspire.EndpointPropertyPort)).
+	WithEnvironment("RABBITMQ_USER", rabbitmq.UserNameParameter()).
+	WithEnvironment("RABBITMQ_PASSWORD", rabbitmq.PasswordParameter())
+```
+</TabItem>
 </Tabs>
 
 ## Connect to an existing RabbitMQ instance
 
-To reference an externally managed RabbitMQ instance instead of running one as a container, use `AddConnectionString`:
+To reference an externally managed RabbitMQ instance instead of running one as a container, use <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -384,6 +489,14 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+rabbitmq := builder.AddConnectionString("messaging")
+
+builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(rabbitmq)
+```
+</TabItem>
 </Tabs>
 
 With `AddConnectionString` and `addConnectionString`, Aspire resolves `messaging` from `ConnectionStrings:messaging` (or environment variable `ConnectionStrings__messaging`) in the AppHost configuration. Consuming apps receive that value as a single connection string, not deconstructed RabbitMQ resource-specific connection-property variables such as `MESSAGING_URI`, `MESSAGING_HOST`, or `MESSAGING_PORT`.
@@ -396,7 +509,7 @@ For the full reference of RabbitMQ resource connection properties — and how co
 
 ## RabbitMQ 4.3 queue declaration requirements
 
-Starting with Aspire 13.4, the default RabbitMQ container image used by `AddRabbitMQ` is **4.3**. RabbitMQ 4.3 disables the deprecated `transient_nonexcl_queues` feature by default. Declaring a queue that is simultaneously non-durable (transient) and non-exclusive is rejected by the broker with AMQP error 541 (`INTERNAL_ERROR - Feature 'transient_nonexcl_queues' is deprecated.`).
+Starting with Aspire 13.4, the default RabbitMQ container image used by <ApiReference name="Aspire.Hosting.RabbitMQBuilderExtensions.AddRabbitMQ" /> is **4.3**. RabbitMQ 4.3 disables the deprecated `transient_nonexcl_queues` feature by default. Declaring a queue that is simultaneously non-durable (transient) and non-exclusive is rejected by the broker with AMQP error 541 (`INTERNAL_ERROR - Feature 'transient_nonexcl_queues' is deprecated.`).
 
 If your application declares such queues, switch to one of the supported patterns:
 

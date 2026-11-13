@@ -9,6 +9,7 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import postgresIcon from '@assets/icons/postgresql-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={postgresIcon}
@@ -19,7 +20,7 @@ import postgresIcon from '@assets/icons/postgresql-icon.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire PostgreSQL Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model PostgreSQL server and database resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire PostgreSQL Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model PostgreSQL server and database resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the PostgreSQL integration, start with the [Get started with PostgreSQL integrations](/integrations/databases/postgres/postgres-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to PostgreSQL](../postgres-connect/). For the PostgreSQL Entity Framework Core (EF Core) client integration, see [Get started with the PostgreSQL Entity Framework Core integrations](/integrations/databases/efcore/postgres/postgresql-get-started/).
 
@@ -50,6 +51,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add postgres
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the PostgreSQL hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.PostgreSQL": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add postgres
@@ -101,6 +123,22 @@ const postgresdb = await postgres.addDatabase("postgresdb");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(postgresdb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres")
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
 
 // After adding all resources, run the app...
 ```
@@ -183,6 +221,31 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres")
+
+databaseName := "app_db"
+creationScript := `
+-- Create the database
+CREATE DATABASE ` + databaseName + `;
+`
+
+db := postgres.AddDatabase(databaseName).
+	WithCreationScript(creationScript)
+
+builder.AddGoApp("api", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The preceding example creates a database named `app_db`. The script is run when the database resource is created. The script is passed as a string to the database resource's creation-script API and then run in the context of the PostgreSQL resource.
@@ -224,6 +287,24 @@ const postgresdb = await postgres.addDatabase("postgresdb");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(postgresdb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithPgAdmin()
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
 
 // After adding all resources, run the app...
 ```
@@ -277,6 +358,28 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithPgAdmin(&aspire.WithPgAdminOptions{
+		ConfigureContainer: func(pgAdmin aspire.PgAdminContainerResource) {
+			pgAdmin.WithHostPort(aspire.IntPtr(5050))
+		},
+	})
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The preceding code adds and configures the host port for the pgAdmin container. The host port is otherwise randomly assigned.
@@ -314,6 +417,24 @@ const postgresdb = await postgres.addDatabase("postgresdb");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(postgresdb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithPgWeb()
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
 
 // After adding all resources, run the app...
 ```
@@ -365,6 +486,28 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithPgWeb(&aspire.WithPgWebOptions{
+		ConfigureContainer: func(pgWeb aspire.PgWebContainerResource) {
+			pgWeb.WithHostPort(aspire.IntPtr(5050))
+		},
+	})
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The preceding code adds and configures the host port for the pgWeb container. The host port is otherwise randomly assigned.
@@ -406,9 +549,27 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
-The data volume is used to persist the PostgreSQL server data outside the lifecycle of its container. The container data directory depends on the PostgreSQL image version: PostgreSQL 17 and earlier use `/var/lib/postgresql/data`, while PostgreSQL 18 and later use `/var/lib/postgresql`. `WithDataVolume(...)` selects the correct path automatically based on the configured image tag. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-postgresql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+The data volume is used to persist the PostgreSQL server data outside the lifecycle of its container. The container data directory depends on the PostgreSQL image version: PostgreSQL 17 and earlier use `/var/lib/postgresql/data`, while PostgreSQL 18 and later use `/var/lib/postgresql`. <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithDataVolume" /> selects the correct path automatically based on the configured image tag. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-postgresql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 <Aside type="caution">
   Aspire 13.4 bumped the default PostgreSQL image to 18, which uses a different on-disk data layout than PostgreSQL 17. A data volume or data bind mount created on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible after upgrading. See [PostgreSQL 18 data directory change](#postgresql-18-data-directory-change) for recovery options.
@@ -459,6 +620,24 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithDataBindMount("/PostgreSQL/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 <Aside type="note">
@@ -467,9 +646,9 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 Data bind mounts rely on the host machine's filesystem to persist the PostgreSQL server data across container restarts. The data bind mount is mounted at the `C:\PostgreSQL\Data` on Windows (or `/PostgreSQL/Data` on Unix) path on the host machine in the PostgreSQL server container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
-## Add PostgreSQL server resource with init bind mount
+## Add PostgreSQL server resource with init files
 
-Use initialization files to seed the PostgreSQL server. The C# AppHost exposes `WithInitBindMount(...)`, while the TypeScript AppHost exposes `withInitFiles(...)`.
+Use initialization files to seed the PostgreSQL server. Call `WithInitFiles(...)` in a C# AppHost or `withInitFiles(...)` in a TypeScript AppHost to copy the files from the specified directory into the container's initialization folder.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -477,7 +656,7 @@ Use initialization files to seed the PostgreSQL server. The C# AppHost exposes `
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
-    .WithInitBindMount(@"C:\PostgreSQL\Init");
+    .WithInitFiles("./postgres-init");
 
 var postgresdb = postgres.AddDatabase("postgresdb");
 
@@ -504,11 +683,30 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 
-The TypeScript AppHost doesn't currently expose a `withInitBindMount(...)` API for PostgreSQL. Use `withInitFiles(...)` when you want to copy initialization files into the container instead.
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithInitFiles("./postgres-init")
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
+
+// After adding all resources, run the app...
+```
+
+The Go AppHost doesn't expose the obsolete bind-mount API for PostgreSQL initialization. Use <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithInitFiles" /> to copy initialization files into the container instead.
 </TabItem>
 </Tabs>
 
-The init bind mount relies on the host machine's filesystem to initialize the PostgreSQL server database with the container's _init_ folder. This folder is used for initialization, running any executable shell scripts or _.sql_ command files after the _postgres-data_ folder is created. The init bind mount is mounted at the `C:\PostgreSQL\Init` on Windows (or `/PostgreSQL/Init` on Unix) path on the host machine in the PostgreSQL server container.
+The files in the specified directory are copied into the PostgreSQL server container's _init_ folder. This folder is used for initialization, running any executable shell scripts or _.sql_ command files after the _postgres-data_ folder is created.
 
 ## Add PostgreSQL server resource with parameters
 
@@ -545,6 +743,28 @@ const postgresdb = await postgres.addDatabase("postgresdb");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(postgresdb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+postgres := builder.AddPostgres("postgres", &aspire.AddPostgresOptions{
+	UserName: &userName,
+	Password: &password,
+})
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb)
 
 // After adding all resources, run the app...
 ```
@@ -600,13 +820,41 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres")
+database := postgres.AddDatabase("myDatabase")
+postgresEndpoint := postgres.GetEndpoint("tcp")
+
+builder.AddGoApp("my-app", "./app").
+	WithReference(database).
+	WithEnvironment("POSTGRES_HOST", postgresEndpoint.Property(aspire.EndpointPropertyHost)).
+	WithEnvironment("POSTGRES_PORT", postgresEndpoint.Property(aspire.EndpointPropertyPort)).
+	WithEnvironment("POSTGRES_USER", postgres.UserNameParameter()).
+	WithEnvironment("POSTGRES_PASSWORD", postgres.PasswordParameter()).
+	WithEnvironment("POSTGRES_DATABASE", "myDatabase")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 ## PostgreSQL 18 data directory change
 
-Starting with Aspire 13.4, the default PostgreSQL container image used by `AddPostgres` is **18.3** (previously 17.6). PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`. For upstream details, see [docker-library/postgres#1259](https://github.com/docker-library/postgres/issues/1259) and [docker-library/postgres#37](https://github.com/docker-library/postgres/issues/37).
+Starting with Aspire 13.4, the default PostgreSQL container image used by <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.AddPostgres" /> is **18.3** (previously 17.6). PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`. For upstream details, see [docker-library/postgres#1259](https://github.com/docker-library/postgres/issues/1259) and [docker-library/postgres#37](https://github.com/docker-library/postgres/issues/37).
 
-`WithDataVolume(...)` and `WithDataBindMount(...)` are version-aware: Aspire chooses the container data directory from the configured image tag at the time the method is called. PostgreSQL 17 and earlier map to `/var/lib/postgresql/data`; PostgreSQL 18 and later map to `/var/lib/postgresql`.
+`WithDataVolume(...)` and <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithDataBindMount" /> are version-aware: Aspire chooses the container data directory from the configured image tag at the time the method is called. PostgreSQL 17 and earlier map to `/var/lib/postgresql/data`; PostgreSQL 18 and later map to `/var/lib/postgresql`.
 
 Because of this layout change, PostgreSQL 17 data persisted with `WithDataVolume(...)` or `WithDataBindMount(...)` (Aspire 13.3 or earlier) is incompatible with PostgreSQL 18 after upgrading to Aspire 13.4. The container fails to start with an error similar to:
 
@@ -618,7 +866,7 @@ You have two ways to recover.
 
 ### Option 1: Stay on PostgreSQL 17 (recommended, no migration)
 
-Pin the image back to a PostgreSQL 17 tag with `WithImageTag(...)` **before** calling `WithDataVolume(...)`. Aspire then selects the legacy `/var/lib/postgresql/data` path and your existing volume keeps working with no migration:
+Pin the image back to a PostgreSQL 17 tag with <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithImageTag" /> **before** calling `WithDataVolume(...)`. Aspire then selects the legacy `/var/lib/postgresql/data` path and your existing volume keeps working with no migration:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -641,6 +889,20 @@ const builder = await createBuilder();
 const postgres = await builder.addPostgres("pgsql");
 await postgres.withImageTag("17.6");
 await postgres.withDataVolume();
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("pgsql").
+	WithImageTag("17.6").
+	WithDataVolume()
 
 // After adding all resources, run the app...
 ```
@@ -668,7 +930,7 @@ docker volume rm <old-volume-name>
 
 ## Open an interactive REPL
 
-In Aspire 13.6 or later, add `WithRepl()` to the PostgreSQL server resource to enable a **REPL** command that opens `psql` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+In Aspire 13.6 or later, add <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithRepl" /> to the PostgreSQL server resource to enable a **REPL** command that opens `psql` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -680,6 +942,26 @@ const builder = await createBuilder();
 await builder.addPostgres('postgres').withRepl();
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddPostgres("postgres").WithRepl()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

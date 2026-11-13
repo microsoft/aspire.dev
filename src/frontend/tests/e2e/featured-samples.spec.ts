@@ -25,7 +25,7 @@ test('featured samples filter real metadata and retain language when browsing al
   const languages = samples.getByRole('group', { name: 'Sample languages' });
   const visible = samples.locator('[data-sample-languages]:visible h3');
   await expect(samples).toHaveAttribute('data-ready', '');
-  await expect(languages.getByRole('checkbox')).toHaveCount(5);
+  await expect(languages.getByRole('checkbox')).toHaveCount(6);
   await expect(languages.getByRole('checkbox', { checked: true })).toHaveCount(0);
   await expect(visible).toHaveCount(6);
   await expect(samples.getByRole('status')).toHaveText('6 featured samples: All languages');
@@ -165,15 +165,15 @@ test('all featured sample links work without JavaScript', async ({ browser, base
 });
 
 test('cloud entrypoints introduce connected AppHost code before deeper guides', async ({ page }) => {
-  for (const [provider, heading, code, guide] of [
-    ['AWS', 'Connect your app to DynamoDB Local', 'withDynamoDBLocalReference(dynamodb)', 'CloudFormation walkthrough'],
-    ['Azure', 'Connect your app to Azure Blob Storage', 'withReference(blobs)', 'Connect to Azure Blob Storage'],
+  for (const [provider, heading, code, guide, languages] of [
+    ['AWS', 'Connect your app to DynamoDB Local', 'withDynamoDBLocalReference(dynamodb)', 'CloudFormation walkthrough', ['TypeScript', 'C#']],
+    ['Azure', 'Connect your app to Azure Blob Storage', 'withReference(blobs)', 'Connect to Azure Blob Storage', ['TypeScript', 'C#', 'Go']],
   ]) {
     await page.goto('/hub/');
     await page.locator('.cloud-links a').filter({ has: page.getByRole('heading', { name: provider, exact: true }) }).click();
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
     const tabs = page.locator('starlight-tabs').first();
-    await expect(tabs.getByRole('tab')).toHaveText(['TypeScript', 'C#']);
+    await expect(tabs.getByRole('tab')).toHaveText(languages);
     await tabs.getByRole('tab', { name: 'TypeScript', exact: true }).click();
     await expect(tabs.getByRole('tabpanel')).toContainText(code);
     await tabs.getByRole('tab', { name: 'C#', exact: true }).click();

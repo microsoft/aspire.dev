@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   dismissCookieConsentIfVisible,
   waitForAccessibilityEnhancements,
+  revealMobileSiteMenu,
 } from '@tests/e2e/helpers';
 
 type Theme = 'light' | 'dark';
@@ -13,19 +14,18 @@ async function prepareLivePage(page: Page, theme: Theme, live: boolean): Promise
     localStorage.setItem('starlight-theme', selectedTheme);
     localStorage.removeItem('starlight-synced-tabs__stream-source');
 
-    // Keep status fixed at the JSON seed instead of depending on a real SSE
+    // Keep status fixed at the JSON seed instead of depending on a real live
     // service or a stream happening to be live when the audit runs.
-    class MockEventSource {
+    class MockWebSocket {
       onopen: (() => void) | null = null;
       constructor() {
         setTimeout(() => this.onopen?.(), 0);
       }
-      addEventListener(): void {}
       close(): void {}
     }
-    Object.defineProperty(window, 'EventSource', {
+    Object.defineProperty(window, 'WebSocket', {
       configurable: true,
-      value: MockEventSource,
+      value: MockWebSocket,
     });
     Object.defineProperty(window, 'documentPictureInPicture', {
       configurable: true,
@@ -148,6 +148,7 @@ for (const theme of ['light', 'dark'] as const) {
     const touchFirst = await page.evaluate(
       () => window.matchMedia('(hover: none) and (pointer: coarse)').matches
     );
+    await revealMobileSiteMenu(page);
     const trigger = page.locator('.live-btn:visible').first();
     await trigger.click();
     const picker = page.getByRole('dialog', { name: 'Choose how to watch' });
@@ -195,6 +196,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.keyboard.press('Escape');
     await expect(search).toBeFocused();
 
+    await revealMobileSiteMenu(page);
     await trigger.click();
     await picker.getByRole('button', { name: 'Dismiss notification' }).click();
     await expect(picker).toBeHidden();
