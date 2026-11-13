@@ -81,22 +81,33 @@ When you create or initialize an Aspire project, you can choose to configure AI 
 </LearnMore>
 :::
 
-## Let coding agents start and stop AppHosts
+## Let coding agents use Aspire language model tools
 
-In Aspire 13.6, the extension exposes two VS Code language model tools so a coding agent can use the editor's AppHost lifecycle instead of launching an unrelated CLI process:
+The Aspire extension provides VS Code language model tools that let coding agents manage AppHosts, inspect resources, and attach debuggers. Aspire 13.6 added the start and stop tools; Aspire 17.0 added the rest:
 
-| Tool                   | Chat reference        | Action                                               |
-| ---------------------- | --------------------- | ---------------------------------------------------- |
-| `aspire_apphost_start` | `#aspireStartAppHost` | Start a discovered AppHost in `run` or `debug` mode. |
-| `aspire_apphost_stop`  | `#aspireStopAppHost`  | Stop the selected discovered AppHost.                |
+| Tool                            | Chat reference                | Action                                                                                                            |
+| ------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `aspire_apphost_start`          | `#aspireStartAppHost`         | Start a discovered AppHost in `run` or `debug` mode.                                                              |
+| `aspire_apphost_stop`           | `#aspireStopAppHost`          | Stop the selected discovered AppHost.                                                                             |
+| `aspire_resource_debug`         | `#aspireDebugResource`        | Attach the debugger to a running .NET or Go resource.                                                             |
+| `aspire_debug_session_status`   | `#aspireDebugSessionStatus`   | Report the state of an AppHost, or the type, state, health, exit code, and source of one of its resources.        |
+| `aspire_list_debug_sessions`    | `#aspireListDebugSessions`    | List active AppHosts controlled by this editor, with their state, mode, and controller.                           |
+| `aspire_explain_launch_failure` | `#aspireExplainLaunchFailure` | Explain the latest launch failure for an AppHost as a failure stage, category, and recommended actions.           |
+| `aspire_hot_reload_status`      | `#aspireHotReloadStatus`      | Report whether C# Dev Kit Hot Reload is enabled and could apply to a resource, and what to restart when it can't. |
+| `aspire_open_dashboard`         | `#aspireOpenDashboard`        | Open the dashboard for an AppHost controlled by this editor.                                                      |
+| `aspire_open_output`            | `#aspireOpenOutput`           | Open the VS Code **Output** panel on the **Aspire Extension** channel.                                            |
+
+The inspection tools return summaries without raw logs, output, environment variables, process IDs, or URLs. Use the Output panel or dashboard for more details. The Hot Reload tool only reports applicability; it never applies or verifies an edit.
 
 Open a trusted workspace with the Aspire extension installed and an AppHost visible in the Aspire view. In an agent chat that supports VS Code tools, try:
 
 > Use #aspireStartAppHost to start my discovered AppHost in debug mode.
 
+> Use #aspireDebugResource to attach the debugger to the api resource.
+
 > Use #aspireStopAppHost to stop that AppHost.
 
-Both tools request confirmation for the resolved target. Review its path and, for start, the requested mode before approving. These are extension-provided tools; configuring a runtime MCP server isn't required to use them.
+The start, stop, resource debug, and Output tools request confirmation before acting. Review the resolved target and, for start, the requested mode before approving. These are extension-provided tools; configuring a runtime MCP server isn't required to use them.
 
 The start tool accepts these inputs:
 
