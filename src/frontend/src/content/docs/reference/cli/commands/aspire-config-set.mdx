@@ -35,21 +35,35 @@ The following arguments are available:
 
 ## Array values
 
-Use bracket syntax to create or edit array elements. Setting the next index appends an element, and other array elements are preserved:
+Use bracket syntax with a zero-based index to create or edit array elements. Quote keys that contain brackets so the shell passes them to the CLI.
 
-```bash title="Aspire CLI"
-aspire config set "skillSources.team.plugins[0]" deployment
+For example, consider this illustrative `plugins` array:
+
+```json title="aspire.config.json"
+{
+  "plugins": ["aspire", "other"]
+}
 ```
 
-For an existing array, numeric dotted segments also edit the array element:
+The following command changes the first element to `deployment`:
 
 ```bash title="Aspire CLI"
-aspire config set skillSources.team.plugins.0 deployment
+aspire config set "plugins[0]" deployment
 ```
 
-Numeric dotted segments that don't refer to an existing array remain object property names. Negative indexes, gaps in the array, malformed bracket paths, and array edits against objects or scalar values fail without writing the configuration file.
+The resulting array is `["deployment", "other"]`. To append a new element, set the next index:
 
-The `aspire config get` and `aspire config delete` commands accept the same bracket paths. Deleting an array element compacts the remaining indexes, and `aspire config list` shows array entries with bracketed indexes, such as `plugins[0]`.
+```bash title="Aspire CLI"
+aspire config set "plugins[2]" monitoring
+```
+
+If the array doesn't exist, setting index `0` creates it. For an existing array, numeric dotted segments also select an array element:
+
+```bash title="Aspire CLI"
+aspire config set plugins.0 deployment
+```
+
+Numeric dotted segments that don't refer to an existing array remain object property names. Negative indexes, gaps in the array, malformed bracket paths, and bracketed array edits against objects or scalar values fail without writing the configuration file.
 
 ## Options
 
