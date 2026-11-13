@@ -3,7 +3,7 @@ title: Build custom Aspire resources
 description: "Learn how to create custom resource types for the Aspire AppHost to model your application's unique services, containers, executables, and external dependencies."
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ApiReference from '@components/ApiReference.astro';
 
@@ -274,6 +274,10 @@ For more on how the Aspire Dashboard displays resources, see [Dashboard overview
 
 ## Custom icons
 
+Resource icons appear in the dashboard resource list and graph. You can choose a Fluent UI icon or supply an image file. These methods work with built-in resources as well as custom resources.
+
+### Fluent UI icons
+
 Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithIconName" /> to display a custom icon for your resource in the dashboard. Any [Fluent UI system icon](https://github.com/microsoft/fluentui-system-icons/blob/main/icons_filled.md) can be used:
 
 ```csharp title="Setting custom dashboard icons"
@@ -284,6 +288,39 @@ return builder.AddResource(resource)
 return builder.AddResource(resource)
     .WithIconName("mail", IconVariant.Regular);
 ```
+
+### Image files
+
+Use `WithResourceIcon` to display an SVG, PNG, JPEG, or ICO file:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+builder.addContainer('mail', 'maildev/maildev')
+    .withResourceIcon('./icons/mail.svg');
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+builder.AddContainer("mail", "maildev/maildev")
+    .WithResourceIcon("./icons/mail.svg");
+```
+
+</TabItem>
+</Tabs>
+
+Place the image at `icons/mail.svg` under the AppHost directory. Relative paths are resolved from that directory, regardless of the working directory used to start the AppHost. Absolute file paths are also supported.
+
+To reuse a web project's favicon, specify its file path explicitly. For example, if the AppHost and web project are sibling directories, use `../Web/wwwroot/favicon.png`. The dashboard doesn't automatically discover favicons from resource endpoints.
+
+The AppHost reads the file during configuration and embeds the image in resource updates. The dashboard doesn't need access to the original file or an image URL. Files must be non-empty and no larger than 256 KiB (262,144 bytes). Unsupported file extensions, missing files, and invalid file sizes cause AppHost configuration to fail.
+
+Custom images retain their original colors rather than inheriting the dashboard's resource color. SVG files render as images rather than inline markup, so scripts and external references in an SVG aren't available.
+
+Calling either icon method replaces the previous icon configuration. The last call wins: a later `WithIconName` switches back to a Fluent UI icon, and a later `WithResourceIcon` selects an image file.
 
 ## See also
 
