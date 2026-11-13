@@ -9,6 +9,7 @@ import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import orleansIcon from '@assets/icons/microsoft-orleans.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={orleansIcon}
@@ -74,11 +75,32 @@ This updates your `aspire.config.json` with the Orleans hosting integration pack
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Orleans
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Orleans hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Orleans": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Add an Orleans resource
 
-Call `addOrleans` (or `AddOrleans`) to add and return an Orleans service resource builder. The name provided to the Orleans resource is for diagnostic purposes. For most applications, a value of `"default"` suffices:
+Call <ApiReference name="Aspire.Hosting.OrleansServiceExtensions.AddOrleans" /> to add and return an Orleans service resource builder. The name provided to the Orleans resource is for diagnostic purposes. For most applications, a value of `"default"` suffices:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -106,6 +128,26 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddOrleans("default")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Use Azure Storage for clustering and grain storage
@@ -118,7 +160,7 @@ To configure Orleans with Azure Storage clustering and grain storage, first inst
 
 <InstallPackage packageName="Aspire.Hosting.Azure.Storage" />
 
-Then configure the Orleans resource with clustering and grain storage using `withClustering` (or `WithClustering`) and `withGrainStorage` (or `WithGrainStorage`):
+Then configure the Orleans resource with clustering and grain storage using <ApiReference name="Aspire.Hosting.OrleansServiceExtensions.WithClustering" /> and <ApiReference name="Aspire.Hosting.OrleansServiceExtensions.WithGrainStorage" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -155,6 +197,32 @@ const orleans = await builder.addOrleans("default")
     .withGrainStorage("Default", grainStorage);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+clusteringTable := storage.AddTables("clustering")
+grainStorage := storage.AddBlobs("grainstate")
+
+builder.AddOrleans("default").
+	WithClustering(clusteringTable).
+	WithGrainStorage("Default", grainStorage)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -210,6 +278,35 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+clusteringTable := storage.AddTables("clustering")
+grainStorage := storage.AddBlobs("grainstate")
+
+orleans := builder.AddOrleans("default").
+	WithClustering(clusteringTable).
+	WithGrainStorage("Default", grainStorage)
+
+server := builder.AddDotnetProject("orleans-server", "../OrleansServer/OrleansServer.csproj").
+	WithOrleansReference(orleans)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 When you reference the Orleans resource from a project, the dependent storage resources are also referenced transitively.
@@ -259,6 +356,35 @@ const client = await builder.addProject("orleans-client", "../OrleansClient/Orle
     .withOrleansClientReference(orleans.asClient());
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+clusteringTable := storage.AddTables("clustering")
+grainStorage := storage.AddBlobs("grainstate")
+
+orleans := builder.AddOrleans("default").
+	WithClustering(clusteringTable).
+	WithGrainStorage("Default", grainStorage)
+
+client := builder.AddDotnetProject("orleans-client", "../OrleansClient/OrleansClient.csproj").
+	WithOrleansClientReference(orleans.AsClient())
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

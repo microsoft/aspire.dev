@@ -7,6 +7,7 @@ import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import azureIcon from '@assets/icons/azure-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={azureIcon}
@@ -29,7 +30,7 @@ When working with Azure integrations in Aspire, you often need to customize the 
 
 ### Use existing Azure resources
 
-Use `AsExisting`, `RunAsExisting`, and `PublishAsExisting` when you want Aspire to reference an Azure resource that already exists instead of provisioning a new one.
+Use <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" />, <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.RunAsExisting" />, and <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" /> when you want Aspire to reference an Azure resource that already exists instead of provisioning a new one.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="typescript" label="TypeScript">
@@ -63,6 +64,39 @@ builder.Build().Run();
 ````
 
 </TabItem>
+
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	existingBusName := builder.AddParameter("existingServiceBusName")
+	existingBusResourceGroup := builder.AddParameter("existingServiceBusResourceGroup")
+
+	serviceBus := builder.AddAzureServiceBus("messaging")
+	serviceBus.PublishAsExisting(existingBusName, aspire.PublishAsExistingResourceGroup(existingBusResourceGroup))
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+</TabItem>
 </Tabs>
 
 Use `RunAsExisting` when only local run mode should use the existing resource, `PublishAsExisting` when only deployed Azure environments should use it, and `AsExisting` when both modes should point at the same Azure resource.
@@ -74,7 +108,7 @@ Use `RunAsExisting` when only local run mode should use the existing resource, `
 
 ### Manage default role assignments
 
-Aspire automatically assigns Azure RBAC roles based on how resources reference one another. When you need to opt out of those defaults before applying different permissions, use `ClearDefaultRoleAssignments`.
+Aspire automatically assigns Azure RBAC roles based on how resources reference one another. When you need to opt out of those defaults before applying different permissions, use <ApiReference name="Aspire.Hosting.AzureResourceExtensions.ClearDefaultRoleAssignments" />.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="typescript" label="TypeScript">
@@ -101,6 +135,36 @@ builder.AddAzureServiceBus("messaging")
 builder.Build().Run();
 ````
 
+</TabItem>
+
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	serviceBus := builder.AddAzureServiceBus("messaging")
+	serviceBus.ClearDefaultRoleAssignments()
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
 </TabItem>
 </Tabs>
 
@@ -144,9 +208,42 @@ builder.Build().Run();
 ````
 
 </TabItem>
+
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	identity := builder.AddAzureUserAssignedIdentity("identity")
+	clientId := identity.GetOutput("clientId")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+	api.WithEnvironment("IDENTITY_CLIENT_ID", clientId)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+</TabItem>
 </Tabs>
 
-Use `GetBicepIdentifier()` inside `ConfigureInfrastructure` or infrastructure resolvers when you need a stable identifier for a provisioned Azure construct. Use output references such as `ClientId`, `NameOutputReference`, or `getOutput("...")` when you need Azure-assigned values like a client ID, endpoint, or resource name.
+Use <ApiReference name="Aspire.Hosting.AzureResourceExtensions.GetBicepIdentifier" /> inside <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> or infrastructure resolvers when you need a stable identifier for a provisioned Azure construct. Use output references such as `ClientId`, `NameOutputReference`, or `getOutput("...")` when you need Azure-assigned values like a client ID, endpoint, or resource name.
 
 ## Azure.Provisioning customization
 
@@ -181,8 +278,11 @@ The **Selected SDK models** column lists representative models, not every model 
 | Azure Storage                 | `Aspire.Hosting.Azure.Provisioning.Storage`          | `StorageAccount`                                                                                                         |
 | Azure Service Bus             | `Aspire.Hosting.Azure.Provisioning.ServiceBus`       | `ServiceBusNamespace`                                                                                                    |
 | Azure Key Vault               | `Aspire.Hosting.Azure.Provisioning.KeyVault`         | `KeyVaultService`                                                                                                        |
+| Microsoft Entra ID            | `Aspire.Hosting.Azure.Provisioning.EntraId`          | `MicrosoftGraphApplication`, `MicrosoftGraphServicePrincipal`, `MicrosoftGraphFederatedIdentityCredential`               |
 
 Package names follow the Azure Provisioning SDK, which can differ from the hosting integration name: Front Door uses `Cdn`, Kubernetes uses `ContainerService`, and PostgreSQL uses the SDK spelling `PostgreSql`. Network and PrivateDns are separate opt-ins, as are Redis and RedisEnterprise. To customize supporting resources such as a container registry or Log Analytics workspace, also add the corresponding provisioning package; a transitive hosting dependency doesn't enable its SDK proxies.
+
+The Microsoft Entra ID package is the exception. It generates proxies for the Microsoft Graph models that the Entra ID hosting integration defines, not for an Azure SDK. For examples, see [Customize Entra ID infrastructure](/integrations/security/microsoft-entra-id/customize-infrastructure/).
 
 Each provisioning package references its hosting integration and the shared `Aspire.Hosting.Azure.Provisioning` runtime. Install only the SDK proxies your AppHost uses. Existing C# customization through `Azure.Provisioning.*` doesn't require these proxy packages.
 
@@ -509,7 +609,7 @@ const storage = await builder.addAzureStorage('storage');
 await storage.configureInfrastructure(async (infra) => {
   const account = await infra.getStorageAccount();
   await account.enableHttpsTrafficOnly.set(true);
-  await account.minimumTlsVersion.set(StorageMinimumTlsVersion.Tls1_2);
+  await account.minimumTlsVersion.set(StorageMinimumTlsVersion.Tls12);
 
   const encryption = await infra.createStorageAccountEncryption();
   await encryption.keySource.set(StorageAccountKeySource.Storage);
@@ -544,7 +644,7 @@ storage.ConfigureInfrastructure(infra =>
                        .Single();
 
     account.EnableHttpsTrafficOnly = true;
-    account.MinimumTlsVersion = StorageMinimumTlsVersion.Tls1_2;
+    account.MinimumTlsVersion = StorageMinimumTlsVersion.Tls12;
 
     account.Encryption = new StorageAccountEncryption
     {
@@ -625,7 +725,7 @@ The callback above applies the queue setting to every queue modeled under that n
 
 ### Add Azure resources to the infrastructure
 
-For common scenarios, prefer Aspire's higher-level resource builders. For example, to add a private endpoint to a storage account, use `AddPrivateEndpoint` from the `Aspire.Hosting.Azure.Network` package, which automatically wires up the Private DNS Zone, VNet link, and DNS Zone Group:
+For common scenarios, prefer Aspire's higher-level resource builders. For example, to add a private endpoint to a storage account, use <ApiReference name="Aspire.Hosting.AzurePrivateEndpointExtensions.AddPrivateEndpoint" /> from the `Aspire.Hosting.Azure.Network` package, which automatically wires up the Private DNS Zone, VNet link, and DNS Zone Group:
 
 Install `Aspire.Hosting.Azure.Network` for this example. These networking APIs are experimental under `ASPIREAZURE003`; the C# example explicitly acknowledges that diagnostic. This hosting API is separate from the opt-in SDK proxies.
 
@@ -666,6 +766,43 @@ peSubnet.AddPrivateEndpoint(blobs);
 #pragma warning restore ASPIREAZURE003
 
 builder.Build().Run();
+```
+
+</TabItem>
+
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	vnet := builder.AddAzureVirtualNetwork("vnet")
+	peSubnet := vnet.AddSubnet("pe-subnet", "10.0.1.0/24")
+
+	storage := builder.AddAzureStorage("storage")
+	blobs := storage.AddBlobs("blobs")
+
+	peSubnet.AddPrivateEndpoint(blobs)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>
@@ -765,7 +902,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
 output storageAccountName string = storageAccount.name
 ```
 
-Reference the file from the AppHost using `AddBicepTemplate` (C#) or `addBicepTemplate` (TypeScript). Use `WithParameter` / `withParameter` to supply input parameters, and `GetOutput` / `getOutput` to consume a named output by passing the resulting reference to another resource:
+Reference the file from the AppHost using <ApiReference name="Aspire.Hosting.AzureBicepResourceExtensions.AddBicepTemplate" />. Use <ApiReference name="Aspire.Hosting.AzureBicepResourceExtensions.WithParameter" /> to supply input parameters, and <ApiReference name="Aspire.Hosting.AzureBicepResourceExtensions.GetOutput" /> to consume a named output by passing the resulting reference to another resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="typescript" label="TypeScript">
@@ -808,6 +945,43 @@ builder.Build().Run();
 ```
 
 </TabItem>
+
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddBicepTemplate("storage", "./custom-storage.bicep")
+	storage.WithParameter("storageAccountName", aspire.ParameterValue("mystorageaccount"))
+
+	storageAccountName := storage.GetOutput("storageAccountName")
+
+	webapp := builder.AddDotnetProject("webapp", "../WebApp/WebApp.csproj")
+	webapp.WithEnvironment("STORAGE_ACCOUNT_NAME", storageAccountName)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="tip">
@@ -821,7 +995,7 @@ builder.Build().Run();
 
 `WithParameter` accepts several kinds of values beyond plain strings, so a custom Bicep template can take values that are computed at deployment time. Common sources include:
 
-- A `ParameterResource` declared with `AddParameter` (including secret parameters).
+- A `ParameterResource` declared with <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddParameter" /> (including secret parameters).
 - A `BicepOutputReference` from another Bicep resource — useful when one template's output feeds another template's input.
 - A `ReferenceExpression` that composes values from multiple resources.
 - A connection-string-bearing resource via `IResourceBuilder<IResourceWithConnectionString>`.
@@ -888,6 +1062,46 @@ builder.AddProject<Projects.Api>("api")
        .WithEnvironment("SQL_SERVER_NAME", sql.GetOutput("sqlServerName"));
 
 builder.Build().Run();
+```
+
+</TabItem>
+
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	secret := true
+	adminPassword := builder.AddParameter("adminPassword", &aspire.AddParameterOptions{Secret: &secret})
+
+	sql := builder.AddBicepTemplate("sql", "./custom-sql.bicep")
+	sql.WithParameter("administratorLoginPassword", aspire.ParameterValue(adminPassword))
+
+	sqlServerName := sql.GetOutput("sqlServerName")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+	api.WithEnvironment("SQL_SERVER_NAME", sqlServerName)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>

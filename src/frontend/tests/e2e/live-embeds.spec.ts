@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { LiveSnapshot } from '@components/live-status';
-import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { dismissCookieConsentIfVisible, revealMobileSiteMenu } from '@tests/e2e/helpers';
 
 const uploadsId = 'UUW_UJkc7RhM_NPcDXnOCfrQ';
 const youtubeSelector = '#aspire-live-tabs iframe[data-stream-provider="youtube"]';
@@ -24,20 +24,19 @@ declare global {
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.removeItem('starlight-synced-tabs__stream-source');
-    class MockEventSource {
+    class MockWebSocket {
       onopen: (() => void) | null = null;
+      onmessage: ((event: MessageEvent<string>) => void) | null = null;
       constructor() {
         setTimeout(() => this.onopen?.(), 0);
-      }
-      addEventListener(type: string, listener: (event: MessageEvent<string>) => void) {
-        if (type === 'state') {
-          window.__emitLiveEmbedState = (snapshot) =>
-            listener(new MessageEvent('state', { data: JSON.stringify(snapshot) }));
-        }
+        window.__emitLiveEmbedState = (snapshot) =>
+          this.onmessage?.(
+            new MessageEvent('message', { data: JSON.stringify({ type: 'state', data: snapshot }) })
+          );
       }
       close() {}
     }
-    Object.defineProperty(window, 'EventSource', { configurable: true, value: MockEventSource });
+    Object.defineProperty(window, 'WebSocket', { configurable: true, value: MockWebSocket });
     window.__youtubeEmbedWrites = 0;
     const src = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src')!;
     Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
@@ -178,6 +177,7 @@ test('Twitch uses the current hostname on its first request and after client nav
   await page.locator('.header .site-title').click();
   await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/);
   await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
+  await revealMobileSiteMenu(page);
   await page.locator('.live-btn:visible').first().click();
   await expect(page).toHaveURL(/\/community\/videos\/$/);
   await expect(page.locator('#aspire-live-tabs')).toHaveAttribute('data-bound', '1');

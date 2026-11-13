@@ -6,6 +6,7 @@ description: Learn how to automatically provision Azure resources during local d
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import azureIcon from '@assets/icons/azure-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={azureIcon}
@@ -20,7 +21,7 @@ This article describes how to enable local Azure provisioning in your Aspire [`A
 
 ## How it works
 
-When you add an Azure resource using methods like `AddAzureStorage()` or `AddAzureServiceBus()`, Aspire:
+When you add an Azure resource using methods like <ApiReference name="Aspire.Hosting.AzureStorageExtensions.AddAzureStorage" /> or <ApiReference name="Aspire.Hosting.AzureServiceBusExtensions.AddAzureServiceBus" />, Aspire:
 
 <Steps>
 
@@ -176,6 +177,32 @@ await builder.addNodeApp("webapp", "./webapp", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage")
+	blobs := storage.AddBlobs("blobs")
+
+	webapp := builder.AddNodeApp("webapp", "./webapp", "index.js")
+	webapp.WithReference(blobs)
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 Once your AppHost is configured, run the application and Aspire automatically provisions the referenced Azure resources:
@@ -256,7 +283,7 @@ When you use local provisioning, Aspire generates Bicep files in the `./infra` d
 
 - Define all Azure resources
 - Include configurations and connections
-- Can be customized using `ConfigureInfrastructure()`
+- Can be customized using <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" />
 - Are used for both local provisioning and production deployment
 
 Example generated structure:
@@ -363,5 +390,6 @@ Enable detailed logging:
 
 - [Azure integrations overview](/integrations/cloud/azure/overview/)
 - [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
+- [Microsoft Entra ID integration](/integrations/security/microsoft-entra-id/)
 - [Deploy to Azure Container Apps](/get-started/deploy-first-app/)
 - [`aspire resource` command reference](/reference/cli/commands/aspire-resource/)

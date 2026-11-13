@@ -8,6 +8,7 @@ import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import eventHubsIcon from '@assets/icons/azure-eventhubs-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={eventHubsIcon}
@@ -18,7 +19,7 @@ import eventHubsIcon from '@assets/icons/azure-eventhubs-icon.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Event Hubs Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure Event Hubs namespace and its hubs in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Event Hubs Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure Event Hubs namespace and its hubs in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Event Hubs integration, start with the [Get started with Azure Event Hubs integrations](/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Event Hubs](../azure-event-hubs-connect/).
 
@@ -76,11 +77,32 @@ This updates your `aspire.config.json` with the Azure Event Hubs hosting integra
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-event-hubs
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Event Hubs hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.EventHubs": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add an Azure Event Hubs resource
 
-Once you've installed the hosting integration, call `AddAzureEventHubs` to declare a namespace, then call `AddHub` to declare one or more hubs inside it:
+Once you've installed the hosting integration, call <ApiReference name="Aspire.Hosting.AzureEventHubsExtensions.AddAzureEventHubs" /> to declare a namespace, then call <ApiReference name="Aspire.Hosting.AzureEventHubsExtensions.AddHub" /> to declare one or more hubs inside it:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -111,12 +133,28 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+eventHubs := builder.AddAzureEventHubs("event-hubs")
+eventHubs.AddHub("messages")
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(eventHubs)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
-The preceding code adds an Azure Event Hubs namespace named `event-hubs` with an Event Hub named `messages`. The `WithReference` (or `withReference`) method injects the connection information into the consuming project.
+The preceding code adds an Azure Event Hubs namespace named `event-hubs` with an Event Hub named `messages`. The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> method injects the connection information into the consuming project.
 
 <Aside type="caution">
-  When you call `AddAzureEventHubs`, it implicitly calls `AddAzureProvisioning` —
+  When you call `AddAzureEventHubs`, it implicitly calls <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" /> —
   which adds support for generating Azure resources dynamically during app startup.
   The app must configure the appropriate subscription and location. For more
   information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -131,7 +169,7 @@ The preceding code adds an Azure Event Hubs namespace named `event-hubs` with an
 
 ## Add an Event Hub consumer group
 
-To add a consumer group to a hub, call `AddConsumerGroup` (or `addConsumerGroup`) on the hub resource builder:
+To add a consumer group to a hub, call <ApiReference name="Aspire.Hosting.AzureEventHubsExtensions.AddConsumerGroup" /> on the hub resource builder:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -160,6 +198,23 @@ await messages.addConsumerGroup("messagesConsumer");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(eventHubs);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+eventHubs := builder.AddAzureEventHubs("event-hubs")
+messages := eventHubs.AddHub("messages")
+messages.AddConsumerGroup("messagesConsumer")
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(eventHubs)
 
 // After adding all resources, run the app...
 ```
@@ -205,6 +260,24 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+eventHubs := builder.AddAzureEventHubs("event-hubs").
+	RunAsEmulator()
+
+eventHubs.AddHub("messages")
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(eventHubs)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 For more information, see [Azure Event Hubs Emulator](https://learn.microsoft.com/azure/event-hubs/overview-emulator).
@@ -219,7 +292,7 @@ By default, the emulator container exposes port `5672` mapped to a random host p
 | ---------- | -------------------------------------------------------------- | -------------- | --------- |
 | `emulator` | `mcr.microsoft.com/azure-messaging/eventhubs-emulator`         | 5672           | dynamic   |
 
-To fix the host port, pass a `configureContainer` callback and call `WithHostPort` (or `withHostPort`):
+To fix the host port, pass a `configureContainer` callback and call <ApiReference name="Aspire.Hosting.AzureEventHubsExtensions.WithHostPort" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -261,6 +334,28 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+eventHubs := builder.AddAzureEventHubs("event-hubs").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(emulator aspire.AzureEventHubsEmulatorResource) {
+			emulator.WithHostPort(aspire.IntPtr(7777))
+		},
+	})
+
+eventHubs.AddHub("messages")
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(eventHubs)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The emulator container's port mapping is then fixed:
@@ -293,6 +388,9 @@ builder.AddProject<Projects.ExampleService>()
 <TabItem id="typescript" label="TypeScript">
 The TypeScript AppHost doesn't currently expose `withDataVolume` on the Event Hubs emulator resource. To persist emulator state across restarts from a TypeScript AppHost, use `withConfigurationFile` to pre-configure hubs or run the C# AppHost instead.
 </TabItem>
+<TabItem id="go" label="Go">
+The Go AppHost doesn't currently expose `WithDataVolume` on the Event Hubs emulator resource. To persist emulator state across restarts from a Go AppHost, use `WithConfigurationFile` to pre-configure hubs or run the C# AppHost instead.
+</TabItem>
 </Tabs>
 
 The data volume persists emulator state outside the container's lifecycle. The volume is mounted at `/data` inside the container. A random name is generated unless you pass a `name` parameter. For more information, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
@@ -319,7 +417,10 @@ builder.AddProject<Projects.ExampleService>()
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-The TypeScript AppHost doesn't currently expose `withDataBindMount` on the Event Hubs emulator resource. Use a data volume via the C# AppHost or pre-configure hubs with `withConfigurationFile` instead.
+The TypeScript AppHost doesn't currently expose `withDataBindMount` on the Event Hubs emulator resource. Use a data volume via the C# AppHost or pre-configure hubs with <ApiReference name="Aspire.Hosting.AzureEventHubsExtensions.WithConfigurationFile" /> instead.
+</TabItem>
+<TabItem id="go" label="Go">
+The Go AppHost doesn't currently expose `WithDataBindMount` on the Event Hubs emulator resource. Use a data volume via the C# AppHost or pre-configure hubs with `WithConfigurationFile` instead.
 </TabItem>
 </Tabs>
 
@@ -369,6 +470,28 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+eventHubs := builder.AddAzureEventHubs("event-hubs").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(emulator aspire.AzureEventHubsEmulatorResource) {
+			emulator.WithConfigurationFile("./messaging/custom-config.json")
+		},
+	})
+
+eventHubs.AddHub("messages")
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(eventHubs)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The file is mounted at `/Eventhubs_Emulator/ConfigFiles/Config.json` in the container as a read-only file.
@@ -403,12 +526,12 @@ builder.AddProject<Projects.ExampleService>()
 ```
 
 <Aside type="note">
-  `WithConfiguration` is not available in the TypeScript AppHost. Use `withConfigurationFile` to supply a fully customized configuration file instead.
+  `withConfiguration` is not available in the TypeScript AppHost. Use `withConfigurationFile` to supply a fully customized configuration file instead.
 </Aside>
 
 ## Connect to an existing Azure Event Hubs namespace
 
-If you already have an Azure Event Hubs namespace, call `AsExisting` (or `asExisting`) instead of provisioning a new one:
+If you already have an Azure Event Hubs namespace, call <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" /> instead of provisioning a new one:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -444,6 +567,24 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingName := builder.AddParameter("existingEventHubsName")
+
+eventHubs := builder.AddAzureEventHubs("event-hubs").
+	AsExisting(existingName)
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(eventHubs)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 For more information, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
@@ -459,7 +600,7 @@ For more information, see [Use existing Azure resources](/integrations/cloud/azu
 
 Azure Event Hubs uses role-based access control (RBAC). The hosting integration assigns roles automatically when you provision a new namespace. The default role assigned to the managed identity is `AzureEventHubsDataOwner`.
 
-To customise role assignments, call `withRoleAssignments`:
+To customize role assignments, call `withRoleAssignments`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -488,6 +629,26 @@ const api = await builder.addNodeApp("api", "./api", "index.js")
     .withReference(eventHubs);
 
 await eventHubs.withRoleAssignments(api, [AzureEventHubsRole.AzureEventHubsDataSender]);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+eventHubs := builder.AddAzureEventHubs("event-hubs")
+eventHubs.AddHub("messages")
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(eventHubs)
+
+api.WithEventHubsRoleAssignments(eventHubs, []aspire.AzureEventHubsRole{
+	aspire.AzureEventHubsRoleAzureEventHubsDataSender,
+})
 
 // After adding all resources, run the app...
 ```
@@ -563,11 +724,11 @@ resource event_hubs_AzureEventHubsDataOwner 'Microsoft.Authorization/roleAssignm
 }
 ```
 
-The generated Bicep is a starting point — customise it through the C# provisioning APIs, not by editing the file directly, as direct edits are overwritten on the next publish.
+The generated Bicep is a starting point — customize it through the C# provisioning APIs, not by editing the file directly, as direct edits are overwritten on the next publish.
 
 ### Customize provisioning infrastructure
 
-All Aspire Azure resources subclass `AzureProvisioningResource`. The `ConfigureInfrastructure` (or `configureInfrastructure`) API lets you customise the generated Bicep with a fluent callback:
+All Aspire Azure resources subclass `AzureProvisioningResource`. The <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> API lets you customize the generated Bicep with a fluent callback:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -602,6 +763,21 @@ const eventHubs = await builder.addAzureEventHubs("event-hubs");
 await eventHubs.configureInfrastructure(async (infra) => {
     // Modify infra resources here using the AzureResourceInfrastructure API
 });
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+eventHubs := builder.AddAzureEventHubs("event-hubs")
+eventHubs.ConfigureInfrastructure(func(infra aspire.AzureResourceInfrastructure) {
+	// Customize the generated Bicep resources here.
+})
 
 // After adding all resources, run the app...
 ```

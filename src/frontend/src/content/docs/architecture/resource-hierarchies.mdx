@@ -5,6 +5,7 @@ description: Model parent-child resource relationships in Aspire to express owne
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire supports modeling **parent-child relationships** between resources to express ownership, containment, and grouping.
 
@@ -28,7 +29,7 @@ When a resource implements the `IResourceWithParent` interface, it declares **tr
 
 ## Visual grouping (without lifecycle impact)
 
-Aspire also supports **visual-only parent-child relationships** using the `WithParentRelationship()` method during resource construction.
+Aspire also supports **visual-only parent-child relationships** using the <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithParentRelationship" /> method during resource construction.
 
 Visual relationships:
 
@@ -73,7 +74,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var db = builder.AddPostgres("pg");
 var api = builder.AddProject("api").WithReference(db);
-var web = builder.AddNpmApp("web").WithReference(api);
+var web = builder.AddJavaScriptApp("web", "../web").WithReference(api);
 
 builder.Build().Run();
 ```
@@ -113,7 +114,7 @@ Endpoints are modeled as **external entities**:
 
 Resources connect to each other through:
 
-- **`WithReference()` calls**: Direct resource-to-resource dependencies.
+- **<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> calls**: Direct resource-to-resource dependencies.
 - **Environment variables and CLI arguments**: Configuration values containing structured references.
 - **Other configuration sources**: Settings populated with structured value references.
 
@@ -307,7 +308,7 @@ Use the `IsAllocated` property on an `EndpointReference` to check whether an end
 
 ### Accessing Allocated Endpoints Safely
 
-Endpoint resolution happens during the startup sequence of the `DistributedApplication`. To safely access endpoint values (e.g., `Url`, `Host`, `Port`), you must wait until endpoints are allocated. Aspire provides eventing APIs, such as `AfterEndpointsAllocatedEvent`, to access endpoints after allocation. These APIs ensure code executes only when endpoints are ready.
+Endpoint resolution happens during the startup sequence of the `DistributedApplication`. To safely access endpoint values (e.g., `Url`, `Host`, `Port`), you must wait until endpoints are allocated. Aspire provides eventing APIs, such as `ResourceEndpointsAllocatedEvent`, to access a resource's endpoints after allocation. These APIs ensure code executes only when endpoints are ready.
 
 ```csharp title="Example — Checking Allocation and Using Eventing"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -331,9 +332,9 @@ catch (Exception ex)
     Console.WriteLine($"Error accessing Url: {ex.Message}");
 }
 
-// Subscribe to AfterEndpointsAllocatedEvent for resolved properties
-builder.Eventing.Subscribe<AfterEndpointsAllocatedEvent>(
-    (@event, cancellationToken) =>
+// Subscribe to ResourceEndpointsAllocatedEvent for resolved properties
+redis.OnResourceEndpointsAllocated(
+    (resource, @event, cancellationToken) =>
     {
         Console.WriteLine($"Endpoint allocated: {endpoint.IsAllocated}");
         Console.WriteLine($"Resolved Url: {endpoint.Url}");
@@ -361,7 +362,7 @@ Error accessing Url: Endpoint has not been allocated.
 ```
 
 <Aside type="tip">
-  The overloads of `WithEnvironment` that take a callback run after endpoints
+  The overloads of <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> that take a callback run after endpoints
   have been allocated.
 </Aside>
 

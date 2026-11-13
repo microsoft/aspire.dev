@@ -94,59 +94,6 @@ const tryLabel = t('header.try' as any);
     <a href={tryAspireUrl} class="try-aspire-btn">{tryAspireLabel}</a>
   </div>
   <div class="sl-flex md:sl-hidden print:hidden right-group-mobile">
-    <button
-      class="header-icon-btn install-cli-btn"
-      data-open-install-modal
-      data-tour-target="install-cli"
-      data-tour-step="install-cli"
-      aria-label="Open install Aspire CLI dialog"
-    >
-      <span class="sr-only">Install Aspire CLI</span>
-      <Icon name="download" />
-    </button>
-    <a
-      href="/community/videos/"
-      class="header-icon-btn live-btn"
-      data-live="false"
-      data-source="none"
-      data-tour-target="live-status"
-      aria-label="Watch Aspire live streams"
-      aria-current={Astro.url.pathname === '/community/videos/' ? 'page' : undefined}
-    >
-      <span class="sr-only">Watch Aspire live streams</span>
-      <LiveSvg />
-      <span class="live-dot" aria-hidden="true"></span>
-    </a>
-    <a href="/hub/" class="header-icon-btn dev-center-btn-mobile" aria-label={devCenterLabel} title={devCenterLabel} aria-current={Astro.url.pathname.startsWith('/hub/') ? 'page' : undefined}>
-      <DevHubSvg aria-hidden="true" />
-    </a>
-    <button
-      type="button"
-      class="header-icon-btn cookie-consent-btn"
-      data-cookie-manage-consent
-      data-tour-target="cookie-preferences"
-      data-tour-step="cookie-preferences"
-      aria-label="Open cookie preferences dialog"
-    >
-      <span class="sr-only">Cookie Preferences</span>
-      <CookiesSvg />
-    </button>
-    {
-      isSiteTourEnabled && (
-        <button
-          type="button"
-          class="header-icon-btn tour-help-btn"
-          data-tour-trigger
-          data-tour-target="tour-help"
-          data-tour-step="tour-help"
-          aria-label="Start site tour"
-        >
-          <span class="sr-only">Start site tour</span>
-          <SiteNavHelpSvg />
-        </button>
-      )
-    }
-    <a href={docsUrl} class="docs-btn-mobile">{docsLabel}</a>
     <a href={tryAspireUrl} class="try-aspire-btn-mobile" aria-label={tryAspireLabel}>{tryLabel}</a>
   </div>
 </div>
@@ -155,6 +102,46 @@ const tryLabel = t('header.try' as any);
 
 <script>
   import '@components/live-status.ts';
+
+  let cleanupHeader: (() => void) | undefined;
+  function initializeHeaderHeight() {
+    cleanupHeader?.();
+    const header = document.querySelector<HTMLElement>('header.header');
+    if (!header) return;
+    const mobile = window.matchMedia('(max-width: 49.999rem)');
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const root = document.documentElement;
+      const compact = window.innerWidth < 50 * Number.parseFloat(getComputedStyle(root).fontSize);
+      if (root.hasAttribute('data-mobile-layout') !== compact) root.toggleAttribute('data-mobile-layout', compact);
+      if (compact) {
+        const height = `${header.getBoundingClientRect().height}px`;
+        if (root.style.getPropertyValue('--sl-nav-height') !== height) root.style.setProperty('--sl-nav-height', height);
+      } else {
+        root.style.removeProperty('--sl-nav-height');
+      }
+    };
+    const requestUpdate = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    const observer = new ResizeObserver(requestUpdate);
+    observer.observe(header);
+    mobile.addEventListener('change', requestUpdate);
+    window.addEventListener('resize', requestUpdate);
+    update();
+    cleanupHeader = () => {
+      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+      mobile.removeEventListener('change', requestUpdate);
+      window.removeEventListener('resize', requestUpdate);
+      document.documentElement.style.removeProperty('--sl-nav-height');
+      document.documentElement.removeAttribute('data-mobile-layout');
+    };
+  }
+  initializeHeaderHeight();
+  document.addEventListener('astro:page-load', initializeHeaderHeight);
+  document.addEventListener('astro:before-swap', () => cleanupHeader?.());
 </script>
 
 <style>
@@ -228,6 +215,8 @@ const tryLabel = t('header.try' as any);
 
     .header-icon-btn {
       display: flex;
+      width: 2.5rem;
+      height: 2.5rem;
       align-items: center;
       justify-content: center;
       background: none;
@@ -246,7 +235,10 @@ const tryLabel = t('header.try' as any);
     }
 
     .header-icon-btn :global(svg) {
-      --sl-icon-size: 1.25rem !important;
+      --sl-icon-size: var(--aspire-icon-size) !important;
+      width: var(--aspire-icon-size);
+      height: var(--aspire-icon-size);
+      flex-shrink: 0;
     }
 
     .tour-help-btn {
@@ -275,7 +267,7 @@ const tryLabel = t('header.try' as any);
       min-width: 0.95rem;
       height: 0.95rem;
       padding: 0 0.18rem;
-      font-size: 0.58rem;
+      font-size: var(--aspire-text-meta);
       font-weight: 700;
       color: var(--aspire-color-black, #1f1e33);
       width: auto;
@@ -289,10 +281,6 @@ const tryLabel = t('header.try' as any);
 
     .tour-help-btn[data-tour-state='new'][data-tour-badge-mode='dot']::after {
       content: '';
-    }
-
-    .install-cli-btn :global(svg) {
-      --sl-icon-size: 1.5rem !important;
     }
 
     .live-btn {
@@ -397,7 +385,6 @@ const tryLabel = t('header.try' as any);
       justify-content: flex-start;
     }
 
-    .docs-btn-mobile,
     .try-aspire-btn-mobile {
       display: inline-flex;
       align-items: center;
@@ -405,28 +392,10 @@ const tryLabel = t('header.try' as any);
       padding: 0.375rem 0.75rem;
       border: 1px solid var(--sl-color-gray-5);
       font-weight: 600;
-      font-size: var(--sl-text-xs);
+      font-size: var(--aspire-text-small);
       border-radius: 0.375rem;
       white-space: nowrap;
       text-decoration: none;
-    }
-
-    .docs-btn-mobile {
-      background: transparent;
-      color: var(--sl-color-text);
-    }
-
-    .docs-btn-mobile:hover,
-    .docs-btn-mobile:focus-visible {
-      background: var(--sl-color-gray-6);
-    }
-
-    .right-group-mobile .header-icon-btn {
-      min-width: 2.125rem;
-      min-height: 2.125rem;
-      padding: 0.375rem;
-      border: 1px solid var(--sl-color-gray-5);
-      border-radius: 0.375rem;
     }
 
     .try-aspire-btn-mobile {
@@ -439,14 +408,6 @@ const tryLabel = t('header.try' as any);
     .live-btn {
       width: 2.5rem;
       height: 2.5rem;
-    }
-
-    .header .dev-center-btn-mobile {
-      width: 2rem;
-      height: 2rem;
-      min-width: 2rem;
-      min-height: 2rem;
-      padding: 0;
     }
 
     .header :is(.dev-center-btn, .dev-center-btn-mobile, .live-btn)[aria-current='page'] {
@@ -475,36 +436,27 @@ const tryLabel = t('header.try' as any);
 
     @media (max-width: 49.999rem) {
       .header {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto;
+        display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 0.5rem;
-        height: 2rem;
-        transform: translateY(-0.0625rem);
+        height: auto;
       }
 
       :global(:root[data-has-sidebar]) .header {
         padding-inline-end: 0;
       }
 
-      :global(:root[data-has-sidebar] header.header) {
-        padding-inline-end: calc(var(--sl-menu-button-size, 2rem) + var(--sl-nav-pad-x) + 0.5rem);
+      :global(header.header) {
+        padding-inline-end: calc(var(--sl-menu-button-size) + var(--sl-nav-pad-x) + 0.5rem);
       }
 
       .title-wrapper {
-        flex: 1 1 auto;
+        flex: 1 1 8rem;
       }
 
-      .has-environment-badge {
-        gap: 0.25rem;
-      }
-
-      .has-environment-badge :global(.site-title) {
-        font-size: 1rem;
-      }
-
-      .has-environment-badge :global(.site-title img) {
-        height: 1.5rem;
+      .title-wrapper :global(.sl-badge) {
+        display: none;
       }
 
       .header > [data-tour-target='search'] {
@@ -519,35 +471,25 @@ const tryLabel = t('header.try' as any);
         min-width: 0;
       }
 
-      .right-group-mobile .live-btn {
-        width: 2rem;
-        min-width: 2rem;
-        height: 2rem;
-        min-height: 2rem;
-        padding: 0.3125rem;
-      }
-
       .header :global(button[data-open-modal]) {
         justify-content: center;
-        width: 2rem;
-        min-width: 2rem;
-        height: 2rem;
+        width: var(--aspire-touch-target);
+        min-width: var(--aspire-touch-target);
+        height: var(--aspire-touch-target);
         padding: 0;
         gap: 0;
         border: 1px solid var(--sl-color-gray-5);
-        border-radius: 0.375rem;
+        border-radius: 0.5rem;
         background: transparent;
       }
 
-      .right-group-mobile :is(.tour-help-btn, .cookie-consent-btn, .install-cli-btn),
-      :global(:root[data-has-sidebar]) .right-group-mobile .docs-btn-mobile {
-        display: none;
-      }
-
-      .docs-btn-mobile,
       .try-aspire-btn-mobile {
-        height: 2rem;
-        min-height: 2rem;
+        min-width: var(--aspire-touch-target);
+        min-height: var(--aspire-touch-target);
+        padding: 0.25rem 0.5rem;
+        font-size: var(--aspire-text-control);
+        line-height: 1.4;
+        white-space: normal;
       }
 
       .header :global(button[data-open-modal]):hover,
@@ -555,63 +497,22 @@ const tryLabel = t('header.try' as any);
         background: var(--sl-color-gray-6);
       }
 
-      :global(:root[data-has-sidebar] starlight-menu-button button) {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 2rem;
-        height: 2rem;
-        padding: 0.3125rem;
-        border: 1px solid var(--sl-color-gray-5);
-        border-radius: 0.375rem;
-        background: transparent;
-        color: var(--sl-color-text);
-        line-height: 1;
-      }
-
-      :global(:root[data-has-sidebar] starlight-menu-button button svg) {
-        --sl-icon-size: 1.25rem !important;
-
-        flex: none;
-      }
-
-      :global(:root[data-has-sidebar] starlight-menu-button button:hover),
-      :global(:root[data-has-sidebar] starlight-menu-button button:focus-visible),
-      :global(:root[data-has-sidebar] starlight-menu-button button[aria-expanded='true']) {
-        background: var(--sl-color-gray-6);
-      }
-
-      :global(:root[data-has-sidebar]) .try-aspire-btn-mobile {
-        padding-block: 0.25rem;
-      }
-
       .title-wrapper :global(.site-title) {
         min-width: 0;
         max-width: 100%;
         gap: 0.45rem;
+        min-height: var(--aspire-touch-target);
+        font-size: 1.25rem;
+      }
+
+      .title-wrapper :global(.site-title img) {
+        height: 1.75rem;
       }
 
       .title-wrapper :global(.site-title span) {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-      }
-    }
-
-    @media (max-width: 30rem) {
-      .docs-btn-mobile,
-      .try-aspire-btn-mobile {
-        padding: 0.3125rem 0.5rem;
-      }
-
-      .right-group-mobile {
-        gap: 0.5rem;
-      }
-
-      .right-group-mobile .header-icon-btn {
-        min-width: 2rem;
-        min-height: 2rem;
-        padding: 0.3125rem;
       }
     }
 
@@ -652,5 +553,32 @@ const tryLabel = t('header.try' as any);
         align-content: center;
       }
     }
+  }
+</style>
+
+<style>
+  :global(:root[data-mobile-layout]) .header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    height: auto;
+  }
+  :global(:root[data-mobile-layout]) .title-wrapper { flex: 1 1 8rem; }
+  :global(:root[data-mobile-layout]) .right-group { display: none; }
+  :global(:root[data-mobile-layout]) .right-group-mobile { display: flex; }
+  :global(:root[data-mobile-layout]) .title-wrapper :global(.sl-badge) { display: none; }
+  :global(:root[data-mobile-layout]) .title-wrapper :global(.site-title) {
+    min-width: 0; max-width: 100%; min-height: var(--aspire-touch-target); font-size: 1.25rem;
+  }
+  :global(:root[data-mobile-layout]) .title-wrapper :global(.site-title img) { height: 1.75rem; }
+  :global(:root[data-mobile-layout]) .try-aspire-btn-mobile {
+    min-width: var(--aspire-touch-target); min-height: var(--aspire-touch-target);
+    padding: 0.25rem 0.5rem; white-space: normal;
+    font-size: var(--aspire-text-control); line-height: 1.4;
+  }
+  :global(:root[data-mobile-layout]) .header :global(button[data-open-modal]) {
+    width: var(--aspire-touch-target); min-width: var(--aspire-touch-target);
+    height: var(--aspire-touch-target); min-height: var(--aspire-touch-target);
+    padding: 0; justify-content: center;
   }
 </style>

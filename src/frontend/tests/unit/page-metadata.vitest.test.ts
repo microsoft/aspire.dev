@@ -538,6 +538,49 @@ describe('getOgMetadata', () => {
     expect(meta.imageType).toBe('image/png');
   });
 
+  it('uses the configured site for images rather than the current preview URL', () => {
+    const meta = getOgMetadata(
+      createRoute(),
+      new URL('https://release-preview.azurewebsites.net/dashboard/enable-browser-telemetry/'),
+      site
+    );
+    expect(meta.url).toBe('https://aspire.dev/dashboard/enable-browser-telemetry/');
+    expect(meta.image).toBe('https://aspire.dev/og/dashboard/enable-browser-telemetry.png');
+  });
+
+  it('uses the configured site for relative custom artwork and static fallbacks', () => {
+    const origin = 'https://release-preview.azurewebsites.net';
+    const custom = getOgMetadata(
+      createRoute({ ogImage: '/og/aspire-brand-assets.png' }),
+      new URL(`${origin}/community/brand/`),
+      origin
+    );
+    expect(custom.image).toBe(`${origin}/og/aspire-brand-assets.png`);
+    const fallback = getOgMetadata(
+      createRoute({ og: false }),
+      new URL(`${origin}/guide/`),
+      origin
+    );
+    expect(fallback.image).toBe(`${origin}/og-image.png`);
+  });
+
+  it('preserves absolute frontmatter image overrides regardless of the configured site', () => {
+    const meta = getOgMetadata(
+      createRoute({ ogImage: 'https://images.example.net/custom.png' }),
+      new URL('https://release-preview.azurewebsites.net/guide/'),
+      site
+    );
+    expect(meta.image).toBe('https://images.example.net/custom.png');
+  });
+
+  it('uses the current origin for local previews when no site is configured', () => {
+    const meta = getOgMetadata(
+      createRoute(),
+      new URL('http://127.0.0.1:4321/guide/')
+    );
+    expect(meta.image).toBe('http://127.0.0.1:4321/og/dashboard/enable-browser-telemetry.png');
+  });
+
   it('infers the image MIME type from a non-PNG ogImage override', () => {
     const route = createRoute({ ogImage: '/custom-image.jpg' });
     const meta = getOgMetadata(

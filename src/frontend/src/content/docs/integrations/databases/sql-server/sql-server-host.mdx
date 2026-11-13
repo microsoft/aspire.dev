@@ -9,6 +9,7 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import sqlIcon from '@assets/icons/sql-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={sqlIcon}
@@ -19,7 +20,7 @@ import sqlIcon from '@assets/icons/sql-icon.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire SQL Server Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a SQL Server instance and database resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire SQL Server Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model a SQL Server instance and database resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the SQL Server integration, start with the [Get started with SQL Server integrations](/integrations/databases/sql-server/sql-server-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to SQL Server](../sql-server-connect/). For the SQL Server Entity Framework Core (EF Core) client integration, see [Get started with the SQL Server EF Core integrations](/integrations/databases/efcore/sql-server/sql-server-get-started/).
 
@@ -50,6 +51,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add sql-server
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the SQL Server hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.SqlServer": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add sql-server
@@ -113,6 +135,32 @@ await builder.addNodeApp("api", "./api", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sql := builder.AddSqlServer("sql").
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+db := sql.AddDatabase("database")
+
+builder.AddGoApp("api", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 <Steps>
@@ -146,7 +194,7 @@ IF (NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = @DatabaseName))
     CREATE DATABASE [<QUOTED_DATABASE_NAME>];
 ```
 
-To supply a custom creation script, call `WithCreationScript` (or `withCreationScript`) on the database resource builder:
+To supply a custom creation script, call <ApiReference name="Aspire.Hosting.SqlServerBuilderExtensions.WithCreationScript" /> on the database resource builder:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -224,6 +272,50 @@ await builder.addNodeApp("api", "./api", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sql := builder.AddSqlServer("sql").
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+databaseName := "app-db"
+creationScript := `
+IF DB_ID('` + databaseName + `') IS NULL
+    CREATE DATABASE [` + databaseName + `];
+
+USE [` + databaseName + `];
+
+CREATE TABLE todos (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    is_completed BIT DEFAULT 0,
+    due_date DATE,
+    created_at DATETIME DEFAULT GETDATE()
+);
+`
+
+db := sql.AddDatabase(databaseName).
+	WithCreationScript(creationScript)
+
+builder.AddGoApp("api", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 The preceding example creates a database named `app-db` with a single `todos` table. The script is executed when the database resource is created in the context of the SQL Server resource.
@@ -267,6 +359,32 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sql := builder.AddSqlServer("sql").
+	WithDataVolume()
+
+db := sql.AddDatabase("database")
+
+builder.AddGoApp("api", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -318,6 +436,32 @@ await builder.addNodeApp("api", "./api", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sql := builder.AddSqlServer("sql").
+	WithDataBindMount(`C:\SqlServer\Data`)
+
+db := sql.AddDatabase("database")
+
+builder.AddGoApp("api", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 <Aside type="note">
@@ -367,13 +511,39 @@ await builder.addNodeApp("api", "./api", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+sql := builder.AddSqlServer("sql", &aspire.AddSqlServerOptions{Password: &password})
+db := sql.AddDatabase("database")
+
+builder.AddGoApp("api", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method. For more information on providing parameters, see [External parameters](/get-started/resources/).
 
 ## Use a specific SQL Server container image tag
 
-To pin the SQL Server container to a specific release, call `WithImageTag` (or `withImageTag`):
+To pin the SQL Server container to a specific release, call <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithImageTag" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -410,6 +580,32 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sql := builder.AddSqlServer("sql").
+	WithImageTag("2025-RTM-ubuntu-24.04-preview")
+
+db := sql.AddDatabase("database")
+
+builder.AddGoApp("api", "./api").
+	WithReference(db).
+	WaitFor(db)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -460,11 +656,38 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sql := builder.AddSqlServer("sql")
+database := sql.AddDatabase("database")
+endpoint := sql.GetEndpoint("tcp")
+
+builder.AddGoApp("my-app", "./app").
+	WithReference(database).
+	WithEnvironment("SQL_HOST", endpoint.Property(aspire.EndpointPropertyHost)).
+	WithEnvironment("SQL_PORT", endpoint.Property(aspire.EndpointPropertyPort)).
+	WithEnvironment("SQL_PASSWORD", sql.PasswordParameter()).
+	WithEnvironment("SQL_DATABASE", "database")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 ## Connect to an existing SQL Server instance
 
-To reference an externally managed SQL Server instance instead of running one as a container, use `AddConnectionString`:
+To reference an externally managed SQL Server instance instead of running one as a container, use <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -493,6 +716,28 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sql := builder.AddConnectionString("sql")
+
+builder.AddGoApp("api", "./api").
+	WithReference(sql)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -560,7 +805,7 @@ When the AppHost runs, the server's database resources can be accessed from exte
 
 ## Open an interactive REPL
 
-In Aspire 13.6 or later, add `WithRepl()` to the SQL Server resource to enable a **REPL** command that opens `sqlcmd` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+In Aspire 13.6 or later, add <ApiReference name="Aspire.Hosting.SqlServerBuilderExtensions.WithRepl" /> to the SQL Server resource to enable a **REPL** command that opens `sqlcmd` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -572,6 +817,26 @@ const builder = await createBuilder();
 await builder.addSqlServer('sql').withRepl();
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddSqlServer("sql").WithRepl()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

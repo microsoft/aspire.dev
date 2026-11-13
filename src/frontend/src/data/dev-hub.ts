@@ -34,6 +34,7 @@ export const languages = [
 export const referenceLinks = [
   { title: 'CLI commands', description: 'Create, run, deploy, and troubleshoot from your terminal.', href: '/reference/cli/overview/', icon: 'seti:powershell' },
   { title: 'TypeScript API', description: 'Explore the AppHost modules, functions, and resource types.', href: '/reference/api/typescript/', icon: 'seti:typescript' },
+  { title: 'Go API', description: 'Explore the Go AppHost modules, functions, and resource types.', href: '/reference/api/go/', icon: 'seti:go' },
   { title: 'C# API', description: 'Find packages, types, methods, and extension APIs.', href: '/reference/api/csharp/', icon: 'seti:c-sharp' },
   { title: 'Container images', description: 'Find the images and tags used by Aspire integrations.', href: '/reference/container-images/', icon: 'seti:docker' },
   { title: 'Diagnostics', description: 'Look up a diagnostic code and how to resolve it.', href: '/diagnostics/overview/', icon: 'seti:config' },

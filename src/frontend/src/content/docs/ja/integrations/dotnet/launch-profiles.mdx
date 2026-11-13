@@ -6,6 +6,7 @@ description: C# AppHost とサービス プロジェクト向けに、Aspire が
 import { Image } from 'astro:assets';
 import { Aside, Steps } from '@astrojs/starlight/components';
 import dotnetIcon from '@assets/icons/dotnet.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={dotnetIcon}
@@ -106,13 +107,13 @@ Aspire テンプレートでは、通常の ASP.NET Core アプリケーショ�
 
 C# AppHost は、複数のサービス プロジェクトの起動を調整する責任を担います。コマンド ライン、Visual Studio、または別の開発環境から AppHost を実行すると、AppHost 用の起動プロファイルが選択されます。続いて AppHost は、起動するサービス プロジェクト内で一致する起動プロファイルを見つけようとし、そのオプションを使ってサービス プロジェクトの環境と既定のネットワーク構成を制御します。
 
-AppHost がサービス プロジェクトを起動する場合、`--launch-profile` オプションを直接使うわけではありません。代わりに、Aspire は有効な起動プロファイルを解決し、`dotnet run` および `dotnet watch` との整合性のために `DOTNET_LAUNCH_PROFILE` を設定し、（起動プロファイルの `applicationUrl` フィールドから導出される）`ASPNETCORE_URLS` 環境変数を別のポートになるよう調整します。既定では、Aspire は `WithReplicas` を通じた複数インスタンスのサポートのため、ASP.NET Core アプリケーションの前段にリバース プロキシを挿入します。
+AppHost がサービス プロジェクトを起動する場合、`--launch-profile` オプションを直接使うわけではありません。代わりに、Aspire は有効な起動プロファイルを解決し、`dotnet run` および `dotnet watch` との整合性のために `DOTNET_LAUNCH_PROFILE` を設定し、（起動プロファイルの `applicationUrl` フィールドから導出される）`ASPNETCORE_URLS` 環境変数を別のポートになるよう調整します。既定では、Aspire は <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.WithReplicas" /> を通じた複数インスタンスのサポートのため、ASP.NET Core アプリケーションの前段にリバース プロキシを挿入します。
 
 `environmentVariables` などのその他の設定は、変更せずにアプリケーションへ渡されます。
 
 ## 起動プロファイル選択の制御
 
-理想的には、AppHost とそのサービス プロジェクトの間で起動プロファイル名をそろえることで、AppHost 側でプロファイルを切り替えると連携する全プロジェクトでも一括で切り替えられます。ただし、`AddProject` に `launchProfileName` を渡すことで、特定プロジェクトで使うプロファイルを指定することもできます:
+理想的には、AppHost とそのサービス プロジェクトの間で起動プロファイル名をそろえることで、AppHost 側でプロファイルを切り替えると連携する全プロジェクトでも一括で切り替えられます。ただし、<ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> に `launchProfileName` を渡すことで、特定プロジェクトで使うプロファイルを指定することもできます:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -139,7 +140,7 @@ builder.Build().Run();
 
 ## ASP.NET Core プロジェクト向けの起動プロファイルとエンドポイント
 
-ASP.NET Core プロジェクトを AppHost に追加する際、Aspire は _launchSettings.json_ ファイルを解析し、適切な起動プロファイルを選択して、`applicationUrl` フィールド内の URL に基づきアプリケーション モデル内へエンドポイントを自動生成します。自動挿入されたエンドポイントを変更するには `WithEndpoint` を使用します:
+ASP.NET Core プロジェクトを AppHost に追加する際、Aspire は _launchSettings.json_ ファイルを解析し、適切な起動プロファイルを選択して、`applicationUrl` フィールド内の URL に基づきアプリケーション モデル内へエンドポイントを自動生成します。自動挿入されたエンドポイントを変更するには <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEndpoint" /> を使用します:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);

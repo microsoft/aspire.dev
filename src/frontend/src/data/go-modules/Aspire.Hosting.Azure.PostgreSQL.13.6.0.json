@@ -1,0 +1,406 @@
+{
+  "package": {
+    "name": "Aspire.Hosting.Azure.PostgreSQL",
+    "version": "13.6.0",
+    "language": "go",
+    "importPath": "apphost/modules/aspire",
+    "sourceRepository": "https://github.com/microsoft/aspire",
+    "sourceCommit": "f4c27f2d43ddc1cacd0dd083b30d1fea1cee7a62"
+  },
+  "functions": [
+    {
+      "name": "AddAzurePostgresFlexibleServer",
+      "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/addAzurePostgresFlexibleServer",
+      "qualifiedName": "addAzurePostgresFlexibleServer",
+      "description": "Adds an Azure PostgreSQL Flexible Server resource to the application model.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "AddAzurePostgresFlexibleServer(name string) AzurePostgresFlexibleServerResource",
+      "receiver": "DistributedApplicationBuilder",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        }
+      ],
+      "returnType": "AzurePostgresFlexibleServerResource",
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ],
+      "appliesTo": [
+        "DistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "AddDatabase",
+      "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/addDatabase",
+      "qualifiedName": "addDatabase",
+      "description": "Adds an Azure PostgreSQL database to the application model.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "AddDatabase(name string, options ...*AddDatabaseOptions) AzurePostgresFlexibleServerDatabaseResource",
+      "receiver": "AzurePostgresFlexibleServerResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
+        }
+      ],
+      "options": {
+        "typeName": "AddDatabaseOptions",
+        "fields": [
+          {
+            "name": "DatabaseName",
+            "jsonName": "databaseName",
+            "type": "*string",
+            "description": "The name of the database. If not provided, this defaults to the same value as `name`."
+          }
+        ]
+      },
+      "returnType": "AzurePostgresFlexibleServerDatabaseResource",
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.PostgreSQL/Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource"
+      ],
+      "appliesTo": [
+        "AzurePostgresFlexibleServerResource"
+      ]
+    },
+    {
+      "name": "RunAsContainer",
+      "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/runAsContainer",
+      "qualifiedName": "runAsContainer",
+      "description": "Configures an Azure PostgreSQL Flexible Server resource to run locally in a container.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "RunAsContainer(options ...*RunAsContainerOptions) AzurePostgresFlexibleServerResource",
+      "receiver": "AzurePostgresFlexibleServerResource",
+      "parameters": [],
+      "options": {
+        "typeName": "RunAsContainerOptions",
+        "fields": [
+          {
+            "name": "ConfigureContainer",
+            "type": "func(obj PostgresServerResource)",
+            "isCallback": true,
+            "callbackSignature": "func(obj PostgresServerResource)",
+            "description": "Callback that exposes underlying container to allow for customization."
+          }
+        ]
+      },
+      "returnType": "AzurePostgresFlexibleServerResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.PostgreSQL/Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource"
+      ],
+      "appliesTo": [
+        "AzurePostgresFlexibleServerResource"
+      ]
+    },
+    {
+      "name": "WithPasswordAuthentication",
+      "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/withPasswordAuthentication",
+      "qualifiedName": "withPasswordAuthentication",
+      "description": "Configures password authentication for Azure PostgreSQL Flexible Server",
+      "kind": "Method",
+      "signature": "WithPasswordAuthentication(options ...*WithPasswordAuthenticationOptions) AzurePostgresFlexibleServerResource",
+      "receiver": "AzurePostgresFlexibleServerResource",
+      "parameters": [],
+      "options": {
+        "typeName": "WithPasswordAuthenticationOptions",
+        "fields": [
+          {
+            "name": "KeyVaultBuilder",
+            "jsonName": "keyVaultBuilder",
+            "type": "*AzureKeyVaultResource"
+          },
+          {
+            "name": "UserName",
+            "jsonName": "userName",
+            "type": "*ParameterResource"
+          },
+          {
+            "name": "Password",
+            "jsonName": "password",
+            "type": "*ParameterResource"
+          }
+        ]
+      },
+      "returnType": "AzurePostgresFlexibleServerResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.PostgreSQL/Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource"
+      ],
+      "appliesTo": [
+        "AzurePostgresFlexibleServerResource"
+      ]
+    },
+    {
+      "name": "WithPostgresMcp",
+      "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/withPostgresMcp",
+      "qualifiedName": "withPostgresMcp",
+      "description": "Adds a Postgres MCP server container and configures it to connect to the database represented by `builder`.",
+      "remarks": "The Postgres MCP server is configured to use SSE transport and will expose an HTTP endpoint.\nThis extension method only applies when the Azure PostgreSQL resource is running as a container (i.e., `IsContainer` is `true`).\nIf the resource is not running as a container, this method has no effect.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "WithPostgresMcp(options ...*WithPostgresMcpOptions) AzurePostgresFlexibleServerDatabaseResource",
+      "receiver": "AzurePostgresFlexibleServerDatabaseResource",
+      "parameters": [],
+      "options": {
+        "typeName": "WithPostgresMcpOptions",
+        "fields": [
+          {
+            "name": "ConfigureContainer",
+            "type": "func(obj PostgresMcpContainerResource)",
+            "isCallback": true,
+            "callbackSignature": "func(obj PostgresMcpContainerResource)",
+            "description": "Configuration callback for the Postgres MCP container resource."
+          },
+          {
+            "name": "ContainerName",
+            "jsonName": "containerName",
+            "type": "*string",
+            "description": "The name of the container (optional)."
+          }
+        ]
+      },
+      "returnType": "AzurePostgresFlexibleServerDatabaseResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.PostgreSQL/Aspire.Hosting.Azure.AzurePostgresFlexibleServerDatabaseResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.AzurePostgresFlexibleServerDatabaseResource"
+      ],
+      "appliesTo": [
+        "AzurePostgresFlexibleServerDatabaseResource"
+      ]
+    }
+  ],
+  "handleTypes": [
+    {
+      "name": "PostgresServerResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.PostgresServerResource",
+      "kind": "handle",
+      "implementedInterfaces": [],
+      "capabilities": [],
+      "synthesizedMembers": []
+    },
+    {
+      "name": "AzurePostgresFlexibleServerDatabaseResource",
+      "fullName": "Aspire.Hosting.Azure.AzurePostgresFlexibleServerDatabaseResource",
+      "kind": "handle",
+      "implementedInterfaces": [
+        "ExpressionValue",
+        "Resource",
+        "ResourceWithConnectionString",
+        "ResourceWithParent"
+      ],
+      "capabilities": [
+        {
+          "name": "WithPostgresMcp",
+          "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/withPostgresMcp",
+          "qualifiedName": "withPostgresMcp",
+          "description": "Adds a Postgres MCP server container and configures it to connect to the database represented by `builder`.",
+          "remarks": "The Postgres MCP server is configured to use SSE transport and will expose an HTTP endpoint.\nThis extension method only applies when the Azure PostgreSQL resource is running as a container (i.e., `IsContainer` is `true`).\nIf the resource is not running as a container, this method has no effect.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "WithPostgresMcp(options ...*WithPostgresMcpOptions) AzurePostgresFlexibleServerDatabaseResource",
+          "receiver": "AzurePostgresFlexibleServerDatabaseResource",
+          "parameters": [],
+          "options": {
+            "typeName": "WithPostgresMcpOptions",
+            "fields": [
+              {
+                "name": "ConfigureContainer",
+                "type": "func(obj PostgresMcpContainerResource)",
+                "isCallback": true,
+                "callbackSignature": "func(obj PostgresMcpContainerResource)",
+                "description": "Configuration callback for the Postgres MCP container resource."
+              },
+              {
+                "name": "ContainerName",
+                "jsonName": "containerName",
+                "type": "*string",
+                "description": "The name of the container (optional)."
+              }
+            ]
+          },
+          "returnType": "AzurePostgresFlexibleServerDatabaseResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.PostgreSQL/Aspire.Hosting.Azure.AzurePostgresFlexibleServerDatabaseResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.AzurePostgresFlexibleServerDatabaseResource"
+          ],
+          "appliesTo": [
+            "AzurePostgresFlexibleServerDatabaseResource"
+          ]
+        }
+      ],
+      "synthesizedMembers": []
+    },
+    {
+      "name": "AzurePostgresFlexibleServerResource",
+      "fullName": "Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource",
+      "kind": "handle",
+      "implementedInterfaces": [
+        "ExpressionValue",
+        "Resource",
+        "ResourceWithConnectionString",
+        "ResourceWithEndpoints"
+      ],
+      "capabilities": [
+        {
+          "name": "AddDatabase",
+          "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/addDatabase",
+          "qualifiedName": "addDatabase",
+          "description": "Adds an Azure PostgreSQL database to the application model.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "AddDatabase(name string, options ...*AddDatabaseOptions) AzurePostgresFlexibleServerDatabaseResource",
+          "receiver": "AzurePostgresFlexibleServerResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
+            }
+          ],
+          "options": {
+            "typeName": "AddDatabaseOptions",
+            "fields": [
+              {
+                "name": "DatabaseName",
+                "jsonName": "databaseName",
+                "type": "*string",
+                "description": "The name of the database. If not provided, this defaults to the same value as `name`."
+              }
+            ]
+          },
+          "returnType": "AzurePostgresFlexibleServerDatabaseResource",
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.PostgreSQL/Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource"
+          ],
+          "appliesTo": [
+            "AzurePostgresFlexibleServerResource"
+          ]
+        },
+        {
+          "name": "RunAsContainer",
+          "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/runAsContainer",
+          "qualifiedName": "runAsContainer",
+          "description": "Configures an Azure PostgreSQL Flexible Server resource to run locally in a container.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "RunAsContainer(options ...*RunAsContainerOptions) AzurePostgresFlexibleServerResource",
+          "receiver": "AzurePostgresFlexibleServerResource",
+          "parameters": [],
+          "options": {
+            "typeName": "RunAsContainerOptions",
+            "fields": [
+              {
+                "name": "ConfigureContainer",
+                "type": "func(obj PostgresServerResource)",
+                "isCallback": true,
+                "callbackSignature": "func(obj PostgresServerResource)",
+                "description": "Callback that exposes underlying container to allow for customization."
+              }
+            ]
+          },
+          "returnType": "AzurePostgresFlexibleServerResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.PostgreSQL/Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource"
+          ],
+          "appliesTo": [
+            "AzurePostgresFlexibleServerResource"
+          ]
+        },
+        {
+          "name": "WithPasswordAuthentication",
+          "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/withPasswordAuthentication",
+          "qualifiedName": "withPasswordAuthentication",
+          "description": "Configures password authentication for Azure PostgreSQL Flexible Server",
+          "kind": "Method",
+          "signature": "WithPasswordAuthentication(options ...*WithPasswordAuthenticationOptions) AzurePostgresFlexibleServerResource",
+          "receiver": "AzurePostgresFlexibleServerResource",
+          "parameters": [],
+          "options": {
+            "typeName": "WithPasswordAuthenticationOptions",
+            "fields": [
+              {
+                "name": "KeyVaultBuilder",
+                "jsonName": "keyVaultBuilder",
+                "type": "*AzureKeyVaultResource"
+              },
+              {
+                "name": "UserName",
+                "jsonName": "userName",
+                "type": "*ParameterResource"
+              },
+              {
+                "name": "Password",
+                "jsonName": "password",
+                "type": "*ParameterResource"
+              }
+            ]
+          },
+          "returnType": "AzurePostgresFlexibleServerResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.PostgreSQL/Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource"
+          ],
+          "appliesTo": [
+            "AzurePostgresFlexibleServerResource"
+          ]
+        }
+      ],
+      "synthesizedMembers": []
+    },
+    {
+      "name": "AzureKeyVaultResource",
+      "fullName": "Aspire.Hosting.Azure.IAzureKeyVaultResource",
+      "kind": "handle",
+      "isInterface": true,
+      "isMarker": true,
+      "implementedInterfaces": [],
+      "capabilities": [],
+      "synthesizedMembers": []
+    },
+    {
+      "name": "PostgresMcpContainerResource",
+      "fullName": "Aspire.Hosting.Postgres.PostgresMcpContainerResource",
+      "kind": "handle",
+      "implementedInterfaces": [],
+      "capabilities": [],
+      "synthesizedMembers": []
+    }
+  ],
+  "dtoTypes": [],
+  "enumTypes": [],
+  "exportedValues": []
+}

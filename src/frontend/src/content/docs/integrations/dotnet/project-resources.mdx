@@ -11,6 +11,7 @@ import dotnetIcon from '@assets/icons/dotnet.svg';
 import proxyWithReplicas from '@assets/fundamentals/networking/proxy-with-replicas-1x.png';
 import proxyHostPortAndRandomPort from '@assets/fundamentals/networking/proxy-host-port-and-random-port-1x.png';
 import proxyWithRandomPorts from '@assets/fundamentals/networking/proxy-with-random-ports-1x.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={dotnetIcon}
@@ -28,7 +29,7 @@ This article is the reference for modeling .NET projects as first-class Aspire r
 Use project resources when you need to:
 
 - Orchestrate an ASP.NET Core, worker, or console project from an AppHost.
-- Connect the project to other Aspire resources with `withReference`, service discovery, and generated connection strings.
+- Connect the project to other Aspire resources with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" />, service discovery, and generated connection strings.
 - Reuse launch profile settings and ASP.NET Core endpoint discovery from `launchSettings.json`.
 
 In a **C# AppHost**, `AddProject<T>` references the target project through a generated `Projects.*` type, created from a `ProjectReference` in the AppHost `.csproj`. In a **TypeScript AppHost**, `addProject(name, path)` takes the path to the `.csproj` file directly — no generated type or project file reference is needed.
@@ -48,7 +49,7 @@ Start by adding a `ProjectReference` from the AppHost to the target project:
 </ItemGroup>
 ```
 
-When the AppHost builds, Aspire generates a metadata type in the `Projects` namespace for that reference. Use the generated type with `AddProject`:
+When the AppHost builds, Aspire generates a metadata type in the `Projects` namespace for that reference. Use the generated type with <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" />:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -58,7 +59,7 @@ var api = builder.AddProject<Projects.ApiService>("api");
 builder.Build().Run();
 ```
 
-The path to the project comes from the `ProjectReference`, so `AddProject` doesn't need a `.csproj` path. This is the main difference from `AddCSharpApp`, which points directly to a file, project, or directory.
+The path to the project comes from the `ProjectReference`, so `AddProject` doesn't need a `.csproj` path. This is the main difference from <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddCSharpApp" />, which points directly to a file, project, or directory.
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
@@ -73,6 +74,28 @@ const builder = await createBuilder();
 const api = await builder.addProject("api", "../ApiService/ApiService.csproj");
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+In a Go AppHost, use `AddDotnetProject` and pass the path to the `.csproj` file directly — no `ProjectReference` in the AppHost project is needed. Add the `Aspire.Hosting.Dotnet` integration to your AppHost, then call it:
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -115,6 +138,31 @@ await builder.addProject("api", "../ApiService/ApiService.csproj")
     .withExternalHttpEndpoints();
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache")
+postgres := builder.AddPostgres("postgres")
+db := postgres.AddDatabase("appdb")
+
+api := builder.AddDotnetProject("api", "../ApiService/ApiService.csproj").
+	WithReference(cache).
+	WithReference(db).
+	WithExternalHttpEndpoints()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -174,6 +222,13 @@ await builder.addProject("inventoryservice", "../InventoryService/InventoryServi
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService/InventoryService.csproj", &aspire.AddDotnetProjectOptions{
+	Options: &aspire.DotnetProjectOptions{LaunchProfileName: aspire.StringPtr("https")},
+})
+```
+</TabItem>
 </Tabs>
 
 The `launchProfileName` argument has the highest precedence. When you don't specify it, Aspire selects the effective launch profile in this order:
@@ -219,6 +274,13 @@ builder.AddProject<Projects.Networking_Frontend>("frontend")
 await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
     .withHttpEndpoint({ port: 5066 })
     .withHttpsEndpoint({ port: 7239 });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder.AddDotnetProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(5066)}).
+	WithHttpsEndpoint(&aspire.WithHttpsEndpointOptions{Port: aspire.IntPtr(7239)})
 ```
 </TabItem>
 </Tabs>
@@ -275,9 +337,22 @@ await builder.addProject("inventoryservice", "../InventoryService/InventoryServi
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+In a Go AppHost, pass `ExcludeLaunchProfile` and `ExcludeKestrelEndpoints` through `DotnetProjectOptions`:
+
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService/InventoryService.csproj", &aspire.AddDotnetProjectOptions{
+	Options: &aspire.DotnetProjectOptions{
+		ExcludeLaunchProfile:    aspire.BoolPtr(true),
+		ExcludeKestrelEndpoints: aspire.BoolPtr(false),
+	},
+}).
+	WithHttpsEndpoint()
+```
+</TabItem>
 </Tabs>
 
-For ASP.NET Core projects, Aspire reads the selected launch profile and can create endpoints from the `applicationUrl` field in _launchSettings.json_. You can then customize those endpoints with methods like `WithEndpoint`:
+For ASP.NET Core projects, Aspire reads the selected launch profile and can create endpoints from the `applicationUrl` field in _launchSettings.json_. You can then customize those endpoints with methods like <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEndpoint" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -300,6 +375,14 @@ await builder.addProject("inventoryservice", "../InventoryService/InventoryServi
     });
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService/InventoryService.csproj").
+	WithEndpointCallback("https", func(endpoint aspire.EndpointUpdateContext) {
+		endpoint.SetIsProxied(aspire.BoolPtr(false))
+	})
 ```
 </TabItem>
 </Tabs>
@@ -327,6 +410,13 @@ await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend
     .withReplicas(2);
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder.AddDotnetProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(5066)}).
+	WithReplicas(2)
+```
+</TabItem>
 </Tabs>
 
 The following diagram shows this setup:
@@ -343,7 +433,7 @@ With that configuration:
 - The project receives its internal binding through `ASPNETCORE_URLS`.
 - Browsers and dependent resources talk to the proxy endpoint, not directly to a replica.
 
-Without `WithReplicas`, the proxy still fronts the project resource. The host port stays stable, while the project itself listens on a random internal port.
+Without <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.WithReplicas" />, the proxy still fronts the project resource. The host port stays stable, while the project itself listens on a random internal port.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -356,6 +446,12 @@ builder.AddProject<Projects.Networking_Frontend>("frontend")
 ```typescript title="apphost.mts"
 await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj")
     .withHttpEndpoint({ port: 5066 });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder.AddDotnetProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(5066)})
 ```
 </TabItem>
 </Tabs>
@@ -386,6 +482,12 @@ await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend
     .withHttpEndpoint();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder.AddDotnetProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").
+	WithHttpEndpoint()
+```
+</TabItem>
 </Tabs>
 
 <Image
@@ -397,7 +499,7 @@ In this configuration, Aspire assigns a random proxy port for the host-facing en
 
 ## Filter endpoints in environment variables
 
-Project resource endpoints follow default heuristics. Some endpoints are included in `ASPNETCORE_URLS`, some are published as `HTTP/HTTPS_PORTS`, and some are resolved from Kestrel configuration. Use `WithEndpointsInEnvironment` when you need to filter which endpoints are exposed through environment variables:
+Project resource endpoints follow default heuristics. Some endpoints are included in `ASPNETCORE_URLS`, some are published as `HTTP/HTTPS_PORTS`, and some are resolved from Kestrel configuration. Use <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.WithEndpointsInEnvironment" /> when you need to filter which endpoints are exposed through environment variables:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -424,6 +526,17 @@ await builder.addProject("apiservice", "../Networking.ApiService/Networking.ApiS
     .withEndpointsInEnvironment(["https"]); // include only "https"; "admin" is excluded
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder.AddDotnetProject("apiservice", "../Networking.ApiService/Networking.ApiService.csproj").
+	WithHttpsEndpoint().
+	WithHttpsEndpoint(&aspire.WithHttpsEndpointOptions{
+		Port: aspire.IntPtr(19227),
+		Name: aspire.StringPtr("admin"),
+	}).
+	WithEndpointsInEnvironment([]string{"https"}) // include only "https"; "admin" is excluded
 ```
 </TabItem>
 </Tabs>
@@ -490,12 +603,13 @@ require the later `11.0.100-rtm.26473.104` SDK build (or a stable `11.0.100` or 
 
 ## How project references work
 
-The C# and TypeScript AppHosts differ in how they reference .NET projects:
+The C#, TypeScript, and Go AppHosts differ in how they reference .NET projects:
 
 - **C# AppHost**: A `ProjectReference` in the AppHost `.csproj` causes the Aspire SDK to generate a `Projects.*` type during build. `AddProject<Projects.ApiService>("api")` uses that generated type to locate and launch the project. For the SDK-level build behavior behind this generation step, see [Aspire SDK](/get-started/aspire-sdk/).
 
 - **TypeScript AppHost**: No `ProjectReference` is needed. `addProject("api", "../ApiService/ApiService.csproj")` points directly to the `.csproj` file. The TypeScript SDK resolves the project path at startup.
 
+- **Go AppHost**: No `ProjectReference` is needed. `AddDotnetProject("api", "../ApiService/ApiService.csproj")` points directly to the `.csproj` file.
 ## Exclude a project from orchestration
 
 In a C# AppHost, if you need a regular project reference that shouldn't become an Aspire resource, set `IsAspireProjectResource="false"` on the `ProjectReference`:
@@ -546,6 +660,14 @@ const microservice2 = await builder.addProject("micro2", "../Microservice2/Prese
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+The Go AppHost doesn't use generated project types either. Use the `.csproj` path directly for each project:
+
+```go title="apphost.go"
+micro1 := builder.AddDotnetProject("micro1", "../Microservice1/Presentation.Api/Presentation.Api.csproj")
+micro2 := builder.AddDotnetProject("micro2", "../Microservice2/Presentation.Api/Presentation.Api.csproj")
+```
+</TabItem>
 </Tabs>
 
 ## AddProject vs. AddCSharpApp
@@ -554,7 +676,7 @@ In a **C# AppHost**, use `AddProject<T>` when you have a standard `.csproj`, can
 
 In a **TypeScript AppHost**, `addProject(name, path)` always takes a path, so the distinction between `AddProject<T>` and `AddCSharpApp` doesn't apply in the same way.
 
-Some .NET app types use specialized integrations instead of `AddProject`. For example, [.NET MAUI integration](/integrations/dotnet/maui/) uses `AddMauiProject` because MAUI apps aren't added to the AppHost through `ProjectReference` metadata.
+Some .NET app types use specialized integrations instead of `AddProject`. For example, [.NET MAUI integration](/integrations/dotnet/maui/) uses <ApiReference name="Aspire.Hosting.MauiProjectExtensions.AddMauiProject" /> because MAUI apps aren't added to the AppHost through `ProjectReference` metadata.
 
 ## Migrate from legacy project resources
 

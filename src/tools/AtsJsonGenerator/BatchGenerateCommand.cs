@@ -43,6 +43,8 @@ internal static class BatchGenerateCommand
         Description = "Source commit SHA.",
     };
 
+    private static readonly Option<string> s_languageOption = GenerateCommand.CreateLanguageOption();
+
     public static Command GetCommand()
     {
         var command = new Command("batch", "Process multiple ATS dump files or discover packages from an Aspire repo clone.")
@@ -53,6 +55,7 @@ internal static class BatchGenerateCommand
             s_versionOption,
             s_sourceRepoOption,
             s_sourceCommitOption,
+            s_languageOption,
         };
 
         command.SetAction(static parseResult =>
@@ -63,8 +66,9 @@ internal static class BatchGenerateCommand
             var version = parseResult.GetValue(s_versionOption);
             var sourceRepo = parseResult.GetValue(s_sourceRepoOption);
             var sourceCommit = parseResult.GetValue(s_sourceCommitOption);
+            var language = parseResult.GetValue(s_languageOption)!;
 
-            return RunBatch(outputDir, aspireRepo, inputFiles, version, sourceRepo, sourceCommit);
+            return RunBatch(outputDir, aspireRepo, inputFiles, version, sourceRepo, sourceCommit, language);
         });
 
         return command;
@@ -76,7 +80,8 @@ internal static class BatchGenerateCommand
         string[]? inputFiles,
         string? version,
         string? sourceRepo,
-        string? sourceCommit)
+        string? sourceCommit,
+        string language)
     {
         if (!Directory.Exists(outputDir))
         {
@@ -125,7 +130,7 @@ internal static class BatchGenerateCommand
             {
                 var outputPath = Path.Combine(outputDir, $"{packageName}.json");
                 var result = GenerateCommand.TransformFile(
-                    path, outputPath, packageName, version, sourceRepo, sourceCommit);
+                    path, outputPath, packageName, version, sourceRepo, sourceCommit, language: language);
 
                 if (result == 0)
                 {

@@ -1,0 +1,77 @@
+---
+/**
+ * GoDocText — renders a Go API description with its inline markup: `code` spans,
+ * references to other API items and external links. The accepted markup is
+ * documented in go-doc-text.ts.
+ *
+ * Text segments carry their own whitespace, so the map below must stay the only
+ * expression: the Astro compiler trims whitespace between an expression and the text
+ * beside it, which would join the words around each code span.
+ */
+import ReadableText from '@components/ReadableText.astro';
+import { resolveGoDocRef } from '@utils/go-doc-refs';
+import { parseGoDocText } from '@utils/go-doc-text';
+import { goModuleHref, type GoApiDocument } from '@utils/go-modules';
+
+interface Props {
+  text: string;
+  /** Module whose pages references resolve against; without it references render as plain code. */
+  module?: GoApiDocument;
+  base?: string;
+  /** Turn off inside another link, where a nested anchor is invalid; references keep their Go name. */
+  link?: boolean;
+}
+
+const { text, module, base = '', link = true } = Astro.props;
+
+const nodes = parseGoDocText(text).map((segment) => {
+  if (segment.kind !== 'ref') {
+    return segment;
+  }
+
+  const target = module ? resolveGoDocRef(module, segment.refKind, segment.target) : undefined;
+  return {
+    kind: 'ref' as const,
+    label: target?.label ?? segment.label,
+    href:
+      link && module && target
+        ? `${goModuleHref(base, module.package.name)}${target.path}`
+        : undefined,
+  };
+});
+---
+
+{
+  nodes.map((node) => {
+    switch (node.kind) {
+      case 'text':
+        return node.text;
+      case 'code':
+        return (
+          <code class="go-doc-code">
+            <ReadableText text={node.text} />
+          </code>
+        );
+      case 'ref':
+        return node.href ? (
+          <a href={node.href} class="go-doc-link">
+            <code class="go-doc-ref-link">
+              <ReadableText text={node.label} />
+            </code>
+          </a>
+        ) : (
+          <code class="go-doc-ref">
+            <ReadableText text={node.label} />
+          </code>
+        );
+      case 'link':
+        return link ? (
+          <a href={node.href} class="go-doc-link" target="_blank" rel="noopener noreferrer">
+            {node.text}
+          </a>
+        ) : (
+          node.text
+        );
+    }
+  })
+}

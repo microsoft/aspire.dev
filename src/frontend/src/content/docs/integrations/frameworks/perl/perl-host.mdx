@@ -8,6 +8,7 @@ import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import perlIcon from '@assets/icons/perl-096-1500.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -71,10 +72,10 @@ Each `AddPerl*` / `addPerl*` method accepts a resource name, an application dire
 
 | API                                       | Local command and arguments                    |
 | ----------------------------------------- | ---------------------------------------------- |
-| `AddPerlScript` / `addPerlScript`         | `perl -s <scriptName>`                         |
-| `AddPerlApi` / `addPerlApi`               | `perl <scriptName> daemon`                     |
-| `AddPerlModule` / `addPerlModule`         | `perl -M<moduleName> -e "<moduleName>->run()"` |
-| `AddPerlExecutable` / `addPerlExecutable` | Runs `<executablePath>` directly               |
+| <ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.AddPerlScript" />         | `perl -s <scriptName>`                         |
+| <ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.AddPerlApi" />               | `perl <scriptName> daemon`                     |
+| <ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.AddPerlModule" />         | `perl -M<moduleName> -e "<moduleName>->run()"` |
+| <ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.AddPerlExecutable" /> | Runs `<executablePath>` directly               |
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -111,11 +112,11 @@ const executable = await builder.addPerlExecutable(
 </TabItem>
 </Tabs>
 
-All entrypoints require `perl` and `cpan` to be available. Aspire adds the standard executable-resource lifecycle actions and process logs; the integration doesn't add a Perl-specific dashboard command. `WithCpanMinus` and `WithCarton` add their own command requirement checks.
+All entrypoints require `perl` and `cpan` to be available. Aspire adds the standard executable-resource lifecycle actions and process logs; the integration doesn't add a Perl-specific dashboard command. <ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.WithCpanMinus" /> and <ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.WithCarton" /> add their own command requirement checks.
 
 ## Configure endpoints, arguments, and environment
 
-Perl resources don't add an HTTP endpoint or health check automatically. For an API, configure the application to listen on a port and add the standard AppHost endpoint. Use normal resource APIs such as `WithArgs` / `withArgs`, `WithReference` / `withReference`, and `WaitFor` / `waitFor` to supply arguments and model dependencies.
+Perl resources don't add an HTTP endpoint or health check automatically. For an API, configure the application to listen on a port and add the standard AppHost endpoint. Use normal resource APIs such as <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithArgs" />, <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" />, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> to supply arguments and model dependencies.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -142,7 +143,7 @@ Every Perl resource configures OTLP export and sets `OTEL_TRACES_EXPORTER`, `OTE
 
 ### Configure a local::lib
 
-`WithLocalLib` / `withLocalLib` isolates modules in a local directory. Relative paths are resolved from `appDirectory`; rooted paths are used as supplied. The default path is `local`.
+<ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.WithLocalLib" /> isolates modules in a local directory. Relative paths are resolved from `appDirectory`; rooted paths are used as supplied. The default path is `local`.
 
 It sets `PERL5LIB` to `<path>/lib/perl5`, `PERL_LOCAL_LIB_ROOT` to `<path>`, `PERL_MM_OPT` to `INSTALL_BASE=<path>`, and `PERL_MB_OPT` to `--install_base <path>`. If CPAN is active, the integration changes to cpanm because CPAN doesn't support the needed `--local-lib` option.
 
@@ -171,7 +172,7 @@ await worker.withLocalLib('local');
 
 ### Trust development certificates
 
-`WithPerlCertificateTrust` / `withPerlCertificateTrust` is experimental. When Aspire provides a certificate bundle, it sets `SSL_CERT_FILE`, `PERL_LWP_SSL_CA_FILE`, and `MOJO_CA_FILE` on the app and its dependency installers.
+<ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.WithPerlCertificateTrust" /> is experimental. When Aspire provides a certificate bundle, it sets `SSL_CERT_FILE`, `PERL_LWP_SSL_CA_FILE`, and `MOJO_CA_FILE` on the app and its dependency installers.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -194,7 +195,7 @@ await api.withPerlCertificateTrust();
 
 ## Install dependencies
 
-The default package manager is CPAN. `WithPackage` / `withPackage` creates a child installer resource in run mode and makes the Perl app wait for it to complete. Use `force` to force an install and `skipTest` to skip package tests.
+The default package manager is CPAN. <ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.WithPackage" /> creates a child installer resource in run mode and makes the Perl app wait for it to complete. Use `force` to force an install and `skipTest` to skip package tests.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -221,7 +222,7 @@ await api.withPackage('Mojolicious', false, true);
 
 ### Install dependencies from a cpanfile
 
-`WithProjectDependencies` / `withProjectDependencies` creates one project installer in run mode. It expects `cpanfile` in the working directory:
+<ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.WithProjectDependencies" /> creates one project installer in run mode. It expects `cpanfile` in the working directory:
 
 - CPAN is automatically changed to cpanm, which runs `cpanm --installdeps --notest .`.
 - Carton runs `carton install`. Set `cartonDeployment` to add `--deployment`; this requires `cpanfile.snapshot`.
@@ -266,7 +267,7 @@ await worker.withProjectDependencies(true);
 
 ## Use perlbrew
 
-`WithPerlbrew` / `withPerlbrew` is an alias for `WithPerlbrewEnvironment` / `withPerlbrewEnvironment`. Both select a perlbrew version, accepting `5.40.0` or `perl-5.40.0`, and optionally accept the perlbrew root. The default root comes from `PERLBREW_ROOT` or `~/perl5/perlbrew`.
+<ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.WithPerlbrew" /> is an alias for <ApiReference name="Aspire.Hosting.PerlAppResourceBuilderExtensions.WithPerlbrewEnvironment" />. Both select a perlbrew version, accepting `5.40.0` or `perl-5.40.0`, and optionally accept the perlbrew root. The default root comes from `PERLBREW_ROOT` or `~/perl5/perlbrew`.
 
 The integration switches the command to the selected Perl executable, sets `PERLBREW_ROOT`, `PERLBREW_PERL`, and `PERLBREW_HOME`, and prepends the Perl bin directory to `PATH`. `WithLocalLib` remains useful to keep project modules separate from the perlbrew installation.
 

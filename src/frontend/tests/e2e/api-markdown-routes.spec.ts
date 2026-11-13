@@ -58,6 +58,51 @@ const markdownRoutes = [
     path: '/reference/api/typescript/aspire.hosting/idistributedapplicationbuilder/addconnectionstring.md',
   },
   {
+    expectedText: '# Go API Reference',
+    name: 'Go API index',
+    path: '/reference/api/go.md',
+  },
+  {
+    expectedText: '# Aspire.Hosting',
+    name: 'Go module route',
+    path: '/reference/api/go/aspire.hosting.md',
+  },
+  {
+    expectedText: '# DistributedApplicationBuilder',
+    name: 'Go handle route',
+    path: '/reference/api/go/aspire.hosting/distributedapplicationbuilder.md',
+  },
+  {
+    expectedText: '# CommandOptions',
+    name: 'Go DTO route',
+    path: '/reference/api/go/aspire.hosting/commandoptions.md',
+  },
+  {
+    expectedText: '# CertificateTrustScope',
+    name: 'Go enum route',
+    path: '/reference/api/go/aspire.hosting/certificatetrustscope.md',
+  },
+  {
+    expectedText: '# AddConnectionString',
+    name: 'Go function route',
+    path: '/reference/api/go/aspire.hosting/addconnectionstring.md',
+  },
+  {
+    expectedText: '# DistributedApplicationBuilder.AddConnectionString',
+    name: 'Go member route',
+    path: '/reference/api/go/aspire.hosting/distributedapplicationbuilder/addconnectionstring.md',
+  },
+  {
+    expectedText: 'A marker interface declares no methods of its own in Go.',
+    name: 'Go marker route',
+    path: '/reference/api/go/aspire.hosting/resource.md',
+  },
+  {
+    expectedText: 'func (Resource) ExcludeFromManifest() Resource',
+    name: 'Go marker member route',
+    path: '/reference/api/go/aspire.hosting/resource/excludefrommanifest.md',
+  },
+  {
     // Samples reuse the same shared `markdownResponse` helper as the API
     // routes and have the same trailing-slash redirect treatment from
     // `src/middleware.ts`. The picked sample is stable in
@@ -107,5 +152,53 @@ test('built homepages publish useful Markdown through their existing companion p
     expect(markdown).toContain('```typescript\n');
     expect(markdown).toContain('```csharp\n');
     expect(markdown).not.toMatch(/<HomePage|<!DOCTYPE html>|class="code-variant"/);
+  }
+});
+
+test('page Markdown actions on untranslated locale pages use the Markdown for the shown content', async ({
+  page,
+  request,
+}) => {
+  const copies: string[] = [];
+  await page.exposeFunction('__captureFallbackMarkdown', (text: string) => copies.push(text));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator.clipboard, 'writeText', {
+      configurable: true,
+      value: (text: string) => Reflect.get(window, '__captureFallbackMarkdown')(text),
+    });
+  });
+
+  // `de` renders the English fallback; `ja` has its own translated source.
+  for (const { path, markdownPath, heading } of [
+    {
+      path: '/de/fundamentals/telemetry/',
+      markdownPath: '/fundamentals/telemetry',
+      heading: '# OpenTelemetry and distributed tracing in Aspire',
+    },
+    {
+      path: '/ja/fundamentals/telemetry/',
+      markdownPath: '/ja/fundamentals/telemetry',
+      heading: '# テレメトリ',
+    },
+  ]) {
+    await page.goto(path);
+    const copyButtons = page.locator('[data-page-action="copy-markdown"]');
+    expect(
+      await copyButtons.evaluateAll((buttons) => buttons.map((button) => button.dataset.path))
+    ).toEqual(Array(await copyButtons.count()).fill(markdownPath));
+    const viewLinks = page.locator('a:has([data-action-icon="markdown"])');
+    expect(await viewLinks.count()).toBeGreaterThan(0);
+    expect(
+      await viewLinks.evaluateAll((links) => links.map((link) => link.getAttribute('href')))
+    ).toEqual(Array(await viewLinks.count()).fill(`${markdownPath}.md`));
+
+    const response = await request.get(`${markdownPath}.md`);
+    expect(response.ok(), `${markdownPath}.md should return 200.`).toBe(true);
+    expect(response.headers()['content-type']).toContain('text/markdown');
+
+    const copy = page.locator('[data-page-action="copy-markdown"]:visible').first();
+    await copy.click();
+    await expect(copy).toHaveClass(/copied/);
+    expect(copies.at(-1)).toContain(heading);
   }
 });

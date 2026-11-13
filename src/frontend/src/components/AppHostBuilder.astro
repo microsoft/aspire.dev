@@ -448,6 +448,1024 @@ var customContainer = builder.AddContainer("mycustomcontainer", "myregistry/myap
 builder.Build().Run();`,
 };
 
+// Define all possible code combinations — Go
+const goCodes: Record<string, string> = {
+  empty: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// This would be a rather boring AppHost ☹️...
+	// Toggle the options above to see what an AppHost might look like.
+	// For example, select "Front end" to add a frontend service.
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  frontend: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Vite frontend
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  frontendContainer: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Vite frontend
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseFrontend: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	builder.AddPostgres("db").
+		WithDataVolume().
+		AddDatabase("appdata")
+
+	// Add Vite frontend
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseFrontendContainer: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	builder.AddPostgres("db").
+		WithDataVolume().
+		AddDatabase("appdata")
+
+	// Add Vite frontend
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  apiFrontend: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Node.js API
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+	// Add Vite frontend and reference the API
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(api)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  apiFrontendContainer: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Node.js API
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+	// Add Vite frontend and reference the API
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(api)
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseApiFrontend: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	postgres := builder.AddPostgres("db").
+		WithDataVolume().
+		AddDatabase("appdata")
+
+	// Add Node.js API and reference the database
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(postgres)
+
+	// Add Vite frontend and reference the API
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(api)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseApiFrontendContainer: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	postgres := builder.AddPostgres("db").
+		WithDataVolume().
+		AddDatabase("appdata")
+
+	// Add Node.js API and reference the database
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(postgres)
+
+	// Add Vite frontend and reference the API
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(api)
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  database: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	builder.AddPostgres("db").
+		WithDataVolume().
+		AddDatabase("appdata")
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseContainer: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	builder.AddPostgres("db").
+		WithDataVolume().
+		AddDatabase("appdata")
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  api: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Node.js API
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  apiContainer: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Node.js API
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseApi: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	postgres := builder.AddPostgres("db").
+		WithDataVolume().
+		AddDatabase("appdata")
+
+	// Add Node.js API and reference the database
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(postgres)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseApiContainer: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	postgres := builder.AddPostgres("db").
+		WithDataVolume().
+		AddDatabase("appdata")
+
+	// Add Node.js API and reference the database
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(postgres)
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  container: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  frontendDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Vite frontend
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		PublishAsDockerFile(func(container aspire.ContainerResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  frontendContainerDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Vite frontend
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		PublishAsDockerFile(func(container aspire.ContainerResource) {})
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
+		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseFrontendDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	builder.AddAzurePostgresFlexibleServer("db").
+		RunAsContainer().
+		AddDatabase("appdata")
+
+	// Add Vite frontend
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		PublishAsDockerFile(func(container aspire.ContainerResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseFrontendContainerDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	builder.AddAzurePostgresFlexibleServer("db").
+		RunAsContainer().
+		AddDatabase("appdata")
+
+	// Add Vite frontend
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		PublishAsDockerFile(func(container aspire.ContainerResource) {})
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
+		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  apiFrontendDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Node.js API
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
+
+	// Add Vite frontend and reference the API
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(api).
+		PublishAsDockerFile(func(container aspire.ContainerResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  apiFrontendContainerDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Node.js API
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
+
+	// Add Vite frontend and reference the API
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(api).
+		PublishAsDockerFile(func(container aspire.ContainerResource) {})
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
+		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseApiFrontendDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	postgres := builder.AddAzurePostgresFlexibleServer("db").
+		RunAsContainer().
+		AddDatabase("appdata")
+
+	// Add Node.js API and reference the database
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(postgres).
+		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
+
+	// Add Vite frontend and reference the API
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(api).
+		PublishAsDockerFile(func(container aspire.ContainerResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseApiFrontendContainerDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	postgres := builder.AddAzurePostgresFlexibleServer("db").
+		RunAsContainer().
+		AddDatabase("appdata")
+
+	// Add Node.js API and reference the database
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(postgres).
+		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
+
+	// Add Vite frontend and reference the API
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(api).
+		PublishAsDockerFile(func(container aspire.ContainerResource) {})
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
+		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	builder.AddAzurePostgresFlexibleServer("db").
+		RunAsContainer().
+		AddDatabase("appdata")
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseContainerDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	builder.AddAzurePostgresFlexibleServer("db").
+		RunAsContainer().
+		AddDatabase("appdata")
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
+		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  apiDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Node.js API
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  apiContainerDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add Node.js API
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
+		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseApiDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	postgres := builder.AddAzurePostgresFlexibleServer("db").
+		RunAsContainer().
+		AddDatabase("appdata")
+
+	// Add Node.js API and reference the database
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(postgres).
+		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  databaseApiContainerDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database
+	postgres := builder.AddAzurePostgresFlexibleServer("db").
+		RunAsContainer().
+		AddDatabase("appdata")
+
+	// Add Node.js API and reference the database
+	api := builder.AddNodeApp("api", "../api", "src/index.ts").
+		WithNpm().
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(postgres).
+		PublishAsAzureContainerApp(func(infra aspire.AzureResourceInfrastructure, app aspire.ContainerApp) {})
+
+	// Add custom container
+	builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
+		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+  containerDeployment: `package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add custom container
+	customContainer := builder.AddContainer("mycustomcontainer", "myregistry/myapp:latest").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(8080)}).
+		PublishAsKubernetesService(func(service aspire.KubernetesResource) {})
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}`,
+};
+
 // Define all possible code combinations — TypeScript
 const tsCodes: Record<string, string> = {
   empty: `import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -1037,6 +2055,7 @@ await builder.build().run();`,
         TypeScript
       </button>
       <button class="lang-toggle" data-lang="csharp" aria-pressed="false">C#</button>
+      <button class="lang-toggle" data-lang="go" aria-pressed="false">Go</button>
     </div>
 
     <div class="toggles">
@@ -1236,6 +2255,21 @@ await builder.build().run();`,
       }
     </div>
 
+    <!-- Go variants -->
+    <div class="code-lang-group" data-code-lang="go" style="display: none;">
+      {
+        Object.entries(goCodes).map(([key, code]) => (
+          <div
+            class="code-variant"
+            data-variant={key}
+            style={key === 'frontend' ? '' : 'display: none;'}
+          >
+            <Code code={code} lang="go" title="apphost.go" />
+          </div>
+        ))
+      }
+    </div>
+
     <label class="editor-motion-option">
       <input type="checkbox" checked data-editor-motion-toggle />
       <span>Typing animation</span>
@@ -1286,7 +2320,8 @@ await builder.build().run();`,
     color: var(--sl-color-text);
     border-radius: 0.375rem;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: var(--aspire-text-small);
+    min-height: var(--aspire-touch-target);
     font-weight: 500;
     margin-top: 0;
   }
@@ -1318,7 +2353,7 @@ await builder.build().run();`,
 
   .editor-motion-option {
     width: fit-content;
-    min-height: 1.5rem;
+    min-height: var(--aspire-touch-target);
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
@@ -1473,7 +2508,7 @@ await builder.build().run();`,
 
     .toggle {
       padding: 0.5rem 0.25rem;
-      font-size: 0.75rem;
+      font-size: var(--aspire-text-small);
     }
 
     .header,

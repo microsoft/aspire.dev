@@ -5,6 +5,7 @@ description: Compare Aspire and Docker Compose for local development, service di
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 Docker Compose and Aspire both describe and run multi-service applications. This guide compares their local development workflows and maps Compose services, dependencies, and configuration to an Aspire AppHost written in TypeScript or C#.
 
@@ -157,17 +158,17 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="note" title="build: services become project or Dockerfile resources">
-In Docker Compose, the `build:` directive creates container images from Dockerfiles. In Aspire, .NET services are added directly as project references with `AddProject<T>()`, providing better debugging, hot reload, and telemetry integration. For services that still build from Dockerfiles, use `AddDockerfile()` for an existing Dockerfile or `AddDockerfileBuilder()` when the AppHost should generate the Dockerfile programmatically.
+In Docker Compose, the `build:` directive creates container images from Dockerfiles. In Aspire, .NET services are added directly as project references with <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" />, providing better debugging, hot reload, and telemetry integration. For services that still build from Dockerfiles, use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfile" /> for an existing Dockerfile or <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfileBuilder" /> when the AppHost should generate the Dockerfile programmatically.
 </Aside>
 
 **Key differences explained:**
 
 - **Build vs. project** — Docker Compose `build:` services become `AddProject<T>()` for .NET apps, which runs them directly instead of in containers
 - **Ports** — Both examples explicitly map ports (3000 and 5000)
-- **Startup order** — Docker Compose uses `depends_on` with health conditions; Aspire uses `WaitFor()` for startup ordering
-- **Service discovery** — `WithReference()` only configures service discovery and connection strings; it doesn't control startup order
-- **Connection strings** — By default, `WithReference(database)` provides `ConnectionStrings__myapp` using the resource name from `AddDatabase()`. To match a different name like `DefaultConnection`, use a named reference: `.WithReference(database, "DefaultConnection")`
-- **Volumes** — `WithDataVolume()` must be called explicitly to add persistent storage; it's not automatic
+- **Startup order** — Docker Compose uses `depends_on` with health conditions; Aspire uses <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> for startup ordering
+- **Service discovery** — <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> only configures service discovery and connection strings; it doesn't control startup order
+- **Connection strings** — By default, `WithReference(database)` provides `ConnectionStrings__myapp` using the resource name from <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.AddDatabase" />. To match a different name like `DefaultConnection`, use a named reference: `.WithReference(database, "DefaultConnection")`
+- **Volumes** — <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithDataVolume" /> must be called explicitly to add persistent storage; it's not automatic
 - **Image versions** — `WithImageTag("15")` pins PostgreSQL to version 15
 
 ### Container-based services
@@ -277,13 +278,13 @@ Aspire generates .NET-format connection strings, which differ from Docker Compos
 - Docker Compose: `DATABASE_URL=postgresql://postgres:secret@postgres:5432/main`
 - Aspire: `ConnectionStrings__main=Host=localhost;Port=12345;Username=postgres;Password=<generated>;Database=main`
 
-If your application expects URL-format environment variables, construct them manually with `WithEnvironment()`. See [Environment variables and configuration](#environment-variables-and-configuration) for details.
+If your application expects URL-format environment variables, construct them manually with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" />. See [Environment variables and configuration](#environment-variables-and-configuration) for details.
 </Aside>
 
 **Key differences explained:**
 
-- **Image versions** — Explicitly specified with `WithImageTag()` to match Docker Compose
-- **Dockerfile builds** — Docker Compose `build: .` maps to `AddDockerfile("web", ".")`, which builds a container image from a Dockerfile. Use `AddContainer()` for pre-built images that use `image:` in Docker Compose
+- **Image versions** — Explicitly specified with <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithImageTag" /> to match Docker Compose
+- **Dockerfile builds** — Docker Compose `build: .` maps to `AddDockerfile("web", ".")`, which builds a container image from a Dockerfile. Use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddContainer" /> for pre-built images that use `image:` in Docker Compose
 - **Ports** — `WithHostPort()` maps to a static host port; without it, Aspire assigns a random port
 - **Volumes** — `WithDataVolume()` must be called explicitly to add persistent storage
 - **Startup ordering** — `WaitFor()` controls startup order, similar to Docker Compose `depends_on` with conditions
@@ -462,7 +463,7 @@ await builder.build().run();
 **Key differences:**
 
 - **Named volumes** — Created with `AddVolume()` and shared between containers
-- **Bind mounts** — Use `WithBindMount()` for host directory access
+- **Bind mounts** — Use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithBindMount" /> for host directory access
 
 ### Networking
 
@@ -532,14 +533,14 @@ Successfully migrating from Docker Compose to Aspire requires a systematic appro
    - **Configure dependencies** with `WithReference()` for service discovery
    - **Add startup ordering** with `WaitFor()` to match `depends_on` behavior
    - **Set up environment variables** — Note that connection string formats will differ
-   - **Migrate health checks** — Use `WithHttpHealthCheck()` or `WithHealthCheck()` for custom checks
+   - **Migrate health checks** — Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> or <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHealthCheck" /> for custom checks
 
 4. ### Handle data migration
 
    For persistent data:
 
    - Use `WithDataVolume()` for automatic volume management with integrations
-   - Use `WithVolume()` for named volumes that need to persist data
+   - Use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithVolume" /> for named volumes that need to persist data
    - Use `WithBindMount()` for host directory mounts when you need direct access to host files
 
 5. ### Test and validate

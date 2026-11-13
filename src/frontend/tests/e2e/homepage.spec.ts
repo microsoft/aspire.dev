@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { locales } from '../../config/locales';
@@ -41,7 +41,7 @@ test('section 08 pairs getting started with Dev Hub discovery and stacks on mobi
   await expect(section.getByRole('link', { name: 'View on GitHub', exact: true })).toHaveAttribute('href', 'https://github.com/microsoft/aspire');
   await expect(section.getByRole('heading', { level: 3, name: 'Find your next step.' })).toBeVisible();
   expect(await link.locator('.dev-hub-mark').innerHTML()).toBe(
-    await page.getByRole('banner').getByRole('link', { name: 'Aspire resources', exact: true }).locator('svg').innerHTML(),
+    await page.locator('header .right-group .dev-center-btn svg').innerHTML(),
   );
   for (const width of [320, 390, 768, 1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -313,7 +313,9 @@ test('uses concise section copy and a compact editorial rhythm', async ({ page }
 
     return {
       width: window.innerWidth,
-      pageHeight: document.documentElement.scrollHeight,
+      // Release announcements vary independently of the homepage's editorial spacing.
+      pageHeight: document.documentElement.scrollHeight -
+        (document.querySelector('[data-aspire-banner]')?.getBoundingClientRect().height ?? 0),
       headingLines,
       modelHeadingOffset:
         sectionIndex && sectionHeading
@@ -331,7 +333,7 @@ test('uses concise section copy and a compact editorial rhythm', async ({ page }
     expect(Math.max(...layout.headingLines)).toBeLessThanOrEqual(2);
     expect(Math.max(...layout.sectionHeights)).toBeLessThanOrEqual(1575);
   } else if (layout.width <= 500) {
-    expect(layout.pageHeight).toBeLessThanOrEqual(12_700);
+    expect(layout.pageHeight).toBeLessThanOrEqual(12_750);
   }
 });
 
@@ -782,6 +784,24 @@ test('pauses and resumes the runtime story without restarting it', async ({ page
   await expect(control.locator('svg:visible')).toHaveCount(1);
   await expect.poll(hasAnimatedFocusBorder).toBe(true);
   await expect.poll(readState).not.toBe(pausedState);
+});
+
+test('interrupts a stale AppHost edit when the language changes', async ({ page }) => {
+  const builder = page.locator('.home-hero-product [data-apphost-builder]');
+  const codeDisplay = builder.locator('[data-apphost-code-display]');
+  const apiButton = builder.locator('.toggle[data-toggle="api"]');
+  const csharpButton = builder.locator('.lang-toggle[data-lang="csharp"]');
+
+  await apiButton.click();
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'typing');
+  await csharpButton.click();
+
+  await expect(csharpButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(codeDisplay.locator('[data-editor-frame] .title')).toHaveText('AppHost.cs', {
+    timeout: 1_000,
+  });
+  await expect(codeDisplay).toHaveAttribute('aria-busy', 'false', { timeout: 1_000 });
+  await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
 });
 
 test('matches foreground Aspire CLI output and replaces startup statuses in place', async ({
@@ -1413,6 +1433,36 @@ test('reflows to 320 CSS pixels without clipping the page', async ({ page }) => 
   expect(dimensions.footerFits).toBe(true);
 });
 
+test('loads icons hidden behind tabs and language toggles before they are revealed', async ({
+  page,
+}) => {
+  // The dev server transforms every icon on request, which takes tens of seconds when parallel
+  // workers share it, so the loaded checks below wait far longer than the 5 s default.
+  test.slow();
+
+  // Native lazy loading never starts for `display: none` images, so these only load because their
+  // sections fetch them as they near the viewport.
+  const allLoaded = (images: Element[]) =>
+    images.length > 0 &&
+    images.every(
+      (image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0
+    );
+
+  const environment = page.locator('[data-home-environments]');
+  await environment.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => environment.locator('img').evaluateAll(allLoaded), { timeout: 60_000 })
+    .toBe(true);
+  // The point of the test: some of those images sit in panels that are not displayed.
+  await expect(environment.locator('[data-environment-panel][hidden] img').first()).toBeAttached();
+
+  const model = page.locator('[data-model-story]');
+  await model.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => model.locator('.model-tab-lang-icon').evaluateAll(allLoaded), { timeout: 60_000 })
+    .toBe(true);
+});
+
 test('keeps the environment frame stable while each topology changes', async ({ page }) => {
   const environment = page.locator('[data-home-environments]');
   const stage = environment.locator('.environment-stage');
@@ -1605,6 +1655,20 @@ test('keeps the environment frame stable while each topology changes', async ({ 
   );
 });
 
+async function recordPanelFade(panel: Locator) {
+  await panel.evaluate((element) => {
+    element.dataset.testFadeSeen = 'false';
+    // Descendant animations also bubble animationstart and can arrive before the panel's fade.
+    const onAnimationStart = (event: AnimationEvent) => {
+      if (event.target === element && event.animationName === 'environment-panel-fade-in') {
+        element.dataset.testFadeSeen = 'true';
+        element.removeEventListener('animationstart', onAnimationStart);
+      }
+    };
+    element.addEventListener('animationstart', onAnimationStart);
+  });
+}
+
 test('fades environment changes and pauses independent resource motion', async ({ page }) => {
   const environment = page.locator('[data-home-environments]');
   const stage = environment.locator('.environment-stage');
@@ -1633,35 +1697,13 @@ test('fades environment changes and pauses independent resource motion', async (
   expect(placement.bottomGap).toBeGreaterThanOrEqual(14);
   expect(placement.bottomGap).toBeLessThanOrEqual(18);
 
-  await testPanel.evaluate((element) => {
-    element.dataset.testFadeSeen = 'false';
-    element.addEventListener(
-      'animationstart',
-      (event) => {
-        if (event.animationName === 'environment-panel-fade-in') {
-          element.dataset.testFadeSeen = 'true';
-        }
-      },
-      { once: true }
-    );
-  });
+  await recordPanelFade(testPanel);
   await environment.getByRole('button', { name: 'Test' }).click();
   await expect(localPanel).toBeHidden();
   await expect(testPanel).toHaveAttribute('data-test-fade-seen', 'true');
   await expect(testPanel).not.toHaveAttribute('data-transition', { timeout: 2_000 });
 
-  await localPanel.evaluate((element) => {
-    element.dataset.testFadeSeen = 'false';
-    element.addEventListener(
-      'animationstart',
-      (event) => {
-        if (event.animationName === 'environment-panel-fade-in') {
-          element.dataset.testFadeSeen = 'true';
-        }
-      },
-      { once: true }
-    );
-  });
+  await recordPanelFade(localPanel);
   await environment.getByRole('button', { name: 'Local' }).click();
   await expect(testPanel).toBeHidden();
   await expect(localPanel).toHaveAttribute('data-test-fade-seen', 'true');
@@ -1700,6 +1742,57 @@ test('fades environment changes and pauses independent resource motion', async (
       .locator('.topology-node-card')
       .evaluateAll((cards) => cards.map((card) => getComputedStyle(card).animationPlayState))
   ).toEqual(['running', 'running', 'running', 'running']);
+});
+
+test('starts the environment fade even when a long task delays the next frame', async ({
+  page,
+}) => {
+  const environment = page.locator('[data-home-environments]');
+  const testPanel = environment.locator('[data-environment-panel="test"]');
+
+  await environment.locator('.environment-stage').scrollIntoViewIfNeeded();
+  await expect(environment).toHaveAttribute('data-environment-motion-active', '');
+
+  await recordPanelFade(testPanel);
+  // Block the main thread past the fade duration, as a busy device can after a click.
+  await environment.getByRole('button', { name: 'Test' }).evaluate((button) => {
+    (button as HTMLButtonElement).click();
+    const end = performance.now() + 250;
+    while (performance.now() < end) {
+      // Busy wait.
+    }
+  });
+
+  await expect(testPanel).toBeVisible();
+  await expect(testPanel).toHaveAttribute('data-test-fade-seen', 'true');
+  await expect(testPanel).not.toHaveAttribute('data-transition', { timeout: 2_000 });
+});
+
+test('records the environment fade when a descendant animation starts first', async ({
+  page,
+}) => {
+  const environment = page.locator('[data-home-environments]');
+  const testPanel = environment.locator('[data-environment-panel="test"]');
+
+  await environment.locator('.environment-stage').scrollIntoViewIfNeeded();
+  await expect(environment).toHaveAttribute('data-environment-motion-active', '');
+
+  await recordPanelFade(testPanel);
+  // Revealing a panel restarts its topology animations, whose animationstart events bubble to the
+  // panel and can be dispatched before the fade's own event.
+  await testPanel
+    .locator('.topology-node-card')
+    .first()
+    .evaluate((card) =>
+      card.dispatchEvent(
+        new AnimationEvent('animationstart', { animationName: 'topology-node-idle', bubbles: true })
+      )
+    );
+  await expect(testPanel).toHaveAttribute('data-test-fade-seen', 'false');
+
+  await environment.getByRole('button', { name: 'Test' }).click();
+  await expect(testPanel).toHaveAttribute('data-test-fade-seen', 'true');
+  await expect(testPanel).not.toHaveAttribute('data-transition', { timeout: 2_000 });
 });
 
 test('passes WCAG AA checks in every environment state', async ({ page }) => {
@@ -2065,7 +2158,7 @@ test('keeps every dashboard screenshot loaded and fully contained in both themes
           })
         )
         .toEqual({
-          naturalSize: [1680, 1050],
+          naturalSize: [2560, 1600],
           contained: true,
         });
     }
@@ -2159,6 +2252,17 @@ test('resolves motion immediately when reduced motion is requested', async ({ pa
   });
 });
 
+function readHeroCopyOpacity(page: Page) {
+  return page
+    .locator('.home-hero-copy')
+    .evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity));
+}
+
+async function expectHeroCopyReceded(page: Page) {
+  // The hero applies scroll progress on the next animation frame.
+  await expect.poll(() => readHeroCopyOpacity(page)).toBeLessThanOrEqual(0.12);
+}
+
 test('uses bounded hero motion to advance product proof on large viewports', async ({ page }) => {
   const viewport = page.viewportSize();
   test.skip(
@@ -2194,10 +2298,38 @@ test('uses bounded hero motion to advance product proof on large viewports', asy
 
   await page.evaluate(() => window.scrollTo(0, 600));
 
-  const recededCopyOpacity = await page
-    .locator('.home-hero-copy')
-    .evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity));
-  expect(recededCopyOpacity).toBeLessThanOrEqual(0.12);
+  await expectHeroCopyReceded(page);
+});
+
+test('waits for the hero scroll frame before checking receded copy', async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 1152 || viewport.height < 768,
+    'The hero uses normal document flow below the desktop motion breakpoint.'
+  );
+
+  // Simulate a slow frame so a read that does not wait for the scroll frame sees stale progress.
+  await page.addInitScript(() => {
+    const requestFrame = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (callback) => {
+      let remainingFrames = 30;
+      const defer = (time: number) => {
+        remainingFrames -= 1;
+        if (remainingFrames > 0) requestFrame(defer);
+        else callback(time);
+      };
+      return requestFrame(defer);
+    };
+  });
+  await page.reload();
+  await dismissCookieConsentIfVisible(page);
+
+  await page.evaluate(() => window.scrollTo(0, 320));
+  await expect.poll(() => readHeroCopyOpacity(page)).toBeLessThan(1);
+
+  await page.evaluate(() => window.scrollTo(0, 600));
+
+  await expectHeroCopyReceded(page);
 });
 
 test('keeps primary controls visible and focused in forced colors', async ({ page }) => {
@@ -2245,4 +2377,35 @@ test('passes WCAG AA checks in the dark theme', async ({ page }) => {
     violations,
     violations.length === 0 ? undefined : JSON.stringify(violations, null, 2)
   ).toEqual([]);
+});
+
+test('keeps a dashboard view chosen before the tour activates', async ({ page }) => {
+  // Reduced motion settles the section reveal immediately, so the stage stays where it is scrolled.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await dismissCookieConsentIfVisible(page);
+
+  const carousel = page.locator('[data-dashboard-carousel]');
+  const stage = carousel.locator('[data-stage]');
+  const next = carousel.getByRole('button', { name: 'Next view' });
+  const activeSlide = carousel.locator('[data-slide][aria-current="true"]');
+
+  // Leave the top of the stage under the sticky header: visible enough for the
+  // tour's fail-safe activation, but not fully presented, so it activates late.
+  await stage.evaluate((element) => {
+    const header = document.querySelector<HTMLElement>('header.header');
+    const headerHeight = header?.getBoundingClientRect().height ?? 0;
+    const bounds = element.getBoundingClientRect();
+    const documentTop = bounds.top + window.scrollY;
+    window.scrollTo(0, documentTop - headerHeight + bounds.height * 0.05);
+  });
+  await expect(next).toBeInViewport();
+  await expect(carousel).not.toHaveAttribute('data-viewport-active', '');
+  await expect(activeSlide).toHaveAttribute('data-index', '0');
+
+  await next.click();
+  await expect(activeSlide).toHaveAttribute('data-index', '1');
+
+  await expect(carousel).toHaveAttribute('data-viewport-active', '');
+  await expect(activeSlide).toHaveAttribute('data-index', '1');
 });

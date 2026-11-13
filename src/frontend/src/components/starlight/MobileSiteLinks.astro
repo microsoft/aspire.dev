@@ -1,0 +1,155 @@
+---
+import { Badge, Icon } from '@astrojs/starlight/components';
+import LiveSvg from '@assets/icons/live.svg';
+import DevHubSvg from '@assets/icons/dev-hub.svg';
+import { addLocaleToPath } from '@utils/locale-routes';
+import { devTitle } from '@data/dev-hub';
+
+const t = Astro.locals.t;
+const locale = Astro.locals.starlightRoute?.locale;
+const environmentBadge = (
+  import.meta.env.PUBLIC_ENVIRONMENT_BADGE ?? (import.meta.env.DEV ? 'localhost' : '')
+).trim();
+const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
+---
+
+<div class="mobile-site-links not-content">
+  <ul aria-label={t('footer.resources')}>
+    <li>
+      <a href={addLocaleToPath('/docs/', locale)}><Icon name="open-book" />{t('header.docs')}</a>
+    </li>
+    <li>
+      <a
+        href="/hub/"
+        aria-label={devTitle}
+        aria-current={Astro.url.pathname.startsWith('/hub/') ? 'page' : undefined}
+        ><DevHubSvg aria-hidden="true" />{devTitle}</a>
+    </li>
+    <li>
+      <a
+        href="/community/videos/"
+        class="live-btn"
+        data-live="false"
+        data-source="none"
+        data-tour-target="live-status"
+        aria-current={Astro.url.pathname === '/community/videos/' ? 'page' : undefined}
+      >
+        <LiveSvg aria-hidden="true" />
+        <span>Watch Aspire live streams</span>
+        <span class="live-dot" aria-hidden="true"></span>
+      </a>
+    </li>
+    <li>
+      <a
+        href={addLocaleToPath('/get-started/install-cli/', locale)}
+        data-tour-target="install-cli"
+        data-tour-step="install-cli"
+      >
+        <Icon name="download" />{t('home.closing.install')}
+      </a>
+    </li>
+    <li>
+      <button
+        type="button"
+        data-cookie-manage-consent
+        data-tour-target="cookie-preferences"
+        data-tour-step="cookie-preferences"
+      >
+        <Icon name="setting" />{t('footer.manageCookies')}
+      </button>
+    </li>
+    {
+      isSiteTourEnabled && (
+        <li>
+          <button
+            type="button"
+            data-tour-trigger
+            data-tour-target="tour-help"
+            data-tour-step="tour-help"
+          >
+            <Icon name="information" />
+            {t('siteTour.eyebrow')}
+          </button>
+        </li>
+      )
+    }
+  </ul>
+  {environmentBadge && <Badge text={environmentBadge} variant="tip" size="small" />}
+</div>
+
+<style>
+  .mobile-site-links {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+  ul {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+    list-style: none;
+    margin: 0 0 0.75rem;
+    padding: 0;
+  }
+  li {
+    min-width: 0;
+  }
+  a,
+  button {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    min-width: 0;
+    min-height: var(--aspire-touch-target);
+    padding: 0.375rem 0.5rem;
+    border: 0;
+    border-radius: 0.375rem;
+    color: var(--sl-color-text);
+    background: transparent;
+    font: inherit;
+    font-size: var(--aspire-text-small);
+    line-height: 1.4;
+    text-align: start;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+  a:hover,
+  button:hover {
+    background: var(--sl-color-gray-6);
+  }
+  a:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--aspire-action-focus);
+    outline-offset: 2px;
+  }
+  a :global(svg),
+  button :global(svg) {
+    flex: 0 0 var(--aspire-icon-size);
+    width: var(--aspire-icon-size);
+    height: var(--aspire-icon-size);
+    --sl-icon-size: var(--aspire-icon-size);
+  }
+  .live-dot {
+    display: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--aspire-color-live);
+  }
+  [data-live='true'] .live-dot {
+    display: block;
+  }
+  @media (min-width: 50rem) {
+    .mobile-site-links {
+      display: none;
+    }
+  }
+  @media (min-width: 50rem) and (max-width: 71.999rem) {
+    :global(.topics-sidebar[data-api-ref]) .mobile-site-links {
+      display: block;
+    }
+  }
+</style>

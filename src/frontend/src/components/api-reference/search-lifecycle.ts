@@ -1,4 +1,4 @@
-type ApiSearchLanguage = 'csharp' | 'typescript';
+type ApiSearchLanguage = 'csharp' | 'typescript' | 'go';
 type ApiSearchPageKind = 'landing' | 'package' | 'module' | 'type' | 'item';
 
 /**

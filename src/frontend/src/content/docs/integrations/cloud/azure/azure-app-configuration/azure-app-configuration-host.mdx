@@ -8,6 +8,7 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import appConfigIcon from '@assets/icons/azure-appconfig-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={appConfigIcon}
@@ -18,7 +19,7 @@ import appConfigIcon from '@assets/icons/azure-appconfig-icon.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure App Configuration Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure App Configuration store in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure App Configuration Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure App Configuration store in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure App Configuration integration, start with the [Get started with Azure App Configuration integrations](/integrations/cloud/azure/azure-app-configuration/azure-app-configuration-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure App Configuration](../azure-app-configuration-connect/).
 
@@ -49,6 +50,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-appconfiguration
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure App Configuration hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.AppConfiguration": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add azure-appconfiguration
@@ -110,11 +132,35 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+appConfig := builder.AddAzureAppConfiguration("config")
+
+web := builder.AddGoApp("web", "./web").
+	WithReference(appConfig)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="caution">
-  When you call `AddAzureAppConfiguration` (or `addAzureAppConfiguration`), it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
+  When you call <ApiReference name="Aspire.Hosting.AzureAppConfigurationExtensions.AddAzureAppConfiguration" />, it implicitly calls
+  <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" />—which adds support for generating Azure resources
   dynamically during app startup. The app must configure the appropriate
   subscription and location. For more information, see [Local provisioning:
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -182,7 +228,7 @@ The generated Bicep is a starting point and is influenced by changes to the prov
 
 ## Customize provisioning infrastructure
 
-All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources — using the `ConfigureInfrastructure` API (or `configureInfrastructure` in TypeScript). For example, you can configure the SKU, enable purge protection, add tags, and more:
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources — using the <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> API (or `configureInfrastructure` in TypeScript). For example, you can configure the SKU, enable purge protection, add tags, and more:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -239,7 +285,7 @@ There are many more configuration options available to customize the Azure App C
 
 ## Add Azure App Configuration emulator resource
 
-Microsoft provides the Azure App Configuration emulator for developers who want a local, lightweight implementation of the Azure App Configuration service to code and test against. In Aspire, you can use this emulator by calling the `RunAsEmulator` method (or `runAsEmulator`) when you add your resource:
+Microsoft provides the Azure App Configuration emulator for developers who want a local, lightweight implementation of the Azure App Configuration service to code and test against. In Aspire, you can use this emulator by calling the <ApiReference name="Aspire.Hosting.AzureAppConfigurationExtensions.RunAsEmulator" /> method (or `runAsEmulator`) when you add your resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -269,6 +315,28 @@ const appConfig = await builder.addAzureAppConfiguration("config")
 // After adding all resources, run the app...
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddAzureAppConfiguration("config").
+	RunAsEmulator()
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -320,13 +388,32 @@ const appConfig = await builder.addAzureAppConfiguration("config")
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddAzureAppConfiguration("config").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+			emulator.WithHostPort(aspire.IntPtr(28000))
+		},
+	})
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code configures the emulator container's endpoint to listen on port `28000`.
 
 #### Configure Azure App Configuration emulator with persistent lifetime
 
-To configure the emulator container with a persistent lifetime, call the `WithLifetime` method (or `withLifetime`) on the emulator container resource and pass `ContainerLifetime.Persistent`:
+To configure the emulator container with a persistent lifetime, call the <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithLifetime" /> method (or `withLifetime`) on the emulator container resource and pass `ContainerLifetime.Persistent`:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -362,11 +449,30 @@ const appConfig = await builder.addAzureAppConfiguration("config")
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddAzureAppConfiguration("config").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+			emulator.WithLifetime(aspire.ContainerLifetimePersistent)
+		},
+	})
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 #### Configure Azure App Configuration emulator with data volume
 
-By default, the Azure App Configuration emulator doesn't persist data between container restarts. To enable persistent storage using a Docker volume, call the `WithDataVolume` method (or `withDataVolume`) on the emulator resource:
+By default, the Azure App Configuration emulator doesn't persist data between container restarts. To enable persistent storage using a Docker volume, call the <ApiReference name="Aspire.Hosting.AzureAppConfigurationExtensions.WithDataVolume" /> method (or `withDataVolume`) on the emulator resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -402,13 +508,32 @@ const appConfig = await builder.addAzureAppConfiguration("config")
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddAzureAppConfiguration("config").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+			emulator.WithDataVolume()
+		},
+	})
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 The data volume is used to persist the emulator data outside the lifecycle of its container, ensuring configuration values survive container restarts. The data volume is mounted at the `/data` path in the emulator container. For more information on data volumes and details on why they're preferred over [bind mounts](#configure-azure-app-configuration-emulator-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 #### Configure Azure App Configuration emulator with data bind mount
 
-To persist emulator data to a specific directory on your host machine, call the `WithDataBindMount` method (or `withDataBindMount`). This is useful when you want direct access to the data files on your host system:
+To persist emulator data to a specific directory on your host machine, call the <ApiReference name="Aspire.Hosting.AzureAppConfigurationExtensions.WithDataBindMount" /> method (or `withDataBindMount`). This is useful when you want direct access to the data files on your host system:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -444,6 +569,27 @@ const appConfig = await builder.addAzureAppConfiguration("config")
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddAzureAppConfiguration("config").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+			emulator.WithDataBindMount(&aspire.WithDataBindMountOptions{
+				Path: aspire.StringPtr("../Emulator/Data"),
+			})
+		},
+	})
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 :::note
@@ -454,7 +600,7 @@ Data bind mounts rely on the host machine's filesystem to persist the emulator d
 
 ## Use existing Azure App Configuration resource
 
-You might have an existing Azure App Configuration store that you want to connect to. Call the `AsExisting` method (or `asExisting`) with the config store name and resource group parameters to connect to an existing store:
+You might have an existing Azure App Configuration store that you want to connect to. Call the <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" /> method (or `asExisting`) with the config store name and resource group parameters to connect to an existing store:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -493,13 +639,38 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+configName := builder.AddParameter("configName")
+configResourceGroupName := builder.AddParameter("configResourceGroupName")
+
+builder.AddAzureAppConfiguration("config").
+	AsExisting(configName, &aspire.AsExistingOptions{ResourceGroup: configResourceGroupName})
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 For more information, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
 ## Connect to existing Azure App Configuration store
 
-An alternative approach to using the `AsExisting` API enables the addition of a connection string instead, where the AppHost uses configuration to resolve the connection information. To add a connection to an existing Azure App Configuration store, call the `AddConnectionString` method:
+An alternative approach to using the `AsExisting` API enables the addition of a connection string instead, where the AppHost uses configuration to resolve the connection information. To add a connection to an existing Azure App Configuration store, call the <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" /> method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -533,6 +704,30 @@ await builder.addProject("web", "../WebApplication/WebApplication.csproj")
 // After adding all resources, run the app...
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+config := builder.AddConnectionString("config")
+
+web := builder.AddGoApp("web", "./web").
+	WithReference(config)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -590,6 +785,34 @@ await appConfig.withRoleAssignments(appConfig, [
 // After adding all resources, run the app...
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+appConfig := builder.AddAzureAppConfiguration("config")
+
+web := builder.AddGoApp("web", "./web").
+	WithReference(appConfig)
+
+web.WithAppConfigurationRoleAssignments(appConfig, []aspire.AzureAppConfigurationRole{
+	aspire.AzureAppConfigurationRoleAppConfigurationDataReader,
+})
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
