@@ -22,7 +22,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Cosmos DB hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a Cosmos DB account, databases, and containers in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Cosmos DB hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model a Cosmos DB account, databases, and containers in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Cosmos DB integration, start with the [Get started with Azure Cosmos DB integrations](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Cosmos DB](../azure-cosmos-db-connect/).
 
@@ -53,6 +53,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-cosmosdb
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Cosmos DB hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.CosmosDB": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add azure-cosmosdb
@@ -106,6 +127,21 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db")
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(cosmos)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 <Aside type="caution">
@@ -139,6 +175,19 @@ const builder = await createBuilder();
 
 const cosmos = await builder.addAzureCosmosDB("cosmos-db");
 await cosmos.runAsEmulator();
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db").
+	RunAsEmulator()
 
 // After adding all resources, run the app...
 ```
@@ -195,6 +244,23 @@ await cosmos.runAsEmulator({
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(emulator aspire.AzureCosmosDBEmulatorResource) {
+			emulator.WithGatewayPort(aspire.IntPtr(7777))
+		},
+	})
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The Cosmos DB emulator container's port is mapped to the host port as shown in the following table:
@@ -237,6 +303,23 @@ await cosmos.runAsClassicEmulator({
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db").
+	RunAsClassicEmulator(&aspire.RunAsClassicEmulatorOptions{
+		ConfigureContainer: func(emulator aspire.AzureCosmosDBEmulatorResource) {
+			emulator.WithPartitionCount(100) // Defaults to 25
+		},
+	})
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 For the classic emulator, this is a shorthand for setting the `AZURE_COSMOS_EMULATOR_PARTITION_COUNT` environment variable.
@@ -271,6 +354,23 @@ await cosmos.runAsEmulator({
         await emulator.withDataVolume();
     }
 });
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(emulator aspire.AzureCosmosDBEmulatorResource) {
+			emulator.WithDataVolume()
+		},
+	})
 
 // After adding all resources, run the app...
 ```
@@ -326,6 +426,19 @@ await cosmos.runAsClassicEmulator();
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db").
+	RunAsClassicEmulator()
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 `RunAsClassicEmulator` configures the Cosmos DB resource to use the `stable` tag of the [Azure Cosmos DB Emulator](https://learn.microsoft.com/azure/cosmos-db/emulator#authentication) container image. Unlike the default vNext emulator, the classic emulator requires a TLS/SSL certificate. For more information, see [Export the emulator's TLS/SSL certificate](https://learn.microsoft.com/azure/cosmos-db/how-to-develop-emulator?tabs=docker-linux#export-the-emulators-tlsssl-certificate).
@@ -367,6 +480,25 @@ await cosmos.runAsEmulator({
         await emulator.withDataExplorer();
     }
 });
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(emulator aspire.AzureCosmosDBEmulatorResource) {
+			emulator.WithDataExplorer()
+		},
+	})
 
 // After adding all resources, run the app...
 ```
@@ -415,6 +547,25 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingCosmosName := builder.AddParameter("existingCosmosName")
+existingCosmosRG := builder.AddParameter("existingCosmosResourceGroup")
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db").
+	AsExisting(existingCosmosName, &aspire.AsExistingOptions{ResourceGroup: existingCosmosRG})
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(cosmos)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 For more information on treating Azure Cosmos DB resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
@@ -454,6 +605,19 @@ const db = await cosmos.addCosmosDatabase("db");
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db")
+db := cosmos.AddCosmosDatabase("db")
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The `AddCosmosDatabase` call adds a logical database named `db` to your Cosmos DB account. The database is a logical container for collections and users.
@@ -483,6 +647,20 @@ const builder = await createBuilder();
 const cosmos = await builder.addAzureCosmosDB("cosmos-db");
 const db = await cosmos.addCosmosDatabase("db");
 const container = await db.addContainer("entries", "/id");
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db")
+db := cosmos.AddCosmosDatabase("db")
+db.AddContainer("entries", "/id")
 
 // After adding all resources, run the app...
 ```
@@ -540,6 +718,36 @@ await builder.addNodeApp("api", "./api", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos")
+
+customers := cosmos.AddCosmosDatabase("customers")
+profiles := customers.AddContainer("profiles", "/id")
+
+orders := cosmos.AddCosmosDatabase("orders")
+details := orders.AddContainer("details", "/id")
+history := orders.AddContainer("history", "/id")
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(profiles).
+	WithReference(details).
+	WithReference(history)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 The preceding code adds a Cosmos DB account named `cosmos` with two databases: `customers` and `orders`. The `customers` database has a single container named `profiles`, while the `orders` database has two containers: `details` and `history`. The partition key for each container is `/id`.
@@ -578,6 +786,19 @@ const builder = await createBuilder();
 
 const cosmos = await builder.addAzureCosmosDB("cosmos-db");
 await cosmos.withAccessKeyAuthentication();
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db").
+	WithAccessKeyAuthentication()
 
 // After adding all resources, run the app...
 ```
@@ -702,6 +923,22 @@ await cosmos.configureInfrastructure(async infra => {
 <Aside type="note">
     The TypeScript `configureInfrastructure` API provides access to raw Bicep resource objects. Strongly-typed resource properties (such as `CosmosDBAccountKind`) are only available in the C# provisioning SDK.
 </Aside>
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cosmos := builder.AddAzureCosmosDB("cosmos-db")
+cosmos.ConfigureInfrastructure(func(infra aspire.AzureResourceInfrastructure) {
+	// Customize the generated Bicep resources here.
+})
+
+```
 
 </TabItem>
 </Tabs>

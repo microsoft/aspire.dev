@@ -1,0 +1,224 @@
+---
+title: Azure API Management APIs and operations
+description: Publish Aspire workloads and other backends as Azure API Management APIs, define explicit operations, and add OpenAI-compatible APIs in your AppHost.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+An API in Azure API Management (APIM) is a set of operations published at a path on the gateway. The Aspire Azure API Management hosting integration models each API as an `AzureApiManagementApiResource` child of the service. This page assumes the `apim` resource and the `catalog` workload from [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/#add-a-service-and-route-a-workload).
+
+## Route an Aspire workload
+
+Call `AddApi` with a compute resource to publish that workload through the gateway. The compute resource must expose an HTTP or HTTPS endpoint and have an Azure compute environment, such as an Azure Container Apps environment.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await apim.addApi("catalog-api", catalog, "catalog", {
+    displayName: "Catalog API",
+    subscriptionRequired: true,
+    apiName: "catalog-v1",
+});
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+apim.AddApi(
+    "catalog-api",
+    catalog,
+    path: "catalog",
+    displayName: "Catalog API",
+    subscriptionRequired: true,
+    apiName: "catalog-v1");
+```
+
+</TabItem>
+</Tabs>
+
+For each compute-targeted API, Aspire deploys:
+
+- An API that accepts HTTPS requests at the path that you specify.
+- A reusable APIM backend whose URL is the workload's deployed endpoint, with TLS certificate-chain and hostname validation enabled.
+- Catch-all operations that forward requests to that backend. For more information, see [Generated proxy operations](#generated-proxy-operations).
+- An API policy that inherits the parent policy and sets the backend service.
+
+The `AddApi` method has the following parameters:
+
+| Parameter | Required | Description |
+| --------- | -------- | ----------- |
+| `name` | Yes | The Aspire resource name. It's also the default physical API name. |
+| `target` | Compute-targeted only | The compute resource to route to. |
+| `path` | Yes | The public path beneath the gateway host name. Surrounding slashes are trimmed. |
+| `displayName` | No | The API display name. Defaults to the resource name. |
+| `subscriptionRequired` | No | Whether callers must send an APIM subscription key. Defaults to `true`. |
+| `apiName` | No | The physical API identifier in APIM. Defaults to the resource name. |
+
+Aspire validates these values when you add the API:
+
+- The physical API name is at most 256 characters and can't contain `*`, `#`, `&`, `+`, `:`, `<`, `>`, or `?`.
+- The path is non-empty after trimming and has at most 400 characters.
+- The display name has 1 to 300 characters.
+- The physical API name and the path are each unique within the service, ignoring case.
+
+### Choose the workload endpoint
+
+APIM selects the first external HTTP or HTTPS endpoint of the workload, or the first HTTP or HTTPS endpoint when none is external. If the workload exposes no HTTP or HTTPS endpoint, publishing fails with the error `Resource 'catalog' does not have an HTTP or HTTPS endpoint.`
+
+A workload that exposes only internal endpoints is reachable only when the APIM service has virtual network connectivity. For more information, see [Virtual networking](/integrations/cloud/azure/azure-api-management/azure-api-management-networking/#route-to-a-private-container-apps-environment).
+
+## Route to a backend you configure
+
+Use the overload without a compute target when the API should forward to a backend that isn't an Aspire compute resource, such as an external service. Then attach a backend or a backend pool with `WithBackend`.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { refExpr } from './.aspire/modules/aspire.mjs';
+
+const backend = await apim.addBackend("legacy-backend", refExpr`https://legacy.example.com`);
+
+const legacyApi = await apim.addApiWithoutTarget("legacy-api", "legacy");
+await legacyApi.withApiBackend(backend);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var backend = apim.AddBackend(
+    "legacy-backend",
+    ReferenceExpression.Create($"https://legacy.example.com"));
+
+apim.AddApi("legacy-api", path: "legacy")
+    .WithBackend(backend);
+```
+
+</TabItem>
+</Tabs>
+
+In TypeScript, the overload without a target is `addApiWithoutTarget`. An API without a compute target must have exactly one backend or pool when you deploy. Aspire throws an `InvalidOperationException` if the API has none, if it already has one, if it targets a compute resource, or if the backend belongs to a different APIM service.
+
+For backend options, backend pools, and managed identity authentication, see [Backends and backend pools](/integrations/cloud/azure/azure-api-management/azure-api-management-backends/).
+
+## Generated proxy operations
+
+APIM needs operations to dispatch requests. When an API has no OpenAPI import, Aspire generates a root operation and a catch-all operation for each of the eight supported HTTP methods:
+
+| Operation name | URL template | Matches |
+| -------------- | ------------ | ------- |
+| `proxy-{method}-root` | `/` | The API path itself, such as `/catalog`. |
+| `proxy-{method}` | `/{*path}` | Any descendant path, such as `/catalog/products/1`. |
+
+The methods are `DELETE`, `GET`, `HEAD`, `OPTIONS`, `PATCH`, `POST`, `PUT`, and `TRACE`. APIM doesn't reliably dispatch operations that use the wildcard method, so Aspire creates a concrete operation for each method. The wildcard route doesn't match the API path itself, which is why Aspire also generates the root operations.
+
+When you import an OpenAPI document, the imported operations replace the generated proxy operations. For more information, see [OpenAPI import](/integrations/cloud/azure/azure-api-management/azure-api-management-openapi/).
+
+## Add explicit operations
+
+Call `AddOperation` to model an operation explicitly, for example to attach a policy to a specific route. Explicit operations are provisioned in addition to the generated proxy operations or the imported operations.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const catalogApi = await apim.addApi("catalog-api", catalog, "catalog");
+
+await catalogApi.addOperation("get-product", "GET", "/products/{id}", {
+    displayName: "Get product",
+});
+await catalogApi.addOperation("create-product", "POST", "/products");
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var catalogApi = apim.AddApi("catalog-api", catalog, path: "catalog");
+
+catalogApi.AddOperation(
+    "get-product",
+    method: "GET",
+    urlTemplate: "/products/{id}",
+    displayName: "Get product");
+
+catalogApi.AddOperation("create-product", "POST", "/products");
+```
+
+</TabItem>
+</Tabs>
+
+Each placeholder in the URL template, such as `{id}`, becomes a required string template parameter. The `AddOperation` method has the following parameters:
+
+| Parameter | Required | Description |
+| --------- | -------- | ----------- |
+| `name` | Yes | The Aspire resource name. It's also the default physical operation name. |
+| `method` | Yes | A concrete HTTP method. Aspire converts it to uppercase. The wildcard `*` isn't allowed. |
+| `urlTemplate` | Yes | The URL template relative to the API path. Maximum 1,000 characters. |
+| `displayName` | No | The operation display name. Defaults to the resource name. |
+| `operationName` | No | The physical operation identifier in APIM. Defaults to the resource name. Maximum 80 characters. |
+
+Aspire enforces these rules:
+
+- The physical operation name is unique within the API.
+- The HTTP method and URL template are unique within the API. Templates that differ only in parameter names, such as `/products/{id}` and `/products/{productId}`, count as the same route.
+- The names `proxy`, `proxy-{method}`, and `proxy-{method}-root` are reserved for generated operations.
+- The routes `/` and `/{*path}` are reserved for generated proxy operations. You can use them only when the API has an OpenAPI import, regardless of whether you call `WithOpenApiDocument` before or after `AddOperation`.
+
+Operations support operation-level policies. For more information, see [Policies and named values](/integrations/cloud/azure/azure-api-management/azure-api-management-policies/).
+
+## Add an OpenAI-compatible API
+
+Call `AddOpenAIApi` to publish an API that forwards OpenAI-style requests to a backend pool. The method creates an API with the generated proxy operations and an explicit `POST /chat/completions` operation named `chat-completions`.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const foundry = await builder.addFoundry("foundry");
+const chat = await foundry.addDeployment("chat", {
+    name: "gpt-5-mini",
+    version: "2025-08-07",
+    format: "OpenAI",
+});
+
+const backend = await apim.addFoundryBackend("foundry-backend", chat);
+
+const openAIApi = await apim.addOpenAIApi("openai-api", "openai", {
+    subscriptionRequired: false,
+});
+await openAIApi.withApiBackend(backend);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Foundry;
+
+var foundry = builder.AddFoundry("foundry");
+var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+
+var backend = apim.AddFoundryBackend("foundry-backend", chat);
+
+apim.AddOpenAIApi(
+        "openai-api",
+        path: "openai",
+        subscriptionRequired: false)
+    .WithBackend(backend);
+```
+
+</TabItem>
+</Tabs>
+
+Requests beneath the API path are appended to the URI of the selected backend. You can attach a single backend, as in the preceding example, or a backend pool that load balances several deployments. Create the backends with `AddAzureOpenAIBackend` or `AddFoundryBackend`. For a pool example, see [Load balance OpenAI deployments](/integrations/cloud/azure/azure-api-management/azure-api-management-backends/#load-balance-openai-deployments).
+
+## See also
+
+- [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/)
+- [Import OpenAPI definitions](/integrations/cloud/azure/azure-api-management/azure-api-management-openapi/)
+- [Backends and backend pools](/integrations/cloud/azure/azure-api-management/azure-api-management-backends/)
+- [API Management key concepts](https://learn.microsoft.com/azure/api-management/api-management-key-concepts)

@@ -34,7 +34,7 @@ To get started with the Aspire Community Toolkit MongoDB hosting extensions, ins
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.MongoDB.Extensions" />
 
-For TypeScript AppHosts, add the Community Toolkit MongoDB extensions package to `aspire.config.json`:
+For TypeScript and Go AppHosts, add the Community Toolkit MongoDB extensions package to `aspire.config.json`:
 
 ```json title="aspire.config.json" ins={3}
 {
@@ -83,6 +83,30 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongodb := builder.AddMongoDB("mongodb").
+	WithDbGate()
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 This adds a new DbGate resource to the AppHost which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your MongoDB databases.
@@ -121,9 +145,33 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddMongoDB("mongodb").
+	WithDbx(&aspire.WithDbxOptions{
+		ContainerName: aspire.StringPtr("mongodb-dbx"),
+		ImageTag:      aspire.StringPtr("0.5.33"),
+	})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
-The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript and Go bindings accept optional `containerName` and `imageTag` values.
 
 ## See also
 

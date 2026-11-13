@@ -1,0 +1,102 @@
+---
+title: Customize Entra ID infrastructure
+seoTitle: Customize Microsoft Entra ID infrastructure in Aspire
+description: Add tags and a service management reference to the Microsoft Graph application and service principal that Aspire generates, using ConfigureInfrastructure.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+For each registration that Aspire creates, it generates Bicep that declares the application, its service principal, and any federated credentials, permission grants, and role assignments. Use `ConfigureInfrastructure` to set properties that Aspire doesn't model, such as tags and the service management reference. You don't need a `bicepconfig.json`.
+
+`ConfigureInfrastructure` applies only to registrations that Aspire creates. References to existing registrations produce no infrastructure. For more information, see [Existing registrations](/integrations/security/microsoft-entra-id/existing-registrations/). For the shared pattern across Azure integrations, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/).
+
+## Customize the application and service principal
+
+The Graph models are public in the `Aspire.Hosting.Azure.EntraId.Provisioning` namespace. The primary declarations have the Bicep identifiers `application` and `servicePrincipal`, not the name of the Aspire resource. Look them up by identifier.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+TypeScript AppHosts need the `Aspire.Hosting.Azure.Provisioning.EntraId` package, which generates typed proxies for the Graph models. Add it with the Aspire CLI:
+
+```bash title="Add typed Microsoft Graph infrastructure customization"
+aspire add Aspire.Hosting.Azure.Provisioning.EntraId
+```
+
+:::caution[Experimental API]
+The `Aspire.Hosting.Azure.Provisioning.EntraId` package is experimental. Typed provisioning proxies for TypeScript and other polyglot AppHosts can change in a later release.
+:::
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const serviceReference = await builder.addParameter("service-reference");
+const entra = await builder.addEntraIdApplication("entra");
+
+await entra.configureInfrastructure(async (infrastructure) => {
+    const application = await infrastructure.getMicrosoftGraphApplicationByIdentifier("application");
+    const tags = await application.tags.get();
+    await tags.add("department:engineering");
+    await application.serviceManagementReference.set(infrastructure.bicep().parameter(serviceReference));
+
+    const principal = await infrastructure.getMicrosoftGraphServicePrincipalByIdentifier("servicePrincipal");
+    const principalTags = await principal.tags.get();
+    await principalTags.add("department:engineering");
+});
+
+await builder.build().run();
+```
+
+The proxy properties use asynchronous `get()` and `set()` operations. Properties accept literals or shared Bicep values from `infrastructure.bicep()`, so a parameter stays a deployment-time value. For more information, see [Compose Azure infrastructure with Bicep helpers](/integrations/cloud/azure/bicep-helpers/).
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+In C#, the models are available with the `Aspire.Hosting.Azure.EntraId` package and need no extra package. Use `GetProvisionableResources()` to find the declarations:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure.EntraId.Provisioning;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var entra = builder.AddEntraIdApplication("entra")
+    .ConfigureInfrastructure(infrastructure =>
+    {
+        var application = infrastructure.GetProvisionableResources()
+            .OfType<MicrosoftGraphApplication>()
+            .Single(r => r.BicepIdentifier == "application");
+        application.Tags.Add("department:engineering");
+        application.ServiceManagementReference = "your-service-management-reference";
+
+        var principal = infrastructure.GetProvisionableResources()
+            .OfType<MicrosoftGraphServicePrincipal>()
+            .Single(r => r.BicepIdentifier == "servicePrincipal");
+        principal.Tags.Add("department:engineering");
+    });
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+## Understand tags and the service management reference
+
+Microsoft Graph [application](https://learn.microsoft.com/graph/templates/bicep/reference/applications) and [service principal](https://learn.microsoft.com/graph/templates/bicep/reference/serviceprincipals) tags are string arrays, not Azure key and value tags. Add the exact string that you need. Applications also have a `serviceManagementReference` property, which holds a reference to a service or asset management database.
+
+Add to the service principal's tags and don't replace them. Aspire sets the `WindowsAzureActiveDirectoryIntegratedApp` tag, which keeps the service principal in the **Enterprise applications** list.
+
+## Select the right declaration
+
+Select the application by the identifier `application`. A registration that uses the default `api://{clientId}` URI has a second `MicrosoftGraphApplication` declaration with the identifier `applicationIdentity`.
+
+Use the Aspire APIs for settings that Aspire models, such as the display name, redirect URIs, roles, and scopes. To inspect the module, see [Inspect generated Bicep](/integrations/cloud/azure/customize-resources/#inspect-generated-bicep).
+
+## See also
+
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
+- [Compose Azure infrastructure with Bicep helpers](/integrations/cloud/azure/bicep-helpers/)
+- [Lifecycle and permissions](/integrations/security/microsoft-entra-id/lifecycle-and-permissions/)

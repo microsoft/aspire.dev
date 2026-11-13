@@ -18,7 +18,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Container Registry Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure Container Registry resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Container Registry Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure Container Registry resource in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Container Registry integration, start with the [Get started with Azure Container Registry integrations](/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/) guide. For how the registry is consumed at deployment time — including the `loginServer` output — see [Connect to Azure Container Registry](../azure-container-registry-connect/).
 
@@ -49,6 +49,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Azure.ContainerRegistry
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Container Registry hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.ContainerRegistry": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add Aspire.Hosting.Azure.ContainerRegistry
@@ -113,6 +134,29 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+acr := builder.AddAzureContainerRegistry("my-acr")
+
+env := builder.AddAzureContainerAppEnvironment("env")
+env.WithAzureContainerRegistry(acr)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Steps>
@@ -157,6 +201,21 @@ const env = await builder.addAzureContainerAppEnvironment("env");
 
 // Retrieve the default auto-provisioned registry
 const registry = await env.getAzureContainerRegistry();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+env := builder.AddAzureContainerAppEnvironment("env")
+
+// Retrieve the default auto-provisioned registry
+registry := env.GetAzureContainerRegistry()
 ```
 
 </TabItem>
@@ -230,6 +289,42 @@ await acr.asExisting(registryName, { resourceGroup: rgName });
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+Use `PublishAsExisting` to reference an existing registry only in publish (deployment) mode:
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+registryName := builder.AddParameter("registryName")
+rgName := builder.AddParameter("rgName")
+
+acr := builder.AddAzureContainerRegistry("my-acr")
+acr.PublishAsExisting(registryName, &aspire.PublishAsExistingOptions{ResourceGroup: rgName})
+
+env := builder.AddAzureContainerAppEnvironment("env")
+env.WithAzureContainerRegistry(acr)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+Use `AsExisting` to reference an existing registry in both run and publish modes:
+
+```go title="apphost.go"
+acr := builder.AddAzureContainerRegistry("my-acr")
+acr.AsExisting(registryName, &aspire.AsExistingOptions{ResourceGroup: rgName})
+```
+
+</TabItem>
 </Tabs>
 
 ## Assign roles for access control
@@ -266,6 +361,32 @@ const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.withRoleAssignments(acr, [AzureContainerRegistryRole.AcrPush]);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+acr := builder.AddAzureContainerRegistry("my-acr")
+
+// Grant the 'api' app permission to push images
+api := builder.AddGoApp("api", "./api")
+api.WithContainerRegistryRoleAssignments(acr, []aspire.AzureContainerRegistryRole{
+	aspire.AzureContainerRegistryRoleAcrPush,
+})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -307,6 +428,30 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+acr := builder.AddAzureContainerRegistry("my-acr")
+acr.WithPurgeTask("0 1 * * *", &aspire.WithPurgeTaskOptions{
+	Ago:  aspire.Float64Ptr(7 * 24 * 60 * 60 * 1000), // 7 days in milliseconds
+	Keep: aspire.IntPtr(5),
+})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code creates a purge task that runs daily at 1:00 AM, removing images older than 7 days while keeping the 5 most recent images per repository. The C# `ago` parameter accepts a `TimeSpan`; the TypeScript `ago` option accepts milliseconds.
@@ -335,6 +480,22 @@ await acr.withPurgeTask("0 2 * * 0", {
     ago: 30 * 24 * 60 * 60 * 1000,
     keep: 10,
 });
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="Multiple purge tasks"
+acr := builder.AddAzureContainerRegistry("my-acr")
+acr.WithPurgeTask("0 1 * * *", &aspire.WithPurgeTaskOptions{
+	Filter: aspire.StringPtr("app1:.*"),
+	Keep:   aspire.IntPtr(3),
+})
+acr.WithPurgeTask("0 2 * * 0", &aspire.WithPurgeTaskOptions{
+	Filter: aspire.StringPtr("app2:.*"),
+	Ago:    aspire.Float64Ptr(30 * 24 * 60 * 60 * 1000),
+	Keep:   aspire.IntPtr(10),
+})
 ```
 
 </TabItem>
@@ -369,6 +530,16 @@ const acr = await builder.addAzureContainerRegistry("my-acr");
 await acr.configureInfrastructure(async (infra) => {
     // Use the Bicep infrastructure object to customize the registry
 });
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+acr := builder.AddAzureContainerRegistry("my-acr")
+acr.ConfigureInfrastructure(func(infra aspire.AzureResourceInfrastructure) {
+	// Use the Bicep infrastructure object to customize the registry
+})
 ```
 
 </TabItem>

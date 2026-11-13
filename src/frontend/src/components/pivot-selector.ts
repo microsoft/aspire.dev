@@ -2,6 +2,12 @@ import { getStoredPreference, setStoredPreference } from '@utils/browser-storage
 
 const headingSelector = 'main h1, main h2, main h3, main h4, main h5, main h6';
 
+const appHostLanguageLabels: Record<string, string> = {
+  csharp: 'C#',
+  typescript: 'TypeScript',
+  go: 'Go',
+};
+
 function findScrollAnchor() {
   let nearest: HTMLElement | undefined;
   let minDistance = Infinity;
@@ -117,11 +123,8 @@ export class PivotSelector extends HTMLElement {
       const anchor = preserveScroll ? findScrollAnchor() : undefined;
       setStoredPreference(key, id);
       // Keep destination Starlight tabs on the same AppHost language.
-      if (key === 'aspire-lang' && (id === 'csharp' || id === 'typescript')) {
-        setStoredPreference(
-          'starlight-synced-tabs__aspire-lang',
-          id === 'csharp' ? 'C#' : 'TypeScript'
-        );
+      if (key === 'aspire-lang' && appHostLanguageLabels[id]) {
+        setStoredPreference('starlight-synced-tabs__aspire-lang', appHostLanguageLabels[id]);
         document.documentElement.dataset.apphostLang = id;
       }
       const url = new URL(window.location.href);
