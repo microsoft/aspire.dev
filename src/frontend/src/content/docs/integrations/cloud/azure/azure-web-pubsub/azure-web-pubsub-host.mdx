@@ -18,7 +18,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Web PubSub hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Azure Web PubSub resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Web PubSub hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model Azure Web PubSub resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Web PubSub integration, start with the [Get started with the Azure Web PubSub integrations](/integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Web PubSub](../azure-web-pubsub-connect/).
 
@@ -49,6 +49,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-web-pubsub
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Web PubSub hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.WebPubSub": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add azure-web-pubsub
@@ -102,6 +123,21 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+webPubSub := builder.AddAzureWebPubSub("web-pubsub")
+
+builder.AddGoApp("api", "./api").
+	WithReference(webPubSub)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 <Steps>
@@ -147,6 +183,21 @@ const builder = await createBuilder();
 
 const webPubSub = await builder.addAzureWebPubSub("web-pubsub");
 const messagesHub = await webPubSub.addHub("messages", { hubName: "messageHub" });
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+webPubSub := builder.AddAzureWebPubSub("web-pubsub")
+messagesHub := webPubSub.AddHub("messages", &aspire.AddHubOptions{
+	HubName: aspire.StringPtr("messageHub"),
+})
 
 // After adding all resources, run the app...
 ```
@@ -197,6 +248,30 @@ await messagesHub.addEventHandler(workerEndpoint, {
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+worker := builder.AddGoApp("worker", "./worker").
+	WithHttpsEndpoint().
+	WithExternalHttpEndpoints()
+workerEndpoint := worker.GetEndpoint("https")
+
+webPubSub := builder.AddAzureWebPubSub("web-pubsub")
+messagesHub := webPubSub.AddHub("messages", &aspire.AddHubOptions{
+	HubName: aspire.StringPtr("messageHub"),
+})
+
+messagesHub.AddEventHandler(aspire.RefExpr("{0}", workerEndpoint), &aspire.AddEventHandlerOptions{
+	SystemEvents: []string{"connected"},
+})
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The preceding code registers an event handler URL pointing to the worker service's external HTTPS endpoint. For more information, see [Azure Web PubSub event handlers](https://learn.microsoft.com/azure-web-pubsub/howto-develop-eventhandler).
@@ -236,6 +311,27 @@ const api = await builder.addNodeApp("api", "./api", "index.js")
 // Assign WebPubSubServiceReader role (read-only access)
 await builder.addAzureEnvironment()
     .withRoleAssignments(webPubSub, [AzureWebPubSubRole.WebPubSubServiceReader]);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+webPubSub := builder.AddAzureWebPubSub("web-pubsub")
+
+builder.AddGoApp("api", "./api").
+	WithReference(webPubSub)
+
+// Assign WebPubSubServiceReader role (read-only access)
+builder.AddAzureEnvironment().
+	WithWebPubSubRoleAssignments(webPubSub, []aspire.AzureWebPubSubRole{
+		aspire.AzureWebPubSubRoleWebPubSubServiceReader,
+	})
 
 // After adding all resources, run the app...
 ```
@@ -284,6 +380,24 @@ await webPubSub.asExisting(existingPubSubName);
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(webPubSub);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingPubSubName := builder.AddParameter("existingPubSubName")
+
+webPubSub := builder.AddAzureWebPubSub("web-pubsub")
+webPubSub.AsExisting(existingPubSubName)
+
+builder.AddGoApp("api", "./api").
+	WithReference(webPubSub)
 
 // After adding all resources, run the app...
 ```

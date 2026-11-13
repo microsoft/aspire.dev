@@ -72,6 +72,27 @@ This updates your `aspire.config.json` with the Kubernetes hosting integration p
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Kubernetes hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Kubernetes": "*"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Kubernetes environment
@@ -110,6 +131,40 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	builder.AddKubernetesEnvironment("k8s")
+
+	builder.AddNodeApp("api", "./api", "src/index.ts").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithExternalHttpEndpoints()
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 The dashboard container included in the generated Helm chart opts out of dashboard usage and error telemetry by default (`ASPIRE_DASHBOARD_TELEMETRY_OPTOUT=true`). This setting only affects the dashboard's own product telemetry — your application's OpenTelemetry data sent to the dashboard is unaffected.
@@ -135,6 +190,14 @@ The dashboard container included in the generated Helm chart opts out of dashboa
 
   const api = await builder.addNodeApp('api', './api', 'src/index.ts');
   await api.withComputeEnvironment(k8s);
+  ```
+  </TabItem>
+  <TabItem id="go" label="Go">
+  ```go title="apphost.go"
+  k8s := builder.AddKubernetesEnvironment("k8s")
+
+  api := builder.AddNodeApp("api", "./api", "src/index.ts")
+  api.WithComputeEnvironment(k8s)
   ```
   </TabItem>
   </Tabs>
@@ -174,6 +237,22 @@ await k8s.withHelm(async (helm) => {
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+k8s := builder.AddKubernetesEnvironment("k8s")
+k8s.WithHelm(&aspire.WithHelmOptions{
+	Configure: func(helm aspire.HelmChartOptions) {
+		helm.WithNamespace("my-namespace")
+		helm.WithReleaseName("my-release")
+		helm.WithChartName("my-aspire-app")
+		helm.WithChartVersion("1.0.0")
+		helm.WithChartDescription("My Aspire application deployed to Kubernetes")
+	},
+})
+```
+
+</TabItem>
 </Tabs>
 
 Helm is the default deployment engine. Call `WithHelm` only when you need to customize the defaults.
@@ -207,6 +286,15 @@ builder.AddKubernetesEnvironment("k8s").WithContainerRegistry(registry);
 const registry = await builder.addContainerRegistry('registry', 'myregistry.example.com:5000');
 const k8s = await builder.addKubernetesEnvironment('k8s');
 await k8s.withContainerRegistry(registry);
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+registry := builder.AddContainerRegistry("registry", "myregistry.example.com:5000")
+k8s := builder.AddKubernetesEnvironment("k8s")
+k8s.WithContainerRegistry(registry)
 ```
 
 </TabItem>
@@ -250,6 +338,21 @@ await pgData.withCapacity('20Gi');
 const pg = await builder.addPostgres('pg');
 await pg.withDataVolume({ name: 'pg-data' });
 await pg.withKubernetesPersistentVolume(pgData);
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+k8s := builder.AddKubernetesEnvironment("k8s")
+
+pgData := k8s.AddPersistentVolume("pg-data")
+pgData.WithStorageClass("managed-csi")
+pgData.WithCapacity("20Gi")
+
+pg := builder.AddPostgres("pg")
+pg.WithDataVolume(&aspire.WithDataVolumeOptions{Name: aspire.StringPtr("pg-data")})
+pg.WithKubernetesPersistentVolume(pgData)
 ```
 
 </TabItem>
@@ -398,6 +501,7 @@ The API surface differs by language:
 
 - **C#**: add subclasses of `BaseKubernetesResource` directly to the `AdditionalResources` collection. Several built-in types (such as `ConfigMap`) are available in the `Aspire.Hosting.Kubernetes.Resources` namespace, and you can subclass `BaseKubernetesResource` to model any custom resource definition (CRD).
 - **TypeScript**: call `addManifest` on the resource. It takes the manifest's `apiVersion`, `kind`, and `metadata.name`, and returns a handle for setting labels, annotations, a namespace, and arbitrary field values using dot-notation paths.
+- **Go**: call `AddManifest` on the resource, which provides the same handle as TypeScript.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -470,6 +574,22 @@ await service.publishAsKubernetesService(async (resource) => {
         },
     });
 });
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+service := builder.AddContainer("service", "nginx")
+service.PublishAsKubernetesService(func(resource aspire.KubernetesResource) {
+	resource.AddManifest("cert-manager.io/v1", "Certificate", "service-tls", &aspire.AddManifestOptions{
+		Configure: func(manifest aspire.KubernetesManifestResource) {
+			manifest.WithLabel("example.com/managed-by", "aspire")
+			manifest.WithField("spec.secretName", "service-tls")
+			manifest.WithField("spec.dnsNames", []string{"service.example.com"})
+			manifest.WithField("spec.issuerRef.name", "letsencrypt-prod")
+			manifest.WithField("spec.issuerRef.kind", "ClusterIssuer")
+		},
+	})
+})
 ```
 </TabItem>
 </Tabs>

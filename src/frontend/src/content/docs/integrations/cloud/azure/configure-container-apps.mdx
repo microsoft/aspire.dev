@@ -72,6 +72,28 @@ const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env");
 // Omitted for brevity...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	builder.AddAzureContainerAppEnvironment("aca-env")
+
+	// Omitted for brevity...
+}
+```
+</TabItem>
 </Tabs>
 
 By default, calling this API to add an ACA environment generates the following provisioning Bicep module:
@@ -228,6 +250,40 @@ await builder.addProject("api", "../ApiService/ApiService.csproj");
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	existingEnvName := builder.AddParameter("existingEnvName")
+	existingEnvResourceGroup := builder.AddParameter("existingEnvResourceGroup")
+
+	acaEnv := builder.AddAzureContainerAppEnvironment("aca-env")
+	acaEnv.AsExisting(existingEnvName, aspire.AsExistingResourceGroup(existingEnvResourceGroup))
+
+	api := builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+</TabItem>
 </Tabs>
 
 When the environment is marked as existing, Aspire generates a thin Bicep module that references the existing managed environment by name. It does not emit a new managed environment, Log Analytics workspace, or Aspire Dashboard component — the existing environment already owns those. For background on the `AsExisting` family of APIs, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
@@ -293,6 +349,50 @@ await acaEnv.withAcrPullIdentity(pullIdentity);
 await builder.addProject("api", "../ApiService/ApiService.csproj");
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	existingEnvName := builder.AddParameter("existingEnvName")
+	existingAcrName := builder.AddParameter("existingAcrName")
+	existingIdentityName := builder.AddParameter("existingIdentityName")
+	existingResourceGroup := builder.AddParameter("existingResourceGroup")
+
+	acr := builder.AddAzureContainerRegistry("acr")
+	acr.AsExisting(existingAcrName, aspire.AsExistingResourceGroup(existingResourceGroup))
+
+	pullIdentity := builder.AddAzureUserAssignedIdentity("acr-pull")
+	pullIdentity.AsExisting(existingIdentityName, aspire.AsExistingResourceGroup(existingResourceGroup))
+
+	acaEnv := builder.AddAzureContainerAppEnvironment("aca-env")
+	acaEnv.AsExisting(existingEnvName, aspire.AsExistingResourceGroup(existingResourceGroup))
+	acaEnv.WithAzureContainerRegistry(acr)
+	acaEnv.WithAcrPullIdentity(pullIdentity)
+
+	api := builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 </TabItem>
 </Tabs>
@@ -388,6 +488,29 @@ const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env");
 await acaEnv.withAzdResourceNaming();
 
 // Omitted for brevity...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	acaEnv := builder.AddAzureContainerAppEnvironment("aca-env")
+	acaEnv.WithAzdResourceNaming()
+
+	// Omitted for brevity...
+}
 ```
 </TabItem>
 </Tabs>

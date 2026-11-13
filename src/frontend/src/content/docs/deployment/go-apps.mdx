@@ -1,0 +1,88 @@
+---
+title: Deploy Go apps
+seoTitle: Deploy Aspire Go apps with the Aspire AppHost
+description: Learn how Aspire containerizes Go apps for deployment, and how the Go starter template ships a Go API and a React frontend as a single container image.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
+
+Go apps are compiled, so deploying one means building a container image from the app directory. Aspire generates that image for you, so the same `AddGoApp` resource that you run locally is the one that you deploy to Docker Compose, Azure Container Apps, Kubernetes, and other targets.
+
+This article is deployment-target agnostic. It explains how Go apps are containerized and how the Go starter template combines a Go API with a React frontend. For target-specific steps, see [Deploy your first Aspire app](/get-started/deploy-first-app/), [Docker Compose](/deployment/docker-compose/), and [Kubernetes](/deployment/kubernetes/).
+
+## How Aspire builds a Go app image
+
+When a deployment target emits container build artifacts for a Go app, Aspire uses the app directory as the Docker build context:
+
+- If the app directory already contains a `Dockerfile`, Aspire uses it.
+- If it doesn't, Aspire generates a multi-stage Dockerfile that builds a static Linux binary and runs it as a non-root user in a small runtime image.
+
+<LearnMore>
+For the full list of generated Dockerfile behavior, including Go version detection and private modules with <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithGoPrivate" />, see [Publish Go apps](/integrations/frameworks/go/go-host/#publish-go-apps).
+</LearnMore>
+
+## The Go starter template: one image for API and frontend
+
+The `aspire-go-starter` template follows the **backend serves frontend** model that the JavaScript starter also uses. The Go API and the React (Vite) frontend are separate resources while you develop, but they deploy as a single container image:
+
+- The `app` resource is the Go API. It exposes `/api/weatherforecast` and `/health`.
+- The `frontend` resource is the React app that Vite builds.
+- <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.PublishWithContainerFiles" /> copies the built frontend files into the `app` image at `./static`.
+- The Go server serves those files from `./static` at `/`, so the API and the user interface share one origin and one URL.
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	app := builder.AddGoApp("app", "./api").
+		WithModTidy().
+		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
+		WithHttpHealthCheck(aspire.HttpHealthCheckPath("/health")).
+		WithExternalHttpEndpoints().
+		WithOtlpExporter()
+
+	frontend := builder.AddViteApp("frontend", "./frontend", nil).
+		WithReference(app).
+		WaitFor(app)
+
+	// Bundle the frontend into the app container for same-origin production serving.
+	app.PublishWithContainerFiles(frontend, "./static")
+
+	application, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := application.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+Only the `app` resource has an external HTTP endpoint, because it's the only deployed container for the web surface. If you add a Redis cache, it deploys as its own resource and `app` receives its connection through `WithReference`.
+
+<Aside type="note">
+`PublishWithContainerFiles` copies the files into the image; it doesn't change your Go code. Your server must serve the static directory itself. The starter does this with `http.FileServer(http.Dir("./static"))`, and you need the same in your own app.
+</Aside>
+
+During local development, the Vite dev server proxies API calls to the `app` resource, so you keep hot reload for the frontend. In production, the browser loads the page and calls the API from the same origin, so no CORS configuration is needed.
+
+## Deploy the starter
+
+Add the hosting package for your target, add the environment resource to the AppHost, and run `aspire deploy`. The [Deploy your first Aspire app](/get-started/deploy-first-app/) tutorial walks through this for Docker Compose and Azure Container Apps with the Go starter.
+
+<LearnMore>
+To choose a different production topology, such as a reverse proxy or a separately hosted frontend, see [Deploy JavaScript apps](/deployment/javascript-apps/).
+</LearnMore>

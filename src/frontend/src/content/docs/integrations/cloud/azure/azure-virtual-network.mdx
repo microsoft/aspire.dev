@@ -18,7 +18,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Virtual Network integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to configure virtual networks, subnets, NAT gateways, network security groups (NSGs), private endpoints, and network security perimeters in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Virtual Network integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to configure virtual networks, subnets, NAT gateways, network security groups (NSGs), private endpoints, and network security perimeters in your [`AppHost`](/get-started/app-host/) project.
 
 [Azure Virtual Network](https://learn.microsoft.com/azure/virtual-network/) enables Azure resources to securely communicate with each other, the internet, and on-premises networks.
 
@@ -89,6 +89,28 @@ This updates your `aspire.config.json` with the Azure Network hosting integratio
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-network
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Network hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Network": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="tip">
@@ -128,6 +150,37 @@ await builder.build().run();
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	vnet := builder.AddAzureVirtualNetwork("vnet")
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 By default, the virtual network uses the address prefix `10.0.0.0/16`. You can specify a custom address prefix:
@@ -144,6 +197,15 @@ var vnet = builder.AddAzureVirtualNetwork("vnet", "10.1.0.0/16");
 
 ```typescript title="apphost.mts"
 const vnet = await builder.addAzureVirtualNetwork('vnet', '10.1.0.0/16');
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+vnet := builder.AddAzureVirtualNetwork("vnet", &aspire.AddAzureVirtualNetworkOptions{
+	AddressPrefix: "10.1.0.0/16",
+})
 ```
 
 </TabItem>
@@ -168,6 +230,15 @@ const vnet = await builder.addAzureVirtualNetwork("vnet");
 
 const subnet = vnet.addSubnet("my-subnet", "10.0.1.0/24");
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+vnet := builder.AddAzureVirtualNetwork("vnet")
+
+subnet := vnet.AddSubnet("my-subnet", "10.0.1.0/24")
+```
 
 </TabItem>
 </Tabs>
@@ -199,6 +270,17 @@ const subnet = vnet.addSubnet("aca-subnet", "10.0.0.0/23")
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+natGateway := builder.AddNatGateway("nat")
+
+vnet := builder.AddAzureVirtualNetwork("vnet")
+subnet := vnet.AddSubnet("aca-subnet", "10.0.0.0/23").
+	WithNatGateway(natGateway)
+```
+
+</TabItem>
 </Tabs>
 
 By default, a public IP address is automatically created for the NAT gateway. To provide an explicit public IP address for full control, call <ApiReference name="Aspire.Hosting.AzurePublicIPAddressExtensions.AddPublicIPAddress" /> and associate it with <ApiReference name="Aspire.Hosting.AzureNatGatewayExtensions.WithPublicIPAddress" />:
@@ -218,6 +300,15 @@ var natGateway = builder.AddNatGateway("nat")
 ```typescript title="apphost.mts"
 const pip = await builder.addPublicIPAddress('nat-pip');
 const natGateway = await builder.addNatGateway('nat').withPublicIPAddress(pip);
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+pip := builder.AddPublicIPAddress("nat-pip")
+natGateway := builder.AddNatGateway("nat").
+	WithPublicIPAddress(pip)
 ```
 
 </TabItem>
@@ -255,6 +346,20 @@ const subnet = vnet.addSubnet("web", "10.0.1.0/24")
     .allowInbound("443", "AzureLoadBalancer", undefined, "Tcp")
     .denyInbound(undefined, "Internet");
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+vnet := builder.AddAzureVirtualNetwork("vnet")
+
+subnet := vnet.AddSubnet("web", "10.0.1.0/24").
+	AllowInbound(
+		aspire.AllowInboundPort("443"),
+		aspire.AllowInboundFrom(aspire.AzureServiceTags.AzureLoadBalancer),
+		aspire.AllowInboundProtocol(aspire.SecurityRuleProtocolTcp)).
+	DenyInbound(aspire.DenyInboundFrom(aspire.AzureServiceTags.Internet))
+```
 
 </TabItem>
 </Tabs>
@@ -325,6 +430,42 @@ const subnet = vnet.addSubnet("web-subnet", "10.0.1.0/24")
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	vnet := builder.AddAzureVirtualNetwork("vnet")
+
+	nsg := builder.AddNetworkSecurityGroup("web-nsg").
+		WithSecurityRule(&aspire.AzureSecurityRule{
+			Name:                 "allow-https",
+			Priority:             100,
+			Direction:            aspire.SecurityRuleDirectionInbound,
+			Access:               aspire.SecurityRuleAccessAllow,
+			Protocol:             aspire.SecurityRuleProtocolTcp,
+			DestinationPortRange: "443",
+		})
+
+	subnet := vnet.AddSubnet("web-subnet", "10.0.1.0/24").
+		WithNetworkSecurityGroup(nsg)
+
+}
+```
+
+</TabItem>
 </Tabs>
 
 The `AzureSecurityRule` type provides sensible defaults—`SourcePortRange`, `SourceAddressPrefix`, and `DestinationAddressPrefix` all default to `"*"`. The `Name`, `Priority`, `Direction`, `Access`, `Protocol`, and `DestinationPortRange` properties are required.
@@ -375,6 +516,23 @@ await builder.addAzureAppServiceEnvironment("app-service-env")
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+vnet := builder.AddAzureVirtualNetwork("vnet")
+acaSubnet := vnet.AddSubnet("aca-subnet", "10.0.0.0/24")
+appServiceSubnet := vnet.AddSubnet("app-service-subnet", "10.0.1.0/24")
+
+// Azure Container Apps environment
+builder.AddAzureContainerAppEnvironment("aca-env").
+	WithDelegatedSubnet(acaSubnet)
+
+// Azure App Service environment
+builder.AddAzureAppServiceEnvironment("app-service-env").
+	WithDelegatedSubnet(appServiceSubnet)
+```
+
+</TabItem>
 </Tabs>
 
 Each compute environment delegates the subnet to its own Azure service (for example, App Service delegates to `Microsoft.Web/serverFarms`). Regional virtual network integration affects outbound traffic only—it doesn't make ingress private and doesn't enable Route All.
@@ -410,6 +568,20 @@ await subnet.withServiceDelegation(
     AzureSubnetServiceDelegations.ContainerInstances,
     { name: "aci-delegation" });
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+vnet := builder.AddAzureVirtualNetwork("vnet")
+subnet := vnet.AddSubnet("aci-subnet", "10.0.0.0/23").
+	WithServiceDelegation(aspire.AzureSubnetServiceDelegations.ContainerInstances)
+
+// Or specify a custom delegation name.
+subnet.WithServiceDelegation(
+	aspire.AzureSubnetServiceDelegations.ContainerInstances,
+	aspire.ServiceDelegationName("aci-delegation"))
+```
 
 </TabItem>
 </Tabs>
@@ -452,6 +624,19 @@ const blobs = storage.addBlobs("blobs");
 
 peSubnet.addPrivateEndpoint(blobs);
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+vnet := builder.AddAzureVirtualNetwork("vnet")
+peSubnet := vnet.AddSubnet("private-endpoints", "10.0.2.0/24")
+
+storage := builder.AddAzureStorage("storage")
+blobs := storage.AddBlobs("blobs")
+
+peSubnet.AddPrivateEndpoint(blobs)
+```
 
 </TabItem>
 </Tabs>
@@ -564,6 +749,37 @@ await builder.build().run();
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	nsp := builder.AddNetworkSecurityPerimeter("my-nsp")
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 #### Add access rules
@@ -601,6 +817,21 @@ const nsp = await builder.addNetworkSecurityPerimeter("my-nsp")
         direction: "Outbound",
         fullyQualifiedDomainNames: ["*.blob.core.windows.net"]
     });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+nsp := builder.AddNetworkSecurityPerimeter("my-nsp").
+	WithAccessRule(&aspire.AzureNspAccessRule{
+		Name:            "allow-my-ip",
+		Direction:       aspire.NetworkSecurityPerimeterAccessRuleDirectionInbound,
+		AddressPrefixes: []string{"203.0.113.0/24"},
+	}).
+	WithAccessRule(&aspire.AzureNspAccessRule{
+		Name:                      "allow-outbound-fqdn",
+		Direction:                 aspire.NetworkSecurityPerimeterAccessRuleDirectionOutbound,
+		FullyQualifiedDomainNames: []string{"*.blob.core.windows.net"},
+	})
 ```
 </TabItem>
 </Tabs>
@@ -648,6 +879,18 @@ const keyVault = await builder.addAzureKeyVault("kv")
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+nsp := builder.AddNetworkSecurityPerimeter("my-nsp")
+
+storage := builder.AddAzureStorage("storage").
+	WithNetworkSecurityPerimeter(nsp)
+keyVault := builder.AddAzureKeyVault("kv").
+	WithNetworkSecurityPerimeter(nsp)
+```
+
+</TabItem>
 </Tabs>
 
 Once associated, resources within the perimeter can communicate with each other, while public access is governed by the perimeter's access rules.
@@ -689,6 +932,19 @@ storage.withNetworkSecurityPerimeter(nsp);
 // Learning mode — logs violations without blocking
 keyVault.withNetworkSecurityPerimeter(nsp, "Learning");
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+// Enforced mode (default) — blocks traffic that violates the rules
+storage.WithNetworkSecurityPerimeter(nsp)
+
+// Learning mode — logs violations without blocking
+keyVault.WithNetworkSecurityPerimeter(
+	nsp,
+	aspire.NetworkSecurityPerimeterAccessMode(aspire.NetworkSecurityPerimeterAssociationAccessModeLearning))
+```
 
 </TabItem>
 </Tabs>
@@ -808,6 +1064,74 @@ await builder.addProject("api", "../Api/Api.csproj")
 
 await builder.build().run();
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Create a virtual network with two subnets
+	vnet := builder.AddAzureVirtualNetwork("vnet")
+
+	// Container Apps subnet with NSG rules and NAT gateway
+	containerAppsSubnet := vnet.AddSubnet("container-apps", "10.0.0.0/23").
+		AllowInbound(
+			aspire.AllowInboundPort("443"),
+			aspire.AllowInboundFrom(aspire.AzureServiceTags.AzureLoadBalancer),
+			aspire.AllowInboundProtocol(aspire.SecurityRuleProtocolTcp)).
+		DenyInbound(aspire.DenyInboundFrom(aspire.AzureServiceTags.VirtualNetwork)).
+		DenyInbound(aspire.DenyInboundFrom(aspire.AzureServiceTags.Internet))
+
+	natGateway := builder.AddNatGateway("nat")
+	containerAppsSubnet.WithNatGateway(natGateway)
+
+	// Private endpoints subnet
+	peSubnet := vnet.AddSubnet("private-endpoints", "10.0.2.0/27").
+		AllowInbound(
+			aspire.AllowInboundPort("443"),
+			aspire.AllowInboundFrom(aspire.AzureServiceTags.VirtualNetwork),
+			aspire.AllowInboundProtocol(aspire.SecurityRuleProtocolTcp)).
+		DenyInbound(aspire.DenyInboundFrom(aspire.AzureServiceTags.Internet))
+
+	// Configure the Container App Environment to use the VNet.
+	builder.AddAzureContainerAppEnvironment("env").
+		WithDelegatedSubnet(containerAppsSubnet)
+
+	// Add storage with private endpoints
+	storage := builder.AddAzureStorage("storage")
+	blobs := storage.AddBlobs("blobs")
+	queues := storage.AddQueues("queues")
+
+	peSubnet.AddPrivateEndpoint(blobs)
+	peSubnet.AddPrivateEndpoint(queues)
+
+	builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithExternalHttpEndpoints().
+		WithReference(blobs).
+		WithReference(queues)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
 
 </TabItem>
 </Tabs>
