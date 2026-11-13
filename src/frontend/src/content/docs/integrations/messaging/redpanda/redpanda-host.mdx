@@ -1,0 +1,148 @@
+---
+title: Set up Redpanda with the Aspire integration
+description: Configure Redpanda's Kafka endpoints, CPU and memory limits, persistent data, and optional Redpanda Console or Kafka UI resources in Aspire.
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+Use the Redpanda hosting integration to model a Kafka-compatible broker in an Aspire AppHost. For an introduction, see [Get started with Redpanda integration](../redpanda-get-started/).
+
+## Installation
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.RedPanda" />
+
+## Add a Redpanda broker
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const redpanda = await builder.addRedPanda('redpanda');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(redpanda);
+await api.waitFor(redpanda);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var redpanda = builder.AddRedPanda("redpanda");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(redpanda)
+    .WaitFor(redpanda);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The resource exposes the `kafka` endpoint for host connections and an `internal` endpoint for container-to-container traffic. It also exposes the Schema Registry and Admin API. Aspire assigns a host port for the Kafka endpoint unless you pin one with the `port` argument.
+
+## Configure resources
+
+Redpanda defaults to one CPU and `1G` of memory. Use the C# options callback to change these values:
+
+```csharp title="AppHost.cs"
+var redpanda = builder.AddRedPanda("redpanda", options =>
+{
+    options.CpuCount = 2;
+    options.Memory = "2G";
+});
+```
+
+Set the broker's host port in TypeScript with `addRedPanda('redpanda', { port: 9092 })`. The TypeScript API does not expose the resource sizing callback.
+
+Use a data volume or bind mount to persist broker state across container restarts:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const redpanda = await builder.addRedPanda('redpanda');
+await redpanda.withDataVolume();
+// Or use a host directory:
+// await redpanda.withDataBindMount('./redpanda-data');
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var redpanda = builder.AddRedPanda("redpanda")
+    .WithDataVolume();
+// Or use a host directory:
+// var redpanda = builder.AddRedPanda("redpanda")
+//     .WithDataBindMount("./redpanda-data");
+```
+
+</TabItem>
+</Tabs>
+
+## Add a web console
+
+Use either Redpanda Console or Kafka UI. The integration connects each UI to the broker and its Schema Registry.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const redpanda = await builder.addRedPanda('redpanda');
+await redpanda.withConsole({
+  configureContainer: async (console) => {
+    await console.withHostPort({ port: 8080 });
+  },
+});
+
+// Or use Kafka UI:
+const redpandaWithKafkaUi = await builder.addRedPanda('redpanda-ui');
+await redpandaWithKafkaUi.withKafkaUI();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var redpanda = builder.AddRedPanda("redpanda")
+    .WithConsole(console => console.WithHostPort(8080));
+
+// Or use Kafka UI:
+var redpandaWithKafkaUi = builder.AddRedPanda("redpanda-ui")
+    .WithKafkaUI(kafkaUi => kafkaUi.WithHostPort(9000));
+```
+
+</TabItem>
+</Tabs>
+
+The TypeScript `withHostPort` export targets Redpanda Console. C# also supports a Kafka UI-specific `WithHostPort` overload; the TypeScript API can start Kafka UI but cannot pin its host port.
+
+## AppHost API
+
+| Method                                    | Purpose                                                                            |
+| ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| `AddRedPanda` / `addRedPanda`             | Add a broker, optionally specifying its Kafka host port.                           |
+| `WithDataVolume` / `withDataVolume`       | Persist broker state in a volume.                                                  |
+| `WithDataBindMount` / `withDataBindMount` | Persist broker state in a host directory.                                          |
+| `WithConsole` / `withConsole`             | Add Redpanda Console.                                                              |
+| `WithKafkaUI` / `withKafkaUI`             | Add the Kafka UI container.                                                        |
+| `WithHostPort` / `withHostPort`           | Set Redpanda Console's host port. C# also supports setting the Kafka UI host port. |
+
+## See also
+
+- [Get started with Redpanda integration](../redpanda-get-started/)
+- [Connect to Apache Kafka](/integrations/messaging/apache-kafka/apache-kafka-connect/)
+- [Redpanda documentation](https://docs.redpanda.com/)
+- [CommunityToolkit.Aspire.Hosting.RedPanda source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.RedPanda)

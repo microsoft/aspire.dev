@@ -7,20 +7,27 @@ description: Learn what telemetry the Aspire dashboard sends to Microsoft, how t
 
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 
-The Aspire dashboard collects diagnostic data to help developers monitor and analyze their applications. Separately, when the dashboard is launched through Visual Studio or Visual Studio Code as part of a running Aspire application, Microsoft collects usage data about the dashboard itself. This data helps the Aspire team improve the product. Additionally, unhandled exception details from the dashboard are sent to Microsoft to assist in identifying and resolving issues.
+The Aspire dashboard collects diagnostic data to help developers monitor and analyze their applications. Separately, Microsoft collects usage data about the dashboard itself. This data helps the Aspire team improve the product. Additionally, unhandled exception details from the dashboard are sent to Microsoft to assist in identifying and resolving issues.
 
 ## Scope
 
-Aspire dashboard usage telemetry is collected only when running the dashboard from Visual Studio or Visual Studio Code. Telemetry is gathered while the dashboard is open in the browser, unless you have [opted out](#how-to-opt-out) of telemetry collection.
+How dashboard usage telemetry is collected depends on the dashboard version:
+
+- **Aspire 17.0 and later**: Dashboard usage telemetry is collected wherever the dashboard runs, including dashboards launched by the Aspire CLI (`aspire run`), by an AppHost, from an IDE, and standalone dashboards.
+- **Aspire 9.3 to 13.x**: Dashboard usage telemetry is collected only when running the dashboard from Visual Studio or Visual Studio Code.
+
+Telemetry is gathered while the dashboard is running, unless you have [opted out](#how-to-opt-out) of telemetry collection.
+
+Dashboard usage telemetry is separate from the application telemetry (logs, traces, and metrics) that your apps send to the dashboard. Application telemetry received by the dashboard is never forwarded to Microsoft.
 
 ## How to opt-out
 
-Starting with Aspire 9.3, dashboard usage telemetry is enabled by default. Dashboard usage telemetry isn't collected in early version. This feature aligns with the following IDE versions:
+Starting with Aspire 9.3, dashboard usage telemetry is enabled by default. In Aspire 9.3 to 13.x, telemetry is only collected with the following IDE versions:
 
 - Visual Studio: 17.14 or later.
 - C# Dev Kit: 1.18.25 or later.
 
-To opt-out of telemetry collection, set the `ASPIRE_DASHBOARD_TELEMETRY_OPTOUT` environment variable to `true`. This will apply to all users accessing the Aspire dashboard:
+To opt-out of telemetry collection, set the `ASPIRE_DASHBOARD_TELEMETRY_OPTOUT` environment variable to `true` before starting the AppHost or dashboard process. This applies to all users accessing the Aspire dashboard:
 
 <OsAwareTabs syncKey="terminal">
 <div slot="unix">
@@ -39,7 +46,17 @@ $env:ASPIRE_DASHBOARD_TELEMETRY_OPTOUT= "true"
 </div>
 </OsAwareTabs>
 
-Alternatively, you can opt-out of telemetry collection by disabling telemetry collection in the host IDE. Learn how to opt out in Visual Studio or Visual Studio Code.
+When set on the AppHost process, the opt-out is forwarded to the dashboard that the AppHost launches. The dashboard's own `ASPIRE_DASHBOARD_TELEMETRY_OPTOUT` setting and the AppHost-forwarded setting are combined, so either one disables reporting.
+
+:::caution[Breaking change in Aspire 17.0]
+Starting with Aspire 17.0, dashboard telemetry is independent of IDE telemetry settings. Disabling telemetry in Visual Studio or Visual Studio Code no longer disables dashboard telemetry. Use the `ASPIRE_DASHBOARD_TELEMETRY_OPTOUT` environment variable instead.
+
+In Aspire 9.3 to 13.x, you can also opt-out by disabling telemetry collection in the host IDE.
+:::
+
+### Deployed dashboards
+
+Starting with Aspire 17.0, dashboards included in Docker Compose and Kubernetes publish output have telemetry disabled by default. The generated dashboard service sets `ASPIRE_DASHBOARD_TELEMETRY_OPTOUT` to `true`; in Kubernetes, this is set through the dashboard ConfigMap. This only disables the dashboard's usage and error reporting and doesn't affect the application telemetry that the dashboard receives.
 
 ## Disclosure
 
@@ -47,11 +64,11 @@ When dashboard usage telemetry is enabled, there's a disclosure statement at the
 
 ## Data points
 
-Aspire dashboard usage telemetry doesn't collect personal data, such as, IP addresses or use browser fingerprinting. It doesn't scan your code and doesn't extract source code, authorship, or deployment configuration. The data is sent securely to Microsoft using Azure Monitor through existing telemetry APIs in Visual Studio and Visual Studio Code.
+Dashboard telemetry does not include IP addresses, browser fingerprints, source code, authorship, or deployment configuration. Aspire 17.0 and later reports a hashed MAC address and a persisted device ID when available. When internal detection identifies a user or machine as Microsoft-internal outside CI, telemetry can also include the internal alias and domain. The data is sent securely to Microsoft. Telemetry reporting does not require an IDE debug session or an OpenTelemetry Collector.
 
 Protecting your privacy is important to Microsoft. If you suspect that telemetry is collecting sensitive data or the data is being insecurely or inappropriately handled, file an issue in the [GitHub microsoft/aspire](https://github.com/microsoft/aspire) repository for investigation.
 
-The Aspire dashboard doesn't collect telemetry on Visual Studio versions `< 17.14` or C# Dev Kit versions `< 1.18.25`. It collects the following data:
+In Aspire 9.3 to 13.x, the Aspire dashboard doesn't collect telemetry on Visual Studio versions `< 17.14` or C# Dev Kit versions `< 1.18.25`. It collects the following data:
 
 | Aspire dashboard versions | Data | Notes |
 |---------------------------|------|-------|
@@ -63,7 +80,16 @@ The Aspire dashboard doesn't collect telemetry on Visual Studio versions `< 17.1
 | 9.3 | Resource restart times. | — |
 | 9.3 | OTel data processing times. | — |
 | 9.3 | Dashboard-related unhandled exceptions. | — |
-| 17.0 | Dashboard startup. | — |
+| 9.3 | GitHub Copilot usage statistics. | — |
+| 9.3 | GitHub Copilot helpful/unhelpful feedback. | — |
+| 17.0 | Dashboard startup result and duration. | Reports whether startup succeeded, the elapsed time in milliseconds, the failure type for failed startups, and the launch context (`apphost`, `cli`, `container`, or `unknown`). |
+| 17.0 | Configured data-persistence mode on startup. | Reported as `none`, `run`, or `resume`. An unset setting defaults to `none`. A setting parse error or unsupported enum value is reported as `unknown`. |
+| 17.0 | Environment, OS, and machine metadata. | Reported on all events: whether the run is `ci` or `local`, OS name/type/version, dashboard version/build, a hashed MAC address, and a persisted device ID when available. The raw MAC address is never sent. |
+| 17.0 | Microsoft-internal detection. | Whether the current user or machine appears Microsoft-internal, and the detection source. Internal alias and domain are included only outside CI environments. |
+
+### Telemetry attribute names
+
+Starting with Aspire 17.0, dashboard telemetry attribute names follow [OpenTelemetry naming conventions](https://opentelemetry.io/docs/specs/semconv/general/naming/): lowercase, dot-separated namespaces with underscore-separated words, and standard OpenTelemetry keys where applicable (such as `exception.type` and `process.runtime.version`). Dashboard-specific attributes use the `aspire.dashboard.*` namespace. These names replace the earlier PascalCase `Aspire.Dashboard.*` keys without changing event names. Aspire 17.0 also adds the persistence, environment and machine, and Microsoft-internal data points listed above.
 
 ## See also
 

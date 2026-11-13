@@ -1,0 +1,90 @@
+---
+title: Set up SFTP with the Aspire integration
+description: Configure the atmoz SFTP server resource, provision users, mount key files, and preserve stable SSH host keys in an Aspire AppHost.
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+Use the SFTP hosting integration to run the atmoz SFTP server as a container resource. For a first walkthrough that includes its paired .NET client, see [Get started with the SFTP integration](../sftp-get-started/).
+
+## Installation
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Sftp" />
+
+## Add an SFTP resource
+
+The `WithUsersFile` method mounts a user configuration file into the container. Its lines use the format `username:password[:e[:uid[:gid[:dir1[,dir2]...]]]]`.
+
+```text title="users.conf"
+fileuser:__PASSWORD_HASH__:e:::uploads
+```
+
+The `e` marker denotes an encrypted password. You can also configure users through container arguments or the `SFTP_USERS` environment variable. Avoid committing plaintext passwords to the AppHost project.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const sftp = await builder.addSftp('sftp');
+await sftp.withUsersFile('./users.conf');
+
+const worker = await builder.addProject('worker', '../Worker/Worker.csproj');
+await worker.withReference(sftp);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var sftp = builder.AddSftp("sftp")
+    .WithUsersFile("users.conf");
+
+builder.AddProject<Projects.Worker>("worker")
+    .WithReference(sftp);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The resource exposes an SFTP connection URI in the form `sftp://host:port`. Use the same resource name in the consuming app's client registration.
+
+## Configure SSH keys
+
+Use `WithUserKeyFile` to mount a public key for a user. The corresponding private key stays with the client. `WithHostKeyFile` mounts a stable server host key so container recreation does not cause clients to see a changed host identity.
+
+```csharp title="AppHost.cs"
+var sftp = builder.AddSftp("sftp")
+    .WithUsersFile("users.conf")
+    .WithUserKeyFile("fileuser", "fileuser-ed25519.pub", KeyType.Ed25519)
+    .WithHostKeyFile("ssh_host_ed25519_key", KeyType.Ed25519);
+```
+
+The host-key and user-key files must exist at the paths supplied to the AppHost. Do not mount a private user key into the server container.
+
+## AppHost API
+
+| Method                                | Purpose                                                  |
+| ------------------------------------- | -------------------------------------------------------- |
+| `AddSftp` / `addSftp`                 | Add the SFTP container and optionally set its host port. |
+| `WithUsersFile` / `withUsersFile`     | Configure users from a file.                             |
+| `WithUserKeyFile` / `withUserKeyFile` | Add a public key for an SFTP user.                       |
+| `WithHostKeyFile` / `withHostKeyFile` | Use a stable SSH server host key.                        |
+
+## See also
+
+- [Get started with the SFTP integration](../sftp-get-started/)
+- [Connect to an SFTP server](../sftp-connect/)
+- [atmoz SFTP image documentation](https://github.com/atmoz/sftp)
+- [CommunityToolkit.Aspire.Hosting.Sftp source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.Sftp)

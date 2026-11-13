@@ -1,0 +1,146 @@
+---
+title: API Management products and subscriptions
+description: Group Azure API Management APIs into products, configure approval and subscription limits, and provision subscriptions from your Aspire AppHost.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A product in Azure API Management (APIM) groups one or more APIs and controls how consumers get access to them. A subscription gives a consumer the keys that call the APIs in a product. The Aspire Azure API Management hosting integration models these as `AzureApiManagementProductResource` and `AzureApiManagementSubscriptionResource` children of the service.
+
+This page assumes the `apim` and `catalog` resources from [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/#add-a-service-and-route-a-workload).
+
+## Add a product and a subscription
+
+Call `AddProduct` to create a product, `WithApi` to add APIs to it, and `AddSubscription` to provision a subscription that's scoped to the product.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const catalogApi = await apim.addApi("catalog-api", catalog, "catalog");
+
+const product = await apim.addProduct("catalog-product", "Catalog", {
+    options: {
+        description: "Catalog APIs",
+        subscriptionRequired: true,
+        approvalRequired: false,
+    },
+});
+await product.withApi(catalogApi);
+await product.addSubscription("catalog-client", "Catalog client");
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var catalogApi = apim.AddApi("catalog-api", catalog, path: "catalog");
+
+apim.AddProduct("catalog-product", "Catalog", new()
+    {
+        Description = "Catalog APIs",
+        SubscriptionRequired = true,
+        ApprovalRequired = false,
+    })
+    .WithApi(catalogApi)
+    .AddSubscription("catalog-client", "Catalog client");
+```
+
+</TabItem>
+</Tabs>
+
+A product can contain only APIs from the same APIM service. Aspire provisions product membership as an API link on the product, which references the full resource ID of the API.
+
+## Product options
+
+The `AddProduct` method has the following parameters:
+
+| Parameter | Required | Description |
+| --------- | -------- | ----------- |
+| `name` | Yes | The Aspire resource name. It's also the default physical product name. |
+| `displayName` | Yes | The product display name. It has at most 300 characters. |
+| `options` | No | The product options. |
+| `productName` | No | The physical product identifier in APIM. It defaults to the resource name, has at most 256 characters, can't contain `*`, `#`, `&`, `+`, `:`, `<`, `>`, or `?`, and is unique within the service. |
+
+The product options have these properties:
+
+| Option | Default | Description |
+| ------ | ------- | ----------- |
+| `Description` | None | The product description. It has at most 1,000 characters. |
+| `Terms` | None | The terms of use that subscribers see. |
+| `SubscriptionRequired` | `true` | Whether callers need a subscription to use the APIs in the product. |
+| `ApprovalRequired` | `false` | Whether subscription requests need administrator approval. It requires `SubscriptionRequired`. |
+| `SubscriptionsLimit` | None | The maximum number of subscriptions a user can create for the product. It must be greater than zero and requires `SubscriptionRequired`. When unset, the number is unlimited. |
+| `State` | `Published` | `Published` makes the product visible to subscribers. `NotPublished` hides it. |
+
+Aspire throws an `ArgumentException` when you combine `ApprovalRequired` or `SubscriptionsLimit` with `SubscriptionRequired` set to `false`.
+
+The following example creates a product for partners that requires approval, limits subscriptions, and stays unpublished until you publish it:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { AzureApiManagementProductState } from './.aspire/modules/aspire.mjs';
+
+await apim.addProduct("partner-product", "Partner", {
+    options: {
+        description: "APIs for partners.",
+        terms: "Use of these APIs is subject to the partner agreement.",
+        approvalRequired: true,
+        subscriptionsLimit: 5,
+        state: AzureApiManagementProductState.NotPublished,
+    },
+});
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+apim.AddProduct("partner-product", "Partner", new()
+{
+    Description = "APIs for partners.",
+    Terms = "Use of these APIs is subject to the partner agreement.",
+    ApprovalRequired = true,
+    SubscriptionsLimit = 5,
+    State = AzureApiManagementProductState.NotPublished,
+});
+```
+
+</TabItem>
+</Tabs>
+
+## Subscription options
+
+The `AddSubscription` method has the following parameters:
+
+| Parameter | Required | Description |
+| --------- | -------- | ----------- |
+| `name` | Yes | The Aspire resource name. It's also the default physical subscription name. |
+| `displayName` | Yes | The subscription display name. It has at most 100 characters. |
+| `options` | No | The subscription options. |
+| `subscriptionName` | No | The physical subscription identifier in APIM. It defaults to the resource name, has at most 256 characters, and is unique across all products of the service. |
+
+The subscription options have these properties:
+
+| Option | Default | Description |
+| ------ | ------- | ----------- |
+| `AllowTracing` | `false` | Whether tracing is allowed for the subscription. |
+| `State` | `Active` | The subscription state: `Active`, `Suspended`, `Submitted`, `Rejected`, `Expired`, or `Cancelled`. |
+
+## Get the subscription keys
+
+APIM generates the primary and secondary keys for a subscription during deployment. Aspire intentionally doesn't expose them as deployment outputs, because they're secrets. Retrieve the keys from the Azure portal or through the APIM management API.
+
+By default, callers send the key in the `Ocp-Apim-Subscription-Key` request header or in the `subscription-key` query string parameter.
+
+An API that you add with `subscriptionRequired` set to `true`, which is the default, rejects requests without a valid key. The API-level and product-level subscription settings are separate properties in APIM. For how APIM combines them, see [Subscriptions in Azure API Management](https://learn.microsoft.com/azure/api-management/api-management-subscriptions).
+
+## See also
+
+- [APIs and operations](/integrations/cloud/azure/azure-api-management/azure-api-management-apis/)
+- [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/)
+- [Products in Azure API Management](https://learn.microsoft.com/azure/api-management/api-management-howto-add-products)

@@ -14,7 +14,7 @@ resources:
 legacyAnchors: [withreference]
 legacyGroup: apis-and-patterns
 ---
-`WithReference` in C# and `withReference` in TypeScript connect the configuration of resources. The information supplied depends on the referenced resource: a database can provide a connection string, while a service can provide named endpoints for service discovery.
+`WithReference` in C# and Go, and `withReference` in TypeScript, connect the configuration of resources. The information supplied depends on the referenced resource: a database can provide a connection string, while a service can provide named endpoints for service discovery.
 
 A database reference typically becomes `ConnectionStrings__<name>` in the consuming process's environment. Service endpoint references supply service discovery configuration instead; a single reference does not necessarily provide both forms.
 

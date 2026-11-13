@@ -12,6 +12,6 @@ resources:
 legacyAnchors: [waitforstart]
 legacyGroup: apis-and-patterns
 ---
-`WaitForStart` in C# and `waitForStart` in TypeScript provide weaker coordination than a readiness wait. The dependency must reach the running state, but its health checks do not need to pass.
+`WaitForStart` in C# and Go, and `waitForStart` in TypeScript, provide weaker coordination than a readiness wait. The dependency must reach the running state, but its health checks do not need to pass.
 
 Use this when startup ordering matters but your application already handles temporary unavailability. Prefer `WaitFor` when a consumer needs the dependency's configured readiness checks to succeed before it starts.

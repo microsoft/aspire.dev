@@ -32,7 +32,7 @@ Set `PUBLIC_ENVIRONMENT_BADGE` to display a small text badge beside the header l
 and wordmark, for example `staging`, `test`, or `release/13.6`. The value is public
 and rendered as text when Astro builds the site.
 
-Local development (`pnpm dev`, including the frontend started by Aspire) defaults
+Local development (`bun run dev`, including the frontend started by Aspire) defaults
 to `localhost` when the variable is unset. An explicitly empty or whitespace-only
 value hides the badge. Production builds have no badge by default; leave the
 variable unset or empty for live deployments.
@@ -57,6 +57,15 @@ For `refs/heads/release/13.6`, this renders `release/13.6`. Do not use
 setting only to the vnext build, not the live build. If vnext builds a different
 source branch, set the intended label explicitly instead. Changing the badge on
 a deployed static site requires rebuilding its frontend assets.
+
+## Incremental API builds
+
+API reference cache keys include the deployment commit and repository URL emitted
+by the shared page head. Changing either value must regenerate cached API pages:
+mixing old and new `git-commit-id` metadata makes the deployment guard correctly
+fall back to full-page navigation. Builds with unchanged data and deployment
+metadata can still reuse their API pages. Keep the head metadata and API cache
+keys in sync when changing build identity handling.
 
 ## 🆘 Getting help
 
