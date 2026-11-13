@@ -47,8 +47,8 @@ The update command requires --yes when the --non-interactive option is specified
 ```
 
 `--yes` doesn't consent to adopting a configuration source. By default, a normal
-non-interactive update doesn't adopt a source for an app that has no binding. To
-accept an available source as part of the update, also pass
+non-interactive update doesn't adopt a source or save an opt-out for an app that
+has no binding. To accept an available source as part of the update, also pass
 `--use-config-source`. To explicitly decline, pass `--use-config-source false`.
 Existing source bindings and opt-outs aren't changed by this option.
 
@@ -116,7 +116,7 @@ The following options are available:
 
 - **`--config-source`**
 
-  Refresh only the nearest saved app-local [configuration source](/extensibility/config-sources/) and apply its shared settings. Supplied skill and integration sections replace the corresponding local sections, including local edits. This doesn't adopt a new source, update packages, update the SDK or CLI, regenerate templates, or reconcile existing agent registrations. If there is no active saved binding, the command reports that no source is bound and leaves the configuration unchanged.
+  Refresh only the nearest saved app-local [configuration source](/extensibility/config-sources/) and apply its shared settings. Supplied skill and integration sections replace the corresponding local sections, including local edits. This doesn't adopt a new source, update packages, update the SDK or CLI, regenerate templates, or reconcile existing agent registrations. If there is no active saved binding or the app has opted out, the command reports that there is no source to update and exits successfully without fetching.
 
   Can't be combined with `--self`, `--migrate`, `--channel`, `--quality`, or `--nuget-config-dir`. Non-interactive refresh also requires `--yes`.
 
@@ -135,14 +135,6 @@ The following options are available:
   When you switch to a persistable channel, such as `daily`, `aspire update` also rewrites the top-level `channel` key in `aspire.config.json` when the file already exists. Only channels registered as _explicit_ channels are persisted, with one exception: the `stable` channel is treated as the portable default and is intentionally not pinned. The persisted channel keeps subsequent `aspire add` and `aspire update` runs resolving packages against the channel you just switched to.
 
   The `staging` channel can only be resolved from a `stable` or `staging` Aspire CLI build. Daily, local, and per-PR CLI builds don't have a deterministic staging feed, so requesting `--channel staging` from one of them fails with an error naming the running CLI's identity and pointing at the recovery options: install a staging or stable Aspire CLI, or set the `overrideStagingFeed` configuration value (for example, `aspire config set -g overrideStagingFeed <feed-url>`) to point at the staging feed you want to use. See [`overrideStagingFeed`](/reference/cli/configuration/#settings-surfaced-by-aspire-config) in the CLI configuration reference.
-
-- **`--config-source`**
-
-  Refresh the app configuration from the configuration source saved in the project's local settings file, instead of running the package update workflow. Before fetching, the command displays the saved source's repository, configuration file path (when not the default), optional ref, and declaring settings file, without repeating the introductory explanation of configuration sources.
-
-  After a successful refresh, the command reports whether the configuration was updated to the latest version from its source or was already up to date. Restoring local edits to source-supplied values counts as an update. If the project has no saved source, or has opted out of one, the command reports that there is no configuration source to update and exits successfully without fetching.
-
-  For automation, use `aspire update --config-source --yes --non-interactive`.
 
 - **`-y, --yes`**
 
