@@ -57,6 +57,18 @@ log.Println("AppHost directory:", dir)
 
 `aspire.FormatError` turns an error into a message that is ready to log. When the AppHost server returns an error for a call, the error is an `*aspire.CapabilityError`, and `FormatError` adds its error code and the capability that failed. Use `errors.As` and the `Code`, `Message`, and `Capability` methods to read these values yourself. For any other error, `FormatError` returns `err.Error()`.
 
+Collection handles, such as the one returned by `GetTags()`, keep their existing `ToJSON()` signature. Serialization failures are observable through the `Err()` method on the collection:
+
+```go title="apphost.go"
+payload := resource.GetTags().ToJSON()
+if err := resource.GetTags().Err(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+_ = payload
+```
+
+Callbacks can run concurrently with the main builder chain without racing the recorded error or lazily created collection accessors. An invalid request argument or a callback result that can't be encoded fails only that call and doesn't disconnect other pending operations.
+
 ## Cancellation
 
 A method that accepts a cancellation token takes it in its options struct. For example, `aspire.RunOptions` has a `CancellationToken` field. Create a token with `aspire.NewCancellationToken`, pass it in the options, and call its `Cancel` method to cancel the call:
