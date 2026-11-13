@@ -1,0 +1,40 @@
+id: auto.merge
+name: GitOps.PullRequestIssueManagement
+description: Auto-merge the Integration Data Updater pull request after the required ci-gate check passes
+owner:
+resource: repository
+disabled: false
+where:
+configuration:
+  resourceManagementConfiguration:
+    eventResponderTasks:
+
+      - description: >-
+          Approve and auto-squash-merge PRs to main labeled ':octocat: auto-merge'.
+          The label is only applied by the Aspire bot GitHub App when
+          update-integration-data.yml opens its PR. The sender check keeps
+          anyone else from self-approving a PR by adding the label, because
+          branch protection requires one approval. Branch protection also
+          requires ci-gate to pass on the PR branch without requiring it to be
+          up to date with main before merging.
+        if:
+          - payloadType: Pull_Request
+          - labelAdded:
+              label: ':octocat: auto-merge'
+          - targetsBranch:
+              branch: main
+          - isActivitySender:
+              user: aspire-repo-bot[bot]
+        then:
+          - enableAutoMerge:
+              mergeMethod: Squash
+          - approvePullRequest:
+              comment: "Approved; this PR will merge after the required ci-gate check passes."
+
+      - description: Disable auto-merge when the auto-merge label is removed
+        if:
+          - payloadType: Pull_Request
+          - labelRemoved:
+              label: ':octocat: auto-merge'
+        then:
+          - disableAutoMerge

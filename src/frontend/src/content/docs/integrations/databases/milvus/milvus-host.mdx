@@ -71,6 +71,27 @@ This updates your `aspire.config.json` with the Milvus hosting integration packa
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add milvus
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Milvus hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Milvus": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Milvus server and database resources
@@ -110,6 +131,35 @@ await builder.addNodeApp("api", "./api", "index.js")
     .waitFor(milvusdb);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	milvus := builder.AddMilvus("milvus")
+	milvus.WithLifetime(aspire.ContainerLifetimePersistent)
+
+	milvusdb := milvus.AddDatabase("milvusdb")
+
+	api := builder.AddNodeApp("api", "./api", "index.js")
+	api.WithReference(milvusdb)
+	api.WaitFor(milvusdb)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -181,6 +231,37 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	apiKey := builder.AddParameter("apiKey", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+	milvus := builder.AddMilvus("milvus", &aspire.AddMilvusOptions{ApiKey: &apiKey})
+	milvus.WithLifetime(aspire.ContainerLifetimePersistent)
+
+	milvusdb := milvus.AddDatabase("milvusdb")
+
+	api := builder.AddNodeApp("api", "./api", "index.js")
+	api.WithReference(milvusdb)
+	api.WaitFor(milvusdb)
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 The `apiKey` parameter is usually specified as a user secret:
@@ -236,6 +317,36 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	milvus := builder.AddMilvus("milvus")
+	milvus.WithDataVolume()
+	milvus.WithLifetime(aspire.ContainerLifetimePersistent)
+
+	milvusdb := milvus.AddDatabase("milvusdb")
+
+	api := builder.AddNodeApp("api", "./api", "index.js")
+	api.WithReference(milvusdb)
+	api.WaitFor(milvusdb)
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 The data volume is used to persist the Milvus data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/milvus` path in the Milvus container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-milvus-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
@@ -279,6 +390,36 @@ await builder.addNodeApp("api", "./api", "index.js")
     .waitFor(milvusdb);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	milvus := builder.AddMilvus("milvus")
+	milvus.WithDataBindMount("/Milvus/Data")
+	milvus.WithLifetime(aspire.ContainerLifetimePersistent)
+
+	milvusdb := milvus.AddDatabase("milvusdb")
+
+	api := builder.AddNodeApp("api", "./api", "index.js")
+	api.WithReference(milvusdb)
+	api.WaitFor(milvusdb)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -328,6 +469,36 @@ await builder.addNodeApp("api", "./api", "index.js")
     .waitFor(milvusdb);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	milvus := builder.AddMilvus("milvus")
+	milvus.WithAttu()
+	milvus.WithLifetime(aspire.ContainerLifetimePersistent)
+
+	milvusdb := milvus.AddDatabase("milvusdb")
+
+	api := builder.AddNodeApp("api", "./api", "index.js")
+	api.WithReference(milvusdb)
+	api.WaitFor(milvusdb)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -412,6 +583,44 @@ await builder.addNodeApp("my-app", "./app", "index.js")
     .withEnvironment("MILVUS_TOKEN", await milvus.apiKeyParameter());
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	milvus := builder.AddMilvus("milvus")
+	milvusdb := milvus.AddDatabase("milvusdb")
+	milvusEndpoint := milvus.GetEndpoint("grpc")
+	milvusHost := milvusEndpoint.Property(aspire.EndpointPropertyHost)
+	milvusPort := milvusEndpoint.Property(aspire.EndpointPropertyPort)
+
+	myApp := builder.AddNodeApp("my-app", "./app", "index.js")
+	myApp.WithReference(milvusdb)
+	myApp.WithEnvironment("MILVUS_HOST", milvusHost)
+	myApp.WithEnvironment("MILVUS_PORT", milvusPort)
+	myApp.WithEnvironment("MILVUS_TOKEN", milvus.ApiKeyParameter())
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 </TabItem>
 </Tabs>

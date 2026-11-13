@@ -20,7 +20,7 @@ aspire init [options]
 
 ## Description
 
-The `aspire init` command initializes Aspire support in an existing repo or workspace. It scaffolds a minimal AppHost skeleton together with an `aspire.config.json`, then optionally installs the **`aspireify` agent skill** so your AI coding agent can complete the wiring.
+The `aspire init` command scaffolds a minimal AppHost and `aspire.config.json` in an existing codebase. It can then edit AI agent settings to enable plugins and skill catalogs. The default Aspire plugin includes **`aspireify`**, which guides your agent through wiring the app.
 
 This command defaults to **interactive** mode. When executed without any options, the command prompts you for the AppHost language when more than one path is available.
 
@@ -43,6 +43,19 @@ When a `.sln` or `.slnx` is present, the C# option creates a **project-based App
 :::
 
 In all cases, the AppHost language does not limit what you can orchestrate — C#, JavaScript, Python, Go, Rust, Java, containers, and more can all be modeled in the same application model.
+
+### Default hosting packages
+
+For non-C# AppHosts, `aspire init` records the hosting package for your language in the AppHost `aspire.config.json`, so you can use its resource APIs without running `aspire add` first. The packages are restored and code generated together with the language support package, using the AppHost's effective SDK version, which falls back to the CLI's SDK version when none is configured. An entry that already exists in `aspire.config.json` is kept.
+
+| Language | Default hosting packages |
+| -------- | ------------------------ |
+| TypeScript | `Aspire.Hosting.JavaScript` |
+| Python | `Aspire.Hosting.Python` |
+| Go | `Aspire.Hosting.Go` |
+| Java, Rust | None because `Aspire.Hosting.Java` and `Aspire.Hosting.Rust` are in preview. When these packages ship stable versions, `aspire init` will list them. |
+
+File-based C# AppHosts reference their packages with `#:package` directives instead. Project-based C# AppHosts use `PackageReference` items in the project file. An empty AppHost created with `aspire new` gets the same defaults.
 
 ### Skipping solution discovery with --file-based
 
@@ -94,11 +107,11 @@ Only channels that are registered as _explicit_ in the packaging service are per
 
 ### The aspireify skill
 
-After the skeleton is dropped, `aspire init` has an option to install the `aspireify` skill into your AI agent's skill directory (the same directory used by `aspire agent init`). The skill is a Markdown file with instructions that guide your AI coding agent through completing the Aspire wiring for your specific codebase.
+After scaffolding, `aspire init` uses the [`aspire agent init` setup flow](../aspire-agent-init/) to edit agent settings. The built-in Aspire source provides `aspireify` to guide resource wiring. Your [`skillSources`](/reference/cli/configuration/#configure-ai-agent-plugins-and-skill-sources) configuration can add other sources or exclude the built-in source.
 
 The skill instructs the agent to:
 
-- Scan the repo and discovering existing projects, services, and containers
+- Scan the repo and discover existing projects, services, and containers
 - Ask you clarifying questions before making decisions — for example, which services to orchestrate, whether a hardcoded port is significant, or whether to map an existing env var or switch to Aspire's service discovery
 - Wire resources into the AppHost with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" />, <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" />, endpoints, and volumes
 - Optionally configure OpenTelemetry
@@ -116,13 +129,17 @@ The following options are available:
 
   Create `apphost.cs` in the current directory, skipping .NET solution discovery. Requires C#: fails with an error if another language is selected explicitly, via configuration, or at the language prompt.
 
-- **`--skill-locations <skill-locations>`**
+- **`--agents <agents>`**
 
-  Comma-separated list of skill locations to configure. Use `all` to configure all supported locations or `none` to skip skill location configuration. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available locations, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+  Comma-separated agent IDs: `copilot`, `claude`, or `opencode`. Use `all` to configure all supported agents or `none` to skip agent configuration. For selection defaults, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+
+- **`--scope <project|global>`**
+
+  Write agent configuration and companion skill files at project or user scope. Non-interactive setup defaults to `project`.
 
 - **`--skills <skills>`**
 
-  Comma-separated list of skills to install. Use `all` to install all available skills or `none` to skip skill installation. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available skills, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+  Comma-separated choices: `aspire`, `playwright-cli`, or `dotnet-inspect`. Use `all` for every applicable choice or `none` to skip them. Defaults to `aspire`, which applies all enabled skill sources. For details, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
@@ -162,14 +179,14 @@ The following options are available:
   aspire init --file-based --language csharp
   ```
 
-- Initialize Aspire support non-interactively without installing any agent skills:
+- Initialize Aspire support non-interactively without configuring agents:
 
   ```bash title="Aspire CLI"
-  aspire init --non-interactive --skills none
+  aspire init --non-interactive --agents none
   ```
 
-- Initialize Aspire support non-interactively, installing all skills in the standard location:
+- Initialize Aspire support and enable skill sources for GitHub Copilot without prompts:
 
   ```bash title="Aspire CLI"
-  aspire init --non-interactive --language csharp --skill-locations standard --skills all
+  aspire init --non-interactive --language csharp --agents copilot --skills aspire --scope project
   ```

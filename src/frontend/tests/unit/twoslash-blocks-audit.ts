@@ -237,7 +237,7 @@ export function runAudit(): AuditReport {
 
   const { exists } = readAspireTypes();
   if (!exists) {
-    throw new Error('aspire.d.ts is missing — run `pnpm twoslash-types` before auditing.');
+    throw new Error('aspire.d.ts is missing — run `bun run twoslash-types` before auditing.');
   }
 
   // Options (including declaration extraFiles) are fixed for this invocation.

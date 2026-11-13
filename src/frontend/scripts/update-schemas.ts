@@ -16,14 +16,14 @@
  * A release's schema never changes after it ships, so existing copies are never
  * regenerated or overwritten, and the index's `latest` is always the highest
  * version. The scheduled Integration Data Updater workflow runs this script
- * through `pnpm update:all`, so new releases are picked up automatically, and it
+ * through `bun run update:all`, so new releases are picked up automatically, and it
  * rejects any change to an existing copy.
  *
  * Requires the .NET SDK on PATH.
  *
  * Usage:
- *   pnpm update:schemas                       # sync every stable release
- *   pnpm update:schemas -- --version 13.2.3   # sync a single released version, 13.2.0 or later
+ *   bun run update:schemas                       # sync every stable release
+ *   bun run update:schemas -- --version 13.2.3   # sync a single released version, 13.2.0 or later
  */
 
 import { execFileSync } from 'child_process';

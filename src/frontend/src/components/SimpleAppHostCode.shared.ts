@@ -5,12 +5,15 @@ export type CollapseValueType = string | string[] | undefined;
 export type LangType = 'csharp' | 'python' | 'nodejs' | 'go' | 'java';
 
 export const typescriptLineOffset = 2;
+export const goLineOffset = 12;
 
 function shiftLine(line: number, offset: number): number {
   return line + offset;
 }
 
-function shiftRange(value: string, offset: number): string {
+// A collapsed range that starts at line 1 must keep covering the extra header lines
+// (imports, builder creation) that the TypeScript and Go samples add before line 1 of the C# sample.
+function shiftRange(value: string, offset: number, anchorFirstLine = false): string {
   const [startText, endText] = value.split('-');
   const start = Number.parseInt(startText, 10);
 
@@ -24,7 +27,7 @@ function shiftRange(value: string, offset: number): string {
     return value;
   }
 
-  const shiftedStart = shiftLine(start, offset);
+  const shiftedStart = anchorFirstLine && start === 1 ? 1 : shiftLine(start, offset);
   const shiftedEnd = shiftLine(end, offset);
 
   return shiftedStart === shiftedEnd ? `${shiftedStart}` : `${shiftedStart}-${shiftedEnd}`;
@@ -68,10 +71,10 @@ export function shiftCollapseValue(value: CollapseValueType, offset: number): Co
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => shiftRange(item, offset));
+    return value.map((item) => shiftRange(item, offset, true));
   }
 
-  return shiftRange(value, offset);
+  return shiftRange(value, offset, true);
 }
 
 const csharp = `
@@ -253,6 +256,72 @@ await builder.addViteApp("frontend", "../frontend")
 await builder.build().run();
 `;
 
+function goAppHost(apiResource: string): string {
+  return `
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Add database resource
+	postgres := builder.AddPostgres("db").
+		WithDataVolume().
+		AddDatabase("appdata")
+
+	// Add API service and reference the database
+${apiResource}
+
+	// Add frontend service and reference the API
+	builder.AddViteApp("frontend", "../frontend").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(api)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+`;
+}
+
+const csharpGo = goAppHost(`	api := builder.AddDotnetProject("api", "../api/Api.csproj").
+		WithReference(postgres).
+		WaitFor(postgres)`);
+
+const pythonGo = goAppHost(`	api := builder.AddUvicornApp("api", "../api", "main:app").
+		WithUv().
+		WithReference(postgres).
+		WaitFor(postgres)`);
+
+const nodejsGo = goAppHost(`	api := builder.AddNodeApp("api", "../api", "server.js").
+		WithNpm().
+		WithReference(postgres).
+		WaitFor(postgres)`);
+
+const golangGo = goAppHost(`	api := builder.AddGoApp("api", "../api").
+		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithReference(postgres).
+		WaitFor(postgres)`);
+
+const goCodeMap: Partial<Record<LangType, string>> = {
+  csharp: csharpGo,
+  python: pythonGo,
+  nodejs: nodejsGo,
+  go: golangGo,
+};
+
 const csharpCodeMap: Record<LangType, string> = {
   csharp,
   python,
@@ -270,9 +339,11 @@ const typescriptCodeMap: Partial<Record<LangType, string>> = {
 export function getSimpleAppHostCode(lang: LangType): {
   csharpCode: string;
   typescriptCode?: string;
+  goCode?: string;
 } {
   return {
     csharpCode: csharpCodeMap[lang],
     typescriptCode: typescriptCodeMap[lang],
+    goCode: goCodeMap[lang],
   };
 }

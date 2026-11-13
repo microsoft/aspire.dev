@@ -28,7 +28,7 @@ The Aspire Floci hosting integration enables you to model [Floci](https://floci.
 - **`floci/floci-az`** — Azure, including Blob/Queue/Table Storage, Cosmos DB, Functions, Event Hubs, and Service Bus
 - **`floci/floci-gcp`** — GCP, including Pub/Sub, Firestore, Datastore, Storage, Secret Manager, and Cloud Functions
 
-Every API is available in both C# and TypeScript AppHosts. The integration supports:
+Every API is available in C#, TypeScript, and Go AppHosts. The integration supports:
 
 - Running any combination of the AWS, Azure, and GCP emulators as container resources in the same Aspire application.
 - Automatic environment variable injection for dependent services to connect to the emulated cloud.
@@ -63,6 +63,23 @@ Or, choose a manual installation approach:
 </TabItem>
 
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add communitytoolkit-floci
+```
+
+This updates your `aspire.config.json` with the Floci hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Floci": "*"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add communitytoolkit-floci
@@ -120,6 +137,30 @@ await builder.build().run();
 ```
 
 </TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+aws := builder.AddFlociAws("floci-aws")
+
+api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+api.WithFlociAwsReference(aws).WaitFor(aws)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 `WithReference(aws)`/`withFlociAwsReference(aws)` uses the standard Aspire connection string injection and automatically injects the AWS environment variables listed in [Environment variables](#environment-variables) into the dependent resource.
@@ -149,6 +190,17 @@ await api.withFlociAzureReference(azure).waitFor(azure);
 ```
 
 </TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+azure := builder.AddFlociAzure("floci-az")
+
+api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+api.WithFlociAzureReference(azure).WaitFor(azure)
+```
+
+</TabItem>
 </Tabs>
 
 #### Add a Floci resource for GCP
@@ -175,6 +227,19 @@ const gcp = await builder.addFlociGcp('floci-gcp', {
 
 const api = await builder.addProject('api', '../Api/Api.csproj');
 await api.withFlociGcpReference(gcp).waitFor(gcp);
+```
+
+</TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+gcp := builder.AddFlociGcp("floci-gcp", &aspire.AddFlociGcpOptions{
+	DefaultProjectId: aspire.StringPtr("my-project"),
+})
+
+api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+api.WithFlociGcpReference(gcp).WaitFor(gcp)
 ```
 
 </TabItem>
@@ -216,6 +281,17 @@ const aws = await builder.addFlociAws('floci-aws', {
 ```
 
 </TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+aws := builder.AddFlociAws("floci-aws", &aspire.AddFlociAwsOptions{
+	DefaultRegion:    aspire.StringPtr("eu-west-1"),
+	DefaultAccountId: aspire.StringPtr("123456789012"),
+})
+```
+
+</TabItem>
 </Tabs>
 
 **GCP** accepts the following customizable properties:
@@ -239,6 +315,16 @@ var gcp = builder.AddFlociGcp("floci-gcp",
 const gcp = await builder.addFlociGcp('floci-gcp', {
   defaultProjectId: 'my-project',
 });
+```
+
+</TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+gcp := builder.AddFlociGcp("floci-gcp", &aspire.AddFlociGcpOptions{
+	DefaultProjectId: aspire.StringPtr("my-project"),
+})
 ```
 
 </TabItem>
@@ -280,6 +366,21 @@ await gcp.withDockerSocket();
 ```
 
 </TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+aws := builder.AddFlociAws("floci-aws")
+aws.WithDockerSocket()
+
+azure := builder.AddFlociAzure("floci-az")
+azure.WithDockerSocket()
+
+gcp := builder.AddFlociGcp("floci-gcp")
+gcp.WithDockerSocket()
+```
+
+</TabItem>
 </Tabs>
 
 On non-standard Docker installations (e.g., Podman, Rancher Desktop), pass the socket path explicitly:
@@ -299,6 +400,17 @@ var aws = builder.AddFlociAws("floci-aws")
 ```typescript title="apphost.mts"
 const aws = await builder.addFlociAws('floci-aws');
 await aws.withDockerSocket({ socketPath: '/run/user/1000/podman/podman.sock' });
+```
+
+</TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+aws := builder.AddFlociAws("floci-aws")
+aws.WithDockerSocket(&aspire.WithDockerSocketOptions{
+	SocketPath: aspire.StringPtr("/run/user/1000/podman/podman.sock"),
+})
 ```
 
 </TabItem>
@@ -348,6 +460,21 @@ await gcp.withDataVolume('floci-gcp-data');
 ```
 
 </TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+aws := builder.AddFlociAws("floci-aws")
+aws.WithDataVolume("floci-data")
+
+azure := builder.AddFlociAzure("floci-az")
+azure.WithDataVolume("floci-az-data")
+
+gcp := builder.AddFlociGcp("floci-gcp")
+gcp.WithDataVolume("floci-gcp-data")
+```
+
+</TabItem>
 </Tabs>
 
 #### Bind mount
@@ -369,6 +496,15 @@ var aws = builder.AddFlociAws("floci-aws")
 ```typescript title="apphost.mts"
 const aws = await builder.addFlociAws('floci-aws');
 await aws.withDataBindMount('/path/to/data');
+```
+
+</TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+aws := builder.AddFlociAws("floci-aws")
+aws.WithDataBindMount("/path/to/data")
 ```
 
 </TabItem>
@@ -453,6 +589,15 @@ await floci.withFlociUI();
 ```
 
 </TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+floci := builder.AddFlociAws("floci")
+floci.WithFlociUI()
+```
+
+</TabItem>
 </Tabs>
 
 Customize the container name or pin the host port:
@@ -477,6 +622,20 @@ await floci.withFlociUI({
     await ui.withHostPort({ port: 14500 });
   },
 });
+```
+
+</TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+floci := builder.AddFlociAws("floci")
+floci.WithFlociUI(&aspire.WithFlociUIOptions{
+	ContainerName: aspire.StringPtr("my-floci-ui"),
+	ConfigureContainer: func(ui aspire.FlociUIContainerResource) {
+		ui.WithHostPort(aspire.IntPtr(14500))
+	},
+})
 ```
 
 </TabItem>
@@ -527,6 +686,23 @@ await aws.withFlociUI({
 ```
 
 </TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+aws := builder.AddFlociAws("floci-aws")
+azure := builder.AddFlociAzure("floci-az")
+gcp := builder.AddFlociGcp("floci-gcp")
+
+aws.WithFlociUI(&aspire.WithFlociUIOptions{
+	ConfigureContainer: func(ui aspire.FlociUIContainerResource) {
+		ui.WithAzureReference(azure)
+		ui.WithGcpReference(gcp)
+	},
+})
+```
+
+</TabItem>
 </Tabs>
 
 The UI container (`floci/floci-ui`) is added as a child resource of whichever cloud resource created it, wired to each attached cloud's endpoint over the container network (`FLOCI_ENDPOINT`/`FLOCI_AZURE_ENDPOINT`/`FLOCI_GCP_ENDPOINT`), and is excluded from the deployment manifest — it's a local development tool only.
@@ -555,6 +731,15 @@ var floci = builder.AddFlociAws("floci")
 ```typescript title="apphost.mts"
 const floci = await builder.addFlociAws('floci');
 await floci.withConfigFile('./floci.yml');
+```
+
+</TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+floci := builder.AddFlociAws("floci")
+floci.WithConfigFile("./floci.yml")
 ```
 
 </TabItem>
@@ -619,6 +804,22 @@ await api.withFlociAzureReference(azure);
 ```
 
 </TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+aws := builder.AddFlociAws("floci-aws")
+aws.WithHttpsDeveloperCertificate()
+
+azure := builder.AddFlociAzure("floci-az")
+azure.WithHttpsDeveloperCertificate()
+
+api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+api.WithFlociAwsReference(aws)
+api.WithFlociAzureReference(azure)
+```
+
+</TabItem>
 </Tabs>
 
 Host-process dependents can validate a trusted development certificate without extra client configuration. For container dependents, use `WithDeveloperCertificateTrust(true)` in C# or `withDeveloperCertificateTrust(true)` in TypeScript to install the trust bundle.
@@ -652,6 +853,17 @@ const endpoint = await floci.primaryEndpoint();
 const host = await floci.host();
 const port = await floci.port();
 const connectionString = await floci.connectionStringExpression();
+```
+
+</TabItem>
+
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+endpoint := floci.PrimaryEndpoint()
+host := floci.Host()
+port := floci.Port()
+connectionString := floci.ConnectionStringExpression()
 ```
 
 </TabItem>

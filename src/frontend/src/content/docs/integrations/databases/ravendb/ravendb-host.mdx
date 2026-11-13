@@ -73,6 +73,27 @@ This updates your `aspire.config.json` with the RavenDB hosting integration pack
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.RavenDB
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the RavenDB hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.RavenDB": "13.4.0"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add RavenDB server resource and database resource
@@ -111,6 +132,31 @@ await apiService.withReference(ravendb);
 await apiService.waitFor(ravendb);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+ravenServer := builder.AddRavenDB("ravenServer")
+ravendb := ravenServer.AddDatabase("ravendb")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(ravendb).
+	WaitFor(ravendb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -177,6 +223,31 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+ravenServer := builder.AddRavenDB("ravenServer")
+ravendb := ravenServer.AddDatabase("ravendb", &aspire.AddDatabaseOptions{EnsureCreated: aspire.BoolPtr(true)})
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(ravendb).
+	WaitFor(ravendb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add RavenDB server resource with data volume
@@ -219,6 +290,33 @@ await apiService.withReference(ravendb);
 await apiService.waitFor(ravendb);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+ravenServer := builder.AddRavenDB("ravenServer").
+	WithDataVolume()
+
+ravendb := ravenServer.AddDatabase("ravendb")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(ravendb).
+	WaitFor(ravendb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -266,6 +364,33 @@ await apiService.withReference(ravendb);
 await apiService.waitFor(ravendb);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+ravenServer := builder.AddRavenDB("ravenServer").
+	WithDataBindMount(`C:\RavenDb\Data`)
+
+ravendb := ravenServer.AddDatabase("ravendb")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(ravendb).
+	WaitFor(ravendb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -319,6 +444,34 @@ await apiService.withReference(ravendb);
 await apiService.waitFor(ravendb);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+ravenServer := builder.AddRavenDB("ravenServer").
+	WithDataVolume().
+	WithLogVolume()
+
+ravendb := ravenServer.AddDatabase("ravendb")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(ravendb).
+	WaitFor(ravendb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
