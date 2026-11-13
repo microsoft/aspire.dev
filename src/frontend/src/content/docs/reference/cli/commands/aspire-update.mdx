@@ -46,6 +46,12 @@ If you specify `--non-interactive` without `--yes`, the command exits with an er
 The update command requires --yes when the --non-interactive option is specified.
 ```
 
+`--yes` doesn't consent to adopting a configuration source. By default, a normal
+non-interactive update doesn't adopt a source or save an opt-out for an app that
+has no binding. To accept an available source as part of the update, also pass
+`--use-config-source`. To explicitly decline, pass `--use-config-source false`.
+Existing source bindings and opt-outs aren't changed by this option.
+
 ### Updating repository Aspire CLI references
 
 A repository can pin the Aspire CLI independently of the executable you're currently running, using an `Aspire.Cli` entry in `.config/dotnet-tools.json` or `dotnet-tools.json`, or an `@microsoft/aspire-cli` entry in `package.json` (`dependencies`, `devDependencies`, or `optionalDependencies`). `aspire update` updates these existing pins alongside AppHost integrations, or without an AppHost.
@@ -94,6 +100,10 @@ If your repository doesn't pin the CLI, you can run `aspire update --self` befor
 
   Run `nix profile upgrade aspire-cli` for a profile install, or `nix flake update <input-name>` for a project flake.
 
+:::caution[Only use sources you trust]
+Content selected by a configuration source can run code on your machine or influence an agent's actions. The CLI displays a trust warning when it offers a source during an update or fetches a saved source with `--config-source`. Neither `--yes` nor `--use-config-source` suppresses the warning. Review the source and its referenced content before accepting or refreshing it. See [Configuration sources](/extensibility/config-sources/).
+:::
+
 ## Options
 
 The following options are available:
@@ -103,6 +113,18 @@ The following options are available:
 - **`--self`**
 
   Update the Aspire CLI itself to the latest version. The CLI adapts to how it was installed: npm and .NET tool installs print the matching package-manager command to run, while install-script and other binary installs download the latest binary directly. See [Updating the CLI based on how it was installed](#updating-the-cli-based-on-how-it-was-installed).
+
+- **`--config-source`**
+
+  Refresh only the nearest saved app-local [configuration source](/extensibility/config-sources/) and apply its shared settings. Supplied skill and integration sections replace the corresponding local sections, including local edits. This doesn't adopt a new source, update packages, update the SDK or CLI, regenerate templates, or reconcile existing agent registrations. If there is no active saved binding or the app has opted out, the command reports that there is no source to update and exits successfully without fetching.
+
+  Can't be combined with `--self`, `--migrate`, `--channel`, `--quality`, or `--nuget-config-dir`. Non-interactive refresh also requires `--yes`.
+
+- **`--use-config-source [true|false]`**
+
+  Choose whether to adopt an offered configuration source during a normal project update when the app has no source binding or saved opt-out. Pass `--use-config-source` or `--use-config-source true` to accept, or `--use-config-source false` to decline and save an app-local opt-out. Requesting acceptance when no source is available is an error.
+
+  When omitted, interactive updates can ask for consent; non-interactive updates skip adoption. Existing bindings and opt-outs are preserved. Use `--config-source` instead to refresh an existing binding without updating packages.
 
 - **`--channel`**
 
@@ -114,17 +136,9 @@ The following options are available:
 
   The `staging` channel can only be resolved from a `stable` or `staging` Aspire CLI build. Daily, local, and per-PR CLI builds don't have a deterministic staging feed, so requesting `--channel staging` from one of them fails with an error naming the running CLI's identity and pointing at the recovery options: install a staging or stable Aspire CLI, or set the `overrideStagingFeed` configuration value (for example, `aspire config set -g overrideStagingFeed <feed-url>`) to point at the staging feed you want to use. See [`overrideStagingFeed`](/reference/cli/configuration/#settings-surfaced-by-aspire-config) in the CLI configuration reference.
 
-- **`--config-source`**
-
-  Refresh the app configuration from the configuration source saved in the project's local settings file, instead of running the package update workflow. Before fetching, the command displays the saved source's repository, configuration file path (when not the default), optional ref, and declaring settings file, without repeating the introductory explanation of configuration sources.
-
-  After a successful refresh, the command reports whether the configuration was updated to the latest version from its source or was already up to date. Restoring local edits to source-supplied values counts as an update. If the project has no saved source, or has opted out of one, the command reports that there is no configuration source to update and exits successfully without fetching.
-
-  For automation, use `aspire update --config-source --yes --non-interactive`.
-
 - **`-y, --yes`**
 
-  Automatically confirm all prompts without user input. Use this option in CI/CD pipelines or other non-interactive environments to skip confirmation dialogs.
+  Automatically confirm update prompts without user input. Use this option in CI/CD pipelines or other non-interactive environments to skip confirmation dialogs. This doesn't accept a new configuration source; use `--use-config-source` for that choice.
 
 - **`--nuget-config-dir`**
 
@@ -160,6 +174,18 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire update --yes --non-interactive
+  ```
+
+- Update packages non-interactively and accept an available configuration source for an app without a binding or opt-out:
+
+  ```bash title="Aspire CLI"
+  aspire update --use-config-source --yes --non-interactive
+  ```
+
+- Refresh only the app's saved configuration source without interactive prompts:
+
+  ```bash title="Aspire CLI"
+  aspire update --config-source --yes --non-interactive
   ```
 
 - Update packages using a specific NuGet configuration file:

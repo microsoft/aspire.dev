@@ -1164,6 +1164,10 @@ export const docsTopics = {
           label: 'Multi-language integrations',
           slug: 'extensibility/multi-language-integration-authoring',
         },
+        {
+          label: 'Configuration sources',
+          slug: 'extensibility/config-sources',
+        },
       ],
     },
     {

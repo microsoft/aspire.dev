@@ -38,10 +38,10 @@ The `--output` option validates the provided path before creating the project:
 - Paths that point to an **existing non-empty directory** are rejected with a clear error message. Use a different output path or an empty directory.
 
 <Aside type="note">
-  The `aspire new` command currently requires an interactive terminal even when
-  all options are provided. The `--non-interactive` flag is not fully supported.
-  In CI/CD pipelines or other non-interactive environments, use `dotnet new`
-  with Aspire templates as an alternative for project creation.
+  If a configuration source is available during non-interactive project
+  creation, pass `--use-config-source` to accept it or
+  `--use-config-source false` to decline it. Configure Git credentials in
+  advance; unattended operations can't wait for authentication prompts.
 </Aside>
 
 ## Interactive prompts
@@ -90,6 +90,10 @@ aspire certs trust
 
 Choosing **No** (the default) configures services with standard `http://localhost:<port>` addresses. This option requires no certificate setup and works in all browsers and tools without additional configuration.
 
+:::caution[Only use sources you trust]
+Content from configuration sources, template repositories, and package sources can run code on your machine or influence an agent's actions. The CLI displays a trust warning when it offers a configuration source, uses a template repository, or is given a package source other than nuget.org. Passing `--use-config-source` doesn't suppress the warning. Review each source and its referenced content before using them. See [Configuration sources](/extensibility/config-sources/).
+:::
+
 ## Options
 
 The following options are available:
@@ -126,7 +130,9 @@ The following options are available:
 
 - **`--use-config-source [true|false]`**
 
-  Accept a Git configuration source that's available for the project, or pass `false` to use standard Aspire configuration instead. Specify this option to respond to the configuration source prompt in non-interactive mode.
+  Choose whether to use the offered [configuration source](/extensibility/config-sources/) during project creation. Pass `--use-config-source` or `--use-config-source true` to accept, or `--use-config-source false` to decline and save an app-local opt-out.
+
+  If a source is available and this option is omitted, the CLI asks for consent interactively. Non-interactive creation requires an explicit choice. Requesting acceptance when no source is available is an error.
 
 - **`--suppress-agent-init`**
 
@@ -183,6 +189,22 @@ The `aspire-py-starter` template accepts the following additional options:
   aspire new aspire-py-starter --use-redis-cache true
   ```
 
+## Configuration sources and template discovery
+
+When `ASPIRE_INIT_SOURCE_URL` is explicitly configured and you accept the source, the interactive `aspire new` template picker can include its templates alongside templates from global sources. Declining the source excludes its template sources from discovery.
+
+If a global template source has the same name as an inherited source, the global source's entire definition takes precedence. Source names are compared case-insensitively. Template discovery ignores `templateSources` defined in an app's local configuration.
+
+Use `aspire template source list` to list named template sources without discovering templates. It combines global template sources with sources from an accepted configuration source for that invocation. It doesn't save the inherited sources globally or in an app.
+
+For JSON output, the command lists global sources without consulting a configuration source by default. Pass `--use-config-source` to accept the offered source and include its template sources:
+
+```bash title="List template sources as JSON"
+aspire template source list --format json --use-config-source
+```
+
+In table output, the command offers an available source interactively. Pass `--use-config-source false` to decline it. The CLI displays a trust warning even when `--use-config-source` supplies the choice.
+
 ## Examples
 
 - Create an Aspire solution from the template. Because the template was selected (`aspire-starter`), you're prompted for the name, output folder, and template version.
@@ -207,6 +229,12 @@ The `aspire-py-starter` template accepts the following additional options:
 
   ```bash title="Aspire CLI"
   aspire new aspire-starter --name myapp --agents none --non-interactive
+  ```
+
+- Create a new project non-interactively and accept an available configuration source:
+
+  ```bash title="Aspire CLI"
+  aspire new aspire-starter --name myapp --agents none --use-config-source --non-interactive
   ```
 
 - Create a new project non-interactively and configure all supported agents at the project scope:

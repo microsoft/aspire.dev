@@ -117,6 +117,10 @@ The skill instructs the agent to:
 - Optionally configure OpenTelemetry
 - Validate the wiring with a smoke-test `aspire start`
 
+:::caution[Only use sources you trust]
+Content selected by a configuration source can run code on your machine or influence an agent's actions. The CLI displays a trust warning when it offers a source, even if you pass `--use-config-source`. Review the source and its referenced content before accepting it. See [Configuration sources](/extensibility/config-sources/).
+:::
+
 ## Options
 
 The following options are available:
@@ -128,6 +132,12 @@ The following options are available:
 - **`--file-based`**
 
   Create `apphost.cs` in the current directory, skipping .NET solution discovery. Requires C#: fails with an error if another language is selected explicitly, via configuration, or at the language prompt.
+
+- **`--use-config-source [true|false]`**
+
+  Choose whether to apply an offered [configuration source](/extensibility/config-sources/) when initializing the app. Pass `--use-config-source` or `--use-config-source true` to accept, or `--use-config-source false` to decline and save an app-local opt-out.
+
+  If a source is available, interactive initialization prompts when this option is omitted; non-interactive initialization requires an explicit choice. Requesting acceptance when no source is available is an error. An existing app-local source binding or opt-out is preserved.
 
 - **`--agents <agents>`**
 
@@ -183,6 +193,12 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire init --non-interactive --agents none
+  ```
+
+- Initialize Aspire support non-interactively and decline an available configuration source:
+
+  ```bash title="Aspire CLI"
+  aspire init --language csharp --agents none --use-config-source false --non-interactive
   ```
 
 - Initialize Aspire support and enable skill sources for GitHub Copilot without prompts:
