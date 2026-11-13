@@ -47,7 +47,6 @@ await builder.build().run();
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRETERMINAL001
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddExecutable("repl", "python3", ".", "-i", "-q")
@@ -61,8 +60,8 @@ builder.Build().Run();
 
 Start the app with `aspire run`, select `repl` on the dashboard's **Console logs** page, and switch to **Terminal** if needed. At the Python prompt, enter `print("Hello from Aspire")`. You can also run `aspire terminal attach repl` after [enabling the CLI commands](#work-with-terminals-from-the-cli).
 
-<Aside type="caution" title="Experimental">
-`WithTerminal` is an experimental API. Calling it in C# produces the `ASPIRETERMINAL001` diagnostic, which you must acknowledge for your AppHost to build. Suppress it inline with `#pragma warning disable ASPIRETERMINAL001` (as shown in the C# example above), or add `ASPIRETERMINAL001` to `<NoWarn>` in your project file. The shape of the API and its options may change in a future release.
+<Aside type="note">
+`WithTerminal` and `TerminalOptions` don't produce the `ASPIRETERMINAL001` diagnostic. AppHost-owned terminals, `TerminalService`, and the terminal interaction APIs remain experimental.
 </Aside>
 
 ## When to use WithTerminal
@@ -133,7 +132,7 @@ By default, the hidden terminal host helper resources don't export logs, metrics
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-TypeScript's `withTerminal()` currently applies the default options. Configuring initial dimensions through a TypeScript options overload isn't supported.
+In TypeScript, pass a `configure` callback to override any of these options. Calling `withTerminal()` without a callback, or with a callback that doesn't assign a dimension, keeps the default dimensions and automatic dashboard fitting. Assigning `columns` or `rows`, even to its default value, disables automatic fitting.
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -142,7 +141,12 @@ const builder = await createBuilder();
 
 await builder
   .addExecutable('repl', 'python3', '.', ['-i', '-q'])
-  .withTerminal();
+  .withTerminal({
+    configure: async options => {
+      options.columns = 200;
+      options.rows = 50;
+    }
+  });
 
 await builder.build().run();
 ```
@@ -153,7 +157,6 @@ await builder.build().run();
 In C#, pass a callback to override any of these options:
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRETERMINAL001
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddExecutable("repl", "python3", ".", "-i", "-q")
