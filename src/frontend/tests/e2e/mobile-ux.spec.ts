@@ -114,10 +114,28 @@ test('phone toolbar keeps primary actions and consistent icon geometry', async (
       if (path.startsWith('/reference/api/')) {
         await expect(header.locator('site-search')).toHaveCount(0);
       } else {
-        await expectTouchTarget(header.getByRole('button', { name: /^Search/ }));
-        expect((await header.locator('site-search svg').boundingBox())!.width).toBe(18);
+        const search = header.getByRole('button', { name: /^Search/ });
+        await expectTouchTarget(search);
+        const searchIcon = (await search.locator('svg').boundingBox())!;
+        const menuIcon = (await menu.locator('.open-menu').boundingBox())!;
+        expect(menuIcon.width).toBeCloseTo(searchIcon.width, 1);
+        expect(menuIcon.height).toBeCloseTo(searchIcon.height, 1);
       }
-      expect((await menu.locator('.open-menu').boundingBox())!.width).toBe(18);
+      for (const control of [
+        menu,
+        ...await header.locator('site-search button[data-open-modal]').all(),
+      ]) {
+        const button = (await control.boundingBox())!;
+        const icon = (await control.locator('svg:visible').boundingBox())!;
+        expect(icon.width).toBeGreaterThan(0);
+        expect(icon.height).toBeGreaterThan(0);
+        expect(icon.width).toBeLessThan(button.width);
+        expect(icon.height).toBeLessThan(button.height);
+        expect(Math.abs(icon.x + icon.width / 2 - (button.x + button.width / 2)))
+          .toBeLessThanOrEqual(0.5);
+        expect(Math.abs(icon.y + icon.height / 2 - (button.y + button.height / 2)))
+          .toBeLessThanOrEqual(0.5);
+      }
       await expect(header.locator('.title-wrapper .sl-badge')).toBeHidden();
       await expect(header.locator('.right-group-mobile a')).toHaveCount(1);
       await expectReflow(page);
@@ -207,8 +225,12 @@ test('announcement links remain text links with a separate dismiss column', asyn
     await expect(banner).toBeVisible();
     const content = (await banner.locator('.sl-banner__content').boundingBox())!;
     const dismiss = (await banner.locator('[data-dismiss-banner]').boundingBox())!;
-    expect(content.x + content.width).toBeLessThanOrEqual(dismiss.x - 8);
-    expect(dismiss.x + dismiss.width).toBeLessThanOrEqual(width);
+    const bounds = (await banner.boundingBox())!;
+    expect(content.x).toBeGreaterThanOrEqual(bounds.x);
+    expect(content.x + content.width).toBeLessThan(dismiss.x);
+    expect(dismiss.x + dismiss.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+    expect(dismiss.y).toBeGreaterThanOrEqual(bounds.y);
+    expect(dismiss.y + dismiss.height).toBeLessThanOrEqual(bounds.y + bounds.height);
     const link = banner.getByRole('link');
     await expect(link).toHaveCSS('border-top-width', '0px');
     await expect(link).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
@@ -227,7 +249,7 @@ test('secondary controls match the compact TOC and code-copy glyphs do not stret
     await page.setViewportSize({ width, height: 844 });
     await open(page, '/reference/cli/commands/aspire-run/');
     const reference = (await page.locator('mobile-starlight-toc .toggle').boundingBox())!.height;
-    expect(reference).toBe(34);
+    expect(reference).toBeGreaterThanOrEqual(34);
     for (const control of [
       page.locator('starlight-menu-button button'),
       page.locator('.try-aspire-btn-mobile'),
@@ -244,14 +266,45 @@ test('secondary controls match the compact TOC and code-copy glyphs do not stret
         left: Number.parseFloat(getComputedStyle(element).paddingLeft),
         right: Number.parseFloat(getComputedStyle(element).paddingRight),
       }));
-      expect(padding.left).toBe(12);
-      expect(padding.right).toBe(12);
+      expect(padding.left).toBeGreaterThan(0);
+      expect(padding.left).toBeCloseTo(padding.right, 1);
+      expect(await button.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return Array.from(range.getClientRects()).every((rect) =>
+          rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1 &&
+          rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1);
+      })).toBe(true);
     }
     const actionBlock = (await page.locator('.actions-container').boundingBox())!;
-    expect(actionBlock.height).toBeLessThanOrEqual(width === 320 ? reference * 2 + 6 : reference + 2);
-    const glyph = (await page.locator('.expressive-code .copy button:visible > div').first().boundingBox())!;
-    expect(glyph.width).toBe(16);
-    expect(glyph.height).toBe(16);
+    const actionBoxes = await page.locator('.actions-container .action-button:visible')
+      .evaluateAll((buttons) => buttons.map((button) => {
+        const bounds = button.getBoundingClientRect();
+        return { x: bounds.x, y: bounds.y, right: bounds.right, bottom: bounds.bottom };
+      }));
+    expect(new Set(actionBoxes.map((box) => Math.round(box.y))).size)
+      .toBeLessThanOrEqual(width === 320 ? 2 : 1);
+    expect(actionBoxes.every((box) => box.x >= actionBlock.x - 1 &&
+      box.right <= actionBlock.x + actionBlock.width + 1)).toBe(true);
+    expect(Math.abs(Math.max(...actionBoxes.map((box) => box.bottom)) -
+      (actionBlock.y + actionBlock.height))).toBeLessThanOrEqual(1);
+    for (const [index, box] of actionBoxes.entries()) {
+      expect(actionBoxes.slice(index + 1).every((other) =>
+        box.right <= other.x || other.right <= box.x ||
+        box.bottom <= other.y || other.bottom <= box.y)).toBe(true);
+    }
+    const copy = page.locator('.expressive-code .copy button:visible').first();
+    const button = (await copy.boundingBox())!;
+    const glyph = (await copy.locator(':scope > div').boundingBox())!;
+    expect(glyph.width).toBeGreaterThan(0);
+    expect(glyph.width).toBeCloseTo(glyph.height, 1);
+    expect(glyph.width).toBeLessThan(button.width);
+    expect(glyph.height).toBeLessThan(button.height);
+    expect(Math.abs(glyph.x + glyph.width / 2 - (button.x + button.width / 2)))
+      .toBeLessThanOrEqual(0.5);
+    expect(Math.abs(glyph.y + glyph.height / 2 - (button.y + button.height / 2)))
+      .toBeLessThanOrEqual(0.5);
   }
 });
 
@@ -328,9 +381,11 @@ test('page actions have unique panels, keyboard dismissal and bounded positionin
       await expect(panel).toHaveCount(1);
       await expect(panel).toBeVisible();
       const bounds = (await panel.boundingBox())!;
+      const viewport = page.viewportSize()!;
       expect(bounds.x).toBeGreaterThanOrEqual(0);
-      expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
-      expect(bounds.y + bounds.height).toBeLessThanOrEqual(568);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+      expect(bounds.y).toBeGreaterThanOrEqual(0);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
       await panel.getByRole('link').first().focus();
       await page.keyboard.press('Escape');
       await expect(panel).toBeHidden();

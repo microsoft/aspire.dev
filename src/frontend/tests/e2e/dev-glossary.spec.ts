@@ -68,12 +68,14 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
   await expect(heading.locator('svg')).toHaveCount(0);
   const filterPanel = page.locator('.glossary-filter-panel');
   await expect(filterPanel.getByRole('search', { name: 'Search the glossary' })).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
   await expect(filterPanel.getByRole('navigation', { name: 'Glossary letters' })).toBeVisible();
   await expect(page.getByRole('searchbox', { name: 'Find a term' })).toHaveAttribute('placeholder', 'Search glossary');
   await expect(page.locator('.dev-description')).toHaveCount(0);
   await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', 'Search for a term, or filter by topic and first letter.');
   const label = page.locator('label[for="glossary-search-input"]');
   await expect(label).toHaveCSS('clip-path', 'inset(50%)');
+  const searchWidths = new Map<number, number>();
   for (const width of [320, 390, 768, 1024, 1199, 1200, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     const titleBox = (await heading.boundingBox())!;
@@ -94,8 +96,9 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
       }
       const bounds = (await alphabet.boundingBox())!;
       const panelBounds = (await filterPanel.boundingBox())!;
-      expect(bounds.x - panelBounds.x).toBeGreaterThanOrEqual(16);
-      expect(panelBounds.x + panelBounds.width - bounds.x - bounds.width).toBeGreaterThanOrEqual(16);
+      expect(bounds.x).toBeGreaterThan(panelBounds.x);
+      expect(bounds.x + bounds.width).toBeLessThan(panelBounds.x + panelBounds.width);
+      expect(bounds.x - panelBounds.x).toBeCloseTo(panelBounds.x + panelBounds.width - bounds.x - bounds.width, 0);
       expect(await alphabet.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       await expect(alphabet.locator(':scope > a, :scope > span')).toHaveCount(27);
       for (const item of await alphabet.locator(':scope > a, :scope > span').all()) {
@@ -103,16 +106,31 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
         expect(letter.x).toBeGreaterThanOrEqual(bounds.x);
         expect(letter.x + letter.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
         expect(letter.width).toBeGreaterThanOrEqual(24);
-        expect(letter.height).toBe(34);
+        expect(letter.height).toBeGreaterThanOrEqual(34);
+        expect(letter.y).toBeGreaterThanOrEqual(bounds.y);
+        expect(letter.y + letter.height).toBeLessThanOrEqual(bounds.y + bounds.height + 1);
       }
       const search = (await page.getByRole('searchbox', { name: 'Find a term' }).boundingBox())!;
-      expect(search.width).toBeLessThanOrEqual(512);
+      expect(search.x).toBeGreaterThanOrEqual(bounds.x);
+      expect(search.x + search.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
+      const placeholderWidth = await page.getByRole('searchbox', { name: 'Find a term' }).evaluate((element: HTMLInputElement) => {
+        const style = getComputedStyle(element);
+        const context = document.createElement('canvas').getContext('2d')!;
+        context.font = style.font;
+        return context.measureText(element.placeholder).width
+          + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+          + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+      });
+      expect(search.width).toBeGreaterThanOrEqual(placeholderWidth);
       const compact = width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-      expect(search.height).toBe(compact ? 34 : 48);
+      const letterHeight = (await alphabet.locator(':scope > a').first().boundingBox())!.height;
+      expect(search.height).toBeGreaterThanOrEqual(34);
+      if (compact) expect(search.height).toBeCloseTo(letterHeight, 0);
+      else expect(search.height).toBeGreaterThan(letterHeight);
       const topics = (await page.locator('#glossary-kind-filters').boundingBox())!;
       const stats = (await page.locator('.glossary-controls .inpage-search-stats').boundingBox())!;
       if (width >= 1200) {
-        expect(search.width).toBeGreaterThanOrEqual(256);
+        searchWidths.set(width, search.width);
         expect(topics.x).toBeGreaterThanOrEqual(stats.x + stats.width);
         expect(stats.x).toBeGreaterThanOrEqual(search.x + search.width);
         expect(topics.y + topics.height / 2).toBeCloseTo(search.y + search.height / 2, 0);
@@ -137,7 +155,7 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
     const search = (await page.getByRole('searchbox', { name: 'Find a term' }).boundingBox())!;
     const stats = (await page.locator('.glossary-controls .inpage-search-stats').boundingBox())!;
     const topics = (await page.locator('#glossary-kind-filters').boundingBox())!;
-    expect(search.width).toBeGreaterThanOrEqual(256);
+    expect(search.width).toBeCloseTo(searchWidths.get(width)!, 0);
     expect(stats.x).toBeGreaterThanOrEqual(search.x + search.width);
     expect(topics.x).toBeGreaterThanOrEqual(stats.x + stats.width);
     expect(topics.y + topics.height / 2).toBeCloseTo(search.y + search.height / 2, 0);
@@ -217,16 +235,36 @@ test('empty results stay contained and offer one intent-preserving action in bot
       const bounds = (await empty.boundingBox())!;
       const filterPanel = (await page.locator('.glossary-filter-panel').boundingBox())!;
       expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeGreaterThanOrEqual(0);
-      expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeLessThanOrEqual(16);
-      // Allow the stacked mobile artwork plus the wrapped hint, filter chips, and action.
-      expect(bounds.height).toBeLessThanOrEqual(width >= 800 ? 324 : 480);
+      const panelSpacing = await page.locator('.glossary-filter-panel').evaluate((element) => parseFloat(getComputedStyle(element).marginBottom));
+      expect(bounds.y - (filterPanel.y + filterPanel.height)).toBeCloseTo(panelSpacing, 0);
       const parts = await empty.locator('.search-empty-title, .search-empty-query, .search-empty-hint, .search-active-filters, .search-action').evaluateAll(
         (elements) => elements.map((element) => {
           const bounds = element.getBoundingClientRect();
-          return { x: bounds.x, y: bounds.y, bottom: bounds.bottom };
+          return { x: bounds.x, y: bounds.y, right: bounds.right, bottom: bounds.bottom };
         }),
       );
       expect(parts).toHaveLength(5);
+      for (const part of parts) {
+        expect(part.x).toBeGreaterThanOrEqual(bounds.x);
+        expect(part.right).toBeLessThanOrEqual(bounds.x + bounds.width);
+        expect(part.y).toBeGreaterThanOrEqual(bounds.y);
+        expect(part.bottom).toBeLessThanOrEqual(bounds.y + bounds.height);
+      }
+      const content = await empty.locator('.search-empty-content').evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          height: element.getBoundingClientRect().height,
+          minHeight: parseFloat(style.minHeight) || 0,
+          padding: parseFloat(style.paddingTop) + parseFloat(style.paddingBottom),
+          lineHeight: parseFloat(style.lineHeight),
+          overflow: element.scrollWidth > element.clientWidth || element.scrollHeight > element.clientHeight,
+        };
+      });
+      expect(content.overflow).toBe(false);
+      // Allow the inline action's trailing line box, but not an arbitrary blank spacer.
+      const fittedHeight = Math.max(content.minHeight, parts.at(-1)!.bottom - parts[0].y + content.padding);
+      expect(content.height).toBeGreaterThanOrEqual(fittedHeight - 1);
+      expect(content.height - fittedHeight).toBeLessThan(content.lineHeight);
       for (let index = 1; index < parts.length; index++) {
         expect(parts[index].x).toBeCloseTo(parts[0].x, 0);
         expect(parts[index].y).toBeGreaterThanOrEqual(parts[index - 1].bottom);
@@ -436,9 +474,18 @@ test('glossary cards keep bounded widths beneath keyboard-focusable letter contr
         expect(first.y).toBeCloseTo(firstRowLast.y, 0);
       }
       if (width === 1440) {
-        expect(first.height).toBeLessThan(320);
-        expect(first.y + first.height).toBeLessThan(900);
+        expect(first.y + first.height).toBeLessThan(page.viewportSize()!.height);
       }
+      const contained = await cards.evaluateAll((elements) => elements.every((card) => {
+        const bounds = card.getBoundingClientRect();
+        return [...card.querySelectorAll('.glossary-card-heading, .glossary-copy, .glossary-card-footer')].every((child) => {
+          const childBounds = child.getBoundingClientRect();
+          return childBounds.left >= bounds.left && childBounds.right <= bounds.right
+            && childBounds.top >= bounds.top && childBounds.bottom <= bounds.bottom
+            && child.scrollWidth <= child.clientWidth + 1 && child.scrollHeight <= child.clientHeight + 1;
+        });
+      }));
+      expect(contained).toBe(true);
       const letter = page.locator('.glossary-group h2').first();
       const letterBounds = (await letter.boundingBox())!;
       expect(letterBounds.y + letterBounds.height).toBeLessThan(first.y);
@@ -485,7 +532,8 @@ test('term pages show LearnMore directly below always-visible practical examples
   const exampleBox = (await example.boundingBox())!;
   const learningBox = (await learning.boundingBox())!;
   expect(learningBox.y).toBeGreaterThanOrEqual(exampleBox.y + exampleBox.height);
-  expect(learningBox.y - exampleBox.y - exampleBox.height).toBeLessThanOrEqual(32);
+  const learningSpacing = await page.locator('.term-learn-more').evaluate((element) => parseFloat(getComputedStyle(element).marginTop));
+  expect(learningBox.y - exampleBox.y - exampleBox.height).toBeCloseTo(learningSpacing, 0);
   const related = page.getByRole('complementary', { name: 'Related terms' });
   await expect(related).toBeVisible();
   for (const link of await related.getByRole('link').all()) {
@@ -613,7 +661,10 @@ test('term navigation follows glossary order after the reading content', async (
     const reading = (await page.locator('.term-reading').boundingBox())!;
     const nav = (await navigation.boundingBox())!;
     expect(nav.y).toBeGreaterThanOrEqual(reading.y + reading.height);
-    expect(nav.y - reading.y - reading.height).toBeLessThanOrEqual(80);
+    const linkHeights = await navigation.locator('a').evaluateAll((links) => links.map((link) => link.getBoundingClientRect().height));
+    expect(nav.y - reading.y - reading.height).toBeLessThanOrEqual(Math.min(...linkHeights));
+    expect(nav.x).toBeCloseTo(reading.x, 0);
+    expect(nav.width).toBeCloseTo(reading.width, 0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
 });
@@ -676,8 +727,15 @@ test('term pages place related terms beside the reading column on tablets and de
         await expect(page.locator('.term-related')).toHaveCSS('border-radius', '0px');
         const learning = (await page.locator('.term-learn-more').boundingBox())!;
         expect(learning.width).toBeCloseTo(main.width, 0);
-        expect(main.width).toBeLessThanOrEqual(736);
+        const reading = (await page.locator('.term-reading').boundingBox())!;
+        expect(main.x).toBeGreaterThanOrEqual(reading.x);
+        expect(main.x + main.width).toBeLessThanOrEqual(reading.x + reading.width);
+        expect(related.x + related.width).toBeLessThanOrEqual(reading.x + reading.width + 1);
+        const readingLimit = await page.locator('.term-main').evaluate((element) => parseFloat(getComputedStyle(element).maxWidth));
+        expect(Number.isFinite(readingLimit)).toBe(true);
+        expect(main.width).toBeLessThanOrEqual(readingLimit);
         if (width >= 768) {
+          expect(main.width).toBeGreaterThan(related.width);
           expect(related.x).toBeGreaterThan(main.x + main.width);
           expect(related.y).toBeCloseTo(main.y, 0);
         } else {

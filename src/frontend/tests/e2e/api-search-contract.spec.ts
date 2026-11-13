@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { dismissCookieConsentIfVisible, expectSearchFieldLayout } from '@tests/e2e/helpers';
 
 test.setTimeout(120_000);
 
@@ -31,17 +31,11 @@ for (const { path, prefix } of surfaces) {
     await page.goto(`/reference/api/${path}?q=Redis`);
     await dismissCookieConsentIfVisible(page);
     const input = page.locator(`#${prefix}-search-input`);
-    const field = input.locator('..');
     const clear = page.locator(`#${prefix}-search-clear`);
-    const compact = page.viewportSize()!.width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-
     for (const theme of ['light', 'dark']) {
       await page.evaluate(value => document.documentElement.dataset.theme = value, theme);
       await input.evaluate(element => element.blur());
-      await expect(input).toHaveCSS('height', compact ? '34px' : '48px');
-      await expect(input).toHaveCSS('font-size', '16px');
-      await expect(field.locator('.search-field-icon')).toHaveCSS('width', '18px');
-      await expect(field.locator('.search-field-icon')).toHaveCSS('height', '18px');
+      await expectSearchFieldLayout(input);
       await expect.poll(() => input.evaluate(element => {
         const probe = document.createElement('span');
         probe.style.background = 'var(--search-control-bg)';

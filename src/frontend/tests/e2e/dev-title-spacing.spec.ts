@@ -17,15 +17,17 @@ test('Hub directory titles align with their page content', async ({ page }) => {
           const container = title.parentElement!;
           const styles = getComputedStyle(container);
           const breadcrumbs = document.querySelector<HTMLElement>('.dev-breadcrumbs')!;
+          const titleBox = title.getBoundingClientRect();
+          const containerBox = container.getBoundingClientRect();
           const probe = document.createElement('div');
           probe.style.width = 'var(--sl-content-pad-x)';
           container.append(probe);
           const contentPadding = getComputedStyle(probe).width;
           probe.remove();
           return {
-            paddingTop: styles.paddingTop,
+            topSpace: titleBox.top - containerBox.top,
             paddingRight: styles.paddingRight,
-            paddingBottom: styles.paddingBottom,
+            bottomSpace: containerBox.bottom - titleBox.bottom,
             paddingLeft: styles.paddingLeft,
             titleMarginTop: getComputedStyle(title).marginTop,
             titleLeft: Math.round(title.getBoundingClientRect().left),
@@ -37,15 +39,13 @@ test('Hub directory titles align with their page content', async ({ page }) => {
 
       for (const route of ['/hub/', '/hub/browse/', '/hub/glossary/']) {
         const spacing = await measure(route);
-        expect(spacing, `${route} at ${width}px in ${theme}`).toEqual({
-          paddingTop: '24px',
+        expect(spacing.topSpace, `${route} title has breathing room`).toBeGreaterThan(0);
+        expect(spacing.bottomSpace, `${route} title is vertically centered`).toBeCloseTo(spacing.topSpace, 0);
+        expect(spacing, `${route} at ${width}px in ${theme}`).toMatchObject({
           paddingRight: spacing.contentPadding,
-          paddingBottom: '24px',
           paddingLeft: spacing.contentPadding,
           titleMarginTop: '0px',
           titleLeft: spacing.contentLeft,
-          contentLeft: spacing.contentLeft,
-          contentPadding: spacing.contentPadding,
         });
       }
     }

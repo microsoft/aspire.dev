@@ -19,9 +19,26 @@ test('FileTree file and folder icons retain visible dimensions', async ({ page }
     for (const icon of await fileIcons.all()) {
       await expect(icon).toHaveCSS('display', 'inline-block');
       await expect(icon).toHaveCSS('vertical-align', 'middle');
-      const bounds = await icon.boundingBox();
-      expect(bounds?.width).toBeGreaterThanOrEqual(12);
-      expect(bounds?.height).toBeGreaterThanOrEqual(12);
+      const geometry = await icon.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const label = element.parentElement!;
+        const fontSize = Number.parseFloat(getComputedStyle(label).fontSize);
+        const text = document.createRange();
+        text.selectNodeContents(label);
+        text.setStartAfter(element);
+        // A wrapped filename's union box includes empty space beside the icon.
+        const fragments = Array.from(text.getClientRects()).filter(
+          (rect) => rect.width > 0 && rect.height > 0,
+        );
+        return {
+          scalesWithLabel: bounds.width >= fontSize && bounds.height >= fontSize,
+          clearsLabel: fragments.length > 0 && fragments.every((rect) =>
+            bounds.right <= rect.left || bounds.left >= rect.right ||
+            bounds.bottom <= rect.top || bounds.top >= rect.bottom,
+          ),
+        };
+      });
+      expect(geometry).toEqual({ scalesWithLabel: true, clearsLabel: true });
       await expect(icon).not.toHaveCSS('background-image', 'none');
     }
   }

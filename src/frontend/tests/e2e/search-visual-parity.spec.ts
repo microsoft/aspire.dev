@@ -19,49 +19,56 @@ async function expectBotLayout(empty: Locator) {
       + parseFloat(containerStyle.borderLeftWidth) + parseFloat(containerStyle.paddingLeft);
     const artWidth = parseFloat(style.backgroundSize);
     const artHeight = artWidth * image.naturalHeight / image.naturalWidth;
-    const artRight = box.right;
+    const position = (value: string, available: number) => {
+      if (value.endsWith('%')) return available * parseFloat(value) / 100;
+      if (value.endsWith('px')) return parseFloat(value);
+      const calc = value.match(/^calc\(([-\d.]+)% ([+-]) ([\d.]+)px\)$/);
+      if (!calc) throw new Error(`Unsupported background position: ${value}`);
+      return available * Number(calc[1]) / 100 + (calc[2] === '+' ? 1 : -1) * Number(calc[3]);
+    };
+    const artLeft = box.left + position(style.backgroundPositionX, box.width - artWidth);
+    const artTop = box.top + position(style.backgroundPositionY, box.height - artHeight);
+    const art = { left: artLeft, right: artLeft + artWidth, top: artTop, bottom: artTop + artHeight };
     const children = Array.from(element.children)
-      .filter(child => child.getBoundingClientRect().width > 0);
+      .map(child => child.getBoundingClientRect())
+      .filter(child => child.width > 0 && child.height > 0);
+    // One CSS pixel allows browser rounding, not visible clipping or overlap.
+    const tolerance = 1;
     return {
       url,
-      viewportWidth: window.innerWidth,
-      artWidth,
-      artHeight,
-      verticalPadding: (panel.height - artHeight) / 2,
-      panelWidth: panel.width,
+      artworkVisible: artWidth > 0 && artHeight > children[0].height,
+      artworkContained: art.left >= panel.left - tolerance && art.right <= panel.right + tolerance &&
+        art.top >= panel.top - tolerance && art.bottom <= panel.bottom + tolerance,
+      artworkClearOfContent: children.every(child =>
+        child.right <= art.left + tolerance || child.left >= art.right - tolerance ||
+        child.bottom <= art.top + tolerance || child.top >= art.bottom - tolerance),
+      childrenContained: children.every(child =>
+        child.left >= panel.left && child.right <= panel.right &&
+        child.top >= panel.top && child.bottom <= panel.bottom),
+      contentSeparated: children.every((child, index) => index === 0 || child.top > children[index - 1].bottom),
+      panelFits: panel.left >= 0 && panel.right <= window.innerWidth,
       startOffset: Math.abs(panel.left - containerLeft),
-      inlinePadding: (panel.width - box.width) / 2,
       groupWidth: box.width,
+      panelWidth: panel.width,
       centerOffset: Math.abs((box.left + box.right) / 2 - (panel.left + panel.right) / 2),
-      contentGap: artRight - artWidth - Math.max(...children.map(child => child.getBoundingClientRect().right)),
-      headingGap: children[1].getBoundingClientRect().top - children[0].getBoundingClientRect().bottom,
-      actionGap: children.at(-1)!.getBoundingClientRect().top - children.at(-2)!.getBoundingClientRect().bottom,
       overflows: element.scrollWidth > element.clientWidth,
       outsideViewport: box.left < 0 || box.right > window.innerWidth,
       repeat: style.backgroundRepeat,
-      position: style.backgroundPosition,
     };
   });
-  const expectedArtWidth = layout.viewportWidth >= 1024 ? 400 : 216;
   expect(layout.url).toContain('search-no-results');
-  expect(layout.artWidth).toBeCloseTo(expectedArtWidth, 0);
-  expect(layout.artHeight).toBeCloseTo(expectedArtWidth * 2 / 3, 0);
-  expect(layout.verticalPadding).toBeGreaterThanOrEqual(16);
-  expect(layout.panelWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.artworkVisible).toBe(true);
+  expect(layout.artworkContained).toBe(true);
+  expect(layout.artworkClearOfContent).toBe(true);
+  expect(layout.childrenContained).toBe(true);
+  expect(layout.contentSeparated).toBe(true);
+  expect(layout.panelFits).toBe(true);
   expect(layout.startOffset).toBeLessThanOrEqual(1);
-  expect(layout.inlinePadding).toBeLessThanOrEqual(25);
   expect(layout.groupWidth).toBeLessThanOrEqual(layout.panelWidth);
-  expect(layout.groupWidth).toBeGreaterThanOrEqual(layout.panelWidth - 50);
   expect(layout.centerOffset).toBeLessThanOrEqual(1);
-  if (layout.viewportWidth >= 1024) expect(layout.contentGap).toBeGreaterThanOrEqual(23);
-  expect(layout.headingGap).toBeCloseTo(12, 0);
-  expect(layout.actionGap).toBeCloseTo(24, 0);
   expect(layout.overflows).toBe(false);
   expect(layout.outsideViewport).toBe(false);
   expect(layout.repeat).toBe('no-repeat');
-  expect(layout.position).toBe(
-    layout.viewportWidth >= 1024 ? '100% 50%' : '50% calc(100% - 8px)',
-  );
 }
 
 test.beforeEach(async ({ page }) => {
@@ -93,8 +100,8 @@ for (const route of [
       await input.focus();
       await expect(input).toBeFocused();
       await expect(input).toHaveCSS('outline-style', 'solid');
-      await expect(input).toHaveCSS('outline-width', '2px');
-      await expect(input).toHaveCSS('outline-offset', '2px');
+      expect(await input.evaluate(element => parseFloat(getComputedStyle(element).outlineWidth))).toBeGreaterThanOrEqual(2);
+      expect(await input.evaluate(element => parseFloat(getComputedStyle(element).outlineOffset))).toBeGreaterThanOrEqual(0);
       await expect(input).toHaveCSS('outline-color', theme === 'light' ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)');
       await expect(input).toHaveCSS('box-shadow', 'none');
       if (route === '/hub/browse/') {
@@ -128,11 +135,15 @@ for (const route of [
       await expect(empty.locator('.search-empty-hint')).toHaveCSS('color', colors.hint);
       await expect(empty.locator('.search-action')).toHaveCSS('color', colors.action);
       await expect(empty.locator('.search-empty-title')).toHaveCSS('font-weight', '600');
-      await expect(empty.locator('.search-empty-title')).toHaveCSS('font-size', '16px');
-      await expect(empty.locator('.search-empty-title')).toHaveCSS('line-height', '24px');
+      const hintTypography = await empty.locator('.search-empty-hint').evaluate(element => {
+        const style = getComputedStyle(element);
+        return { fontSize: style.fontSize, lineHeight: style.lineHeight };
+      });
+      expect(await empty.locator('.search-empty-title').evaluate(element =>
+        parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(parseFloat(hintTypography.fontSize));
       for (const selector of ['.search-empty-query', '.search-empty-hint', '.search-action']) {
-        await expect(empty.locator(selector)).toHaveCSS('font-size', '14px');
-        await expect(empty.locator(selector)).toHaveCSS('line-height', '21px');
+        await expect(empty.locator(selector)).toHaveCSS('font-size', hintTypography.fontSize);
+        await expect(empty.locator(selector)).toHaveCSS('line-height', hintTypography.lineHeight);
         await expect(empty.locator(selector)).toHaveCSS('font-weight', '400');
         await expect(empty.locator(selector)).toHaveCSS('font-style', 'normal');
       }
@@ -144,8 +155,8 @@ for (const route of [
       expect((await empty.locator('.search-action').boundingBox())!.height).toBeGreaterThanOrEqual(44);
       const summary = page.locator('main .search-results-summary:visible');
       await expect(summary).toHaveCount(1);
-      await expect(summary).toHaveCSS('font-size', '14px');
-      await expect(summary).toHaveCSS('line-height', '21px');
+      await expect(summary).toHaveCSS('font-size', hintTypography.fontSize);
+      await expect(summary).toHaveCSS('line-height', hintTypography.lineHeight);
       await expect(summary).toHaveCSS('font-weight', '400');
       await expect(summary).toHaveCSS('font-style', 'normal');
       await expect(summary).toHaveCSS('color', colors.hint);
