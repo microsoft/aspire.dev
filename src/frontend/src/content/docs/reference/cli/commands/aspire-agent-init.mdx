@@ -51,9 +51,25 @@ The default settings file locations are:
 
 Client-specific directory overrides change the user-level paths. OpenCode reuses existing JSON or JSONC configuration files, including project files under `.opencode/`.
 
-Each agent downloads and loads its configured plugins or skills. The CLI preserves existing local Aspire skill files and warns you if they might override plugin-provided skills.
+Each agent downloads and loads its configured plugins or skills. After the CLI configures the Aspire skill sources, it can remove stale copies of Aspire skills that older CLI versions wrote and that the plugin now replaces. See [Remove copied Aspire skills](#remove-copied-aspire-skills).
 
 In a Copilot agent environment, the Aspire plugin also provides [canvas extensions](/get-started/aspire-skills/#copilot-canvas-extensions) for environment checks, AppHost resources, and wiring proposals.
+
+### Remove copied Aspire skills
+
+Older Aspire CLIs copied Aspire skills into skill folders such as `.agents/skills/aspire`. Configured skill sources replace those copies, but the copies become stale and nothing removes them automatically.
+
+After configuring the Aspire skill sources, `aspire agent init` lists the copies that the plugin replaces at the selected scope and asks whether to delete them. The prompt defaults to No. Use `--remove-skill-copies` to answer ahead of time:
+
+- `--remove-skill-copies` deletes the copies.
+- `--remove-skill-copies=false` keeps them.
+- When you omit the option, the CLI asks in an interactive terminal and keeps the copies in non-interactive runs. Nothing is deleted unless you opt in.
+
+The CLI looks only where older versions wrote copies (their `--skill-location` choices): `.agents/skills`, `.claude/skills`, `.github/skills`, and `.opencode/skill` in each directory from the current directory up to the workspace root, and `~/.agents/skills`. It doesn't read agent-specific settings such as `CLAUDE_CONFIG_DIR` or OpenCode `skills.paths`.
+
+After the `Configured sources in ...` line, the CLI reports `Removed copied Aspire skills in ...` or `Kept copied Aspire skills in ...`. If you pass `--remove-skill-copies` but the plugin doesn't replace the copies at the selected scope (for example, because the default source is disabled), the CLI keeps them and explains why.
+
+The same option applies to `aspire init`, `aspire new`, and `aspire mcp init`, which chain into agent setup. If copies remain, `aspire doctor` warns about them in the Environment category and points you to `aspire agent init`.
 
 ### Skills and tools
 
@@ -82,6 +98,10 @@ The following options are available:
 - **`--skills <skills>`**
 
   Comma-separated choices: `aspire`, `playwright-cli`, or `dotnet-inspect`. The `dotnet-inspect` skill requires a C# AppHost in the workspace. Use `all` for every applicable choice or `none` to skip them. Defaults to `aspire`, which applies all enabled skill sources. MCP setup is separate.
+
+- **`--remove-skill-copies`**
+
+  Delete copied Aspire skill files that older CLI versions wrote and that the configured plugin now replaces. Pass `--remove-skill-copies=false` to keep them. When omitted, the CLI prompts in an interactive terminal and keeps the copies in non-interactive runs.
 
 - **`--mcp`**
 
@@ -117,6 +137,12 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire agent init --agents all --skills all --scope global --non-interactive
+  ```
+
+- Configure Copilot and delete stale copied Aspire skills:
+
+  ```bash title="Aspire CLI"
+  aspire agent init --agents copilot --skills aspire --remove-skill-copies --non-interactive
   ```
 
 - Initialize agent configuration from a specific workspace root:
