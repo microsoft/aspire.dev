@@ -1,0 +1,46 @@
+---
+title: Compiler Warning ASPIRE014
+seoTitle: 'ASPIRE014: Unsupported AspireCliInvocationMode value · Aspire'
+description: Learn what causes Aspire compiler warning ASPIRE014 when AspireCliInvocationMode is set to an unsupported value, and how to correct it.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 17.1"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> '[ProjectName]' is configured with AspireCliInvocationMode=[Value], which is not a supported value. Supported values are Path, Dnx, and DnxPinned. The default Path invocation mode will be used.
+
+This diagnostic warning is reported during the build when the `AspireCliInvocationMode` MSBuild property is set to a value other than `Path`, `Dnx`, or `DnxPinned`. The comparison is case-insensitive. The build continues and the SDK resolves the Aspire CLI in the default `Path` mode, so a misspelled value, such as `DnxPinnedd`, no longer silently falls back.
+
+## Example
+
+The following configuration produces `ASPIRE014` because `DnxPinnedd` is a typo:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <AspireCliInvocationMode>DnxPinnedd</AspireCliInvocationMode>
+</PropertyGroup>
+```
+
+## To correct this warning
+
+Set `AspireCliInvocationMode` to one of the supported values, or remove the property to use the default `Path` mode:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <AspireCliInvocationMode>DnxPinned</AspireCliInvocationMode>
+</PropertyGroup>
+```
+
+## Suppress the warning
+
+If you must keep the value, suppress the warning with `<NoWarn>$(NoWarn);ASPIRE014</NoWarn>` in the project file.
+
+For more information, see [Use the Aspire CLI bundle for orchestration dependencies](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies).
