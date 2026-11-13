@@ -1,6 +1,6 @@
 ---
 name: dashboard-screenshots
-description: One-shot recapture of Aspire dashboard screenshots for aspire.dev. Builds the dashboard from microsoft/aspire, runs a demo AppHost, drives playwright-cli to capture every shot in shots.json in both themes, adds red callouts, and verifies framing and theme pairs. Use when the dashboard UX changed and the images under src/frontend/src/assets/dashboard need refreshing.
+description: One-shot recapture of Aspire dashboard screenshots for aspire.dev. Builds the dashboard from microsoft/aspire, runs a demo AppHost, drives playwright-cli to discover the existing images and capture each one in both themes, adds red callouts, and verifies framing and theme pairs. Use when the dashboard UX changed and the images under src/frontend/src/assets/dashboard need refreshing.
 ---
 
 # Dashboard screenshots
@@ -27,7 +27,9 @@ Flags:
 | `--keep` | do not tear down the dashboard or browser |
 | `--inventory` | only write `inventory.csv` of existing images (size, theme, name) |
 
-## Manifest (`shots.json`)
+## Discovery and recipes (no committed manifest)
+
+Every run starts with a discovery phase: it inventories `src/frontend/src/assets/dashboard`, scans the docs for who embeds each image, joins the images with the capture recipes in `scripts/recipes.ts`, and writes an ephemeral `shots.json` to the work dir (`%TEMP%\aspire-dashboard-shots\w`). The file is deleted when the run ends (kept only with `--keep`) and must never be committed. Discovery reports **UNMAPPED** images (exist, no recipe), **NEW** shots (recipe, no image yet) and **UNREFERENCED** images (no doc embeds them); resolve each before capturing. Add or fix recipes in `scripts/recipes.ts`, which holds only how to capture, not which images exist.
 
 Viewport 1280x800 at 2x, padding 16. Each shot has `id`, `out.dark`/`out.light`, `route`, optional `steps`, `callout`, `height`, `clip`, `autoCrop`, `keepAlerts`.
 
@@ -41,7 +43,7 @@ Recapturing is not enough: the UX may have gained surfaces the docs never showed
 
 1. `bun scripts/audit-ux.ts` writes `ux-audit.json` / `ux-audit.md` to the work dir: main tabs, header buttons, and for the Help, Settings and Recordings dialogs every tab plus its headings, switches, selects and buttons.
 2. Compare against the previous release (run the audit on the old dashboard or read the old images) and list **new, removed and renamed** UI: tabs, dialog tabs, settings, toolbar buttons, graph controls.
-3. For every new surface add a shot to `shots.json` (one per dialog tab, one per new settings section, both themes) and a `ThemeImage` in the docs.
+3. For every new surface add a recipe to `scripts/recipes.ts` (one per dialog tab, one per new settings section, both themes) and a `ThemeImage` in the docs.
 4. For every changed or replaced image, open the MDX that embeds it (`grep` for the filename) and re-read the surrounding prose, alt text and step lists. Fix anything that no longer matches the UI (button names, tab order, menu paths, removed features). Record each fix in the PR body under "UX changes".
 5. Settings and Help are drawers/dialogs; audit tabs via `fluent-drawer-body` and `[role=tab]`/`fluent-tab`. Scroll long Settings content and capture each section.
 

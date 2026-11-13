@@ -1,8 +1,9 @@
 // One-shot orchestrator: bun scripts/run.ts [--branch release/17.0] [--only <substr>] [--inventory] [--verify] [--keep]
-import { existsSync, mkdirSync, cpSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, cpSync, readFileSync, writeFileSync, readdirSync, statSync, rmSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import sharp from "sharp";
+import recipeLib from "./recipes";
 
 const args = process.argv.slice(2);
 const opt = (n: string, d?: string) => { const i = args.indexOf(`--${n}`); return i >= 0 ? (args[i + 1]?.startsWith("--") || i + 1 >= args.length ? "true" : args[i + 1]) : d; };
@@ -15,8 +16,47 @@ const work = join(tmpdir(), "aspire-dashboard-shots");
 const clone = join(work, "aspire");
 const scratch = join(work, "w");
 const port = 17170;
-const manifest = JSON.parse(readFileSync(join(skillDir, "shots.json"), "utf8"));
+let manifest: any;
+const docsRoot = join(repoRoot, "src/frontend/src/content/docs");
 const log = (m: string) => console.log(`[dashboard-shots] ${m}`);
+
+// Discovery: inventory the images that exist, join them with the capture recipes, and write an
+// ephemeral shots.json in the work dir. Nothing is committed; the file is removed after the run.
+async function discover() {
+  const existing = new Set<string>();
+  const walk = (d: string) => readdirSync(d).forEach((f) => {
+    const p = join(d, f);
+    if (statSync(p).isDirectory()) return walk(p);
+    if (/\.png$/i.test(f)) existing.add(p.slice(assets.length + 1).replaceAll("\\", "/"));
+  });
+  walk(assets);
+  const mdx: { file: string; text: string }[] = [];
+  const walkDocs = (d: string) => readdirSync(d).forEach((f) => {
+    const p = join(d, f);
+    if (statSync(p).isDirectory()) return walkDocs(p);
+    if (/\.mdx?$/.test(f)) mdx.push({ file: p, text: readFileSync(p, "utf8") });
+  });
+  if (existsSync(docsRoot)) walkDocs(docsRoot);
+
+  const claimed = new Set<string>();
+  const recipes = (recipeLib as any).shots as any[];
+  for (const s of recipes) for (const o of [s.out.dark, s.out.light, ...(s.also?.dark ?? []), ...(s.also?.light ?? []), s.thumb?.dark, s.thumb?.light]) if (o) claimed.add(o);
+  const unmapped = [...existing].filter((f) => !claimed.has(f)).sort();
+  const isNew = recipes.filter((s) => !existing.has(s.out.dark)).map((s) => s.id);
+  const unreferenced = [...existing].filter((f) => !f.startsWith("landing/") && !mdx.some((m) => m.text.includes(f.split("/").pop()!.replace(/\.png$/, "")))).sort();
+
+  const resolved = { ...recipeLib, shots: recipes, discovered: { existing: existing.size, unmapped, newShots: isNew, unreferenced } };
+  mkdirSync(scratch, { recursive: true });
+  writeFileSync(join(scratch, "shots.json"), JSON.stringify(resolved, null, 2));
+  log(`discovered ${existing.size} images, ${recipes.length} recipes`);
+  if (unmapped.length) log(`UNMAPPED images (no recipe; add one in scripts/recipes.ts or drop the image): ${unmapped.join(", ")}`);
+  if (isNew.length) log(`NEW shots (recipe exists, image missing; will be created): ${isNew.join(", ")}`);
+  if (unreferenced.length) log(`UNREFERENCED images (no doc embeds them): ${unreferenced.join(", ")}`);
+  manifest = JSON.parse(readFileSync(join(scratch, "shots.json"), "utf8"));
+}
+function removeManifest() {
+  if (!opt("keep")) rmSync(join(scratch, "shots.json"), { force: true });
+}
 const sh = (cmd: string[], o: { cwd?: string; env?: Record<string, string>; quiet?: boolean } = {}) => {
   const r = Bun.spawnSync(cmd, { cwd: o.cwd, env: { ...process.env, ...o.env }, stdout: "pipe", stderr: "pipe" });
   return { ok: r.exitCode === 0, out: r.stdout.toString() + r.stderr.toString() };
@@ -245,12 +285,14 @@ async function verify(done: string[]) {
 }
 
 async function main() {
-  if (opt("inventory")) return inventory();
+  if (opt("inventory")) { await inventory(); await discover(); return removeManifest(); }
   preflight();
   await inventory();
+  await discover();
   if (opt("attach")) {
     const { done, failed } = await capture();
     const issues = await verify(done);
+    removeManifest();
     return log(`attached: captured ${done.length}, failed ${failed.length} ${failed.join(" ")}\n${issues.join("\n")}`);
   }
   const { dotnet, dest } = setup();
@@ -263,6 +305,7 @@ async function main() {
     writeFileSync(join(scratch, "report.md"), report);
     log("\n" + report);
   } finally {
+    removeManifest();
     if (!opt("keep")) {
       sh(process.platform === "win32" ? ["taskkill", "/PID", String(app.pid), "/T", "/F"] : ["kill", String(app.pid)]);
       // Child resources can outlive the AppHost; stop anything still running from the clone's build output.

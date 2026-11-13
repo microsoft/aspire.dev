@@ -1,4 +1,7 @@
-{
+// Capture recipes (how to produce each known image). This is NOT a manifest: run.ts discovers the
+// images that exist, joins them with these recipes, and writes an ephemeral shots.json to the work
+// dir that is deleted when the run finishes.
+export default {
   "viewport": { "width": 1280, "height": 800, "deviceScaleFactor": 2 },
   "padding": 16,
   "notes": "Extra step type: js (raw playwright code, page in scope). also.dark/also.light = extra file names to write; thumb = {dark, width} resized copy. out.dark / out.light are paths relative to src/frontend/src/assets/dashboard. Steps: click(text) clickSel(css) hover(text) fill([css,value]) press(key) wait(ms). clip = css selector (cropped with padding). callouts = css selectors outlined in red.",
