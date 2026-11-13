@@ -103,6 +103,7 @@ The available configuration methods are:
 | `WithCapacity(string)` | `withCapacity` / `withCapacityParam` | Sets the requested storage on `spec.resources.requests.storage` (for example, `"20Gi"`). In TypeScript, use `withCapacity` for a literal and `withCapacityParam` for a parameter. |
 | `WithAccessMode(PersistentVolumeAccessMode)` | `withAccessMode` | Adds an entry to `spec.accessModes`. Call multiple times to declare more than one mode. |
 | `WithVolumeAnnotation(string, string)` | `withVolumeAnnotation` / `withVolumeAnnotationParam` | Adds a key-value pair to the PVC's `metadata.annotations`. Useful for CSI driver hints, dynamic provisioner parameters, or backup tooling tags. In TypeScript, use `withVolumeAnnotation` for a literal value and `withVolumeAnnotationParam` for a parameter. |
+| `WithConfiguration(Action<PersistentVolumeClaimV1>)` | `withConfiguration` | Registers a callback that customizes the generated PVC. See [Customize the generated claim](#customize-the-generated-claim). |
 
 The `PersistentVolumeAccessMode` values map directly to the Kubernetes access modes:
 
@@ -112,6 +113,45 @@ The `PersistentVolumeAccessMode` values map directly to the Kubernetes access mo
 | `ReadOnlyMany` | Mounted as read-only by many nodes simultaneously. |
 | `ReadWriteMany` | Mounted as read-write by many nodes simultaneously. Typically used for shared file stores such as Azure Files or NFS. |
 | `ReadWriteOncePod` | Mounted as read-write by a single pod. Requires Kubernetes 1.27 or later. |
+
+## Customize the generated claim
+
+Use `WithConfiguration` (C#) or `withConfiguration` (TypeScript) to customize the generated PVC beyond the dedicated methods. Callbacks run in registration order, after the fluent settings and environment defaults have been applied.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var data = k8s.AddPersistentVolume("data")
+    .WithConfiguration(claim =>
+    {
+        claim.Metadata.Labels["example.com/retention"] = "retain";
+        claim.Spec.VolumeMode = "Filesystem";
+        claim.Spec.StorageClassName = "";
+    });
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+const data = await k8s.addPersistentVolume("data");
+await data.withConfiguration(async (claim) => {
+    const metadata = await claim.metadata.get();
+    await metadata.labels.set("example.com/retention", "retain");
+
+    const spec = await claim.spec.get();
+    await spec.volumeMode.set("Filesystem");
+    await spec.storageClassName.set("");
+});
+```
+
+</TabItem>
+</Tabs>
+
+An empty storage class requests a classless volume. A `null` storage class omits the field so Kubernetes can assign its default StorageClass. The parameterized fluent methods continue to produce Helm expressions.
+
+In TypeScript, the callback exposes a bounded model: labels, annotations, storage class, volume name, volume mode, access modes, and resource requests. Selectors, data sources, volume attributes classes, resource limits, and claim identity customization are available only in C#. If the callback throws, publishing fails and surfaces the error.
 
 ## Bind a volume to a workload
 
