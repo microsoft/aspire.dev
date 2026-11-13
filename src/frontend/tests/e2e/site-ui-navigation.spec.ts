@@ -50,24 +50,10 @@ for (const fallback of [false, true]) {
             value: undefined,
           });
         }
-        const renders = new WeakMap<Element, number>();
-        new MutationObserver((mutations) => {
-          for (const { target } of mutations) {
-            if (!(target instanceof Element) || !target.matches('pre.mermaid[data-processed]'))
-              continue;
-            const count = (renders.get(target) ?? 0) + 1;
-            renders.set(target, count);
-            target.setAttribute('data-test-render-count', String(count));
-          }
-        }).observe(document, {
-          subtree: true,
-          attributes: true,
-          attributeFilter: ['data-processed'],
-        });
       }, fallback);
     });
 
-    test('renders two diagrams once per page/theme across repeat visits and history', async ({
+    test('preserves build-time diagrams across themes, repeat visits and history', async ({
       page,
     }) => {
       test.setTimeout(120000);
@@ -80,37 +66,37 @@ for (const fallback of [false, true]) {
       await dismissCookieConsentIfVisible(page);
       await page.evaluate(() => Reflect.set(window, '__dependencySession', true));
       const diagrams = page.locator('pre.mermaid');
-      const expectRenders = async (count: number) => {
+      const expectRenders = async () => {
         await expect(diagrams).toHaveCount(2);
         for (const diagram of await diagrams.all()) {
           await expect(diagram.locator(':scope > svg')).toHaveCount(1, { timeout: 30000 });
-          await expect(diagram).toHaveAttribute('data-test-render-count', String(count));
+          await expect(diagram).toHaveAttribute('data-processed', 'true');
+          await expect(diagram.locator(':scope > svg')).toHaveClass(/\bpele\b/);
         }
       };
       for (let visit = 0; visit < 2; visit++) {
         await navigateClient(page, '/get-started/first-app/');
         await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-        await expectRenders(1);
+        await expectRenders();
+        const originalSvg = await diagrams.evaluateAll((elements) => elements.map((element) => element.innerHTML));
         await page.evaluate(() => {
           const html = document.documentElement;
           const theme = html.getAttribute('data-theme')!;
           html.removeAttribute('data-theme');
           html.setAttribute('data-theme', theme);
         });
-        await expectRenders(1);
-        for (const [theme, count] of [
-          ['dark', 2],
-          ['light', 3],
-        ] as const) {
+        await expectRenders();
+        for (const theme of ['dark', 'light'] as const) {
           await page.locator(`#footer-theme-toggle [data-theme-option="${theme}"]`).click();
           await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-          await expectRenders(count);
+          await expectRenders();
+          expect(await diagrams.evaluateAll((elements) => elements.map((element) => element.innerHTML))).toEqual(originalSvg);
         }
         await navigateClient(page, '/docs/');
         await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
       }
       await page.goBack();
-      await expectRenders(1);
+      await expectRenders();
       expect(await page.evaluate(() => Reflect.get(window, '__dependencySession'))).toBe(true);
       expect(errors).toEqual([]);
     });
