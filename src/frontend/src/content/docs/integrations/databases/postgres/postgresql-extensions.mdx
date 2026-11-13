@@ -36,7 +36,7 @@ To get started with the Aspire Community Toolkit PostgreSQL hosting extensions, 
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions" />
 
-For TypeScript AppHosts, add the Community Toolkit PostgreSQL extensions package to `aspire.config.json`:
+For TypeScript and Go AppHosts, add the Community Toolkit PostgreSQL extensions package to `aspire.config.json`:
 
 ```json title="aspire.config.json" ins={3}
 {
@@ -88,6 +88,24 @@ await exampleProject.withReference(postgres);
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithDbGate()
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgres)
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 This adds a new DbGate resource to the app host which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your PostgreSQL databases.
@@ -127,6 +145,24 @@ const exampleProject = await builder.addProject(
   '../ExampleProject/ExampleProject.csproj'
 );
 await exampleProject.withReference(postgres);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithAdminer()
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgres)
 
 // After adding all resources, run the app...
 ```
@@ -178,6 +214,25 @@ await exampleProject.withReference(postgres);
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres").
+	WithDbGate().
+	WithAdminer()
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgres)
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 ### dbx management UI
@@ -214,9 +269,33 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddPostgres("postgres").
+	WithDbx(&aspire.WithDbxOptions{
+		ContainerName: aspire.StringPtr("postgres-dbx"),
+		ImageTag:      aspire.StringPtr("0.5.33"),
+	})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
-The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript and Go bindings accept optional `containerName` and `imageTag` values.
 
 ## Run Flyway commands
 
@@ -224,7 +303,7 @@ Flyway decorators apply to an official `PostgresDatabaseResource`, not the Postg
 
 ### Run migrations
 
-In C#, add a Flyway resource and pass it to `WithFlywayMigration`. In TypeScript, `withFlywayMigration` creates the Flyway resource from its name and migration scripts path.
+In C#, add a Flyway resource and pass it to `WithFlywayMigration`. In TypeScript and Go, `withFlywayMigration`/`WithFlywayMigration` creates the Flyway resource from its name and migration scripts path.
 
 Place versioned SQL files such as `V1__init.sql` in `./migrations`; Flyway discovers them by its versioned migration naming convention.
 
@@ -262,6 +341,28 @@ const database = await postgres.addDatabase('appdb');
 await database.withFlywayMigration('flyway-migration', './migrations');
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddPostgres("postgres")
+database := postgres.AddDatabase("appdb")
+database.WithFlywayMigration("flyway-migration", "./migrations")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

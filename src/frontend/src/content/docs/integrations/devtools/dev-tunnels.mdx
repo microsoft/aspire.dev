@@ -75,6 +75,23 @@ This updates your `aspire.config.json` with the Dev Tunnels hosting integration 
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add devtunnels
+```
+
+This updates your `aspire.config.json` with the Dev Tunnels hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.DevTunnels": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Add a dev tunnel resource
@@ -102,6 +119,20 @@ const web = await builder.addNodeApp("web", "../web", "index.js");
 
 const tunnel = await builder.addDevTunnel("my-tunnel")
     .withReference(web);
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+web := builder.AddNodeApp("web", "../web", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+tunnel := builder.AddDevTunnel("my-tunnel").
+	WithTunnelReferenceAll(web, false)
 ```
 </TabItem>
 </Tabs>
@@ -135,6 +166,21 @@ const web = await builder.addNodeApp("web", "../web", "index.js");
 const tunnel = await builder.addDevTunnel("public-api")
     .withReference(web)
     .withAnonymousAccess();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+web := builder.AddNodeApp("web", "../web", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+tunnel := builder.AddDevTunnel("public-api").
+	WithTunnelReferenceAll(web, true).
+	WithAnonymousAccess()
 ```
 </TabItem>
 </Tabs>
@@ -173,6 +219,25 @@ const tunnel = await builder.addDevTunnel("qa", "my-tunnel-id", false, "QA envir
     .withReference(web);
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+web := builder.AddNodeApp("web", "../web", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+
+tunnel := builder.AddDevTunnel("qa", &aspire.AddDevTunnelOptions{
+	TunnelId:       aspire.StringPtr("my-tunnel-id"),
+	AllowAnonymous: aspire.BoolPtr(false),
+	Description:    aspire.StringPtr("QA environment tunnel"),
+	Labels:         []string{"qa", "testing"},
+}).
+	WithTunnelReferenceAll(web, false)
+```
+</TabItem>
 </Tabs>
 
 ### Configure for mixed access
@@ -202,6 +267,22 @@ const api = await builder.addNodeApp("api", "../api", "index.js");
 const tunnel = await builder.addDevTunnel("mixed-access")
     .withReference(api, "public", { allowAnonymous: true })
     .withReference(api, "admin", { allowAnonymous: false });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddNodeApp("api", "../api", "index.js").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: aspire.StringPtr("public"), Env: aspire.StringPtr("PUBLIC_PORT")}).
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: aspire.StringPtr("admin"), Env: aspire.StringPtr("ADMIN_PORT")})
+
+tunnel := builder.AddDevTunnel("mixed-access").
+	WithTunnelReferenceAnonymous(api.GetEndpoint("public"), true).
+	WithTunnelReferenceAnonymous(api.GetEndpoint("admin"), false)
 ```
 </TabItem>
 </Tabs>
@@ -299,6 +380,21 @@ Dev tunnels automatically:
 - Provide detailed logging and diagnostics.
 
 Tunnels will expire after not being hosted for 30 days by default, so they won't be forcibly deleted when the resource or AppHost is stopped.
+
+### Connection status and readiness
+
+Aspire observes the `devtunnel host` console output to publish public endpoints as soon as the local host reports that it's ready, instead of waiting for the next health check. Connection loss (a stop, disconnect, or another host taking over the tunnel) updates the tunnel and port resources immediately as well. A running `devtunnel host` process doesn't necessarily mean its tunnel connection is active.
+
+<Aside type="note">
+  A remote host count alone can't establish local readiness, since another
+  machine might be hosting the same tunnel. If no local connection message is
+  recognized, the tunnel remains unready rather than exposing another host's
+  endpoints.
+</Aside>
+
+Health checks also reconcile tunnel ports and access settings with the dev tunnels service. If port or readiness output isn't recognized, Aspire logs a warning (once per resource start) and falls back to service-based reconciliation to discover the endpoints once this local host has reported a connection. The original console output remains available in the tunnel resource's logs for diagnosis.
+
+Starting a tunnel checks its remote configuration and reuses matching tunnels and ports instead of recreating them. Ports are only recreated when their protocol, description, or labels differ from the application model, and unchanged access policies are left intact. This reduces the time between starting the AppHost and the tunnel's ports becoming ready, especially for warm starts of an already-configured tunnel.
 
 ## Troubleshooting
 

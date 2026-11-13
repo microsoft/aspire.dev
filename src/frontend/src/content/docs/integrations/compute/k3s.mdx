@@ -21,7 +21,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire k3s Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to run a lightweight [k3s](https://k3s.io/) Kubernetes cluster as part of your local development inner loop. The cluster, Helm chart installs, manifest applies, and service endpoint exposures all appear as first-class resources in the Aspire dashboard — no external tooling beyond a supported container runtime is required.
+This article is the reference for the Aspire k3s Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to run a lightweight [k3s](https://k3s.io/) Kubernetes cluster as part of your local development inner loop. The cluster, Helm chart installs, manifest applies, and service endpoint exposures all appear as first-class resources in the Aspire dashboard — no external tooling beyond a supported container runtime is required.
 
 <Aside type="note">
 The k3s integration runs a real Kubernetes cluster inside a container for local development. To deploy your Aspire application *to* a Kubernetes cluster, see the [Kubernetes integration](/integrations/compute/kubernetes/) instead.
@@ -95,6 +95,29 @@ This updates your `aspire.config.json` with the k3s hosting integration package:
 The TypeScript AppHost bindings for k3s are provided by the Community Toolkit package. After installation, the `.aspire/modules/aspire.mjs` file in your project includes `addK3sCluster` and related APIs.
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add communitytoolkit-k3s
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the k3s hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.K3s": "*"
+  }
+}
+```
+
+The Go AppHost bindings for k3s are provided by the Community Toolkit package. After installation, the generated `modules/aspire` package in your project includes `AddK3sCluster` and related APIs.
+
+</TabItem>
 </Tabs>
 
 ## Add a k3s cluster
@@ -151,6 +174,39 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cluster := builder.AddK3sCluster("k8s")
+
+	operator := builder.AddDotnetProject("operator", "../MyOperator/MyOperator.csproj")
+	operator.WithReference(cluster) // injects KUBECONFIG automatically
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Configure the cluster
@@ -198,6 +254,25 @@ const cluster = await builder
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+cluster := builder.AddK3sCluster("k8s", &aspire.AddK3sClusterOptions{
+	ApiServerPort: aspire.IntPtr(16443),
+	AgentCount:    aspire.IntPtr(2),
+}).
+	WithK3sVersion("v1.32.3-k3s1").
+	WithPodSubnet("10.42.0.0/16").
+	WithServiceSubnet("10.43.0.0/16").
+	WithDisabledComponent("traefik").
+	WithExtraArg("--write-kubeconfig-mode=644").
+	WithDataVolume(&aspire.WithDataVolumeOptions{Name: aspire.StringPtr("k8s-data")}).
+	WithHelmImage(&aspire.WithHelmImageOptions{Tag: aspire.StringPtr("3.18.0")}).
+	WithKubectlImage(&aspire.WithKubectlImageOptions{Tag: aspire.StringPtr("1.37.0")}).
+	WithLifetime(aspire.ContainerLifetimePersistent)
+```
+
+</TabItem>
 </Tabs>
 
 The available options are:
@@ -234,6 +309,15 @@ var cluster = builder.AddK3sCluster("k8s")
 const cluster = await builder.addK3sCluster('k8s')
     .withDataVolume({ name: 'k8s-data' })
     .withLifetime(ContainerLifetime.Persistent);
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+cluster := builder.AddK3sCluster("k8s").
+	WithDataVolume(&aspire.WithDataVolumeOptions{Name: aspire.StringPtr("k8s-data")}).
+	WithLifetime(aspire.ContainerLifetimePersistent)
 ```
 
 </TabItem>
@@ -285,6 +369,24 @@ await operator.withReference(cluster);
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+podinfo := cluster.AddHelmRelease("podinfo", "podinfo", &aspire.AddHelmReleaseOptions{
+	Repo:      aspire.StringPtr("https://stefanprodan.github.io/podinfo"),
+	Version:   aspire.StringPtr("6.7.1"),
+	Namespace: aspire.StringPtr("podinfo"),
+}).
+	WithHelmValue("replicaCount", "2").
+	WithHelmValuesFile("./deploy/podinfo-values.yaml")
+
+// Wait for the chart install to complete before starting the operator.
+operator := builder.AddDotnetProject("operator", "../MyOperator/MyOperator.csproj")
+operator.WaitForCompletion(podinfo)
+operator.WithReference(cluster)
+```
+
+</TabItem>
 </Tabs>
 
 Values are applied in this order, with the last one winning:
@@ -330,6 +432,20 @@ await appConfig.waitForCompletion(podinfo);
 const monitoring = await cluster.addK8sManifest('monitoring-config', './k8s/monitoring');
 await monitoring.waitForCompletion(podinfo);
 await monitoring.waitForCompletion(appConfig);
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+// Plain YAML
+appConfig := cluster.AddK8sManifest("app-config", "./k8s/app-config.yaml")
+appConfig.WaitForCompletion(podinfo)
+
+// Kustomize overlay — auto-detected; directory is bind-mounted to preserve base references
+monitoring := cluster.AddK8sManifest("monitoring-config", "./k8s/monitoring")
+monitoring.WaitForCompletion(podinfo)
+monitoring.WaitForCompletion(appConfig)
 ```
 
 </TabItem>
@@ -380,6 +496,25 @@ await builder
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+podinfoWeb := cluster.AddServiceEndpoint("podinfo-web", "podinfo", 9898, &aspire.AddServiceEndpointOptions{
+	Namespace: aspire.StringPtr("podinfo"),
+})
+podinfoWeb.WaitForCompletion(podinfo)
+
+// Host processes receive http://localhost:{port}
+api := builder.AddDotnetProject("api", "../MyApi/MyApi.csproj")
+api.WithReference(podinfoWeb)
+
+// DCP-network containers receive http://host.docker.internal:{port}
+// --add-host=host.docker.internal:host-gateway is injected automatically
+sidecar := builder.AddContainer("sidecar", "myorg/sidecar")
+sidecar.WithReference(podinfoWeb)
+```
+
+</TabItem>
 </Tabs>
 
 The injected environment variable follows the Aspire service-discovery convention: `services__{name}__url=http(s)://{host}:{port}`.
@@ -424,6 +559,18 @@ await api.withReference(podinfoWeb);
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+// Standard WithReference — injects KUBECONFIG or services__name__url
+operator := builder.AddDotnetProject("operator", "../MyOperator/MyOperator.csproj")
+operator.WithReference(cluster)
+
+api := builder.AddDotnetProject("api", "../MyApi/MyApi.csproj")
+api.WithReference(podinfoWeb)
+```
+
+</TabItem>
 </Tabs>
 
 ## Reach Aspire services from k3s pods
@@ -450,6 +597,15 @@ const postgres = await builder.addPostgres('db');
 const helmRelease = await cluster.addHelmRelease('my-operator', 'my-operator-chart')
     .withHelmValue('database.host', 'host.docker.internal')
     .withHelmValue('database.port', '5432');
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+cluster.AddHelmRelease("my-operator", "my-operator-chart").
+	WithHelmValue("database.host", "host.docker.internal").
+	WithHelmValue("database.port", "5432")
 ```
 
 </TabItem>

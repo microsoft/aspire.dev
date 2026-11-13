@@ -2,6 +2,7 @@
 import { Code, TabItem, Tabs } from '@astrojs/starlight/components';
 import {
   getSimpleAppHostCode,
+  goLineOffset,
   shiftCollapseValue,
   shiftMarkerValue,
   typescriptLineOffset,
@@ -17,9 +18,11 @@ interface Props {
 }
 
 const { lang = 'csharp', mark, collapse }: Props = Astro.props;
-const { csharpCode, typescriptCode } = getSimpleAppHostCode(lang);
+const { csharpCode, typescriptCode, goCode } = getSimpleAppHostCode(lang);
 const typescriptMark = shiftMarkerValue(mark, typescriptLineOffset);
 const typescriptCollapse = shiftCollapseValue(collapse, typescriptLineOffset);
+const goMark = shiftMarkerValue(mark, goLineOffset);
+const goCollapse = shiftCollapseValue(collapse, goLineOffset);
 ---
 
 {
@@ -47,6 +50,19 @@ const typescriptCollapse = shiftCollapseValue(collapse, typescriptLineOffset);
         />
         <slot name="csharp-content" />
       </TabItem>
+      {goCode && (
+        <TabItem label="Go">
+          <Code
+            code={goCode}
+            lang="go"
+            title="apphost.go"
+            mark={goMark}
+            collapse={goCollapse}
+            collapseStyle={'collapsible-auto'}
+          />
+          <slot name="go-content" />
+        </TabItem>
+      )}
     </Tabs>
   ) : (
     <>

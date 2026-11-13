@@ -19,24 +19,8 @@ internal static class DeploymentExtensions
                 origin.Weight = 1000;
                 origin.EnforceCertificateNameCheck = true;
 
-                var route = resources.OfType<FrontDoorRoute>().Single();
-                route.CacheConfiguration = new FrontDoorRouteCacheConfiguration
-                {
-                    CompressionSettings = new RouteCacheCompressionSettings
-                    {
-                        IsCompressionEnabled = true,
-                        ContentTypesToCompress =
-                        {
-                            "text/plain",
-                            "text/html",
-                            "text/css",
-                            "application/javascript",
-                            "application/json",
-                            "image/svg+xml"
-                        }
-                    },
-                    QueryStringCachingBehavior = FrontDoorQueryStringCachingBehavior.IgnoreQueryString
-                };
+                // The route deliberately has no cache configuration, so Front Door sends every request to the
+                // origin. StaticHost's redirects carry no Cache-Control, and Front Door would cache them for days.
             });
     }
 
