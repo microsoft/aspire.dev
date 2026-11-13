@@ -19,7 +19,7 @@ import { coreTeamHandles } from '../src/data/core-team';
  *   1. `GITHUB_TOKEN` / `GH_TOKEN` environment variables.
  *   2. `gh auth token` (the GitHub CLI's stored credential).
  *
- * Run with: `pnpm update:release-contributors`
+ * Run with: `bun run update:release-contributors`
  */
 
 const REPO = 'microsoft/aspire';

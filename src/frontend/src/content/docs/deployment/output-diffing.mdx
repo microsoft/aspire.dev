@@ -1,0 +1,399 @@
+---
+title: Detect drift in generated pipeline output
+seoTitle: Detect drift in generated Aspire pipeline output in CI
+description: Fail CI when checked-in deployment files are stale. Enable output diffing, run aspire do publish-and-diff, and control which generated files Aspire compares.
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Generated deployment files, such as a Docker Compose file or Kubernetes manifests, fall out of date when you commit them and later change the AppHost that produces them. Output diffing regenerates the files from the current AppHost and compares the result with the files that were already on disk. The check fails when files are added, changed, or removed, so stale artifacts don't reach a deployment.
+
+:::caution[Experimental]
+The output diffing APIs are experimental and might change in a future release. C# AppHosts report the [`ASPIREPIPELINES005`](/diagnostics/aspirepipelines005/) diagnostic until you suppress it.
+:::
+
+## When to use output diffing
+
+Enable output diffing when you commit generated files to source control. For example:
+
+- You commit the output of `aspire publish` and deploy it with another tool.
+- Reviewers need to see generated changes in the same pull request as the AppHost change that caused them.
+- CI must fail when the committed files don't match the AppHost.
+
+## Enable output diffing
+
+Call `WithOutputDiffing` on the AppHost builder. Output diffing is opt-in, so nothing changes until you add this call.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addDockerComposeEnvironment("compose");
+await builder.addContainer("web", "nginx:1.27");
+
+await builder.withOutputDiffing();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose");
+builder.AddContainer("web", "nginx", "1.27");
+
+#pragma warning disable ASPIREPIPELINES005
+builder.WithOutputDiffing();
+#pragma warning restore ASPIREPIPELINES005
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+`WithOutputDiffing` registers a comparison step named `publish-and-diff`. That step depends on `publish`, so it generates your deployment files and then compares them.
+
+## Run the comparison
+
+Run the comparison step with `aspire do`:
+
+```bash title="Aspire CLI"
+aspire do publish-and-diff
+```
+
+Aspire performs these actions:
+
+<Steps>
+
+1. Records the files in the output directory before any step that `publish-and-diff` selects runs.
+
+2. Runs `publish` and its dependencies, which regenerate the files.
+
+3. Records the files again and compares them with the first record.
+
+4. Fails the step when any selected file was added, changed, or removed.
+
+</Steps>
+
+The output directory is the `aspire-output` folder next to your AppHost by default. Pass `--output-path` to use another directory. The comparison covers every selected file beneath that directory, including per-resource subdirectories that generation creates.
+
+`aspire publish` and `aspire do publish` stay generation-only. Aspire compares output only when the comparison step is part of the requested pipeline.
+
+<LearnMore>
+  For command options, see the [`aspire do` command
+  reference](/reference/cli/commands/aspire-do/).
+</LearnMore>
+
+## Read the results
+
+When the generated files match the files that were on disk, the pipeline succeeds. When they differ, the `publish-and-diff` step fails and lists each changed file:
+
+```text title="Output"
+17:41:12 (publish-and-diff) ✗ Pipeline output changed:
+17:41:12 (publish-and-diff) ✗   Changed: docker-compose.yaml
+```
+
+Each line has the form `Kind: path`. Paths are relative to the output directory and are sorted. The command exits with a non-zero exit code.
+
+| Kind | Meaning |
+| ---- | ------- |
+| `Added` | The file exists after generation but not before. |
+| `Changed` | The file exists in both captures but differs after generation. |
+| `Removed` | The file existed before generation but not after. |
+
+### Fix drift
+
+A failed comparison leaves the regenerated files on disk. To resolve the failure:
+
+<Steps>
+
+1. Run `aspire do publish-and-diff` or `aspire publish` locally to regenerate the files.
+
+2. Review the changes with `git status` and `git diff`.
+
+3. Commit the regenerated files with the AppHost change.
+
+</Steps>
+
+When you first enable output diffing, a CI run reports every generated file as `Added` until you commit the files.
+
+## Check drift in CI
+
+In CI, the checked-out files are the baseline. The pipeline regenerates the files and fails when generation changes any of them. After your workflow checks out the repository and installs the Aspire CLI, add the comparison as a step:
+
+```yaml title=".github/workflows/check-deployment-files.yml"
+- name: Check generated files
+  run: aspire do publish-and-diff --non-interactive
+```
+
+If you generated the committed files for a specific environment, pass the same `--environment` value in CI, because an AppHost can produce different output for each environment.
+
+<LearnMore>
+  For the checkout and CLI installation steps, see the [example app lifecycle
+  workflow](/deployment/app-lifecycle/). For more CI/CD guidance, see the
+  [CI/CD overview](/deployment/ci-cd/).
+</LearnMore>
+
+## Compare another step
+
+By default, the comparison target is the `publish` step. Pass a different `targetStep` to compare the output of any step in your pipeline, and optionally name the comparison step and describe it.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await builder.withOutputDiffing({
+  targetStep: "generate",
+  diffStepName: "check-generated-files",
+  description: "Check generated deployment files"
+});
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREPIPELINES005
+builder.WithOutputDiffing(
+    targetStep: "generate",
+    diffStepName: "check-generated-files",
+    description: "Check generated deployment files");
+#pragma warning restore ASPIREPIPELINES005
+```
+
+</TabItem>
+</Tabs>
+
+| Parameter | Default | Description |
+| --------- | ------- | ----------- |
+| `targetStep` | `publish` | The step whose completed output Aspire compares. |
+| `diffStepName` | `{targetStep}-and-diff` | The name of the comparison step that you pass to `aspire do`. |
+| `description` | None | A description of the comparison step. |
+
+Run the comparison step by name:
+
+```bash title="Aspire CLI"
+aspire do check-generated-files
+```
+
+You can register more than one comparison target. Each target has its own baseline, so separate comparisons can check different generation pipelines.
+
+C# AppHosts can also pass a factory that returns a complete `PipelineStep`, which lets the comparison step declare its own dependencies, tags, and action:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Pipelines;
+
+#pragma warning disable ASPIREPIPELINES005
+builder.WithOutputDiffing(() => new PipelineStep
+{
+    Name = "check-generated-files",
+    DependsOnSteps = [WellKnownPipelineSteps.Publish, "generate"],
+    Tags = ["ci"],
+    Action = _ => Task.CompletedTask
+});
+#pragma warning restore ASPIREPIPELINES005
+```
+
+:::note
+The factory overload isn't exported to TypeScript AppHosts, because TypeScript callbacks can't construct and return `PipelineStep` instances. Use the `targetStep` option instead.
+:::
+
+## Configure which files Aspire compares
+
+The default comparison reads the `Pipeline:OutputDiff` configuration section. Add the section to the `appsettings.json` file next to your AppHost, or set it with environment variables such as `Pipeline__OutputDiff__Mode`.
+
+| Setting | Default | Description |
+| ------- | ------- | ----------- |
+| `Mode` | `Auto` | How Aspire decides which files exist and how it compares them: `Auto`, `Git`, or `FileSystem`. |
+| `Rules` | Empty | An ordered list of `Include` and `Exclude` glob rules. |
+
+Each rule has an `Action` of `Include` or `Exclude`, which is case-insensitive, and a `Pattern`. A pattern is a nonempty glob relative to the output directory, and it can't contain `..` segments. Aspire fails the capture when the configuration is invalid.
+
+The following configuration compares only files beneath `generated`, except temporary files, and compares them by file system content:
+
+```json title="appsettings.json"
+{
+  "Pipeline": {
+    "OutputDiff": {
+      "Mode": "FileSystem",
+      "Rules": [
+        { "Action": "Include", "Pattern": "generated/**" },
+        { "Action": "Exclude", "Pattern": "**/*.tmp" }
+      ]
+    }
+  }
+}
+```
+
+Rules select files as follows:
+
+- With no rules, Aspire compares every file, as if the rules were `Include **/*`.
+- With one or more rules, no file is selected at first. Aspire applies the rules in order, and the last matching rule wins.
+- `Include` selects matching files, and `Exclude` removes them. A later `Include` can restore files beneath an excluded parent.
+- Exclude-only rules select nothing, so start with `Include **/*` when you want to compare everything except a few files.
+
+Rules affect only the comparison. They don't change which files generation writes.
+
+:::note
+Configuration arrays merge by index across configuration providers. When you layer files such as _appsettings.Production.json_ or environment variables over a base file, review the resulting rule order.
+:::
+
+### Configure options in code
+
+C# AppHosts can also configure the same options with the options pattern. Call `WithOutputDiffing` before you register `Configure` callbacks so that Aspire binds the configuration section first.
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Pipelines;
+using Microsoft.Extensions.DependencyInjection;
+
+#pragma warning disable ASPIREPIPELINES005
+builder.WithOutputDiffing();
+
+builder.Services.Configure<PipelineOutputDiffOptions>(options =>
+{
+    options.Mode = PipelineOutputDiffMode.FileSystem;
+    options.Rules.Add(new() { Action = "Include", Pattern = "generated/**" });
+    options.Rules.Add(new() { Action = "Exclude", Pattern = "**/*.tmp" });
+});
+#pragma warning restore ASPIREPIPELINES005
+```
+
+:::note
+Options registered through dependency injection aren't available from TypeScript AppHosts. Use `appsettings.json` or environment variables instead.
+:::
+
+## How the comparison works
+
+Aspire resolves the global output directory from `IPipelineOutputService`, which respects the `--output-path` option, and recursively captures the selected files beneath it. Generators should write the files that you want to check beneath that directory. Temporary directories and destinations outside the output directory aren't compared unless you provide a custom snapshotter.
+
+The comparison reports files that generation adds, changes, or deletes. A stale file that generation doesn't touch isn't reported, because it's identical in both captures.
+
+### Git and filesystem comparison
+
+The `Mode` setting controls which files Aspire compares and how it hashes their content.
+
+| Mode | Behavior |
+| ---- | -------- |
+| `Auto` | Uses Git when the `git` executable and a usable worktree are available. Otherwise, it falls back to the filesystem strategy. |
+| `Git` | Requires Git and a usable worktree. The step fails with a clear error when either is missing. |
+| `FileSystem` | Compares files on disk by a hash of their raw bytes, and never runs Git. |
+
+In `Auto` and `Git` modes, Aspire follows these Git rules:
+
+- Tracked files and untracked files that Git doesn't ignore are compared. A tracked file stays eligible even when an ignore pattern matches it.
+- Files that Git ignores aren't compared. If your output directory is listed in _.gitignore_, set `Mode` to `FileSystem` to cover it.
+- Content comparison follows Git semantics, including `.gitattributes` line-ending settings and clean filters, so line-ending normalization doesn't cause false drift.
+- Symbolic links are compared by their target path, not by the contents of the target.
+- The comparison uses the working tree before and after generation, not the Git index or `HEAD`. A file with uncommitted edits passes when regeneration leaves it unchanged.
+
+In `FileSystem` mode, Aspire compares every selected file on disk, including files that Git ignores. Line-ending differences count as changes because the comparison hashes raw bytes.
+
+:::note
+`Auto` and `Git` modes run the `git` executable on the machine and honor its repository configuration. Use `FileSystem` mode if you don't want Aspire to run Git.
+:::
+
+### Capture timing
+
+Aspire adds a baseline step named after the comparison step, such as `publish-and-diff-baseline`. It records the output before any other step in the requested pipeline runs, so files written by prerequisite and build steps are checked along with files written by publishers. The baseline step does nothing unless the comparison step is part of the requested pipeline, and it appears in `aspire do --list-steps` output with the `output-diff-baseline` tag.
+
+Aspire records the second capture after the comparison step's dependencies and action finish, so a write must finish within that boundary to be checked. If you add your own steps or event handlers, keep these points in mind:
+
+- Step factories and pipeline configuration callbacks run before the baseline, so they shouldn't write files that you check.
+- Final actions that you add to the comparison step after you register it, and `AfterPublishEvent` handlers, run too late for their writes to be checked.
+- Captures aren't atomic, so avoid changing the output directory while the pipeline runs.
+
+## Compare output with custom logic
+
+C# AppHosts can replace the default capture and comparison. Register a snapshot type together with the services that capture and compare it:
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREPIPELINES005
+builder.WithOutputDiffing<NormalizedSnapshot, NormalizedSnapshotter, NormalizedComparer>();
+#pragma warning restore ASPIREPIPELINES005
+```
+
+The snapshotter implements `IPipelineOutputSnapshotter<TSnapshot>` and the comparer implements `IPipelineOutputComparer<TSnapshot>`. Both use the same snapshot type, which can be any type that you choose. The following implementation captures only YAML files and normalizes their line endings before comparing:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Pipelines;
+
+#pragma warning disable ASPIREPIPELINES005
+sealed record NormalizedSnapshot(IReadOnlyDictionary<string, string> Files);
+
+sealed class NormalizedSnapshotter : IPipelineOutputSnapshotter<NormalizedSnapshot>
+{
+    public Task<NormalizedSnapshot> CaptureAsync(
+        string outputDirectory, CancellationToken cancellationToken)
+    {
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        if (Directory.Exists(outputDirectory))
+        {
+            foreach (var path in Directory.EnumerateFiles(
+                outputDirectory, "*.yaml", SearchOption.AllDirectories))
+            {
+                var relativePath = Path.GetRelativePath(outputDirectory, path);
+                files[relativePath] = File.ReadAllText(path).ReplaceLineEndings("\n");
+            }
+        }
+
+        return Task.FromResult(new NormalizedSnapshot(files));
+    }
+}
+
+sealed class NormalizedComparer : IPipelineOutputComparer<NormalizedSnapshot>
+{
+    public Task<IReadOnlyList<PipelineOutputChange>> CompareAsync(
+        NormalizedSnapshot before,
+        NormalizedSnapshot after,
+        CancellationToken cancellationToken)
+    {
+        var changes = new List<PipelineOutputChange>();
+
+        foreach (var (path, content) in after.Files)
+        {
+            if (!before.Files.TryGetValue(path, out var previous))
+            {
+                changes.Add(new(PipelineOutputChangeKind.Added, path));
+            }
+            else if (previous != content)
+            {
+                changes.Add(new(PipelineOutputChangeKind.Changed, path));
+            }
+        }
+
+        foreach (var path in before.Files.Keys.Where(path => !after.Files.ContainsKey(path)))
+        {
+            changes.Add(new(PipelineOutputChangeKind.Removed, path));
+        }
+
+        return Task.FromResult<IReadOnlyList<PipelineOutputChange>>(changes);
+    }
+}
+#pragma warning restore ASPIREPIPELINES005
+```
+
+Aspire calls `CaptureAsync` with the global output directory once before generation and once after. It then calls `CompareAsync` with both snapshots, and an empty list passes the check. Report paths relative to the output directory so that the failure message matches the default format.
+
+`WithOutputDiffing` registers the snapshotter and comparer as transient services, and it keeps any registrations for the same snapshot type that you already added to the host's service collection. Custom implementations don't need Git or the `Pipeline:OutputDiff` settings.
+
+:::note
+Custom snapshotters and comparers use .NET types, so the generic `WithOutputDiffing` overloads aren't exported to TypeScript AppHosts.
+:::
+
+## See also
+
+- [Pipelines and app topology](/deployment/pipelines/)
+- [CI/CD overview](/deployment/ci-cd/)
+- [`aspire do` command reference](/reference/cli/commands/aspire-do/)
+- [`aspire publish` command reference](/reference/cli/commands/aspire-publish/)
+- [Compiler Error ASPIREPIPELINES005](/diagnostics/aspirepipelines005/)

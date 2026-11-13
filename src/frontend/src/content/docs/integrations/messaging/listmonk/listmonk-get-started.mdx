@@ -1,0 +1,75 @@
+---
+title: Get started with the listmonk integration
+description: Run listmonk with PostgreSQL in an Aspire AppHost, provision its initial admin credentials, and persist uploaded files across container restarts.
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+[listmonk](https://listmonk.app/) is a self-hosted newsletter and mailing-list manager. The Community Toolkit hosting integration adds its container to an Aspire AppHost and configures it to use a PostgreSQL database resource.
+
+## Prerequisites
+
+- An Aspire AppHost project
+- A PostgreSQL resource for listmonk's database
+
+## Add listmonk to your AppHost
+
+Install the [📦 CommunityToolkit.Aspire.Hosting.Listmonk](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Listmonk) package in the AppHost:
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Listmonk
+```
+
+Add the container and reference a PostgreSQL database. The admin password is an Aspire secret parameter. See [Set up listmonk in the AppHost](../listmonk-host/) for configuration and persistence options.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const password = await builder.addParameter('listmonk-admin-password', {
+  secret: true,
+});
+const postgres = await builder.addPostgres('postgres');
+const database = await postgres.addDatabase('listmonkdb');
+
+const listmonk = await builder.addListmonk('listmonk');
+await listmonk.withReference(database);
+await listmonk.withAdminCredentials('admin', password);
+await listmonk.withUploadsVolume();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var adminPassword = builder.AddParameter("listmonk-admin-password", secret: true);
+var database = builder.AddPostgres("postgres")
+    .AddDatabase("listmonkdb");
+
+var listmonk = builder.AddListmonk("listmonk")
+    .WithReference(database)
+    .WithAdminCredentials("admin", adminPassword)
+    .WithUploadsVolume();
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The hosting integration does not include a listmonk client package. Reference the resource from an app that calls listmonk's HTTP API, or use the dashboard to administer the instance.
+
+## See also
+
+- [Set up listmonk in the AppHost](../listmonk-host/)
+- [listmonk documentation](https://listmonk.app/docs/)
+- [CommunityToolkit.Aspire.Hosting.Listmonk source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.Listmonk)

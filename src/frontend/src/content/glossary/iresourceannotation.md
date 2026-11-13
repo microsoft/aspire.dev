@@ -14,4 +14,4 @@ legacyGroup: api-reference-terms
 ---
 Annotations store strongly typed metadata on resources. Built-in annotations describe concerns such as endpoints, environment settings, and startup waits; integration authors can define custom annotation types.
 
-`IResourceAnnotation` is a .NET extensibility interface. TypeScript AppHost configuration methods manage the underlying metadata without exposing arbitrary .NET annotation implementations as a direct authoring pattern.
+`IResourceAnnotation` is a .NET extensibility interface. TypeScript and Go AppHost configuration methods manage the underlying metadata without exposing arbitrary .NET annotation implementations as a direct authoring pattern.

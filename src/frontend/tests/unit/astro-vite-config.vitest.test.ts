@@ -23,6 +23,7 @@ test.each([undefined, 'http://127.0.0.1:54321'])(
               target: origin,
               changeOrigin: true,
               secure: false,
+              ws: true,
             },
           }
         : undefined
