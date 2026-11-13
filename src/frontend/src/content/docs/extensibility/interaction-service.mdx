@@ -156,6 +156,10 @@ For CLI specific contexts, the interaction service is retrieved from either the 
 
 </Aside>
 
+<Aside type="caution">
+The interaction service isn't available while the app host runs before-start logic: `BeforeStartEvent` subscribers, `IDistributedApplicationLifecycleHook.BeforeStartAsync` implementations, and the `before-start` pipeline step. Nothing can respond to a prompt at that point because the dashboard and CLI backchannel start later. `IInteractionService.IsAvailable` returns `false` during this phase (including between `Build()` and `Run()`), and it returns `true` again once before-start completes. Calling a prompt method without checking `IsAvailable` throws an `InvalidOperationException` instead of hanging app host startup. To prompt the user, move the logic to a later event, such as a resource event or a resource command.
+</Aside>
+
 ## Display messages
 
 There are several ways to display messages to the user:
