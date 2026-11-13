@@ -1,0 +1,152 @@
+---
+title: Set up Posta with the Aspire integration
+description: Configure Posta with PostgreSQL and Redis, protect secrets, persist attachments, and enable its optional inbound SMTP and SMTP relay endpoints.
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+Use the Posta hosting integration to run the email delivery platform with its required PostgreSQL and Redis resources. For a first walkthrough, see [Get started with the Posta integration](../posta-get-started/).
+
+## Installation
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Posta" />
+
+## Add a Posta resource
+
+Posta requires a PostgreSQL database resource and a Redis resource. The integration configures references to both resources and waits for them during startup.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const postgres = await builder.addPostgres('postgres');
+const database = await postgres.addDatabase('posta-db', 'posta');
+const redis = await builder.addRedis('redis');
+
+const posta = await builder.addPostaWithReferences('posta', database, redis);
+await posta.withDataVolume();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(posta);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var postgres = builder.AddPostgres("postgres");
+var database = postgres.AddDatabase("posta-db", "posta");
+var redis = builder.AddRedis("redis");
+
+var posta = builder.AddPosta("posta", database, redis)
+    .WithDataVolume();
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(posta);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The named volume mounts at `/data` and persists filesystem-backed attachments outside the container lifecycle. Use `WithDataBindMount` when you need to access those files from a host directory.
+
+## Configure Posta
+
+Use the `PostaOptions` callback for typed literal configuration such as URLs and feature flags. Pass secrets as Aspire parameters rather than embedding them in the AppHost source:
+
+```csharp title="AppHost.cs"
+var encryptionKey = builder.AddParameter("posta-encryption-key", secret: true);
+var smtpPassword = builder.AddParameter("posta-smtp-password", secret: true);
+
+var posta = builder.AddPosta("posta", database, redis, options =>
+{
+    options.Environment = "production";
+    options.WebUrl = "https://mail.example.com";
+    options.ApiUrl = "https://mail.example.com";
+    options.MetricsEnabled = true;
+    options.EncryptionKey = encryptionKey;
+    options.SystemSmtpHost = "smtp.example.com";
+    options.SystemSmtpPort = 587;
+    options.SystemSmtpPassword = smtpPassword;
+    options.SystemSmtpFrom = "notifications@example.com";
+    options.SystemSmtpEncryption = "starttls";
+});
+```
+
+For production deployments, configure `EncryptionKey` and keep it stable across container restarts and upgrades. Posta uses this key to encrypt stored SMTP passwords.
+
+Use the grouped parameter-based methods when values come from configuration or a publish-time parameter. The options accept Aspire parameter resources, including secret values:
+
+```csharp title="AppHost.cs"
+var smtpHost = builder.AddParameterFromConfiguration("posta-smtp-host", "Posta:Smtp:Host");
+var smtpPassword = builder.AddParameterFromConfiguration(
+    "posta-smtp-password",
+    "Posta:Smtp:Password",
+    secret: true);
+
+var posta = builder.AddPosta("posta", database, redis)
+    .WithSystemSmtp(options =>
+    {
+        options.Host = smtpHost;
+        options.Port = builder.AddParameterFromConfiguration("posta-smtp-port", "Posta:Smtp:Port");
+        options.Password = smtpPassword;
+    });
+```
+
+The TypeScript AppHost export currently includes Posta creation, database and Redis references, and data mounts. The grouped configuration APIs shown above are exported for C# AppHosts.
+
+## Configure SMTP endpoints
+
+Posta's SMTP methods have different roles:
+
+| Method            | Purpose                                                           | Endpoint                                     |
+| ----------------- | ----------------------------------------------------------------- | -------------------------------------------- |
+| `WithSystemSmtp`  | Configures an external SMTP server for Posta's own notifications. | No listener is exposed.                      |
+| `WithInboundSmtp` | Enables receipt of email for domains managed by Posta.            | `smtp`, target port `2525` by default.       |
+| `WithSmtpRelay`   | Enables authenticated SMTP submission from applications.          | `smtp-relay`, target port `2526` by default. |
+
+Enable the SMTP relay when an application needs SMTP submission instead of the HTTP API:
+
+```csharp title="AppHost.cs"
+var relayEnabled = builder.AddParameter("posta-relay-enabled", "true");
+
+var posta = builder.AddPosta("posta", database, redis)
+    .WithSmtpRelay(options => options.Enabled = relayEnabled);
+```
+
+When enabling inbound STARTTLS, mount the certificate and key into the container and set their container paths in `WithInboundSmtp`. The SMTP endpoint's host port is optional. If you configure a target port through an option, keep it aligned with the endpoint's `targetPort`.
+
+## AppHost API
+
+The hosting package includes these method groups:
+
+| Method                                | Purpose                                                                                                                                |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `AddPosta`                            | Add Posta with PostgreSQL and Redis references, optional JWT secret, initial admin password and email, and an optional HTTP host port. |
+| `WithReference`                       | Configure the Posta resource's PostgreSQL or Redis connection.                                                                         |
+| `WithDataVolume`, `WithDataBindMount` | Persist filesystem-backed attachments.                                                                                                 |
+| `WithSystemSmtp`                      | Configure the external SMTP server used for Posta notifications.                                                                       |
+| `WithInboundSmtp`                     | Configure Posta's incoming SMTP endpoint.                                                                                              |
+| `WithSmtpRelay`                       | Configure the authenticated SMTP relay endpoint.                                                                                       |
+| `WithS3BlobStorage`                   | Configure S3-compatible attachment storage.                                                                                            |
+| `WithGoogleOAuth`                     | Configure Google OAuth login.                                                                                                          |
+| `WithEmailVerification`               | Configure email verification.                                                                                                          |
+
+## See also
+
+- [Get started with the Posta integration](../posta-get-started/)
+- [Connect to Posta](../posta-connect/)
+- [Posta configuration documentation](https://docs.goposta.dev/docs/getting-started/configuration/)
+- [CommunityToolkit.Aspire.Hosting.Posta source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.Posta)

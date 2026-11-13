@@ -70,6 +70,27 @@ This updates your `aspire.config.json` with the Kafka hosting integration packag
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add kafka
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Kafka hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Kafka": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Kafka server resource
@@ -99,6 +120,16 @@ const kafka = await builder.addKafka("kafka");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(kafka);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+kafka := builder.AddKafka("kafka")
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(kafka)
 
 // After adding all resources, run the app...
 ```
@@ -152,6 +183,17 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+kafka := builder.AddKafka("kafka").
+	WithKafkaUI()
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(kafka)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The Kafka UI is a free, open-source web UI to monitor and manage Apache Kafka clusters. It's automatically linked to your Kafka server and appears as a separate resource in the Aspire dashboard.
@@ -195,6 +237,21 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+kafka := builder.AddKafka("kafka").
+	WithKafkaUI(&aspire.WithKafkaUIOptions{
+		ConfigureContainer: func(kafkaUI aspire.KafkaUIContainerResource) {
+			kafkaUI.WithHostPort(aspire.IntPtr(9100))
+		},
+	})
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(kafka)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 ## Add Kafka resource with data volume
@@ -226,6 +283,17 @@ await kafka.withDataVolume({ isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(kafka);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+kafka := builder.AddKafka("kafka").
+	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(kafka)
 
 // After adding all resources, run the app...
 ```
@@ -265,6 +333,17 @@ await kafka.withDataBindMount("/Kafka/Data", { isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(kafka);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+kafka := builder.AddKafka("kafka").
+	WithDataBindMount("/Kafka/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(kafka)
 
 // After adding all resources, run the app...
 ```
@@ -353,6 +432,18 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+kafka := builder.AddKafka("kafka")
+kafkaHost := kafka.Host()
+kafkaPort := kafka.Port()
+
+builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(kafka).
+	WithEnvironment("BOOTSTRAP_SERVERS_HOST", kafkaHost).
+	WithEnvironment("BOOTSTRAP_SERVERS_PORT", kafkaPort)
+```
+</TabItem>
 </Tabs>
 
 ## Connect to an existing Kafka instance
@@ -382,6 +473,16 @@ const kafka = await builder.addConnectionString("kafka");
 
 const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
 await exampleProject.withReference(kafka);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+kafka := builder.AddConnectionString("kafka")
+
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj").
+	WithReference(kafka)
 
 // After adding all resources, run the app...
 ```

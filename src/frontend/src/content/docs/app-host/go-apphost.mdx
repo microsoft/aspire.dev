@@ -13,7 +13,8 @@ A Go AppHost is a Go program that defines the resources in your application and 
 
 - [Go](https://go.dev/dl/) 1.26 or later, with `go` on your `PATH`
 - The [Aspire CLI](/get-started/install-cli/)
-- A container runtime for the Redis container in the starter template. See [Aspire prerequisites](/get-started/prerequisites/) for the supported options.
+- [Node.js](https://nodejs.org/) to build the React frontend in the starter template
+- A container runtime if you add the optional Redis cache in the starter template. See [Aspire prerequisites](/get-started/prerequisites/) for the supported options.
 
 ## Create a Go AppHost
 
@@ -23,7 +24,7 @@ Create a new app from the Go starter template:
 aspire new aspire-go-starter -n aspire-app -o aspire-app
 ```
 
-The template creates a Go AppHost, a Go API that uses a Redis cache, and the generated SDK. To choose from the templates that support Go, run `aspire new --language go` instead.
+The template creates a Go AppHost, a Go API, a React (Vite) frontend, and the generated SDK. The CLI also asks whether to add a Redis cache that the API uses for the weather forecast. The frontend is bundled into the API's container image, so the app deploys as one image that serves both the API and the user interface. To choose from the templates that support Go, run `aspire new --language go` instead.
 
 <LearnMore>
   See the [`aspire new` command reference](/reference/cli/commands/aspire-new/) for all options.
@@ -45,6 +46,10 @@ The project has the following structure:
     - go.mod
     - main.go
     - telemetry.go
+  - frontend/  React (Vite) frontend that is bundled into the API image
+    - package.json
+    - vite.config.ts
+    - src/
   - .gitignore  Keeps the generated .aspire/ directory out of source control
   - apphost.go  Your AppHost entry point
   - aspire.config.json  Aspire configuration
@@ -60,7 +65,7 @@ From the project directory, start the AppHost with the Aspire CLI:
 aspire run
 ```
 
-The CLI regenerates the SDK when the `packages` list has changed, starts the AppHost with `go run .`, and prints the dashboard URL. Open the dashboard to see the `cache` and `api` resources with their logs, traces, and metrics.
+The CLI regenerates the SDK when the `packages` list has changed, starts the AppHost with `go run .`, and prints the dashboard URL. Open the dashboard to see the `app` and `frontend` resources, plus `cache` if you added Redis, with their logs, traces, and metrics.
 
 :::note
 Always start the AppHost with `aspire run`. The CLI sets the environment variables that the SDK uses to connect to the AppHost server, so running `go run .` on its own fails with `REMOTE_APP_HOST_SOCKET_PATH environment variable not set`.
@@ -68,7 +73,7 @@ Always start the AppHost with `aspire run`. The CLI sets the environment variabl
 
 ## apphost.go
 
-The AppHost is a `package main` Go program. The starter template defines a Redis cache and a Go API that references it:
+The AppHost is a `package main` Go program. The starter template defines a Go API and a Vite frontend, and bundles the frontend into the API:
 
 ```go title="apphost.go"
 package main
@@ -85,34 +90,27 @@ func main() {
 		log.Fatal(aspire.FormatError(err))
 	}
 
-	// A Redis cache the API will use for read-through caching.
-	cache := builder.AddRedis("cache")
-
-	// The Go HTTP API. WithModTidy runs "go mod tidy" before launching so that
-	// go.sum is always up to date. Aspire injects:
-	//   - "ConnectionStrings__cache" so the API can dial Redis.
-	//   - "OTEL_EXPORTER_OTLP_*" env vars (via WithOtlpExporter) so traces,
-	//     metrics, and logs flow to the Aspire dashboard.
-	api := builder.AddGoApp("api", "./api").
+	// Keep Go modules current and send traces, metrics, and logs to the dashboard.
+	app := builder.AddGoApp("app", "./api").
 		WithModTidy().
-		WithReference(cache).
-		WaitFor(cache).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
+		WithHttpHealthCheck(aspire.HttpHealthCheckPath("/health")).
 		WithExternalHttpEndpoints().
 		WithOtlpExporter()
 
-	// Each call records its failure on the handle that it returns, so check every resource.
-	for _, resource := range []aspire.Resource{cache, api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
+	// Reference the app for Vite proxying and wait until it is healthy.
+	frontend := builder.AddViteApp("frontend", "./frontend", nil).
+		WithReference(app).
+		WaitFor(app)
 
-	app, err := builder.Build()
+	// Bundle the frontend into the app container for same-origin production serving.
+	app.PublishWithContainerFiles(frontend, "./static")
+
+	application, err := builder.Build()
 	if err != nil {
 		log.Fatal(aspire.FormatError(err))
 	}
-	if err := app.Run(); err != nil {
+	if err := application.Run(); err != nil {
 		log.Fatal(aspire.FormatError(err))
 	}
 }
@@ -121,8 +119,8 @@ func main() {
 The program has three parts:
 
 1. `aspire.CreateBuilder()` connects to the AppHost server that the CLI starts and returns the builder.
-2. `AddRedis` and `AddGoApp` add resources. Each call returns a handle, so `WithReference`, `WaitFor`, and the other configuration methods chain onto it.
-3. A loop checks the handle of each resource with `Err()`, because a failed call records its error on the handle that it returns, not on the builder. `builder.Build()` creates the application, and `app.Run()` blocks until the AppHost stops. Both return an error. See [Go AppHost API conventions](/app-host/go-apphost-conventions/#errors) for how to check handles and format errors.
+2. `AddGoApp` and `AddViteApp` add resources. Each call returns a handle, so `WithReference`, `WaitFor`, and the other configuration methods chain onto it. `PublishWithContainerFiles` copies the built frontend into the `app` image at `./static`, where the Go API serves it. If you chose the Redis cache, the template also calls `AddRedis` and references the cache from `app`. See [Deploy Go apps](/deployment/go-apps/).
+3. `builder.Build()` creates the application, and `app.Run()` blocks until the AppHost stops. Both return an error. You don't check each resource: errors from the `Add` and `With` calls are collected and reported together when you call `Build`. See [Go AppHost API conventions](/app-host/go-apphost-conventions/#errors) for how errors are reported and formatted.
 
 ## aspire.config.json
 
@@ -136,7 +134,7 @@ The `aspire.config.json` file is the central configuration for your AppHost:
   },
   "packages": {
     "Aspire.Hosting.Go": "%ASPIRE_VERSION%",
-    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
+    "Aspire.Hosting.JavaScript": "%ASPIRE_VERSION%"
   },
   "profiles": {
     "https": {
@@ -259,13 +257,6 @@ func main() {
 		WithExternalHttpEndpoints().
 		WithOtlpExporter()
 
-	// Each call records its failure on the handle that it returns, so check every resource.
-	for _, resource := range []aspire.Resource{cache, db, api} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
-
 	app, err := builder.Build()
 	if err != nil {
 		log.Fatal(aspire.FormatError(err))
@@ -279,7 +270,7 @@ func main() {
 - `AddPostgres` adds the PostgreSQL server, and `AddDatabase` returns a handle for a database on that server.
 - `WithReference(db)` passes the connection details to the API as environment variables named after the resource, such as `POSTGRESDB_URI`. See [Connect to PostgreSQL](/integrations/databases/postgres/postgres-connect/) for a Go example that reads them.
 - `WaitFor(db)` starts the API after the database is ready.
-- The loop checks each handle with `Err()` before `Build`, because a failed call records its error on the handle that it returns.
+- Any error from these calls is reported when you call `Build`.
 
 ## Orchestrate apps in other languages
 
@@ -322,12 +313,6 @@ func main() {
 		WithReference(api).
 		WithReference(recommender).
 		WaitFor(api)
-
-	for _, resource := range []aspire.Resource{cache, api, recommender, web} {
-		if err := resource.Err(); err != nil {
-			log.Fatal(aspire.FormatError(err))
-		}
-	}
 
 	app, err := builder.Build()
 	if err != nil {

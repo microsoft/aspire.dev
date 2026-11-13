@@ -14,7 +14,7 @@ resources:
 legacyAnchors: [waitfor]
 legacyGroup: apis-and-patterns
 ---
-`WaitFor` in C# and `waitFor` in TypeScript express a startup dependency. For a running resource with health checks, Aspire waits for those checks to report healthy. Without health checks, reaching the running state is sufficient.
+`WaitFor` in C# and Go, and `waitFor` in TypeScript, express a startup dependency. For a running resource with health checks, Aspire waits for those checks to report healthy. Without health checks, reaching the running state is sufficient.
 
 Use a reference as well when the consuming resource needs connection information. Waiting alone does not supply a connection string or endpoint.
 

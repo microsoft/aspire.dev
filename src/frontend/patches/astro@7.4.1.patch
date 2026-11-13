@@ -1,0 +1,16 @@
+diff --git a/dist/core/build/prerender-worker.js b/dist/core/build/prerender-worker.js
+index 90889cc530bac8d7498858ab78c45a40460984a8..932447d4f6cd8e989ed0ee8cbd34df8947be6d44 100644
+--- a/dist/core/build/prerender-worker.js
++++ b/dist/core/build/prerender-worker.js
+@@ -110,6 +110,11 @@ async function start() {
+ 		});
+ 		const { response, metadata } = await renderForPrerender(app, request, { routeData: route });
+ 		const body = response.body === null ? null : await response.arrayBuffer();
++		// Imported SVGs are callable components that can't be structured-cloned; keep only their image metadata.
++		if (metadata?.staticImages) for (const image of metadata.staticImages) if (typeof image.transform?.src === "function") image.transform = {
++			...image.transform,
++			src: { ...image.transform.src }
++		};
+ 		postMessage({
+ 			type: "result",
+ 			id,

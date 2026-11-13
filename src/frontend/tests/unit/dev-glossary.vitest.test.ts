@@ -125,7 +125,7 @@ describe('glossary content migration', () => {
     expect(getTerm('waitfor').body).toContain('Without health checks, reaching the running state is sufficient');
     expect(getTerm('service-defaults').body).toContain('not settings automatically applied');
     expect(getTerm('service-defaults').body).toContain('MapDefaultEndpoints');
-    expect(getTerm('withannotation').body).toContain('does **not** expose a general `withAnnotation`');
+    expect(getTerm('withannotation').body).toContain('do **not** expose a general `withAnnotation`');
     expect(terms.every((term) => !term.body?.includes('```'))).toBe(true);
   });
 
@@ -134,7 +134,7 @@ describe('glossary content migration', () => {
       expect(getTerm(id)).toBeDefined();
       expect(getTerm(id).data.legacyAnchors).toEqual([]);
     }
-    expect(getTerm('apphost').body).toContain('C# or any guest language supported through');
+    expect(getTerm('apphost').body).toContain('C#, TypeScript, Go, or any guest language supported through');
     expect(getTerm('apphost').body).toContain('/hub/glossary/ats/');
     expect(getTerm('opentelemetry').data.aliases).not.toContain('telemetry');
     expect(getTerm('opentelemetry').data.related).toContain('otlp');
