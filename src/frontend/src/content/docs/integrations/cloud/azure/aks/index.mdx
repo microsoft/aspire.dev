@@ -65,6 +65,38 @@ await builder.build().run();
 
 When an AKS environment is present, all compute resources are automatically deployed to AKS — no additional opt-in is required.
 
+## Use an existing AKS cluster
+
+To deploy to a pre-provisioned AKS cluster, use the shared Azure existing-resource APIs `AsExisting` or `AsExistingInResourceGroup`:
+
+```csharp title="AppHost.cs"
+var clusterName = builder.AddParameter("cluster-name");
+var resourceGroup = builder.AddParameter("cluster-resource-group");
+var subscription = builder.AddParameter("cluster-subscription");
+
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+    .AsExistingInResourceGroup(clusterName, resourceGroup, subscription);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithComputeEnvironment(aks);
+```
+
+Use `AsExisting(clusterName, null)` when the cluster is in the application's Azure resource group. `PublishAsExisting` applies only when publishing or deploying.
+
+An explicit existing-cluster resource group and subscription select the cluster independently of the resource's `Scope`, which controls the module that deploys supporting infrastructure. A resource-group-only cluster reference inherits the module's subscription; an unscoped reference inherits its resource group too. Credential retrieval uses the cluster resource ID returned by provisioning.
+
+### Existing cluster behavior
+
+- Aspire references the cluster without changing its node pools, networking, or add-ons, and doesn't assign workloads to an automatically created `workload` node pool. Explicit node-pool affinity must name a pool that already exists.
+- The cluster must have a kubelet managed identity for registry access. Workloads that use Azure workload identity also require OIDC and workload identity to be enabled beforehand.
+- Any ingress add-ons that the application uses must already be installed and configured.
+- For private clusters with the public DNS name disabled, the cluster FQDN output falls back to the private DNS name, or an empty string if neither is available. Deploying still requires network connectivity and DNS resolution from the deployment host.
+- Aspire still provisions the default container registry, grants the cluster's kubelet identity `AcrPull` access, and creates workload identity federated credentials when needed. The deploying identity needs permission to create these resources and role assignments, retrieve AKS credentials, and deploy Kubernetes workloads.
+
+<Aside type="caution">
+`aspire destroy` removes the application's workloads and deletes the application's Azure resource group. Keep the existing cluster in a separate resource group if it must survive `aspire destroy`.
+</Aside>
+
 ## Configure the system node pool
 
 Customize the system node pool VM size and scaling using <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.WithSystemNodePool" />:
