@@ -7,6 +7,7 @@ import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import mongodbIcon from '@assets/icons/mongodb-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -33,7 +34,7 @@ To get started with the Aspire Community Toolkit MongoDB hosting extensions, ins
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.MongoDB.Extensions" />
 
-For TypeScript AppHosts, add the Community Toolkit MongoDB extensions package to `aspire.config.json`:
+For TypeScript and Go AppHosts, add the Community Toolkit MongoDB extensions package to `aspire.config.json`:
 
 ```json title="aspire.config.json" ins={3}
 {
@@ -47,7 +48,7 @@ For TypeScript AppHosts, add the Community Toolkit MongoDB extensions package to
 
 ### DbGate management UI
 
-To add the [DbGate](https://dbgate.org/) management UI, decorate the official `MongoDBServerResource` builder with `WithDbGate` / `withDbGate`:
+To add the [DbGate](https://dbgate.org/) management UI, decorate the official `MongoDBServerResource` builder with <ApiReference name="Aspire.Hosting.MongoDBBuilderExtensions.WithDbGate" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -82,13 +83,37 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongodb := builder.AddMongoDB("mongodb").
+	WithDbGate()
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 This adds a new DbGate resource to the AppHost which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your MongoDB databases.
 
 ### dbx management UI
 
-[dbx](https://github.com/t8y2/dbx) is a lightweight, web-based database client and an alternative management UI to DbGate and Adminer. Use `WithDbx` / `withDbx` to add a dbx child resource configured for the MongoDB server:
+[dbx](https://github.com/t8y2/dbx) is a lightweight, web-based database client and an alternative management UI to DbGate and Adminer. Use <ApiReference name="Aspire.Hosting.MongoDBBuilderExtensions.WithDbx" /> to add a dbx child resource configured for the MongoDB server:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -120,9 +145,33 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddMongoDB("mongodb").
+	WithDbx(&aspire.WithDbxOptions{
+		ContainerName: aspire.StringPtr("mongodb-dbx"),
+		ImageTag:      aspire.StringPtr("0.5.33"),
+	})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
-The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript and Go bindings accept optional `containerName` and `imageTag` values.
 
 ## See also
 

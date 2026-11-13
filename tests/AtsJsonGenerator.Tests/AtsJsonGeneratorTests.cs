@@ -3,6 +3,7 @@ using AtsJsonGenerator.Helpers;
 
 namespace AtsJsonGenerator.Tests;
 
+[Collection(ConsoleCapture.CollectionName)]
 public sealed class AtsJsonGeneratorTests
 {
     [Fact]

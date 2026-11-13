@@ -8,6 +8,7 @@ import { Image } from 'astro:assets';
 import { Aside, Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ollamaIcon from '@assets/icons/ollama-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -21,7 +22,7 @@ import ollamaIcon from '@assets/icons/ollama-icon.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Ollama hosting integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Ollama server and its model resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Ollama hosting integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Ollama server and its model resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Ollama integration, start with the [Get started with Ollama integrations](/integrations/ai/ollama/ollama-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Ollama](../ollama-connect/).
 
@@ -76,6 +77,27 @@ This updates your `aspire.config.json` with the Ollama hosting integration packa
 </Aside>
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add ollama --source CommunityToolkit
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Ollama hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Ollama": "*"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Ollama resource
@@ -111,13 +133,39 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama")
+	llama3 := ollama.AddModel("llama3")
+
+	api := builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(llama3)
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 <Steps>
 
 1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/ollama/ollama` image, it creates a new Ollama instance on your local machine.
 
-1. The resource name passed to `AddOllama` is used as the connection string name when referenced in a dependency. Model sub-resources are named by sanitizing the model name (for example, `"llama3"` produces the resource name `"ollama-llama3"`).
+1. The resource name passed to <ApiReference name="Aspire.Hosting.OllamaResourceBuilderExtensions.AddOllama" /> is used as the connection string name when referenced in a dependency. Model sub-resources are named by sanitizing the model name (for example, `"llama3"` produces the resource name `"ollama-llama3"`).
 
 1. The AppHost reference call configures a connection in the consuming project named after the referenced model resource.
 
@@ -129,7 +177,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 ## Add Ollama model resource
 
-Models are sub-resources of an Ollama server resource. You add them with the `AddModel` (or `addModel`) method. Each model is downloaded when the Ollama container first starts.
+Models are sub-resources of an Ollama server resource. You add them with the <ApiReference name="Aspire.Hosting.OllamaResourceBuilderExtensions.AddModel" /> method. Each model is downloaded when the Ollama container first starts.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -170,6 +218,38 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(llama3);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama")
+
+	// Add by model name — resource name is generated automatically
+	phi35 := ollama.AddModel("phi3.5")
+
+	// Add with an explicit resource name
+	llama3 := ollama.AddNamedModel("ollama-llama3", "llama3")
+
+	api := builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(phi35).
+		WithReference(llama3)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -220,13 +300,41 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama").
+		WithDataVolume(nil)
+
+	llama3 := ollama.AddModel("llama3")
+
+	api := builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(llama3)
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 The data volume is mounted at `/root/.ollama` in the Ollama container. When a `name` parameter isn't provided, the volume name is generated automatically. For more information on data volumes and details on why they're preferred over bind mounts, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 ## Use GPUs when available
 
-By default, the Ollama container runs on CPU. To enable GPU acceleration, use the `WithGPUSupport` (or `withGPUSupport`) extension method:
+By default, the Ollama container runs on CPU. To enable GPU acceleration, use the <ApiReference name="Aspire.Hosting.OllamaResourceBuilderExtensions.WithGPUSupport" /> extension method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -295,13 +403,69 @@ await ollama.addModel("llama3");
 </Aside>
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+**Nvidia:**
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama").
+		WithGPUSupport(nil)
+
+	ollama.AddModel("llama3")
+
+	// After adding all resources, run the app...
+}
+```
+
+**AMD:**
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	vendor := aspire.OllamaGpuVendorAMD
+	ollama := builder.AddOllama("ollama").
+		WithGPUSupport(&aspire.WithGPUSupportOptions{Vendor: &vendor})
+
+	ollama.AddModel("llama3")
+
+	// After adding all resources, run the app...
+}
+```
+
+</TabItem>
 </Tabs>
 
 For more information, see [GPU support in Docker Desktop](https://docs.docker.com/desktop/gpu/) and [GPU support in Podman](https://github.com/containers/podman/issues/19005).
 
 ## Add a model from Hugging Face
 
-To use a model in GGUF format from [Hugging Face](https://huggingface.co/), use the `AddHuggingFaceModel` (or `addHuggingFaceModel`) extension method:
+To use a model in GGUF format from [Hugging Face](https://huggingface.co/), use the <ApiReference name="Aspire.Hosting.OllamaResourceBuilderExtensions.AddHuggingFaceModel" /> extension method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -338,6 +502,35 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama")
+
+	llama := ollama.AddHuggingFaceModel(
+		"llama",
+		"bartowski/Llama-3.2-1B-Instruct-GGUF:IQ4_XS")
+
+	api := builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(llama)
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 Only models in GGUF format are supported. The integration automatically prefixes `hf.co/` to the model name if it doesn't already start with `hf.co/` or `huggingface.co/`, so Ollama can resolve it from Hugging Face.
@@ -369,6 +562,30 @@ const ollama = await builder.addOllama("ollama", { port: 11434 });
 await ollama.addModel("llama3");
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama", &aspire.AddOllamaOptions{Port: aspire.IntPtr(11434)})
+
+	ollama.AddModel("llama3")
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -404,6 +621,31 @@ await ollama.addModel("llama3");
 // After adding all resources, run the app...
 ```
 
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama").
+		WithOpenWebUI(nil)
+
+	ollama.AddModel("llama3")
+
+	// After adding all resources, run the app...
+}
+```
 </TabItem>
 </Tabs>
 

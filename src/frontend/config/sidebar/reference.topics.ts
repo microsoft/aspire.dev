@@ -23,11 +23,11 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
   icon: 'seti:json',
   items: [
     {
-      label: 'Aspire Reference',
+      label: 'Aspire reference',
       translations: {
         da: 'Aspire-reference',
         de: 'Aspire-Referenz',
-        en: 'Aspire Reference',
+        en: 'Aspire reference',
         es: 'Referencia de Aspire',
         fr: 'Référence Aspire',
         hi: 'Aspire संदर्भ',
@@ -169,6 +169,27 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             'zh-CN': '搜索 TypeScript API',
           },
           link: '/reference/api/typescript/',
+        },
+        {
+          label: 'Search Go APIs',
+          translations: {
+            da: "Søg i Go API'er",
+            de: 'Go APIs durchsuchen',
+            en: 'Search Go APIs',
+            es: 'Buscar API de Go',
+            fr: 'Rechercher les API Go',
+            hi: 'Go एपीआई खोजें',
+            id: 'Cari API Go',
+            it: 'Cerca API Go',
+            ja: 'Go APIを検索する',
+            ko: 'Go API 검색',
+            'pt-BR': 'Pesquisar APIs Go',
+            ru: 'Поиск Go API',
+            tr: "Go API'leri Arayın",
+            uk: 'Пошук Go API',
+            'zh-CN': '搜索 Go API',
+          },
+          link: '/reference/api/go/',
         },
       ],
     },
@@ -586,6 +607,24 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               ],
             },
             {
+              label: 'aspire tray',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire tray',
+                  slug: 'reference/cli/commands/aspire-tray',
+                },
+                {
+                  label: 'aspire tray start',
+                  slug: 'reference/cli/commands/aspire-tray-start',
+                },
+                {
+                  label: 'aspire tray stop',
+                  slug: 'reference/cli/commands/aspire-tray-stop',
+                },
+              ],
+            },
+            {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',
             },
@@ -847,6 +886,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREPIPELINES003',
               link: '/diagnostics/aspirepipelines003',
+            },
+            {
+              label: 'ASPIREPIPELINES005',
+              link: '/diagnostics/aspirepipelines005',
             },
             {
               label: 'ASPIREPROXYENDPOINTS001',

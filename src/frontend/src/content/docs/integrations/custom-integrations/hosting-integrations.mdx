@@ -20,6 +20,7 @@ import maildevEnvvar from '@assets/integrations/custom-integrations/maildev-envv
 import maildevEnvvarLight from '@assets/integrations/custom-integrations/maildev-envvar-light.png';
 import maildevEmails from '@assets/integrations/custom-integrations/maildev-emails.png';
 import maildevEmailsLight from '@assets/integrations/custom-integrations/maildev-emails-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire improves the development experience by providing reusable building blocks that can be used to quickly arrange application dependencies and expose them to your own code. One of the key building blocks of an Aspire-based application is the _resource_.
 
@@ -192,7 +193,7 @@ builder.AddProject<Projects.NewsletterService>("newsletterservice")
     .WithReference(maildev);
 ```
 
-To achieve this, you need a custom resource named `MailDevResource` which implements `IResourceWithConnectionString` so that consumers can use it with the `WithReference` extension to inject the connection details for the MailDev server as a connection string.
+To achieve this, you need a custom resource named `MailDevResource` which implements `IResourceWithConnectionString` so that consumers can use it with the <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> extension to inject the connection details for the MailDev server as a connection string.
 
 MailDev is available as a container resource, so you'll also want to derive from `ContainerResource` so that we can make use of various pre-existing container-focused extensions in Aspire.
 
@@ -593,7 +594,7 @@ Here's how the flow of execution works:
 3. The `WithReference` wraps the resource in a `ConnectionStringReference` instance and the object is captured in an `EnvironmentCallbackAnnotation` which is evaluated after the Aspire project is built and starts running.
 4. As the process that references the connection string starts Aspire starts evaluating the expression. It first gets the `ConnectionStringReference` and calls its `GetValueAsync` method.
 5. The `GetValueAsync` method gets the value of the `IResourceWithConnectionString.ConnectionStringExpression` property to get the `ReferenceExpression` instance.
-6. The `ConnectionStringReference.GetValueAsync` method then calls `ReferenceExpression.GetValueAsync` to process the previously captured interpolated string.
+6. The `ConnectionStringReference.GetValueAsync` method then calls <ApiReference name="Aspire.Hosting.ApplicationModel.ReferenceExpression.GetValueAsync" /> to process the previously captured interpolated string.
 7. Because the interpolated string contains references to other reference types such as `EndpointReference` they're also evaluated and real value substituted (which at this time is now available).
 </Steps>
 
@@ -693,7 +694,7 @@ Because the `MailDevResource` implements `IResourceWithConnectionString` the man
 
 Aspire knows how to form this string because it looks at `IResourceWithConnectionString.ConnectionStringExpression` and builds up the final string via the `IManifestExpressionProvider` interface (in much the same way as the `IValueProvider` interface is used).
 
-The `MailDevResource` automatically gets included in the manifest because it's derived from `ContainerResource`. Resource authors can choose to suppress outputting content to the manifest by using the `ExcludeFromManifest` extension method on the resource builder.
+The `MailDevResource` automatically gets included in the manifest because it's derived from `ContainerResource`. Resource authors can choose to suppress outputting content to the manifest by using the <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.ExcludeFromManifest" /> extension method on the resource builder.
 
 ```diff lang="csharp" title="MailDevResourceBuilderExtensions.cs"
 public static IResourceBuilder<MailDevResource> AddMailDev(

@@ -4,6 +4,7 @@ description: Aspire がアプリケーション内でリソースとその依存
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire は、所有、包含、グループ化を表現するために、リソース間の **親子関係** をモデル化できます。
 
@@ -27,7 +28,7 @@ Aspire は、所有、包含、グループ化を表現するために、リソ�
 
 ### 視覚的グループ化（ライフサイクルへの影響なし）
 
-Aspire は、リソース構築時に `WithParentRelationship()` メソッドを使うことで、**視覚専用の親子関係** もサポートします。
+Aspire は、リソース構築時に <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithParentRelationship" /> メソッドを使うことで、**視覚専用の親子関係** もサポートします。
 
 視覚的関係:
 
@@ -72,7 +73,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var db = builder.AddPostgres("pg");
 var api = builder.AddProject("api").WithReference(db);
-var web = builder.AddNpmApp("web").WithReference(api);
+var web = builder.AddJavaScriptApp("web", "../web").WithReference(api);
 
 builder.Build().Run();
 ```
@@ -112,7 +113,7 @@ architecture-beta
 
 リソースは次を通じて互いに接続されます:
 
-- **`WithReference()` 呼び出し**: 直接的なリソース間依存。
+- **<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> 呼び出し**: 直接的なリソース間依存。
 - **環境変数と CLI 引数**: 構造化参照を含む構成値。
 - **その他の構成ソース**: 構造化値参照で設定される値。
 
@@ -306,7 +307,7 @@ builder.Build().Run();
 
 ### 割り当て済みエンドポイントへ安全にアクセスする
 
-エンドポイント解決は `DistributedApplication` の起動シーケンス中に行われます。エンドポイント値（`Url`、`Host`、`Port` など）へ安全にアクセスするには、割り当て完了まで待つ必要があります。Aspire は `AfterEndpointsAllocatedEvent` などのイベント API を提供し、割り当て後にエンドポイントへアクセスできます。これにより、エンドポイント準備完了後にのみコードが実行されます。
+エンドポイント解決は `DistributedApplication` の起動シーケンス中に行われます。エンドポイント値（`Url`、`Host`、`Port` など）へ安全にアクセスするには、割り当て完了まで待つ必要があります。Aspire は `ResourceEndpointsAllocatedEvent` などのイベント API を提供し、割り当て後にエンドポイントへアクセスできます。これにより、エンドポイント準備完了後にのみコードが実行されます。
 
 ```csharp title="例 — 割り当て確認とイベント使用"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -330,9 +331,9 @@ catch (Exception ex)
     Console.WriteLine($"Error accessing Url: {ex.Message}");
 }
 
-// 解決済みプロパティを得るため AfterEndpointsAllocatedEvent を購読
-builder.Eventing.Subscribe<AfterEndpointsAllocatedEvent>(
-    (@event, cancellationToken) =>
+// 解決済みプロパティを得るため ResourceEndpointsAllocatedEvent を購読
+redis.OnResourceEndpointsAllocated(
+    (resource, @event, cancellationToken) =>
     {
         Console.WriteLine($"Endpoint allocated: {endpoint.IsAllocated}");
         Console.WriteLine($"Resolved Url: {endpoint.Url}");
@@ -360,7 +361,7 @@ Error accessing Url: Endpoint has not been allocated.
 ```
 
 <Aside type="tip">
-  コールバックを受け取る `WithEnvironment` のオーバーロードは、
+  コールバックを受け取る <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> のオーバーロードは、
   エンドポイント割り当て後に実行されます。
 </Aside>
 
@@ -433,8 +434,8 @@ builder.AddProject("worker")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.ts"
-import { createBuilder, EndpointProperty } from './.modules/aspire.js';
+```typescript title="apphost.mts"
+import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 

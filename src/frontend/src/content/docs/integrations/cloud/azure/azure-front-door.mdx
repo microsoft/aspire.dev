@@ -1,13 +1,14 @@
 ---
 title: Azure Front Door
 seoTitle: Azure Front Door integration for Aspire apps
-description: Learn how to use the Aspire Azure Front Door hosting integration to put a global edge in front of your application's backends.
+description: Learn how to use the Aspire Azure Front Door hosting integration to put a global edge in front of your backends, including private origins over Private Link.
 ---
 
 import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import azureIcon from '@assets/icons/azure-front-door-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={azureIcon}
@@ -32,7 +33,7 @@ To access this type and APIs, add the [📦 Aspire.Hosting.Azure.FrontDoor](http
 
 ### Add an Azure Front Door resource
 
-In your AppHost, call `addAzureFrontDoor` to add a Front Door profile, then call `withOrigin` to attach a backend resource as an origin:
+In your AppHost, call <ApiReference name="Aspire.Hosting.AzureFrontDoorExtensions.AddAzureFrontDoor" /> to add a Front Door profile, then call <ApiReference name="Aspire.Hosting.AzureFrontDoorExtensions.WithOrigin" /> to attach a backend resource as an origin:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -73,19 +74,56 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	builder.AddAzureAppServiceEnvironment("production")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithExternalHttpEndpoints()
+
+	frontdoor := builder.AddAzureFrontDoor("frontdoor").
+		WithOrigin(api)
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code:
 
 - Adds an Azure App Service environment (a compute environment is required so Front Door can resolve the origin's hostname).
-- Adds an `api` project and exposes it externally with `withExternalHttpEndpoints`. Front Door requires an origin to expose an external HTTP or HTTPS endpoint.
+- Adds an `api` project and exposes it externally with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" />. Front Door requires an origin to expose an external HTTP or HTTPS endpoint.
 - Adds a Front Door profile named `frontdoor` and configures the `api` project as an origin.
 
 Each call to `withOrigin` creates a separate Front Door endpoint, origin group, origin, and route, so each backend is independently routable through its own `*.azurefd.net` hostname.
 
 <Aside type="caution">
   When you call `addAzureFrontDoor`, it implicitly calls
-  `addAzureProvisioning`—which adds support for generating Azure resources
+  <ApiReference name="Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" />—which adds support for generating Azure resources
   dynamically during app startup. The app must configure the appropriate
   subscription and location. For more information, see [Local provisioning:
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -140,20 +178,60 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	builder.AddAzureAppServiceEnvironment("production")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithExternalHttpEndpoints()
+
+	web := builder.AddDotnetProject("web", "../Web/Web.csproj").
+		WithExternalHttpEndpoints()
+
+	frontdoor := builder.AddAzureFrontDoor("frontdoor").
+		WithOrigin(api).
+		WithOrigin(web)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 Each origin must be added at most once per Front Door resource — adding the same resource twice throws `InvalidOperationException`.
 
 ### Health probes
 
-Front Door uses health probes to determine which origins are healthy. By default, the Aspire integration probes the origin's external endpoint at path `/` over HTTPS. If you have configured an HTTP probe on the origin (for example with `WithHttpProbe`), Front Door uses the path and protocol from the resource's liveness probe instead.
+Front Door uses health probes to determine which origins are healthy. By default, the Aspire integration probes the origin's external endpoint at path `/` over HTTPS. If you have configured an HTTP probe on the origin (for example with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpProbe" />), Front Door uses the path and protocol from the resource's liveness probe instead.
 
 ### Provisioning-generated Bicep
 
 When you publish your app, Aspire generates Bicep alongside the manifest. A Front Door resource with a single origin generates Bicep similar to the following:
 
 <Aside type="caution">
-  **Upgrading from Aspire 13.3.0-preview:** The resource names generated for Front Door profiles, endpoints, origin groups, origins, and routes changed in Aspire 13.4. This can result in duplicate Azure resources (profiles, endpoints, origin groups, routes, and origins) during an upgrade. To avoid duplicates, either remove the existing Azure resources before redeploying, or set resource names explicitly using `ConfigureInfrastructure`.
+  **Upgrading from Aspire 13.3.0-preview:** The resource names generated for Front Door profiles, endpoints, origin groups, origins, and routes changed in Aspire 13.4. This can result in duplicate Azure resources (profiles, endpoints, origin groups, routes, and origins) during an upgrade. To avoid duplicates, either remove the existing Azure resources before redeploying, or set resource names explicitly using <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" />.
 </Aside>
 
 <Aside type="caution">
@@ -290,11 +368,360 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+Aspire selects the Premium SKU automatically when an origin uses [Private Link](#private-link-origins).
+
 For more information, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/). For the full list of configurable properties, see the [Azure.Provisioning.Cdn](https://learn.microsoft.com/dotnet/api/azure.provisioning.cdn) and [Azure.Provisioning.FrontDoor](https://learn.microsoft.com/dotnet/api/azure.provisioning.frontdoor) API documentation.
+
+## Private Link origins
+
+By default, Front Door reaches each origin over the public internet. With Azure Private Link, Front Door connects to Azure Container Apps or Azure App Service origins through a private endpoint. Aspire also disables public network access on those apps, so they're reachable only through Front Door.
+
+Call `WithAzureFrontDoorPrivateLink` (`withAzureFrontDoorPrivateLink` in TypeScript) on the compute environment and pass the Front Door. Add apps with `WithOrigin` before or after this call. Only origins in the connected environment use Private Link, so one Front Door can serve both private and public origins. The call has no effect when you run the AppHost locally.
+
+:::caution[Experimental]
+`WithAzureFrontDoorPrivateLink` is experimental and might change in a future release. In C#, it reports the `ASPIREAZURE003` diagnostic as an error until you suppress it, for example with `#pragma warning disable ASPIREAZURE003`. For more information, see [ASPIREAZURE003](/diagnostics/aspireazure003/).
+:::
+
+### Requirements
+
+- The AppHost references [📦 Aspire.Hosting.Azure.FrontDoor](https://www.nuget.org/packages/Aspire.Hosting.Azure.FrontDoor) and either [📦 Aspire.Hosting.Azure.AppContainers](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppContainers) or [📦 Aspire.Hosting.Azure.AppService](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppService). The examples also use `AddDotnetProject` from [📦 Aspire.Hosting.Dotnet](https://www.nuget.org/packages/Aspire.Hosting.Dotnet).
+- Front Door uses the Premium tier, which Aspire selects automatically. For pricing, see the [Front Door tier comparison](https://learn.microsoft.com/azure/frontdoor/standard-premium/tier-comparison).
+- The Container Apps environment is one that Aspire provisions, which is the default. Existing environments and Express environments aren't supported.
+- The App Service plan uses a tier that supports [private endpoints](https://learn.microsoft.com/azure/app-service/overview-private-endpoint), such as Basic, Standard, or Premium. The default plan, `P0V3`, qualifies.
+
+### Azure Container Apps
+
+The following AppHost makes both apps private origins:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const environment = await builder.addAzureContainerAppEnvironment("env");
+const frontDoor = await builder.addAzureFrontDoor("frontdoor");
+await environment.withAzureFrontDoorPrivateLink(frontDoor);
+
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj")
+    .withExternalHttpEndpoints();
+const web = await builder.addDotnetProject("web", "../Web/Web.csproj")
+    .withExternalHttpEndpoints()
+    .withReference(api);
+
+await frontDoor.withOrigin(api).withOrigin(web);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003 // WithAzureFrontDoorPrivateLink is experimental.
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var environment = builder.AddAzureContainerAppEnvironment("env");
+var frontDoor = builder.AddAzureFrontDoor("frontdoor");
+environment.WithAzureFrontDoorPrivateLink(frontDoor);
+
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithExternalHttpEndpoints();
+var web = builder.AddDotnetProject("web", "../Web/Web.csproj")
+    .WithExternalHttpEndpoints()
+    .WithReference(api);
+
+frontDoor.WithOrigin(api).WithOrigin(web);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	environment := builder.AddAzureContainerAppEnvironment("env")
+	frontDoor := builder.AddAzureFrontDoor("frontdoor")
+	environment.WithAzureFrontDoorPrivateLink(frontDoor)
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithExternalHttpEndpoints()
+	web := builder.AddDotnetProject("web", "../Web/Web.csproj").
+		WithExternalHttpEndpoints().
+		WithReference(api)
+
+	frontDoor.WithOrigin(api).WithOrigin(web)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
+</Tabs>
+
+Aspire disables public network access on the Container Apps environment. Apps in the environment still reach each other directly, because [calls between apps in an environment](https://learn.microsoft.com/azure/container-apps/connect-apps) stay inside the environment. Callers outside the environment must use the Front Door endpoint.
+
+### Azure App Service
+
+The following AppHost makes both websites private origins:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const environment = await builder.addAzureAppServiceEnvironment("env");
+const frontDoor = await builder.addAzureFrontDoor("frontdoor");
+await environment.withAzureFrontDoorPrivateLink(frontDoor);
+
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj")
+    .withExternalHttpEndpoints();
+const web = await builder.addDotnetProject("web", "../Web/Web.csproj")
+    .withExternalHttpEndpoints();
+
+await frontDoor.withOrigin(api).withOrigin(web);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003 // WithAzureFrontDoorPrivateLink is experimental.
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var environment = builder.AddAzureAppServiceEnvironment("env");
+var frontDoor = builder.AddAzureFrontDoor("frontdoor");
+environment.WithAzureFrontDoorPrivateLink(frontDoor);
+
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithExternalHttpEndpoints();
+var web = builder.AddDotnetProject("web", "../Web/Web.csproj")
+    .WithExternalHttpEndpoints();
+
+frontDoor.WithOrigin(api).WithOrigin(web);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	environment := builder.AddAzureAppServiceEnvironment("env")
+	frontDoor := builder.AddAzureFrontDoor("frontdoor")
+	environment.WithAzureFrontDoorPrivateLink(frontDoor)
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithExternalHttpEndpoints()
+	web := builder.AddDotnetProject("web", "../Web/Web.csproj").
+		WithExternalHttpEndpoints()
+
+	frontDoor.WithOrigin(api).WithOrigin(web)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
+</Tabs>
+
+For App Service:
+
+- Each website gets its own private endpoint connection.
+- Public network access is disabled on every app website in the environment, including websites that aren't Front Door origins.
+- The Aspire dashboard is a separate website that stays public. If you don't need it, turn it off with `WithDashboard(false)` (`withDashboard({ enable: false })` in TypeScript).
+- [Existing App Service plans](/integrations/cloud/azure/azure-app-service/azure-app-service-host/#connect-to-an-existing-app-service-plan) are supported.
+
+If you deploy the `aspire publish` output yourself, deploy the environment and website modules before the Front Door module, and pass each website's resource ID and location to _main.bicep_.
+
+#### Deployment slots
+
+Front Door Private Link can't target a [deployment slot](/integrations/cloud/azure/azure-app-service/azure-app-service-host/#deployment-slots), so with `WithDeploymentSlot` each origin targets the production site. The slot has public network access disabled and isn't reachable through Front Door, so deploy to the slot and swap it into production.
+
+With a deployment slot, Aspire doesn't update a production site that already exists. If that site is public, disable its public network access yourself.
+
+#### Calls between apps
+
+App Service has no internal route between apps. `WithReference` still resolves to each website's host name, which isn't publicly reachable. Callers must use the Front Door endpoint URLs or private networking and DNS that you set up. Don't pass a Front Door output to one of its own origins, because that creates a deployment dependency cycle. Configure those URLs after deployment instead.
+
+### Approve the connection requests
+
+Front Door creates each connection request in the `Pending` state. No traffic reaches the apps until you approve the requests, and Aspire doesn't approve them for you. Each request's description is `Azure Front Door <front-door> requests access to <environment>.` Front Door can create more than one request, so approve each one.
+
+Approve the requests in the Azure portal, under **Networking** for the Container Apps environment or for each App Service website, or with the Azure CLI:
+
+<Tabs syncKey='afd-private-link-target'>
+<TabItem label='Container Apps'>
+
+```bash title="Azure CLI"
+az containerapp env list --resource-group <resource-group> --query "[].name" --output tsv
+az network private-endpoint-connection list --type Microsoft.App/managedEnvironments --name <environment-name> --resource-group <resource-group> --query "[?properties.privateLinkServiceConnectionState.status=='Pending'].id" --output tsv
+az network private-endpoint-connection approve --id <connection-id>
+```
+
+</TabItem>
+<TabItem label='App Service'>
+
+```bash title="Azure CLI"
+az webapp list --resource-group <resource-group> --query "[].name" --output tsv
+az network private-endpoint-connection list --type Microsoft.Web/sites --name <website-name> --resource-group <resource-group> --query "[?properties.privateLinkServiceConnectionState.status=='Pending'].id" --output tsv
+az network private-endpoint-connection approve --id <connection-id>
+```
+
+Repeat the last two commands for each website.
+
+</TabItem>
+</Tabs>
+
+Traffic starts flowing a few minutes after approval. Reach each app through its Front Door endpoint host name, which is listed on the Front Door profile's **Overview** page in the Azure portal. Requests to the app's own URL are denied.
+
+### Private endpoint region
+
+Front Door Private Link is available only in [some regions](https://learn.microsoft.com/azure/frontdoor/private-link#region-availability). Aspire creates the private endpoint in the region of the Container Apps environment or App Service website when that region is supported. Otherwise, it uses the supported region in the same Azure geography, such as `westus2` for `westus`, which adds a network hop but keeps data in the same geography. If the geography has no supported region, such as Switzerland, deployment fails.
+
+To choose the region yourself, set it on each Private Link origin with `ConfigureInfrastructure` (`configureInfrastructure` in TypeScript). The following example works for both Container Apps and App Service:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+In a TypeScript AppHost, first add the experimental [typed provisioning proxies](/integrations/cloud/azure/customize-resources/#enable-typed-provisioning-proxies) for Front Door:
+
+```bash title="Aspire CLI"
+aspire add Aspire.Hosting.Azure.Provisioning.Cdn
+```
+
+```typescript title="apphost.mts"
+import { createBuilder, BicepValueKind } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const environment = await builder.addAzureContainerAppEnvironment("env");
+const frontDoor = await builder.addAzureFrontDoor("frontdoor");
+await frontDoor.configureInfrastructure(async (infrastructure) => {
+    for (const origin of await infrastructure.getFrontDoorOrigins()) {
+        const privateLink = await origin.sharedPrivateLinkResource.get();
+        const privateLinkId = await privateLink.privateLinkId.get();
+        // Skip origins that don't use Private Link.
+        if (await privateLinkId.kind() !== BicepValueKind.Unset) {
+            await privateLink.privateLinkLocation.set("westus2");
+        }
+    }
+});
+await environment.withAzureFrontDoorPrivateLink(frontDoor);
+
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj")
+    .withExternalHttpEndpoints();
+
+await frontDoor.withOrigin(api);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003 // WithAzureFrontDoorPrivateLink is experimental.
+
+using Azure.Provisioning.Cdn;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var environment = builder.AddAzureContainerAppEnvironment("env");
+var frontDoor = builder.AddAzureFrontDoor("frontdoor")
+    .ConfigureInfrastructure(infrastructure =>
+    {
+        foreach (var origin in infrastructure.GetProvisionableResources().OfType<FrontDoorOrigin>())
+        {
+            // Skip origins that don't use Private Link.
+            if (!origin.SharedPrivateLinkResource.PrivateLinkId.IsEmpty)
+            {
+                origin.SharedPrivateLinkResource.PrivateLinkLocation = "westus2";
+            }
+        }
+    });
+environment.WithAzureFrontDoorPrivateLink(frontDoor);
+
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithExternalHttpEndpoints();
+
+frontDoor.WithOrigin(api);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Changing the region of an existing deployment creates a new connection request that you must approve.
+
+### Troubleshooting
+
+| Symptom | Resolution |
+| ------- | ---------- |
+| Publish fails for an existing or Express Container Apps environment. | Use an environment that Aspire provisions. |
+| Publish fails because none of the Front Door's origins run in the connected environment. | Add an app from that environment with `WithOrigin`, or remove the `WithAzureFrontDoorPrivateLink` call. |
+| Publish fails because an origin runs in an environment that's connected to a different Front Door. | Also call `WithAzureFrontDoorPrivateLink` on that environment with this Front Door. |
+| Requests through Front Door fail after deployment. | Approve every pending connection request, then wait a few minutes. |
+| With a deployment slot, an existing production site is still publicly reachable. | Disable public network access on the site yourself. |
 
 ## See also
 
 - [Azure Front Door documentation](https://learn.microsoft.com/azure/frontdoor/)
 - [Azure Front Door tier comparison](https://learn.microsoft.com/azure/frontdoor/standard-premium/tier-comparison)
+- [Secure your origin with Private Link in Azure Front Door Premium](https://learn.microsoft.com/azure/frontdoor/private-link)
+- [Access a container app using Azure Front Door with Private Link](https://learn.microsoft.com/azure/container-apps/how-to-integrate-with-azure-front-door)
+- [Connect Azure Front Door to an App Service origin using Private Link](https://learn.microsoft.com/azure/frontdoor/standard-premium/how-to-enable-private-link-web-app)
+- [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/)
 - [Azure App Service integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/)
+- [ASPIREAZURE003](/diagnostics/aspireazure003/)
 - [Azure integration overview](/integrations/cloud/azure/overview/)

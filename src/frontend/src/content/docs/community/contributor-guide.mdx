@@ -9,11 +9,9 @@ tableOfContents:
 import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
-import { Aside, Code, Steps, LinkButton, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Code, Steps, LinkButton } from '@astrojs/starlight/components';
 import editPage from '@assets/community/edit-page.png';
 import editPageLight from '@assets/community/edit-page-light.png';
-import pnpm from '@assets/icons/pnpm.svg';
-import pnpmLight from '@assets/icons/pnpm-light.svg';
 
 Thank you for your interest in contributing to `aspire.dev`! Whether you're fixing typos, adding new content, or improving existing pages, this guide will help you get started and your contributions are greatly appreciated.
 
@@ -61,7 +59,7 @@ If you prefer to work locally, you can set up a development environment on your 
 Before you begin, ensure you have the following installed:
 
 - [Node.js](https://nodejs.org/en/download) (LTS version recommended) - For running the development server
-- [pnpm](https://pnpm.io/installation) - Fast, disk space efficient package manager
+- [Bun](https://bun.sh/docs/installation) - Fast JavaScript runtime and package manager that installs dependencies, runs scripts, and builds the site
 - [Visual Studio Code](https://code.visualstudio.com/) - Recommended code editor
 - [Git](https://git-scm.com/downloads) - For version control
 
@@ -83,34 +81,18 @@ Before you begin, ensure you have the following installed:
 
 1. Install dependencies
 
-    <Tabs syncKey="pkg-mgr">
-
-    <TabItem label="pnpm" icon="pnpm">
-		```bash
-    pnpm install
-    ```
-	  </TabItem>
-	  <TabItem label="npm" icon="npm">
     ```bash
-    npm install
+    bun install
     ```
 
-    :::tip[Stop using npm]{icon='seti:todo'}
-    If you're not already using `pnpm`, consider switching! <ThemeImage dark={pnpm} light={pnpmLight} alt="pnpm logo" zoomable={false} classOverride='inline' href={'https://pnpm.io/installation'} /> It's faster and more efficient than `npm` or `yarn`.
-    
-    Install globally with:
-
-    ```bash
-    npm install -g pnpm
-    ```
+    :::note
+    This repository uses [Bun](https://bun.sh/docs/installation) to install dependencies and run scripts. Other package managers don't use the repository's `bun.lock` or apply its dependency patches.
     :::
-	  </TabItem>
-    </Tabs>
 
 1. Run the development server
 
     ```bash
-    pnpm dev
+    bun run dev
     ```
 
     This starts the Vite development server for the frontend and provide hot-reload capabilities.
@@ -120,14 +102,14 @@ Before you begin, ensure you have the following installed:
     Open your browser to `http://localhost:4321` (or the port shown in your terminal)
 
     :::tip
-    During local development, the site search functionality is disabled. This is normal behavior as the search index is built during the production build process. To test search functionality, run a production build locally using `pnpm build` and then preview it with `pnpm preview`.
+    During local development, the site search functionality is disabled. This is normal behavior as the search index is built during the production build process. To test search functionality, run a production build locally using `bun run build` and then preview it with `bun run preview`.
     :::
 
 </Steps>
 
 ### Known formatting limitations
 
-We expose `lint` and `format` scripts in the `package.json` to help maintain code quality and consistency. This isn't something that you're need to run manually. However, regardless of whether or not you run these scrips, be aware of the following known limitation when working with MDX files.
+We expose `lint` and `format` scripts in the `package.json` to help maintain code quality and consistency. This isn't something that you need to run manually. However, regardless of whether or not you run these scripts, be aware of the following known limitation when working with MDX files.
 
 <Aside type="caution">
 
@@ -149,7 +131,7 @@ The Prettier formatter has a known limitation when formatting MDX files containi
 </Steps>
 ```
 
-Without the blank lines between steps, the inner content won't render correctly. If you notice steps appearing malformed after running `pnpm format`, manually add the blank lines back before committing.
+Without the blank lines between steps, the inner content won't render correctly. If you notice steps appearing malformed after running `bun run format`, manually add the blank lines back before committing.
 
 </Aside>
 
@@ -215,7 +197,7 @@ If you've built a new Community Toolkit hosting integration (e.g. `CommunityTool
 
 </Steps>
 
-After making these changes, run `pnpm dev` (or `aspire start`) locally to verify the page renders correctly, the sidebar navigation works, and the icon displays as expected.
+After making these changes, run `bun run dev` (or `aspire start`) locally to verify the page renders correctly, the sidebar navigation works, and the icon displays as expected.
 
 ## ✍️ Writing style guide
 
@@ -296,7 +278,13 @@ og: false
 ---
 ```
 
+Generated image URLs and site-relative `ogImage` overrides use the `site` URL in `astro.config.mjs`. An absolute `ogImage` URL is used unchanged.
+
 Pages that intentionally have no description (such as the home page or splash landing pages) fall back to the site-wide marketing description. Translated pages reuse the site-wide `og-image.png` so the same imagery is shown across locales.
+
+The [support policy page](/support/) uses a data-driven card instead of the generic one. Its `ogImage` frontmatter points at `/og/support.png`, which `src/pages/og/support.png.ts` renders at build time from the tables on the page. The card shows the supported version, its latest patch, when support ends, the newest out-of-support version, and the "Last updated" date. Because the card reads `support.mdx` directly, there is no second copy of the dates to update.
+
+Keep the "Supported versions" and "Out of support versions" headings, the table column names, and the "Last updated: Month D, YYYY" badge recognizable. `parseSupportLifecycle` in `src/utils/support-lifecycle.ts` matches on them, and `tests/unit/support-lifecycle.vitest.test.ts` fails if the page stops parsing.
 
 ### Headings
 
@@ -363,7 +351,7 @@ Renders as:
 :::note
 Site relative links should always include a trailing slash `/` at the end to ensure proper navigation.
 <LearnMore>
-This is confugred by default for `aspire.dev`, for more information see [Astro Docs: trailingSlash](https://docs.astro.build/en/reference/configuration-reference/#trailingslash).
+This is configured by default for `aspire.dev`, for more information see [Astro Docs: trailingSlash](https://docs.astro.build/en/reference/configuration-reference/#trailingslash).
 </LearnMore>
 :::
 
@@ -862,7 +850,7 @@ Here's an example of using the `LearnMore` component:
 
 Glossary definitions and examples live in `src/content/glossary/`. Follow an existing term as a template, keep filenames (term IDs) stable, and preserve `legacyAnchors` so existing links continue to work.
 
-To refresh the official blog archive used by Browse, run `pnpm update:blogs` from `src/frontend`. The Hub's featured posts remain curated separately in `src/data/dev-hub.ts`.
+To refresh the official blog archive used by Browse, run `bun run update:blogs` from `src/frontend`. The Hub's featured posts remain curated separately in `src/data/dev-hub.ts`.
 
 When changing interactive search components, reuse `SearchField` and the shared search styles rather than overriding input heights, typography, colors, or clear icons per page. Keep contextual layouts, but use the same full-size input treatment; compact navigation controls can use the shared small variant.
 
@@ -875,6 +863,16 @@ Empty-state recovery should preserve useful search intent: clear filters when th
 Show one recovery action in the empty state, without competing toolbar reset links. When results exist, show one toolbar action: **Clear filters** for filters alone, or **Reset all** for a query combined with filters. A query alone only needs the input's clear icon. Keep individual filter controls editable in every state.
 
 Test hub controls through client navigation as well as direct page loads. Selecting a different resource-results page smoothly scrolls to the breadcrumb after navigation settles, using the site's fixed-header scroll offset while preserving pagination focus. Respect reduced-motion preferences with instant scrolling. Selecting the current page is a no-op; search, filter, and browser-history scroll behavior remain unchanged. Astro removes `noscript` elements from incoming pages, so deferred resource images use inert templates with separate no-JavaScript markup. Preserve router-owned history state and dispose listeners when leaving a page.
+
+## Responsive component design
+
+Use the shared Aspire typography, icon, and control tokens from `src/styles/aspire-brand.css`. Body copy and editable fields use `--aspire-text-body`, secondary labels use `--aspire-text-small`, compact controls use `--aspire-text-control`, and noninteractive metadata uses `--aspire-text-meta`. Navigation glyphs use `--aspire-icon-size`; illustrative artwork can use its own dimensions.
+
+Compact mobile controls use `--aspire-touch-target` (34px at the default text size), matching the visual scale of **On this page**. Primary calls to action can be larger. Keep inline prose links inline, and size code-copy glyphs independently from their buttons. Let long labels grow vertically rather than clipping them. Use `ReadableText` for identifiers that should wrap at camel-case or punctuation boundaries without changing their text, and use the existing Starlight breakpoints at 50em and 72rem.
+
+Keep essential destinations reachable through the shared mobile menu. Breadcrumbs show a wrapping hierarchy trail with underlined ancestor links and the current page as plain text. Keep that navigation distinct from the **On this page** table of contents. When collapsing filters or other controls, remove the hidden controls from the tab order instead of clipping their container.
+
+Check new components at 320px, phone landscape, tablet, and desktop widths, in both themes. Verify keyboard focus, touch interaction, increased text size and spacing, and client-side navigation. Code blocks and two-dimensional tables may scroll within their own labeled regions; the entire page should not scroll horizontally.
 
 ## 🆘 Getting help
 

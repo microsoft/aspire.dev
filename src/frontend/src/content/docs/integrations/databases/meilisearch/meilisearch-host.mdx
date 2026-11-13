@@ -8,6 +8,7 @@ import { Image } from 'astro:assets';
 import { Aside, Badge, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import meilisearchIcon from '@assets/icons/meilisearch-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -72,6 +73,27 @@ This updates your `aspire.config.json` with the Meilisearch hosting integration 
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Meilisearch
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Meilisearch hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Meilisearch": "*"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Meilisearch resource
@@ -109,6 +131,39 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	meilisearch := builder.AddMeilisearch("meilisearch")
+
+	exampleProject := builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+	exampleProject.WithReference(meilisearch)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Steps>
@@ -117,7 +172,7 @@ await builder.build().run();
 
 1. The Meilisearch resource is configured with a randomly generated master key by default. To set an explicit master key, see [Add Meilisearch resource with master key parameter](#add-meilisearch-resource-with-master-key-parameter).
 
-1. The `WithReference` call configures a connection in the consuming project named after the referenced Meilisearch resource, such as `meilisearch` in the preceding example.
+1. The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> call configures a connection in the consuming project named after the referenced Meilisearch resource, such as `meilisearch` in the preceding example.
 
 </Steps>
 
@@ -127,7 +182,7 @@ await builder.build().run();
 
 ## Add Meilisearch resource with data volume
 
-To add a data volume to the Meilisearch resource, call the `WithDataVolume` method:
+To add a data volume to the Meilisearch resource, call the <ApiReference name="Aspire.Hosting.MeilisearchBuilderExtensions.WithDataVolume" /> method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -162,13 +217,47 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	meilisearch := builder.AddMeilisearch("meilisearch")
+	meilisearch.WithDataVolume()
+
+	exampleProject := builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+	exampleProject.WithReference(meilisearch)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 The data volume is used to persist Meilisearch data outside the lifecycle of its container. The data volume is mounted at the `/meili_data` path in the Meilisearch container. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-meilisearch-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 ## Add Meilisearch resource with data bind mount
 
-To add a data bind mount to the Meilisearch resource, call the `WithDataBindMount` method:
+To add a data bind mount to the Meilisearch resource, call the <ApiReference name="Aspire.Hosting.MeilisearchBuilderExtensions.WithDataBindMount" /> method:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -200,6 +289,40 @@ const exampleProject = await builder.addProject("apiservice", "../ExampleProject
 await exampleProject.withReference(meilisearch);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	meilisearch := builder.AddMeilisearch("meilisearch")
+	meilisearch.WithDataBindMount(`C:\Meilisearch\Data`)
+
+	exampleProject := builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+	exampleProject.WithReference(meilisearch)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>
@@ -247,6 +370,41 @@ const exampleProject = await builder.addProject("apiservice", "../ExampleProject
 await exampleProject.withReference(meilisearch);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	masterKey := builder.AddParameter("masterKey", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+	meilisearch := builder.AddMeilisearch("meilisearch", &aspire.AddMeilisearchOptions{MasterKey: &masterKey})
+
+	exampleProject := builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+	exampleProject.WithReference(meilisearch)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>

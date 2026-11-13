@@ -17,6 +17,7 @@ import {
   Tabs,
   TabItem,
 } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
@@ -35,8 +36,8 @@ Aspire 13.3 がリリースされました。今回は盛りだくさんの内�
 
 - Azure、Kubernetes、Compose 全体でプロビジョニングされたリソースを破棄する新しい **`aspire destroy`** コマンド、および **`aspire dashboard`** CLI をスタンドアロンで実行します。Aspire CLI は `dotnet tool` として利用可能になりました。
 - **ブラウザログとスクリーンショット** — 新しい `Aspire.Hosting.Browsers` 統合はフロントエンドコンソールログ、ネットワークリクエスト、スクリーンショットをキャプチャし、ダッシュボードのサーバー側テレメトリの横に表示します。
-- **`aspire deploy` から Kubernetes** (プレビュー) — `AddKubernetesEnvironment` を宣言すると、Aspire は Helm チャートを生成し、エンドツーエンドのデプロイメントパイプラインを実行します。新しい **Ingress** と **Gateway API ルーティング** リソースは AppHost レベルでトラフィックを記述します。
-- **JavaScript パブリッシュメソッド** (プレビュー) — 静的 SPA、SSR Node サーバー、npm スクリプトベースのデプロイメント向けの統合された `PublishAs*` ファミリ、および新しい `AddNextJsApp` ヘルパーと Bun、Yarn、pnpm の ファーストクラスサポート。
+- **`aspire deploy` から Kubernetes** (プレビュー) — <ApiReference name="Aspire.Hosting.KubernetesEnvironmentExtensions.AddKubernetesEnvironment" /> を宣言すると、Aspire は Helm チャートを生成し、エンドツーエンドのデプロイメントパイプラインを実行します。新しい **Ingress** と **Gateway API ルーティング** リソースは AppHost レベルでトラフィックを記述します。
+- **JavaScript パブリッシュメソッド** (プレビュー) — 静的 SPA、SSR Node サーバー、npm スクリプトベースのデプロイメント向けの統合された `PublishAs*` ファミリ、および新しい <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddNextJsApp" /> ヘルパーと Bun、Yarn、pnpm の ファーストクラスサポート。
 - **コンテナトンネル** がデフォルトで有効化され、Docker Desktop、Docker Engine、Podman 全体で均一なホスト接続性を提供します。
 - 大部分の残された C# AppHost とのギャップを閉じる **TypeScript AppHost** パリティの大規模な作業。
 - **`aspire init`** (プレビュー) — 新しい `aspireify` エージェントスキルで既存リポジトリに AppHost をブートストラップします。
@@ -637,11 +638,11 @@ await builder.build().run();
 
 ### `WithEndpoint` は既存のエンドポイントを更新
 
-`WithEndpoint` は同じ名前のエンドポイントが既に存在する場合、エラーをスローしなくなりました。2 回目の呼び出しは既存のエンドポイントを更新します — 拡張メソッド全体でエンドポイント設定をレイヤリングしやすくなります。
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEndpoint" /> は同じ名前のエンドポイントが既に存在する場合、エラーをスローしなくなりました。2 回目の呼び出しは既存のエンドポイントを更新します — 拡張メソッド全体でエンドポイント設定をレイヤリングしやすくなります。
 
 ### `WithReference()` から管理エンドポイントを除外
 
-エンドポイント注釈には `ExcludeReferenceEndpoint` フラグがあります。`true` に設定すると、エンドポイント (管理またはヘルスエンドポイントなど) はデフォルトの `WithReference()` 注入から除外されるため、コンシューマーが誤って管理 URL を受け取りません：
+エンドポイント注釈には `ExcludeReferenceEndpoint` フラグがあります。`true` に設定すると、エンドポイント (管理またはヘルスエンドポイントなど) はデフォルトの <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> 注入から除外されるため、コンシューマーが誤って管理 URL を受け取りません：
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='AppHost.cs'>
@@ -682,9 +683,9 @@ Aspire 信頼デベロッパー証明書は、より多くの場所で使用さ�
 
 Aspire 13.3 は、C# AppHost と TypeScript AppHost SDK 間の機能的ギャップのほぼすべてを閉じます：
 
-- **統合 `withEnvironment` API** — すべての環境変数値の種類 (エンドポイント、パラメータ、接続文字列、式) を処理する単一のメソッド。以前の種類ごとのヘルパーは非推奨になります。
+- **統合 <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> API** — すべての環境変数値の種類 (エンドポイント、パラメータ、接続文字列、式) を処理する単一のメソッド。以前の種類ごとのヘルパーは非推奨になります。
 - **エンドポイントプロパティ式** (`endpoint.url`、`endpoint.host`、`endpoint.port`) は TypeScript AppHost 式内で使用できるようになりました。
-- **Docker Compose API パリティ**: `PublishAsDockerComposeService` 等価フック とポスト処理が TypeScript で公開されます。
+- **Docker Compose API パリティ**: <ApiReference name="Aspire.Hosting.DockerComposeServiceExtensions.PublishAsDockerComposeService" /> 等価フック とポスト処理が TypeScript で公開されます。
 - **Azure Container Apps のカスタムドメイン設定** は TypeScript AppHost SDK で公開されます。
 - **統合 YARP TS ルートヘルパー** — `addRoute(...)`と `addCatchAllRoute(...)` が以前のアドホックヘルパーに置き換わります。
 - **`WithAdminDeploymentScriptSubnet`** は TypeScript AppHost 向けにエクスポートされます。
@@ -717,11 +718,11 @@ await api
 
 Aspire 13.3 は、C# と TypeScript AppHost の両方にファーストクラスの **JavaScript パブリッシング** をもたらします。新しい `PublishAs*` 拡張メソッドファミリは、最も一般的な JS デプロイメント形式の手巻き `Dockerfile` 配管に置き換わります：
 
-- **`PublishAsStaticWebsite`** (プレビュー) — JS アプリを YARP イメージで提供される静的ウェブサイトとして公開し、オプションでバックエンドリソースへの API リバースプロキシを追加します。SPA (Vite、プレーン Next.js エクスポート) に最適です。
-- **`PublishAsNodeServer`** — `node_modules` をランタイムでコピーしない自己完結型 Node エントリポイント (例、`server.js`) を公開します。事前バンドルされた Node サーバーに最適です。
+- **<ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsStaticWebsite" />** (プレビュー) — JS アプリを YARP イメージで提供される静的ウェブサイトとして公開し、オプションでバックエンドリソースへの API リバースプロキシを追加します。SPA (Vite、プレーン Next.js エクスポート) に最適です。
+- **<ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsNodeServer" />** — `node_modules` をランタイムでコピーしない自己完結型 Node エントリポイント (例、`server.js`) を公開します。事前バンドルされた Node サーバーに最適です。
 - **`PublishAsNpmScript`** — ランタイムで npm スクリプト (`start`/`serve`) を実行し、`package.json` と本番依存関係をコピーする Node アプリを公開します。完全な Nitro Next.js、Remix、Astro SSR に最適です。
 
-Aspire 13.3 は、既存の `AddViteApp` および `AddNodeApp` と共にファーストクラスの Next.js ヘルパーとしても **`AddNextJsApp`** を追加し、TypeScript AppHost での **Bun、Yarn、pnpm** のファーストクラスサポート (npm がデフォルト) を追加します。
+Aspire 13.3 は、既存の <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" /> および <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddNodeApp" /> と共にファーストクラスの Next.js ヘルパーとしても **`AddNextJsApp`** を追加し、TypeScript AppHost での **Bun、Yarn、pnpm** のファーストクラスサポート (npm がデフォルト) を追加します。
 
 <Aside type="caution">
   `PublishAsStaticWebsite` メソッドは 13.3 では実験的です。診断コード
@@ -917,7 +918,7 @@ VS Code から Aspire アプリを起動すると、ダッシュボード は **
 
 ### 🔍 ブラウザログとスクリーンショット
 
-新しい **Aspire.Hosting.Browsers** 統合は、開発中にフロントエンドリソースからブラウザコンソールログ、ネットワークリクエスト、スクリーンショットをキャプチャし、ダッシュボードにサーバー側テレメトリと共に表示します。フロントエンドリソースに `WithBrowserLogs()` を追加してこれを有効にします。
+新しい **Aspire.Hosting.Browsers** 統合は、開発中にフロントエンドリソースからブラウザコンソールログ、ネットワークリクエスト、スクリーンショットをキャプチャし、ダッシュボードにサーバー側テレメトリと共に表示します。フロントエンドリソースに <ApiReference name="Aspire.Hosting.BrowserLogsBuilderExtensions.WithBrowserLogs" /> を追加してこれを有効にします。
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='AppHost.cs'>
@@ -992,7 +993,7 @@ Npgsql クライアント統合が .NET 10 メトリック命名仕様に合致�
   data-zoom-off
 />
 
-アプリの前に CDN を取得するために ARM テンプレートを ステッチしたり、ポータルブレードをクリックしたりする必要がなくなりました。Aspire 13.3 は [Azure Front Door](https://learn.microsoft.com/ja-jp/azure/frontdoor/) の新しいホスティング統合を追加します。これは、高速で安全で高度に利用可能なウェブアプリのための Microsoft のグローバルエッジネットワークです。`AddAzureFrontDoor` でバックエンドの前に Front Door プロファイルを追加し、`WithOrigin` で オリジンを接続します：
+アプリの前に CDN を取得するために ARM テンプレートを ステッチしたり、ポータルブレードをクリックしたりする必要がなくなりました。Aspire 13.3 は [Azure Front Door](https://learn.microsoft.com/ja-jp/azure/frontdoor/) の新しいホスティング統合を追加します。これは、高速で安全で高度に利用可能なウェブアプリのための Microsoft のグローバルエッジネットワークです。<ApiReference name="Aspire.Hosting.AzureFrontDoorExtensions.AddAzureFrontDoor" /> でバックエンドの前に Front Door プロファイルを追加し、<ApiReference name="Aspire.Hosting.AzureFrontDoorExtensions.WithOrigin" /> で オリジンを接続します：
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='AppHost.cs'>
@@ -1039,7 +1040,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-各 `withOrigin` 呼び出しは、独自の Front Door エンドポイント、オリジングループ、オリジン、ルートをプロビジョニングし、すべてのバックエンドが独自の `*.azurefd.net` ホスト名を介して独立してルーティング可能です。統合は標準 SKU でデフォルトの Front Door をプロビジョニングします；`ConfigureInfrastructure` を使用して、Front Door、たとえば SKU の変更、Web Application Firewall (WAF) ポリシーの接続、キャッシング有効化などをカスタマイズします。
+各 `withOrigin` 呼び出しは、独自の Front Door エンドポイント、オリジングループ、オリジン、ルートをプロビジョニングし、すべてのバックエンドが独自の `*.azurefd.net` ホスト名を介して独立してルーティング可能です。統合は標準 SKU でデフォルトの Front Door をプロビジョニングします；<ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> を使用して、Front Door、たとえば SKU の変更、Web Application Firewall (WAF) ポリシーの接続、キャッシング有効化などをカスタマイズします。
 
 <LearnMore>
   詳細については、[Azure Front Door 
@@ -1117,7 +1118,7 @@ NSP は **Enforced** モード (ルール違反トラフィックをブロック
   進化する可能性があります。
 </Aside>
 
-Kubernetes にデプロイしたいが、手書きでマニフェストを書くことを避けたい場合、これはあなたのためです。Aspire 13.3 は **Azure Kubernetes Service のプロビジョニングとデプロイ** にファーストクラスサポートを追加します。`AddAzureKubernetesEnvironment` を使用して AKS 環境を宣言し、ノードプールをカスタマイズし、AppHost を Bicep + Helm ベースのデプロイメントパイプライン を生成させます — すべてタイプセーフ、すべてコードから。
+Kubernetes にデプロイしたいが、手書きでマニフェストを書くことを避けたい場合、これはあなたのためです。Aspire 13.3 は **Azure Kubernetes Service のプロビジョニングとデプロイ** にファーストクラスサポートを追加します。<ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.AddAzureKubernetesEnvironment" /> を使用して AKS 環境を宣言し、ノードプールをカスタマイズし、AppHost を Bicep + Helm ベースのデプロイメントパイプライン を生成させます — すべてタイプセーフ、すべてコードから。
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='AppHost.cs'>
@@ -1154,7 +1155,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`WithSystemNodePool` により、システムノードプールの VM サイズと自動スケーリング境界をカスタマイズできます。デフォルトでは AKS クラスタは **Free** コントロールプレーン SKU を使用します；`AksSkuTier` enum はもはや公開 API の一部ではありません。
+<ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.WithSystemNodePool" /> により、システムノードプールの VM サイズと自動スケーリング境界をカスタマイズできます。デフォルトでは AKS クラスタは **Free** コントロールプレーン SKU を使用します；`AksSkuTier` enum はもはや公開 API の一部ではありません。
 
 <LearnMore>
   詳細については、[Azure Kubernetes Service 
@@ -1168,7 +1169,7 @@ await builder.build().run();
 
 ### Azure AI Foundry Prompt Agent
 
-Aspire 13.3 は **Azure AI Foundry Prompt Agent** サポート `AddPromptAgent` の新しい作業実装をシップします。以前の `AddAndPublishPromptAgent` API および `AzurePromptAgentResource` の元の形 (エンドツーエンドで機能しなかった) は置き換わりました — `AddPromptAgent` は現在作業 `AzurePromptAgentResource` を返します。
+Aspire 13.3 は **Azure AI Foundry Prompt Agent** サポート <ApiReference name="Aspire.Hosting.PromptAgentBuilderExtensions.AddPromptAgent" /> の新しい作業実装をシップします。以前の `AddAndPublishPromptAgent` API および `AzurePromptAgentResource` の元の形 (エンドツーエンドで機能しなかった) は置き換わりました — `AddPromptAgent` は現在作業 `AzurePromptAgentResource` を返します。
 
 Foundry モデルカタログは 2 つの新しいモデル も獲得しました：**GPT-5.4** と **Qwen3 VL**。
 
@@ -1241,7 +1242,7 @@ Aspire はオープンに構築され、このリリースはあなたなしで�
 | 変更                                                                                                           | 移行                                                                                           |
 | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `aspire publish` および `aspire deploy` での `--log-level` を `--pipeline-log-level` に改名                          | スクリプト/CI を `--pipeline-log-level` を使用するように更新します。                                                    |
-| `package.json` `engines.node` はもはや生成 Dockerfile Node イメージを選択するために使用されません                  | `WithDockerfile` またはプロジェクトの Dockerfile ベースイメージで Node バージョンを明示的に指定します。   |
+| `package.json` `engines.node` はもはや生成 Dockerfile Node イメージを選択するために使用されません                  | <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithDockerfile" /> またはプロジェクトの Dockerfile ベースイメージで Node バージョンを明示的に指定します。   |
 | Azure Network リソースで `NameOutput` を `NameOutputReference` に改名                                         | `*.NameOutput` を `*.NameOutputReference` に置き換えます。                                   |
 | `OtlpEndpointEnvironmentVariableName` プロパティを削除                                                           | 参照を削除します；OTLP エンドポイント env var は自動的に管理されます。                          |
 | **ダッシュボード MCP サーバーを削除** (`ASPIRE_DASHBOARD_MCP_ENDPOINT_URL` とともに)                                | `aspire agent init` で AppHost レベルの MCP サーバーを使用します。                                          |

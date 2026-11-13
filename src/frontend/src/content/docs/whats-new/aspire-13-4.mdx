@@ -17,6 +17,7 @@ import {
   Tabs,
   TabItem,
 } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
@@ -29,10 +30,10 @@ We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline'
 This release introduces:
 
 - C# and TypeScript AppHosts are both supported as first-class options, with stronger TypeScript startup validation, more complete SDK generation, new TypeScript samples, and documentation parity with C# AppHost examples.
-- New hosting integrations provide AppHost APIs for [Go](/integrations/frameworks/go/go-get-started/) (`AddGoApp`) and first-party Bun support in `Aspire.Hosting.JavaScript` for [Bun](/integrations/frameworks/bun-apps/) (`AddBunApp`).
+- New hosting integrations provide AppHost APIs for [Go](/integrations/frameworks/go/go-get-started/) (<ApiReference name="Aspire.Hosting.GoHostingExtensions.AddGoApp" />) and first-party Bun support in `Aspire.Hosting.JavaScript` for [Bun](/integrations/frameworks/bun-apps/) (<ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddBunApp" />).
 - Kubernetes and AKS deployment improvements include [cert-manager integration, Gateway API and Azure Application Gateway for Containers (AGC) support](/deployment/kubernetes/aks/#expose-your-app-to-the-internet), Kubernetes manifest resources, external Helm charts, and consolidated Helm chart configuration.
 - Aspire workflow skills move into the new [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) bundle, with clearer separation between first-run setup, lifecycle orchestration, monitoring, AppHost wiring, and deployment guidance, plus eval-driven iteration on agent routing.
-- Resource commands gain typed arguments, visibility controls, immediate result display, named CLI options, resource-scoped help, built-in parameter command options, and the experimental `WithProcessCommand` API.
+- Resource commands gain typed arguments, visibility controls, immediate result display, named CLI options, resource-scoped help, built-in parameter command options, and the experimental <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithProcessCommand" /> API.
 - CLI discovery and diagnostics add `aspire integration list`, `aspire integration search`, `--search` for logs and telemetry, version checks in `aspire doctor`, better logs output, and more consistent command error handling.
 - Dashboard and editor updates include the AI Agents dialog, resource state fixes, CodeLens actions that appear without opening the Aspire panel, and improved VS Code terminal and debug output integration.
 - NATS, Azure Front Door, Foundry hosted agents, and other integrations are updated.
@@ -253,7 +254,7 @@ await builder.build().run();
 
 ## 🌐 Blazor WebAssembly hosting preview
 
-The new preview `Aspire.Hosting.Blazor` integration models standalone Blazor WebAssembly projects in your AppHost. Use `AddBlazorWasmProject` / `addBlazorWasmProject` to add a Blazor WebAssembly project and `AddBlazorGateway` / `addBlazorGateway` to add a browser-facing gateway, then associate the hosted client with `WithBlazorClientApp` / `withBlazorClientApp`.
+The new preview `Aspire.Hosting.Blazor` integration models standalone Blazor WebAssembly projects in your AppHost. Use <ApiReference name="Aspire.Hosting.BlazorGatewayExtensions.AddBlazorWasmProject" /> to add a Blazor WebAssembly project and <ApiReference name="Aspire.Hosting.BlazorGatewayExtensions.AddBlazorGateway" /> to add a browser-facing gateway, then associate the hosted client with `WithBlazorClientApp` / `withBlazorClientApp`.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -413,7 +414,7 @@ Command results can be configured to display immediately in the dashboard, makin
 
 ### Hide implementation-detail resources
 
-AppHost authors can keep resource views focused with `WithHidden()` and `WithHiddenOnCompletion()`. Hidden resources stay in the app model and remain addressable by name, but are excluded from the dashboard and CLI resource lists — useful for setup helpers, one-off migration services, or certificate-collection resources that are implementation details rather than things you interact with directly.
+AppHost authors can keep resource views focused with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHidden" /> and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHiddenOnCompletion" />. Hidden resources stay in the app model and remain addressable by name, but are excluded from the dashboard and CLI resource lists — useful for setup helpers, one-off migration services, or certificate-collection resources that are implementation details rather than things you interact with directly.
 
 ### ⚙️ Process-backed resource commands
 
@@ -468,7 +469,7 @@ await builder.build().run();
 
 ### 🔄 Persistent executable and project lifetimes
 
-Persistent lifetimes now extend beyond containers to executables and projects. Call `WithPersistentLifetime()` to leave a resource running when the AppHost exits and reuse the same instance on the next run, and `WithSessionLifetime()` to return a resource to the default behavior. This is useful for resources that are expensive to initialize, need stable local endpoints, or should stay available while you restart or rebuild the AppHost.
+Persistent lifetimes now extend beyond containers to executables and projects. Call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithPersistentLifetime" /> to leave a resource running when the AppHost exits and reuse the same instance on the next run, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithSessionLifetime" /> to return a resource to the default behavior. This is useful for resources that are expensive to initialize, need stable local endpoints, or should stay available while you restart or rebuild the AppHost.
 
 <Aside type="caution">
   The shared persistent and session lifetime APIs are experimental and emit
@@ -512,7 +513,7 @@ C# AppHost projects can opt in to using the installed Aspire CLI bundle as the s
 
 Kubernetes and Azure Kubernetes Service (AKS) deployment continue to expand in 13.4. Kubernetes environments can now model cert-manager resources through typed APIs, including cert-manager installation, ClusterIssuers backed by Let's Encrypt or custom ACME servers, and TLS wiring for gateways.
 
-For AKS, `AddAzureKubernetesEnvironment` now wires Azure Application Gateway for Containers (AGC) into the deployment flow. When `AddLoadBalancer(...)` is used, Aspire provisions the AGC ingress profile on AKS, assigns the required Network Contributor role to the controller identity, and exposes Gateway API routing for the application.
+For AKS, <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.AddAzureKubernetesEnvironment" /> now wires Azure Application Gateway for Containers (AGC) into the deployment flow. When <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.AddLoadBalancer" /> is used, Aspire provisions the AGC ingress profile on AKS, assigns the required Network Contributor role to the controller identity, and exposes Gateway API routing for the application.
 
 <LearnMore>
   For a complete walkthrough including custom domains, see [Deploy to AKS —
@@ -522,11 +523,11 @@ For AKS, `AddAzureKubernetesEnvironment` now wires Azure Application Gateway for
 
 ### Kubernetes manifests and external Helm charts
 
-Aspire 13.4 adds a Kubernetes manifest resource API for arbitrary manifests and an `AddHelmChart` API for installing external Helm charts as deployment pipeline steps. These APIs make it possible to include Kubernetes-native resources, ingress controllers, monitoring stacks, and other third-party charts alongside the resources generated from your Aspire application model.
+Aspire 13.4 adds a Kubernetes manifest resource API for arbitrary manifests and an <ApiReference name="Aspire.Hosting.KubernetesHelmChartExtensions.AddHelmChart" /> API for installing external Helm charts as deployment pipeline steps. These APIs make it possible to include Kubernetes-native resources, ingress controllers, monitoring stacks, and other third-party charts alongside the resources generated from your Aspire application model.
 
 ### Consolidated Helm chart configuration
 
-Helm chart name, version, description, release name, and namespace are now configured through the `WithHelm(...)` extension method. This replaces the previous parallel property-based configuration surface on `KubernetesEnvironmentResource` with one fluent entry point.
+Helm chart name, version, description, release name, and namespace are now configured through the <ApiReference name="Aspire.Hosting.KubernetesEnvironmentExtensions.WithHelm" /> extension method. This replaces the previous parallel property-based configuration surface on `KubernetesEnvironmentResource` with one fluent entry point.
 
 <LearnMore>
   For examples of `WithHelm(...)`, see the [Kubernetes integration](/integrations/compute/kubernetes/#configure-helm-chart-options).
@@ -534,7 +535,7 @@ Helm chart name, version, description, release name, and namespace are now confi
 
 ### Reuse an existing ACR pull identity
 
-When deploying to Azure Container Apps, Aspire normally emits a new user-assigned managed identity and an `AcrPull` role assignment so container apps can pull their images. If your deployment principal can't create identities or role assignments, or you want to reuse an existing identity, supply one with `WithAcrPullIdentity` / `withAcrPullIdentity`. The same API is available for both Azure Container App Environments and Azure App Service Environments.
+When deploying to Azure Container Apps, Aspire normally emits a new user-assigned managed identity and an `AcrPull` role assignment so container apps can pull their images. If your deployment principal can't create identities or role assignments, or you want to reuse an existing identity, supply one with <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.WithAcrPullIdentity" />. The same API is available for both Azure Container App Environments and Azure App Service Environments.
 
 <LearnMore>
   For details, see [Configure Azure Container Apps](/integrations/cloud/azure/configure-container-apps/).
@@ -542,7 +543,7 @@ When deploying to Azure Container Apps, Aspire normally emits a new user-assigne
 
 ### Azure Container Apps jobs are stable
 
-The Azure Container Apps jobs APIs — `PublishAsAzureContainerAppJob` and `PublishAsScheduledAzureContainerAppJob` — have graduated to stable. You can declare any project, container, or executable resource as a finite-duration job for batch processing, scheduled tasks, and event-driven workloads directly from your AppHost, without suppressing an experimental diagnostic.
+The Azure Container Apps jobs APIs — <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsAzureContainerAppJob" /> and <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsScheduledAzureContainerAppJob" /> — have graduated to stable. You can declare any project, container, or executable resource as a finite-duration job for batch processing, scheduled tasks, and event-driven workloads directly from your AppHost, without suppressing an experimental diagnostic.
 
 <LearnMore>
   For trigger types and scheduling, see [Azure Container Apps jobs](/integrations/cloud/azure/container-app-jobs/).
@@ -599,7 +600,7 @@ The [Go hosting integration](#go-hosting-integration) section covers the new Go 
 Azure Front Door CDN resources now use Azure.Provisioning's built-in name-generation algorithm instead of Aspire's custom logic. This removes Aspire's manual name-length cap and aligns generated resource names with Azure.Provisioning behavior.
 
 <Aside type="caution">
-  Upgrading from Aspire 13.3 can produce duplicate Front Door endpoint, origin group, or route names in existing deployments. Remove and re-add the affected resource, or set the resource `Name` explicitly with `ConfigureInfrastructure`, to avoid conflicts.
+  Upgrading from Aspire 13.3 can produce duplicate Front Door endpoint, origin group, or route names in existing deployments. Remove and re-add the affected resource, or set the resource `Name` explicitly with <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" />, to avoid conflicts.
 </Aside>
 
 <LearnMore>
@@ -646,7 +647,7 @@ Microsoft Foundry hosted agents also include deployment fixes: project endpoints
 
 ### RabbitMQ default image
 
-The default RabbitMQ container image has been bumped from 4.2 to 4.3. Existing AppHosts pick up the new image automatically on the next run; pin a specific tag with `WithImageTag(...)` if you need to stay on a particular version.
+The default RabbitMQ container image has been bumped from 4.2 to 4.3. Existing AppHosts pick up the new image automatically on the next run; pin a specific tag with <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithImageTag" /> if you need to stay on a particular version.
 
 <LearnMore>
   For RabbitMQ hosting setup, see the [RabbitMQ integration](/integrations/messaging/rabbitmq/rabbitmq-host/).
@@ -801,7 +802,7 @@ Update `ingress.WithRoute(...)` calls to `ingress.WithPath(...)`, and switch any
 
 Routing a non-external endpoint through a Kubernetes ingress or gateway now throws an `InvalidOperationException` at publish time instead of generating routes that can't resolve.
 
-Call `WithExternalHttpEndpoints()` (or otherwise mark the endpoint external) on any resource whose endpoint you route through an ingress or gateway.
+Call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" /> (or otherwise mark the endpoint external) on any resource whose endpoint you route through an ingress or gateway.
 
 ### Kubernetes Helm configuration consolidated on `WithHelm(...)`
 
@@ -817,13 +818,13 @@ Remove and re-add the affected resource, or set its `Name` explicitly with `Conf
 
 ### Foundry hosted agents: `WithComputeEnvironment` and `AddPromptAgent`
 
-The Azure AI Foundry hosted-agent API has been aligned with the rest of the app model: `PublishAsHostedAgent` is renamed to `WithComputeEnvironment`, `AddPromptAgent` now takes the resource name as its first parameter (before the model), and the preview-only `AsHostedAgent` / `RunAsHostedAgent` methods were removed.
+The Azure AI Foundry hosted-agent API has been aligned with the rest of the app model: `PublishAsHostedAgent` is renamed to <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithComputeEnvironment" />, <ApiReference name="Aspire.Hosting.PromptAgentBuilderExtensions.AddPromptAgent" /> now takes the resource name as its first parameter (before the model), and the preview-only <ApiReference name="Aspire.Hosting.HostedAgentResourceBuilderExtensions.AsHostedAgent" /> / `RunAsHostedAgent` methods were removed.
 
 Update hosted-agent registrations to call `WithComputeEnvironment` and pass the resource name first to `AddPromptAgent`.
 
 ### `PublishAsNpmPackageScript` renamed to `PublishAsPackageScript`
 
-The npm-specific publish helper has been generalized to support npm, pnpm, Yarn, and Bun. `PublishAsNpmPackageScript` is renamed to `PublishAsPackageScript`, and its `startScriptName` parameter is renamed to `scriptName`.
+The npm-specific publish helper has been generalized to support npm, pnpm, Yarn, and Bun. `PublishAsNpmPackageScript` is renamed to <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsPackageScript" />, and its `startScriptName` parameter is renamed to `scriptName`.
 
 Rename call sites from `PublishAsNpmPackageScript(...)` to `PublishAsPackageScript(...)` and update the parameter name.
 
@@ -835,7 +836,7 @@ Update references that assumed an HTTP primary endpoint to use the HTTPS endpoin
 
 ### PostgreSQL default image bumped to 18.3, breaking existing data volumes
 
-The default PostgreSQL container image used by `AddPostgres` moved from 17.6 to 18.3. PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`.
+The default PostgreSQL container image used by <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.AddPostgres" /> moved from 17.6 to 18.3. PostgreSQL 18 changed the on-disk data layout: the official `postgres` image now stores cluster files under a major-version-specific subdirectory of `/var/lib/postgresql` (for example, `/var/lib/postgresql/18/docker`), whereas PostgreSQL 17 and earlier stored data directly in `/var/lib/postgresql/data`.
 
 As a result, existing PostgreSQL data persisted with `WithDataVolume()` (a Docker volume) or `WithDataBindMount()` (a host bind mount) on PostgreSQL 17 (Aspire 13.3 or earlier) is incompatible with PostgreSQL 18 after upgrading to 13.4. The container fails to start with an error similar to:
 

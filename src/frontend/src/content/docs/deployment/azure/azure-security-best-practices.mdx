@@ -6,6 +6,7 @@ description: Harden Aspire deployments to Azure with private networking, managed
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 When you deploy Aspire apps to Azure, the base security posture comes from the deployment target you choose and the Azure resources you provision. This guide explains what Aspire configures for you by default and how to work with either the standard public networking model or the private-networked model, then harden the deployment with managed identities, Key Vault, and monitoring.
 
@@ -19,9 +20,9 @@ Aspire supports both of these Azure networking models:
 | Model | What it means |
 | --- | --- |
 | Default public model | Your compute uses the target's normal public ingress behavior, and managed Azure services stay on their standard public endpoints. |
-| Private-networked model | Your Azure Container Apps environment runs in a delegated subnet and/or your managed Azure services are exposed through private endpoints instead of public network access. |
+| Private-networked model | Your apps and services avoid public network access through any combination of a delegated subnet for the Azure Container Apps environment, private endpoints for managed Azure services, and Azure Front Door Private Link for app ingress. |
 
-Azure Container Apps supports both models. If you don't attach a delegated subnet, Aspire leaves the environment on the default platform-managed network. Azure App Service remains a public website model either way, so private networking there is primarily about the backing Azure services rather than the app's public site endpoint.
+Azure Container Apps supports both models. If you don't attach a delegated subnet, Aspire leaves the environment on the default platform-managed network. Azure App Service websites are public by default, so private networking there is primarily about the backing Azure services. To make the websites private, connect Azure Front Door to them over Private Link.
 
 <LearnMore>
 Start with [Deploy to Azure](/deployment/azure/) for the shared Azure deployment model, then see [Deploy to Azure Container Apps](/deployment/azure/container-apps/) or [Deploy to Azure App Service](/deployment/azure/app-service/) for target-specific behavior.
@@ -84,14 +85,14 @@ await builder.build().run();
 
 This pattern has a few important behaviors:
 
-- `WithDelegatedSubnet` configures the subnet delegation Azure Container Apps environments require.
-- `AddPrivateEndpoint` automatically creates the private DNS zone, virtual network link, and DNS zone group the target service needs.
+- <ApiReference name="Aspire.Hosting.AzureVirtualNetworkExtensions.WithDelegatedSubnet" /> configures the subnet delegation Azure Container Apps environments require.
+- <ApiReference name="Aspire.Hosting.AzurePrivateEndpointExtensions.AddPrivateEndpoint" /> automatically creates the private DNS zone, virtual network link, and DNS zone group the target service needs.
 - In publish and deploy flows, adding a private endpoint also disables public network access on the target Azure resource by default.
 - Resources that reference the target keep using the same connection information; private DNS resolves the hostname to the private IP inside the virtual network.
 
 If you omit `WithDelegatedSubnet` and `AddPrivateEndpoint`, Aspire keeps using the default public model.
 
-If you deploy compute to App Service instead of Azure Container Apps, the same private-endpoint guidance still applies to your backing Azure services. App Service itself remains a public website model.
+If you deploy compute to App Service instead of Azure Container Apps, the same private-endpoint guidance still applies to your backing Azure services.
 
 You can also add NSG rules to the delegated and private-endpoint subnets, and attach a NAT gateway when you need tighter ingress and egress control or deterministic outbound IP addresses.
 
@@ -101,6 +102,14 @@ The Azure Virtual Network integration is publish-only. During local `aspire run`
 
 <LearnMore>
 For service-specific requirements such as Service Bus Premium tier support and Azure SQL private-endpoint deployment scripts, see [Azure Virtual Network](/integrations/cloud/azure/azure-virtual-network/).
+</LearnMore>
+
+### Restrict ingress to Azure Front Door
+
+Private endpoints and delegated subnets protect traffic between your apps and their backing services. To also control how users reach the apps, put [Azure Front Door](/integrations/cloud/azure/azure-front-door/) in front of them and call `WithAzureFrontDoorPrivateLink` (`withAzureFrontDoorPrivateLink` in TypeScript). Aspire disables public network access on the Azure Container Apps environment or on each Azure App Service website. No traffic reaches the apps until you approve the private endpoint connections.
+
+<LearnMore>
+For examples, requirements, and approval steps, see [Private Link origins](/integrations/cloud/azure/azure-front-door/#private-link-origins).
 </LearnMore>
 
 ## Keep secrets and permissions scoped
@@ -217,5 +226,6 @@ For comprehensive guidance on Azure security, see [Azure security best practices
 - [Deploy to Azure Container Apps](/deployment/azure/container-apps/)
 - [Deploy to Azure App Service](/deployment/azure/app-service/)
 - [Azure Virtual Network](/integrations/cloud/azure/azure-virtual-network/)
+- [Azure Front Door Private Link origins](/integrations/cloud/azure/azure-front-door/#private-link-origins)
 - [Aspire Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started/)
 - [Aspire Azure user-assigned managed identity integration](/integrations/cloud/azure/user-assigned-identity/)

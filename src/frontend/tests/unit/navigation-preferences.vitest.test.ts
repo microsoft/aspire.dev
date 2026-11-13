@@ -54,6 +54,7 @@ test('restores destination preferences before sidebar initialization without dup
 
   for (const [path, language, apiCollapsed, topicCollapsed] of [
     ['/reference/api/typescript/', 'csharp', true, false],
+    ['/reference/api/go/', 'csharp', true, false],
     ['/get-started/app-host/?aspire-lang=typescript', 'typescript', false, true],
     ['/reference/api/csharp/', 'typescript', true, false],
   ] as const) {

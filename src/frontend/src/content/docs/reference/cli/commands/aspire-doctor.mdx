@@ -32,7 +32,7 @@ This command is useful for troubleshooting when you encounter issues with Aspire
 - **Aspire checks**: Reports the current Aspire CLI version and whether a newer CLI version is available, and suggests running `aspire update` when a newer one is available
 - **AppHost checks**: Reports the AppHost Aspire SDK version when an AppHost project is present in the current directory
 - **SDK checks**: Reports .NET SDK availability and version
-- **Container checks**: Validates container runtime (Docker and/or Podman) availability, running status, and version. Reports which runtime is active and why (explicit configuration, auto-detected default, or auto-detected only runtime running)
+- **Container checks**: Validates container runtime availability, running status, and version. On Windows, this includes WSLc in addition to Docker and Podman; on other platforms only Docker and Podman are checked. Marks the active runtime `← active`, or `← explicitly selected` when chosen via `ASPIRE_CONTAINER_RUNTIME`
 - **Environment checks**: Reports operating system information (type, version, and Linux distro details when available) and validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
 - **Development tools checks**: When VS Code is detected, reports whether the [Aspire VS Code extension](https://aka.ms/aspire/vscode-extension) is installed
 
@@ -72,6 +72,19 @@ This command is useful for troubleshooting when you encounter issues with Aspire
   Environment checks time out after 30 seconds each or two minutes in aggregate,
   and installation discovery times out after 30 seconds. If a timeout occurs,
   the `aspire doctor` result includes a warning.
+</Aside>
+
+<Aside type="note">
+  On Windows, `aspire doctor` also recognizes [WSLc](/get-started/prerequisites/#install-an-oci-compliant-container-runtime)
+  as a container runtime, alongside Docker and Podman. When
+  `ASPIRE_CONTAINER_RUNTIME` (or `DOTNET_ASPIRE_CONTAINER_RUNTIME`) is unset,
+  `aspire doctor` auto-detects and reports all installed runtimes in Docker,
+  Podman, WSLc priority order, and marks the selected one `← active`.
+  Incompatible or unhealthy alternatives are reported as non-blocking warnings
+  when a healthy runtime is available. Set `ASPIRE_CONTAINER_RUNTIME=wslc` to
+  select WSLc explicitly; it's then marked `← explicitly selected` and checked
+  on its own, without probing Docker or Podman. WSLc isn't supported when
+  Aspire runs inside a Linux WSL distribution, or on macOS and Linux.
 </Aside>
 
 The command displays results with clear status indicators:
@@ -136,7 +149,7 @@ AppHost
   ✅ .NET 10.0.203 installed (arm64)
 
 Container Runtime
-  ✅ Docker v28.5.1: running (auto-detected (default)) ← active
+  ✅ Docker v28.5.1: running ← active
 
 Environment
   ✅ Operating system: macOS 15.5.0
@@ -192,21 +205,52 @@ When only Podman is running:
 
 ```bash title="Aspire CLI"
 Container Runtime
-  ✅ Podman v5.3.0: running (auto-detected (only runtime running)) ← active
+  ✅ Podman v5.3.0: running ← active
   ❌ Docker is not installed
 ```
 
-When you set `ASPIRE_CONTAINER_RUNTIME=podman`, Aspire honors the explicit
-configuration and Podman becomes active even when Docker is also running:
+When you set `ASPIRE_CONTAINER_RUNTIME=podman`, only Podman is checked and it's
+marked explicitly selected, even when Docker is also installed and running:
 
 ```bash title="Aspire CLI"
 Container Runtime
-  ✅ Podman v5.3.0: running (explicit configuration) ← active
-  ✅ Docker v27.3.1: running (available)
+  ✅ Podman v5.3.0: running ← explicitly selected
 ```
 
-The active runtime is annotated with `← active`. Other detected runtimes are
-shown with `(available)`.
+The active runtime is annotated with `← active`; a runtime chosen via
+`ASPIRE_CONTAINER_RUNTIME` is annotated with `← explicitly selected` instead,
+and only that runtime is checked.
+
+On Windows, when multiple runtimes are installed, `aspire doctor` reports all of
+them in Docker, Podman, WSLc priority order and marks the active one `← active`: 
+
+```bash title="Aspire CLI"
+Container Runtime
+  ✅ Docker v29.8.2: running ← active
+  ⚠️ Podman: installed but not running
+  ✅ WSLc v3.0.3.0: running
+```
+
+When you set `ASPIRE_CONTAINER_RUNTIME=wslc`, Aspire checks only WSLc and marks
+it `← explicitly selected`:
+
+```bash title="Aspire CLI"
+Container Runtime
+  ✅ WSLc v3.0.3.0: running ← explicitly selected
+```
+
+If the selected WSLc client or session manager is older than the minimum
+supported version, `aspire doctor` reports a blocking failure instead of a
+warning:
+
+```bash title="Aspire CLI"
+Container Runtime
+  ❌ WSLc client version 3.0.1.0 is below minimum required 3.0.2.0 ← explicitly selected
+       Upgrade WSLc to version 3.0.2.0 or later. See: https://aka.ms/aspire/containers
+```
+
+WSLc is only recognized on Windows; setting `ASPIRE_CONTAINER_RUNTIME=wslc` on
+macOS or Linux reports a blocking failure recommending Docker or Podman instead.
 
 When VS Code is detected but the Aspire extension isn't installed, the Development tools section reports a warning:
 

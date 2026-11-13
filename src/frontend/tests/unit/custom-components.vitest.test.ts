@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import heroImage from '@assets/aspire-hero.png';
@@ -54,6 +57,7 @@ import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
+import ReadableText from '@components/ReadableText.astro';
 import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 import SampleCard from '@components/SampleCard.astro';
 import SampleDetail from '@components/SampleDetail.astro';
@@ -74,7 +78,7 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 import samplesData from '@data/samples.json';
-import { brandAssets, brandColors, brandGradients, brandAccents } from '@data/brand';
+import { brandAssets, brandColors, brandGradients, brandAccents, brandLicenseUrl } from '@data/brand';
 import daTranslations from '../../src/content/i18n/da.json';
 import deTranslations from '../../src/content/i18n/de.json';
 import enTranslations from '../../src/content/i18n/en.json';
@@ -215,12 +219,14 @@ describe('community brand components', () => {
     expect(html).toContain('<svg');
   });
 
-  it('renders the full read-only artwork license and Fira Code specimen', async () => {
+  it('renders an upstream license loader, direct-link fallback, and Fira Code specimen', async () => {
     const html = normalizeHtml(await renderComponent(BrandLicenseModal));
     expect(html).toContain('aria-labelledby="brand-artwork-license-title"');
     expect(html).toMatch(/<textarea[^>]* readonly/);
     expect(html).toContain('CC0 1.0 Universal');
-    expect(html).toContain('No trademark or patent rights held by Affirmer');
+    expect(html).toContain(`data-license-url="${brandLicenseUrl}"`);
+    expect(html).toContain('data-license-status');
+    expect(html).toContain('Open the original artwork license');
     const code = await renderComponent(BrandCodeTypography);
     expect(code).toContain('Fira Code Variable');
     expect(code).toContain('expressive-code');
@@ -239,8 +245,90 @@ describe('community brand components', () => {
     expect(dialog).not.toMatch(/<input[^>]* checked/);
     expect(dialog).toContain('Continue to download');
     expect(dialog).toContain('/community/brand/usage/');
-    expect(dialog).toContain('/brand/LICENSE.txt');
+    expect(dialog).toContain(brandLicenseUrl);
+    expect(dialog).toContain('When local storage is available');
+    const licenseLink = dialog.match(/<a[^>]*data-brand-license[^>]*>artwork license<\/a>/)?.[0];
+    expect(licenseLink).toContain(brandLicenseUrl);
+    expect(licenseLink).not.toContain('target=');
   });
+});
+
+it.each([
+  ['ResourceNotificationService', ['Resource', 'Notification', 'Service']],
+  ['RedisResource.withModule', ['Redis', 'Resource.', 'with', 'Module']],
+  ['SQLServerResource', ['SQL', 'Server', 'Resource']],
+  ['IResourceBuilder<RedisResource>', ['I', 'Resource', 'Builder', '<Redis', 'Resource>']],
+])('identifiers expose readable wrap boundaries without changing their text: %s', async (text, parts) => {
+  const html = await renderComponent(ReadableText, { props: { text } });
+  const rendered = html.trim();
+  expect(rendered.replaceAll('<wbr>', '')).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  expect(rendered.split('<wbr>')).toEqual(parts.map((part) => part.replaceAll('<', '&lt;').replaceAll('>', '&gt;')));
+});
+
+it.each(['Install Aspire CLI', 'Aspire 13.6', '日本語', 'plain text <script>'])(
+  'readable text preserves ordinary copy and escapes markup: %s',
+  async (text) => {
+    const html = await renderComponent(ReadableText, { props: { text } });
+    expect(html).not.toContain('<script>');
+    expect(html.replaceAll('<wbr>', '').trim()).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  }
+);
+
+it.each([
+  { Component: YouTubeEmbed, props: { videoId: 'test', title: null }, name: 'YouTube video player' },
+  { Component: TwitchEmbed, props: { channel: 'aspiredotdev', title: ' ' }, name: 'Twitch stream player' },
+])('media embeds retain an accessible name when the title is empty: $name', async ({ Component, props, name }) => {
+  expect(await renderComponent(Component, { props })).toContain(`aria-label="${name}"`);
+});
+
+it('breadcrumbs retain the nearest linked parent and semantic current page', async () => {
+  const html = await renderComponent(Breadcrumb, { props: { crumbs: [
+    { label: 'Docs', href: '/docs/' }, { label: 'Reference' }, { label: 'Current type' },
+  ] } });
+  expect(html).toMatch(/class="bc-parent\b[^"]*" href="\/docs\/"/);
+  expect(html).toMatch(/<ol class="bc-inline\b/);
+  expect(html).not.toContain('<details');
+  expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+  expect(html).toContain('aria-current="page"');
+});
+
+it.each([
+  ['ResourceNotificationService', ['Resource', 'Notification', 'Service']],
+  ['RedisResource.withModule', ['Redis', 'Resource.', 'with', 'Module']],
+  ['SQLServerResource', ['SQL', 'Server', 'Resource']],
+  ['IResourceBuilder<RedisResource>', ['I', 'Resource', 'Builder', '<Redis', 'Resource>']],
+])('identifiers expose readable wrap boundaries without changing their text: %s', async (text, parts) => {
+  const html = await renderComponent(ReadableText, { props: { text } });
+  const rendered = html.trim();
+  expect(rendered.replaceAll('<wbr>', '')).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  expect(rendered.split('<wbr>')).toEqual(parts.map((part) => part.replaceAll('<', '&lt;').replaceAll('>', '&gt;')));
+});
+
+it.each(['Install Aspire CLI', 'Aspire 13.6', '日本語', 'plain text <script>'])(
+  'readable text preserves ordinary copy and escapes markup: %s',
+  async (text) => {
+    const html = await renderComponent(ReadableText, { props: { text } });
+    expect(html).not.toContain('<script>');
+    expect(html.replaceAll('<wbr>', '').trim()).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  }
+);
+
+it.each([
+  { Component: YouTubeEmbed, props: { videoId: 'test', title: null }, name: 'YouTube video player' },
+  { Component: TwitchEmbed, props: { channel: 'aspiredotdev', title: ' ' }, name: 'Twitch stream player' },
+])('media embeds retain an accessible name when the title is empty: $name', async ({ Component, props, name }) => {
+  expect(await renderComponent(Component, { props })).toContain(`aria-label="${name}"`);
+});
+
+it('breadcrumbs retain the nearest linked parent and semantic current page', async () => {
+  const html = await renderComponent(Breadcrumb, { props: { crumbs: [
+    { label: 'Docs', href: '/docs/' }, { label: 'Reference' }, { label: 'Current type' },
+  ] } });
+  expect(html).toMatch(/class="bc-parent\b[^"]*" href="\/docs\/"/);
+  expect(html).toMatch(/<ol class="bc-inline\b/);
+  expect(html).not.toContain('<details');
+  expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+  expect(html).toContain('aria-current="page"');
 });
 
 it.each([
@@ -552,7 +640,7 @@ const basicRenderCases: BasicRenderCase[] = [
         { label: 'Aspire.Hosting' },
       ],
     },
-    includes: ['aria-label="Breadcrumb"', '/docs/', 'Reference', 'Aspire.Hosting'],
+    includes: ['aria-label="Breadcrumb"', '/docs/', 'Reference', 'Aspire.<wbr>Hosting'],
   },
   {
     name: 'Breadcrumb renders the shared Dev Hub logo',
@@ -563,7 +651,7 @@ const basicRenderCases: BasicRenderCase[] = [
         { label: 'Glossary' },
       ],
     },
-    includes: ['Dev Hub', '/hub/', 'M3.875 22.125', 'bc-inline', 'bc-dropdown'],
+    includes: ['Dev Hub', '/hub/', 'M3.875 22.125', 'bc-inline'],
   },
   {
     name: 'FeatureShowcase renders feature cards',
@@ -1239,6 +1327,37 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('fit="contain"');
   });
 
+  it('ThemeImage changes development URLs only when image contents change', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'theme-image-'));
+    const path = join(directory, 'diagram.png');
+    const contents = await readFile(new URL('../../src/assets/aspire-hero.png', import.meta.url));
+    const image = { ...heroImage, src: `/@fs/${path.replaceAll('\\', '/')}` };
+    const render = async () =>
+      normalizeHtml(
+        await renderComponent(ThemeImage, {
+          props: { light: image, dark: image, alt: 'Versioned diagram', zoomable: false },
+        })
+      );
+    const sources = (html: string) => [
+      html.match(/data-light="([^"]+)"/)?.[1],
+      html.match(/data-dark="([^"]+)"/)?.[1],
+    ];
+
+    try {
+      await writeFile(path, contents);
+      const first = sources(await render());
+      expect(first.every(Boolean)).toBe(true);
+      expect(sources(await render())).toEqual(first);
+
+      await writeFile(path, Buffer.concat([contents, Buffer.from('updated')]));
+      const updated = sources(await render());
+      expect(updated[0]).not.toEqual(first[0]);
+      expect(updated[1]).not.toEqual(first[1]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('LoopingImage defers themed requests until the page theme is known', async () => {
     const html = normalizeHtml(
       await renderComponent(LoopingImage, {
@@ -1870,6 +1989,28 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('footer-mobile-tool');
     expect(html).not.toContain('data-cookie-manage-consent');
     expect(html).not.toContain('data-open-install-modal');
+  });
+
+  it('links Aspire software to its MIT license without replacing website legal links', async () => {
+    const html = normalizeHtml(
+      await renderComponent(FooterLegal, {
+        locals: { t: createTestTranslator(enTranslations) },
+      })
+    );
+
+    expect(html).toMatch(
+      /<a[^>]*href="https:\/\/github\.com\/microsoft\/aspire\/blob\/main\/LICENSE\.TXT"[^>]*>\s*Aspire software: MIT License\s*<\/a>/
+    );
+    for (const href of [
+      'https://aka.ms/yourcaliforniaprivacychoices',
+      'https://go.microsoft.com/fwlink/?LinkId=521839',
+      'https://go.microsoft.com/fwlink/?LinkID=206977',
+      'https://go.microsoft.com/fwlink/?linkid=2196228',
+      '/support/',
+    ]) {
+      expect(html).toContain(`href="${href}"`);
+    }
+    expect(html).toContain('Terms of Use');
   });
 
   it('renders a unique scanner-addressable Manage Cookies action under Legal', async () => {

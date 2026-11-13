@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { dismissCookieConsentIfVisible } from './helpers';
+import { dismissCookieConsentIfVisible, revealMobileSiteMenu } from './helpers';
 
 // The analytics scripts ship inert (`type="text/plain"`) and are promoted to
 // executable at runtime once WCP reports Analytics consent. These selectors let
@@ -263,6 +263,7 @@ async function navigateWithConsent(page: Page, destination: 'videos' | 'home'): 
     destination === 'videos'
       ? page.locator('.live-btn:visible').first()
       : page.locator('.header .site-title');
+  if (destination === 'videos') await revealMobileSiteMenu(page);
   await link.click();
   await expect(page).toHaveURL(
     destination === 'videos' ? /\/community\/videos\/$/ : /^https?:\/\/[^/]+\/$/

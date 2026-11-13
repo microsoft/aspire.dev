@@ -22,11 +22,11 @@ export const communityTopics: StarlightSidebarTopicsUserConfig = {
   icon: 'heart',
   items: [
     {
-      label: 'Aspire Community',
+      label: 'Aspire community',
       translations: {
         da: 'Aspire-fællesskab',
         de: 'Aspire-Gemeinschaft',
-        en: 'Aspire Community',
+        en: 'Aspire community',
         es: 'Comunidad de Aspire',
         fr: 'Communauté Aspire',
         hi: 'Aspire समुदाय',

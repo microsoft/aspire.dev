@@ -19,7 +19,7 @@ import qdrantIcon from '@assets/icons/qdrant-icon.svg';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Qdrant Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a Qdrant resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Qdrant Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model a Qdrant resource in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Qdrant integration, start with the [Get started with Qdrant integrations](/integrations/databases/qdrant/qdrant-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Qdrant](../qdrant-connect/).
 
@@ -50,6 +50,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add qdrant
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Qdrant hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Qdrant": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add qdrant
@@ -103,6 +124,23 @@ await qdrant.withLifetime(ContainerLifetime.Persistent);
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(qdrant)
     .waitFor(qdrant);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+qdrant := builder.AddQdrant("qdrant").
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+builder.AddGoApp("api", "./api").
+	WithReference(qdrant).
+	WaitFor(qdrant)
 
 // After adding all resources, run the app...
 ```
@@ -168,6 +206,25 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+apiKey := builder.AddParameter("apiKey", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+qdrant := builder.AddQdrant("qdrant", &aspire.AddQdrantOptions{ApiKey: &apiKey}).
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+builder.AddGoApp("api", "./api").
+	WithReference(qdrant).
+	WaitFor(qdrant)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The `apiKey` parameter is usually specified as a user secret:
@@ -219,6 +276,24 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+qdrant := builder.AddQdrant("qdrant").
+	WithDataVolume().
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+builder.AddGoApp("api", "./api").
+	WithReference(qdrant).
+	WaitFor(qdrant)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The data volume is used to persist Qdrant data outside the lifecycle of its container. The data volume is mounted at the `/qdrant/storage` path in the Qdrant container, and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-qdrant-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
@@ -256,6 +331,24 @@ await qdrant.withLifetime(ContainerLifetime.Persistent);
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(qdrant)
     .waitFor(qdrant);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+qdrant := builder.AddQdrant("qdrant").
+	WithDataBindMount(`C:\Qdrant\Data`).
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+builder.AddGoApp("api", "./api").
+	WithReference(qdrant).
+	WaitFor(qdrant)
 
 // After adding all resources, run the app...
 ```

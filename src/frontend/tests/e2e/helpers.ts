@@ -1,7 +1,27 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
+
+export async function getSiteNavigationLink(page: Page, href: string): Promise<Locator> {
+  const headerLink = page.locator(`header a[href="${href}"]:visible`);
+  if (await headerLink.count()) return headerLink;
+
+  const menu = page.locator('starlight-menu-button button');
+  await expect(menu).toBeVisible();
+  if (await menu.getAttribute('aria-expanded') !== 'true') await menu.click();
+  const link = page.locator(`.mobile-site-links a[href="${href}"]`);
+  await expect(link).toBeVisible();
+  return link;
+}
 
 export async function resetCookieConsentState(page: Page): Promise<void> {
   await page.context().clearCookies();
+}
+
+// WCP decides per runner region whether to show its banner. When shown, the banner
+// pushes `.page` down and reveals the cookie button, so layout assertions need the
+// no-consent state. A cached `false` alone does not stop live WCP showing the banner.
+export async function emulateConsentNotRequiredRegion(page: Page): Promise<void> {
+  await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
+  await page.addInitScript(() => localStorage.setItem('aspireConsentRequired', 'false'));
 }
 
 export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
@@ -92,4 +112,11 @@ export async function waitForTopicSidebarReady(page: Page): Promise<void> {
 export function isNarrowViewport(page: Page): boolean {
   const viewport = page.viewportSize();
   return Boolean(viewport && viewport.width < 800);
+}
+
+export async function revealMobileSiteMenu(page: Page): Promise<void> {
+  const button = page.locator('starlight-menu-button button');
+  if (await button.isVisible() && await button.getAttribute('aria-expanded') !== 'true') {
+    await button.click();
+  }
 }

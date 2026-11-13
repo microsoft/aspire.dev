@@ -12,6 +12,7 @@ import proxyWithReplicas from '@assets/fundamentals/networking/proxy-with-replic
 import proxyHostPortAndRandomPort from '@assets/fundamentals/networking/proxy-host-port-and-random-port-1x.png';
 import proxyWithRandomPorts from '@assets/fundamentals/networking/proxy-with-random-ports-1x.png';
 import proxyWithDockerPortMapping from '@assets/fundamentals/networking/proxy-with-docker-port-mapping-1x.png';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire で開発する利点の 1 つは、クラウドネイティブ アプリをローカルで開発、テスト、デバッグできることです。内部ループ ネットワークは、開発環境でアプリ同士を通信させる Aspire の重要な要素です。この記事では、プロキシ、エンドポイント、エンドポイント構成、コンテナー ネットワークを通じて、Aspire がさまざまなネットワーク シナリオをどう処理するかを学びます。
 
@@ -51,7 +52,7 @@ flowchart LR
 
 内部ループとは、アプリをターゲット環境にデプロイする前に、ローカルで開発とテストを進めるプロセスです。Aspire は、内部ループでのネットワーク体験を簡素化して高めるために、次のようなツールと機能を提供します:
 
-- **エンドポイント / エンドポイント構成**: エンドポイントは、データベース、メッセージ キュー、API など、アプリが依存するサービスとの接続です。エンドポイントには、サービス名、ホスト ポート、スキーム、環境変数などの情報が含まれます。Aspire はリソース構成から自動でエンドポイントを作成でき、`WithEndpoint` の呼び出しで明示的に追加することもできます。
+- **エンドポイント / エンドポイント構成**: エンドポイントは、データベース、メッセージ キュー、API など、アプリが依存するサービスとの接続です。エンドポイントには、サービス名、ホスト ポート、スキーム、環境変数などの情報が含まれます。Aspire はリソース構成から自動でエンドポイントを作成でき、<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEndpoint" /> の呼び出しで明示的に追加することもできます。
 - **プロキシ**: Aspire は、アプリに追加した各サービス バインディングごとにプロキシを自動起動し、そのプロキシが待ち受けるポートを割り当てます。プロキシは、アプリが待ち受けるポート（プロキシ ポートと異なる場合があります）にリクエストを転送します。これにより、ポート競合を避けつつ、アプリとサービスに一貫した予測可能な URL でアクセスできます。
 - **コンテナー ネットワーク**: Aspire はコンテナー リソース用の専用ネットワークを作成・管理し、ローカル開発中にコンテナー同士が相互に検出して通信できるようにします。
 
@@ -101,7 +102,7 @@ Aspire はリソース構成からサービス バインディングを自動作
 
 既定では、コンテナーは DNS エイリアスとして **リソース名** を使ってコンテナー ネットワーク上からアクセスできます。たとえば `AddContainer("mydb", ...)` で追加したコンテナーは、他のコンテナーから `mydb:5432` で到達できます。
 
-サードパーティ ツールが特定のホスト名を期待する場合や、既存の Docker Compose 構成から移行する場合など、追加のエイリアスが必要になることがあります。カスタム DNS 名を追加するには `WithContainerNetworkAlias` を使います:
+サードパーティ ツールが特定のホスト名を期待する場合や、既存の Docker Compose 構成から移行する場合など、追加のエイリアスが必要になることがあります。カスタム DNS 名を追加するには <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithContainerNetworkAlias" /> を使います:
 
 ```csharp title="AppHost.cs"
 var redis = builder.AddRedis("cache")
@@ -130,7 +131,7 @@ var redis = builder.AddRedis("cache")
 
 ## ポートとプロキシ
 
-サービス バインディングを定義するとき、ホスト ポートは _常に_ サービス手前のプロキシに割り当てられます。これにより、サービスが単一レプリカでも複数レプリカでも同様に動作できます。さらに、`WithReference` API を使うすべてのリソース依存関係は、環境変数経由で渡されるプロキシ エンドポイントに依存します。
+サービス バインディングを定義するとき、ホスト ポートは _常に_ サービス手前のプロキシに割り当てられます。これにより、サービスが単一レプリカでも複数レプリカでも同様に動作できます。さらに、<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> API を使うすべてのリソース依存関係は、環境変数経由で渡されるプロキシ エンドポイントに依存します。
 
 サービスが複数レプリカで動作する場合にも、同じプロキシ パターンが適用されます。ブラウザーは引き続き 1 つの安定したホスト ポートに接続し、プロキシが利用可能なレプリカへトラフィックを振り分けます:
 
@@ -328,7 +329,7 @@ var adminApp = builder.AddProject<Projects.Admin>("admin")
 
 **よくある原因**:
 - コンテナーの起動がまだ完了していない
-- `WaitFor()` 依存関係が不足している
+- <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> 依存関係が不足している
 - コンテナー ネットワーク上のコンテナーに、ホスト側から接続しようとしている
 
 **解決策**:

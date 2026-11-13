@@ -1,11 +1,13 @@
-// Keep the upstream icon/license snapshot pinned. Re-export wordmarks with
+// Keep the upstream icon snapshot pinned. Re-export wordmarks with
 // scripts/generate-brand-wordmarks.mjs and update their hashes together.
 export const brandSource = {
   repository: 'https://github.com/microsoft/aspire-brand',
   revision: 'f9eb464dec47870de23d55dd7b3c00d39122813d',
-  licenseBlob: '670154e3538863b2d9891fd5483160fbdfc89164',
   wordmarkGenerator: 'scripts/generate-brand-wordmarks.mjs',
 } as const;
+
+export const brandLicenseUrl =
+  'https://raw.githubusercontent.com/microsoft/aspire-brand/main/LICENSE';
 
 export const brandDeckUrl =
   'https://microsoft.github.io/aspire-brand/slides/intro/Aspire-Spring26-IntroDeck.pptx';

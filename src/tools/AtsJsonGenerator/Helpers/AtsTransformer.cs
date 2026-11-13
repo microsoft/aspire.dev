@@ -22,20 +22,10 @@ internal static class AtsTransformer
         string? sourceCommit = null,
         bool tolerateKnownScannerDiagnostics = false)
     {
-        var errors = GetErrorDiagnostics(dump)
-            .Where(message => !tolerateKnownScannerDiagnostics || !KnownScannerDiagnostics.IsInheritedDuplicateCapability(message, dump))
-            .ToArray();
-        if (errors.Length > 0)
-        {
-            throw new InvalidOperationException($"ATS dump contains error diagnostics: {string.Join("; ", errors)}");
-        }
+        ThrowIfErrorDiagnostics(dump, tolerateKnownScannerDiagnostics);
 
         sourceRepository = NormalizeSourceRepository(sourceRepository);
-
-        // Fall back to the version from the dump's Packages metadata if not explicitly provided
-        version ??= dump.Packages
-            .FirstOrDefault(p => string.Equals(p.Name, packageName, StringComparison.OrdinalIgnoreCase))
-            ?.Version;
+        version = ResolvePackageVersion(dump, packageName, version);
 
         // Transform handle types
         var handleModels = dump.HandleTypes
@@ -101,7 +91,31 @@ internal static class AtsTransformer
             .Where(diagnostic => diagnostic.Severity.Equals("Error", StringComparison.OrdinalIgnoreCase))
             .Select(diagnostic => diagnostic.Message);
 
-    private static string? NormalizeSourceRepository(string? sourceRepository)
+    /// <summary>
+    /// Fails the transform when the dump carries error diagnostics, apart from the ones
+    /// <see cref="KnownScannerDiagnostics"/> attributes to known scanner defects when tolerated.
+    /// </summary>
+    internal static void ThrowIfErrorDiagnostics(AtsDumpRoot dump, bool tolerateKnownScannerDiagnostics)
+    {
+        var errors = GetErrorDiagnostics(dump)
+            .Where(message => !tolerateKnownScannerDiagnostics || !KnownScannerDiagnostics.IsInheritedDuplicateCapability(message, dump))
+            .ToArray();
+        if (errors.Length > 0)
+        {
+            throw new InvalidOperationException($"ATS dump contains error diagnostics: {string.Join("; ", errors)}");
+        }
+    }
+
+    /// <summary>
+    /// Returns <paramref name="version"/> when provided, otherwise the version recorded for the
+    /// package in the dump's Packages metadata.
+    /// </summary>
+    internal static string? ResolvePackageVersion(AtsDumpRoot dump, string packageName, string? version) =>
+        version ?? dump.Packages
+            .FirstOrDefault(p => string.Equals(p.Name, packageName, StringComparison.OrdinalIgnoreCase))
+            ?.Version;
+
+    internal static string? NormalizeSourceRepository(string? sourceRepository)
     {
         if (string.IsNullOrWhiteSpace(sourceRepository))
         {
@@ -275,7 +289,7 @@ internal static class AtsTransformer
     /// Treat whitespace-only XML doc strings as missing so they're omitted from
     /// the output JSON rather than serialized as empty strings.
     /// </summary>
-    private static string? NormalizeDoc(string? value)
+    internal static string? NormalizeDoc(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value;
 
     /// <summary>
@@ -574,7 +588,7 @@ internal static class AtsTransformer
     /// <summary>
     /// Extract the simple name from a fully-qualified name.
     /// </summary>
-    private static string SimpleName(string fullName)
+    internal static string SimpleName(string fullName)
     {
         // Handle generic types: don't split inside angle brackets
         if (fullName.Contains('<'))
