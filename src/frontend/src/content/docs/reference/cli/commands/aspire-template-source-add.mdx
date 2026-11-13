@@ -1,0 +1,99 @@
+---
+title: aspire template source add command
+description: Learn about the aspire template source add command and its usage. This command adds a named template source to global configuration after confirming you trust it.
+---
+
+import Include from '@components/Include.astro';
+
+## Name
+
+`aspire template source add` - Add a named template source to global configuration after confirming you trust it.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire template source add <name> [options]
+```
+
+## Description
+
+The `aspire template source add` command adds a named template source to global Aspire configuration. A template source is either a Git repository (`--repository`, optionally with `--path` and `--ref`) or an absolute local directory (`--path` without `--repository`).
+
+Templates can run code, so the command asks you to trust the source before it changes any configuration. After it validates the name and location, it writes the warning "Only use sources you trust. Content from these sources can run code on your machine." to standard error. Then it prompts for confirmation. The prompt shows the source name and its repository URL or local path, and defaults to **No**:
+
+```text
+Do you trust template source 'company' (https://example.com/templates)? [y/N]:
+```
+
+If you decline, the command is canceled and configuration isn't changed. To trust the source and skip the prompt, pass `--yes`.
+
+Non-interactive invocations, including invocations where interactive input isn't available, fail unless you pass `--yes`.
+
+## Arguments
+
+The following arguments are available:
+
+- **`name`**
+
+  The name of the template source. The name must be 1-64 ASCII letters, digits, dots (`.`), hyphens (`-`), or underscores (`_`), and must start with a letter or digit. Names are case-insensitive, and the command fails if a template source with the same name already exists.
+
+## Options
+
+The following options are available:
+
+- **`--path`**
+
+  The template directory. Its meaning depends on whether `--repository` is specified:
+
+  - Without `--repository`, `--path` must be an absolute local directory that contains templates.
+  - With `--repository`, `--path` is a directory relative to the repository root. It can't be an absolute path or use `..` to point outside the repository. It defaults to the repository root (`.`).
+
+- **`--repository`**
+
+  An HTTPS or SSH Git repository URL that contains templates.
+
+- **`--ref`**
+
+  A Git branch, tag, or full commit SHA. Requires `--repository` and defaults to `HEAD`.
+
+- **`-y, --yes`**
+
+  Trust the template source and skip confirmation.
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
+
+- <Include relativePath="reference/cli/includes/option-wait.md" />
+
+## Examples
+
+- Add a template source and confirm trust interactively:
+
+  ```bash title="Aspire CLI"
+  aspire template source add company --repository https://example.com/templates
+  ```
+
+- Add a template source from a subdirectory of a repository at a specific tag:
+
+  ```bash title="Aspire CLI"
+  aspire template source add company --repository https://example.com/templates --path templates/web --ref v1.0.0
+  ```
+
+- Add a template source from an absolute local directory:
+
+  ```bash title="Aspire CLI"
+  aspire template source add local --path /home/user/templates
+  ```
+
+- Add a template source in automation by explicitly trusting it:
+
+  ```bash title="Aspire CLI"
+  aspire template source add company --repository https://example.com/templates --non-interactive --yes
+  ```
