@@ -202,7 +202,7 @@ test('announcement links remain text links with a separate dismiss column', asyn
   test.skip(testInfo.project.name !== 'desktop-chromium', 'Explicit banner sizes are covered once.');
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 844 });
-    await open(page, '/');
+    await open(page, '/docs/');
     const banner = page.locator('[data-aspire-banner]');
     await expect(banner).toBeVisible();
     const content = (await banner.locator('.sl-banner__content').boundingBox())!;

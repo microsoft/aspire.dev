@@ -86,6 +86,7 @@ import {
   currentAspireMajorMinorVersion,
   currentAspireReleaseDate,
   currentAspireVersion,
+  latestAspireReleaseVersion,
 } from '../../config/aspire-versions.mjs';
 
 type BasicRenderCase = {
@@ -1755,6 +1756,15 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('home-hero-story');
     expect(html).toContain('Compose distributed apps in');
     expect(html).toContain('code.');
+    expect(html).toContain(`v${latestAspireReleaseVersion}`);
+    expect(html).toContain(
+      `href="https://github.com/microsoft/aspire/releases/tag/v${latestAspireReleaseVersion}"`
+    );
+    expect(html).toContain(
+      `title="View the Aspire ${latestAspireReleaseVersion} release on GitHub"`
+    );
+    expect(html).toContain('data-tooltip-placement="top"');
+    expect(html).not.toContain('home-release-support');
     expect(html).toContain('home-hero-product');
     expect(html).toContain('The AppHost defines how your resources connect.');
     expect(html).not.toContain('home-apphost-intro');
