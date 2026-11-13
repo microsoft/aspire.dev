@@ -20,7 +20,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Garnet Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a Garnet resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Garnet Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model a Garnet resource in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Garnet integration, start with the [Get started with Garnet integrations](/integrations/caching/garnet/garnet-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Garnet](../garnet-connect/).
 
@@ -71,6 +71,27 @@ This updates your `aspire.config.json` with the Garnet hosting integration packa
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add garnet
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Garnet hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Garnet": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Garnet resource
@@ -100,6 +121,21 @@ const cache = await builder.addGarnet("cache");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddGarnet("cache")
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -155,6 +191,22 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddGarnet("cache").
+	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The data volume is used to persist Garnet data outside the lifecycle of its container. The data volume is mounted at the `/data` path in the Garnet container, and when a `name` parameter isn't provided, the name is generated at random. Calling <ApiReference name="Aspire.Hosting.GarnetBuilderExtensions.WithDataVolume" /> also enables Garnet persistence so the in-memory state survives container restarts. For more information on data volumes and details on why they're preferred over [bind mounts](#add-garnet-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
@@ -190,6 +242,22 @@ await cache.withDataBindMount("/Garnet/Data", { isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddGarnet("cache").
+	WithDataBindMount("/Garnet/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -241,12 +309,31 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddGarnet("cache").
+	WithDataVolume().
+	WithPersistence(&aspire.WithPersistenceOptions{
+		Interval: aspire.Float64Ptr(5 * 60 * 1000),
+	})
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
-The preceding code adds explicit persistence to the Garnet resource by snapshotting data at the configured interval. The C# AppHost accepts a `TimeSpan` for `interval` and a `keysChangedThreshold` to also trigger snapshots when a minimum number of keys change; the TypeScript AppHost accepts the interval as milliseconds.
+The preceding code adds explicit persistence to the Garnet resource by snapshotting data at the configured interval. The C# AppHost accepts a `TimeSpan` for `interval` and a `keysChangedThreshold` to also trigger snapshots when a minimum number of keys change; the TypeScript and Go AppHosts accept the interval as milliseconds.
 
 :::note
-The TypeScript `WithPersistenceOptions` does not currently expose `keysChangedThreshold`. If you need threshold-based snapshotting, use the C# AppHost.
+The TypeScript and Go `WithPersistenceOptions` don't currently expose `keysChangedThreshold`. If you need threshold-based snapshotting, use the C# AppHost.
 :::
 
 ## Add Garnet resource with parameters
@@ -280,6 +367,26 @@ const cache = await builder.addGarnet("cache", { port: 6379, password });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+cache := builder.AddGarnet("cache", &aspire.AddGarnetOptions{
+	Port:     aspire.IntPtr(6379),
+	Password: &password,
+})
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -331,6 +438,34 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddGarnet("cache")
+cacheEndpoint := cache.GetEndpoint("tcp")
+cacheHost := cacheEndpoint.Property(aspire.EndpointPropertyHost)
+cachePort := cacheEndpoint.Property(aspire.EndpointPropertyPort)
+
+app := builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(cache).
+	WithEnvironment("GARNET_HOST", cacheHost).
+	WithEnvironment("GARNET_PORT", cachePort).
+	WithEnvironment("GARNET_PASSWORD", cache.PasswordParameter())
+
+
+application, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := application.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 ## Connect to an existing Garnet instance
@@ -363,6 +498,28 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddConnectionString("cache")
+
+app := builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(cache)
+
+// After adding all resources, run the app...
+application, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := application.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>

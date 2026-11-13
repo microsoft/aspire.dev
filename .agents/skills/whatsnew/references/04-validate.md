@@ -1,12 +1,12 @@
 # `{validate}` — factual + build-readiness correctness (looped)
 
-Prove the article is good-to-go **without running `pnpm build`**. The core is a
+Prove the article is good-to-go **without running `bun run build`**. The core is a
 **Ralph loop** around `doc-pr-reviewer` until the (large) diff is 100% factual *and
 still engaging*.
 
 ## Does NOT
 
-- **Never runs `pnpm build`** locally. Verify build-readiness by inspection instead.
+- **Never runs `bun run build`** locally. Verify build-readiness by inspection instead.
 
 ## Core loop (Ralph)
 
