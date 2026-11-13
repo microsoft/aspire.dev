@@ -668,6 +668,74 @@ builder.build().run();
 ```
 
 </TabItem>
+<TabItem label="Go">
+
+```go
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Parameters
+	registryEndpoint := builder.AddParameter("registryEndpoint")
+	helmNamespace := builder.AddParameter("helmNamespace")
+	helmChartVersion := builder.AddParameter("helmChartVersion")
+	helmChartReleaseName := builder.AddParameter("helmChartReleaseName")
+	ingressClassName := builder.AddParameter("ingressClassName")
+	loadBalancerName := builder.AddParameter("loadBalancerName")
+	loadBalancerNamespace := builder.AddParameter("loadBalancerNamespace")
+	clusterIssuer := builder.AddParameter("clusterIssuer")
+
+	// Kubernetes environment
+	k8s := builder.AddKubernetesEnvironment("k8s").
+		WithHelm(aspire.HelmConfigure(func(helm aspire.HelmChartOptions) {
+			helm.WithNamespace(helmNamespace).
+				WithChartVersion(helmChartVersion).
+				WithReleaseName(helmChartReleaseName)
+		}))
+
+	// Container registry
+	builder.AddContainerRegistry("acr", registryEndpoint)
+
+	// Application services
+	api := builder.AddGoApp("api", "./api")
+	frontend := builder.AddGoApp("frontend", "./frontend").
+		WithReference(api)
+
+	// Ingress. In Go, the hostname is a literal string and
+	// WithTls takes the name of the TLS secret.
+	k8s.AddIngress("ingress").
+		WithIngressClassParam(ingressClassName).
+		WithIngressAnnotationParam(
+			"alb.networking.azure.io/alb-name", loadBalancerName).
+		WithIngressAnnotationParam(
+			"alb.networking.azure.io/alb-namespace", loadBalancerNamespace).
+		WithIngressAnnotationParam(
+			"cert-manager.io/cluster-issuer", clusterIssuer).
+		WithDefaultBackend(frontend.GetEndpoint("http")).
+		WithHostname("app.example.com").
+		WithTls("ingress-tls")
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Deploy
@@ -798,6 +866,20 @@ const ingress = k8s.addIngress("ingress")
 ```
 
 </TabItem>
+<TabItem label="Go">
+
+```go
+k8s.AddIngress("ingress").
+	WithIngressClassParam(ingressClassName).
+	WithIngressAnnotationParam(
+		"alb.networking.azure.io/alb-name", loadBalancerName).
+	WithIngressAnnotationParam(
+		"alb.networking.azure.io/alb-namespace", loadBalancerNamespace).
+	WithDefaultBackend(frontend.GetEndpoint("http")).
+	WithHostname("app.example.com")
+```
+
+</TabItem>
 </Tabs>
 
 </details>
@@ -839,6 +921,19 @@ const ingress = k8s.addIngress("ingress")
     .withIngressAnnotation(
         "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
     .withDefaultBackend(frontend.getEndpoint("http"));
+```
+
+</TabItem>
+<TabItem label="Go">
+
+```go
+k8s.AddIngress("ingress").
+	WithIngressClassParam(ingressClassName).
+	WithIngressAnnotationParam(
+		"alb.networking.azure.io/alb-name", loadBalancerName).
+	WithIngressAnnotationParam(
+		"alb.networking.azure.io/alb-namespace", loadBalancerNamespace).
+	WithDefaultBackend(frontend.GetEndpoint("http"))
 ```
 
 </TabItem>

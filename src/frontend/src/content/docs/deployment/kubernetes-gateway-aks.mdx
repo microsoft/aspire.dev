@@ -494,6 +494,63 @@ builder.build().run();
 ```
 
 </TabItem>
+<TabItem label="Go">
+
+```go
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	// Parameters for deployment configuration
+	registryEndpoint := builder.AddParameter("registryEndpoint")
+	gatewayClassName := builder.AddParameter("gatewayClassName")
+	loadBalancerName := builder.AddParameter("loadBalancerName")
+	loadBalancerNamespace := builder.AddParameter("loadBalancerNamespace")
+
+	// Kubernetes environment
+	k8s := builder.AddKubernetesEnvironment("k8s")
+
+	// Container registry
+	builder.AddContainerRegistry("acr", registryEndpoint)
+
+	// Application services
+	api := builder.AddGoApp("api", "./api")
+	frontend := builder.AddGoApp("frontend", "./frontend").
+		WithReference(api)
+
+	// Gateway with TLS. In Go, the hostname is a literal string and
+	// WithTls takes the name of the TLS secret.
+	k8s.AddGateway("ingress").
+		WithGatewayClassParam(gatewayClassName).
+		WithGatewayAnnotationParam(
+			"alb.networking.azure.io/alb-name", loadBalancerName).
+		WithGatewayAnnotationParam(
+			"alb.networking.azure.io/alb-namespace", loadBalancerNamespace).
+		WithGatewayPathRoute("/", frontend.GetEndpoint("http")).
+		WithHostname("app.example.com").
+		WithTls("ingress-tls")
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 The <ApiReference name="Aspire.Hosting.KubernetesGatewayExtensions.WithTls" /> call with no arguments auto-generates the TLS secret name (`ingress-tls`) and adds a cert-manager annotation to the Gateway referencing the `ClusterIssuer` specified via the `clusterIssuer` parameter.
@@ -708,6 +765,20 @@ const gateway = k8s.addGateway("ingress")
 ```
 
 </TabItem>
+<TabItem label="Go">
+
+```go
+k8s.AddGateway("ingress").
+	WithGatewayClassParam(gatewayClassName).
+	WithGatewayAnnotationParam(
+		"alb.networking.azure.io/alb-name", loadBalancerName).
+	WithGatewayAnnotationParam(
+		"alb.networking.azure.io/alb-namespace", loadBalancerNamespace).
+	WithGatewayPathRoute("/", frontend.GetEndpoint("http")).
+	WithHostname("app.example.com")
+```
+
+</TabItem>
 </Tabs>
 
 </details>
@@ -747,6 +818,19 @@ const gateway = k8s.addGateway("ingress")
     .withGatewayAnnotation(
         "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
     .withRoute("/", frontend.getEndpoint("http"));
+```
+
+</TabItem>
+<TabItem label="Go">
+
+```go
+k8s.AddGateway("ingress").
+	WithGatewayClassParam(gatewayClassName).
+	WithGatewayAnnotationParam(
+		"alb.networking.azure.io/alb-name", loadBalancerName).
+	WithGatewayAnnotationParam(
+		"alb.networking.azure.io/alb-namespace", loadBalancerNamespace).
+	WithGatewayPathRoute("/", frontend.GetEndpoint("http"))
 ```
 
 </TabItem>

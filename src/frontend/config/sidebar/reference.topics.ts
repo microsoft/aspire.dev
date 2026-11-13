@@ -607,6 +607,24 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               ],
             },
             {
+              label: 'aspire tray',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire tray',
+                  slug: 'reference/cli/commands/aspire-tray',
+                },
+                {
+                  label: 'aspire tray start',
+                  slug: 'reference/cli/commands/aspire-tray-start',
+                },
+                {
+                  label: 'aspire tray stop',
+                  slug: 'reference/cli/commands/aspire-tray-stop',
+                },
+              ],
+            },
+            {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',
             },
@@ -869,6 +887,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREPIPELINES003',
               link: '/diagnostics/aspirepipelines003',
+            },
+            {
+              label: 'ASPIREPIPELINES005',
+              link: '/diagnostics/aspirepipelines005',
             },
             {
               label: 'ASPIREPROXYENDPOINTS001',

@@ -18,7 +18,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure PostgreSQL Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Azure Database for PostgreSQL flexible server and database resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure PostgreSQL Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model Azure Database for PostgreSQL flexible server and database resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure PostgreSQL integration, start with the [Get started with Azure Database for PostgreSQL integrations](/integrations/cloud/azure/azure-postgresql/azure-postgresql-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure PostgreSQL](../azure-postgresql-connect/). For the PostgreSQL Entity Framework Core (EF Core) client integration, see [Get started with the PostgreSQL Entity Framework Core integrations](/integrations/databases/efcore/postgres/postgresql-get-started/).
 
@@ -50,6 +50,28 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-postgres
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure PostgreSQL hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.PostgreSQL": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add azure-postgres
@@ -110,6 +132,25 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddAzurePostgresFlexibleServer("postgres")
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WaitFor(postgresdb).
+	WithReference(postgresdb)
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>
@@ -180,6 +221,30 @@ await builder.addNodeApp("orders", "./orders", "index.js")
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddAzurePostgresFlexibleServer("postgres")
+catalogDb := postgres.AddDatabase("catalogdb")
+ordersDb := postgres.AddDatabase("ordersdb")
+
+builder.AddGoApp("catalog", "./catalog").
+	WithReference(catalogDb).
+	WaitFor(catalogDb)
+
+builder.AddGoApp("orders", "./orders").
+	WithReference(ordersDb).
+	WaitFor(ordersDb)
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 You can also customize the underlying database name (as distinct from the Aspire resource name) by passing `databaseName` in the options:
@@ -193,6 +258,13 @@ var postgresdb = postgres.AddDatabase("postgresdb", databaseName: "app_catalog")
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="apphost.mts"
 const postgresdb = await postgres.addDatabase("postgresdb", { databaseName: "app_catalog" });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+postgresdb := postgres.AddDatabase("postgresdb", &aspire.AddDatabaseOptions{
+	DatabaseName: aspire.StringPtr("app_catalog"),
+})
 ```
 </TabItem>
 </Tabs>
@@ -238,6 +310,27 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+postgres := builder.AddAzurePostgresFlexibleServer("postgres")
+postgres.RunAsContainer()
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb).
+	WaitFor(postgresdb)
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>
@@ -302,6 +395,27 @@ await builder.addNodeApp("api", "./api", "index.js")
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingPostgresName := builder.AddParameter("existingPostgresName")
+existingPostgresResourceGroup := builder.AddParameter("existingPostgresResourceGroup")
+
+postgres := builder.AddAzurePostgresFlexibleServer("postgres")
+postgres.AsExisting(existingPostgresName, aspire.AsExistingResourceGroup(existingPostgresResourceGroup))
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgres)
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
 </Tabs>
 
 For more information on treating Azure resources as existing, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
@@ -353,6 +467,33 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+username := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+postgres := builder.AddAzurePostgresFlexibleServer("postgres")
+postgres.WithPasswordAuthentication(
+	aspire.PasswordAuthenticationUserName(username),
+	aspire.PasswordAuthenticationPassword(password),
+)
+
+postgresdb := postgres.AddDatabase("postgresdb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(postgresdb).
+	WaitFor(postgresdb)
+
+// After adding all resources, run the app...
+```
 
 </TabItem>
 </Tabs>

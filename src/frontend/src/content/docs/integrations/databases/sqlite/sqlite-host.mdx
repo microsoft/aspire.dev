@@ -77,6 +77,27 @@ This updates your `aspire.config.json` with the SQLite hosting integration packa
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add sqlite
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the SQLite hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Sqlite": "*"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add SQLite resource
@@ -111,6 +132,29 @@ const exampleProject = await builder.addProject("apiservice", "../ExampleProject
 await exampleProject.withReference(sqlite);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sqlite := builder.AddSqlite("sqlite")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(sqlite)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -166,6 +210,32 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sqlite := builder.AddSqlite("sqlite", &aspire.AddSqliteOptions{
+	DatabasePath:     aspire.StringPtr(`C:\Database\Location`),
+	DatabaseFileName: aspire.StringPtr("my-database.db"),
+})
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(sqlite)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code creates the SQLite database file at `C:\Database\Location\my-database.db`. The file is created if it doesn't already exist.
@@ -204,6 +274,30 @@ const exampleProject = await builder.addProject("apiservice", "../ExampleProject
 await exampleProject.withReference(sqlite);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sqlite := builder.AddSqlite("sqlite").
+	WithSqliteWeb()
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(sqlite)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

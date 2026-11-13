@@ -21,7 +21,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Queue Storage Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure Storage account and its queue resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Queue Storage Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure Storage account and its queue resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Queue Storage integration, start with the [Get started with Azure Queue Storage integrations](/integrations/cloud/azure/azure-storage-queues/azure-storage-queues-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Queue Storage](../azure-storage-queues-connect/).
 
@@ -52,6 +52,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Storage": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add azure-storage
@@ -115,6 +136,32 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+queues := builder.AddAzureStorage("storage").
+	AddQueues("queues")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(queues).
+	WaitFor(queues)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code adds an Azure Storage resource named `storage`, attaches a queue storage resource named `queues` to it, and passes the queue's connection information to the consuming project.
@@ -167,6 +214,33 @@ await builder.addNodeApp("apiservice", "./api", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator()
+queues := storage.AddQueues("queues")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(queues).
+	WaitFor(queues)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -228,6 +302,34 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
+			azurite.WithBlobPort(27000).
+				WithQueuePort(27001).
+				WithTablePort(27002)
+		},
+	})
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The resulting port mappings (`container:host`) are:
@@ -278,6 +380,32 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
+			azurite.WithLifetime(aspire.ContainerLifetimePersistent)
+		},
+	})
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Configure Azurite container with data volume
@@ -317,6 +445,32 @@ const storage = await builder.addAzureStorage("storage")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
+			azurite.WithDataVolume()
+		},
+	})
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -361,6 +515,34 @@ const storage = await builder.addAzureStorage("storage")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator(&aspire.RunAsEmulatorOptions{
+		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
+			azurite.WithDataBindMount(&aspire.WithDataBindMountOptions{
+				Path: aspire.StringPtr("../azurite/data"),
+			})
+		},
+	})
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -415,6 +597,34 @@ await builder.addNodeApp("apiservice", "./api", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingStorageName := builder.AddParameter("existingStorageName")
+
+queues := builder.AddAzureStorage("storage").
+	AsExisting(existingStorageName).
+	AddQueues("queues")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(queues)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

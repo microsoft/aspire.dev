@@ -44,9 +44,9 @@ Examples of scenarios that often merit targeted tests:
 Prefer targeted validation over the slowest possible full-site build when the change does not require it.
 
 ```bash
-pnpm --dir ./src/frontend run test:unit:components
-pnpm --dir ./src/frontend run test:unit:contracts
-pnpm --dir ./src/frontend exec playwright test tests/e2e/<relevant-spec>.spec.ts
+bun run --cwd ./src/frontend test:unit:components
+bun run --cwd ./src/frontend test:unit:contracts
+bun run --cwd ./src/frontend playwright test tests/e2e/<relevant-spec>.spec.ts
 ```
 
 If you changed custom components, docs interactions, or accessibility behavior, make sure the relevant targeted tests pass before submitting the work.

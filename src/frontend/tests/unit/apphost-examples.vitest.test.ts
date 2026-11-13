@@ -8,10 +8,12 @@ const csharp = (copyLabel = 'Copy') =>
   `<div class="code-lang-group scoped" data-code-lang="csharp" style="display: none;"><div class="code-variant" data-variant="frontend"><pre>AddProject&lt;Frontend&gt;();</pre><button class="copy">${copyLabel}</button></div></div>`;
 const typescript = (copyLabel = 'Copy') =>
   `<div class="code-lang-group scoped" data-code-lang="typescript"><div class="code-variant scoped" data-variant="frontend"><pre>await builder.addViteApp("frontend");</pre><button class="copy">${copyLabel}</button></div><div class="code-variant" data-variant="databaseFrontend"><pre>await builder.addPostgres("database");</pre><button class="copy">${copyLabel}</button></div></div>`;
+const go = (copyLabel = 'Copy') =>
+  `<div class="code-lang-group scoped" data-code-lang="go" style="display: none;"><div class="code-variant" data-variant="frontend"><pre>builder.AddViteApp("frontend", "../frontend")</pre><button class="copy">${copyLabel}</button></div></div>`;
 const prefix = '<!DOCTYPE html><html><head><title>Aspire &amp; apps</title></head><body>';
 const suffix = '<p>Other homepage content</p></body></html>';
 const homepage = (copyLabel = 'Copy') =>
-  `${prefix}<div class="container" data-apphost-builder><h2>AppHost</h2>${csharp(copyLabel)}${typescript(copyLabel)}<label>Typing animation</label></div>${suffix}`;
+  `${prefix}<div class="container" data-apphost-builder><h2>AppHost</h2>${csharp(copyLabel)}${typescript(copyLabel)}${go(copyLabel)}<label>Typing animation</label></div>${suffix}`;
 const html = homepage();
 
 describe('deferred AppHost examples', () => {
@@ -25,6 +27,8 @@ describe('deferred AppHost examples', () => {
     expect(result.html).toContain('<div class="code-variant scoped"');
     expect(result.html).toContain('await builder.addViteApp("frontend");');
     expect(result.html).not.toContain('addPostgres');
+    expect(selectAll('[data-apphost-builder] .code-lang-group', tree)).toHaveLength(3);
+    expect(result.examples).toContain('builder.AddViteApp(');
     expect(result.html.startsWith(prefix)).toBe(true);
     expect(result.html.endsWith(suffix)).toBe(true);
     expect(result.html).toContain('<label>Typing animation</label>');
