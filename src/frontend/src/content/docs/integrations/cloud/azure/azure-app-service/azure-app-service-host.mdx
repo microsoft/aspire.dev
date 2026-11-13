@@ -259,7 +259,7 @@ existingAppServicePlanName := builder.AddParameter("existingAppServicePlanName")
 existingResourceGroup := builder.AddParameter("existingResourceGroup")
 
 builder.AddAzureAppServiceEnvironment("app-service-env").
-	AsExisting(existingAppServicePlanName, &aspire.AsExistingOptions{ResourceGroup: existingResourceGroup})
+	AsExisting(existingAppServicePlanName, aspire.AsExistingResourceGroup(existingResourceGroup))
 
 api := builder.AddGoApp("api", "./api")
 
@@ -338,11 +338,9 @@ if err != nil {
 builder.AddAzureAppServiceEnvironment("app-service-env")
 
 api := builder.AddGoApp("api", "./api")
-api.PublishAsAzureAppServiceWebsite(&aspire.PublishAsAzureAppServiceWebsiteOptions{
-	Configure: func(infra aspire.AzureResourceInfrastructure, website aspire.WebSite) {
-		// Customize infrastructure here using Azure Provisioning APIs
-	},
-})
+api.PublishAsAzureAppServiceWebsite(aspire.PublishAsAzureAppServiceWebsiteConfigure(func(infra aspire.AzureResourceInfrastructure, website aspire.WebSite) {
+	// Customize infrastructure here using Azure Provisioning APIs
+}))
 
 app, err := builder.Build()
 if err != nil {
@@ -437,12 +435,12 @@ builder.AddAzureAppServiceEnvironment("appservice").
 	WithDeploymentSlot("staging")
 
 apiService := builder.AddGoApp("apiservice", "./apiservice").
-	WithHttpHealthCheck(&aspire.WithHttpHealthCheckOptions{Path: aspire.StringPtr("/health")}).
+	WithHttpHealthCheck(aspire.HttpHealthCheckPath("/health")).
 	WithExternalHttpEndpoints()
 
 web := builder.AddGoApp("webfrontend", "./web").
 	WithExternalHttpEndpoints().
-	WithHttpHealthCheck(&aspire.WithHttpHealthCheckOptions{Path: aspire.StringPtr("/health")}).
+	WithHttpHealthCheck(aspire.HttpHealthCheckPath("/health")).
 	WithReference(apiService).
 	WaitFor(apiService)
 
@@ -577,14 +575,12 @@ await api.publishAsAzureAppServiceWebsite({
 
 ```go title="apphost.go"
 api := builder.AddGoApp("api", "./api")
-api.PublishAsAzureAppServiceWebsite(&aspire.PublishAsAzureAppServiceWebsiteOptions{
-	Configure: func(infra aspire.AzureResourceInfrastructure, website aspire.WebSite) {
-		// Production website customizations
-	},
-	ConfigureSlot: func(infra aspire.AzureResourceInfrastructure, slot aspire.WebSiteSlot) {
+api.PublishAsAzureAppServiceWebsite(aspire.PublishAsAzureAppServiceWebsiteConfigure(func(infra aspire.AzureResourceInfrastructure, website aspire.WebSite) {
+	// Production website customizations
+}),
+	aspire.PublishAsAzureAppServiceWebsiteConfigureSlot(func(infra aspire.AzureResourceInfrastructure, slot aspire.WebSiteSlot) {
 		// Deployment slot customizations
-	},
-})
+	}))
 ```
 
 </TabItem>

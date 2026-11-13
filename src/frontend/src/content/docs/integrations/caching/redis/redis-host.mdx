@@ -199,7 +199,7 @@ if err != nil {
 }
 
 cache := builder.AddRedis("cache").
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -254,7 +254,7 @@ if err != nil {
 }
 
 cache := builder.AddRedis("cache").
-	WithDataBindMount("C:\\Redis\\Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("C:\\Redis\\Data", aspire.DataBindMountIsReadOnly(false))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -319,10 +319,8 @@ if err != nil {
 
 cache := builder.AddRedis("cache").
 	WithDataVolume().
-	WithPersistence(&aspire.WithPersistenceOptions{
-		Interval:             aspire.Float64Ptr(5 * 60 * 1000),
-		KeysChangedThreshold: aspire.Int64Ptr(100),
-	})
+	WithPersistence(aspire.PersistenceInterval(5*60*1000),
+		aspire.PersistenceKeysChangedThreshold(100))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -376,12 +374,10 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-cache := builder.AddRedis("cache", &aspire.AddRedisOptions{
-	Port:     aspire.IntPtr(6379),
-	Password: &password,
-})
+cache := builder.AddRedis("cache", aspire.AddRedisPort(6379),
+	aspire.AddRedisPassword(password))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -493,11 +489,9 @@ if err != nil {
 }
 
 cache := builder.AddRedis("cache").
-	WithRedisInsight(&aspire.WithRedisInsightOptions{
-		ConfigureContainer: func(redisInsight aspire.RedisInsightResource) {
-			redisInsight.WithHostPort(aspire.IntPtr(8001))
-		},
-	})
+	WithRedisInsight(aspire.RedisInsightConfigureContainer(func(redisInsight aspire.RedisInsightResource) {
+		redisInsight.WithHostPort(aspire.IntPtr(8001))
+	}))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -609,11 +603,9 @@ if err != nil {
 }
 
 cache := builder.AddRedis("cache").
-	WithRedisCommander(&aspire.WithRedisCommanderOptions{
-		ConfigureContainer: func(redisCommander aspire.RedisCommanderResource) {
-			redisCommander.WithHostPort(aspire.IntPtr(8081))
-		},
-	})
+	WithRedisCommander(aspire.RedisCommanderConfigureContainer(func(redisCommander aspire.RedisCommanderResource) {
+		redisCommander.WithHostPort(aspire.IntPtr(8081))
+	}))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)

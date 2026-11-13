@@ -247,13 +247,13 @@ func main() {
 	cache := builder.AddRedis("cache")
 	db := builder.AddPostgres("postgres").AddDatabase("postgresdb")
 
-	api := builder.AddGoApp("api", "./api").
+	builder.AddGoApp("api", "./api").
 		WithModTidy().
 		WithReference(cache).
 		WithReference(db).
 		WaitFor(cache).
 		WaitFor(db).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
 		WithExternalHttpEndpoints().
 		WithOtlpExporter()
 
@@ -303,13 +303,13 @@ func main() {
 	api := builder.AddGoApp("api", "./api").
 		WithReference(cache).
 		WaitFor(cache).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
 
 	recommender := builder.AddUvicornApp("recommender", "./recommender", "main:app").
 		WithReference(cache).
 		WaitFor(cache)
 
-	web := builder.AddViteApp("web", "./web").
+	builder.AddViteApp("web", "./web").
 		WithReference(api).
 		WithReference(recommender).
 		WaitFor(api)

@@ -238,7 +238,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 ```go title="apphost.go"
 nats := builder.AddNats("nats").
 	WithJetStream().
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(nats)
@@ -291,7 +291,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 ```go title="apphost.go"
 nats := builder.AddNats("nats").
 	WithJetStream().
-	WithDataBindMount("/Nats/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("/Nats/Data", aspire.DataBindMountIsReadOnly(false))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(nats)
@@ -347,12 +347,10 @@ await builder.addNodeApp("api", "./api", "index.js")
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 userName := builder.AddParameter("natsUser")
-password := builder.AddParameter("natsPass", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("natsPass", aspire.AddParameterSecret(true))
 
-nats := builder.AddNats("nats", &aspire.AddNatsOptions{
-	UserName: &userName,
-	Password: &password,
-})
+nats := builder.AddNats("nats", aspire.AddNatsUserName(userName),
+	aspire.AddNatsPassword(password))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(nats)

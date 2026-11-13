@@ -129,7 +129,7 @@ if err != nil {
 }
 
 web := builder.AddNodeApp("web", "../web", "index.js").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
 
 tunnel := builder.AddDevTunnel("my-tunnel").
 	WithTunnelReferenceAll(web, false)
@@ -176,7 +176,7 @@ if err != nil {
 }
 
 web := builder.AddNodeApp("web", "../web", "index.js").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
 
 tunnel := builder.AddDevTunnel("public-api").
 	WithTunnelReferenceAll(web, true).
@@ -227,14 +227,12 @@ if err != nil {
 }
 
 web := builder.AddNodeApp("web", "../web", "index.js").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
 
-tunnel := builder.AddDevTunnel("qa", &aspire.AddDevTunnelOptions{
-	TunnelId:       aspire.StringPtr("my-tunnel-id"),
-	AllowAnonymous: aspire.BoolPtr(false),
-	Description:    aspire.StringPtr("QA environment tunnel"),
-	Labels:         []string{"qa", "testing"},
-}).
+tunnel := builder.AddDevTunnel("qa", aspire.AddDevTunnelTunnelId("my-tunnel-id"),
+	aspire.AddDevTunnelAllowAnonymous(false),
+	aspire.AddDevTunnelDescription("QA environment tunnel"),
+	aspire.AddDevTunnelLabels([]string{"qa", "testing"})).
 	WithTunnelReferenceAll(web, false)
 ```
 </TabItem>
@@ -277,8 +275,8 @@ if err != nil {
 }
 
 api := builder.AddNodeApp("api", "../api", "index.js").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: aspire.StringPtr("public"), Env: aspire.StringPtr("PUBLIC_PORT")}).
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: aspire.StringPtr("admin"), Env: aspire.StringPtr("ADMIN_PORT")})
+	WithHttpEndpoint(aspire.HttpEndpointName("public"), aspire.HttpEndpointEnv("PUBLIC_PORT")).
+	WithHttpEndpoint(aspire.HttpEndpointName("admin"), aspire.HttpEndpointEnv("ADMIN_PORT"))
 
 tunnel := builder.AddDevTunnel("mixed-access").
 	WithTunnelReferenceAnonymous(api.GetEndpoint("public"), true).

@@ -199,7 +199,7 @@ if err != nil {
 }
 
 cache := builder.AddGarnet("cache").
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -254,7 +254,7 @@ if err != nil {
 }
 
 cache := builder.AddGarnet("cache").
-	WithDataBindMount("/Garnet/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("/Garnet/Data", aspire.DataBindMountIsReadOnly(false))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -318,9 +318,7 @@ if err != nil {
 
 cache := builder.AddGarnet("cache").
 	WithDataVolume().
-	WithPersistence(&aspire.WithPersistenceOptions{
-		Interval: aspire.Float64Ptr(5 * 60 * 1000),
-	})
+	WithPersistence(aspire.PersistenceInterval(5 * 60 * 1000))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -378,12 +376,10 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-cache := builder.AddGarnet("cache", &aspire.AddGarnetOptions{
-	Port:     aspire.IntPtr(6379),
-	Password: &password,
-})
+cache := builder.AddGarnet("cache", aspire.AddGarnetPort(6379),
+	aspire.AddGarnetPassword(password))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)

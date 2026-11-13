@@ -378,11 +378,11 @@ if err != nil {
 
 compose := builder.AddDockerComposeEnvironment("compose")
 compose.ConfigureDashboard(func(dashboard aspire.DockerComposeAspireDashboardResource) {
-	dashboard.WithHostPort(&aspire.WithHostPortOptions{Port: aspire.IntPtr(8080)})
-	dashboard.WithForwardedHeaders(&aspire.WithForwardedHeadersOptions{Enabled: aspire.BoolPtr(true)})
+	dashboard.WithHostPort(aspire.HostPortPort(8080))
+	dashboard.WithForwardedHeaders(aspire.ForwardedHeadersEnabled(true))
 })
 
-compose.WithDashboard(&aspire.WithDashboardOptions{Enabled: aspire.BoolPtr(false)})
+compose.WithDashboard(aspire.DashboardEnabled(false))
 ```
 </TabItem>
 </Tabs>
@@ -434,7 +434,7 @@ if err != nil {
 compose := builder.AddDockerComposeEnvironment("compose")
 
 api := builder.AddContainer("api", "nginx:alpine")
-api.WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Name: aspire.StringPtr("http"), TargetPort: aspire.IntPtr(80)})
+api.WithHttpEndpoint(aspire.HttpEndpointName("http"), aspire.HttpEndpointTargetPort(80))
 
 apiEndpoint := api.GetEndpoint("http")
 apiHost := compose.GetHostAddressExpression(apiEndpoint)
@@ -666,17 +666,17 @@ if err != nil {
 builder.AddDockerfileBuilder("frontend", "../frontend", func(context aspire.DockerfileBuilderCallbackContext) {
 	dockerfile := context.Builder()
 
-	dockerfile.From("node:22-alpine", &aspire.FromOptions{StageName: aspire.StringPtr("build")}).
+	dockerfile.From("node:22-alpine", aspire.FromStageName("build")).
 		WorkDir("/app").
 		Copy("package*.json", "./").
 		Run("npm ci").
 		Copy(".", ".").
 		Run("npm run build")
 
-	dockerfile.From("nginx:alpine", &aspire.FromOptions{StageName: aspire.StringPtr("runtime")}).
+	dockerfile.From("nginx:alpine", aspire.FromStageName("runtime")).
 		CopyFrom("build", "/app/dist", "/usr/share/nginx/html").
 		Expose(80)
-}, &aspire.AddDockerfileBuilderOptions{Stage: aspire.StringPtr("runtime")})
+}, aspire.AddDockerfileBuilderStage("runtime"))
 ```
 </TabItem>
 </Tabs>
@@ -1051,9 +1051,7 @@ if err != nil {
 }
 
 // Add a container registry
-registry := builder.AddContainerRegistry("ghcr", "ghcr.io", &aspire.AddContainerRegistryOptions{
-	Repository: aspire.StringPtr("your-github-username/your-repo"),
-})
+registry := builder.AddContainerRegistry("ghcr", "ghcr.io", aspire.AddContainerRegistryRepository("your-github-username/your-repo"))
 
 // Associate resources with the registry
 api := builder.AddDotnetProject("api", "../Api/Api.csproj")
@@ -1136,9 +1134,7 @@ registryEndpoint := builder.AddParameterFromConfiguration("registryEndpoint", "R
 registryRepository := builder.AddParameterFromConfiguration("registryRepository", "REGISTRY_REPOSITORY")
 
 // Add registry with parameters
-registry := builder.AddContainerRegistry("my-registry", registryEndpoint, &aspire.AddContainerRegistryOptions{
-	Repository: registryRepository,
-})
+registry := builder.AddContainerRegistry("my-registry", registryEndpoint, aspire.AddContainerRegistryRepository(registryRepository))
 
 api := builder.AddDotnetProject("api", "../Api/Api.csproj")
 api.PublishAsDockerComposeService(func(resource aspire.DockerComposeServiceResource, service aspire.Service) {

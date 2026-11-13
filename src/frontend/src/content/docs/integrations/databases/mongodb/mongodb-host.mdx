@@ -288,7 +288,7 @@ if err != nil {
 
 mode := aspire.MongoDBTlsModePreferTls
 builder.AddMongoDB("mongo").
-	WithTlsMode(&aspire.WithTlsModeOptions{Mode: &mode})
+	WithTlsMode(aspire.TlsModeMode(mode))
 
 app, err := builder.Build()
 if err != nil {
@@ -383,12 +383,10 @@ if err != nil {
 }
 
 userName := builder.AddParameter("username")
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-mongo := builder.AddMongoDB("mongo", &aspire.AddMongoDBOptions{
-	UserName: &userName,
-	Password: &password,
-})
+mongo := builder.AddMongoDB("mongo", aspire.AddMongoDBUserName(userName),
+	aspire.AddMongoDBPassword(password))
 mongodb := mongo.AddDatabase("mongodb")
 
 builder.AddGoApp("api", "./api").
@@ -426,7 +424,7 @@ const mongo = await builder.addMongoDB("mongo", { port: 27017 });
 </TabItem>
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
-mongo := builder.AddMongoDB("mongo", &aspire.AddMongoDBOptions{Port: aspire.IntPtr(27017)})
+mongo := builder.AddMongoDB("mongo", aspire.AddMongoDBPort(27017))
 ```
 </TabItem>
 </Tabs>
@@ -726,7 +724,7 @@ const mongo = await builder.addMongoDB("mongo").withReplicaSet({ name: "app-rs" 
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 mongo := builder.AddMongoDB("mongo").
-	WithReplicaSet(&aspire.WithReplicaSetOptions{Name: aspire.StringPtr("app-rs")})
+	WithReplicaSet(aspire.ReplicaSetName("app-rs"))
 ```
 </TabItem>
 </Tabs>
@@ -758,7 +756,7 @@ const mongo = await builder.addMongoDB("mongo")
 </TabItem>
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
-keyfile := builder.AddParameter("mongo-keyfile", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+keyfile := builder.AddParameter("mongo-keyfile", aspire.AddParameterSecret(true))
 
 mongo := builder.AddMongoDB("mongo").
 	WithKeyFile(keyfile).
@@ -891,11 +889,9 @@ if err != nil {
 }
 
 mongo := builder.AddMongoDB("mongo").
-	WithMongoExpress(&aspire.WithMongoExpressOptions{
-		ConfigureContainer: func(c aspire.MongoExpressContainerResource) {
-			c.WithHostPort(aspire.IntPtr(8081))
-		},
-	}).
+	WithMongoExpress(aspire.MongoExpressConfigureContainer(func(c aspire.MongoExpressContainerResource) {
+		c.WithHostPort(aspire.IntPtr(8081))
+	})).
 	WithLifetime(aspire.ContainerLifetimePersistent)
 
 // After adding all resources, run the app...
