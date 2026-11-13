@@ -569,6 +569,12 @@ You can choose from two dependency types to fix the step order:
 - **`dependsOn`**: This step runs after the specified steps complete.
 - **`requiredBy`**: This step must complete before the specified steps run.
 
+#### Depend on per-resource deployment steps
+
+Some steps, such as `provision-{name}-containerapp` for a resource configured with `PublishAsAzureContainerAppJob()`, are created by deployment targets that are only materialized while the `before-start` step runs. You can still reference these steps in `dependsOn` or `requiredBy`. When the AppHost starts, Aspire validates references only for `before-start` and the steps it depends on, so a step outside that set can depend on a step that doesn't exist yet. When you publish, deploy, or run a specific step, Aspire validates every step's references before running anything, and by then the dependency resolves and orders correctly.
+
+A step that participates in `before-start` that references an unknown step still fails with an `unknown step` error.
+
 ### Pipeline configuration
 
 Resources can also customize how they participate in the pipeline using <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineConfiguration" />, which provides control over step ordering and resource-specific pipeline behavior.
