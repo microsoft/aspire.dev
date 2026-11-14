@@ -1,0 +1,108 @@
+---
+# A C# package page: src/frontend/src/pages/reference/api/csharp/[package]/index.astro, one page per entry of
+# data/api/routes/csharp-packages.json. The package search index entries anchor members with the exact anchors of
+# data/api/routes/csharp-types.json.
+layout: api.liquid
+# The search controller (scripts/client/api/csharp-package.js), loaded by the layout as a module script of the document.
+api_search: csharp-package
+pagination: { data: api.routes.csharp-packages, size: 1, alias: route }
+permalink: "{{ route.url }}"
+---
+{%- assign pkg = api.pkgs[route.file] -%}
+{%- capture title %}{{ pkg.package.name | raw }}{% endcapture -%}
+{%- capture description %}API reference for {{ pkg.package.name | raw }} v{{ pkg.package.version | raw }}{% endcapture -%}
+{%- assign types = pkg.types | where: "name" -%}
+{%- assign type_routes = api.routes["csharp-types"] | where: "file", route.file -%}
+{%- comment -%} groupTypesByNamespace: namespaces by name, types by name ("(global)" for none) {%- endcomment -%}
+{%- assign by_namespace = types | sort_natural: "name" | group_by_exp: "t", "t.namespace | default: '(global)'" | sort_natural: "name" -%}
+{%- assign member_count = 0 -%}
+{%- for t in types -%}{%- assign member_count = member_count | plus: t.members.size -%}{%- endfor -%}
+{%- comment -%} getCommonSourceDirectory {%- endcomment -%}
+{%- assign common = nil -%}{%- assign common_none = false -%}
+{%- for t in types -%}
+  {%- unless t.sourceFile -%}{%- continue -%}{%- endunless -%}
+  {%- assign dirs = t.sourceFile | split: "/" -%}
+  {%- assign n = dirs.size | minus: 1 -%}
+  {%- assign dirs = dirs | slice: 0, n -%}
+  {%- if common == nil -%}{%- assign common = dirs -%}{%- continue -%}{%- endif -%}
+  {%- assign keep = 0 -%}
+  {%- for d in common -%}{%- if dirs[forloop.index0] == d -%}{%- assign keep = forloop.index -%}{%- else -%}{%- break -%}{%- endif -%}{%- endfor -%}
+  {%- assign common = common | slice: 0, keep -%}
+  {%- if keep == 0 -%}{%- assign common_none = true -%}{%- break -%}{%- endif -%}
+{%- endfor -%}
+{%- assign source_href = nil -%}
+{%- if pkg.package.sourceRepository and pkg.package.sourceCommit -%}
+  {%- assign source_href = pkg.package.sourceRepository | append: "/tree/" | append: pkg.package.sourceCommit -%}
+  {%- if common and common_none == false and common.size > 0 -%}{%- assign source_path = common | join: "/" -%}{%- assign source_href = source_href | append: "/" | append: source_path -%}{%- endif -%}
+{%- endif -%}
+{%- assign crumbs = "Docs§/docs/§docs¦Reference§/reference/overview/¦Search C# APIs§/reference/api/csharp/¦" | append: pkg.package.name -%}
+{%- assign official = pkg.package.name | slice: 0, 7 -%}
+<div class="cid-api-page-csharp-package">
+{% render 'api/breadcrumb', crumbs: crumbs %}
+<div class="api-hero pkg-hero not-content">
+{%- if official == "Aspire." -%}
+<div class="pkg-official-badge"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.521 2.624a2 2 0 0 1 2.958 0l1.02 1.12a2 2 0 0 0 1.572.651l1.513-.07a2 2 0 0 1 2.092 2.09l-.071 1.514a2 2 0 0 0 .651 1.572l1.12 1.02a2 2 0 0 1 0 2.958l-1.12 1.02a2 2 0 0 0-.651 1.572l.07 1.513a2 2 0 0 1-2.09 2.092l-1.514-.071a2 2 0 0 0-1.572.651l-1.02 1.12a2 2 0 0 1-2.958 0l-1.02-1.12a2 2 0 0 0-1.572-.651l-1.513.07a2 2 0 0 1-2.092-2.09l.071-1.514a2 2 0 0 0-.651-1.572l-1.12-1.02a2 2 0 0 1 0-2.958l1.12-1.02a2 2 0 0 0 .651-1.572l-.07-1.513a2 2 0 0 1 2.09-2.092l1.514.071a2 2 0 0 0 1.572-.651z"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 12l2 2l4-4"/></svg>Official</div>
+{%- endif -%}
+<div class="pkg-hero-top"><div class="pkg-hero-badges"><code class="pkg-name">📦 {{ pkg.package.name }}</code><code class="pkg-version">v{{ pkg.package.version }}</code><span class="pkg-framework">{{ pkg.package.targetFramework }}</span></div></div>
+<div class="pkg-hero-bottom"><div class="pkg-hero-stats"><div class="pkg-stat"><span class="pkg-stat-value">{{ types.size }}</span><span class="pkg-stat-label">Types</span></div><div class="pkg-stat"><span class="pkg-stat-value">{{ by_namespace.size }}</span><span class="pkg-stat-label">Namespaces</span></div></div><div class="pkg-hero-actions">
+{%- if source_href -%}<a href="{{ source_href }}" target="_blank" rel="noopener noreferrer" class="api-source-link" title="View source on GitHub"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>Source</a>{%- endif -%}
+{%- assign nuget = "https://www.nuget.org/packages/" | append: pkg.package.name -%}
+{% render 'api/nuget-button', href: nuget %}</div></div></div>
+{%- comment -%} The package-scoped search and its index ({ n, f, ns, k, s, g?, t?, a?, ts? }) {%- endcomment -%}
+{%- assign kinds = "" -%}
+<div class="pkg-search-section not-content" data-api-search-language="csharp" data-api-search-kind="package" data-base="" data-package-name="{{ pkg.package.name }}" data-type-count="{{ types.size }}" data-member-count="{{ member_count }}"><script type="application/json" data-api-search-index>[
+{%- for t in types -%}
+  {%- unless forloop.first %},{% endunless -%}
+  {%- assign t_lower = t.name | downcase -%}
+  {%- assign t_slug = t_lower -%}
+  {%- if t.genericParameters.size > 0 -%}{%- assign t_slug = t_lower | append: "-" | append: t.genericParameters.size -%}{%- endif -%}
+  {%- assign kinds = kinds | append: "¦" | append: t.kind -%}
+  {%- assign es_in = t.docs.summary -%}{%- include 'api/extract-summary' -%}
+  {"n":{{ t.name | json | raw }},"f":{{ t.fullName | default: t.name | json | raw }},"ns":{{ t.namespace | default: "" | json | raw }},"k":{{ t.kind | default: "class" | json | raw }},"s":{{ es_out | json | raw }}{% if t_slug != t_lower %},"g":{{ t_slug | json | raw }}{% endif %}}
+  {%- if t.members.size > 0 -%}
+    {%- assign t_route = type_routes | where: "fullName", t.fullName | where: "name", t.name | first -%}
+    {%- for m in t.members -%}
+      {%- if m.name == ".ctor" -%}{%- assign m_name = t.name | append: " (constructor)" -%}{%- assign m_full = t.fullName | default: t.name | append: "..ctor" -%}
+      {%- else -%}{%- assign m_name = m.name -%}{%- assign m_full = t.fullName | default: t.name | append: "." | append: m.name -%}{%- endif -%}
+      {%- assign m_kind = m.kind | default: "method" -%}
+      {%- assign kinds = kinds | append: "¦" | append: m_kind -%}
+      {%- assign m_anchor = t_route.anchors[forloop.index0].exact -%}
+      {%- assign tsl_in = m_name -%}{%- include 'api/ts-slugify' -%}
+      {%- assign es_in = m.docs.summary -%}{%- include 'api/extract-summary' -%}
+      ,{"n":{{ m_name | json | raw }},"f":{{ m_full | json | raw }},"ns":{{ t.namespace | default: "" | json | raw }},"k":{{ m_kind | json | raw }},"s":{{ es_out | json | raw }},"t":{{ t.name | json | raw }}{% if m_anchor != tsl_out %},"a":{{ m_anchor | json | raw }}{% endif %}{% if t_slug != t_lower %},"ts":{{ t_slug | json | raw }}{% endif %}}
+    {%- endfor -%}
+  {%- endif -%}
+{%- endfor -%}
+]</script>
+{%- assign kinds = kinds | remove_first: "¦" | split: "¦" | uniq | sort -%}
+{%- assign tn_in = types.size -%}{%- include 'api/ts-thousands' -%}{%- assign stats = tn_out | append: " types and " -%}
+{%- assign tn_in = member_count -%}{%- include 'api/ts-thousands' -%}{%- assign stats = stats | append: tn_out | append: " members" -%}
+{%- assign placeholder = "Search types, methods, properties in " | append: pkg.package.name | append: "..." -%}
+{% render 'api/inpage-search', id: "pkg", placeholder: placeholder, kinds: kinds, default_stats: stats, size: "lg" %}</div>
+<div id="pkg-namespace-list" class="pkg-ns-list">
+{%- for group in by_namespace -%}
+{%- capture ns_summary %}{{ group.name }} ({{ group.size }}){% endcapture -%}
+<details class="expand cid-expand" dir="ltr" style="--expand-bg-color: var(--sl-color-gray-6)"><summary title="{{ ns_summary }}">{{ ns_summary }}</summary><div class="content"><div class="api-list not-content">
+{%- for t in group.items -%}
+  {%- capture t_href %}{% render 'api/type-href', t: t.fullName, exact: true %}{% endcapture -%}
+  {%- capture t_display %}{% render 'api/type-display', t: t %}{% endcapture -%}
+  {%- assign fa_attrs = t.attributes -%}
+  {%- assign fa_name = "Obsolete" -%}{%- include 'api/find-attr' -%}{%- assign t_obsolete = fa_out -%}
+  {%- assign fa_name = "AspireExport" -%}{%- include 'api/find-attr' -%}{%- assign t_export = fa_out -%}
+  {%- assign fa_name = "AspireDto" -%}{%- include 'api/find-attr' -%}{%- assign t_dto = fa_out -%}
+  {%- assign fa_name = "AspireExportIgnore" -%}{%- include 'api/find-attr' -%}{%- assign t_ignored = fa_out -%}
+<a href="{{ t_href }}" class="api-list-item"><div class="api-list-header"><span class="api-kind-pill kind-{{ t.kind | replace: ' ', '-' }}">{{ t.kind }}</span><code class="api-type-link" title="{{ t_display }}">{{ t_display }}</code>
+  {%- if t.isAbstract %}<span class="api-mini-badge">abstract</span>{% endif -%}
+  {%- if t.isStatic %}<span class="api-mini-badge">static</span>{% endif -%}
+  {%- if t.isSealed and t.kind != "enum" and t.kind != "delegate" and t.kind != "struct" and t.kind != "record struct" %}<span class="api-mini-badge">sealed</span>{% endif -%}
+  {%- if t.isReadOnly %}<span class="api-mini-badge">readonly</span>{% endif -%}
+  {%- if t_obsolete %}<span class="api-mini-badge obsolete">obsolete</span>{% endif -%}
+  {%- if t_export %}<span class="api-mini-badge">ats export</span>{% endif -%}
+  {%- if t_dto %}<span class="api-mini-badge">dto</span>{% endif -%}
+  {%- if t_ignored %}<span class="api-mini-badge">ats ignored</span>{% endif -%}
+</div>{% if t.docs.summary %}<div class="api-list-desc">{% render 'api/doc-content', content: t.docs.summary, tag: "span" %}</div>{% endif %}</a>
+{%- endfor -%}
+</div></div></details>
+{%- endfor -%}
+</div>
+</div>

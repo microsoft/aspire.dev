@@ -1,0 +1,327 @@
+---
+title: SeaweedFS client integration and configuration
+description: Register keyed SeaweedFS S3 and Filer clients, configure their endpoints and credentials, and use built-in client health checks.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+The Community Toolkit client package registers an AWS `IAmazonS3` client for the S3 gateway or a `SeaweedFSFilerClient` for the native Filer API. For AppHost setup, see [Host SeaweedFS in the AppHost](/integrations/databases/seaweedfs/seaweedfs-host/).
+
+## Connection strings and names
+
+When an AppHost resource named `seaweedfs` has both S3 and Filer enabled, a project that references it receives connection information in this format:
+
+```text
+Endpoint=http://{s3-host}:{s3-port};AccessKey={key};SecretKey={secret};FilerEndpoint=http://{filer-host}:{filer-port}
+```
+
+`Endpoint` points to the S3 gateway when enabled and to the Master API otherwise. `FilerEndpoint` is included when Filer is enabled. The connection name passed to the client registration must match the referenced AppHost resource name.
+
+The connection string may contain `Endpoint`, `FilerEndpoint`, `AccessKey`, `SecretKey`, and `UseSsl`. The client also accepts `FilerUrl` as an alias for `FilerEndpoint`. An absolute URI can be used as an S3 endpoint connection string.
+
+## Install the client package
+
+Install the client package in the consuming .NET project:
+
+{% install_dotnet_package "CommunityToolkit.Aspire.SeaweedFS.Client" %}
+
+## Add an S3 client
+
+Call `AddSeaweedFSS3Client` with the AppHost resource name to register a keyed `IAmazonS3` singleton. It configures the AWS S3 client for the SeaweedFS endpoint and uses anonymous credentials only when access and secret keys are not set:
+
+```csharp title="Program.cs"
+using Amazon.S3;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddSeaweedFSS3Client("seaweedfs");
+
+var app = builder.Build();
+app.Run();
+```
+
+When the connection name is `seaweedfs`, compared without regard to case, the package also registers an unkeyed `IAmazonS3` that resolves to the same keyed client.
+
+:::note
+S3 client registrations are keyed by connection name. The package adds an
+unkeyed alias when the name matches `seaweedfs`, case-insensitively.
+:::
+
+## Add a keyed S3 client
+
+Register clients with different resource names when an app uses more than one SeaweedFS endpoint. Resolve the matching client by key:
+
+```csharp title="Program.cs"
+using Amazon.S3;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddSeaweedFSS3Client("media");
+builder.AddSeaweedFSS3Client("archive");
+
+var app = builder.Build();
+app.MapGet("/", (IServiceProvider services) =>
+{
+    var archiveClient = services.GetRequiredKeyedService<IAmazonS3>("archive");
+    return Results.Ok(archiveClient.GetType().Name);
+});
+app.Run();
+```
+
+For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Add a native Filer client
+
+Call `AddSeaweedFSFilerClient` to register a named `HttpClient` and keyed transient `SeaweedFSFilerClient`:
+
+```csharp title="Program.cs"
+using CommunityToolkit.Aspire.SeaweedFS.Client;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddSeaweedFSFilerClient("seaweedfs");
+
+var app = builder.Build();
+app.MapGet("/files", async (SeaweedFSFilerClient filer, CancellationToken cancellationToken) =>
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, "/");
+    request.Headers.Add("Accept", "application/json");
+    using var response = await filer.HttpClient.SendAsync(request, cancellationToken);
+    response.EnsureSuccessStatusCode();
+    return await response.Content.ReadAsStringAsync(cancellationToken);
+});
+app.Run();
+```
+
+The `Accept: application/json` header requests a JSON directory listing from the Filer API.
+
+## Add a keyed Filer client
+
+For multiple Filer endpoints, resolve each client by its connection name:
+
+```csharp title="Program.cs"
+using CommunityToolkit.Aspire.SeaweedFS.Client;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddSeaweedFSFilerClient("primary");
+builder.AddSeaweedFSFilerClient("archive");
+
+var app = builder.Build();
+app.MapGet("/", (IServiceProvider services) =>
+{
+    var archive = services.GetRequiredKeyedService<SeaweedFSFilerClient>("archive");
+    return Results.Ok(archive.HttpClient.BaseAddress);
+});
+app.Run();
+```
+
+The first Filer client registered is also available as the unkeyed `SeaweedFSFilerClient`. Use keyed resolution to select a specific registration in a multi-endpoint app. For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+The Filer client's base address is selected from `FilerEndpoint`, then `Endpoint`, then `http://{connectionName}`. Enable Filer in the AppHost so that the reference provides the correct Filer endpoint instead of falling back to the Master API.
+
+## Configure the clients
+
+### Connection strings
+
+The client parses `Endpoint`, `FilerEndpoint`, `FilerUrl`, `AccessKey`, `SecretKey`, and `UseSsl` from the connection string associated with the connection name. A resource referenced from an AppHost supplies the endpoint and keys automatically.
+
+### Configuration providers
+
+By default, the client binds options from `Aspire:SeaweedFS:Client` and then from the connection-specific `Aspire:SeaweedFS:Client:{connectionName}` section. The connection string is applied after those sections. Use the `DisableHealthChecks` property to opt out of that registration:
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "SeaweedFS": {
+      "Client": {
+        "Endpoint": "http://localhost:8333",
+        "FilerEndpoint": "http://localhost:8888",
+        "AccessKey": "admin",
+        "SecretKey": "local-secret",
+        "ForcePathStyle": true,
+        "UseSsl": false,
+        "DisableHealthChecks": false
+      }
+    }
+  }
+}
+```
+
+`ForcePathStyle` defaults to `true`, which SeaweedFS requires for S3 bucket requests. Do not commit credentials to source control.
+
+The client uses `UseSsl` to select HTTP or HTTPS for the S3 and Filer endpoint URIs. It defaults to `false`; set it to `true` when connecting to endpoints that require HTTPS.
+
+### Inline delegates
+
+Use `configureSettings` after configuration and connection-string binding to override settings or customize the AWS S3 config:
+
+```csharp title="Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddSeaweedFSS3Client(
+    "seaweedfs",
+    configureSettings: settings =>
+    {
+        settings.AccessKey = "admin";
+        settings.SecretKey = "local-secret";
+        settings.ConfigureS3Config = config =>
+        {
+            config.Timeout = TimeSpan.FromSeconds(30);
+            config.MaxErrorRetry = 3;
+        };
+    });
+
+var app = builder.Build();
+app.Run();
+```
+
+You can change the configuration section from `Aspire:SeaweedFS:Client` by passing `configurationSectionName`.
+
+## Use another S3 client
+
+The Toolkit client package provides .NET S3 and Filer clients. Other languages can use their AWS S3 SDK with the same S3-compatible endpoint. An AppHost reference supplies the connection string in `ConnectionStrings__seaweedfs`; each example reads its endpoint and credentials from that value.
+
+Install the SDK for the language you use:
+
+```bash title="Terminal"
+npm install @aws-sdk/client-s3
+python -m pip install boto3
+go get github.com/aws/aws-sdk-go-v2/config github.com/aws/aws-sdk-go-v2/credentials github.com/aws/aws-sdk-go-v2/service/s3
+```
+
+{% tabs sync: "s3-client-language" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="src/storage.ts"
+import { ListBucketsCommand, S3Client } from '@aws-sdk/client-s3';
+
+const connectionString = process.env.ConnectionStrings__seaweedfs;
+if (!connectionString) {
+  throw new Error(
+    'The ConnectionStrings__seaweedfs environment variable is missing.'
+  );
+}
+
+const connection = Object.fromEntries(
+  connectionString
+    .split(';')
+    .filter((entry) => entry.includes('='))
+    .map((entry) => {
+      const separator = entry.indexOf('=');
+      return [entry.slice(0, separator), entry.slice(separator + 1)];
+    })
+) as Record<string, string>;
+
+const s3 = new S3Client({
+  endpoint: connection.Endpoint,
+  region: 'us-east-1',
+  forcePathStyle: true,
+  credentials: {
+    accessKeyId: connection.AccessKey,
+    secretAccessKey: connection.SecretKey,
+  },
+});
+
+const buckets = await s3.send(new ListBucketsCommand({}));
+console.log(buckets.Buckets);
+```
+{% endtab %}
+{% tab "Python", id: "python" %}
+```python title="storage.py"
+import os
+
+import boto3
+from botocore.config import Config
+
+connection = dict(
+    item.split("=", 1)
+    for item in os.environ["ConnectionStrings__seaweedfs"].split(";")
+    if "=" in item
+)
+
+s3 = boto3.client(
+    "s3",
+    endpoint_url=connection["Endpoint"],
+    region_name="us-east-1",
+    aws_access_key_id=connection["AccessKey"],
+    aws_secret_access_key=connection["SecretKey"],
+    config=Config(s3={"addressing_style": "path"}),
+)
+
+print(s3.list_buckets())
+```
+{% endtab %}
+{% tab "Go", id: "go" %}
+```go title="main.go"
+package main
+
+import (
+	"context"
+	"log"
+	"os"
+	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+)
+
+func parseConnectionString(value string) map[string]string {
+	fields := make(map[string]string)
+	for _, item := range strings.Split(value, ";") {
+		if key, field, found := strings.Cut(item, "="); found {
+			fields[key] = field
+		}
+	}
+	return fields
+}
+
+func main() {
+	ctx := context.Background()
+	connectionString := os.Getenv("ConnectionStrings__seaweedfs")
+	if connectionString == "" {
+		log.Fatal("ConnectionStrings__seaweedfs environment variable is missing")
+	}
+	connection := parseConnectionString(connectionString)
+
+	cfg, err := config.LoadDefaultConfig(
+		ctx,
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			connection["AccessKey"],
+			connection["SecretKey"],
+			"",
+		)),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := s3.NewFromConfig(cfg, func(options *s3.Options) {
+		options.BaseEndpoint = aws.String(connection["Endpoint"])
+		options.UsePathStyle = true
+	})
+	_, err = client.ListBuckets(ctx, &s3.ListBucketsInput{})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+```
+{% endtab %}
+{% endtabs %}
+
+## Client integration health checks
+
+The client package registers a health check for each client unless `DisableHealthChecks` is `true`. The S3 check calls `ListBucketsAsync` to verify gateway access without changing data. The Filer check sends a `GET /` request with an `Accept: application/json` header and verifies a successful response.
+
+## Observability and telemetry
+
+The package configures AWS SDK connection settings and the Filer `HttpClient`; it does not add custom Aspire logging or tracing instrumentation. Use the AWS SDK and `HttpClient` diagnostics supported by the consuming application's service defaults.
+
+## See also
+
+- [Get started with the SeaweedFS integration](/integrations/databases/seaweedfs/seaweedfs-get-started/)
+- [Host SeaweedFS in the AppHost](/integrations/databases/seaweedfs/seaweedfs-host/)
+- [SeaweedFS documentation](https://seaweedfs.com/)
+- [📦 CommunityToolkit.Aspire.SeaweedFS.Client](https://www.nuget.org/packages/CommunityToolkit.Aspire.SeaweedFS.Client)

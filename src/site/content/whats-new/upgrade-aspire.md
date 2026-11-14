@@ -1,0 +1,84 @@
+---
+title: Upgrade Aspire to the latest version
+description: "Learn how to upgrade an existing Aspire app: update the Aspire CLI, run aspire update, refresh NuGet packages, and review breaking changes for each release."
+---
+
+Upgrade Aspire by updating the **Aspire CLI** and the Aspire packages used by your app. The `aspire update` command handles most package updates for supported AppHost configurations, but you should also review breaking changes and update tooling extensions.
+
+:::note
+If you're new to Aspire, there's no reason to upgrade anything. See [prerequisites](/get-started/prerequisites/) and [install Aspire CLI](/get-started/install-cli/) to get started.
+:::
+
+## Upgrade with the Aspire CLI
+
+{% steps %}
+1. **Update the Aspire CLI** to the latest version:
+
+    ```bash title="Update the Aspire CLI"
+    aspire update --self
+    ```
+
+    If you installed the CLI from npm or as a .NET tool, `aspire update --self` prints the matching package-manager command to run (for example, `npm install -g @microsoft/aspire-cli@latest`) instead of replacing a package-manager-owned binary. See [Updating the CLI based on how it was installed](/reference/cli/commands/aspire-update/#updating-the-cli-based-on-how-it-was-installed).
+
+2. **Update your Aspire app** by running:
+
+    ```bash title="Update your Aspire app"
+    aspire update
+    ```
+
+    This command automatically:
+
+    - Detects outdated Aspire integrations, templates, and SDK version
+    - Updates the SDK version and Aspire integration versions for the configured Aspire channel
+    - Handles versions declared inline, in `aspire.config.json`, or in supported centralized version files
+{% endsteps %}
+
+{% learnmore %}
+For more information, see [`aspire update` command reference](/reference/cli/commands/aspire-update/).
+{% endlearnmore %}
+
+## Update standalone dashboard container references
+
+If you manage the standalone dashboard as a container, its stable image repository is now `mcr.microsoft.com/aspire/dashboard`; nightly images use `mcr.microsoft.com/aspire/nightly/dashboard`. Updating the Aspire CLI or packages doesn't rewrite image references in your own Docker commands, Compose files, or Kubernetes manifests.
+
+Before replacing a legacy `dotnet/aspire-dashboard` or `dotnet/nightly/aspire-dashboard` reference, verify that the tag you use exists in the new repository. Legacy repositories continue to receive Aspire 13 servicing images, but their `latest` tag stays on the Aspire 13 line rather than following future major releases. Generated deployment output remains specific to the Aspire publisher version.
+
+For the repository mapping, tag selection, and compatibility details, see [Container image repositories and migration](/dashboard/standalone/#container-image-repositories-and-migration).
+
+## Update the VS Code extension (optional)
+
+If you have the Aspire extension installed, you can update it to get the latest tooling support:
+
+{% steps %}
+1. Open VS Code
+2. Go to **Extensions** ({% kbd windows: "Ctrl+Shift+X", mac: "Command+Shift+X" %})
+3. Search for **Aspire**
+4. Click **Update** if an update is available
+{% endsteps %}
+
+{% learnmore %}
+For more information, see [Aspire extension for VS Code](/get-started/aspire-vscode-extension/).
+{% endlearnmore %}
+
+## Remove the legacy workload (Aspire 8 only)
+
+If you're upgrading from Aspire 8 and your machine has the legacy Aspire workload installed, remove it after updating the CLI. For Aspire 9 or later, no action is required.
+
+Remove the **aspire workload** with the following command:
+
+```bash title="Remove the legacy Aspire workload"
+dotnet workload uninstall aspire
+```
+
+## Verify the upgrade
+
+After upgrading, run your application to ensure everything works as expected:
+
+```bash title="Run the Aspire application"
+aspire run
+```
+
+## Need help?
+
+- 🆘 Stuck? [Join the Discord community](https://discord.com/invite/raNPcaaSj8) for real-time support
+- 🐛 Found a bug? [File a GitHub issue](https://github.com/microsoft/aspire/issues/new/choose)

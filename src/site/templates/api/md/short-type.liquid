@@ -1,0 +1,32 @@
+{%- comment -%}
+  shortTypeName (src/frontend/src/utils/api-member-anchors.ts): `System.IEquatable<SampleApi.ValidationError>` ->
+  `IEquatable<ValidationError>`. Input: t.
+{%- endcomment -%}
+{%- if t contains "<" -%}
+  {%- assign head = t | split: "<" | first -%}
+  {%- assign outer = head | split: "." | last -%}
+  {%- assign start = head.size | plus: 1 -%}
+  {%- assign tail = t | slice: start, t.size -%}
+  {%- assign tparts = tail | append: "#" | split: ">" -%}
+  {%- assign n = tparts.size | minus: 1 -%}
+  {%- assign args = tparts | slice: 0, n | join: ">" -%}
+  {%- assign pieces = args | split: "," -%}
+  {{- outer }}<
+  {%- assign acc = "" -%}{%- assign fresh = true -%}{%- assign first = true -%}
+  {%- for piece in pieces -%}
+    {%- if fresh -%}{%- assign acc = piece -%}{%- assign fresh = false -%}{%- else -%}{%- assign acc = acc | append: "," | append: piece -%}{%- endif -%}
+    {%- assign opens = acc | append: "#" | split: "<" | size -%}
+    {%- assign closes = acc | append: "#" | split: ">" | size -%}
+    {%- if opens == closes or forloop.last -%}
+      {%- assign arg = acc | strip -%}
+      {%- if arg != "" or forloop.last == false -%}
+        {%- unless first -%}, {% endunless -%}
+        {%- render 'api/md/short-type', t: arg -%}
+        {%- assign first = false -%}
+      {%- endif -%}
+      {%- assign fresh = true -%}
+    {%- endif -%}
+  {%- endfor -%}>
+{%- else -%}
+  {{- t | split: "." | last -}}
+{%- endif -%}

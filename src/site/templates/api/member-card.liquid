@@ -1,0 +1,95 @@
+{%- comment -%}
+  MemberCard.astro: one member of a C# member-kind page (header with anchor, badges and return type, summary,
+  signature, source link, parameters, returns, exceptions, remarks, examples, ATS notes). Inputs: member, anchor
+  (its exact anchor), aliases (its alias anchors), type (the declaring type), pkg. Root class:
+  cid-api-reference-member-card. The member-kind pages pass no diagnostics to the Astro component, so experimental
+  members have no "Learn more" link there either.
+{%- endcomment -%}
+{%- comment -%} api/find-attr, inline: a rendered template cannot include. {%- endcomment -%}
+{%- assign mc_obsolete = nil -%}{%- assign mc_experimental = nil -%}
+{%- for fa_a in member.attributes -%}{%- assign fa_short = fa_a.name | split: "." | last -%}{%- case fa_short -%}{%- when "Obsolete", "ObsoleteAttribute" -%}{%- unless mc_obsolete -%}{%- assign mc_obsolete = fa_a -%}{%- endunless -%}{%- when "Experimental", "ExperimentalAttribute" -%}{%- unless mc_experimental -%}{%- assign mc_experimental = fa_a -%}{%- endunless -%}{%- endcase -%}{%- endfor -%}
+{%- comment -%} the primary anchor is the first alias (other than the exact anchor), the others are hidden spans {%- endcomment -%}
+{%- assign mc_aliases = "" -%}
+{%- for a in aliases -%}{%- if a != anchor -%}{%- if mc_aliases == "" -%}{%- assign mc_aliases = a -%}{%- else -%}{%- assign mc_aliases = mc_aliases | append: "¦" | append: a -%}{%- endif -%}{%- endif -%}{%- endfor -%}
+{%- assign mc_alias_list = mc_aliases | split: "¦" -%}
+{%- assign mc_primary = anchor -%}
+{%- if mc_aliases != "" -%}{%- assign mc_primary = mc_alias_list[0] -%}{%- endif -%}
+<div class="mc not-content{% if mc_obsolete %} mc-obsolete{% endif %} cid-api-reference-member-card" id="{{ mc_primary }}">
+{%- if mc_primary != anchor -%}
+<span id="{{ anchor }}" class="mc-exact-anchor" aria-hidden="true"></span>
+{%- for a in mc_alias_list offset: 1 %}<span id="{{ a }}" class="mc-exact-anchor" aria-hidden="true"></span>{% endfor -%}
+{%- endif -%}
+{%- if mc_obsolete -%}
+<aside class="api-obsolete-aside"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg><div><strong>Obsolete</strong>{% if mc_obsolete.constructorArguments[0] %}<span> — {{ mc_obsolete.constructorArguments[0] }}</span>{% endif %}</div></aside>
+{%- endif -%}
+{%- if mc_experimental -%}
+<aside class="api-experimental-aside"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2" /><path d="M8.5 2h7" /><path d="M7 16.5h10" /></svg><div><strong>Experimental</strong>{% if mc_experimental.constructorArguments[0] %}<span> — {{ mc_experimental.constructorArguments[0] }}</span>{% endif %}</div></aside>
+{%- endif -%}
+{%- capture mc_display %}{% render 'api/member-display', m: member, ctor: "Constructor" %}{% endcapture -%}
+<div class="mc-header"><code class="mc-name">{{ mc_display }}</code><a class="sl-anchor-link" href="#{{ anchor }}"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled {{ mc_display }}</span></a>
+{%- if member.accessibility and member.accessibility != "public" %}<span class="api-mod-badge">{{ member.accessibility }}</span>{% endif -%}
+{%- if member.isStatic and member.isExtension != true %}<span class="api-mod-badge">static</span>{% endif -%}
+{%- if member.isExtension %}<span class="api-mod-badge api-ext-badge">extension</span>{% endif -%}
+{%- if member.isAbstract %}<span class="api-mod-badge">abstract</span>{% endif -%}
+{%- if member.isVirtual %}<span class="api-mod-badge">virtual</span>{% endif -%}
+{%- if member.isOverride %}<span class="api-mod-badge">override</span>{% endif -%}
+{%- if member.isAsync %}<span class="api-mod-badge">async</span>{% endif -%}
+{%- if member.isConst %}<span class="api-mod-badge">const</span>{% endif -%}
+{%- if member.isReadOnly and member.kind == "field" %}<span class="api-mod-badge">readonly</span>{% endif -%}
+{%- if member.isReturnNullable %}<span class="api-mod-badge">nullable</span>{% endif -%}
+{%- if member.returnType -%}
+  {%- capture mc_return_raw %}{% render 'api/md/short-type', t: member.returnType %}{% endcapture -%}
+  {%- capture mc_return_href %}{% render 'api/type-href', t: member.returnType %}{% endcapture -%}
+  {%- capture mc_return_color -%}{%- render 'api/cs-color', tc_in: mc_return_raw -%}{%- endcapture -%}
+  {%- if member.returnType != "void" -%}
+<span class="mc-return-type mc-param-type-{{ mc_return_color }}">{% if mc_return_href != "" %}<a href="{{ mc_return_href }}" class="mc-param-type-link">{{ mc_return_raw | escape }}</a>{% else %}<code>{{ mc_return_raw | escape }}</code>{% endif %}</span>
+  {%- endif -%}
+{%- endif -%}
+</div>
+{%- if member.docs.summary %}<div class="mc-summary">{% render 'api/doc-content', content: member.docs.summary, tag: "div" %}</div>{% endif -%}
+{%- capture mc_sig %}{% render 'api/signature', member: member, type: type %}{% endcapture -%}
+{%- if mc_sig != "" %}<div class="mc-sig">{% render 'api/code-block', html: mc_sig, lang: "csharp" %}</div>{% endif -%}
+{%- if pkg.package.sourceRepository and pkg.package.sourceCommit and member.sourceFile -%}
+  {%- assign mc_fragment = "" -%}
+  {%- if member.sourceLines -%}
+    {%- assign mc_lines = member.sourceLines | split: "-" -%}
+    {%- if mc_lines[0] == mc_lines[1] -%}{%- assign mc_fragment = "#L" | append: mc_lines[0] -%}{%- else -%}{%- assign mc_fragment = "#L" | append: mc_lines[0] | append: "-L" | append: mc_lines[1] -%}{%- endif -%}
+  {%- endif -%}
+  {%- assign mc_label = member.sourceFile | split: "/" | last | append: mc_fragment -%}
+<div class="mc-source-meta"><a href="{{ pkg.package.sourceRepository }}/blob/{{ pkg.package.sourceCommit }}/{{ member.sourceFile }}{{ mc_fragment }}" target="_blank" rel="noopener noreferrer" class="mc-source-link" title="{{ mc_label }}"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg><span class="mc-source-label">{{ mc_label }}</span><svg aria-hidden="true" class="cid-sl-icon mc-source-external" width="16" height="16" fill="currentColor" style="--sl-icon-size: 0.75em;"><use href="/assets/icons.svg#external"></use></svg></a></div>
+{%- endif -%}
+{%- if member.parameters.size > 0 -%}
+<div class="mc-section"><p class="api-section-label">Parameters</p><div class="mc-params">
+{%- for p in member.parameters -%}
+  {%- capture mc_ptype %}{% render 'api/md/short-type', t: p.type %}{% endcapture -%}
+  {%- capture mc_phref %}{% render 'api/type-href', t: p.type %}{% endcapture -%}
+  {%- capture tc_out -%}{%- render 'api/cs-color', tc_in: mc_ptype -%}{%- endcapture -%}
+<div class="mc-param"><span class="mc-param-header"><code class="mc-param-name">{{ p.name }}</code><span class="mc-param-type mc-param-type-{{ tc_out }}">{% if mc_phref != "" %}<a href="{{ mc_phref }}" class="mc-param-type-link">{{ mc_ptype | escape }}</a>{% else %}<code>{{ mc_ptype | escape }}</code>{% endif %}</span>{% if p.isOptional %}<span class="api-mod-badge">optional</span>{% endif %}</span>
+{%- assign mc_pdoc = member.docs.parameters[p.name] -%}
+{%- if mc_pdoc %}<span class="mc-param-desc">{% render 'api/doc-content', content: mc_pdoc, tag: "span" %}</span>{% endif -%}
+{%- render 'api/polyglot-attribute-panel', attributes: p.attributes, context: "parameter", entity_name: p.name, package_name: pkg.package.name -%}
+</div>
+{%- endfor -%}
+</div></div>
+{%- endif -%}
+{%- if member.docs.returns -%}
+<div class="mc-section"><p class="api-section-label">Returns</p><div class="mc-section-body mc-returns">
+{%- if member.returnType -%}<code class="mc-return-inline">{% if mc_return_href != "" %}<a href="{{ mc_return_href }}" class="api-type-link">{{ mc_return_raw | escape }}</a>{% else %}{{ mc_return_raw | escape }}{% endif %}</code>{%- endif -%}
+{%- render 'api/doc-content', content: member.docs.returns, tag: "span" -%}
+</div></div>
+{%- endif -%}
+{%- if member.docs.exceptions.size > 0 -%}
+<div class="mc-section"><p class="api-section-label">Exceptions</p><div class="mc-exceptions">
+{%- for exc in member.docs.exceptions -%}
+  {%- assign mc_exc_name = exc.type | split: ":" | last -%}
+  {%- assign mc_exc_key = "T:" | append: mc_exc_name -%}
+  {%- assign mc_exc_x = api.xref[mc_exc_key] -%}
+<div class="mc-exc"><code class="mc-exc-type">{% if mc_exc_x %}<a href="{{ mc_exc_x.url }}" class="api-type-link">{% render 'api/short-type', t: mc_exc_name %}</a>{% else %}{% render 'api/short-type', t: mc_exc_name %}{% endif %}</code><span class="mc-exc-desc">{% render 'api/doc-content', content: exc.description, tag: "span" %}</span></div>
+{%- endfor -%}
+</div></div>
+{%- endif -%}
+{%- if member.docs.remarks %}<div class="mc-section"><p class="api-section-label">Remarks</p><div class="mc-remarks">{% render 'api/doc-content', content: member.docs.remarks, tag: "div" %}</div></div>{% endif -%}
+{%- if member.docs.examples.size > 0 %}<div class="mc-section"><p class="api-section-label">Examples</p>{% render 'api/examples', examples: member.docs.examples %}</div>{% endif -%}
+{%- capture mc_entity %}{% render 'api/member-display', m: member, ctor: "Constructor" %}{% endcapture -%}
+{%- render 'api/polyglot-attribute-panel', attributes: member.attributes, context: "member", entity_name: mc_entity, package_name: pkg.package.name -%}
+</div>

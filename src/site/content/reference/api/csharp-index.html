@@ -1,0 +1,31 @@
+---
+# /reference/api/csharp/: src/frontend/src/pages/reference/api/csharp/index.astro. Not a route list: the pagination
+# over the two landing entries (one page) gives it a permalink in this workflow, which has no permalink step. `route`
+# is the C# landing entry of api.routes.indexes, for templates/api/sidebar.liquid (an assign in the page would not
+# reach the layout). The search index is data/api/search-csharp.json.
+route: { url: /reference/api/csharp/, md: /reference/api/csharp.md, language: csharp }
+layout: api.liquid
+# The search controller (scripts/client/api/csharp-index.js), loaded by the layout as a module script of the document.
+api_search: csharp-index
+pagination: { data: api.routes.indexes, size: 2 }
+permalink: /reference/api/csharp/
+---
+{%- capture title %}C# API Reference{% endcapture -%}
+{%- capture description %}Search and browse C# API reference packages.{% endcapture -%}
+{%- assign landing = api.counts.landing.csharp -%}
+{%- assign packages = api.routes["csharp-packages"] | sort_natural: "package" -%}
+{%- assign tn_in = landing.types -%}{%- include 'api/ts-thousands' -%}{%- assign stats = tn_out | append: " types and " -%}
+{%- assign tn_in = landing.members -%}{%- include 'api/ts-thousands' -%}{%- assign stats = stats | append: tn_out | append: " members across " -%}
+{%- assign tn_in = landing.packages -%}{%- include 'api/ts-thousands' -%}{%- assign stats = stats | append: tn_out | append: " packages" -%}
+<div class="cid-api-page-csharp-index">
+{% render 'api/breadcrumb', crumbs: "Docs§/docs/§docs¦Reference§/reference/overview/¦Search C# APIs" %}
+<div class="api-ref-landing not-content" data-api-search-language="csharp" data-api-search-kind="landing" data-base="" data-type-count="{{ landing.types }}" data-member-count="{{ landing.members }}"><script type="application/json" data-api-search-index>{% render 'api/ts-json-flat', items: api["search-csharp"] %}</script>
+<p class="csharp-api-intro">Browse the C# API reference for Aspire packages, including <a href="/integrations/overview/#hosting-integrations">hosting integrations</a>,<a href="/integrations/overview/#client-integrations">client integrations</a>, and the <a href="/integrations/gallery/?official=false">Community Toolkit</a>.</p>
+{% render 'api/api-search-bar', id: "api", placeholder: "Search types, methods, properties, and more…", kinds: landing.kinds, versions: landing.versions, default_stats: stats, size: "lg" %}
+<div id="api-package-list" class="api-list">
+{%- for p in packages -%}
+<a href="{{ p.url }}" class="api-list-item" data-version="{{ p.version }}"><div class="api-list-header"><span class="api-pkg-link" title="{{ p.package }}">{{ p.package }}</span><div class="trailing"><span class="api-list-meta" title="{{ p.version }}"><code>{{ p.version }}</code></span><span class="api-mini-badge">{{ p.typeCount }} types</span></div></div></a>
+{%- endfor -%}
+</div>
+</div>
+</div>

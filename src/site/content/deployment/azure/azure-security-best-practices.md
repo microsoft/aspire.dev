@@ -1,0 +1,218 @@
+---
+title: "Aspire on Azure: security best practices"
+next: false
+description: Harden Aspire deployments to Azure with private networking, managed identities, secret stores, Key Vault references, and policy guardrails for production workloads.
+---
+
+When you deploy Aspire apps to Azure, the base security posture comes from the deployment target you choose and the Azure resources you provision. This guide explains what Aspire configures for you by default and how to work with either the standard public networking model or the private-networked model, then harden the deployment with managed identities, Key Vault, and monitoring.
+
+## Choose the networking model you need
+
+- **Azure Container Apps** can expose internal-only or public endpoints. Use a delegated subnet when you want the environment inside your virtual network.
+- **Azure App Service** is a public website model for web-facing apps and APIs. Use managed Azure services for databases, caches, brokers, and other backing infrastructure instead of trying to run them on App Service.
+
+Aspire supports both of these Azure networking models:
+
+| Model | What it means |
+| --- | --- |
+| Default public model | Your compute uses the target's normal public ingress behavior, and managed Azure services stay on their standard public endpoints. |
+| Private-networked model | Your Azure Container Apps environment runs in a delegated subnet and/or your managed Azure services are exposed through private endpoints instead of public network access. |
+
+Azure Container Apps supports both models. If you don't attach a delegated subnet, Aspire leaves the environment on the default platform-managed network. Azure App Service remains a public website model either way, so private networking there is primarily about the backing Azure services rather than the app's public site endpoint.
+
+{% learnmore %}
+Start with [Deploy to Azure](/deployment/azure/) for the shared Azure deployment model, then see [Deploy to Azure Container Apps](/deployment/azure/container-apps/) or [Deploy to Azure App Service](/deployment/azure/app-service/) for target-specific behavior.
+{% endlearnmore %}
+
+## What Aspire secures by default
+
+Aspire already handles several security basics for deployed Azure targets:
+
+- uses managed identities for deployment scenarios such as pulling images from Azure Container Registry
+- relies on platform-managed HTTPS behavior for public web ingress on Azure Container Apps and Azure App Service
+- flows connection information through resource references and configuration instead of requiring you to bake secrets into container images
+
+These defaults are a good starting point. Some deployments can stay on the public model, while others need stronger network isolation for backing services.
+
+## Add private networking when you need network isolation
+
+If you're staying on the default public model, focus on identities, secrets, RBAC, service-specific firewall rules, and monitoring. When you need private connectivity, add the [📦 Aspire.Hosting.Azure.Network](https://www.nuget.org/packages/Aspire.Hosting.Azure.Network) package so you can configure virtual networks, subnets, network security groups (NSGs), NAT gateways, and private endpoints in your AppHost.
+
+For Azure Container Apps, a common production pattern is to place the environment in a delegated subnet and put private endpoints for backing Azure services in a separate subnet:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const vnet = await builder.addAzureVirtualNetwork("vnet");
+const appsSubnet = await vnet.addSubnet("container-apps", "10.0.0.0/23");
+const peSubnet = await vnet.addSubnet("private-endpoints", "10.0.2.0/27");
+
+const env = await builder.addAzureContainerAppEnvironment("aca-env");
+await env.withDelegatedSubnet(appsSubnet);
+
+const keyVault = await builder.addAzureKeyVault("vault");
+await peSubnet.addPrivateEndpoint(keyVault);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var appsSubnet = vnet.AddSubnet("container-apps", "10.0.0.0/23");
+var peSubnet = vnet.AddSubnet("private-endpoints", "10.0.2.0/27");
+
+builder.AddAzureContainerAppEnvironment("aca-env")
+    .WithDelegatedSubnet(appsSubnet);
+
+var keyVault = builder.AddAzureKeyVault("vault");
+peSubnet.AddPrivateEndpoint(keyVault);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+This pattern has a few important behaviors:
+
+- {% api "Aspire.Hosting.AzureVirtualNetworkExtensions.WithDelegatedSubnet" %} configures the subnet delegation Azure Container Apps environments require.
+- {% api "Aspire.Hosting.AzurePrivateEndpointExtensions.AddPrivateEndpoint" %} automatically creates the private DNS zone, virtual network link, and DNS zone group the target service needs.
+- In publish and deploy flows, adding a private endpoint also disables public network access on the target Azure resource by default.
+- Resources that reference the target keep using the same connection information; private DNS resolves the hostname to the private IP inside the virtual network.
+
+If you omit `WithDelegatedSubnet` and `AddPrivateEndpoint`, Aspire keeps using the default public model.
+
+If you deploy compute to App Service instead of Azure Container Apps, the same private-endpoint guidance still applies to your backing Azure services. App Service itself remains a public website model.
+
+You can also add NSG rules to the delegated and private-endpoint subnets, and attach a NAT gateway when you need tighter ingress and egress control or deterministic outbound IP addresses.
+
+:::note
+The Azure Virtual Network integration is publish-only. During local `aspire run`, Aspire doesn't provision these network resources, and private endpoints aren't applied so local apps can still reach the cloud resource. The current VNet APIs are also still preview. For more information, see [ASPIREAZURE003](/diagnostics/aspireazure003/).
+:::
+
+{% learnmore %}
+For service-specific requirements such as Service Bus Premium tier support and Azure SQL private-endpoint deployment scripts, see [Azure Virtual Network](/integrations/cloud/azure/azure-virtual-network/).
+{% endlearnmore %}
+
+## Keep secrets and permissions scoped
+
+### Store secrets in Azure Key Vault
+
+Store sensitive configuration data and secrets in Azure Key Vault instead of source control or container images:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const keyVault = await builder.addAzureKeyVault("key-vault");
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(keyVault);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var keyVault = builder.AddAzureKeyVault("key-vault");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(keyVault);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+For more information, see [Aspire Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started/).
+
+### Use user-assigned managed identities when you need explicit lifecycle control
+
+For more granular control over permissions and role assignments, attach a user-assigned managed identity to the compute resource that needs it:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const identity = await builder.addAzureUserAssignedIdentity("app-identity");
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withAzureUserAssignedIdentity(identity);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var identity = builder.AddAzureUserAssignedIdentity("app-identity");
+
+builder.AddProject<Projects.Api>("api")
+    .WithAzureUserAssignedIdentity(identity);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+For detailed guidance, see [Aspire Azure user-assigned managed identity integration](/integrations/cloud/azure/user-assigned-identity/).
+
+## Monitor and alert on deployed apps
+
+Use the deployed Aspire Dashboard to inspect the compute resources that Aspire places in Azure Container Apps or Azure App Service, then use Application Insights and Azure Monitor alerts to detect suspicious behavior, repeated failures, or unusual traffic patterns after deployment:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const appInsights = await builder.addAzureApplicationInsights("monitoring");
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(appInsights);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var appInsights = builder.AddAzureApplicationInsights("monitoring");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(appInsights);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The dashboard helps you inspect deployed compute resources, but it doesn't surface managed Azure backing services as dashboard resources. Create Azure Monitor alerts for authentication failures, unexpected restarts, unusual latency spikes, and abnormal resource consumption across the app and its dependent Azure services.
+
+## Additional security resources
+
+For comprehensive guidance on Azure security, see [Azure security best practices and patterns](https://learn.microsoft.com/azure/security/fundamentals/best-practices-and-patterns/).
+
+## Related content
+
+- [Deploy to Azure](/deployment/azure/)
+- [Deploy to Azure Container Apps](/deployment/azure/container-apps/)
+- [Deploy to Azure App Service](/deployment/azure/app-service/)
+- [Azure Virtual Network](/integrations/cloud/azure/azure-virtual-network/)
+- [Aspire Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started/)
+- [Aspire Azure user-assigned managed identity integration](/integrations/cloud/azure/user-assigned-identity/)

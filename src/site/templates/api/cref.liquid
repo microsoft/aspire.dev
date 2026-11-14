@@ -1,0 +1,48 @@
+{%- comment -%}
+  A cref of DocContent.astro: a link through api.xref, else (members) a link to the declaring type's page, else
+  cleanCrefLabel's text. Labels: `Type` for a type, `Type.Member` for a member. Input: cref.
+{%- endcomment -%}
+{%- assign cr_value = cref | default: "" -%}
+{%- assign cr_prefix = "" -%}{%- assign cr_full = cr_value -%}
+{%- assign cr_colon = cr_value | split: ":" -%}
+{%- if cr_colon.size > 1 and cr_colon[0] != "" -%}
+  {%- assign cr_prefix = cr_colon[0] -%}
+  {%- assign cr_start = cr_prefix.size | plus: 1 -%}
+  {%- assign cr_full = cr_value | slice: cr_start, cr_value.size -%}
+{%- endif -%}
+{%- comment -%} without the parameter list and the ``N method arities {%- endcomment -%}
+{%- assign cr_name = cr_full | split: "(" | first | default: "" -%}
+{%- if cr_name contains "``" -%}
+  {%- assign cr_name = cr_name | split: "``" | first -%}
+{%- endif -%}
+{%- assign cr_segments = cr_name | split: "." -%}
+{%- assign cr_x = api.xref[cr_value] -%}
+{%- assign cr_href = cr_x.url -%}
+{%- if cr_href == nil and cr_segments.size > 1 -%}
+  {%- if cr_prefix == "M" or cr_prefix == "P" or cr_prefix == "F" or cr_prefix == "E" -%}
+    {%- assign cr_n = cr_segments.size | minus: 1 -%}
+    {%- assign cr_type_key = cr_segments | slice: 0, cr_n | join: "." | prepend: "T:" -%}
+    {%- assign cr_href = api.xref[cr_type_key].url -%}
+  {%- endif -%}
+{%- endif -%}
+{%- if cr_href -%}
+  {%- assign cr_last = cr_segments | last | split: "`" | first -%}
+  {%- if cr_prefix == "M" or cr_prefix == "P" or cr_prefix == "F" or cr_prefix == "E" -%}
+    {%- assign cr_n = cr_segments.size | minus: 2 -%}
+    {%- assign cr_type = cr_segments[cr_n] | split: "`" | first -%}
+    {%- assign cr_label = cr_type | append: "." | append: cr_last -%}
+  {%- else -%}
+    {%- assign cr_label = cr_last -%}
+  {%- endif -%}
+<a href="{{ cr_href }}" class="type-link"><code class="doc-cref-link">{{ cr_label }}</code></a>
+{%- else -%}
+  {%- if cr_segments.size >= 3 -%}
+    {%- assign cr_n = cr_segments.size | minus: 2 -%}
+    {%- assign cr_label = cr_segments | slice: cr_n, 2 | join: "." -%}
+  {%- elsif cr_segments.size == 2 -%}
+    {%- assign cr_label = cr_segments | last -%}
+  {%- else -%}
+    {%- assign cr_label = cr_name -%}
+  {%- endif -%}
+<code class="doc-cref">{{ cr_label }}</code>
+{%- endif -%}

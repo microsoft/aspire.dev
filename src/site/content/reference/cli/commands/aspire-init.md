@@ -1,0 +1,164 @@
+---
+title: aspire init command
+seoTitle: aspire init command reference for the Aspire CLI
+description: Learn about the aspire init command and how it uses the aspireify agent skill to wire up Aspire support in an existing codebase.
+---
+
+## Name
+
+`aspire init` - Initialize Aspire support in an existing codebase with a C# or TypeScript AppHost.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire init [options]
+```
+
+## Description
+
+The `aspire init` command initializes Aspire support in an existing repo or workspace. It scaffolds a minimal AppHost skeleton together with an `aspire.config.json`, then optionally installs the **`aspireify` agent skill** so your AI coding agent can complete the wiring.
+
+This command defaults to **interactive** mode. When executed without any options, the command prompts you for the AppHost language when more than one path is available.
+
+:::note
+The `--source` and `--version` options are deprecated and no longer affect
+`aspire init`. They are accepted for backward compatibility but will be
+removed in a future release.
+:::
+
+### AppHost detection
+
+The command adapts to the repo it finds:
+
+- **C# file-based AppHost** (when selected interactively) — creates `apphost.cs` with `#:sdk` and `#:package` directives for a lightweight single-file orchestrator.
+- **TypeScript AppHost** (when selected interactively) — creates `apphost.mts` with the generated `.aspire/modules/` folder. If the repo already has a root `package.json`, the AppHost is created as a nested `aspire-apphost/` package and the root `aspire.config.json` points to `aspire-apphost/apphost.mts`.
+
+:::note
+When a `.sln` or `.slnx` is present, the C# option creates a **project-based AppHost** instead — an `AppHost.csproj` added to the solution with `ProjectReference` items and strongly-typed `AddProject<T>()` calls.
+:::
+
+In all cases, the AppHost language does not limit what you can orchestrate — C#, JavaScript, Python, Go, Rust, Java, containers, and more can all be modeled in the same application model.
+
+### Skipping solution discovery with --file-based
+
+Repositories can contain incidental `.sln` or `.slnx` files that aren't meant to back the AppHost — they cause `aspire init` to prompt for a solution or scaffold a project-based AppHost even when you only want a minimal, file-based AppHost at the repository root.
+
+Pass `--file-based` to bypass .NET solution discovery entirely and always create the single-file `apphost.cs` scaffold in the current directory, regardless of any `.sln` or `.slnx` files present.
+
+`--file-based` requires C#. If another language is selected — explicitly with `--language`, through existing `aspire.config.json` configuration, or at the interactive language prompt — the command fails with an error before scaffolding or persisting the language selection. Omitting `--file-based` (or passing `--file-based false`) preserves normal initialization for all languages. Existing-file protection and agent skill setup are unaffected by this option.
+
+```bash title="Aspire CLI"
+aspire init --file-based --language csharp
+```
+
+### Channel persistence in aspire.config.json
+
+When `aspire init` runs with an explicit, non-stable channel (such as `daily` or `staging`), it writes a top-level `channel` key into the generated `aspire.config.json`. This ensures that subsequent commands — `aspire add`, `aspire update`, and others — resolve packages and templates against the same channel the project was initialized with, rather than falling back to the implicit stable default.
+
+For example, running a daily CLI build produces:
+
+```json title="aspire.config.json" {5}
+{
+  "appHost": {
+    "path": "apphost.cs"
+  },
+  "channel": "daily",
+  "profiles": {
+    "https": {
+      "applicationUrl": "https://localhost:17055;http://localhost:15013",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_GRPC_ENDPOINT_URL": "https://localhost:16168",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22043"
+      }
+    },
+    "http": {
+      "applicationUrl": "http://localhost:15013",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_GRPC_ENDPOINT_URL": "http://localhost:19147",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20216",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true"
+      }
+    }
+  }
+}
+```
+
+If `aspire.config.json` already contains a `channel` value (for example, because you edited it manually or migrated from an older project), the value is preserved and not overwritten.
+
+Only channels that are registered as _explicit_ in the packaging service are persisted, with one exception: the `stable` channel is treated as the portable default and is intentionally not pinned.
+
+### The aspireify skill
+
+After the skeleton is dropped, `aspire init` has an option to install the `aspireify` skill into your AI agent's skill directory (the same directory used by `aspire agent init`). The skill is a Markdown file with instructions that guide your AI coding agent through completing the Aspire wiring for your specific codebase.
+
+The skill instructs the agent to:
+
+- Scan the repo and discovering existing projects, services, and containers
+- Ask you clarifying questions before making decisions — for example, which services to orchestrate, whether a hardcoded port is significant, or whether to map an existing env var or switch to Aspire's service discovery
+- Wire resources into the AppHost with {% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %}, {% api "Aspire.Hosting.ResourceBuilderExtensions.WaitFor" %}, endpoints, and volumes
+- Optionally configure OpenTelemetry
+- Validate the wiring with a smoke-test `aspire start`
+
+## Options
+
+The following options are available:
+
+- **`--language`**
+
+  The AppHost language to scaffold (`csharp`, `typescript`).
+
+- **`--file-based`**
+
+  Create `apphost.cs` in the current directory, skipping .NET solution discovery. Requires C#: fails with an error if another language is selected explicitly, via configuration, or at the language prompt.
+
+- **`--skill-locations <skill-locations>`**
+
+  Comma-separated list of skill locations to configure. Use `all` to configure all supported locations or `none` to skip skill location configuration. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available locations, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+
+- **`--skills <skills>`**
+
+  Comma-separated list of skills to install. Use `all` to install all available skills or `none` to skip skill installation. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available skills, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Examples
+
+- Initialize Aspire support in the current repo interactively:
+
+  ```bash title="Aspire CLI"
+  aspire init
+  ```
+
+- Initialize Aspire support with a TypeScript AppHost:
+
+  ```bash title="Aspire CLI"
+  aspire init --language typescript
+  ```
+
+- Initialize an empty C# AppHost at the repository root, ignoring any incidental `.sln` or `.slnx` files:
+
+  ```bash title="Aspire CLI"
+  aspire init --file-based --language csharp
+  ```
+
+- Initialize Aspire support non-interactively without installing any agent skills:
+
+  ```bash title="Aspire CLI"
+  aspire init --non-interactive --skills none
+  ```
+
+- Initialize Aspire support non-interactively, installing all skills in the standard location:
+
+  ```bash title="Aspire CLI"
+  aspire init --non-interactive --language csharp --skill-locations standard --skills all
+  ```

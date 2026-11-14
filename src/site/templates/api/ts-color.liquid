@@ -1,0 +1,17 @@
+{%- comment -%}
+  typeColorIndex of MemberCardBase.astro and the TypeScript item pages, as a value: h = (h * 31 + code) | 0 over the
+  characters, then |h| % 4. Rendered (by api/member-card-base, which cannot include) and captured: reads tc_in,
+  prints the index. Characters outside printable ASCII count as 0 (none in the data).
+{%- endcomment -%}
+{%- capture tc_table %} !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~{% endcapture -%}
+{%- assign tc_h = 0 -%}
+{%- assign tc_chars = tc_in | default: "" | split: "" -%}
+{%- for tc_c in tc_chars -%}
+  {%- if tc_c == " " -%}{%- assign tc_code = 32 -%}
+  {%- elsif tc_table contains tc_c -%}{%- assign tc_code = tc_table | split: tc_c | first | size | plus: 32 -%}
+  {%- else -%}{%- assign tc_code = 0 -%}
+  {%- endif -%}
+  {%- assign tc_h = tc_h | times: 31 | plus: tc_code | modulo: 4294967296 -%}
+{%- endfor -%}
+{%- if tc_h >= 2147483648 -%}{%- assign tc_h = 4294967296 | minus: tc_h -%}{%- endif -%}
+{{- tc_h | modulo: 4 -}}

@@ -1,0 +1,40 @@
+---
+permalink: /llms-full.txt
+layout: false
+liquid: true
+markdown: false
+---
+{%- comment -%}
+  The full documentation for language models, in starlight-llms-txt 0.11's format (llms-full.txt.ts and
+  generator.ts): a <SYSTEM> line, then for each root-locale page that is not a draft "# <hero title or title>",
+  "> <hero tagline or description>" and the page's Markdown, separated by blank lines. As in the plugin, the
+  `exclude` option does not apply to this file (only to llms-small.txt).
+
+  Assumes a collect step over the Markdown twins (Douze plan 3.12):
+    llms-docs: { needs: twins, uses: collect, match: "**/*.md", with: { name: docs, content: true } }
+  so `docs.all` lists the twins and `item.content` is a page's Markdown after Liquid (shortcodes resolved to
+  HTML, %ASPIRE_VERSION% replaced, no front matter). The plugin converts the rendered HTML back to Markdown
+  instead (tabs as lists, code blocks from Expressive Code, twoslash popups removed); the twins are the
+  Markdown source with the components' HTML inline, which carries the same text. Twoslash popups do not exist
+  in the twins (the code worker runs on the HTML), so the plugin's customSelectors are not needed.
+  Order: by url (ordinal; the plugin promotes `index*` to the top, which the root url already is, then sorts the
+  ids with an English collation).
+
+  Filters: sort_by (planned, Douze plan 3.12), locale_of (planned, 3.6, used when the item has no `locale`); default, strip, replace, append (Liquid).
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign separator = nl | append: nl -%}
+{%- assign pages = docs.all | sort_by: "data.url" -%}
+<SYSTEM>This is the full developer documentation for {{ site.llms.project_name | default: site.title }}</SYSTEM>
+{%- for item in pages -%}
+  {%- assign data = item.data -%}
+  {%- if data.draft -%}{%- continue -%}{%- endif -%}
+  {%- assign item_locale = item.data.locale -%}
+  {%- unless item_locale -%}{%- assign item_locale = item.data.url | locale_of -%}{%- endunless -%}
+  {%- if item_locale != "default" -%}{%- continue -%}{%- endif -%}
+  {{ separator }}# {{ data.hero.title | default: data.title }}
+  {%- assign summary = data.hero.tagline | default: data.description -%}
+  {%- if summary -%}{{ separator }}> {{ summary }}{%- endif -%}
+  {{ separator }}{{ item.content | strip }}
+{%- endfor -%}

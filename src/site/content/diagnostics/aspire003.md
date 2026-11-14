@@ -1,0 +1,15 @@
+---
+title: Compiler Warning ASPIRE003
+seoTitle: "ASPIRE003: This project requires Visual Studio version"
+description: "Learn what causes the Aspire compiler warning ASPIRE003 — this project requires Visual Studio version '17.10' or higher to work properly."
+---
+
+{% badge "Version introduced: 8.0.0", variant: "note", size: "large", class: "mb-1" %}
+
+> This project requires Visual Studio version '17.10' or higher to work properly.
+
+When using Visual Studio to code your Aspire project, you must have Visual Studio 2022 version 17.10 or later.
+
+## To correct this warning
+
+To develop Aspire applications, [Visual Studio 2022 version 17.10 or higher](https://visualstudio.microsoft.com/vs/) is required.

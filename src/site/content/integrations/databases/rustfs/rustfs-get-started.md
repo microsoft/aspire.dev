@@ -1,0 +1,59 @@
+---
+title: Get started with the RustFS integration
+description: Run RustFS object storage in an Aspire AppHost, provision buckets, and connect applications through its S3-compatible endpoint.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+[RustFS](https://rustfs.com/) is an S3-compatible object storage server. The Community Toolkit integration runs RustFS as an AppHost container, exposes its S3 and console endpoints, and can provision buckets when the server is ready.
+
+## Why use RustFS with Aspire
+
+- Add storage as a named resource and reference it from other AppHost resources.
+- Provision one or more buckets without a separate `mc` container.
+- Persist objects in a Docker volume or a host bind mount.
+- View the storage service and each bucket resource in the Aspire dashboard.
+
+## Prerequisites
+
+- The [Aspire CLI](/get-started/install-cli/) and the other [Aspire prerequisites](/get-started/prerequisites/).
+- Docker to run the RustFS container.
+- An S3-compatible client in each consuming application. The Toolkit package provides hosting APIs, not a client library.
+
+## How the integration fits together
+
+The hosting package starts the RustFS container and exposes the S3 endpoint and web console. When the AppHost references the resource, Aspire provides an endpoint and credentials to the dependent app. The integration can also create buckets after the S3 endpoint is ready.
+
+```mermaid
+architecture-beta
+  group apphost(server)[AppHost]
+  group rustfs(server)[RustFS container]
+  service hosting(server)[RustFS hosting integration] in apphost
+  service resource(disk)[RustFS resource] in apphost
+  service s3(api)[S3-compatible API] in rustfs
+  service console(server)[Web console] in rustfs
+  service app(server)[Application]
+  hosting:R --> L:resource
+  resource:R --> L:s3
+  resource:R --> L:console
+  app:L --> R:s3
+```
+
+## Start using RustFS
+
+{% steps %}
+1. Install the hosting package in the AppHost.
+
+   {% install_package "CommunityToolkit.Aspire.Hosting.RustFs", short_name: "rustfs" %}
+
+2. Add a RustFS resource and, optionally, one or more buckets. See [Host RustFS in the AppHost](/integrations/databases/rustfs/rustfs-host/) for endpoint, credential, persistence, and bucket configuration.
+
+3. Reference the RustFS resource or a bucket resource from a consuming project. See [Connect to RustFS](/integrations/databases/rustfs/rustfs-connect/) for connection properties and an S3 client example.
+{% endsteps %}
+
+## See also
+
+- [Host RustFS in the AppHost](/integrations/databases/rustfs/rustfs-host/)
+- [Connect to RustFS](/integrations/databases/rustfs/rustfs-connect/)
+- [RustFS documentation](https://docs.rustfs.com/)
+- [📦 CommunityToolkit.Aspire.Hosting.RustFs](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.RustFs)

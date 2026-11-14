@@ -1,0 +1,250 @@
+---
+title: Use community extensions for PostgreSQL hosting
+description: Decorate official Aspire PostgreSQL resources with Community Toolkit management interfaces and Flyway migration commands.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+{% image "/assets/images/icons/postgresql-icon.png", alt: "PostgreSQL logo", width: 100, height: 100, fit: "contain", class: "float-inline-left icon", zoomable: false %}
+
+The Aspire Community Toolkit PostgreSQL hosting extensions package provides extra functionality to the [Aspire.Hosting.PostgreSQL](https://www.nuget.org/packages/Aspire.Hosting.PostgreSQL) hosting package.
+
+This package provides the following features:
+
+- [Adminer](https://adminer.org/) management UI
+- [DbGate](https://dbgate.org/) management UI
+- dbx management UI
+- [Flyway](https://documentation.red-gate.com/fd) migration and repair commands
+
+## Hosting integration
+
+To get started with the Aspire Community Toolkit PostgreSQL hosting extensions, install the [CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions) NuGet package in the app host project.
+
+{% install_package "CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions" %}
+
+For TypeScript AppHosts, add the Community Toolkit PostgreSQL extensions package to `aspire.config.json`:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions": "*"
+  }
+}
+```
+
+## Add management UI
+
+### DbGate management UI
+
+To add the DbGate management UI, decorate the official `PostgresServerResource` builder with {% api "Aspire.Hosting.PostgresBuilderExtensions.WithDbGate" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+await postgres.withDbGate();
+
+const exampleProject = await builder.addProject(
+  'example-project',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await exampleProject.withReference(postgres);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithDbGate();
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(postgres);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+This adds a new DbGate resource to the app host which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your PostgreSQL databases.
+
+### Adminer management UI
+
+To add the Adminer management UI, decorate the official `PostgresServerResource` builder with {% api "Aspire.Hosting.PostgresBuilderExtensions.WithAdminer" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+await postgres.withAdminer();
+
+const exampleProject = await builder.addProject(
+  'example-project',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await exampleProject.withReference(postgres);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithAdminer();
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(postgres);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+This adds a new Adminer resource to the app host which is available from the Aspire dashboard. Adminer is a lightweight database management tool that provides a simple web interface for database operations.
+
+### Using both management UIs
+
+You can use both management UIs together on the same PostgreSQL resource:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+await postgres.withDbGate();
+await postgres.withAdminer();
+
+const exampleProject = await builder.addProject(
+  'example-project',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await exampleProject.withReference(postgres);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithDbGate()
+    .WithAdminer();
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(postgres);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+### dbx management UI
+
+[dbx](https://github.com/t8y2/dbx) is a lightweight, web-based database client and an alternative management UI to DbGate and Adminer. Use {% api "Aspire.Hosting.PostgresBuilderExtensions.WithDbx" %} to add a dbx child resource configured for the PostgreSQL server:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+await postgres.withDbx({
+  containerName: 'postgres-dbx',
+  imageTag: '0.5.33',
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithDbx();
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+
+## Run Flyway commands
+
+Flyway decorators apply to an official `PostgresDatabaseResource`, not the PostgreSQL server resource.
+
+### Run migrations
+
+In C#, add a Flyway resource and pass it to `WithFlywayMigration`. In TypeScript, `withFlywayMigration` creates the Flyway resource from its name and migration scripts path.
+
+Place versioned SQL files such as `V1__init.sql` in `./migrations`; Flyway discovers them by its versioned migration naming convention.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const database = await postgres.addDatabase('appdb');
+await database.withFlywayMigration('flyway-migration', './migrations');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var migrations = builder.AddFlyway("migrations", "./migrations");
+var postgres = builder.AddPostgres("postgres");
+var database = postgres.AddDatabase("appdb")
+    .WithFlywayMigration(migrations);
+
+migrations.WaitFor(database);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(database)
+    .WaitFor(database)
+    .WaitForCompletion(migrations);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+{% api "Aspire.Hosting.PostgresDatabaseResourceBuilderExtensions.WithFlywayMigration" %} configures the Flyway connection arguments and `migrate` command; it doesn't add resource ordering. In the C# example, `migrations.WaitFor(database)` ensures Flyway starts only after PostgreSQL is ready, and `api.WaitForCompletion(migrations)` gates the API on the migration resource's completion.
+
+The TypeScript overload creates and configures the Flyway resource internally, but it doesn't add a `waitFor` relationship or return the Flyway resource builder. The TypeScript binding therefore can't express the C# example's startup and completion dependencies for that internally created resource.
+
+Use `WithFlywayRepair(migrations)` in C# or `withFlywayRepair("flyway-repair", "./migrations")` in TypeScript when you need Flyway's `repair` command instead of `migrate`. The same ordering behavior and TypeScript limitation apply.
+
+## See also
+
+- [Adminer documentation](https://www.adminer.org/)
+- [DbGate documentation](https://dbgate.org/)
+- [Flyway documentation](https://documentation.red-gate.com/fd)
+- [PostgreSQL integration](/integrations/databases/postgres/postgres-host/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)

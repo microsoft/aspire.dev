@@ -1,0 +1,22 @@
+---
+# The Markdown twin of /reference/api/csharp/: renderCSharpIndexMarkdown of src/frontend/src/utils/csharp-api-markdown.ts.
+layout: false
+# One page over both landing routes: the API branch has no permalink step, and paginate is what resolves permalinks.
+pagination: { data: api.routes.indexes, size: 2 }
+permalink: /reference/api/csharp.md
+---
+{%- capture nl %}
+{% endcapture -%}
+{%- assign packages = api.routes["csharp-packages"] | sort_natural: "package" -%}
+{%- capture text -%}
+# C# API Reference
+␞Browse the C# API reference for Aspire packages, including hosting integrations, client integrations, and the Community Toolkit.
+␞## Packages{{ nl }}
+{%- for entry in packages -%}
+  {%- assign pkg = api.pkgs[entry.file] -%}
+  {%- assign members = 0 -%}
+  {%- for type in pkg.types -%}{%- assign members = members | plus: type.members.size -%}{%- endfor -%}
+  {{- nl }}- [{{ entry.package }}](/reference/api/csharp/{{ entry.slug }}.md) — v{{ pkg.package.version }} · {{ pkg.types.size }} types · {{ members }} members{% if pkg.package.targetFramework %} · {{ pkg.package.targetFramework }}{% endif -%}
+{%- endfor -%}
+{%- endcapture -%}
+{%- render 'api/md/finalize', text: text -%}

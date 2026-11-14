@@ -1,0 +1,33 @@
+{%- comment -%}
+  A code block of the API pages (doc `codeblock` nodes and examples, in place of Starlight's <Code>): the text
+  without its common indentation and its leading and trailing blank lines (the dedent of DocContent.astro), escaped,
+  in <pre data-language>. Inputs: code, lang (default csharp), title (optional frame title); or html, text that is already escaped and
+  formatted (signatures), in place of code.
+  The generators will provide highlighted HTML (docs/douze-migration-plan.md, section 5.4).
+{%- endcomment -%}
+{%- capture cb_nl %}
+{% endcapture -%}
+{%- assign cb_lang = lang | default: "csharp" -%}
+{%- unless html -%}
+{%- assign cb_lines = code | default: "" | split: cb_nl -%}
+{%- assign cb_min = 1000 -%}{%- assign cb_firstline = -1 -%}{%- assign cb_lastline = -1 -%}
+{%- for cb_line in cb_lines -%}
+  {%- assign cb_trim = cb_line | lstrip -%}
+  {%- if cb_trim != "" -%}
+    {%- if cb_firstline < 0 -%}{%- assign cb_firstline = forloop.index0 -%}{%- endif -%}
+    {%- assign cb_lastline = forloop.index0 -%}
+    {%- assign cb_indent = cb_line.size | minus: cb_trim.size -%}
+    {%- if cb_indent < cb_min -%}{%- assign cb_min = cb_indent -%}{%- endif -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- endunless -%}
+<div class="expressive-code api-code"><figure class="frame not-content">{% if title %}<figcaption class="header"><span class="title">{{ title }}</span></figcaption>{% endif %}<pre data-language="{{ cb_lang }}"><code>
+{%- if html -%}{{ html }}
+{%- elsif cb_firstline >= 0 -%}
+  {%- assign cb_count = cb_lastline | minus: cb_firstline | plus: 1 -%}
+  {%- for cb_line in cb_lines offset: cb_firstline limit: cb_count -%}
+    {%- unless forloop.first %}{{ cb_nl }}{% endunless -%}
+    {{- cb_line | slice: cb_min, cb_line.size -}}
+  {%- endfor -%}
+{%- endif -%}
+</code></pre></figure></div>

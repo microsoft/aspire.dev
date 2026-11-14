@@ -1,0 +1,283 @@
+{%- comment -%}
+  The resource catalog of /hub/browse/ (src/frontend/src/utils/dev-center/catalog.ts and catalog-normalization.ts
+  buildResourceCatalog): the English articles (collections.all), the glossary terms, the samples, the integration
+  packages (data aspire-integrations, mapped to their article by data integration-docs), the official videos (data
+  community-videos and dev_hub.videos), the video channels and the blog posts (data aspire-blog-posts and
+  dev_hub.blog_highlights). A package whose article is in the catalog is merged into it (tags, topics, languages,
+  providers, its icon when the article has no image), as are a video or a post listed twice.
+  Sets ca_rows (the <li> of every resource, sorted by title then id: print each with `| split: ca_key_end | last |
+  raw`) and ca_facets ("|type:guide|topic:foundations|language:csharp|...", the facets in use).
+  Reads, from the page: ca_ascii (the printable ASCII characters, for the grain hash), ca_bits, ca_tie, ca_key_end,
+  ca_row_end (control characters that sort before any title character and never occur in the data).
+  The languages of an article are its framework folder's, plus those of its code fences when a `doc_text` collection
+  holds the pages' Markdown (see step 3; without it, the fences are not read). Not reproduced: the languages of
+  included files, and the removal of diacritics from the search text (lowercased, its ellipses expanded as NFKD does;
+  no entry has an accented letter).
+{%- endcomment -%}
+{%- assign ca_facets = "|" -%}
+{%- assign ca_none = dev_hub.topics | where: "id", "~" -%}
+{%- assign ca_language_tags = "csharp,typescript,javascript,python,go,java,rust" | split: "," -%}
+{%- assign ca_provider_tags = "azure,aws,kubernetes,gcp" | split: "," -%}
+{%- assign ca_locales = "da,de,es,fr,hi,id,it,ja,ko,pt-br,ru,tr,uk,zh-cn" | split: "," -%}
+{%- assign ca_topic_ids = dev_hub.topics | map: "id" -%}
+{%- assign ca_fences = "csharp=csharp,cs=csharp,c#=csharp,typescript=typescript,ts=typescript,tsx=typescript,javascript=javascript,js=javascript,jsx=javascript,python=python,py=python,go=go,golang=go,java=java,rust=rust,rs=rust" | split: "," -%}
+{%- comment -%} The integration documentation mappings: "~<lowercased package>=><href>~". {%- endcomment -%}
+{%- capture ca_map -%}~{%- for ca_mapping in integration-docs -%}{{ ca_mapping.match | downcase | raw }}=>{{ ca_mapping.href | raw }}~{%- endfor -%}{%- endcapture -%}
+
+{%- comment -%} 1. The articles of the catalog: English, not a 404/support/thanks/contributors/aspireconf/API/hub page, not an
+include or a _partial, not redirected, not a draft, hidden or unlisted. ca_doc_urls: their urls; ca_doc_hrefs: "~/a/b/~". {%- endcomment -%}
+{%- assign ca_doc_hrefs = "~" -%}
+{%- capture ca_doc_urls -%}
+{%- for ca_item in collections.all -%}
+  {%- assign ca_data = ca_item.data -%}
+  {%- assign ca_href = ca_data.url | replace: "index.html", "" -%}
+  {%- assign ca_path = ca_href | remove_first: "/" | append: "~" | replace: "/~", "" | remove: "~" -%}
+  {%- assign ca_segments = ca_path | split: "/" -%}
+  {%- assign ca_first = ca_segments | first | default: "" -%}
+  {%- assign ca_ok = true -%}
+  {%- if ca_locales contains ca_first or ca_first == "hub" or ca_first == "aspireconf" -%}{%- assign ca_ok = false -%}{%- endif -%}
+  {%- case ca_path -%}{%- when "", "404", "support", "community/thanks", "community/contributors" -%}{%- assign ca_ok = false -%}{%- endcase -%}
+  {%- assign ca_prefix = ca_path | slice: 0, 14 -%}{%- if ca_prefix == "reference/api/" -%}{%- assign ca_ok = false -%}{%- endif -%}
+  {%- if ca_segments contains "includes" -%}{%- assign ca_ok = false -%}{%- endif -%}
+  {%- for ca_segment in ca_segments -%}{%- assign ca_c = ca_segment | slice: 0 -%}{%- if ca_c == "_" -%}{%- assign ca_ok = false -%}{%- endif -%}{%- endfor -%}
+  {%- if redirects[ca_href] or ca_data.draft or ca_data.hidden or ca_data.unlisted or ca_data.redirect or ca_data.sidebar.hidden -%}{%- assign ca_ok = false -%}{%- endif -%}
+  {%- if ca_ok -%}{%- assign ca_doc_hrefs = ca_doc_hrefs | append: ca_href | append: "~" -%}{{ ca_data.url | raw }}~{%- endif -%}
+{%- endfor -%}
+{%- endcapture -%}
+{%- assign ca_doc_urls = ca_doc_urls | split: "~" | where_exp: "ca_u", "ca_u != ''" -%}
+
+{%- capture ca_all -%}
+{%- comment -%} 2. The integration packages: merged into their article when it is in the catalog (ca_targets[i]), else their own entry. {%- endcomment -%}
+{%- assign ca_targets = "" -%}
+{%- for ca_package in aspire-integrations -%}
+  {%- assign ca_key = ca_package.title | downcase -%}
+  {%- assign ca_lookup = "~" | append: ca_key | append: "=>" -%}
+  {%- assign ca_parts = ca_map | split: ca_lookup -%}
+  {%- assign ca_target = "" -%}{%- assign rc_href = ca_package.href -%}
+  {%- if ca_parts.size > 1 -%}
+    {%- assign ca_mapped = ca_parts[1] | split: "~" | first -%}
+    {%- assign ca_c = ca_mapped | slice: 0 -%}
+    {%- if ca_c == "/" -%}
+      {%- assign ca_dest = ca_mapped | split: "#" | first | split: "?" | first | append: "~" | replace: "/~", "~" | replace: "~", "/" -%}
+      {%- assign ca_wanted = "~" | append: ca_dest | append: "~" -%}
+      {%- if ca_doc_hrefs contains ca_wanted -%}{%- assign ca_target = ca_dest -%}{%- endif -%}
+    {%- else -%}
+      {%- assign rc_href = ca_mapped -%}
+    {%- endif -%}
+  {%- endif -%}
+  {%- assign ca_targets = ca_targets | append: ca_target | append: "~" -%}
+  {%- if ca_target == "" -%}
+    {%- assign rc_id = "integration:" | append: ca_key -%}{%- assign rc_title = ca_package.title -%}{%- assign rc_desc = ca_package.description -%}{%- assign rc_type = "integration" -%}
+    {%- assign rc_topics = "integrations" | split: "~" -%}
+    {%- assign rc_tags = ca_package.tags | default: ca_none | concat: ca_none -%}{%- assign ca_one = ca_package.title | split: "~" -%}{%- assign rc_tags = rc_tags | concat: ca_one -%}
+    {%- assign rc_languages = ca_none -%}{%- assign rc_providers = ca_none -%}
+    {%- for ca_tag in ca_package.tags -%}{%- assign ca_one = ca_tag | split: "~" -%}{%- if ca_language_tags contains ca_tag -%}{%- assign rc_languages = rc_languages | concat: ca_one -%}{%- endif -%}{%- if ca_provider_tags contains ca_tag -%}{%- assign rc_providers = rc_providers | concat: ca_one -%}{%- endif -%}{%- endfor -%}
+    {%- if ca_key == "aspire.hosting.aws" -%}{%- assign rc_light = "/assets/images/icons/aws-light-icon.png" -%}{%- assign rc_dark = "/assets/images/icons/aws-icon.png" -%}{%- else -%}{%- assign rc_light = ca_package.icon -%}{%- assign rc_dark = ca_package.icon -%}{%- endif -%}
+    {%- assign rc_logo = true -%}{%- assign rc_platform = nil -%}{%- assign rc_date = nil -%}
+    {%- include "partials/hub/resource-card" -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- assign ca_targets = ca_targets | split: "~" -%}
+{%- assign ca_target_list = ca_targets | join: "~" | prepend: "~" | append: "~" -%}
+
+{%- comment -%} 3. The articles: type, topics, tags, providers, framework language, image, date, and their merged packages. {%- endcomment -%}
+{%- for ca_url in ca_doc_urls -%}
+  {%- assign ca_href = ca_url | replace: "index.html", "" -%}
+  {%- assign ca_data = collections.urls[ca_href].data -%}
+  {%- assign ca_path = ca_href | remove_first: "/" | append: "~" | replace: "/~", "" | remove: "~" -%}
+  {%- assign ca_segments = ca_path | split: "/" -%}
+  {%- assign ca_first = ca_segments | first -%}
+  {%- assign rc_id = "doc:" | append: ca_path -%}{%- assign rc_title = ca_data.title -%}{%- assign rc_desc = ca_data.description -%}{%- assign rc_href = ca_href -%}
+  {%- comment -%} classifyDoc {%- endcomment -%}
+  {%- assign rc_type = nil -%}
+  {%- case ca_data.category -%}
+    {%- when "conceptual" -%}{%- assign rc_type = "guide" -%}
+    {%- when "quickstart", "tutorial", "blog", "reference", "sample", "how-to" -%}{%- assign rc_type = ca_data.category -%}
+  {%- endcase -%}
+  {%- unless rc_type -%}
+    {%- assign ca_release = ca_path | slice: 0, 17 -%}{%- assign ca_release_digit = ca_path | slice: 17 -%}
+    {%- if ca_first == "diagnostics" and ca_segments.size > 1 -%}{%- assign rc_type = "diagnostic" -%}
+    {%- elsif ca_release == "whats-new/aspire-" and "0123456789" contains ca_release_digit and ca_release_digit != "" -%}{%- assign rc_type = "release-notes" -%}
+    {%- elsif ca_first == "reference" and ca_segments.size > 1 -%}{%- assign rc_type = "reference" -%}
+    {%- elsif ca_first == "integrations" and ca_segments.size > 1 -%}{%- assign rc_type = "integration" -%}
+    {%- elsif ca_path == "get-started/first-app" -%}{%- assign rc_type = "quickstart" -%}
+    {%- elsif ca_path == "get-started/deploy-first-app" or ca_first == "tutorials" and ca_segments.size > 1 -%}{%- assign rc_type = "tutorial" -%}
+    {%- elsif ca_path == "get-started/add-aspire-existing-app" or ca_first == "how-to" and ca_segments.size > 1 -%}{%- assign rc_type = "how-to" -%}
+    {%- elsif ca_first == "blog" and ca_segments.size > 1 -%}{%- assign rc_type = "blog" -%}
+    {%- else -%}{%- assign rc_type = "guide" -%}
+    {%- endif -%}
+  {%- endunless -%}
+  {%- comment -%} docTopics {%- endcomment -%}
+  {%- if ca_topic_ids contains ca_data.topic -%}{%- assign rc_topics = ca_data.topic | split: "~" -%}
+  {%- else -%}
+    {%- case ca_first -%}
+      {%- when "docs", "get-started", "app-host", "architecture", "fundamentals", "extensibility", "testing", "languages-and-runtimes" -%}{%- assign rc_topics = "foundations" | split: "~" -%}
+      {%- when "integrations", "dashboard", "deployment", "community" -%}{%- assign rc_topics = ca_first | split: "~" -%}
+      {%- when "diagnostics", "reference", "whats-new" -%}{%- assign rc_topics = "reference" | split: "~" -%}
+      {%- when "blog" -%}{%- assign rc_topics = "community" | split: "~" -%}
+      {%- else -%}{%- assign rc_topics = ca_none -%}
+    {%- endcase -%}
+  {%- endif -%}
+  {%- assign rc_tags = ca_segments -%}
+  {%- assign rc_providers = ca_none -%}
+  {%- for ca_segment in ca_segments -%}{%- if ca_provider_tags contains ca_segment -%}{%- assign ca_one = ca_segment | split: "~" -%}{%- assign rc_providers = rc_providers | concat: ca_one -%}{%- endif -%}{%- endfor -%}
+  {%- assign rc_languages = ca_none -%}
+  {%- if ca_segments[0] == "integrations" and ca_segments[1] == "frameworks" and ca_language_tags contains ca_segments[2] -%}{%- assign rc_languages = ca_segments[2] | split: "~" -%}{%- endif -%}
+  {%- comment -%} The languages of its code blocks (resource-languages.ts), when a `doc_text` collection holds the pages'
+  Markdown (a `collect` step with `name: doc_text, content: true`): fences whose language is one of ca_fences. {%- endcomment -%}
+  {%- assign ca_text = doc_text.urls[ca_href].content -%}
+  {%- if ca_text -%}
+    {%- assign ca_text = ca_text | downcase -%}
+    {%- for ca_fence in ca_fences -%}
+      {%- assign ca_fence_lang = ca_fence | split: "=" | last -%}
+      {%- assign ca_fence_open = ca_fence | split: "=" | first | prepend: "```" -%}
+      {%- assign ca_fence_line = ca_fence_open | append: "
+" -%}{%- assign ca_fence_meta = ca_fence_open | append: " " -%}
+      {%- if ca_text contains ca_fence_line or ca_text contains ca_fence_meta -%}{%- assign ca_one = ca_fence_lang | split: "~" -%}{%- assign rc_languages = rc_languages | concat: ca_one -%}{%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+  {%- comment -%} resourceImage, else ogImage: "~/assets/x.png" is /assets/images/x.png. {%- endcomment -%}
+  {%- assign ca_image = ca_data.resourceImage | default: ca_data.ogImage -%}
+  {%- assign rc_light = nil -%}{%- assign rc_dark = nil -%}{%- assign rc_logo = false -%}
+  {%- if ca_image.light -%}{%- assign rc_light = ca_image.light -%}{%- assign rc_dark = ca_image.dark -%}{%- elsif ca_image -%}{%- assign rc_light = ca_image -%}{%- assign rc_dark = ca_image -%}{%- endif -%}
+  {%- if rc_light -%}{%- assign rc_light = rc_light | split: "#" | first | replace_first: "~/assets/", "/assets/images/" -%}{%- assign rc_dark = rc_dark | split: "#" | first | replace_first: "~/assets/", "/assets/images/" -%}{%- endif -%}
+  {%- if ca_data.publishDate -%}{%- assign rc_date = ca_data.publishDate | date: "%Y-%m-%d" -%}{%- else -%}{%- assign rc_date = nil -%}{%- endif -%}
+  {%- comment -%} The packages documented by this article. {%- endcomment -%}
+  {%- assign ca_wanted = "~" | append: ca_href | append: "~" -%}
+  {%- if ca_target_list contains ca_wanted -%}
+    {%- for ca_target in ca_targets -%}
+      {%- if ca_target == ca_href -%}
+        {%- assign ca_package = aspire-integrations[forloop.index0] -%}
+        {%- assign ca_one = ca_package.title | split: "~" -%}
+        {%- assign rc_tags = rc_tags | concat: ca_package.tags | concat: ca_one -%}
+        {%- assign ca_one = "integrations" | split: "~" -%}{%- assign rc_topics = rc_topics | concat: ca_one -%}
+        {%- for ca_tag in ca_package.tags -%}{%- assign ca_one = ca_tag | split: "~" -%}{%- if ca_language_tags contains ca_tag -%}{%- assign rc_languages = rc_languages | concat: ca_one -%}{%- endif -%}{%- if ca_provider_tags contains ca_tag -%}{%- assign rc_providers = rc_providers | concat: ca_one -%}{%- endif -%}{%- endfor -%}
+        {%- unless rc_light -%}
+          {%- if ca_package.title == "Aspire.Hosting.AWS" or ca_package.title == "aspire.hosting.aws" -%}{%- assign rc_light = "/assets/images/icons/aws-light-icon.png" -%}{%- assign rc_dark = "/assets/images/icons/aws-icon.png" -%}{%- assign rc_logo = true -%}
+          {%- elsif ca_package.icon -%}{%- assign rc_light = ca_package.icon -%}{%- assign rc_dark = ca_package.icon -%}{%- assign rc_logo = true -%}{%- endif -%}
+        {%- endunless -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+  {%- assign rc_platform = nil -%}
+  {%- include "partials/hub/resource-card" -%}
+{%- endfor -%}
+
+{%- comment -%} 4. The glossary terms. {%- endcomment -%}
+{%- for ca_term in collections.glossary -%}
+  {%- assign ca_data = ca_term.data -%}
+  {%- assign ca_id = ca_data.url | remove_first: "/hub/glossary/" | remove: "/index.html" -%}
+  {%- assign rc_id = "glossary:" | append: ca_id -%}{%- assign rc_title = ca_data.title -%}{%- assign rc_desc = ca_data.description -%}
+  {%- assign rc_href = "/hub/glossary/" | append: ca_id | append: "/" -%}{%- assign rc_type = "glossary" -%}
+  {%- assign rc_topics = ca_data.topics | default: ca_none | concat: ca_none -%}{%- assign rc_tags = ca_data.aliases | default: ca_none | concat: ca_none -%}
+  {%- assign rc_languages = ca_none -%}{%- assign rc_providers = ca_none -%}{%- assign rc_light = nil -%}{%- assign rc_dark = nil -%}{%- assign rc_logo = false -%}{%- assign rc_platform = nil -%}{%- assign rc_date = nil -%}
+  {%- include "partials/hub/resource-card" -%}
+{%- endfor -%}
+
+{%- comment -%} 5. The samples: foundations, plus the topics of their tags; their thumbnail. {%- endcomment -%}
+{%- for sl_sample in samples -%}
+  {%- assign rc_id = "sample:" | append: sl_sample.name -%}{%- assign rc_title = sl_sample.title -%}
+  {%- comment -%} sampleDescriptionText drops Markdown tables: their lines are left out. {%- endcomment -%}
+  {%- capture rc_desc -%}{%- assign ca_lines = sl_sample.description | default: "" | split: "
+" -%}{%- for ca_line in ca_lines -%}{%- unless ca_line contains "|" -%}{{ ca_line | raw }}
+{% endunless -%}{%- endfor -%}{%- endcapture -%}
+  
+  {%- assign rc_href = sl_sample.name | slug | prepend: "/reference/samples/" | append: "/" -%}
+  {%- assign rc_type = "sample" -%}
+  {%- capture ca_list -%}foundations{%- for ca_tag in sl_sample.tags -%}{%- case ca_tag -%}{%- when "databases", "redis", "rabbitmq", "orleans", "ef-core" -%}~integrations{%- when "dashboard", "metrics", "grafana", "prometheus", "health-checks" -%}~dashboard{%- when "azure", "aws", "kubernetes", "gcp" -%}~deployment{%- endcase -%}{%- endfor -%}{%- endcapture -%}
+  {%- assign rc_topics = ca_list | split: "~" -%}
+  {%- assign rc_tags = sl_sample.tags | default: ca_none | concat: ca_none -%}
+  {%- include "partials/hub/sample-languages" -%}{%- assign rc_languages = sl_languages -%}
+  {%- assign rc_providers = ca_none -%}
+  {%- for ca_tag in sl_sample.tags -%}{%- if ca_provider_tags contains ca_tag -%}{%- assign ca_one = ca_tag | split: "~" -%}{%- assign rc_providers = rc_providers | concat: ca_one -%}{%- endif -%}{%- endfor -%}
+  {%- assign rc_light = nil -%}{%- assign rc_dark = nil -%}
+  {%- if sl_sample.thumbnail.light -%}{%- assign rc_light = sl_sample.thumbnail.light -%}{%- assign rc_dark = sl_sample.thumbnail.dark -%}{%- elsif sl_sample.thumbnail -%}{%- assign rc_light = sl_sample.thumbnail -%}{%- assign rc_dark = sl_sample.thumbnail -%}{%- endif -%}
+  {%- if rc_light -%}{%- assign rc_light = rc_light | split: "#" | first | split: "?" | first | replace_first: "~/assets/", "/assets/images/" -%}{%- assign rc_dark = rc_dark | split: "#" | first | split: "?" | first | replace_first: "~/assets/", "/assets/images/" -%}{%- endif -%}
+  {%- assign rc_logo = false -%}{%- assign rc_platform = nil -%}{%- assign rc_date = nil -%}
+  {%- include "partials/hub/resource-card" -%}
+{%- endfor -%}
+
+{%- comment -%} 6. The official videos (community videos tagged Official, then the latest uploads), one per YouTube video:
+a video listed again adds its tags and title to the first. ca_video_ids: "~<id>~" of each, in order. {%- endcomment -%}
+{%- assign ca_videos = community-videos.aspireifridays | concat: community-videos.dotnetConf2025 | concat: community-videos.communityVideos | where_exp: "ca_v", "ca_v.tags contains 'Official'" -%}
+{%- capture ca_video_ids -%}
+{%- for ca_video in ca_videos -%}
+  {%- assign ca_vid = nil -%}
+  {%- if ca_video.href contains "youtu.be/" -%}{%- assign ca_vid = ca_video.href | split: "youtu.be/" | last | split: "?" | first | split: "/" | first -%}
+  {%- elsif ca_video.href contains "v=" -%}{%- assign ca_vid = ca_video.href | split: "v=" | last | split: "&" | first | split: "#" | first -%}
+  {%- elsif ca_video.href contains "/shorts/" -%}{%- assign ca_vid = ca_video.href | split: "/shorts/" | last | split: "/" | first | split: "?" | first -%}
+  {%- elsif ca_video.href contains "/embed/" -%}{%- assign ca_vid = ca_video.href | split: "/embed/" | last | split: "/" | first | split: "?" | first -%}
+  {%- endif -%}
+  {{ ca_vid | raw }}~
+{%- endfor -%}
+{%- for ca_video in dev_hub.videos -%}{{ ca_video.id | raw }}~{%- endfor -%}
+{%- endcapture -%}
+{%- assign ca_video_ids = ca_video_ids | split: "~" -%}
+{%- comment -%} split keeps the empty string after the last separator. {%- endcomment -%}
+{%- assign ca_video_count = ca_videos.size -%}
+{%- assign ca_seen = "~" -%}
+{%- for ca_vid in ca_video_ids -%}
+  {%- assign ca_wanted = "~" | append: ca_vid | append: "~" -%}
+  {%- if ca_vid == "" -%}{%- assign ca_wanted = "~" -%}{%- endif -%}
+  {%- unless ca_seen contains ca_wanted -%}
+    {%- assign ca_seen = ca_seen | append: ca_vid | append: "~" -%}
+    {%- assign ca_index = forloop.index0 -%}
+    {%- if ca_index < ca_video_count -%}
+      {%- assign ca_video = ca_videos[ca_index] -%}
+      {%- assign rc_title = ca_video.title -%}{%- assign rc_desc = ca_video.description -%}{%- assign rc_href = ca_video.href -%}{%- assign rc_tags = ca_video.tags | concat: ca_none -%}
+    {%- else -%}
+      {%- assign ca_dev_index = ca_index | minus: ca_video_count -%}{%- assign ca_video = dev_hub.videos[ca_dev_index] -%}
+      {%- assign rc_title = ca_video.title -%}{%- assign rc_desc = ca_video.series -%}{%- assign rc_href = "https://www.youtube.com/watch?v=" | append: ca_video.id -%}{%- assign rc_tags = ca_video.series | split: "~" -%}
+    {%- endif -%}
+    {%- comment -%} The same video listed later: its tags and title. {%- endcomment -%}
+    {%- for ca_other in ca_video_ids offset: ca_index -%}
+      {%- assign ca_other_index = forloop.index0 | plus: ca_index -%}
+      {%- if ca_other == ca_vid and ca_other_index > ca_index -%}
+        {%- if ca_other_index < ca_video_count -%}{%- assign ca_other_video = ca_videos[ca_other_index] -%}{%- assign ca_one = ca_other_video.title | split: "~" -%}{%- assign rc_tags = rc_tags | concat: ca_other_video.tags | concat: ca_one -%}
+        {%- else -%}{%- assign ca_dev_index = ca_other_index | minus: ca_video_count -%}{%- assign ca_other_video = dev_hub.videos[ca_dev_index] -%}{%- assign ca_one = ca_other_video.series | append: "~" | append: ca_other_video.title | split: "~" -%}{%- assign rc_tags = rc_tags | concat: ca_one -%}{%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- assign rc_id = "video:" | append: ca_vid -%}{%- assign rc_type = "video" -%}{%- assign rc_topics = "community" | split: "~" -%}
+    {%- assign rc_languages = ca_none -%}{%- assign rc_providers = ca_none -%}
+    {%- assign rc_light = "https://i.ytimg.com/vi/" | append: ca_vid | append: "/hqdefault.jpg" -%}{%- assign rc_dark = rc_light -%}{%- assign rc_logo = false -%}
+    {%- assign rc_platform = "youtube" -%}{%- assign rc_date = nil -%}
+    {%- include "partials/hub/resource-card" -%}
+  {%- endunless -%}
+{%- endfor -%}
+
+{%- comment -%} 7. The video channels. {%- endcomment -%}
+{%- for ca_channel in dev_hub.channels -%}
+  {%- assign rc_id = "channel:" | append: ca_channel.platform -%}{%- assign rc_title = ca_channel.title -%}{%- assign rc_desc = ca_channel.description -%}{%- assign rc_href = ca_channel.href -%}
+  {%- assign rc_type = "video" -%}{%- assign rc_topics = "community" | split: "~" -%}{%- assign rc_tags = "Official~Live streams~" | append: ca_channel.platform | split: "~" -%}
+  {%- assign rc_languages = ca_none -%}{%- assign rc_providers = ca_none -%}{%- assign rc_light = nil -%}{%- assign rc_dark = nil -%}{%- assign rc_logo = false -%}
+  {%- assign rc_platform = ca_channel.platform -%}{%- assign rc_date = nil -%}
+  {%- include "partials/hub/resource-card" -%}
+{%- endfor -%}
+
+{%- comment -%} 8. The blog posts (the posts, then the highlights), one per destination (the url without its fragment and
+trailing slash): a post listed again adds its title to the tags of the first. {%- endcomment -%}
+{%- assign ca_posts = aspire-blog-posts | concat: dev_hub.blog_highlights -%}
+{%- capture ca_post_keys -%}{%- for ca_post in ca_posts -%}{{ ca_post.href | split: "#" | first | append: "~" | replace: "/~", "" | remove: "~" | raw }}~{%- endfor -%}{%- endcapture -%}
+{%- assign ca_post_keys = ca_post_keys | split: "~" -%}
+{%- assign ca_seen = "~" -%}
+{%- for ca_key in ca_post_keys -%}
+  {%- assign ca_wanted = "~" | append: ca_key | append: "~" -%}
+  {%- if ca_key == "" -%}{%- assign ca_wanted = "~" -%}{%- endif -%}
+  {%- unless ca_seen contains ca_wanted -%}
+    {%- assign ca_seen = ca_seen | append: ca_key | append: "~" -%}
+    {%- assign ca_index = forloop.index0 -%}
+    {%- assign ca_post = ca_posts[ca_index] -%}
+    {%- assign rc_tags = ca_none -%}{%- assign rc_light = ca_post.image -%}
+    {%- for ca_other in ca_post_keys offset: ca_index -%}
+      {%- assign ca_other_index = forloop.index0 | plus: ca_index -%}
+      {%- if ca_other == ca_key and ca_other_index > ca_index -%}{%- assign ca_other_post = ca_posts[ca_other_index] -%}{%- assign ca_one = ca_other_post.title | split: "~" -%}{%- assign rc_tags = rc_tags | concat: ca_one -%}{%- unless rc_light -%}{%- assign rc_light = ca_other_post.image -%}{%- endunless -%}{%- endif -%}
+    {%- endfor -%}
+    {%- assign rc_id = "blog:" | append: ca_key -%}{%- assign rc_title = ca_post.title -%}{%- assign rc_desc = ca_post.description -%}{%- assign rc_href = ca_post.href -%}
+    {%- assign rc_type = "blog" -%}{%- assign rc_topics = "community" | split: "~" -%}
+    {%- assign rc_languages = ca_none -%}{%- assign rc_providers = ca_none -%}{%- assign rc_dark = rc_light -%}{%- assign rc_logo = false -%}
+    {%- assign rc_platform = nil -%}{%- assign rc_date = ca_post.date -%}
+    {%- include "partials/hub/resource-card" -%}
+  {%- endunless -%}
+{%- endfor -%}
+{%- endcapture -%}
+{%- assign ca_rows = ca_all | split: ca_row_end | where_exp: "ca_r", "ca_r contains '<li'" | sort -%}

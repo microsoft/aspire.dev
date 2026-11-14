@@ -1,0 +1,14 @@
+{%- comment -%}
+  formatTypeScriptTypeReferenceMarkdown of src/frontend/src/utils/typescript-api-markdown.ts: a link to the twin of the
+  module's type with that simple name (the first handle, DTO or enum, getTsTypeByName), or inline code.
+  Inputs: typeRef, items (the module's entries of api.routes["typescript-items"]), moduleSlug.
+{%- endcomment -%}
+{%- if typeRef == nil or typeRef == "" -%}`unknown`
+{%- elsif typeRef == "callback" -%}`callback`
+{%- else -%}
+  {%- capture simple -%}{%- render 'api/md/ts-simplify', t: typeRef -%}{%- endcapture -%}
+  {%- assign candidates = items | where: "name", simple -%}
+  {%- assign target = nil -%}
+  {%- for candidate in candidates -%}{%- if candidate.itemKind != "function" -%}{%- assign target = candidate -%}{%- break -%}{%- endif -%}{%- endfor -%}
+  {%- if target -%}[{{ simple }}](/reference/api/typescript/{{ moduleSlug }}/{{ target.slug }}.md){%- else -%}`{{ simple }}`{%- endif -%}
+{%- endif -%}

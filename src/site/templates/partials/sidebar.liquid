@@ -1,0 +1,50 @@
+{%- comment -%}
+  The site's Sidebar override (src/frontend/src/components/starlight/Sidebar.astro, 2,029 lines with its styles and
+  script) over starlight-sidebar-topics: the mobile site links, then
+  - on the API reference (`api` metadata): the topic picker, the filter box and the API tree from
+    templates/api/sidebar.liquid (the API workstream's: it renders the tree only, the <ul class="top-level">...
+    of Starlight's SidebarSublist markup), with the API collapse/expand buttons;
+  - on a page of a topic: the topic picker, the filter box and the topic's tree (`nav_active`), with the topic
+    collapse/expand buttons;
+  - on a page of no topic (site.sidebar_exclude, e.g. the CLI includes): every topic's tree (one top-level list per
+    topic), as Starlight's default sidebar, and Starlight's mobile menu footer (MobileMenuFooter.astro);
+  then the GitHub link. State persistence: <sl-sidebar-state-persist data-hash> around the tree with the inline
+  restore scripts (scripts/client/inline/sidebar-restore.ts, sidebar-scroll.ts); the hash is the topic and the
+  sidebar data's size, which changes when the tree does in practice (Starlight hashes the tree).
+  The current topic is sb_current_key (partials/current-topic, through page-vars). Filters: nav_active (Douze plan
+  3.5).
+  Root class: cid-starlight-sidebar.
+{%- endcomment -%}
+{%- assign sb_group_index = 0 -%}
+<div class="topics-sidebar cid-starlight-sidebar"{% if api_page %} data-api-ref data-api-lang="{% if sl_url contains '/reference/api/typescript' %}ts{% else %}csharp{% endif %}"{% elsif sb_current_key %} data-topic-nav{% endif %}>
+{% include "partials/mobile-site-links" %}
+{% if api_page or sb_current_key %}
+<div class="{% if api_page %}api-sidebar-sticky{% else %}topic-sidebar-sticky{% endif %} not-content">
+{% include "partials/sidebar-topics" %}
+{% include "partials/sidebar-filter" %}
+</div>
+<sl-sidebar-state-persist data-hash="{{ sb_current_key }}-{{ sidebars[sb_current_key].items.size }}"><script aria-hidden="true">{% include "partials/inline/sidebar-restore" %}</script>
+{% if api_page %}
+{% include "api/sidebar" %}
+{%- else %}
+{%- assign sb_tree = sidebars[sb_current_key].items | nav_active: url %}
+{% include "partials/sidebar-sublist", sb_list: sb_tree, sb_nested: false %}
+{%- endif %}
+<script aria-hidden="true">{% include "partials/inline/sidebar-scroll" %}</script></sl-sidebar-state-persist>
+{%- else %}
+<sl-sidebar-state-persist data-hash="all"><script aria-hidden="true">{% include "partials/inline/sidebar-restore" %}</script>
+{%- for sb_key in site.sidebar_topics %}
+{%- assign sb_tree = sidebars[sb_key].items | nav_active: url %}
+{% include "partials/sidebar-sublist", sb_list: sb_tree, sb_nested: false %}
+{%- endfor %}
+<script aria-hidden="true">{% include "partials/inline/sidebar-scroll" %}</script></sl-sidebar-state-persist>
+<div class="md:sl-hidden">{% include "partials/mobile-menu-footer" %}</div>
+{%- endif %}
+<div class="divider"></div>
+<div class="sidebar-bottom">{% linkbutton "https://github.com/microsoft/aspire.dev", variant: "minimal", icon: nil, icon_placement: nil, class: nil, target: nil, rel: nil, aria_label: "GitHub: microsoft/aspire.dev", link_title: "GitHub: microsoft/aspire.dev" %}{% icon "github" %}<span>aspire.dev</span>{% endlinkbutton %}</div>
+</div>
+{% if api_page or sb_current_key %}
+{% if api_page %}{%- assign sb_btn = "sidebar" -%}{%- else -%}{%- assign sb_btn = "topic-sidebar" -%}{%- endif %}
+<button type="button" class="sidebar-collapse-btn cid-starlight-sidebar" id="{{ sb_btn }}-collapse-btn" data-tour-target="sidebar-toggle"{% unless api_page %} data-tour-step="sidebar-toggle"{% endunless %} aria-label="Collapse sidebar" title="Collapse sidebar" aria-expanded="true" aria-controls="starlight__sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18m7-6l-3-3l3-3"></path></svg></button>
+<button type="button" class="sidebar-expand-btn cid-starlight-sidebar" id="{{ sb_btn }}-expand-btn" data-tour-target="sidebar-toggle" aria-label="Expand sidebar" title="Expand sidebar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18m5-12l3 3l-3 3"></path></svg></button>
+{%- endif %}

@@ -1,0 +1,68 @@
+---
+title: Get started with the PostgreSQL EF Core integrations
+description: Understand why you use the Aspire PostgreSQL EF Core integrations and how they fit together in your Aspire AppHost.
+---
+
+{% image "/assets/images/icons/postgresql-icon.png", alt: "PostgreSQL logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+[PostgreSQL](https://www.postgresql.org/) is a mature, open-source object-relational database with a strong reputation for reliability, feature richness, and performance. The Aspire PostgreSQL EF Core integration lets .NET apps use [Entity Framework Core](https://learn.microsoft.com/ef/core/) to interact with a PostgreSQL database modeled in your AppHost using the [PostgreSQL Hosting integration](/integrations/databases/postgres/postgres-host/).
+
+## Why use PostgreSQL with EF Core and Aspire
+
+Combining PostgreSQL, EF Core, and Aspire in your solution gives you:
+
+- **Zero-config local development.** Aspire runs PostgreSQL from the [`docker.io/library/postgres`](https://hub.docker.com/_/postgres) container image with credentials generated automatically for you.
+- **Strongly-typed data access.** EF Core's `DbContext` maps your C# model classes to PostgreSQL tables, with full LINQ query support and compile-time safety.
+- **Automatic dependency injection.** A single `AddNpgsqlDbContext<T>` call registers your `DbContext` subclass in the DI container — no manual connection-string wiring.
+- **Built-in health checks.** The integration registers an EF Core `CanConnectAsync` health check so your orchestrator can tell when the database is reachable.
+- **OpenTelemetry out of the box.** Logging, distributed tracing, and metrics are wired up automatically for both EF Core and the underlying Npgsql driver.
+- **EF migrations support.** Use the standard `dotnet ef migrations` workflow; Aspire handles the runtime connection details.
+
+## How the pieces fit together
+
+The PostgreSQL EF Core integration has two sides: a **hosting integration** used in your AppHost to model the database resource, and an **EF Core client integration** used in each consuming .NET app.
+
+```mermaid
+architecture-beta
+
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
+
+  service hosting(server)[Postgres hosting] in apphost
+  service db(database)[postgresdb] in apphost
+
+  service efcore(server)[EF Core client] in consumer
+  service app(server)[App] in consumer
+
+  hosting:R --> L:db
+  db:R --> L:efcore
+  efcore:R --> L:app
+```
+
+The **hosting integration** lives in your AppHost project and models the PostgreSQL server and databases as resources. The **EF Core client integration** lives in each consuming .NET app and uses the connection information Aspire injects to register a `DbContext` through dependency injection.
+
+Getting there is a two-step process: model PostgreSQL in your AppHost, then connect from your consuming app using EF Core.
+
+{% steps %}
+1. ### Model PostgreSQL in your AppHost
+
+    Add the PostgreSQL hosting integration to your AppHost, then declare a PostgreSQL server, one or more databases, and reference them from the apps that need to talk to the database. The [PostgreSQL Hosting integration](/integrations/databases/postgres/postgres-host/) reference covers every capability — adding databases, pgAdmin, pgWeb, data volumes, init scripts, and more.
+
+    {% linkbutton "/integrations/databases/postgres/postgres-host/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Set up PostgreSQL in the AppHost
+{% endlinkbutton %}
+
+2. ### Connect from your consuming app using EF Core
+
+    Install the `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL` package and call `AddNpgsqlDbContext<T>` to register your `DbContext` subclass. See [Connect to PostgreSQL with EF Core](/integrations/databases/efcore/postgres/postgresql-connect/) for the full reference — connection properties, keyed services, configuration providers, health checks, and telemetry.
+
+    {% linkbutton "/integrations/databases/efcore/postgres/postgresql-connect/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Connect to PostgreSQL with EF Core
+{% endlinkbutton %}
+{% endsteps %}
+
+## See also
+
+- [Get started with the PostgreSQL integrations](/integrations/databases/postgres/postgres-get-started/)
+- [Entity Framework Core overview](https://learn.microsoft.com/ef/core/)
+- [EF Core migrations](https://learn.microsoft.com/ef/core/managing-schemas/migrations/)

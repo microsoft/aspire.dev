@@ -1,0 +1,96 @@
+{%- comment -%}renderCSharpMemberMarkdown of src/frontend/src/utils/csharp-api-markdown.ts. Inputs: member, type, pkg, tstart.{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- capture displayName -%}{%- render 'api/md/member-display', m: member, ctor: "Constructor" -%}{%- endcapture -%}
+{%- assign obsoleteAttr = nil -%}{%- assign experimentalAttr = nil -%}
+{%- for attribute in member.attributes -%}
+  {%- assign short = attribute.name | split: "." | last | default: "" -%}
+  {%- assign suffix = short | slice: -9, 9 -%}
+  {%- if suffix == "Attribute" -%}{%- assign n = short.size | minus: 9 -%}{%- assign short = short | slice: 0, n -%}{%- endif -%}
+  {%- if short == "Obsolete" and obsoleteAttr == nil -%}{%- assign obsoleteAttr = attribute -%}{%- endif -%}
+  {%- if short == "Experimental" and experimentalAttr == nil -%}{%- assign experimentalAttr = attribute -%}{%- endif -%}
+{%- endfor -%}
+{%- capture blocks -%}
+␞
+{%- if obsoleteAttr -%}
+  {%- assign message = obsoleteAttr.constructorArguments[0] -%}
+  > **Obsolete:** {% if message == nil %}This member is obsolete.{% else %}{{ message }}{% endif %}
+  {%- if experimentalAttr -%}{{ nl }}{{ nl }}{%- endif -%}
+{%- endif -%}
+{%- if experimentalAttr -%}
+  {%- assign experimentalId = experimentalAttr.constructorArguments[0] -%}
+  > **Experimental:** {% if experimentalId == nil %}This member is experimental.{% else %}{{ experimentalId }}{% endif %}
+  {%- if experimentalId != nil and experimentalId != "" %} · [Learn more](/diagnostics/{{ experimentalId | downcase }}/){% endif -%}
+{%- endif -%}
+␞- Name: `{{ displayName }}`
+{%- capture modifiers -%}
+  {%- if member.accessibility and member.accessibility != "public" -%}␟`{{ member.accessibility }}`{%- endif -%}
+  {%- if member.isStatic and member.isExtension != true -%}␟`static`{%- endif -%}
+  {%- if member.isExtension -%}␟`extension`{%- endif -%}
+  {%- if member.isAbstract -%}␟`abstract`{%- endif -%}
+  {%- if member.isVirtual -%}␟`virtual`{%- endif -%}
+  {%- if member.isOverride -%}␟`override`{%- endif -%}
+  {%- if member.isAsync -%}␟`async`{%- endif -%}
+  {%- if member.isConst -%}␟`const`{%- endif -%}
+  {%- if member.isReadOnly and member.kind == "field" -%}␟`readonly`{%- endif -%}
+  {%- if member.isReturnNullable -%}␟`nullable`{%- endif -%}
+  {%- if member.kind == "property" or member.kind == "indexer" -%}
+    {%- if member.hasGet and member.hasSet -%}{%- if member.isInitOnly -%}␟`get; init`{%- else -%}␟`get; set`{%- endif -%}
+    {%- elsif member.hasGet -%}␟`get`{%- elsif member.hasSet -%}␟`set`{%- endif -%}
+  {%- endif -%}
+{%- endcapture -%}
+{%- if modifiers != "" -%}{{ nl }}- Modifiers: {{ modifiers | remove_first: "␟" | replace: "␟", " " }}{%- endif -%}
+{%- if member.returnType and member.returnType != "void" -%}{{ nl }}- Returns: {% render 'api/md/type-ref', raw: member.returnType, pkg: pkg %}{%- endif -%}
+{%- if pkg.package.sourceRepository and pkg.package.sourceCommit and member.sourceFile -%}
+  {{- nl }}- Source: [GitHub]({{ pkg.package.sourceRepository }}/blob/{{ pkg.package.sourceCommit }}/{{ member.sourceFile }}
+  {%- if member.sourceLines -%}
+    {%- assign lines = member.sourceLines | append: "" | split: "-" -%}
+    {%- if lines[0] == lines[1] -%}#L{{ lines[0] }}{%- else -%}#L{{ lines[0] }}-L{{ lines[1] }}{%- endif -%}
+  {%- endif -%})
+{%- endif -%}
+␞{%- render 'api/md/doc', content: member.docs.summary, pkg: pkg, tstart: tstart -%}
+{%- capture signature -%}{%- render 'api/md/signature', member: member, type: type -%}{%- endcapture -%}
+{%- if signature != "" -%}␞{%- render 'api/md/codeblock', code: signature, lang: "csharp" -%}{%- endif -%}
+{%- if member.parameters.size > 0 -%}
+␞## Parameters{{ nl }}{{ nl }}
+  {%- for parameter in member.parameters -%}
+    {%- unless forloop.first -%}{{ nl }}{%- endunless -%}
+    - `{{ parameter.name }}` ({% render 'api/md/type-ref', raw: parameter.type, pkg: pkg %}){% if parameter.isOptional %} `optional`{% endif -%}
+    {%- capture description -%}{%- render 'api/md/doc', content: member.docs.parameters[parameter.name], pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+    {%- capture notes -%}{%- render 'api/md/polyglot', attributes: parameter.attributes, context: "parameter", entity: parameter.name, pkg: pkg, mode: "inline" -%}{%- endcapture -%}
+    {%- if description != "" or notes != "" -%}
+      {%- capture details -%}{{ description }}{%- if description != "" and notes != "" -%}{{ nl }}{{ nl }}{%- endif -%}{{ notes }}{%- endcapture -%}
+      {%- assign detailLines = details | split: nl -%}
+      {%- for line in detailLines -%}{{ nl }}{%- if line != "" -%}{{ "  " }}{{ line }}{%- endif -%}{%- endfor -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- if member.docs.returns -%}
+  {%- capture description -%}{%- render 'api/md/doc', content: member.docs.returns, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+  {%- capture returns -%}
+    {%- if member.returnType and member.returnType != "void" -%}{%- render 'api/md/type-ref', raw: member.returnType, pkg: pkg -%}{%- if description != "" %} — {% endif -%}{%- endif -%}{{ description }}
+  {%- endcapture -%}
+  {%- if returns != "" -%}␞## Returns{{ nl }}{{ nl }}{{ returns }}{%- endif -%}
+{%- endif -%}
+{%- if member.docs.exceptions.size > 0 -%}
+␞## Exceptions{{ nl }}{{ nl }}
+  {%- for exception in member.docs.exceptions -%}
+    {%- unless forloop.first -%}{{ nl }}{%- endunless -%}
+    {%- assign fullName = exception.type -%}
+    {%- if exception.type contains ":" -%}
+      {%- assign p = exception.type | split: ":" | first -%}
+      {%- if p != "" -%}{%- assign start = p.size | plus: 1 -%}{%- assign fullName = exception.type | slice: start, exception.type.size -%}{%- endif -%}
+    {%- endif -%}
+    {%- capture simpleName -%}{%- render 'api/md/short-type', t: fullName -%}{%- endcapture -%}
+    {%- assign match = pkg.types | find: "fullName", fullName -%}
+    {%- capture description -%}{%- render 'api/md/doc', content: exception.description, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+    - {% if match %}[{{ simpleName }}](/reference/api/csharp/{{ pkg.package.name | downcase }}/{% render 'api/md/type-slug', t: match %}.md){% else %}`{{ simpleName }}`{% endif %}{% if description != "" %} — {{ description }}{% endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- capture remarks -%}{%- render 'api/md/doc', content: member.docs.remarks, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+{%- if remarks != "" -%}␞## Remarks{{ nl }}{{ nl }}{{ remarks }}{%- endif -%}
+{%- capture examples -%}{%- render 'api/md/examples', examples: member.docs.examples, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+{%- if examples != "" -%}␞## Examples{{ nl }}{{ nl }}{{ examples }}{%- endif -%}
+␞{%- render 'api/md/polyglot', attributes: member.attributes, context: "member", entity: displayName, pkg: pkg, mode: "section" -%}
+{%- endcapture -%}
+{%- render 'api/md/join', text: blocks -%}

@@ -1,0 +1,49 @@
+---
+title: Compiler Error ASPIREPIPELINES003
+seoTitle: 'ASPIREPIPELINES003: Container image build APIs are for'
+description: Learn what causes the Aspire compiler error ASPIREPIPELINES003 and how to fix it so your AppHost builds cleanly.
+---
+
+{% badge "Version introduced: 13.0", variant: "note", size: "large", class: "mb-1" %}
+
+> Container image build APIs are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+Aspire introduced container image build APIs as part of the pipeline infrastructure starting in version 13.0. These APIs provide functionality for building container images as part of the deployment pipeline. The container image build APIs enable you to configure build options, specify target platforms, select image formats, and integrate with container runtimes like Docker and Podman.
+
+Container image build APIs are considered experimental and are expected to change in future updates.
+
+## APIs affected
+
+This diagnostic applies to the following container image build APIs:
+
+- `IResourceContainerImageManager` - Interface for building and pushing container images
+- `ContainerImageBuildOptions` - Options for building an individual container image
+- `ContainerBuildOptionsCallbackContext` - Context for configuring resource image builds
+- `ContainerImageDestination` - Enumeration for selecting a registry or archive destination
+- `ContainerImageFormat` - Enumeration for specifying image format
+- `ContainerTargetPlatform` - Type for specifying target platform
+- {% api "Aspire.Hosting.ApplicationModel.ResourceExtensions.WithContainerBuildOptions" %} - Extension methods for configuring compute resource builds
+- Related annotations, options, and extension methods
+
+## To correct this error
+
+Suppress the error with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREPIPELINES003.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREPIPELINES003</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREPIPELINES003` directive.

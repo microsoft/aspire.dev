@@ -1,0 +1,934 @@
+---
+title: Customize Azure resources
+description: Learn how to customize Azure resource provisioning, existing resources, role assignments, naming, and outputs in Aspire.
+---
+
+{% image "/assets/images/icons/azure-icon.png", alt: "Azure logo", height: 80, width: 80, class: "float-inline-left icon", zoomable: false %}
+
+When working with Azure integrations in Aspire, you often need to customize the provisioned infrastructure beyond the default settings. The same customization patterns apply across Azure hosting integrations such as Storage, Service Bus, Key Vault, user-assigned identities, Azure Container Apps, and Azure App Service. C# AppHosts use Azure Provisioning SDK types directly; in Aspire 13.6 and later, TypeScript AppHosts can opt into typed provisioning proxies for supported SDK models.
+
+{% learnmore %}
+For target-specific generated resource customization, see [Deploy to Azure
+Container Apps](/deployment/azure/container-apps/) and [Deploy to Azure App
+Service](/deployment/azure/app-service/).
+{% endlearnmore %}
+
+## Shared Azure customization patterns
+
+### Use existing Azure resources
+
+Use {% api "Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" %}, {% api "Aspire.Hosting.ExistingAzureResourceExtensions.RunAsExisting" %}, and {% api "Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" %} when you want Aspire to reference an Azure resource that already exists instead of provisioning a new one.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingBusName = await builder.addParameter("existingServiceBusName");
+const existingBusResourceGroup = await builder.addParameter("existingServiceBusResourceGroup");
+
+const serviceBus = await builder.addAzureServiceBus("messaging");
+await serviceBus.publishAsExisting(existingBusName, { resourceGroup: existingBusResourceGroup });
+
+await builder.build().run();
+
+````
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingBusName = builder.AddParameter("existingServiceBusName");
+var existingBusResourceGroup = builder.AddParameter("existingServiceBusResourceGroup");
+
+var serviceBus = builder.AddAzureServiceBus("messaging")
+    .PublishAsExisting(existingBusName, existingBusResourceGroup);
+
+builder.Build().Run();
+````
+{% endtab %}
+{% endtabs %}
+
+Use `RunAsExisting` when only local run mode should use the existing resource, `PublishAsExisting` when only deployed Azure environments should use it, and `AsExisting` when both modes should point at the same Azure resource.
+
+:::note
+Cross-subscription resource references aren't supported. The existing resource
+must be in the same Azure subscription as your deployment target.
+:::
+
+### Manage default role assignments
+
+Aspire automatically assigns Azure RBAC roles based on how resources reference one another. When you need to opt out of those defaults before applying different permissions, use {% api "Aspire.Hosting.AzureResourceExtensions.ClearDefaultRoleAssignments" %}.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const serviceBus = await builder.addAzureServiceBus("messaging");
+await serviceBus.clearDefaultRoleAssignments();
+
+await builder.build().run();
+
+````
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureServiceBus("messaging")
+    .ClearDefaultRoleAssignments();
+
+builder.Build().Run();
+````
+{% endtab %}
+{% endtabs %}
+
+{% learnmore %}
+For built-in and custom RBAC guidance, see [Manage Azure role
+assignments](/integrations/cloud/azure/role-assignments/).
+{% endlearnmore %}
+
+### Read generated output values
+
+Azure resources expose output references for values that Azure assigns during provisioning. Use those references when another resource, deployment step, or app setting needs the resolved Azure value.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const identity = await builder.addAzureUserAssignedIdentity("identity");
+const clientId = await identity.getOutput("clientId");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withEnvironment("IDENTITY_CLIENT_ID", clientId);
+
+await builder.build().run();
+
+````
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var identity = builder.AddAzureUserAssignedIdentity("identity");
+
+builder.AddProject<Projects.Api>("api")
+    .WithEnvironment("IDENTITY_CLIENT_ID", identity.Resource.ClientId);
+
+builder.Build().Run();
+````
+{% endtab %}
+{% endtabs %}
+
+Use {% api "Aspire.Hosting.AzureResourceExtensions.GetBicepIdentifier" %} inside {% api "Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" %} or infrastructure resolvers when you need a stable identifier for a provisioned Azure construct. Use output references such as `ClientId`, `NameOutputReference`, or `getOutput("...")` when you need Azure-assigned values like a client ID, endpoint, or resource name.
+
+## Azure.Provisioning customization
+
+The `ConfigureInfrastructure` API lets you customize the Azure resources that Aspire generates during provisioning. In C#, it provides a strongly-typed surface over the [Azure.Provisioning](https://www.nuget.org/packages/Azure.Provisioning) library, letting you modify any property of the generated Azure resource types before Bicep is emitted.
+
+### Enable typed provisioning proxies
+
+For TypeScript and other polyglot AppHosts, add the `Aspire.Hosting.Azure.Provisioning.*` package for the SDK you want to customize. A hosting package alone doesn't expose its Azure SDK models.
+
+```bash title="Add typed Storage infrastructure customization"
+aspire add Aspire.Hosting.Azure.Provisioning.Storage
+```
+
+Select a provisioning package for the SDK models you want to customize:
+
+The **Selected SDK models** column lists representative models, not every model exposed by each package. Packages can also expose child resources and supporting models.
+
+| Hosting integration           | Opt-in provisioning package                          | Selected SDK models                                                                                                      |
+| ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Azure App Configuration       | `Aspire.Hosting.Azure.Provisioning.AppConfiguration` | `AppConfigurationStore`                                                                                                  |
+| Azure Container Apps          | `Aspire.Hosting.Azure.Provisioning.AppContainers`    | `ContainerAppManagedEnvironment`, `ContainerApp`, `ContainerAppJob`                                                      |
+| Azure App Service             | `Aspire.Hosting.Azure.Provisioning.AppService`       | `AppServicePlan`, `WebSite`                                                                                              |
+| Azure Front Door              | `Aspire.Hosting.Azure.Provisioning.Cdn`              | `CdnProfile`                                                                                                             |
+| Azure Kubernetes Service      | `Aspire.Hosting.Azure.Provisioning.ContainerService` | `ContainerServiceManagedCluster`                                                                                         |
+| Azure Data Explorer           | `Aspire.Hosting.Azure.Provisioning.Kusto`            | `KustoCluster`                                                                                                           |
+| Azure networking              | `Aspire.Hosting.Azure.Provisioning.Network`          | `VirtualNetwork`, `NetworkSecurityGroup`, `NatGateway`, `PublicIPAddress`, `PrivateEndpoint`, `NetworkSecurityPerimeter` |
+| Azure private DNS             | `Aspire.Hosting.Azure.Provisioning.PrivateDns`       | `PrivateDnsZone`                                                                                                         |
+| Azure Database for PostgreSQL | `Aspire.Hosting.Azure.Provisioning.PostgreSql`       | `PostgreSqlFlexibleServer`                                                                                               |
+| Azure Cache for Redis         | `Aspire.Hosting.Azure.Provisioning.Redis`            | `RedisResource`                                                                                                          |
+| Azure Managed Redis           | `Aspire.Hosting.Azure.Provisioning.RedisEnterprise`  | `RedisEnterpriseCluster`                                                                                                 |
+| Azure SignalR Service         | `Aspire.Hosting.Azure.Provisioning.SignalR`          | `SignalRService`                                                                                                         |
+| Azure Storage                 | `Aspire.Hosting.Azure.Provisioning.Storage`          | `StorageAccount`                                                                                                         |
+| Azure Service Bus             | `Aspire.Hosting.Azure.Provisioning.ServiceBus`       | `ServiceBusNamespace`                                                                                                    |
+| Azure Key Vault               | `Aspire.Hosting.Azure.Provisioning.KeyVault`         | `KeyVaultService`                                                                                                        |
+
+Package names follow the Azure Provisioning SDK, which can differ from the hosting integration name: Front Door uses `Cdn`, Kubernetes uses `ContainerService`, and PostgreSQL uses the SDK spelling `PostgreSql`. Network and PrivateDns are separate opt-ins, as are Redis and RedisEnterprise. To customize supporting resources such as a container registry or Log Analytics workspace, also add the corresponding provisioning package; a transitive hosting dependency doesn't enable its SDK proxies.
+
+Each provisioning package references its hosting integration and the shared `Aspire.Hosting.Azure.Provisioning` runtime. Install only the SDK proxies your AppHost uses. Existing C# customization through `Azure.Provisioning.*` doesn't require these proxy packages.
+
+:::caution[Experimental API]
+The provisioning proxies are experimental in Aspire 13.6 and report `ASPIREAZUREPROVISIONING001`. They expose a bounded SDK surface, not every Azure SDK member. Use the documented model factories and typed accessors rather than treating remote handles as arbitrary JavaScript objects.
+:::
+
+Proxy properties use asynchronous `get()` and `set(...)` operations. Dictionary and list properties expose collection handles after `get()`. Properties backed by `BicepValue<T>` accept compatible primitives or shared Bicep expression values from `infrastructure.bicep()`, preserving deployment-time references and secure-value metadata.
+
+For the complete factory method reference, C# SDK and Bicep mappings, and Storage and Key Vault examples, see [Compose Azure infrastructure with Bicep helpers](/integrations/cloud/azure/bicep-helpers/).
+
+Lookups are scoped to the current infrastructure callback. A no-argument root lookup matches the hosting resource's Bicep identifier, not its physical Azure name. Use an identifier-based lookup or typed resource list for child resources; a companion resource can have a separate callback.
+
+### Service-specific lookups
+
+The selected models in the table aren't all no-argument lookup roots:
+
+- **App Configuration**: Use `getAppConfigurationStore()` in the store's infrastructure callback.
+- **Container Apps**: Use `getContainerAppManagedEnvironment()` in the environment callback. Apps and jobs require identifier-based lookup in their publish callbacks. Their SDK Bicep identifiers use the normalized workload name, not the synthetic hosting resource identifier.
+- **App Service**: Use `getAppServicePlanByIdentifier(...)` with the environment's Bicep identifier followed by `_asplan`. Sites use the Bicep identifier `webapp` and must be accessed in the website publish callback, not the environment callback. Neither plans nor sites have a no-argument root lookup.
+- **Child resources**: Use identifier-based lookup for resources such as Kusto databases. Don't assume the parent resource's no-argument lookup selects a child.
+
+For a complete TypeScript and C# example using Azure Storage, see [Basic infrastructure customization](#basic-infrastructure-customization). The example looks up the storage account inside its infrastructure callback and adds tags. The callback runs before Aspire emits the resource's Bicep; the lookup selects a generated resource rather than querying an existing Azure deployment.
+
+### IP address collections and projection limits
+
+The AppContainers SDK's `OutboundIPAddressList` and the AppService SDK's `IPAddresses`, `ExternalInboundIPAddresses`, `InternalInboundIPAddresses`, `LinuxOutboundIPAddresses`, and `WindowsOutboundIPAddresses` use IP address collection proxies.
+
+Writable collections accept IPv4 or IPv6 strings and compatible Bicep value handles for add, insert, and set operations. Invalid address strings fail validation. Element getters return Bicep value handles that preserve literal values, expressions, resource references, and secure-value metadata. An exported collection isn't necessarily writable: Azure SDK read-only output restrictions still apply.
+
+The projection deliberately excludes members without a type-safe representation:
+
+| Provisioning package suffix | Excluded member             | Unsupported SDK shape         |
+| --------------------------- | --------------------------- | ----------------------------- |
+| `ContainerService`          | `CustomCATrustCertificates` | `BicepList<BinaryData>`       |
+| `Network`                   | `AdditionalProperties`      | `BicepDictionary<BinaryData>` |
+| `Redis`                     | `AdditionalProperties`      | `BicepDictionary<BinaryData>` |
+
+These exclusions apply to the polyglot proxy surface, not direct Azure Provisioning SDK access in C#. Adding a proxy package doesn't change authentication, resource lifecycles, or deployment defaults.
+
+{% learnmore %}
+See the [provisioning SDK inventory and compatibility
+boundaries](https://github.com/microsoft/aspire/blob/a11eca9611073f7cf66fa87faac63c2119e87713/src/Aspire.Hosting.Azure.Provisioning/README.md#hosting-to-provisioning-inventory).
+{% endlearnmore %}
+
+:::tip[Azure.Provisioning resources]
+For detailed API documentation and examples, see the [Azure.Provisioning API
+reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning)
+and the [Azure.Provisioning
+README](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/provisioning/Azure.Provisioning/README.md).
+:::
+
+### Basic infrastructure customization
+
+Azure hosting resources backed by `AzureProvisioningResource` expose `ConfigureInfrastructure`. The callback receives an `AzureResourceInfrastructure` instance that gives you access to the provisioned constructs for that resource.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+With `Aspire.Hosting.Azure.Provisioning.Storage` installed, use the typed storage-account lookup and its tags collection:
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage('storage');
+
+await storage.configureInfrastructure(async (infra) => {
+  const account = await infra.getStorageAccount();
+  const tags = await account.tags.get();
+  await tags.set('Environment', 'Development');
+  await tags.set('CostCenter', 'Engineering');
+});
+
+await builder.build().run();
+```
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+In C#, use `GetProvisionableResources()` with the strongly-typed Azure SDK types (for example `StorageAccount`, `ServiceBusNamespace`) to navigate and mutate each construct:
+
+```csharp title="AppHost.cs"
+using Azure.Provisioning.Storage;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage");
+
+storage.ConfigureInfrastructure(infra =>
+{
+    var storageAccount = infra.GetProvisionableResources()
+                               .OfType<StorageAccount>()
+                               .Single();
+
+    storageAccount.Tags["Environment"] = "Development";
+    storageAccount.Tags["CostCenter"] = "Engineering";
+});
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### Configure SKUs and tiers
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts (Storage)"
+import {
+  createBuilder,
+  StorageKind,
+  StorageSkuName,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const storage = await builder.addAzureStorage('storage');
+
+await storage.configureInfrastructure(async (infra) => {
+  const account = await infra.getStorageAccount();
+  const sku = await infra.createStorageSku();
+  await sku.name.set(StorageSkuName.StandardGrs);
+  await account.sku.set(sku);
+  await account.kind.set(StorageKind.StorageV2);
+});
+
+await builder.build().run();
+```
+
+```typescript title="apphost.mts (Service Bus)"
+import { createBuilder, ServiceBusSkuName } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const serviceBus = await builder.addAzureServiceBus('messaging');
+
+await serviceBus.configureInfrastructure(async (infra) => {
+  const namespace = await infra.getServiceBusNamespace();
+  const sku = await infra.createServiceBusSku();
+  await sku.name.set(ServiceBusSkuName.Premium);
+  await sku.capacity.set(2);
+  await namespace.sku.set(sku);
+});
+
+await builder.build().run();
+```
+
+```typescript title="apphost.mts (Azure Managed Redis)"
+import {
+  createBuilder,
+  RedisEnterpriseSkuName,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const redis = await builder.addAzureManagedRedis('redis');
+
+await redis.configureInfrastructure(async (infra) => {
+  const cluster = await infra.getRedisEnterpriseCluster();
+  const sku = await infra.createRedisEnterpriseSku();
+  await sku.name.set(RedisEnterpriseSkuName.BalancedB0);
+  await cluster.sku.set(sku);
+});
+
+await builder.build().run();
+```
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs (Storage)"
+using Azure.Provisioning.Storage;
+
+var builder = DistributedApplication.CreateBuilder(args);
+var storage = builder.AddAzureStorage("storage");
+
+storage.ConfigureInfrastructure(infra =>
+{
+    var account = infra.GetProvisionableResources()
+                       .OfType<StorageAccount>()
+                       .Single();
+
+    account.Sku = new StorageSku { Name = StorageSkuName.StandardGrs };
+    account.Kind = StorageKind.StorageV2;
+});
+
+builder.Build().Run();
+```
+
+```csharp title="AppHost.cs (Service Bus)"
+using Azure.Provisioning.ServiceBus;
+
+var builder = DistributedApplication.CreateBuilder(args);
+var serviceBus = builder.AddAzureServiceBus("messaging");
+
+serviceBus.ConfigureInfrastructure(infra =>
+{
+    var ns = infra.GetProvisionableResources()
+                  .OfType<ServiceBusNamespace>()
+                  .Single();
+
+    ns.Sku = new ServiceBusSku
+    {
+        Name = ServiceBusSkuName.Premium,
+        Capacity = 2
+    };
+});
+
+builder.Build().Run();
+```
+
+```csharp title="AppHost.cs (Azure Managed Redis)"
+using Azure.Provisioning.RedisEnterprise;
+
+var builder = DistributedApplication.CreateBuilder(args);
+var redis = builder.AddAzureManagedRedis("redis");
+
+redis.ConfigureInfrastructure(infra =>
+{
+    var cache = infra.GetProvisionableResources()
+                     .OfType<RedisEnterpriseCluster>()
+                     .Single();
+
+    cache.Sku = new RedisEnterpriseSku
+    {
+        Name = RedisEnterpriseSkuName.BalancedB0
+    };
+});
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### Configure networking
+
+This example restricts public access to an IP range while allowing trusted Azure services. Replace the documentation-only range with your application's approved network range before deploying.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import {
+  createBuilder,
+  StorageAccountNetworkRuleAction,
+  StorageNetworkBypass,
+  StorageNetworkDefaultAction,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const storage = await builder.addAzureStorage('storage');
+
+await storage.configureInfrastructure(async (infra) => {
+  const account = await infra.getStorageAccount();
+  const rules = await infra.createStorageAccountNetworkRuleSet();
+  await rules.defaultAction.set(StorageNetworkDefaultAction.Deny);
+  await rules.bypass.set(StorageNetworkBypass.AzureServices);
+
+  const rule = await infra.createStorageAccountIPRule();
+  await rule.iPAddressOrRange.set('203.0.113.0/24');
+  await rule.action.set(StorageAccountNetworkRuleAction.Allow);
+  const ipRules = await rules.iPRules.get();
+  await ipRules.add(rule);
+  await account.networkRuleSet.set(rules);
+});
+
+await builder.build().run();
+```
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+using Azure.Provisioning.Storage;
+
+var builder = DistributedApplication.CreateBuilder(args);
+var storage = builder.AddAzureStorage("storage");
+
+storage.ConfigureInfrastructure(infra =>
+{
+    var account = infra.GetProvisionableResources()
+                       .OfType<StorageAccount>()
+                       .Single();
+
+    account.NetworkRuleSet = new StorageAccountNetworkRuleSet
+    {
+        DefaultAction = StorageNetworkDefaultAction.Deny,
+        Bypass = StorageNetworkBypass.AzureServices
+    };
+
+    account.NetworkRuleSet.IPRules.Add(new StorageAccountIPRule
+    {
+        IPAddressOrRange = "203.0.113.0/24",
+        Action = StorageAccountNetworkRuleAction.Allow
+    });
+
+    builder.Build().Run();
+});
+```
+{% endtab %}
+{% endtabs %}
+
+### Configure security and compliance
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import {
+  createBuilder,
+  StorageAccountKeySource,
+  StorageMinimumTlsVersion,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const storage = await builder.addAzureStorage('storage');
+
+await storage.configureInfrastructure(async (infra) => {
+  const account = await infra.getStorageAccount();
+  await account.enableHttpsTrafficOnly.set(true);
+  await account.minimumTlsVersion.set(StorageMinimumTlsVersion.Tls1_2);
+
+  const encryption = await infra.createStorageAccountEncryption();
+  await encryption.keySource.set(StorageAccountKeySource.Storage);
+  const services = await infra.createStorageAccountEncryptionServices();
+  const blob = await infra.createStorageEncryptionService();
+  const file = await infra.createStorageEncryptionService();
+  await blob.isEnabled.set(true);
+  await file.isEnabled.set(true);
+  await services.blob.set(blob);
+  await services.file.set(file);
+  await encryption.services.set(services);
+  await account.encryption.set(encryption);
+});
+
+await builder.build().run();
+```
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+using Azure.Provisioning.Storage;
+
+var builder = DistributedApplication.CreateBuilder(args);
+var storage = builder.AddAzureStorage("storage");
+
+storage.ConfigureInfrastructure(infra =>
+{
+    var account = infra.GetProvisionableResources()
+                       .OfType<StorageAccount>()
+                       .Single();
+
+    account.EnableHttpsTrafficOnly = true;
+    account.MinimumTlsVersion = StorageMinimumTlsVersion.Tls1_2;
+
+    account.Encryption = new StorageAccountEncryption
+    {
+        KeySource = StorageAccountKeySource.Storage,
+        Services = new StorageAccountEncryptionServices
+        {
+            Blob = new StorageEncryptionService { IsEnabled = true },
+            File = new StorageEncryptionService { IsEnabled = true }
+        }
+    };
+});
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### Work with multiple resources
+
+When an integration creates multiple resources (for example, a Service Bus namespace and its queues), you can customize each one inside a single `ConfigureInfrastructure` call:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder, ServiceBusSkuName } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const serviceBus = await builder.addAzureServiceBus('messaging');
+const queue = await serviceBus.addServiceBusQueue('orders');
+
+await serviceBus.configureInfrastructure(async (infra) => {
+  const namespace = await infra.getServiceBusNamespace();
+  const sku = await infra.createServiceBusSku();
+  await sku.name.set(ServiceBusSkuName.Standard);
+  await namespace.sku.set(sku);
+
+  for (const queueResource of await infra.getServiceBusQueues()) {
+    await queueResource.maxDeliveryCount.set(5);
+  }
+});
+
+await builder.build().run();
+```
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+using Azure.Provisioning.ServiceBus;
+
+var builder = DistributedApplication.CreateBuilder(args);
+var servicebus = builder.AddAzureServiceBus("messaging");
+var queue = servicebus.AddServiceBusQueue("orders");
+
+servicebus.ConfigureInfrastructure(infra =>
+{
+    var ns = infra.GetProvisionableResources()
+                  .OfType<ServiceBusNamespace>()
+                  .Single();
+    ns.Sku = new ServiceBusSku { Name = ServiceBusSkuName.Standard };
+
+    foreach (var queueResource in infra.GetProvisionableResources().OfType<ServiceBusQueue>())
+    {
+        queueResource.MaxDeliveryCount = 5;
+    }
+});
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The callback above applies the queue setting to every queue modeled under that namespace. To select a particular child, use its generated Bicep identifier with `getServiceBusQueueByIdentifier`, not a comparison against its deployment-time Azure name.
+
+### Add Azure resources to the infrastructure
+
+For common scenarios, prefer Aspire's higher-level resource builders. For example, to add a private endpoint to a storage account, use {% api "Aspire.Hosting.AzurePrivateEndpointExtensions.AddPrivateEndpoint" %} from the `Aspire.Hosting.Azure.Network` package, which automatically wires up the Private DNS Zone, VNet link, and DNS Zone Group:
+
+Install `Aspire.Hosting.Azure.Network` for this example. These networking APIs are experimental under `ASPIREAZURE003`; the C# example explicitly acknowledges that diagnostic. This hosting API is separate from the opt-in SDK proxies.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const vnet = await builder.addAzureVirtualNetwork('vnet');
+const peSubnet = vnet.addSubnet('pe-subnet', '10.0.1.0/24');
+
+const storage = await builder.addAzureStorage('storage');
+const blobs = storage.addBlobs('blobs');
+
+peSubnet.addPrivateEndpoint(blobs);
+
+await builder.build().run();
+```
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREAZURE003
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var peSubnet = vnet.AddSubnet("pe-subnet", "10.0.1.0/24");
+
+var storage = builder.AddAzureStorage("storage");
+var blobs = storage.AddBlobs("blobs");
+
+peSubnet.AddPrivateEndpoint(blobs);
+#pragma warning restore ASPIREAZURE003
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+When no Aspire-native resource builder exists for what you need, fall back to `ConfigureInfrastructure` to add an `Azure.Provisioning` construct directly. See the [Azure.Provisioning API reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning) for the available construct types and their properties.
+
+### Customize naming and provisioning with an infrastructure resolver
+
+Another way to customize Azure provisioning is to create an [`InfrastructureResolver`](https://learn.microsoft.com/dotnet/api/azure.provisioning.primitives.infrastructureresolver). This is a C#-only API that lets you apply organization-wide naming conventions or other centralized provisioning behavior across many Azure resources.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+:::note
+`InfrastructureResolver` is a C#-only API from the Azure SDK for .NET and is
+not available in the TypeScript AppHost. Use the C# AppHost when you need
+custom infrastructure resolvers.
+:::
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+Define a resolver by inheriting from `InfrastructureResolver` and overriding the relevant virtual members:
+
+```csharp title="AppHost.cs"
+using Azure.Provisioning;
+using Azure.Provisioning.CosmosDB;
+using Azure.Provisioning.Primitives;
+
+internal sealed class FixedNameInfrastructureResolver : InfrastructureResolver
+{
+    public override void ResolveProperties(ProvisionableConstruct construct, ProvisioningBuildOptions options)
+    {
+        if (construct is CosmosDBAccount account)
+        {
+            account.Name = "ContosoCosmosDb";
+        }
+
+        base.ResolveProperties(construct, options);
+    }
+}
+```
+
+Register the resolver in the AppHost:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+using Microsoft.Extensions.DependencyInjection;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.Services.Configure<AzureProvisioningOptions>(options =>
+{
+    options.ProvisioningBuildOptions.InfrastructureResolvers.Add(new FixedNameInfrastructureResolver());
+});
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Custom Bicep templates
+
+For scenarios requiring full control, you can supply a custom Bicep file and reference it from your AppHost. This approach works in both C# and TypeScript.
+
+### Use custom Bicep files
+
+Create a Bicep file in your AppHost project:
+
+```bicep title="custom-storage.bicep"
+@description('Storage account name')
+param storageAccountName string
+
+@description('Location')
+param location string = resourceGroup().location
+
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+  name: storageAccountName
+  location: location
+  sku: {
+    name: 'Premium_LRS'
+  }
+  kind: 'BlockBlobStorage'
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+    networkAcls: {
+      defaultAction: 'Deny'
+      bypass: 'AzureServices'
+    }
+  }
+}
+
+output storageAccountName string = storageAccount.name
+```
+
+Reference the file from the AppHost using {% api "Aspire.Hosting.AzureBicepResourceExtensions.AddBicepTemplate" %}. Use {% api "Aspire.Hosting.AzureBicepResourceExtensions.WithParameter" %} to supply input parameters, and {% api "Aspire.Hosting.AzureBicepResourceExtensions.GetOutput" %} to consume a named output by passing the resulting reference to another resource:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addBicepTemplate(
+  'storage',
+  './custom-storage.bicep'
+);
+await storage.withParameter('storageAccountName', {
+  value: 'mystorageaccount',
+});
+
+const storageAccountName = await storage.getOutput('storageAccountName');
+
+const webapp = await builder.addProject('webapp', '../WebApp/WebApp.csproj');
+await webapp.withEnvironment('STORAGE_ACCOUNT_NAME', storageAccountName);
+
+await builder.build().run();
+```
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddBicepTemplate("storage", "./custom-storage.bicep")
+    .WithParameter("storageAccountName", "mystorageaccount");
+
+builder.AddProject<Projects.WebApp>("webapp")
+       .WithEnvironment("STORAGE_ACCOUNT_NAME", storage.GetOutput("storageAccountName"));
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+:::tip
+For inline Bicep snippets, use `AddBicepTemplateString` (C#) or
+`addBicepTemplateString` (TypeScript) instead of `AddBicepTemplate`. Both APIs
+return the same `AzureBicepResource` and support the same `WithParameter` and
+`GetOutput` patterns.
+:::
+
+### Pass parameters and read outputs
+
+`WithParameter` accepts several kinds of values beyond plain strings, so a custom Bicep template can take values that are computed at deployment time. Common sources include:
+
+- A `ParameterResource` declared with {% api "Aspire.Hosting.ParameterResourceBuilderExtensions.AddParameter" %} (including secret parameters).
+- A `BicepOutputReference` from another Bicep resource — useful when one template's output feeds another template's input.
+- A `ReferenceExpression` that composes values from multiple resources.
+- A connection-string-bearing resource via `IResourceBuilder<IResourceWithConnectionString>`.
+- An `EndpointReference` from a resource's endpoint.
+
+The example below adds a secret administrator password as a parameter and then reads the deployed SQL server name back out of the template so that another resource can consume it:
+
+Create the following Bicep file in your AppHost directory:
+
+```bicep title="custom-sql.bicep"
+@secure()
+param administratorLoginPassword string
+
+param location string = resourceGroup().location
+
+resource sqlServer 'Microsoft.Sql/servers@2021-11-01' = {
+  name: 'sql-${uniqueString(resourceGroup().id)}'
+  location: location
+  properties: {
+    administratorLogin: 'sqladmin'
+    administratorLoginPassword: administratorLoginPassword
+  }
+}
+
+output sqlServerName string = sqlServer.name
+```
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const adminPassword = await builder.addParameter('adminPassword', {
+  secret: true,
+});
+
+const sql = await builder.addBicepTemplate('sql', './custom-sql.bicep');
+await sql.withParameter('administratorLoginPassword', { value: adminPassword });
+
+const sqlServerName = await sql.getOutput('sqlServerName');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withEnvironment('SQL_SERVER_NAME', sqlServerName);
+
+await builder.build().run();
+```
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var adminPassword = builder.AddParameter("adminPassword", secret: true);
+
+var sql = builder.AddBicepTemplate("sql", "./custom-sql.bicep")
+    .WithParameter("administratorLoginPassword", adminPassword);
+
+builder.AddProject<Projects.Api>("api")
+       .WithEnvironment("SQL_SERVER_NAME", sql.GetOutput("sqlServerName"));
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+{% learnmore %}
+For more end-to-end examples — including chaining outputs between Bicep
+resources and using the `existing` Bicep keyword to reference resources that
+Aspire didn't provision — see the [Aspire `playground/bicep`
+sample](https://github.com/dotnet/aspire/tree/main/playground/bicep).
+{% endlearnmore %}
+
+### Set the deployment scope
+
+By default, Aspire deploys Bicep resources at the resource group scope. Some Bicep templates require a different [deployment scope](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-to-subscription), such as the subscription or the tenant.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+:::note
+`AzureBicepResourceScope` and `Resource.Scope` are not currently exposed in
+the TypeScript AppHost APIs, so subscription/tenant deployment scopes for
+Bicep resources are currently C# only.
+:::
+{% endtab %}
+
+{% tab "C#", id: "csharp" %}
+Set the `Scope` property on the Bicep resource using `AzureBicepResourceScope.CreateForSubscription` or `AzureBicepResourceScope.CreateForTenant`:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var subscriptionId = builder.AddParameter("subscriptionId");
+
+var subscriptionScoped = builder.AddBicepTemplateString(
+    "subscriptionScoped",
+    """
+    targetScope = 'subscription'
+
+    param location string
+
+    output value string = 'subscription'
+    """);
+subscriptionScoped.Resource.Scope = AzureBicepResourceScope.CreateForSubscription(subscriptionId.Resource);
+
+var tenantScoped = builder.AddBicepTemplateString(
+    "tenantScoped",
+    """
+    targetScope = 'tenant'
+
+    param location string
+
+    output value string = 'tenant'
+    """);
+tenantScoped.Resource.Scope = AzureBicepResourceScope.CreateForTenant();
+
+builder.Build().Run();
+```
+
+:::note
+`AzureBicepResourceScope.CreateForSubscription` and `AzureBicepResourceScope.CreateForTenant` are available in Aspire 13.5 and later, and require a `using Aspire.Hosting.Azure;` directive. `targetScope` in the Bicep template must match the scope you assign in C#. `CreateForSubscription` requires a subscription identifier; `CreateForTenant` targets the current tenant and takes no arguments.
+
+Keep the `param location string` declaration in each template. `location` is a well-known Aspire parameter that the provisioner fills in automatically from the environment's location and passes to every Bicep deployment — including subscription- and tenant-scoped ones — so the template must declare it to accept the value.
+:::
+{% endtab %}
+{% endtabs %}
+
+### Inspect generated Bicep
+
+To see the Bicep that Aspire emits after applying your `ConfigureInfrastructure` callbacks, publish the AppHost and read the files from the output folder:
+
+1. From the AppHost directory, run `aspire publish`.
+2. Open the `aspire-output` folder in the AppHost directory. To write somewhere else, pass `--output-path` to the publish command.
+3. Review the generated `.bicep` files to verify your customizations.
+
+:::note
+Neither `aspire run` nor `aspire deploy` writes Bicep into your AppHost
+directory. Use `aspire publish` to materialize the generated Bicep on disk.
+:::
+
+:::tip
+Use the Azure Portal's **Export template** feature to view Bicep for manually
+configured resources, then adapt it for Aspire.
+:::
+
+## See also
+
+- [Azure integrations overview](/integrations/cloud/azure/overview/)
+- [Manage Azure role assignments](/integrations/cloud/azure/role-assignments/)
+- [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)
+- [Azure.Provisioning API reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning)
+- [Aspire `playground/bicep` sample](https://github.com/dotnet/aspire/tree/main/playground/bicep)
+- [Deploy to Azure Container Apps](/deployment/azure/container-apps/)
+- [Deploy to Azure App Service](/deployment/azure/app-service/)

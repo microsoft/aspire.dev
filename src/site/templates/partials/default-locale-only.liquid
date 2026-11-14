@@ -1,0 +1,17 @@
+{%- comment -%}
+  The site's utils/default-locale-only-routes.ts: sets `dlo` to true when `dlo_path` (a path without the locale
+  prefix) is a page generated in English only, so a locale prefix or a hreflang alternate for it would be a 404:
+  /hub/..., the API reference (/reference/api/... and its .md files) and the sample pages (/reference/samples/<sample>/).
+{%- endcomment -%}
+{%- assign dlo = false -%}
+{%- assign dlo_head = dlo_path | slice: 0, 5 -%}
+{%- if dlo_path == "/hub" or dlo_head == "/hub/" -%}{%- assign dlo = true -%}{%- endif -%}
+{%- assign dlo_head = dlo_path | slice: 0, 15 -%}
+{%- if dlo_path == "/reference/api" or dlo_head == "/reference/api/" or dlo_head == "/reference/api." -%}{%- assign dlo = true -%}{%- endif -%}
+{%- assign dlo_head = dlo_path | slice: 0, 19 -%}
+{%- if dlo_head == "/reference/samples/" -%}
+{%- assign dlo_rest = dlo_path | slice: 19, 500 | remove: "index.html" -%}
+{%- assign dlo_last = dlo_rest | slice: -1 -%}
+{%- if dlo_last == "/" -%}{%- assign dlo_size = dlo_rest.size | minus: 1 -%}{%- assign dlo_rest = dlo_rest | slice: 0, dlo_size -%}{%- endif -%}
+{%- if dlo_rest != "" -%}{%- unless dlo_rest contains "/" -%}{%- assign dlo = true -%}{%- endunless -%}{%- endif -%}
+{%- endif -%}

@@ -1,0 +1,47 @@
+{%- comment -%}
+  A highlighted code block in Expressive Code's markup (the `highlight` step's `templates.block`), so that the site's
+  code.css, copy button script and twoslash popup script apply as they did. `code` is the block (Douze's README,
+  "highlight"); a block with `code.popup` is the type of a twoslash popup (no copy button, no icon, no `not-content`).
+  The copy and frame texts are the `expressiveCode` strings of the page's locale (data/i18n), else those of
+  data/code_texts.yml for the page's `lang` (Expressive Code's own: English and German).
+{%- endcomment -%}
+{%- assign texts = code_texts[lang] | default: code_texts.en -%}
+{%- assign overrides = i18n[locale].expressiveCode -%}
+{%- assign copy_text = overrides.copyButtonTooltip | default: texts.copy -%}
+{%- assign copied_text = overrides.copyButtonCopied | default: texts.copied -%}
+{%- assign terminal_text = overrides.terminalWindowFallbackTitle | default: texts.terminal -%}
+{%- assign has_title = false -%}{%- if code.frame != 'none' and code.title -%}{%- assign has_title = true -%}{%- endif -%}
+{%- assign classes = 'frame' -%}
+{%- if code.terminal -%}{%- assign classes = classes | append: ' is-terminal' -%}{%- endif -%}
+{%- if has_title -%}{%- assign classes = classes | append: ' has-title' -%}{%- endif -%}
+{%- unless code.popup -%}{%- assign classes = classes | append: ' not-content' -%}{%- endunless -%}
+{%- assign style = '' -%}
+{%- if code.number_width > 2 -%}{%- assign style = '--lnWidth:' | append: code.number_width | append: 'ch' -%}{%- endif -%}
+<div class="expressive-code"><figure class="{{ classes }}"{% if style != '' %} style="{{ style }}"{% endif %}{% if code.options['data-disable-copy'] %} data-disable-copy=""{% endif %}><figcaption class="header">
+{%- if has_title or code.terminal -%}
+<span class="title">
+{%- if code.title and code.language != 'sh' and code.popup == false -%}{%- include 'code/icon' -%}{%- endif -%}
+{{ code.title }}</span>
+{%- endif -%}
+{%- if code.title == nil and code.terminal %}<span class="sr-only">{{ terminal_text }}</span>{% endif -%}
+</figcaption><pre data-language="{{ code.language | default: 'plaintext' }}"{% if code.wrap %} class="wrap" style="--ecMaxLine:{{ code.max_line }}ch"{% endif %}><code>
+{%- for row in code.rows -%}
+{%- if row.section -%}
+{%- assign count = row.lines.size -%}
+{%- capture summary -%}<summary><div class="ec-line"{% if row.section.indent > 0 %} style="--ecIndent:{{ row.section.indent }}ch"{% endif %}>{% if code.line_numbers %}<div class="gutter"><div class="ln"></div></div>{% endif %}<div class="code"><span class="expand"></span><span class="collapse"></span><span class="text">{% if count == 1 %}{{ texts.collapsed_one | replace: '{n}', count }}{% else %}{{ texts.collapsed_many | replace: '{n}', count }}{% endif %}</span></div></div></summary>{%- endcapture -%}
+{%- if row.section.style == 'github' -%}<details class="ec-section github">{{ summary }}{%- else -%}<div class="ec-section {{ row.section.style }}"><details>{{ summary }}</details><div class="content-lines">{%- endif -%}
+{%- endif -%}
+{%- for line in row.lines -%}
+{%- assign line_style = '' -%}
+{%- if line.label -%}{%- assign line_style = "--tmLabel:'" | append: line.label | append: "'" -%}{%- endif -%}
+{%- if code.wrap and line.indent > 0 -%}{%- if line_style != '' -%}{%- assign line_style = line_style | append: ';' -%}{%- endif -%}{%- assign line_style = line_style | append: '--ecIndent:' | append: line.indent | append: 'ch' -%}{%- endif -%}
+<div class="ec-line{% if line.marker %} highlight {{ line.marker }}{% if line.label %} tm-label{% endif %}{% endif %}"{% if line_style != '' %} style="{{ line_style }}"{% endif %}>
+{%- if code.line_numbers %}<div class="gutter"><div class="ln" aria-hidden="true">{{ line.number }}</div></div>{% endif -%}
+<div class="code">{% if line.html == '' %}
+{% else %}{{ line.html }}{% endif %}</div></div>
+{%- endfor -%}
+{%- if row.section -%}{%- if row.section.style == 'github' -%}</details>{%- else -%}</div></div>{%- endif -%}{%- endif -%}
+{%- endfor -%}
+</code></pre>
+{%- unless code.popup -%}<div class="copy"><div aria-live="polite"></div><button title="{{ copy_text }}" data-copied="{{ copied_text }}" data-code="{{ code.copy | replace: texts.newline, texts.del }}"><div></div></button></div>{%- endunless -%}
+</figure></div>

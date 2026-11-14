@@ -1,0 +1,325 @@
+---
+title: Dev Tunnels integration
+seoTitle: Dev Tunnels integration for Aspire AppHost projects
+description: Learn how to use the Dev Tunnels integration for exposing local web services to the internet in your Aspire AppHost.
+props:
+  api_parameter_types:
+    - Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>
+    - Aspire.Hosting.ApplicationModel.EndpointReference
+    - bool
+---
+
+{% image "/assets/images/icons/dev-tunnels-icon.svg", alt: "Dev Tunnels logo", width: 80, height: 80, class: "float-inline-left icon", zoomable: false %}
+
+[Dev tunnels](https://learn.microsoft.com/azure/developer/dev-tunnels/overview) allow developers to securely share local web services across the internet. Enabling you to connect your local development environment with cloud services, share work in progress with colleagues or aid in building webhooks. Dev tunnels is for adhoc testing and development, not for production workloads.
+
+:::danger
+Dev tunnels are for ad-hoc testing and development, not for production
+workloads.
+:::
+
+Dev tunnels are useful for:
+
+- Sharing a running local service (for example, a Web API) with teammates, mobile devices, or webhooks
+- Testing incoming callbacks from external SaaS systems (GitHub / Stripe / etc.) without deploying
+- Sharing a running local service (for example, a Web API) with teammates, mobile devices, or webhooks.
+- Testing incoming callbacks from external SaaS systems (GitHub / Stripe / etc.) without deploying.
+- Quickly publishing a temporary, TLS-terminated endpoint during development.
+
+:::note
+By default tunnels require authentication and are available only to the user
+who created them. You can selectively enable anonymous (public) access per
+tunnel or per individual port.
+:::
+
+## Prerequisites
+
+Before you create a dev tunnel, you first need to download and install the devtunnel CLI (Command Line Interface) tool that corresponds to your operating system. See the [devtunnel CLI installation documentation](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started#install) for more details.
+
+## Hosting integration
+
+To get started with the Dev Tunnels integration, install the [📦 Aspire.Hosting.DevTunnels](https://www.nuget.org/packages/Aspire.Hosting.DevTunnels) NuGet package in the AppHost project:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add devtunnels
+```
+
+This updates your `aspire.config.json` with the Dev Tunnels hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.DevTunnels": "%ASPIRE_VERSION%"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+{% install_package "Aspire.Hosting.DevTunnels", short_name: "devtunnels", prerelease: true %}
+{% endtab %}
+{% endtabs %}
+
+### Add a dev tunnel resource
+
+In the AppHost project, add a dev tunnel and configure it to expose specific resources:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const web = await builder.addNodeApp("web", "../web", "index.js");
+
+const tunnel = await builder.addDevTunnel("my-tunnel")
+    .withReference(web);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var web = builder.AddProject<Projects.Web>("web");
+
+var tunnel = builder.AddDevTunnel("my-tunnel")
+                    .WithReference(web);
+```
+{% endtab %}
+{% endtabs %}
+
+When you run the AppHost, the dev tunnel is created to expose the web application endpoints publicly. The tunnel URLs are shown in the Aspire dashboard. By default, the tunnel requires authentication and is available only to the user who created it.
+
+### Allow anonymous access
+
+To allow anonymous, public access to the entire tunnel, chain a call to the {% api "Aspire.Hosting.DevTunnelsResourceBuilderExtensions.WithAnonymousAccess" %} method:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const web = await builder.addNodeApp("web", "../web", "index.js");
+
+const tunnel = await builder.addDevTunnel("public-api")
+    .withReference(web)
+    .withAnonymousAccess();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var web = builder.AddProject<Projects.Web>("web");
+
+var tunnel = builder.AddDevTunnel("public-api")
+                    .WithReference(web)
+                    .WithAnonymousAccess();
+```
+{% endtab %}
+{% endtabs %}
+
+### Configure dev tunnel options
+
+To configure other options for the dev tunnel, provide the `DevTunnelOptions` to the {% api "Aspire.Hosting.DevTunnelsResourceBuilderExtensions.AddDevTunnel" %} method:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const web = await builder.addNodeApp("web", "../web", "index.js");
+
+const tunnel = await builder.addDevTunnel("qa", "my-tunnel-id", false, "QA environment tunnel", ["qa", "testing"])
+    .withReference(web);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var web = builder.AddProject<Projects.Web>("web");
+
+var options = new DevTunnelOptions
+{
+    Description = "QA environment tunnel",
+    Labels = ["qa", "testing"],
+    AllowAnonymous = false
+};
+
+var tunnel = builder.AddDevTunnel("qa", tunnelId: "my-tunnel-id", options: options)
+                    .WithReference(web);
+```
+{% endtab %}
+{% endtabs %}
+
+### Configure for mixed access
+
+To allow anonymous access to specific endpoints, use the appropriate {% api "Aspire.Hosting.DevTunnelsResourceBuilderExtensions.WithReference", parameter_types: props.api_parameter_types %} overload:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addNodeApp("api", "../api", "index.js");
+
+const tunnel = await builder.addDevTunnel("mixed-access")
+    .withReference(api, "public", { allowAnonymous: true })
+    .withReference(api, "admin", { allowAnonymous: false });
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+var tunnel = builder.AddDevTunnel("mixed-access")
+                    .WithReference(api, "public", allowAnonymous: true)
+                    .WithReference(api, "admin", allowAnonymous: false);
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code exposes:
+
+- The `public` endpoint of the `api` project with anonymous access
+- The `public` endpoint of the `api` project with anonymous access.
+- The `admin` endpoint of the `api` project that requires authentication.
+
+### Show tunnel URLs
+
+While the dev tunnel is running, the Aspire dashboard publishes the public tunnel URL, the inspect URL, and the local endpoint URL as highlighted properties on the tunnel port resource's property pane so they're discoverable at a glance.
+
+You can also select the highlighted **Show tunnel URLs** command from the tunnel port resource's command menu in the dashboard. This opens a message box listing:
+
+- **Tunnel URL** &mdash; the public dev tunnel URL for the port
+- **Inspect URL** &mdash; the [Dev Tunnels inspection URL](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started#host) for viewing tunneled HTTP traffic
+- **Local endpoint URL** &mdash; the local address the tunnel forwards to, once allocated
+
+:::note
+The **Show tunnel URLs** command is only enabled once the tunnel port is
+running and its public URL has been allocated.
+:::
+
+### Service discovery integration
+
+When another resource references a dev tunnel, environment variables are injected using the Aspire service discovery configuration format:
+
+```dotenv
+WEB_HTTPS=https://myweb-1234.westeurope.devtunnels.ms/
+services__web__https__0=https://myweb-1234.westeurope.devtunnels.ms/
+```
+
+This lets downstream resources use the tunneled address exactly like any other Aspire service discovery entry.
+
+:::note
+Referencing a tunnel delays the consumer resource's start until the tunnel has
+started and its endpoint is fully allocated.
+:::
+
+:::danger
+Dev tunnels are a development time concern only and aren't included when
+publishing or deploying an AppHost, including any service discovery
+information.
+:::
+
+## Configuration
+Use the following properties to configure you dev tunnels:
+### Dev tunnel options
+
+The `DevTunnelOptions` class provides several configuration options:
+
+| Property         | Description                                                            |
+| ---------------- | ---------------------------------------------------------------------- |
+| `Description`    | A description for the tunnel that appears in the dev tunnels service   |
+| `Labels`         | A list of labels to apply to the tunnel for organization and filtering |
+| `AllowAnonymous` | Whether to allow anonymous access to the entire tunnel                 |
+| `Region`         | The `DevTunnelRegion` to create the tunnel in; automatic when unset    |
+
+:::note
+`Region` is only configurable in C# via `DevTunnelOptions`. The non-C#
+TypeScript `addDevTunnel` export doesn't surface a region parameter.
+:::
+
+### Dev tunnel port options
+
+The `DevTunnelPortOptions` class provides configuration for individual tunnel ports:
+
+| Property         | Description                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `Protocol`       | The protocol to use (`http`, `https`, or `auto`). If not specified, uses the endpoint's scheme |
+| `Description`    | A description for this specific port                                                           |
+| `Labels`         | Labels to apply to this port                                                                   |
+| `AllowAnonymous` | Whether to allow anonymous access to this specific port                                        |
+
+## Security recommendations
+
+- Prefer authenticated tunnels during normal development
+- Only enable anonymous access for endpoints that are safe to expose publicly
+- Treat public tunnel URLs as temporary & untrusted (rate limit / validate input server-side)
+
+## Tunnel lifecycle
+
+Dev tunnels automatically:
+
+- Install the devtunnel CLI if not already available
+- Ensure the user is logged in to the dev tunnels service
+- Create and manage tunnel lifecycle
+- Clean up unmodeled ports from previous runs
+- Install the devtunnel CLI if not already available.
+- Ensure the user is logged in to the dev tunnels service.
+- Create and manage tunnel lifecycle.
+- Clean up unmodeled ports from previous runs.
+- Provide detailed logging and diagnostics.
+
+Tunnels will expire after not being hosted for 30 days by default, so they won't be forcibly deleted when the resource or AppHost is stopped.
+
+## Troubleshooting
+
+### Authentication required
+
+If you see authentication errors, ensure you're logged in to the dev tunnels service:
+
+```bash
+devtunnel user login
+```
+
+### Port conflicts
+
+If you encounter port binding issues, check that no other processes are using the same ports, or configure different ports for your endpoints.
+
+### Tunnel not accessible
+
+Verify that:
+
+- The tunnel is running and healthy in the Aspire dashboard
+- You're using the correct tunnel URL
+- Anonymous access is configured correctly if accessing without authentication
+
+#### Dashboard doesn't show a tunnel URL
+
+Dev tunnel endpoints stay unallocated until the integration publishes the
+real tunnel endpoint. The dashboard and MCP resource snapshots then show
+the public tunnel URL.
+
+If you're using Aspire 13.5 and the resource reaches the _Running_ and
+_Healthy_ states without showing a URL, update to Aspire 13.6 or later
+to resolve a known endpoint-publication regression.
+
+## See also
+
+- [Dev tunnels overview](https://learn.microsoft.com/azure/developer/dev-tunnels/overview)
+- [Dev tunnels CLI installation](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started#install)
+- [Aspire integrations overview](/integrations/overview/)
+- [AppHost overview](/get-started/app-host/)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)

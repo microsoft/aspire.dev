@@ -1,0 +1,53 @@
+---
+title: aspire config command
+description: Learn about the aspire config command and its usage. This command driver is used to manage the Aspire CLI config settings.
+---
+
+## Name
+
+`aspire config` - Manage configuration settings.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire config [command] [options]
+```
+
+## Description
+
+The `aspire config` command manages the Aspire CLI config settings.
+
+{% include_markdown "reference/cli/includes/config-file-description.md" %}
+
+## Options
+
+The following options are available:
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Commands
+
+The following commands are available:
+
+| Command                                                    | Status | Function                                                                        |
+| ---------------------------------------------------------- | ------ | ------------------------------------------------------------------------------- |
+| [`aspire config list`](../aspire-config-list/)             | Stable | List current configuration values, or all available feature flags with `--all`. |
+| [`aspire config get <key>`](../aspire-config-get/)         | Stable | Get a configuration value.                                                      |
+| [`aspire config set <key> <value>`](../aspire-config-set/) | Stable | Set a configuration value.                                                      |
+| [`aspire config delete <key>`](../aspire-config-delete/)   | Stable | Delete a configuration value.                                                   |
+
+## Settings
+
+The following config settings are available:
+
+{% include_markdown "reference/cli/includes/config-settings-table.md" %}

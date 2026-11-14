@@ -1,0 +1,19 @@
+{%- comment -%}
+  src/frontend/src/components/Breadcrumb.astro for the API pages (its styles are in components.css, scope
+  cid-breadcrumb). Input: crumbs, a string of crumbs separated by "¦", each "label§href§icon" (href and icon
+  optional; the last crumb is the current page). The `docs` icon is Starlight's open-book.
+{%- endcomment -%}
+{%- assign bc_items = crumbs | split: "¦" -%}
+{%- assign bc_parent = -1 -%}
+{%- for bc in bc_items -%}{%- unless forloop.last -%}{%- assign bc_href = bc | split: "§" -%}{%- if bc_href[1] != blank -%}{%- assign bc_parent = forloop.index0 -%}{%- endif -%}{%- endunless -%}{%- endfor -%}
+<nav class="breadcrumb not-content cid-breadcrumb" aria-label="Breadcrumb"><ol class="bc-inline">
+{%- for bc in bc_items -%}
+  {%- assign bc_parts = bc | split: "§" -%}
+<li>{% unless forloop.first %}<span class="sep" aria-hidden="true">/</span>{% endunless %}
+  {%- if forloop.last -%}<span class="current" aria-current="page">{{ bc_parts[0] }}</span>
+  {%- elsif bc_parts[1] != blank -%}<a{% if forloop.index0 == bc_parent %} class="bc-parent"{% endif %} href="{{ bc_parts[1] }}">{% if bc_parts[2] == "docs" %}<svg aria-hidden="true" class="cid-sl-icon" width="16" height="16" fill="currentColor" style="--sl-icon-size: 1em;"><use href="/assets/icons.svg#open-book"></use></svg>{% endif %}<span>{{ bc_parts[0] }}</span></a>
+  {%- else -%}<span>{{ bc_parts[0] }}</span>
+  {%- endif -%}
+</li>
+{%- endfor -%}
+</ol></nav>

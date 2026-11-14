@@ -1,0 +1,82 @@
+{%- comment -%}
+  Ported from src/frontend/src/components/DashboardCarousel.astro. Root class (components.css scope):
+  cid-dashboard-carousel (its <style is:global> block is copied unscoped).
+  Arguments: carousel_autoplay (default true), carousel_presentation (coverflow | stage, default coverflow).
+  Script: scripts/client/home/dashboard-carousel.ts ([data-dashboard-carousel], [data-stage], [data-slide],
+  [data-dot], [data-prev], [data-next], [data-playback-toggle], [data-progress-fill]).
+  The slides are fixed; their image files are /assets/images/dashboard/landing/<id>-light.png and -dark.png, and their
+  labels and alternative texts the i18n keys landing.dashboardCarousel.slides.<id>.label and .alt.
+{%- endcomment -%}
+{%- assign carousel_slides = "resources-graph,resources-table,console,structured-logs,traces,trace-detail,metrics" | split: "," -%}
+{%- assign carousel_pause = "landing.dashboardCarousel.pause" | t -%}
+<section
+  class="dashboard-carousel not-content cid-dashboard-carousel"
+  data-dashboard-carousel
+  role="group"
+  aria-roledescription="carousel"
+  aria-label="{{ "landing.dashboardCarousel.label" | t }}"
+  data-autoplay="{% if carousel_autoplay == false %}false{% else %}true{% endif %}"
+  data-presentation="{{ carousel_presentation | default: "coverflow" }}"
+>
+  <div class="stage" data-stage>
+    {%- for slide_id in carousel_slides %}
+    {%- assign slide_key = "landing.dashboardCarousel.slides." | append: slide_id -%}
+    {%- assign slide_label = slide_key | append: ".label" | t -%}
+    {%- assign slide_alt = slide_key | append: ".alt" | t -%}
+    {%- assign slide_light = "/assets/images/dashboard/landing/" | append: slide_id | append: "-light.png" -%}
+    {%- assign slide_dark = "/assets/images/dashboard/landing/" | append: slide_id | append: "-dark.png" %}
+    <div
+      class="slide"
+      data-slide
+      data-index="{{ forloop.index0 }}"
+      data-slide-label="{{ slide_label }}"
+      role="group"
+      aria-roledescription="slide"
+      aria-label="{{ "landing.dashboardCarousel.slideLabel" | t | replace: "{{index}}", forloop.index | replace: "{{count}}", forloop.length | replace: "{{label}}", slide_label }}"
+    >
+      {% include "partials/home/theme-image.liquid", ti_light: slide_light, ti_dark: slide_dark, ti_alt: slide_alt, ti_label: slide_label, ti_class: "dashboard-shot", ti_width: 1680, ti_height: 1050 %}
+    </div>
+    {%- endfor %}
+  </div>
+
+  <div class="carousel-progress" data-progress aria-hidden="true">
+    <span class="carousel-progress-fill" data-progress-fill></span>
+  </div>
+
+  <div class="carousel-footer">
+    <button
+      type="button"
+      class="carousel-playback-btn"
+      data-playback-toggle
+      data-playing="false"
+      data-label-play="{{ "landing.dashboardCarousel.play" | t }}"
+      data-label-pause="{{ carousel_pause }}"
+      aria-label="{{ carousel_pause }}"
+      aria-pressed="false"
+    >
+      <span class="carousel-pause-icon" aria-hidden="true">{% include "partials/home/svg/pause.liquid" %}</span>
+      <span class="carousel-play-icon" aria-hidden="true">{% include "partials/home/svg/play.liquid" %}</span>
+    </button>
+    <div class="controls">
+      <button type="button" class="nav-btn prev-btn" data-prev aria-label="{{ "landing.dashboardCarousel.previous" | t }}">
+        {% icon "left-arrow", size: "1.5rem" %}
+      </button>
+      <div class="dots" role="group" aria-label="{{ "landing.dashboardCarousel.chooseView" | t }}">
+        {%- for slide_id in carousel_slides %}
+        {%- assign slide_label = "landing.dashboardCarousel.slides." | append: slide_id | append: ".label" | t %}
+        <button
+          type="button"
+          class="dot"
+          data-dot
+          data-index="{{ forloop.index0 }}"
+          aria-label="{{ slide_label }}"
+          aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}"
+        ></button>
+        {%- endfor %}
+      </div>
+      <button type="button" class="nav-btn next-btn" data-next aria-label="{{ "landing.dashboardCarousel.next" | t }}">
+        {% icon "right-arrow", size: "1.5rem" %}
+      </button>
+    </div>
+  </div>
+</section>

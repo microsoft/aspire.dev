@@ -1,0 +1,41 @@
+{%- comment -%}
+  renderInlineNodes of src/frontend/src/utils/csharp-api-markdown.ts: the nodes as one line, whitespace collapsed.
+  Inputs: nodes, pkg, tstart.
+{%- endcomment -%}
+{%- capture out -%}
+{%- for node in nodes -%}
+  {%- assign lead = "" -%}
+  {%- unless forloop.first -%}
+    {%- assign space = true -%}
+    {%- case node.kind -%}
+      {%- when "codeblock", "list", "note", "para" -%}{%- assign space = false -%}
+      {%- else -%}
+        {%- assign c = node.text | slice: 0 -%}
+        {%- assign cs = c | strip -%}
+        {%- if node.kind == "text" and c != "" and c != nil -%}
+          {%- if cs == "" or c == "," or c == "." or c == ":" or c == ";" or c == "!" or c == "?" or c == ")" or c == "}" or c == "]" -%}{%- assign space = false -%}{%- endif -%}
+        {%- endif -%}
+        {%- if space -%}
+          {%- assign pi = forloop.index0 | minus: 1 -%}
+          {%- assign prev = nodes[pi] -%}
+          {%- if prev.kind == "text" -%}
+            {%- assign l = prev.text | slice: -1 -%}
+            {%- assign ls = l | strip -%}
+            {%- if prev.text == nil or prev.text == "" or ls == "" -%}{%- assign space = false -%}{%- endif -%}
+          {%- endif -%}
+        {%- endif -%}
+    {%- endcase -%}
+    {%- if space -%}{%- assign lead = " " -%}{%- endif -%}
+  {%- endunless -%}
+  {{- lead -}}
+  {%- case node.kind -%}
+    {%- when "text" -%}{{ node.text }}
+    {%- when "code" -%}`{{ node.text }}`
+    {%- when "cref" -%}{%- render 'api/md/cref', cref: node.value, pkg: pkg, tstart: tstart -%}
+    {%- when "href" -%}[{% if node.text == nil %}{{ node.value }}{% else %}{{ node.text }}{% endif %}]({% if node.value == nil %}#{% else %}{{ node.value }}{% endif %})
+    {%- when "langword", "paramref", "typeparamref" -%}`{{ node.value }}`
+    {%- else -%}{% if node.text == nil %}{{ node.value }}{% else %}{{ node.text }}{% endif %}
+  {%- endcase -%}
+{%- endfor -%}
+{%- endcapture -%}
+{{- out | split: " " | join: " " -}}

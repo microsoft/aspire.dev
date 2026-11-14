@@ -1,0 +1,41 @@
+---
+permalink: /sitemap-0.xml
+layout: false
+liquid: true
+markdown: false
+---
+{%- comment -%}
+  The sitemap chunk referenced by /sitemap-index.xml, in @astrojs/sitemap 3.7's format with Starlight's i18n
+  options: every page the site serves (locale fallbacks included), each with an <xhtml:link rel="alternate">
+  per locale where the page exists when it exists in more than one, hreflang being the locale's `lang`
+  (en, de, ..., zh-CN, pt-BR). 404 pages are left out, as @astrojs/sitemap does. Urls are absolute with a
+  trailing slash.
+
+  Assumes:
+  - `collections.all` holds every HTML page of the site, the API reference, hub and samples pages included
+    (today's sitemap lists them all): the `collections` step must match them, or this template reads a
+    dedicated collect step (`with: { name: sitemap }` -> `sitemap.all`).
+  - `locale_pages` (Douze plan 3.6) returns one entry per served (locale, page) pair, fallback copies included,
+    each with `url` (the page's url in that locale, /ja/x/index.html or /ja/x/) and `alternates` (the
+    { locale, lang, url } list of the locales where the page exists, the pair itself included, as the
+    `localize` step's `alternates` metadata), ordered by url.
+  Order: by url (ordinal); @astrojs/sitemap sorts with an English numeric collation, so `aspire-9` and
+  `aspire-13` swap places. Sitemaps are unordered sets, so this is not a parity issue.
+
+  Filters: locale_pages, absolute_url, xml_escape (planned, Douze plan 3.6 and 3.12); replace, slice (Liquid).
+{%- endcomment -%}
+<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/0.9">
+{%- assign entries = collections.all | locale_pages | sort: "url" -%}
+{%- for entry in entries -%}
+  {%- assign path = entry.url | replace: "/index.html", "/" -%}
+  {%- assign tail = path | slice: -5, 5 -%}
+  {%- if tail == "/404/" -%}{%- continue -%}{%- endif -%}
+  <url><loc>{{ path | absolute_url | xml_escape }}</loc>
+  {%- if entry.alternates.size > 1 -%}
+    {%- for alt in entry.alternates -%}
+      <xhtml:link rel="alternate" hreflang="{{ alt.lang }}" href="{{ alt.url | replace: "/index.html", "/" | absolute_url | xml_escape }}"/>
+    {%- endfor -%}
+  {%- endif -%}
+  </url>
+{%- endfor -%}
+</urlset>

@@ -1,0 +1,873 @@
+---
+title: AppHost とは？
+description: Aspire の AppHost を使ってアプリケーションのアーキテクチャを定義する方法を学びます。
+props:
+  pivot_selector_options:
+    - id: csharp
+      title: C#
+    - id: python
+      title: Python
+    - id: nodejs
+      title: Node.js
+    - id: go
+      title: Go
+    - id: java
+      title: Java
+  simple_app_host_code_collapse:
+    - 3-16
+  simple_app_host_code_collapse_2:
+    - 3-17
+  simple_app_host_code_mark:
+    range: 4-6
+  simple_app_host_code_collapse_3:
+    - 8-17
+  simple_app_host_code_collapse_4:
+    - 8-18
+  simple_app_host_code_mark_2:
+    range: 9-11
+  simple_app_host_code_collapse_5:
+    - 1-6
+    - 13-17
+  simple_app_host_code_mark_3:
+    range: 9-12
+  simple_app_host_code_collapse_6:
+    - 1-6
+    - 14-18
+  simple_app_host_code_mark_4:
+    range: 14-16
+  simple_app_host_code_collapse_7:
+    - 1-11
+  simple_app_host_code_mark_5:
+    range: 15-17
+  simple_app_host_code_collapse_8:
+    - 1-12
+---
+
+Aspire の AppHost は、アプリケーションのサービスとその関係をコードファーストで宣言する場所です。散在した設定ファイルを管理する代わりに、アーキテクチャをコードで記述します。ローカルでのオーケストレーションは Aspire が処理するため、機能開発に集中できます。
+
+{% pivot_selector title: "API プラットフォームを選択", key: "lang", margin_top: "1", options: props.pivot_selector_options %}
+
+{% learnmore %}
+TypeScript で AppHost を書きたい場合は、[最初の Aspire アプリを作成する](/ja/get-started/first-app/?lang=typescript)から始めてください。
+{% endlearnmore %}
+
+## アーキテクチャの定義
+
+フロントエンドが API と通信し、API がデータベースと通信する、シンプルな 3 層アーキテクチャを考えてみましょう。
+
+{% pivot "csharp" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:dotnet)[API service]
+  service frontend(logos:react)[React frontend]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+このアーキテクチャは、**.NET API** が **PostgreSQL データベース** に接続し、**React フロントエンド** がその API を利用する構成を示しています。.NET API は ASP.NET Core を使用し、Entity Framework または接続文字列を用いて PostgreSQL に接続します。React フロントエンドは Vite で構築され、HTTP 経由で API と通信します。
+
+このアーキテクチャを手順どおりに構築するには、クイックスタートの [最初の Aspire アプリを作成する](/ja/get-started/first-app/?lang=csharp)を参照してください。
+{% endpivot %}
+{% pivot "python" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:python)[API service]
+  service frontend(logos:react)[React frontend]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+このアーキテクチャは、**Python API（FastAPI/Uvicorn を使用）** が **PostgreSQL データベース** に接続し、**React フロントエンド** がその API を利用する構成を示しています。Python API は FastAPI や Flask などのフレームワークを使用し、psycopg2 や SQLAlchemy などのライブラリを用いて PostgreSQL に接続します。React フロントエンドは Vite で構築され、HTTP 経由で API と通信します。
+
+既存の Python ベース アプリにこのアーキテクチャを追加するには、[既存のアプリに Aspire を追加する](/ja/get-started/add-aspire-existing-app/) から始めて、次に [Python との統合](/integrations/frameworks/python/) を確認してください。
+
+:::tip
+Python との統合は、NuGet パッケージの [CommunityToolkit.Aspire.Hosting.Python.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Python.Extensions) によって提供されます。詳細については、ドキュメントの[Python との統合](/integrations/frameworks/python/)をご覧ください。
+:::
+{% endpivot %}
+{% pivot "nodejs" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:nodejs-icon)[API service]
+  service frontend(logos:react)[React frontend]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+このアーキテクチャは、**Node.js API** が **PostgreSQL データベース**に接続し、**React フロントエンド** がその API を利用する構成を示しています。Node.js API は Express や Fastify などのフレームワークを使用し、pg や Prisma などのライブラリを用いて PostgreSQL に接続します。React フロントエンドは Vite で構築され、HTTP 経由で API と通信します。
+
+:::tip
+JavaScript/Node.js との統合は、NuGet パッケージの [Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) によって提供されます。詳細については、ドキュメントの[JavaScript との統合](/integrations/frameworks/javascript/) をご覧ください。
+:::
+{% endpivot %}
+{% pivot "go" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:go)[API service]
+  service frontend(logos:react)[React frontend]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+このアーキテクチャは、**Go API** が **PostgreSQL データベース**に接続し、**React フロントエンド**がその API を利用する構成を示しています。Go API は標準ライブラリの `net/http` パッケージ、または Gin や Echo などのフレームワークを使用し、pgx や database/sql などのライブラリを用いて PostgreSQL に接続します。React フロントエンドは Vite で構築され、HTTP 経由で API と通信します。
+
+:::tip
+Go との統合は、NuGet パッケージの [Aspire.Hosting.Go](https://www.nuget.org/packages/Aspire.Hosting.Go) によって提供されます。詳細については、ドキュメントの [Go との統合](/integrations/frameworks/go/go-get-started/)をご覧ください。
+:::
+{% endpivot %}
+{% pivot "java" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:java)[API service]
+  service frontend(logos:react)[React frontend]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+このアーキテクチャは、**Java API**（Spring Boot を使用）が **PostgreSQL データベース**に接続し、**React フロントエンド** がその API を利用する構成を示しています。Java API は Spring Boot と Spring Data JPA を使用し、JDBC または Spring Data を用いて PostgreSQL に接続します。React フロントエンドは Vite で構築され、HTTP 経由で API と通信します。
+
+:::tip
+Java との統合は、NuGet パッケージの [Aspire.Hosting.Java](https://www.nuget.org/packages/Aspire.Hosting.Java) によって提供されます。詳細については、ドキュメントの [Java との統合](/integrations/frameworks/java/java-get-started/)をご覧ください。
+:::
+{% endpivot %}
+
+このアーキテクチャは、AppHost では次のように表現できます。
+
+{% pivot "csharp" %}
+{% simple_app_host_code lang: "csharp" %}
+{% slot "csharp-content" %}
+<p><code>AddProject&lt;Projects.Api&gt;()</code> を使って .NET プロジェクトを参照します。</p>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><code>addProject()</code> を使って API プロジェクトを参照します。</p>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "python" %}
+{% simple_app_host_code lang: "python" %}
+{% slot "csharp-content" %}
+<p>FastAPI のような ASGI アプリには、<code>AddUvicornApp()</code> と <code>WithUv()</code> を使います。</p>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p>FastAPI のような ASGI アプリには、<code>addUvicornApp()</code> と <code>withUv()</code> を使います。</p>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "nodejs" %}
+{% simple_app_host_code lang: "nodejs" %}
+{% slot "csharp-content" %}
+<p>Node.js アプリケーションには、<code>AddNodeApp()</code> と <code>WithNpm()</code> を使います。</p>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p>Node.js アプリケーションには、<code>addNodeApp()</code> と <code>withNpm()</code> を使います。</p>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "go" %}
+{% simple_app_host_code lang: "go" %}
+<p>Go アプリケーションには <code>AddGolangApp()</code> を使います。</p>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "java" %}
+{% simple_app_host_code lang: "java" %}
+<p>Spring Boot アプリケーションには <code>AddSpringBootApp()</code> を使います。</p>
+{% endsimple_app_host_code %}
+{% endpivot %}
+
+AppHost は、分散アプリケーションを宣言的にモデル化します。上の各コード サンプルは、**PostgreSQL データベース**、**API サービス**、**React フロントエンド** から成る同じ 3 層アーキテクチャを示していますが、API の実装と、利用できる場合は AppHost の言語が異なります。
+
+どの場合でも、PostgreSQL データベースと React フロントエンドは同じです。Aspire のリソース参照がリソース間の依存関係を表現し、アプリ モデルがサービスを正しい順序で起動させます。
+
+Aspire は、使用する言語やフレームワークに関係なく、サービス、リソース、接続関係という同じ一貫したモデルを提供します。
+
+### AppHost コードの分解
+
+ここでは、典型的な AppHost の主要な部分を取り上げて、各ステップが何をしているのかを説明します。
+
+{% pivot "csharp" %}
+{% simple_app_host_code lang: "csharp", collapse: props.simple_app_host_code_collapse %}
+{% slot "csharp-content" %}
+<p><strong>展開されている行で行っていること:</strong></p>
+
+<ul>
+
+<li><code>DistributedApplication.CreateBuilder(args)</code> を使って分散アプリケーション ビルダーを作成します。</li>
+<li><code>Build()</code> を呼び出して、構成を実行可能な AppHost として具体化します。</li>
+<li><code>Run()</code> を呼び出してオーケストレーションを開始し、サービスは依存関係の順序に従って起動します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>展開されている行で行っていること:</strong></p>
+
+<ul>
+
+<li><code>await createBuilder()</code> を使って分散アプリケーション ビルダーを作成します。</li>
+<li><code>build()</code> を呼び出して、構成を実行可能な AppHost として具体化します。</li>
+<li><code>run()</code> を呼び出してオーケストレーションを開始し、サービスは依存関係の順序に従って起動します。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "python" %}
+{% simple_app_host_code lang: "python", collapse: props.simple_app_host_code_collapse_2 %}
+{% slot "csharp-content" %}
+<p><strong>展開されている行で行っていること:</strong></p>
+
+<ul>
+
+<li><code>DistributedApplication.CreateBuilder(args)</code> を使って分散アプリケーション ビルダーを作成します。</li>
+<li><code>Build()</code> を呼び出して、構成を実行可能な AppHost として具体化します。</li>
+<li><code>Run()</code> を呼び出してオーケストレーションを開始し、サービスは依存関係の順序に従って起動します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>展開されている行で行っていること:</strong></p>
+
+<ul>
+
+<li><code>await createBuilder()</code> を使って分散アプリケーション ビルダーを作成します。</li>
+<li><code>build()</code> を呼び出して、構成を実行可能な AppHost として具体化します。</li>
+<li><code>run()</code> を呼び出してオーケストレーションを開始し、サービスは依存関係の順序に従って起動します。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "nodejs" %}
+{% simple_app_host_code lang: "nodejs", collapse: props.simple_app_host_code_collapse_2 %}
+{% slot "csharp-content" %}
+<p><strong>展開されている行で行っていること:</strong></p>
+
+<ul>
+
+<li><code>DistributedApplication.CreateBuilder(args)</code> を使って分散アプリケーション ビルダーを作成します。</li>
+<li><code>Build()</code> を呼び出して、構成を実行可能な AppHost として具体化します。</li>
+<li><code>Run()</code> を呼び出してオーケストレーションを開始し、サービスは依存関係の順序に従って起動します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>展開されている行で行っていること:</strong></p>
+
+<ul>
+
+<li><code>await createBuilder()</code> を使って分散アプリケーション ビルダーを作成します。</li>
+<li><code>build()</code> を呼び出して、構成を実行可能な AppHost として具体化します。</li>
+<li><code>run()</code> を呼び出してオーケストレーションを開始し、サービスは依存関係の順序に従って起動します。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "go" %}
+{% simple_app_host_code lang: "go", collapse: props.simple_app_host_code_collapse_2 %}
+<p><strong>展開されている行で行っていること:</strong></p>
+
+<ul>
+
+<li><code>DistributedApplication.CreateBuilder(args)</code> を使って分散アプリケーション ビルダーを作成します。</li>
+<li><code>Build()</code> を呼び出して、構成を実行可能な AppHost として具体化します。</li>
+<li><code>Run()</code> を呼び出してオーケストレーションを開始し、サービスは依存関係の順序に従って起動します。</li>
+
+</ul>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "java" %}
+{% simple_app_host_code lang: "java", collapse: props.simple_app_host_code_collapse_2 %}
+<p><strong>展開されている行で行っていること:</strong></p>
+
+<ul>
+
+<li><code>DistributedApplication.CreateBuilder(args)</code> を使って分散アプリケーション ビルダーを作成します。</li>
+<li><code>Build()</code> を呼び出して、構成を実行可能な AppHost として具体化します。</li>
+<li><code>Run()</code> を呼び出してオーケストレーションを開始し、サービスは依存関係の順序に従って起動します。</li>
+
+</ul>
+{% endsimple_app_host_code %}
+{% endpivot %}
+
+AppHost は分散アプリケーションの設計図であり、残りの処理は Aspire が管理します。
+
+#### PostgreSQL リソースの追加
+
+ビルダーの準備ができたら、リソースとサービスを定義します。次のスニペットは、PostgreSQL サーバーとデータベースを追加する方法を示しています。
+
+{% pivot "csharp" %}
+{% simple_app_host_code lang: "csharp", mark: props.simple_app_host_code_mark, collapse: props.simple_app_host_code_collapse_3 %}
+{% slot "csharp-content" %}
+<p><strong>仕組み:</strong></p>
+
+<ul>
+
+<li><code>AddPostgres("db")</code> は、<code>db</code> という名前の PostgreSQL コンテナーを登録します。</li>
+<li><code>.AddDatabase("appdata")</code> は、そのサーバー上に <code>appdata</code> という名前のデータベースを作成します。</li>
+<li><code>.WithDataVolume()</code> は、コンテナーの再起動後もデータが保持されるようにボリュームを用意します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>仕組み:</strong></p>
+
+<ul>
+
+<li><code>await builder.addPostgres("db")</code> は、<code>db</code> という名前の PostgreSQL サーバー リソースを登録します。</li>
+<li><code>.addDatabase("appdata")</code> は、そのサーバーに <code>appdata</code> データベースを追加します。</li>
+<li><code>.withDataVolume()</code> は、データベース コンテナーの永続ストレージを有効にします。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "python" %}
+{% simple_app_host_code lang: "python", mark: props.simple_app_host_code_mark, collapse: props.simple_app_host_code_collapse_4 %}
+{% slot "csharp-content" %}
+<p><strong>仕組み:</strong></p>
+
+<ul>
+
+<li><code>AddPostgres("db")</code> は、<code>db</code> という名前の PostgreSQL コンテナーを登録します。</li>
+<li><code>.AddDatabase("appdata")</code> は、そのサーバー上に <code>appdata</code> という名前のデータベースを作成します。</li>
+<li><code>.WithDataVolume()</code> は、コンテナーの再起動後もデータが保持されるようにボリュームを用意します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>仕組み:</strong></p>
+
+<ul>
+
+<li><code>await builder.addPostgres("db")</code> は、<code>db</code> という名前の PostgreSQL サーバー リソースを登録します。</li>
+<li><code>.addDatabase("appdata")</code> は、そのサーバーに <code>appdata</code> データベースを追加します。</li>
+<li><code>.withDataVolume()</code> は、データベース コンテナーの永続ストレージを有効にします。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "nodejs" %}
+{% simple_app_host_code lang: "nodejs", mark: props.simple_app_host_code_mark, collapse: props.simple_app_host_code_collapse_4 %}
+{% slot "csharp-content" %}
+<p><strong>仕組み:</strong></p>
+
+<ul>
+
+<li><code>AddPostgres("db")</code> は、<code>db</code> という名前の PostgreSQL コンテナーを登録します。</li>
+<li><code>.AddDatabase("appdata")</code> は、そのサーバー上に <code>appdata</code> という名前のデータベースを作成します。</li>
+<li><code>.WithDataVolume()</code> は、コンテナーの再起動後もデータが保持されるようにボリュームを用意します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>仕組み:</strong></p>
+
+<ul>
+
+<li><code>await builder.addPostgres("db")</code> は、<code>db</code> という名前の PostgreSQL サーバー リソースを登録します。</li>
+<li><code>.addDatabase("appdata")</code> は、そのサーバーに <code>appdata</code> データベースを追加します。</li>
+<li><code>.withDataVolume()</code> は、データベース コンテナーの永続ストレージを有効にします。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "go" %}
+{% simple_app_host_code lang: "go", mark: props.simple_app_host_code_mark, collapse: props.simple_app_host_code_collapse_4 %}
+<div>
+
+<p><strong>仕組み:</strong></p>
+
+<ul>
+
+<li><code>AddPostgres("db")</code> は、<code>db</code> という名前の PostgreSQL コンテナーを登録します。</li>
+<li><code>.AddDatabase("appdata")</code> は、そのサーバー上に <code>appdata</code> という名前のデータベースを作成します。</li>
+<li><code>.WithDataVolume()</code> は、コンテナーの再起動後もデータが保持されるようにボリュームを用意します。</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "java" %}
+{% simple_app_host_code lang: "java", mark: props.simple_app_host_code_mark, collapse: props.simple_app_host_code_collapse_3 %}
+<div>
+
+<p><strong>仕組み:</strong></p>
+
+<ul>
+
+<li><code>AddPostgres("db")</code> は、<code>db</code> という名前の PostgreSQL コンテナーを登録します。</li>
+<li><code>.AddDatabase("appdata")</code> は、そのサーバー上に <code>appdata</code> という名前のデータベースを作成します。</li>
+<li><code>.WithDataVolume()</code> は、コンテナーの再起動後もデータが保持されるようにボリュームを用意します。</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+
+:::tip
+AppHost の再起動後もコンテナーを動かしたままにして起動時間を短縮したい場合は、`.WithLifetime(ContainerLifetime.Persistent)` を追加します。詳しくは [永続コンテナーのライフタイム](/ja/app-host/resource-lifetimes/) を参照してください。
+:::
+
+{% learnmore %}
+公式の [PostgreSQL integration](/integrations/databases/postgres/postgres-get-started/) を参照してください。
+{% endlearnmore %}
+
+#### API リソースの追加と依存関係の宣言
+
+次に、API サービスを登録し、PostgreSQL リソースに接続します。
+
+{% pivot "csharp" %}
+{% simple_app_host_code lang: "csharp", mark: props.simple_app_host_code_mark_2, collapse: props.simple_app_host_code_collapse_5 %}
+{% slot "csharp-content" %}
+<p><strong>行っていること:</strong></p>
+
+<ul>
+
+<li><code>AddProject&lt;Projects.Api&gt;("api")</code> は、API プロジェクトを <code>api</code> という名前のサービスとして登録します。</li>
+<li><code>WithReference(postgres)</code> は、接続情報を API の構成に注入します。</li>
+<li><code>WaitFor(postgres)</code> は、PostgreSQL が正常になるまで起動を待機します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>行っていること:</strong></p>
+
+<ul>
+
+<li><code>addProject("api", "../api/Api.csproj", "https")</code> は、API プロジェクトを <code>api</code> という名前のサービスとして登録します。</li>
+<li><code>withReference(postgres)</code> は、データベース依存関係を API リソースに接続します。</li>
+<li><code>waitFor(postgres)</code> は、PostgreSQL が正常になるまで起動を待機します。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "python" %}
+{% simple_app_host_code lang: "python", mark: props.simple_app_host_code_mark_3, collapse: props.simple_app_host_code_collapse_6 %}
+{% slot "csharp-content" %}
+<p><strong>行っていること:</strong></p>
+
+<ul>
+
+<li><code>AddUvicornApp("api", "../api", "main:app")</code> は、Uvicorn ベースの Python アプリを <code>api</code> という名前のサービスとして登録します。</li>
+<li><code>WithUv()</code> は、アプリが <a href="https://docs.astral.sh/uv/">uv</a> パッケージ マネージャーを使うように構成します。</li>
+<li><code>WithReference(postgres)</code> は、接続情報を API の構成に注入します。</li>
+<li><code>WaitFor(postgres)</code> は、PostgreSQL が正常になるまで起動を待機します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>行っていること:</strong></p>
+
+<ul>
+
+<li><code>addUvicornApp("api", "../api", "main:app")</code> は、Uvicorn ベースの Python アプリを <code>api</code> という名前のサービスとして登録します。</li>
+<li><code>withUv()</code> は、<a href="https://docs.astral.sh/uv/">uv</a> ベースの依存関係管理を有効にします。</li>
+<li><code>withReference(postgres)</code> は、データベース接続情報を注入します。</li>
+<li><code>waitFor(postgres)</code> は、PostgreSQL が正常になるまで起動を待機します。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "nodejs" %}
+{% simple_app_host_code lang: "nodejs", mark: props.simple_app_host_code_mark_3, collapse: props.simple_app_host_code_collapse_6 %}
+{% slot "csharp-content" %}
+<p><strong>行っていること:</strong></p>
+
+<ul>
+
+<li><code>AddNodeApp("api", "../api", "server.js")</code> は、Node.js アプリを <code>api</code> という名前のサービスとして登録します。</li>
+<li><code>WithNpm()</code> は、依存関係のインストールに npm を使うように構成します。</li>
+<li><code>WithReference(postgres)</code> は、接続情報を API の構成に注入します。</li>
+<li><code>WaitFor(postgres)</code> は、PostgreSQL が正常になるまで起動を待機します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>行っていること:</strong></p>
+
+<ul>
+
+<li><code>addNodeApp("api", "../api", "server.js")</code> は、Node.js アプリを <code>api</code> という名前のサービスとして登録します。</li>
+<li><code>withNpm()</code> は、npm ベースの依存関係インストールを構成します。</li>
+<li><code>withReference(postgres)</code> は、データベース接続情報を注入します。</li>
+<li><code>waitFor(postgres)</code> は、PostgreSQL が正常になるまで起動を待機します。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "go" %}
+{% simple_app_host_code lang: "go", mark: props.simple_app_host_code_mark_3, collapse: props.simple_app_host_code_collapse_6 %}
+<div>
+
+<p><strong>行っていること:</strong></p>
+
+<ul>
+
+<li><code>AddGolangApp("api", "../api")</code> は、Go アプリを <code>api</code> という名前のサービスとして登録します。</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> は、ポートを構成し、<code>PORT</code> 環境変数を設定します。</li>
+<li><code>WithReference(postgres)</code> は、接続情報を API の構成に注入します。</li>
+<li><code>WaitFor(postgres)</code> は、API の起動を PostgreSQL が正常になるまで待機させます。</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "java" %}
+{% simple_app_host_code lang: "java", mark: props.simple_app_host_code_mark_2, collapse: props.simple_app_host_code_collapse_5 %}
+<div>
+
+<p><strong>行っていること:</strong></p>
+
+<ul>
+
+<li><code>AddSpringBootApp("api", "../api")</code> は、Spring Boot アプリを <code>api</code> という名前のサービスとして登録し、Aspire が割り当てたポートを <code>SERVER_PORT</code> 環境変数でアプリに渡す HTTP エンドポイントを宣言します。</li>
+<li><code>WithReference(postgres)</code> は、接続情報を API の構成に注入します。</li>
+<li><code>WaitFor(postgres)</code> は、API の起動を PostgreSQL が正常になるまで待機させます。</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+
+これで <code>api</code> サービスが定義できたので、次はフロントエンドを接続できます。
+
+#### フロントエンド リソースの追加
+
+フロントエンド プロジェクトを登録し、API への依存関係を宣言すると、AppHost が API のアドレスを自動的に提供します。
+
+:::note
+この例では Node.js（React）フロントエンドを使っていますが、Aspire ではフロントエンドも実行可能なサービスとして扱うため、任意の言語やフレームワークを利用できます。
+:::
+
+{% pivot "csharp" %}
+{% simple_app_host_code lang: "csharp", mark: props.simple_app_host_code_mark_4, collapse: props.simple_app_host_code_collapse_7 %}
+{% slot "csharp-content" %}
+<p><strong>要点:</strong></p>
+
+<ul>
+
+<li><code>AddViteApp("frontend", "../frontend")</code> は、フロントエンドを <code>frontend</code> という名前のサービスとして登録します。</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> は、アプリを公開し、<code>PORT</code> 環境変数でリスナーを制御できるようにします。</li>
+<li><code>WithReference(api)</code> は、API のベース アドレスをフロントエンドの構成に注入します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>要点:</strong></p>
+
+<ul>
+
+<li><code>addViteApp("frontend", "../frontend")</code> は、フロントエンドを <code>frontend</code> という名前のサービスとして登録します。</li>
+<li><code>withHttpEndpoint({ env: "PORT" })</code> は、アプリを公開し、<code>PORT</code> 環境変数でリスナーを制御できるようにします。</li>
+<li><code>withReference(api)</code> は、API のベース アドレスをフロントエンドの構成に注入します。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "python" %}
+{% simple_app_host_code lang: "python", mark: props.simple_app_host_code_mark_5, collapse: props.simple_app_host_code_collapse_8 %}
+{% slot "csharp-content" %}
+<p><strong>要点:</strong></p>
+
+<ul>
+
+<li><code>AddViteApp("frontend", "../frontend")</code> は、フロントエンドを <code>frontend</code> という名前のサービスとして登録します。</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> は、アプリを公開し、<code>PORT</code> 環境変数でリスナーを制御できるようにします。</li>
+<li><code>WithReference(api)</code> は、API のベース アドレスをフロントエンドの構成に注入します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>要点:</strong></p>
+
+<ul>
+
+<li><code>addViteApp("frontend", "../frontend")</code> は、フロントエンドを <code>frontend</code> という名前のサービスとして登録します。</li>
+<li><code>withHttpEndpoint({ env: "PORT" })</code> は、アプリを公開し、<code>PORT</code> 環境変数でリスナーを制御できるようにします。</li>
+<li><code>withReference(api)</code> は、API のベース アドレスをフロントエンドの構成に注入します。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "nodejs" %}
+{% simple_app_host_code lang: "nodejs", mark: props.simple_app_host_code_mark_5, collapse: props.simple_app_host_code_collapse_8 %}
+{% slot "csharp-content" %}
+<p><strong>要点:</strong></p>
+
+<ul>
+
+<li><code>AddViteApp("frontend", "../frontend")</code> は、フロントエンドを <code>frontend</code> という名前のサービスとして登録します。</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> は、アプリを公開し、<code>PORT</code> 環境変数でリスナーを制御できるようにします。</li>
+<li><code>WithReference(api)</code> は、API のベース アドレスをフロントエンドの構成に注入します。</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>要点:</strong></p>
+
+<ul>
+
+<li><code>addViteApp("frontend", "../frontend")</code> は、フロントエンドを <code>frontend</code> という名前のサービスとして登録します。</li>
+<li><code>withHttpEndpoint({ env: "PORT" })</code> は、アプリを公開し、<code>PORT</code> 環境変数でリスナーを制御できるようにします。</li>
+<li><code>withReference(api)</code> は、API のベース アドレスをフロントエンドの構成に注入します。</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "go" %}
+{% simple_app_host_code lang: "go", mark: props.simple_app_host_code_mark_5, collapse: props.simple_app_host_code_collapse_8 %}
+<div>
+
+<p><strong>要点:</strong></p>
+
+<ul>
+
+<li><code>AddViteApp("frontend", "../frontend")</code> は、フロントエンドを <code>frontend</code> という名前のサービスとして登録します。</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> は、アプリを公開し、<code>PORT</code> 環境変数でリスナーを制御できるようにします。</li>
+<li><code>WithReference(api)</code> は、API のベース アドレスをフロントエンドの構成に注入します。</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "java" %}
+{% simple_app_host_code lang: "java", mark: props.simple_app_host_code_mark_4, collapse: props.simple_app_host_code_collapse_7 %}
+<div>
+
+<p><strong>要点:</strong></p>
+
+<ul>
+
+<li><code>AddViteApp("frontend", "../frontend")</code> は、フロントエンドを <code>frontend</code> という名前のサービスとして登録します。</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> は、アプリを公開し、<code>PORT</code> 環境変数でリスナーを制御できるようにします。</li>
+<li><code>WithReference(api)</code> は、API のベース アドレスをフロントエンドの構成に注入します。</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+
+要するに、バックエンドを先に定義し（DB → API）、その後 UI から API を参照します。AppHost は依存関係グラフ、接続の流れ、起動順序を表現します。
+
+#### 構成とネットワーク
+
+これらの依存関係や接続は、Aspire によって自動的に管理されます。AppHost は接続文字列やエンドポイントのような構成値を生成し、必要に応じて各サービスに注入します。AppHost でリソースを追加するときは、`db`、`api`、`frontend` のように名前を付けます。Aspire はそれらの名前を DNS 解決に利用するため、サービス同士は予測可能なアドレスで通信できます。利用側のサービスは、それらの名前を基に構成情報の注入も受け取ります。
+
+{% pivot "csharp" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:dotnet)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[frontend]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+.NET API は PostgreSQL から **ConnectionStringReference** を受け取り、React フロントエンドが利用する **EndpointReference** を公開します。これにより、`PostgreSQL → .NET API → React フロントエンド` という明確な依存関係チェーンが構築されます。
+{% endpivot %}
+{% pivot "python" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:python)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[frontend]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+Python API は PostgreSQL から **ConnectionStringReference** を受け取り、React フロントエンドが利用する **EndpointReference** を公開します。これにより、`PostgreSQL → Python API → React フロントエンド` という明確な依存関係チェーンが構築されます。
+{% endpivot %}
+{% pivot "nodejs" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:nodejs-icon)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[frontend]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+Node.js API は PostgreSQL から **ConnectionStringReference** を受け取り、React フロントエンドが利用する **EndpointReference** を公開します。これにより、`PostgreSQL → Node.js API → React フロントエンド` という明確な依存関係チェーンが構築されます。
+{% endpivot %}
+{% pivot "go" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:go)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[frontend]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+Go API は PostgreSQL から **ConnectionStringReference** を受け取り、React フロントエンドが利用する **EndpointReference** を公開します。これにより、`PostgreSQL → Go API → React フロントエンド` という明確な依存関係チェーンが構築されます。
+{% endpivot %}
+{% pivot "java" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:java)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[frontend]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+Java API は PostgreSQL から **ConnectionStringReference** を受け取り、React フロントエンドが利用する **EndpointReference** を公開します。これにより、`PostgreSQL → Java API → React フロントエンド` という明確な依存関係チェーンが構築されます。
+{% endpivot %}
+
+**これらのリソースがどのように通信するか**
+
+{% steps %}
+1. `pg` は `ConnectionStringReference` を公開します。これはホスト、ポート、データベース、ユーザー、パスワードをまとめた、Aspire が理解できる強く型付けされた情報です。
+1. `api` はその参照への依存関係を宣言し、Aspire はローカル実行時とデプロイ時の両方で、シークレット、パラメーター、接続文字列を含む設定値を注入します。
+1. `api` は HTTP エンドポイントが割り当てられた後、自身のベース URL を表す `EndpointReference` を公開します。
+1. `frontend` はそのエンドポイントに依存し、Aspire が API のベース URL を注入するため、アドレスをハードコードする必要がありません。
+{% endsteps %}
+
+:::tip
+Aspire は、場当たり的な実行スクリプト、散在する環境変数、壊れやすい接続文字列のコピー アンド ペーストを、単一の宣言的な情報源に置き換えます。サービス、リソース、依存関係をコードでモデル化することで、エンドポイント、資格情報、接続文字列といった型付きの構成を必要な場所へ直接届け、設定のずれを減らし、オンボーディングを速め、接着コードを書き直さずにアーキテクチャを進化させられます。
+:::
+
+## AppHost の仕組み
+
+AppHost を実行すると、Aspire は次の中核的な役割を担います。
+
+{% steps %}
+1. **サービス検出**: AppHost に宣言されたサービスとリソースを検出します。
+1. **依存関係の解決**: 宣言された依存関係に基づいて、サービスを正しい順序で起動します。
+1. **構成情報の注入**: 接続文字列、エンドポイント、その他の構成値を自動的に注入します。
+1. **状態監視**: サービスの状態を監視し、必要に応じて再起動できます。
+{% endsteps %}
+
+{% learnmore %}
+Aspire のオーケストレーションや [リソースモデル](/architecture/resource-model/) を詳しく確認してください。
+{% endlearnmore %}
+
+## AppHost の構成
+
+テンプレートの AppHost は、次のような構成になります。
+
+{% tabs sync: "apphost-type" %}
+{% tab "File-based AppHost", icon: "seti:c-sharp" %}
+{% file_tree %}
+- **AspireApp.AppHost**
+    - apphost.cs  開発時オーケストレーター
+    - apphost.run.json
+{% endfile_tree %}
+{% endtab %}
+{% tab "Project-based AppHost", icon: "seti:html" %}
+{% file_tree %}
+- **AspireApp.AppHost**
+    - Properties
+      - launchSettings.json
+    - appsettings.Development.json
+    - appsettings.json
+    - AspireApp.AppHost.csproj
+    - AppHost.cs  開発時オーケストレーター
+{% endfile_tree %}
+{% endtab %}
+{% tab "TypeScript AppHost", icon: "seti:typescript" %}
+{% file_tree %}
+- **my-apphost/**
+    - .aspire/modules/  生成された SDK
+    - apphost.mts  開発時オーケストレーター
+    - aspire.config.json
+    - package.json
+    - tsconfig.apphost.json
+{% endfile_tree %}
+{% endtab %}
+{% endtabs %}
+
+## AppHost のライフサイクル イベント
+
+ライフサイクル イベントにフックすることで、起動時やリソース割り当て時にカスタム ロジックを実行できます。
+
+{% steps %}
+1. `BeforeStartEvent`: AppHost がサービス起動を開始する前に発生します。
+1. `ResourceEndpointsAllocatedEvent`: リソースごとに、そのエンドポイントが割り当てられた後に発生します。
+1. `AfterResourcesCreatedEvent`: すべてのリソースが作成された後に発生します。
+{% endsteps %}
+
+{% learnmore %}
+より細かなライフサイクル制御については、[既知のライフサイクル イベント](/architecture/resource-model/#well-known-lifecycle-events)をご覧ください。
+{% endlearnmore %}
+
+## ベスト プラクティス
+
+- まずは AppHost をシンプルに保ち、必要になったときにだけ複雑さを追加します。
+- `.WithReference(...)` を使って依存関係を明示的に定義し、接続をわかりやすくします。
+- 開発、テスト、本番で構成を分けて管理します。
+- デバッグやログ確認をしやすくするために、リソースには明確で説明的な名前を付けます。

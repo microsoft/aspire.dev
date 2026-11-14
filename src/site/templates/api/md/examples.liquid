@@ -1,0 +1,22 @@
+{%- comment -%}renderExamplesMarkdown of src/frontend/src/utils/csharp-api-markdown.ts. Inputs: examples, pkg, tstart.{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign count = 0 -%}
+{%- for example in examples -%}{%- if example.code -%}{%- assign count = count | plus: 1 -%}{%- endif -%}{%- endfor -%}
+{%- assign number = 0 -%}
+{%- capture all -%}
+{%- for example in examples -%}
+  {%- if example.code -%}
+    {%- assign number = number | plus: 1 -%}
+    {%- capture blocks -%}
+      {%- if count > 1 -%}␞### Example {{ number }}{%- endif -%}
+      {%- if example.region -%}␞Region: `{{ example.region }}`{%- endif -%}
+      ␞{%- render 'api/md/doc', content: example.description, pkg: pkg, tstart: tstart -%}
+      {%- if example.language == nil -%}{%- assign lang = "csharp" -%}{%- else -%}{%- assign lang = example.language -%}{%- endif -%}
+      ␞{%- render 'api/md/codeblock', code: example.code, lang: lang -%}
+    {%- endcapture -%}
+    ␞{%- render 'api/md/join', text: blocks -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- endcapture -%}
+{%- render 'api/md/join', text: all -%}

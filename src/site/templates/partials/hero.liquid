@@ -1,0 +1,21 @@
+{%- comment -%}
+  The site's Hero override (src/frontend/src/components/starlight/Hero.astro): the home page hero
+  (partials/home/home-hero, on the root and locale home pages) or Starlight's hero from the `hero` front matter:
+  image (`file`, `dark` + `light`, or `html`), title (HTML) as the page's h1 #_top, tagline (HTML) and actions
+  ({ text, link, variant, icon: { name, html }, attrs: { class } }) as link buttons. Images are served as they are
+  (Astro resized them to at most 1000 px wide). Root class: cid-starlight-hero.
+{%- endcomment -%}
+{%- if sl_is_home -%}
+{% include "partials/home/home-hero" %}
+{%- else -%}
+{%- assign hr_title = hero.title | default: title -%}
+<div class="hero cid-starlight-hero">
+{%- if hero.image.file %}<img src="{{ hero.image.file }}" alt="{{ hero.image.alt }}" loading="eager" decoding="async" fetchpriority="high">{% endif -%}
+{%- if hero.image.dark %}<img src="{{ hero.image.dark }}" alt="{{ hero.image.alt }}" loading="eager" decoding="async" fetchpriority="high"{% if hero.image.light %} class="light:sl-hidden"{% endif %}>{% endif -%}
+{%- if hero.image.light %}<img src="{{ hero.image.light }}" alt="{{ hero.image.alt }}" loading="eager" decoding="async" fetchpriority="high" class="dark:sl-hidden">{% endif -%}
+{%- if hero.image.html %}<div class="hero-html sl-flex">{{ hero.image.html | raw }}</div>{% endif %}
+<div class="sl-flex stack"><div class="sl-flex copy"><h1 id="_top" data-page-title>{{ hr_title | raw }}</h1>{% if hero.tagline %}<div class="tagline">{{ hero.tagline | raw }}</div>{% endif %}</div>
+{%- if hero.actions.size > 0 %}<div class="sl-flex actions">{% for hr_action in hero.actions %}{% linkbutton hr_action.link, variant: hr_action.variant, icon: hr_action.icon.name, icon_placement: nil, class: hr_action.attrs.class, target: hr_action.attrs.target, rel: hr_action.attrs.rel, aria_label: nil %}{{ hr_action.text }}{% if hr_action.icon.html %}{{ hr_action.icon.html | raw }}{% endif %}{% endlinkbutton %}{% endfor %}</div>{% endif %}
+</div>
+</div>
+{%- endif -%}

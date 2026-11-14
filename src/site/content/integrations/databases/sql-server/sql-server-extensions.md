@@ -1,0 +1,189 @@
+---
+title: Use community extensions for SQL Server hosting
+description: Decorate official Aspire SQL Server resources with Community Toolkit Adminer, DbGate, and dbx management interfaces.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+{% image "/assets/images/icons/sql-icon.png", alt: "SQL Server logo", width: 100, height: 100, fit: "contain", class: "float-inline-left icon", zoomable: false %}
+
+The Aspire Community Toolkit SQL Server hosting extensions package provides extra functionality to the [Aspire.Hosting.SqlServer](https://www.nuget.org/packages/Aspire.Hosting.SqlServer) hosting package.
+
+This package provides the following features:
+
+- [Adminer](https://adminer.org/) management UI
+- [DbGate](https://dbgate.org/) management UI
+- dbx management UI
+
+## Hosting integration
+
+To get started with the Aspire Community Toolkit SQL Server hosting extensions, install the [CommunityToolkit.Aspire.Hosting.SqlServer.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.SqlServer.Extensions) NuGet package in the AppHost project.
+
+{% install_package "CommunityToolkit.Aspire.Hosting.SqlServer.Extensions" %}
+
+For TypeScript AppHosts, add the Community Toolkit SQL Server extensions package to `aspire.config.json`:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.SqlServer.Extensions": "*"
+  }
+}
+```
+
+## Add management UI
+
+### DbGate management UI
+
+To add the [DbGate](https://dbgate.org/) management UI, decorate the official `SqlServerServerResource` builder with {% api "Aspire.Hosting.SqlServerBuilderExtensions.WithDbGate" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const sqlserver = await builder.addSqlServer('sqlserver');
+await sqlserver.withDbGate();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(sqlserver);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sqlserver = builder.AddSqlServer("sqlserver")
+    .WithDbGate();
+
+builder.AddProject<Projects.ExampleProject>("api")
+    .WithReference(sqlserver);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+This adds a new DbGate resource to the AppHost which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your SQL Server databases.
+
+### Adminer management UI
+
+To add the [Adminer](https://adminer.org/) management UI, decorate the official `SqlServerServerResource` builder with {% api "Aspire.Hosting.SqlServerBuilderExtensions.WithAdminer" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const sqlserver = await builder.addSqlServer('sqlserver');
+await sqlserver.withAdminer();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(sqlserver);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sqlserver = builder.AddSqlServer("sqlserver")
+    .WithAdminer();
+
+builder.AddProject<Projects.ExampleProject>("api")
+    .WithReference(sqlserver);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+This adds a new Adminer resource to the AppHost which is available from the Aspire dashboard. Adminer is a lightweight database management tool that provides a simple web interface for database operations.
+
+### Using both management UIs
+
+You can use both management UIs together on the same SQL Server resource:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const sqlserver = await builder.addSqlServer('sqlserver');
+await sqlserver.withDbGate();
+await sqlserver.withAdminer();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(sqlserver);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sqlserver = builder.AddSqlServer("sqlserver")
+    .WithDbGate()
+    .WithAdminer();
+
+builder.AddProject<Projects.ExampleProject>("api")
+    .WithReference(sqlserver);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### dbx management UI
+
+[dbx](https://github.com/t8y2/dbx) is a lightweight, web-based database client and an alternative management UI to DbGate and Adminer. Use {% api "Aspire.Hosting.SqlServerBuilderExtensions.WithDbx" %} to add a dbx child resource configured for the SQL Server resource:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const sqlserver = await builder.addSqlServer('sqlserver');
+await sqlserver.withDbx({
+  containerName: 'sqlserver-dbx',
+  imageTag: '0.5.33',
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sqlserver = builder.AddSqlServer("sqlserver")
+    .WithDbx();
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+
+## See also
+
+- [Adminer documentation](https://www.adminer.org/)
+- [DbGate documentation](https://dbgate.org/)
+- [SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/)
+- [Connect to SQL Server](/integrations/databases/sql-server/sql-server-connect/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)

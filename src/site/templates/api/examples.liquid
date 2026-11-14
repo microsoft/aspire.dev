@@ -1,0 +1,36 @@
+{%- comment -%}
+  Examples.astro: code examples ({ code, language, description, region } objects; the data has no plain string
+  examples), with a language title when they mix languages. Input: examples. Root class: cid-api-reference-examples.
+{%- endcomment -%}
+{%- assign ex_langs = "" -%}
+{%- for ex in examples -%}{%- if ex.code -%}{%- assign ex_lang = ex.language | default: "csharp" -%}{%- if ex_langs == "" -%}{%- assign ex_langs = ex_lang -%}{%- else -%}{%- assign ex_langs = ex_langs | append: "¦" | append: ex_lang -%}{%- endif -%}{%- endif -%}{%- endfor -%}
+{%- if ex_langs != "" -%}
+{%- assign ex_lang_count = ex_langs | split: "¦" | uniq | size -%}
+<div class="ex-container not-content cid-api-reference-examples">
+{%- for ex in examples -%}
+  {%- unless ex.code -%}{%- continue -%}{%- endunless -%}
+  {%- assign ex_lang = ex.language | default: "csharp" -%}
+  {%- assign ex_title = nil -%}
+  {%- if ex_lang_count > 1 -%}
+    {%- case ex_lang -%}
+      {%- when "csharp" -%}{%- assign ex_title = "C#" -%}
+      {%- when "typescript" -%}{%- assign ex_title = "TypeScript" -%}
+      {%- when "python" -%}{%- assign ex_title = "Python" -%}
+      {%- when "java" -%}{%- assign ex_title = "Java" -%}
+      {%- when "json" -%}{%- assign ex_title = "JSON" -%}
+      {%- when "xml" -%}{%- assign ex_title = "XML" -%}
+      {%- when "bash" -%}{%- assign ex_title = "Bash" -%}
+      {%- else -%}{%- assign ex_title = ex_lang -%}
+    {%- endcase -%}
+  {%- endif -%}
+  {%- assign ex_code = ex.code | strip -%}
+  {%- if ex_code != "" -%}
+<div class="ex-item">
+{%- if ex.description %}<div class="ex-desc">{% render 'api/doc-content', content: ex.description, tag: "p" %}</div>{% endif -%}
+{%- if ex.region %}<span class="ex-region">#{{ ex.region }}</span>{% endif -%}
+{%- render 'api/code-block', code: ex.code, lang: ex_lang, title: ex_title -%}
+</div>
+  {%- endif -%}
+{%- endfor -%}
+</div>
+{%- endif -%}

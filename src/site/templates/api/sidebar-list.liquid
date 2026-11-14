@@ -1,0 +1,20 @@
+{%- comment -%}
+  Starlight's SidebarSublist.astro over an API sidebar tree, recursive. An include, so that the running group index
+  asb_index reaches the caller: the caller sets asb_list (items, after `nav_active`) and asb_depth (0 for the top
+  level). Groups are open when they hold the current page (`open`) or are not `collapsed`.
+{%- endcomment -%}
+<ul class="{% if asb_depth == 0 %}top-level {% endif %}cid-sl-sidebar-sublist">
+{%- for asb_entry in asb_list %}
+<li>
+{%- if asb_entry.items -%}
+<details{% if asb_entry.open or asb_entry.collapsed != true %} open{% endif %}><summary><span class="group-label"><span class="large">{{ asb_entry.label }}</span></span>{% render 'api/caret' %}</summary><sl-sidebar-restore data-index="{{ asb_index }}"></sl-sidebar-restore>
+{%- assign asb_index = asb_index | plus: 1 -%}{%- assign asb_list = asb_entry.items -%}{%- assign asb_depth = asb_depth | plus: 1 -%}
+{%- include 'api/sidebar-list' -%}
+{%- assign asb_depth = asb_depth | minus: 1 %}
+</details>
+{%- else -%}
+<a href="{{ asb_entry.link }}"{% if asb_entry.active %} aria-current="page"{% endif %}{% if asb_depth == 0 %} class="large"{% endif %}><span>{{ asb_entry.label }}</span></a>
+{%- endif -%}
+</li>
+{%- endfor %}
+</ul>

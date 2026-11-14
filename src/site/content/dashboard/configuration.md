@@ -1,0 +1,314 @@
+---
+title: Aspire dashboard configuration reference
+description: Configuration reference for the Aspire dashboard — OTLP endpoints, frontend authentication, resource service, telemetry limits, and standalone deployment options.
+---
+
+The dashboard is configured when it starts up. Configuration includes frontend and OpenTelemetry Protocol (<abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr>) addresses, the resource service endpoint, authentication, telemetry limits, and more.
+
+:::caution
+The dashboard displays information about resources, including their configuration, console logs and in-depth telemetry.
+
+Data displayed in the dashboard can be sensitive. For example, secrets in environment variables, and sensitive runtime data in telemetry. Care should be taken to configure the dashboard to secure access.
+
+{% learnmore %}
+For more information, see [dashboard security](/dashboard/security-considerations/).
+{% endlearnmore %}
+:::
+
+## How to configure the dashboard
+
+How you configure the dashboard depends on whether it's started by the Aspire AppHost project or run in [standalone mode](/dashboard/standalone/).
+
+### Aspire AppHost
+
+The AppHost automatically configures the dashboard, but you can override values if needed. The recommended way to configure the dashboard from the AppHost is to add environment variables to a launch profile in _aspire.config.json_. This configuration works with both C# and TypeScript AppHosts.
+
+```json title="aspire.config.json" {6}
+{
+  "$schema": "https://aspire.dev/reference/cli/configuration/schema.json",
+  "profiles": {
+    "https": {
+      "environmentVariables": {
+        "DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT": "50000"
+      }
+    }
+  }
+}
+```
+
+This profile increases the `Dashboard:TelemetryLimits:MaxLogCount` [telemetry limit](#telemetry-limits) to 50,000. The `:` delimiter must be replaced with double underscore (`__`) in environment variable names.
+
+### Standalone dashboard
+
+There are many ways to provide configuration:
+
+- Command line arguments.
+- Environment variables. The `:` delimiter should be replaced with double underscore (`__`) in environment variable names.
+- Optional JSON configuration file. The `ASPIRE_DASHBOARD_CONFIG_FILE_PATH` setting can be used to specify a JSON configuration file.
+
+When running the dashboard with the Aspire CLI, pass dashboard configuration as additional arguments:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash title="Aspire CLI"
+aspire dashboard run \
+    --Dashboard:TelemetryLimits:MaxLogCount=1000 \
+    --Dashboard:TelemetryLimits:MaxTraceCount=1000 \
+    --Dashboard:TelemetryLimits:MaxMetricsCount=1000
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell title="Aspire CLI"
+aspire dashboard run `
+    --Dashboard:TelemetryLimits:MaxLogCount=1000 `
+    --Dashboard:TelemetryLimits:MaxTraceCount=1000 `
+    --Dashboard:TelemetryLimits:MaxMetricsCount=1000
+```
+{% endtab %}
+{% endos_tabs %}
+
+If you're running the standalone dashboard as a container image, configure the same values with environment variables:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash
+docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-dashboard \
+    -e DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT='1000' \
+    -e DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT='1000' \
+    -e DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT='1000' \
+    mcr.microsoft.com/aspire/dashboard:latest
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell
+docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-dashboard `
+    -e DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT='1000' `
+    -e DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT='1000' `
+    -e DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT='1000' `
+    mcr.microsoft.com/aspire/dashboard:latest
+```
+{% endtab %}
+{% endos_tabs %}
+
+Alternatively, these same values could be configured using a JSON configuration file that is specified using `ASPIRE_DASHBOARD_CONFIG_FILE_PATH`:
+
+```json title="appsettings.json"
+{
+  "Dashboard": {
+    "TelemetryLimits": {
+      "MaxLogCount": 50000,
+      "MaxTraceCount": 50000,
+      "MaxMetricsCount": 50000
+    }
+  }
+}
+```
+
+## Common configuration
+
+| Option | Description |
+|--------|-------------|
+| `ASPNETCORE_URLS`<br/>Default: `http://localhost:18888` | One or more HTTP endpoints through which the dashboard frontend is served. The frontend endpoint is used to view the dashboard in a browser. When the dashboard is launched by the Aspire AppHost this address is secured with HTTPS. Securing the dashboard with HTTPS is recommended. |
+| `ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL`<br/>Default: `http://localhost:18889` | The [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc) endpoint. This endpoint hosts an OTLP service and receives telemetry using gRPC. When the dashboard is launched by the Aspire AppHost this address is secured with HTTPS. Securing the dashboard with HTTPS is recommended. |
+| `ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL`<br/>Default: `http://localhost:18890` | The [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp) endpoint. This endpoint hosts an OTLP service and receives telemetry using Protobuf over HTTP. When the dashboard is launched by the Aspire AppHost the OTLP/HTTP endpoint isn't configured by default. To configure an OTLP/HTTP endpoint with the AppHost, set an `ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL` environment variable in an _aspire.config.json_ launch profile. Securing the dashboard with HTTPS is recommended. |
+| `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS`<br/>Default: `false` | Configures the dashboard to not use authentication and accepts anonymous access. This setting is a shortcut to configuring `Dashboard:Frontend:AuthMode`, `Dashboard:Otlp:AuthMode`, and `Dashboard:Api:AuthMode` to `Unsecured`. See [Dashboard security considerations](/dashboard/security-considerations/#anonymous-access) for the security implications. |
+| `ASPIRE_DASHBOARD_CONFIG_FILE_PATH`<br/>Default: `null` | The path for a JSON configuration file. If the dashboard is being run in a Docker container, then this is the path to the configuration file in a mounted volume. This value is optional. |
+| `ASPIRE_DASHBOARD_FILE_CONFIG_DIRECTORY`<br/>Default: `null` | The directory where the dashboard looks for key-per-file configuration. This value is optional. |
+| `ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL`<br/>Default: `null` | The gRPC endpoint to which the dashboard connects for its data. If this value is unspecified, the dashboard shows telemetry data but no resource list or console logs. This setting is a shortcut to `Dashboard:ResourceServiceClient:Url`. |
+
+
+## Frontend
+
+The dashboard frontend endpoint authentication is configured with `Dashboard:Frontend:AuthMode`. The frontend can be secured with OpenID Connect (OIDC) or browser token authentication.
+
+Browser token authentication works by the frontend asking for a token. The token can either be entered in the UI or provided as a query string value to the login page. For example, `https://localhost:1234/login?t=TheToken`. When the token is successfully authenticated an auth cookie is persisted to the browser, and the browser is redirected to the app.
+
+| Option | Description |
+|--------|-------------|
+| `Dashboard:Frontend:AuthMode`<br/>Default: `BrowserToken` | Can be set to `BrowserToken`, `OpenIdConnect` or `Unsecured`. `Unsecured` should only be used during local development. It's not recommended when hosting the dashboard publicly or in other settings. |
+| `Dashboard:Frontend:BrowserToken`<br/>Default: `null` | Specifies the browser token. If the browser token isn't specified, then the dashboard generates one. Tooling that wants to automate logging in with browser token authentication can specify a token and open a browser with the token in the query string. A new token should be generated each time the dashboard is launched. |
+| `Dashboard:Frontend:MaxConsoleLogCount`<br/>Default: `100,000` | The maximum number of console log messages retained per database. The limit is shared across resources. When the limit is reached, the oldest messages are removed. |
+| `Dashboard:Frontend:PublicUrl`<br/>Default: `null` | Specifies the public URL used to access the dashboard frontend. The public URL is used when constructing links to the dashboard frontend. If a public URL isn't specified, the frontend endpoint is used instead. This setting is important when the dashboard is accessed through a proxy and the dashboard endpoint isn't directly reachable. |
+| `Dashboard:Frontend:OpenIdConnect:NameClaimType`<br/>Default: `name` | Specifies one or more claim types that should be used to display the authenticated user's full name. Can be a single claim type or a comma-delimited list of claim types. |
+| `Dashboard:Frontend:OpenIdConnect:UsernameClaimType`<br/>Default: `preferred_username` | Specifies one or more claim types that should be used to display the authenticated user's username. Can be a single claim type or a comma-delimited list of claim types. |
+| `Dashboard:Frontend:OpenIdConnect:RequiredClaimType`<br/>Default: `null` | Specifies the claim that must be present for authorized users. Authorization fails without this claim. This value is optional. |
+| `Dashboard:Frontend:OpenIdConnect:RequiredClaimValue`<br/>Default: `null` | Specifies the value of the required claim. Only used if `Dashboard:Frontend:OpenIdConnect:RequiredClaimType` is also specified. This value is optional. |
+| `Dashboard:Frontend:OpenIdConnect:ClaimActions`<br/>Default: `null` | An optional list of claim actions to configure on the OpenID Connect options. Each entry specifies a `ClaimType` and `JsonKey`, with optional `SubKey`, `IsUnique`, and `ValueType` properties. |
+| `Authentication:Schemes:OpenIdConnect:Authority`<br/>Default: `null` | URL to the identity provider (IdP). |
+| `Authentication:Schemes:OpenIdConnect:ClientId`<br/>Default: `null` | Identity of the relying party (RP). |
+| `Authentication:Schemes:OpenIdConnect:ClientSecret`<br/>Default: `null` | A secret that only the real RP would know. |
+| Other properties of `OpenIdConnectOptions`<br/>Default: `null` | Values inside configuration section `Authentication:Schemes:OpenIdConnect:*` are bound to `OpenIdConnectOptions`, such as `Scope`. |
+
+:::note
+Additional configuration may be required when using `OpenIdConnect` as authentication mode behind a reverse-proxy that terminates SSL. Check if you need `ASPNETCORE_FORWARDEDHEADERS_ENABLED` to be set to `true`.
+
+{% learnmore %}
+For more information, see [Configure ASP.NET Core to work with proxy servers and load balancers](https://learn.microsoft.com/aspnet/core/host-and-deploy/proxy-load-balancer).
+{% endlearnmore %}
+:::
+
+## OTLP
+
+The OTLP endpoint authentication is configured with `Dashboard:Otlp:AuthMode`. The OTLP endpoint can be secured with an API key or client certificate authentication.
+
+API key authentication works by requiring each OTLP request to have a valid `x-otlp-api-key` header value. It must match either the primary or secondary key.
+
+Client certificate authentication validates the TLS connection's client certificate. When a request with a client certificate is received, two sets of validation are performed:
+
+- **ASP.NET Core certificate authentication validation:** By default this verifies that the certificate chains to a trusted root on the machine, the certificate hasn't expired, and that its Extended Key Usage value is appropriate for Client Authentication. For more information on this validation and how to configure it, see [Configure ASP.NET Core certificate validation](https://learn.microsoft.com/aspnet/core/security/authentication/certauth#configure-certificate-validation).
+- **Optional explicit certificate allowlist:** You can optionally configure an explicit list of allowed certificates using `AllowedCertificates`. If `AllowedCertificates` is configured and a client certificate does not match any of the listed thumbprints, the request is rejected. If no allowed certificates are specified, all certificates that pass the minimum validation are accepted.
+
+| Option | Description |
+|--------|-------------|
+| `Dashboard:Otlp:AuthMode`<br/>Default: `Unsecured` | Can be set to `ApiKey`, `ClientCertificate` or `Unsecured`. `Unsecured` should only be used during local development. It's not recommended when hosting the dashboard publicly or in other settings. |
+| `Dashboard:Otlp:PrimaryApiKey`<br/>Default: `null` | Specifies the primary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. This value is required if auth mode is API key. |
+| `Dashboard:Otlp:SecondaryApiKey`<br/>Default: `null` | Specifies the secondary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. This value is optional. If a second API key is specified, then the incoming `x-otlp-api-key` header value can match either the primary or secondary key. |
+| `Dashboard:Otlp:SuppressUnsecuredMessage`<br/>Default: `false` | Suppresses the unsecured message displayed in the dashboard when `Dashboard:Otlp:AuthMode` is `Unsecured`. This message should only be suppressed if an external frontdoor proxy is securing access to the endpoint. |
+| `Dashboard:Otlp:AllowedCertificates`<br/>Default: `null` | Specifies a list of allowed client certificates. See [allowed certificates](#allowed-certificates) for more information. |
+| Properties of [`CertificateAuthenticationOptions`](https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.authentication.certificate.certificateauthenticationoptions)<br/>Default: `null` | Values inside configuration section `Dashboard:Otlp:CertificateAuthOptions:*` are bound to `CertificateAuthenticationOptions`, such as `AllowedCertificateTypes`. |
+
+### Allowed certificates
+
+When using client certificate authentication you can optionally configure an explicit list of allowed certificates using `AllowedCertificates`. Each allowed certificate in the `Dashboard:Otlp:AllowedCertificates` collection supports the following properties:
+
+| Property | Description |
+|----------|-------------|
+| `Thumbprint` (required) | The SHA256 thumbprint of the certificate to allow. |
+
+The following example shows how to configure allowed certificates using JSON configuration:
+
+```json title="appsettings.json"
+{
+  "Dashboard": {
+    "Otlp": {
+      "AllowedCertificates": [
+        {
+          "Thumbprint": "HEX_SHA256_THUMBPRINT"
+        }
+      ]
+    }
+  }
+}
+```
+
+Or using environment variables for configuration:
+
+```bash
+export DASHBOARD__OTLP__ALLOWEDCERTIFICATES__0__THUMBPRINT="HEX_SHA256_THUMBPRINT"
+```
+
+:::note
+If no allowed certificates are configured then all certificates that pass [ASP.NET Core certificate validation](https://learn.microsoft.com/aspnet/core/security/authentication/certauth#configure-certificate-validation) can authenticate.
+:::
+
+## Data persistence
+
+The dashboard stores resources and telemetry in a SQLite database. Persistence behavior depends on how the dashboard is started: an AppHost-launched dashboard defaults to retaining separate application runs, while the standalone dashboard defaults to deleting its temporary database when it stops. The [application name](#other) is used to partition persisted data.
+
+| Option | Environment variable | Description |
+|--------|----------------------|-------------|
+| `Dashboard:Data:Directory`<br/>Default: `<ASPIRE_HOME>/dashboard` | `ASPIRE_DASHBOARD_DATA_DIRECTORY` | The root directory for persistent dashboard data. The default `ASPIRE_HOME` is the _.aspire_ directory in the current user's profile. This option doesn't affect the temporary directory used by `None` mode. |
+| `Dashboard:Data:PersistenceMode`<br/>Default: `None` | `ASPIRE_DASHBOARD_PERSISTENCE_MODE` | The persistence mode. The AppHost automatically sets it to `Run`. Valid values are `None`, `Run`, and `Resume`. |
+
+The `aspire dashboard run` command also provides `--application-name` and `--persistence` options. For example, the following command reopens the same standalone database after a restart:
+
+```bash title="Aspire CLI"
+aspire dashboard run --application-name my-app --persistence Resume
+```
+
+For a comparison of the modes and details about run history, storage layout, retention, and schema compatibility, see [Aspire dashboard data persistence](/dashboard/data-persistence/).
+
+## OTLP CORS
+
+Cross-origin resource sharing (CORS) can be configured to allow browser apps to send telemetry to the dashboard.
+
+By default, browser apps are restricted from making cross domain API calls. This impacts sending telemetry to the dashboard because the dashboard and the browser app are always on different domains. To configure CORS, use the `Dashboard:Otlp:Cors` section and specify the allowed origins and headers:
+
+```json title="appsettings.json"
+{
+  "Dashboard": {
+    "Otlp": {
+      "Cors": {
+        "AllowedOrigins": "http://localhost:5000,https://localhost:5001"
+      }
+    }
+  }
+}
+```
+
+Consider the following configuration options:
+
+| Option | Description |
+|--------|-------------|
+| `Dashboard:Otlp:Cors:AllowedOrigins`<br/>Default: `null` | Specifies the allowed origins for CORS. It's a comma-delimited string and can include the `*` wildcard to allow any domain. This option is optional and can be set using the `DASHBOARD__OTLP__CORS__ALLOWEDORIGINS` environment variable. |
+| `Dashboard:Otlp:Cors:AllowedHeaders`<br/>Default: `null` | A comma-delimited string representing the allowed headers for CORS. This setting is optional and can be set using the `DASHBOARD__OTLP__CORS__ALLOWEDHEADERS` environment variable. |
+
+:::note
+The dashboard only supports the `POST` method for sending telemetry and doesn't allow configuration of the _allowed methods_ (`Access-Control-Allow-Methods`) for CORS.
+:::
+
+## API
+
+The API section configures the dashboard's Telemetry HTTP API (`/api/telemetry/*`) endpoints. The API is enabled by default and secured with API key authentication. The API key is auto-generated if one isn't provided.
+
+| Option | Description |
+|--------|-------------|
+| `Dashboard:Api:Disabled`<br/>Default: `false` | Disables the Telemetry HTTP API (`/api/telemetry/*`) endpoints. When `true`, the endpoints are not registered. Set `ASPIRE_DASHBOARD_API_DISABLED=true` to disable the API via environment variable. |
+| `Dashboard:Api:Enabled`<br/>Default: `true` | **Deprecated.** Use `Dashboard:Api:Disabled` instead. When `false`, disables the Telemetry HTTP API endpoints. |
+| `Dashboard:Api:AuthMode`<br/>Default: `ApiKey` | Can be set to `ApiKey` or `Unsecured`. `Unsecured` should only be used during local development. |
+| `Dashboard:Api:PrimaryApiKey`<br/>Default: Auto-generated | Specifies the primary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. When auth mode is `ApiKey` and no key is provided, a 128-bit key is auto-generated at startup. |
+| `Dashboard:Api:SecondaryApiKey`<br/>Default: `null` | Specifies the secondary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. This value is optional. |
+
+## Resources
+
+The dashboard connects to a resource service to load and display resource information. The client is configured in the dashboard for how to connect to the service.
+
+The resource service client authentication is configured with `Dashboard:ResourceServiceClient:AuthMode`. The client can be configured to support API key or client certificate authentication.
+
+| Option | Description |
+|--------|-------------|
+| `Dashboard:ResourceServiceClient:Url`<br/>Default: `null` | The gRPC endpoint to which the dashboard connects for its data. If this value is unspecified, the dashboard shows telemetry data but no resource list or console logs. |
+| `Dashboard:ResourceServiceClient:AuthMode`<br/>Default: `null` | Can be set to `ApiKey`, `Certificate` or `Unsecured`. `Unsecured` should only be used during local development. It's not recommended when hosting the dashboard publicly or in other settings. This value is required if a resource service URL is specified. |
+| `Dashboard:ResourceServiceClient:ApiKey`<br/>Default: `null` | The API to send to the resource service in the `x-resource-service-api-key` header. This value is required if auth mode is API key. |
+| `Dashboard:ResourceServiceClient:ClientCertificate:Source`<br/>Default: `null` | Can be set to `File` or `KeyStore`. This value is required if auth mode is client certificate. |
+| `Dashboard:ResourceServiceClient:ClientCertificate:FilePath`<br/>Default: `null` | The PKCS#12/PFX certificate file path. The file should contain the client certificate and its private key. This value is required if source is `File`. |
+| `Dashboard:ResourceServiceClient:ClientCertificate:Password`<br/>Default: `null` | The password for the certificate file. This value is optional. |
+| `Dashboard:ResourceServiceClient:ClientCertificate:Subject`<br/>Default: `null` | The certificate subject. This value is required if source is `KeyStore`. |
+| `Dashboard:ResourceServiceClient:ClientCertificate:Store`<br/>Default: `My` | The certificate `X509Certificates.StoreName`. |
+| `Dashboard:ResourceServiceClient:ClientCertificate:Location`<br/>Default: `CurrentUser` | The certificate `X509Certificates.StoreLocation`. |
+
+:::caution[File-based client certificates must be PKCS#12/PFX]
+File-based client certificate loading accepts only PKCS#12/PFX files, with or without a password. It doesn't accept standalone DER/PEM certificates, PKCS#7 containers, Windows serialized certificates, or Authenticode-signed files. To migrate, export the client certificate and its private key as PKCS#12/PFX, or use `KeyStore` to select an installed certificate with an associated private key.
+:::
+
+### Telemetry limits
+
+Telemetry is stored in SQLite. To bound the amount of retained telemetry, the dashboard applies limits to each database. Log, trace, and metric retention limits evict the oldest stored values when full; attribute and span-event limits truncate incoming data, and the resource limit rejects telemetry for new resources after the limit is reached.
+
+Telemetry limits have different scopes depending upon the telemetry type:
+
+- `MaxLogCount` and `MaxTraceCount` are shared across resources. For example, a `MaxLogCount` value of 5,000 configures the dashboard to store up to 5,000 total log entries for all resources.
+- `MaxMetricsCount` is per dimension. For example, a `MaxMetricsCount` value of 10,000 configures the dashboard to store up to 10,000 metrics data points per dimension.
+
+| Option | Description |
+|--------|-------------|
+| `Dashboard:TelemetryLimits:MaxLogCount`<br/>Default: `100,000` | The maximum number of log entries. Limit is shared across resources. |
+| `Dashboard:TelemetryLimits:MaxTraceCount`<br/>Default: `100,000` | The maximum number of log traces. Limit is shared across resources. |
+| `Dashboard:TelemetryLimits:MaxMetricsCount`<br/>Default: `50,000` | The maximum number of metric data points. Limit is per dimension. |
+| `Dashboard:TelemetryLimits:MaxAttributeCount`<br/>Default: `128` | The maximum number of attributes on telemetry. |
+| `Dashboard:TelemetryLimits:MaxAttributeLength`<br/>Default: `null` | The maximum length of attributes. |
+| `Dashboard:TelemetryLimits:MaxSpanEventCount`<br/>Default: `null` | The maximum number of events on span attributes. |
+| `Dashboard:TelemetryLimits:MaxResourceCount`<br/>Default: `10,000` | The maximum number of resources tracked by the dashboard. |
+
+## Other
+
+| Option | Description |
+|--------|-------------|
+| `Dashboard:ApplicationName`<br/>Default: `Aspire` | The logical application name used to partition persisted data and to scope authentication and antiforgery cookie names. The AppHost supplies its application name automatically. Set it with the `ASPIRE_DASHBOARD_APPLICATION_NAME` environment variable. Configure a distinct name for dashboards whose cookies should be kept separate; see [Cookie scoping by application name](/dashboard/security-considerations/#cookie-scoping-by-application-name). |
+| `Dashboard:UI:DisableResourceGraph`<br/>Default: `false` | Disables displaying the resource graph UI in the dashboard. |
+| `Dashboard:UI:DisableImport`<br/>Default: `false` | Disables the telemetry import UI in the dashboard. |
+| `Dashboard:UI:DisableAgentHelp`<br/>Default: `false` | Disables the **AI Agents** button in the dashboard header. When `false`, a button is shown in the header that opens a dialog with instructions for using AI coding agents with the dashboard. |
+
+## Next steps
+
+- [Security considerations for running the Aspire dashboard](/dashboard/security-considerations/)
