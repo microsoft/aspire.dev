@@ -33,6 +33,10 @@ jobs:
     # The heaviest job uses the larger runner. Forks cannot use that label, so
     # they fall back to the standard runner.
     runs-on: ${{ github.repository_owner == 'microsoft' && '8-core-ubuntu-latest' || 'ubuntu-latest' }}
+    env:
+      SETUP: ${{ github.workspace }}/.github/scripts/e2e-setup.sh
+      DOTNET_NOLOGO: 1
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
     defaults:
       run:
         working-directory: src/site
@@ -61,6 +65,12 @@ jobs:
         run: |
           dotnet tool install -g douze --version 0.5.2
           douze --version
+
+      # The E2E shards run StaticHost from the build output this job uploads
+      # (statichost-bin). Its restore and compile need no site, so they run
+      # alongside the Douze build.
+      - name: Start the StaticHost compile
+        run: '"$SETUP" start statichost-compile dotnet build -c Release ../statichost/StaticHost'
 
       # src/frontend still holds the API index script, esbuild and the client
       # packages (src/site/README.md).
@@ -107,6 +117,13 @@ jobs:
           fi
           /usr/bin/time -v douze -s . -o ../statichost/StaticHost/wwwroot "${profile[@]}" \
             2>&1 | tee "$RUNNER_TEMP/frontend-performance/build.log"
+
+      # MapStaticAssets lists every file of the web root: this incremental
+      # build redoes only that, while the artifact uploads.
+      - name: Start the StaticHost build
+        run: |
+          "$SETUP" wait statichost-compile
+          "$SETUP" start statichost-build dotnet build -c Release --no-restore ../statichost/StaticHost
 
       - name: Save Douze build state
         if: ${{ success() && (github.event_name == 'push' || steps.douze_cache.outputs.cache-matched-key == '') }}
@@ -158,6 +175,19 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
           compression-level: 1
+
+      - name: Wait for the StaticHost build
+        run: |
+          "$SETUP" wait statichost-build
+          "$SETUP" report
+
+      - name: Upload the StaticHost build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: statichost-bin
+          path: src/statichost/StaticHost/bin/Release/net10.0
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Check PR comment prerequisites
         id: pr_comment_prerequisites
@@ -321,20 +351,11 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Every setup task that does not need the site starts in the background
-      # before the artifact download: the StaticHost restore and compile, the
-      # Playwright browsers and the fonts Playwright adds with apt.
+      # The Playwright browsers and the fonts Playwright adds with apt install
+      # in the background during the artifact downloads.
       # .github/scripts/e2e-setup.sh times them in the step summary.
-      - name: Cache NuGet packages
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.nuget/packages
-          key: nuget-statichost-${{ runner.os }}-${{ hashFiles('src/statichost/StaticHost/StaticHost.csproj', 'global.json') }}
-
-      - name: Start the StaticHost compile
-        run: |
-          "$SETUP" mark origin
-          "$SETUP" start statichost-compile dotnet build -c Release ../statichost/StaticHost
+      - name: Start setup
+        run: '"$SETUP" mark origin'
 
       - name: Install deps
         run: '"$SETUP" time bun-install bun install --frozen-lockfile'
@@ -363,13 +384,15 @@ jobs:
           name: frontend-dist
           path: src/statichost/StaticHost/wwwroot
 
-      # The compile above saw an empty web root; this incremental build only
-      # redoes the static web assets (MapStaticAssets lists every file).
-      - name: Build StaticHost
-        run: |
-          "$SETUP" mark artifact-ready
-          "$SETUP" wait statichost-compile
-          "$SETUP" time statichost-build dotnet build -c Release --no-restore ../statichost/StaticHost -clp:PerformanceSummary
+      # The Frontend Build job built StaticHost against this web root.
+      - name: Download the StaticHost build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: statichost-bin
+          path: src/statichost/StaticHost/bin/Release/net10.0
+
+      - name: Mark the artifacts ready
+        run: '"$SETUP" mark artifacts-ready'
 
       - name: Wait for the Playwright install
         run: |
