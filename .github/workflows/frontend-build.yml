@@ -18,6 +18,31 @@ on:
         required: false
         default: false
         type: boolean
+      # Experiment (artifact against per-shard build): how each E2E shard gets the site.
+      #   artifact     the build job uploads wwwroot (61k files), the shards download it
+      #   tar          the build job uploads one tar.zst of wwwroot, the shards untar it
+      #   shard-build  no build job; every shard builds the site itself with Douze
+      #   hybrid       the build job only builds and saves the Douze cache; the shards
+      #                restore that exact cache and build
+      site_source:
+        required: false
+        default: artifact
+        type: string
+      # Names this variant's artifacts and Douze cache entries, so the variants of one
+      # run share neither.
+      variant:
+        required: false
+        default: artifact
+        type: string
+      # A new value starts every variant from an empty Douze cache (cold run).
+      cache_round:
+        required: false
+        default: r0
+        type: string
+      run_validation:
+        required: false
+        default: true
+        type: boolean
     secrets:
       ASPIRE_BOT_APP_ID:
         required: false
@@ -30,6 +55,7 @@ permissions:
 jobs:
   build:
     name: Frontend Build
+    if: ${{ inputs.site_source != 'shard-build' }}
     # The heaviest job uses the larger runner. Forks cannot use that label, so
     # they fall back to the standard runner.
     runs-on: ${{ github.repository_owner == 'microsoft' && '8-core-ubuntu-latest' || 'ubuntu-latest' }}
@@ -88,9 +114,9 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: src/site/.douze
-          key: douze-build-${{ runner.os }}-0.5.2-${{ github.sha }}
+          key: douze-build-${{ runner.os }}-0.5.2-exp-${{ inputs.variant }}-${{ inputs.cache_round }}-${{ github.sha }}
           restore-keys: |
-            douze-build-${{ runner.os }}-0.5.2-
+            douze-build-${{ runner.os }}-0.5.2-exp-${{ inputs.variant }}-${{ inputs.cache_round }}-
 
       - name: Install the Douze tools
         run: douze tools install -s .
@@ -109,7 +135,9 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/frontend-performance/build.log"
 
       - name: Save Douze build state
-        if: ${{ success() && (github.event_name == 'push' || steps.douze_cache.outputs.cache-matched-key == '') }}
+        # hybrid: the shards restore this commit's exact entry, so it is saved
+        # whenever the restore was not an exact hit.
+        if: ${{ success() && (github.event_name == 'push' || steps.douze_cache.outputs.cache-matched-key == '' || (inputs.site_source == 'hybrid' && steps.douze_cache.outputs.cache-hit != 'true')) }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: src/site/.douze
@@ -150,14 +178,33 @@ jobs:
       # so the path is repo-root-relative.
       - name: Upload build artifact
         id: upload_build_artifact
-        if: ${{ always() }}
+        if: ${{ always() && inputs.site_source == 'artifact' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: frontend-dist
+          name: frontend-dist-${{ inputs.variant }}
           path: src/statichost/StaticHost/wwwroot
           if-no-files-found: warn
           retention-days: 7
           compression-level: 1
+
+      # tar: one zstd-compressed tar instead of 61k files, uploaded uncompressed.
+      - name: Pack the web root
+        if: ${{ success() && inputs.site_source == 'tar' }}
+        run: |
+          set -euo pipefail
+          tar -C ../statichost/StaticHost/wwwroot -cf - . | zstd -3 -T0 -q -o "$RUNNER_TEMP/site.tar.zst"
+          ls -la "$RUNNER_TEMP/site.tar.zst"
+          echo "- Packed web root: \`$(du -h "$RUNNER_TEMP/site.tar.zst" | cut -f1)\` ($(du -sh ../statichost/StaticHost/wwwroot | cut -f1) unpacked)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload packed web root
+        if: ${{ success() && inputs.site_source == 'tar' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-dist-${{ inputs.variant }}
+          path: ${{ runner.temp }}/site.tar.zst
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
       - name: Check PR comment prerequisites
         id: pr_comment_prerequisites
@@ -260,6 +307,7 @@ jobs:
 
   validation:
     name: Frontend validation
+    if: ${{ inputs.run_validation }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -284,6 +332,8 @@ jobs:
   e2e:
     name: E2E (${{ matrix.project }}, shard ${{ matrix.shard }}/2)
     needs: build
+    # shard-build has no build job, so the shards start at once.
+    if: ${{ !cancelled() && (needs.build.result == 'success' || (inputs.site_source == 'shard-build' && needs.build.result == 'skipped')) }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -321,10 +371,80 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Download dist artifact
+        if: ${{ inputs.site_source == 'artifact' }}
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: frontend-dist
+          name: frontend-dist-${{ inputs.variant }}
           path: src/statichost/StaticHost/wwwroot
+
+      - name: Download packed web root
+        if: ${{ inputs.site_source == 'tar' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: frontend-dist-${{ inputs.variant }}
+          path: ${{ runner.temp }}/site
+
+      - name: Unpack the web root
+        if: ${{ inputs.site_source == 'tar' }}
+        run: |
+          set -euo pipefail
+          mkdir -p ../statichost/StaticHost/wwwroot
+          zstd -d -T0 -q -c "$RUNNER_TEMP/site/site.tar.zst" | tar -C ../statichost/StaticHost/wwwroot -xf -
+          rm -rf "$RUNNER_TEMP/site"
+
+      # shard-build and hybrid: the same steps as the build job.
+      - name: Install Douze
+        if: ${{ inputs.site_source == 'shard-build' || inputs.site_source == 'hybrid' }}
+        run: dotnet tool install -g douze --version 0.5.2
+
+      - name: Generate the API data
+        if: ${{ inputs.site_source == 'shard-build' || inputs.site_source == 'hybrid' }}
+        run: bunx tsx ../site/scripts/api/build-api-index.ts
+
+      - name: Generate the assets
+        if: ${{ inputs.site_source == 'shard-build' || inputs.site_source == 'hybrid' }}
+        working-directory: src/site
+        run: |
+          node scripts/icons-sprite.mjs
+          node scripts/build-client.mjs
+          node scripts/write-build-info.mjs
+
+      - name: Restore Douze build state
+        id: douze_cache
+        if: ${{ inputs.site_source == 'shard-build' || inputs.site_source == 'hybrid' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: src/site/.douze
+          key: douze-build-${{ runner.os }}-0.5.2-exp-${{ inputs.variant }}-${{ inputs.cache_round }}-${{ github.sha }}
+          restore-keys: |
+            douze-build-${{ runner.os }}-0.5.2-exp-${{ inputs.variant }}-${{ inputs.cache_round }}-
+
+      - name: Install the Douze tools
+        if: ${{ inputs.site_source == 'shard-build' || inputs.site_source == 'hybrid' }}
+        working-directory: src/site
+        run: douze tools install -s .
+
+      - name: Build frontend
+        if: ${{ inputs.site_source == 'shard-build' || inputs.site_source == 'hybrid' }}
+        working-directory: src/site
+        env:
+          CACHE_MATCHED_KEY: ${{ steps.douze_cache.outputs.cache-matched-key }}
+        run: |
+          set -euo pipefail
+          /usr/bin/time -v douze -s . -o ../statichost/StaticHost/wwwroot 2>&1 | tee "$RUNNER_TEMP/build.log"
+          {
+            echo "### Douze build (shard)"
+            echo "- Restored key: \`${CACHE_MATCHED_KEY:-none}\`"
+            echo "- Wall clock: \`$(grep 'Elapsed (wall clock)' "$RUNNER_TEMP/build.log" | awk '{print $NF}')\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # shard-build: one shard saves the cache, under the build job's rule.
+      - name: Save Douze build state
+        if: ${{ success() && inputs.site_source == 'shard-build' && matrix.project == 'desktop-chromium' && matrix.shard == 1 && (github.event_name == 'push' || steps.douze_cache.outputs.cache-matched-key == '') }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: src/site/.douze
+          key: ${{ steps.douze_cache.outputs.cache-primary-key }}
 
       # StaticHost's build lists every file of the web root (MapStaticAssets),
       # so it starts once the artifact is in place, and runs while Playwright
@@ -359,7 +479,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: frontend-blob-report-${{ matrix.project }}-${{ matrix.shard }}
+          name: frontend-blob-report-${{ inputs.variant }}-${{ matrix.project }}-${{ matrix.shard }}
           path: src/frontend/blob-report
           if-no-files-found: warn
           retention-days: 7
@@ -371,7 +491,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: frontend-test-results-${{ matrix.project }}-${{ matrix.shard }}
+          name: frontend-test-results-${{ inputs.variant }}-${{ matrix.project }}-${{ matrix.shard }}
           path: src/frontend/test-results
           if-no-files-found: warn
           retention-days: 7
@@ -410,7 +530,7 @@ jobs:
           # the pattern collects all of them into one tree under
           # `all-blob-reports/`.
           path: src/frontend/all-blob-reports
-          pattern: frontend-blob-report-*
+          pattern: frontend-blob-report-${{ inputs.variant }}-*
           merge-multiple: true
 
       - name: Merge into HTML report
@@ -421,7 +541,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: frontend-playwright-report
+          name: frontend-playwright-report-${{ inputs.variant }}
           path: src/frontend/playwright-report
           if-no-files-found: warn
           retention-days: 7
@@ -458,7 +578,14 @@ jobs:
           E2E: ${{ needs.e2e.result }}
           REPORT: ${{ needs.report.result }}
         run: |
-          for result in "$BUILD" "$VALIDATION" "$E2E" "$REPORT"; do
+          # shard-build has no build job; only the artifact variant validates.
+          for result in "$BUILD" "$VALIDATION"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "::error::Every frontend job must succeed (build=$BUILD validation=$VALIDATION e2e=$E2E report=$REPORT)."
+              exit 1
+            fi
+          done
+          for result in "$E2E" "$REPORT"; do
             if [[ "$result" != "success" ]]; then
               echo "::error::Every frontend job must succeed (build=$BUILD validation=$VALIDATION e2e=$E2E report=$REPORT)."
               exit 1
