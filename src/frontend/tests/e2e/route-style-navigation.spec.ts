@@ -159,11 +159,29 @@ for (const theme of ['light', 'dark']) {
         baseline.set(route, await appearance(page));
       }
       const matchesFresh = async (route: string) => {
-        await expect
-          .poll(() => appearance(page), {
-            message: `${route} must match its fresh ${theme} rendering after navigating to it`,
-          })
-          .toEqual(baseline.get(route));
+        try {
+          await expect
+            .poll(() => appearance(page), {
+              message: `${route} must match its fresh ${theme} rendering after navigating to it`,
+            })
+            .toEqual(baseline.get(route));
+        } catch (error) {
+          // Name what differs: the poll's own message has no diff.
+          const current = await appearance(page);
+          const expected = baseline.get(route);
+          const differences: string[] = [];
+          const compare = (a: unknown, b: unknown, path: string) => {
+            if (a && b && typeof a === 'object' && typeof b === 'object') {
+              for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+                compare((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key], `${path}.${key}`);
+              }
+            } else if (JSON.stringify(a) !== JSON.stringify(b)) {
+              differences.push(`${path}: fresh ${JSON.stringify(b)}, after navigating ${JSON.stringify(a)}`);
+            }
+          };
+          compare(current, expected, route);
+          throw new Error(`${(error as Error).message}\n${differences.join('\n')}`);
+        }
       };
       await page.goto(api('csharp'));
       await page.locator('#api-search-input').fill('RedisResource');

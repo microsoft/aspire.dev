@@ -461,12 +461,15 @@ test.describe('site search dialog', () => {
       await route.continue();
     });
     try {
-      await page.goto('/');
+      // The held bundle can delay the load event, so the navigations here wait for the parsed document only.
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
       await dismissCookieConsentIfVisible(page);
       await importRequested;
-      await navigateTo(page, '/docs/', async () => (await getSiteNavigationLink(page, '/docs/')).click());
+      await (await getSiteNavigationLink(page, '/docs/')).click();
+      await page.waitForURL((url) => url.pathname === '/docs/', { waitUntil: 'domcontentloaded', timeout: 30_000 });
       await page.keyboard.press('Control+k');
       releaseImport();
+      await page.waitForLoadState('load');
       const input = page.locator('site-search dialog input.pagefind-ui__search-input');
       await expect(input).toBeVisible();
       await expect(input).toHaveCount(1);
