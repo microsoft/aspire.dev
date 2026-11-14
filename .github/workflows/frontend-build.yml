@@ -285,6 +285,10 @@ jobs:
     name: E2E (${{ matrix.project }}, shard ${{ matrix.shard }}/2)
     needs: build
     runs-on: ubuntu-latest
+    env:
+      SETUP: ${{ github.workspace }}/.github/scripts/e2e-setup.sh
+      DOTNET_NOLOGO: 1
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
     defaults:
       run:
         working-directory: src/frontend
@@ -317,8 +321,41 @@ jobs:
         with:
           global-json-file: global.json
 
+      # Every setup task that does not need the site starts in the background
+      # before the artifact download: the StaticHost restore and compile, the
+      # Playwright browsers and the fonts Playwright adds with apt.
+      # .github/scripts/e2e-setup.sh times them in the step summary.
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-statichost-${{ runner.os }}-${{ hashFiles('src/statichost/StaticHost/StaticHost.csproj', 'global.json') }}
+
+      - name: Start the StaticHost compile
+        run: |
+          "$SETUP" mark origin
+          "$SETUP" start statichost-compile dotnet build -c Release ../statichost/StaticHost
+
       - name: Install deps
-        run: bun install --frozen-lockfile
+        run: '"$SETUP" time bun-install bun install --frozen-lockfile'
+
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Chromium and Chrome Headless Shell (the specs that set
+      # `channel: 'chromium'` launch the full build).
+      - name: Cache Playwright browsers
+        id: playwright_cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Start the Playwright install
+        run: |
+          "$SETUP" start playwright-deps bun run playwright install-deps chromium
+          "$SETUP" start playwright-browsers bun run playwright install chromium
 
       - name: Download dist artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -326,22 +363,19 @@ jobs:
           name: frontend-dist
           path: src/statichost/StaticHost/wwwroot
 
-      # StaticHost's build lists every file of the web root (MapStaticAssets),
-      # so it starts once the artifact is in place, and runs while Playwright
-      # installs Chromium.
-      - name: Start the StaticHost build
+      # The compile above saw an empty web root; this incremental build only
+      # redoes the static web assets (MapStaticAssets lists every file).
+      - name: Build StaticHost
         run: |
-          ( dotnet build -c Release ../statichost/StaticHost > "$RUNNER_TEMP/statichost-build.log" 2>&1
-            echo $? > "$RUNNER_TEMP/statichost-build.exit" ) &
+          "$SETUP" mark artifact-ready
+          "$SETUP" wait statichost-compile
+          "$SETUP" time statichost-build dotnet build -c Release --no-restore ../statichost/StaticHost -clp:PerformanceSummary
 
-      - name: Install Playwright Chromium
-        run: bun run playwright install --with-deps chromium
-
-      - name: Wait for the StaticHost build
+      - name: Wait for the Playwright install
         run: |
-          while [ ! -f "$RUNNER_TEMP/statichost-build.exit" ]; do sleep 1; done
-          tail -n 5 "$RUNNER_TEMP/statichost-build.log"
-          exit "$(cat "$RUNNER_TEMP/statichost-build.exit")"
+          "$SETUP" wait playwright-deps playwright-browsers
+          "$SETUP" mark tests-start
+          "$SETUP" report
 
       # Reporters (blob, github, junit, list) are configured in
       # `playwright.config.mjs` so they apply to every shard. Avoid passing
