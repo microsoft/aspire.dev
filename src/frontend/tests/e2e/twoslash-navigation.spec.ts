@@ -40,23 +40,10 @@ async function followLink(page: Page, path: string) {
       if (parent instanceof HTMLDetailsElement) parent.open = true;
     }
   });
-  await page.evaluate(() => {
-    Reflect.set(window, '__twoslashPageLoaded', false);
-    document.addEventListener(
-      'astro:page-load',
-      () => {
-        Reflect.set(window, '__twoslashPageLoaded', true);
-      },
-      { once: true }
-    );
-  });
   await link.click();
-  await expect(page).toHaveURL((url) => url.pathname === path);
-  await expect
-    .poll(() => page.evaluate(() => Reflect.get(window, '__twoslashPageLoaded')))
-    .toBe(true);
-  expect(await page.evaluate(() => Reflect.get(window, '__twoslashSession'))).toBe(true);
-  await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
+  // The Douze site navigates with full page loads.
+  await page.waitForURL((url) => url.pathname === path);
+  await page.waitForLoadState('load');
 }
 
 test.describe('two-slash navigation', () => {
@@ -101,8 +88,8 @@ test.describe('two-slash navigation', () => {
   // Give each visit its own test so three sweeps never share one budget.
   for (const [name, clientVisits] of [
     ['direct load', 0],
-    ['client navigation', 1],
-    ['repeated client navigation visits', 2],
+    ['navigation', 1],
+    ['repeated navigation visits', 2],
   ] as const) {
     test(`shows the correct popup on ${name}`, async ({ page }) => {
       test.setTimeout(120_000);
@@ -110,8 +97,7 @@ test.describe('two-slash navigation', () => {
       page.on('pageerror', (error) => errors.push(error.message));
       await page.goto(typescriptPage);
       await dismissCookieConsentIfVisible(page);
-      await page.evaluate(() => Reflect.set(window, '__twoslashSession', true));
-
+  
       for (let visit = 0; visit < clientVisits; visit++) {
         // Interact before leaving, as a reader would; the final visit checks every token.
         await assertHovers(page, 1);

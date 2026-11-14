@@ -1,0 +1,31 @@
+---
+title: Aspire
+giscus: false
+head:
+  - tag: title
+    content: Aspire — 당신의 스택, 단순화
+description: 스택에 Aspire를 추가하여 코드 중심 제어, 모듈성, 가시성으로 개발 워크플로를 간소화하세요.
+layout: splash
+editUrl: false
+prev: false
+next: false
+banner:
+  content: |
+    <strong>✨ Aspire 13.6이 출시되었습니다!</strong> — <a href="/ko/whats-new/aspire-13-6/">Aspire 13.6의 새로운 기능 확인하기.</a>
+bannerAutoDismissAfterDays: 14
+hero:
+  tagline: 당신의 스택, 단순화. <p>프론트엔드, API, 컨테이너, 데이터베이스를 손쉽게 오케스트레이션—재작성 불필요, 무한한 가능성. Aspire를 확장하여 모든 프로젝트를 강화하세요.</p>
+  image:
+    alt: Aspire 로고
+    file: /assets/images/aspire-hero.png
+  actions:
+    - text: Aspire 받기
+      link: /ko/get-started/install-cli/
+    - text: 문서 보기
+      link: /ko/docs/
+      variant: secondary
+# The locale home page: the partials of the root index.html, in the locale's strings (i18n home.*). The body is one
+# raw region (home-page-region.liquid) that the Markdown pass keeps as it is.
+home: true
+---
+{% include "partials/home/home-page-region.liquid" %}

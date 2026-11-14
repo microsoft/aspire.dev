@@ -1,0 +1,203 @@
+---
+title: Compiler Warning ASPIREDOCKERFILEBUILDER001
+seoTitle: "ASPIREDOCKERFILEBUILDER001: Dockerfile builder types and"
+description: Learn what causes the Aspire compiler warning ASPIREDOCKERFILEBUILDER001 and how to fix it so your AppHost builds cleanly.
+---
+
+{% badge "Version introduced: 13.0", variant: "note", size: "large", class: "mb-1" %}
+
+> Dockerfile builder types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using experimental Dockerfile builder APIs in Aspire, specifically the `DockerfileBuilderCallbackContext` class and related programmatic Dockerfile generation functionality.
+
+These APIs enable programmatic creation of Dockerfiles at build time, allowing dynamic generation of container images based on application configuration and requirements.
+
+## Example
+
+The following code generates `ASPIREDOCKERFILEBUILDER001` in a C# AppHost:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerfileBuilder("my-service", "./service", context =>
+{
+    var stage = context.Builder.From("node:22-alpine", "runtime");
+    stage.WorkDir("/app")
+        .Copy("package*.json", "./")
+        .Run("npm ci --omit=dev")
+        .Copy(".", ".")
+        .Cmd(["node", "index.js"]);
+
+    return Task.CompletedTask;
+}, stage: "runtime");
+```
+
+## AppHost examples
+
+TypeScript AppHosts can use the same Dockerfile builder callback surface. The warning suppression options below apply to C# compiler diagnostics; TypeScript code doesn't use `#pragma` or `.editorconfig` to suppress `ASPIREDOCKERFILEBUILDER001`.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+  await dockerfile
+    .from("node:22-alpine", { stageName: "runtime" })
+    .workDir("/app")
+    .copy("package*.json", "./")
+    .run("npm ci --omit=dev")
+    .copy(".", ".")
+    .cmd(["node", "index.js"]);
+};
+
+await builder.addDockerfileBuilder("my-service", "./service", configureDockerfile, {
+  stage: "runtime",
+});
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddDockerfileBuilder("my-service", "./service", context =>
+{
+    var stage = context.Builder.From("node:22-alpine", "runtime");
+    stage.WorkDir("/app")
+        .Copy("package*.json", "./")
+        .Run("npm ci --omit=dev")
+        .Copy(".", ".")
+        .Cmd(["node", "index.js"]);
+
+    return Task.CompletedTask;
+}, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+```
+{% endtab %}
+{% endtabs %}
+
+The callback can also be applied to an existing container resource with {% api "Aspire.Hosting.ContainerResourceBuilderExtensions.WithDockerfileBuilder" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import type { DockerfileBuilderCallbackContext } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+  await dockerfile
+    .from("node:22-alpine", { stageName: "runtime" })
+    .workDir("/app")
+    .copy("package*.json", "./")
+    .run("npm ci --omit=dev")
+    .copy(".", ".")
+    .cmd(["node", "index.js"]);
+};
+
+await builder
+  .addContainer("my-service", "node:22-alpine")
+  .withDockerfileBuilder("./service", configureDockerfile, {
+    stage: "runtime",
+  });
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddContainer("my-service", "node:22-alpine")
+    .WithDockerfileBuilder("./service", context =>
+    {
+        var stage = context.Builder.From("node:22-alpine", "runtime");
+        stage.WorkDir("/app")
+            .Copy("package*.json", "./")
+            .Run("npm ci --omit=dev")
+            .Copy(".", ".")
+            .Cmd(["node", "index.js"]);
+
+        return Task.CompletedTask;
+    }, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+```
+{% endtab %}
+{% endtabs %}
+
+## Understanding Dockerfile builder callbacks
+
+The `DockerfileBuilderCallbackContext` provides context information for Dockerfile build callbacks, enabling dynamic Dockerfile generation. This is useful when:
+
+- You need to generate Dockerfiles programmatically based on application state
+- Different build configurations require different Dockerfile instructions
+- You want to keep Dockerfile logic close to your application model definition
+
+### Key properties
+
+**`Resource`**
+
+- The resource being built (implements `IResource`)
+- Provides access to resource metadata and configuration
+
+**`Builder`**
+
+- The `DockerfileBuilder` instance used to construct the Dockerfile
+- Provides a fluent API for adding Dockerfile instructions
+
+**`Services`**
+
+- The service provider for dependency injection
+- Allows access to other services during Dockerfile generation
+
+**`CancellationToken`**
+
+- Token to observe for cancellation requests
+- Enables cooperative cancellation of long-running operations
+
+In TypeScript AppHosts, callback context values use camelCase names and asynchronous methods. For example, use `await context.builder()` to get the `DockerfileBuilder` instance.
+
+## To suppress this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREDOCKERFILEBUILDER001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREDOCKERFILEBUILDER001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREDOCKERFILEBUILDER001` directive:
+
+  ```csharp title="Suppressing the warning"
+  var builder = DistributedApplication.CreateBuilder(args);
+
+  #pragma warning disable ASPIREDOCKERFILEBUILDER001
+  builder.AddDockerfileBuilder("my-service", "./service", context =>
+  {
+      var stage = context.Builder.From("node:22-alpine", "runtime");
+      stage.WorkDir("/app")
+          .Copy(".", ".")
+          .Cmd(["node", "index.js"]);
+
+      return Task.CompletedTask;
+  }, stage: "runtime");
+  #pragma warning restore ASPIREDOCKERFILEBUILDER001
+  ```

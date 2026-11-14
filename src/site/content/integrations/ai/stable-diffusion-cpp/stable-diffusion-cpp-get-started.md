@@ -1,0 +1,99 @@
+---
+title: Get started with the Stable Diffusion.cpp integration
+description: Run the stable-diffusion.cpp image generation server and a Hugging Face model as Aspire resources.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+[stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) is an image generation server with a Web UI and HTTP API. The Aspire integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) adds the server and its Hugging Face model as AppHost resources.
+
+## Why use Stable Diffusion.cpp with Aspire
+
+- Model the server and model in the AppHost alongside the applications that use them.
+- Download model files before the server starts, resume interrupted downloads, and reuse cached files on later starts.
+- Select an official container image variant for CUDA, CUDA on DGX Spark, Vulkan, Intel SYCL, or Moore Threads MUSA.
+- Inspect the server and model resources in the Aspire dashboard, including the server health check.
+
+## How the integration fits into an Aspire app
+
+The hosting package runs the stable-diffusion.cpp container, downloads one Hugging Face model for it, and exposes the server's HTTP endpoint. Reference the server from an application to provide its endpoint connection property.
+
+```mermaid
+architecture-beta
+
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
+
+  service hosting(server)[Hosting integration] in apphost
+  service server(server)[stable-diffusion.cpp server] in apphost
+  service model(database)[Hugging Face model] in apphost
+  service app(server)[Application] in consumer
+
+  hosting:R --> L:server
+  server:R --> L:model
+  server:R --> L:app
+```
+
+## Prerequisites
+
+- An Aspire AppHost project.
+- A container runtime that can run the selected stable-diffusion.cpp image.
+- A Hugging Face model repository and model file. For gated or private repositories, provide a Hugging Face access token as a secret parameter.
+- A compatible GPU and container runtime configuration when enabling GPU support.
+
+## Add Stable Diffusion.cpp to your AppHost
+
+Install the hosting package and add a server resource with a model. This example uses the default CUDA image variant and requests the corresponding GPU runtime support.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const stableDiffusion = await builder.addStableDiffusionCpp('stable-diffusion');
+await stableDiffusion.withGPUSupport();
+await stableDiffusion.withVaeTiling();
+
+await stableDiffusion.addHuggingFaceModel(
+  'stabilityai/stable-diffusion-xl-base-1.0',
+  'sd_xl_base_1.0.safetensors'
+);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var stableDiffusion = builder.AddStableDiffusionCpp("stable-diffusion")
+    .WithGPUSupport()
+    .WithVaeTiling();
+
+stableDiffusion.AddHuggingFaceModel(
+    "stabilityai/stable-diffusion-xl-base-1.0",
+    "sd_xl_base_1.0.safetensors");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+{% steps %}
+1. Adding the server creates an official `ghcr.io/leejet/stable-diffusion.cpp` container resource. The image variant defaults to `Cuda`.
+
+1. Adding a Hugging Face model creates a child resource and configures the server to load that model. The integration downloads the model before starting the container.
+
+1. Reference the server from a consuming application to provide its HTTP endpoint. See [Connect to Stable Diffusion.cpp](/integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-connect/) for connection properties and client setup.
+{% endsteps %}
+
+The first model download can take time. Aspire stores it beneath `.stable-diffusion-cpp/{resource-name}/models` by default, resumes interrupted downloads, and reuses a completed file on subsequent starts.
+
+## See also
+
+- [Set up Stable Diffusion.cpp in the AppHost](/integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-host/)
+- [Connect to Stable Diffusion.cpp](/integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-connect/)
+- [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)

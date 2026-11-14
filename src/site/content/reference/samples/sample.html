@@ -1,0 +1,39 @@
+---
+# A sample's page (src/frontend/src/pages/reference/samples/[sample]/index.astro with SampleDetail.astro): one page
+# per entry of data/samples.json, at /reference/samples/<slug>/ (the slug of its name). Not localized: localize runs
+# before pagination, and the template's locale copies would produce the same paths (the Astro site had no localized
+# sample pages either). Title, description and og:image are per sample: they are captured below, and
+# captured variables are page data for the layouts. Markdown twin: sample-md.html.
+pagination: { data: samples, size: 1, alias: sample }
+permalink: "reference/samples/{{ sample.name | slug }}/"
+localize: false
+topic: reference
+category: sample
+prev: false
+next: false
+tableOfContents: false
+lastUpdated: false
+editUrl: false
+giscus: false
+pageActions: true
+# The printable ASCII characters whose position gives a character code (the hero's mesh hash).
+ca_ascii: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+---
+{%- assign sp_slug = sample.name | slug -%}
+{%- comment -%} The summary: the first line of the description as text (sampleDescriptionText drops tables). {%- endcomment -%}
+{%- assign sd_summary = nil -%}
+{%- assign sp_lines = sample.description | default: "" | split: "
+" -%}
+{%- capture sp_text -%}{%- for sp_line in sp_lines -%}{%- unless sp_line contains "|" -%}{{ sp_line | raw }}
+{% endunless -%}{%- endfor -%}{%- endcapture -%}
+{%- comment -%} An image counts as its alt text; an alert marker ([!NOTE]) is text, as sampleDescriptionText left it. {%- endcomment -%}
+{%- capture sp_alert -%}\[!{%- endcapture -%}
+{%- assign sp_lines = sp_text | replace: "![", "[" | replace: "[!", sp_alert | strip_markdown | split: "
+" -%}
+{%- for sp_line in sp_lines -%}{%- assign sp_text = sp_line | strip -%}{%- if sp_text != "" -%}{%- assign sd_summary = sp_text | split: " " | join: " " -%}{%- break -%}{%- endif -%}{%- endfor -%}
+{%- comment -%} Captured as text (raw): the layouts encode it. {%- endcomment -%}
+{%- capture title %}{{ sample.title | raw }}{% endcapture -%}
+{%- capture description %}{% if sd_summary %}{{ sd_summary | raw }}{% else %}Explore the {{ sample.title | raw }} Aspire sample.{% endif %}{% endcapture -%}
+{%- capture ogImage %}/og/reference/samples/{{ sp_slug }}.png{% endcapture -%}
+<nav class="breadcrumb not-content cid-breadcrumb" aria-label="Breadcrumb"><ol class="bc-inline"><li><a href="/docs/">{% icon "open-book", size: nil, class: nil, label: nil, color: nil %}<span>Docs</span></a></li><li><span class="sep" aria-hidden="true">/</span><a href="/reference/overview/"><span>Reference</span></a></li><li><span class="sep" aria-hidden="true">/</span><a class="bc-parent" href="/reference/samples/"><span>Samples</span></a></li><li><span class="sep" aria-hidden="true">/</span><span class="current" aria-current="page">{{ sample.title }}</span></li></ol></nav>
+{% include "partials/samples/detail" %}

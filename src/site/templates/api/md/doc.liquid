@@ -1,0 +1,68 @@
+{%- comment -%}
+  renderCSharpDocMarkdown of src/frontend/src/utils/csharp-api-markdown.ts: paragraphs, notes, lists and code blocks
+  as Markdown blocks; runs of inline nodes as one paragraph. Inputs: content, pkg, tstart. The output is trimmed; the
+  final normalization (dashes, \n{3,}) is applied once to the whole document by api/md/finalize.
+{%- endcomment -%}
+{%- assign SEP = "␞" -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign k0 = content[0].kind -%}
+{%- if k0 == nil -%}
+  {%- comment -%} A plain string (or an empty list). {%- endcomment -%}
+  {%- if content.size > 0 and content[0] == nil -%}{{ content | strip }}{%- endif -%}
+{%- else -%}
+{%- assign gs = -1 -%}
+{%- capture blocks -%}
+  {%- for node in content -%}
+    {%- case node.kind -%}
+      {%- when "para", "note", "list", "codeblock" -%}
+        {%- if gs >= 0 -%}
+          {%- assign gl = forloop.index0 | minus: gs -%}{%- assign group = content | slice: gs, gl -%}
+          {{- SEP -}}{%- render 'api/md/inline', nodes: group, pkg: pkg, tstart: tstart -%}
+          {%- assign gs = -1 -%}
+        {%- endif -%}
+        {{- SEP -}}
+        {%- case node.kind -%}
+          {%- when "para" -%}{%- render 'api/md/doc', content: node.children, pkg: pkg, tstart: tstart -%}
+          {%- when "note" -%}
+            {%- capture body -%}{%- render 'api/md/doc', content: node.children, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+            {%- if body != "" -%}
+              {%- case node.value -%}
+                {%- when nil, "note" -%}{%- assign noteLabel = "Note" -%}
+                {%- when "caution" -%}{%- assign noteLabel = "Caution" -%}
+                {%- when "danger" -%}{%- assign noteLabel = "Danger" -%}
+                {%- when "important" -%}{%- assign noteLabel = "Important" -%}
+                {%- when "tip" -%}{%- assign noteLabel = "Tip" -%}
+                {%- when "warning" -%}{%- assign noteLabel = "Warning" -%}
+                {%- else -%}{%- assign noteLabel = node.value -%}
+              {%- endcase -%}
+              > **{{ noteLabel }}:**{{ nl }}>{{ nl }}
+              {%- assign lines = body | split: nl -%}
+              {%- for line in lines -%}
+                {%- unless forloop.first -%}{{ nl }}{%- endunless -%}
+                {%- if line == "" -%}>{%- else -%}
+                  {%- assign c = line | slice: 0 -%}
+                  {%- if c == ">" -%}
+                    {%- assign line = line | slice: 1, line.size -%}{%- assign c = line | slice: 0 -%}
+                    {%- if c == " " or c == "	" -%}{%- assign line = line | slice: 1, line.size -%}{%- endif -%}
+                  {%- endif -%}
+                  > {{ line }}
+                {%- endif -%}
+              {%- endfor -%}
+            {%- endif -%}
+          {%- when "list" -%}{%- render 'api/md/list', node: node, pkg: pkg, tstart: tstart -%}
+          {%- when "codeblock" -%}
+            {%- if node.language == nil -%}{%- assign lang = "csharp" -%}{%- else -%}{%- assign lang = node.language -%}{%- endif -%}
+            {%- render 'api/md/codeblock', code: node.text, lang: lang -%}
+        {%- endcase -%}
+      {%- else -%}
+        {%- if gs < 0 -%}{%- assign gs = forloop.index0 -%}{%- endif -%}
+    {%- endcase -%}
+  {%- endfor -%}
+  {%- if gs >= 0 -%}
+    {%- assign gl = content.size | minus: gs -%}{%- assign group = content | slice: gs, gl -%}
+    {{- SEP -}}{%- render 'api/md/inline', nodes: group, pkg: pkg, tstart: tstart -%}
+  {%- endif -%}
+{%- endcapture -%}
+{%- render 'api/md/join', text: blocks -%}
+{%- endif -%}

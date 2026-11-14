@@ -1,0 +1,34 @@
+{%- comment -%}
+  JSON-LD, from src/frontend/src/utils/structured-data.ts: the home page graph (Organization, WebSite,
+  SoftwareApplication, SoftwareSourceCode), release notes (whats-new/aspire-N[-M]: TechArticle about the
+  SoftwareApplication of that version) and a TechArticle for every other page. Simplified: the community page
+  (WebPage), the FAQ page (FAQPage built from the Markdown body) and the Aspire Conf page (Event) get the TechArticle
+  shape. Strings go through `json` (Douze's AOT-safe filter), which quotes and escapes them.
+  Reads base.liquid's sl_url, sl_lang, sl_is_home, sl_locale_url.
+{%- endcomment -%}
+{%- assign sd_site = site.url | default: "https://aspire.dev" -%}
+{%- assign sd_page_url = sl_url | absolute_url -%}
+{%- assign sd_description = description | default: site.description -%}
+{%- capture sd_sameas -%}["https://github.com/microsoft/aspire","https://learn.microsoft.com/dotnet/aspire/","https://devblogs.microsoft.com/aspire","https://x.com/aspiredotdev","https://bsky.app/profile/aspire.dev","https://www.youtube.com/@aspiredotdev","https://www.twitch.tv/aspiredotdev"]{%- endcapture -%}
+{%- capture sd_app -%}"@type":"SoftwareApplication","name":"Aspire","alternateName":[".NET Aspire","Aspire.dev"],"description":{{ site.description | json | raw }},"applicationCategory":"DeveloperApplication","operatingSystem":"Windows, macOS, Linux","url":"{{ sd_site }}/","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}{%- endcapture -%}
+{%- capture sd_article -%}"@type":"TechArticle","headline":{{ title | json | raw }},"description":{{ sd_description | json | raw }},"author":{"@type":"Organization","name":"Aspire","url":"{{ sd_site }}/"},"publisher":{"@type":"Organization","name":"Aspire","url":"{{ sd_site }}/"},"url":"{{ sd_page_url }}","inLanguage":"{{ sl_lang }}","about":{ {{- sd_app -}} }{%- endcapture -%}
+{%- comment -%} whats-new/aspire-13 -> 13.0, whats-new/aspire-13-6 -> 13.6 (utils/whats-new.ts). {%- endcomment -%}
+{%- assign sd_release = nil -%}
+{%- if sl_locale_url contains "/whats-new/aspire-" -%}
+  {%- assign sd_slug = sl_locale_url | remove_first: "/whats-new/aspire-" | remove: "/" -%}
+  {%- assign sd_parts = sd_slug | split: "-" -%}
+  {%- assign sd_major = sd_parts[0] | plus: 0 | append: "" -%}
+  {%- if sd_major == sd_parts[0] and sd_parts.size <= 2 -%}
+    {%- assign sd_minor = sd_parts[1] | default: "0" -%}
+    {%- assign sd_release = sd_major | append: "." | append: sd_minor -%}
+  {%- endif -%}
+{%- endif -%}
+<script type="application/ld+json">
+{%- if sl_is_home -%}
+{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"{{ sd_site }}/#org","name":"Aspire","alternateName":[".NET Aspire","Aspire.dev"],"url":"{{ sd_site }}/","logo":"{{ sd_site }}/og-image.png","description":{{ sd_description | json | raw }},"sameAs":{{ sd_sameas }}},{"@type":"WebSite","@id":"{{ sd_site }}/#website","url":"{{ sd_site }}/","name":"Aspire","publisher":{"@id":"{{ sd_site }}/#org"},"inLanguage":"{{ sl_lang }}"},{ {{- sd_app -}},"@id":"{{ sd_site }}/#app","author":{"@id":"{{ sd_site }}/#org"},"publisher":{"@id":"{{ sd_site }}/#org"},"sameAs":"https://github.com/microsoft/aspire"},{"@type":"SoftwareSourceCode","@id":"{{ sd_site }}/#source","name":"Aspire","description":{{ site.description | json | raw }},"codeRepository":"https://github.com/microsoft/aspire","author":{"@id":"{{ sd_site }}/#org"},"isAccessibleForFree":true,"targetProduct":{"@id":"{{ sd_site }}/#app"}}]}
+{%- elsif sd_release -%}
+{"@context":"https://schema.org","@graph":[{ {{- sd_article -}},"@id":"{{ sd_page_url }}#article","about":{"@id":"{{ sd_page_url }}#release"}},{ {{- sd_app -}},"@id":"{{ sd_page_url }}#release","softwareVersion":"{{ sd_release }}"}]}
+{%- else -%}
+{"@context":"https://schema.org",{{ sd_article }}}
+{%- endif -%}
+</script>

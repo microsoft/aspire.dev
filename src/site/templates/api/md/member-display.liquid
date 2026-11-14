@@ -1,0 +1,16 @@
+{%- comment -%}
+  memberDisplayName of src/frontend/src/utils/packages.ts (`this[string]`, `Add(string, int)`), with the first `.ctor`
+  replaced by `ctor` when it is given. Inputs: m (a member), ctor.
+{%- endcomment -%}
+{%- assign callable = false -%}
+{%- if m.parameters -%}{%- if m.kind == "method" or m.kind == "constructor" -%}{%- assign callable = true -%}{%- endif -%}{%- endif -%}
+{%- capture display -%}
+  {%- if m.kind == "indexer" and m.parameters.size > 0 -%}
+    this[{%- for p in m.parameters -%}{%- unless forloop.first -%}, {% endunless -%}{%- render 'api/md/short-type', t: p.type -%}{%- endfor -%}]
+  {%- elsif callable -%}
+    {{- m.name -}}({%- for p in m.parameters -%}{%- unless forloop.first -%}, {% endunless -%}{%- render 'api/md/short-type', t: p.type -%}{%- endfor -%})
+  {%- else -%}
+    {{- m.name -}}
+  {%- endif -%}
+{%- endcapture -%}
+{%- if ctor and m.name == ".ctor" -%}{{ display | replace_first: ".ctor", ctor }}{%- else -%}{{ display }}{%- endif -%}

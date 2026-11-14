@@ -1,0 +1,102 @@
+---
+title: Set up Squad in the AppHost
+description: Install the Aspire Community Toolkit Squad hosting package and configure a logical Squad workspace resource in your AppHost.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+This page describes the AppHost APIs in the Aspire Community Toolkit Squad integration. Use the [getting started guide](/integrations/ai/squad/squad-get-started/) for an overview, or see [Connect to a Squad team](/integrations/ai/squad/squad-connect/) to use its connection string in a service.
+
+## Installation
+
+Install the hosting package in your AppHost project:
+
+{% install_package "CommunityToolkit.Aspire.Hosting.Squad" %}
+
+## Add a Squad resource
+
+Call `AddSquad` with a resource name and the path to the workspace root, the directory containing `.squad/`. The `teamRoot` argument is optional and defaults to the current working directory.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+import path from 'node:path';
+
+const builder = await createBuilder();
+const teamRoot = path.resolve('./research-squad');
+
+const squad = await builder.addSquad('research-squad', { teamRoot });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var teamRoot = Path.Combine(builder.AppHostDirectory, "research-squad");
+
+var squad = builder.AddSquad("research-squad", teamRoot);
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(squad);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The TypeScript `addSquad` API is generated from the integration's exported `AddSquad` method. The example uses the TypeScript AppHost module generated after package installation. The C# example references the resource from a project so Aspire injects its connection string into that project.
+
+## Configure the team root
+
+`AddSquad` has one required parameter and one optional parameter:
+
+- `name`: the Aspire resource name. Aspire uses this name as the consuming app's connection string key.
+- `teamRoot`: the workspace root path, which contains `.squad/`. If omitted, the integration uses `Directory.GetCurrentDirectory()`.
+
+At startup, the resource reads `.squad/team.md`. It recognizes table rows and bullets with bold agent names. If the roster file is missing, or no usable roster names are found, the resource uses a default roster. When `.squad/agents/` exists, discovered names are included only when a matching `{name}/charter.md` file exists.
+
+## Dashboard metadata and commands
+
+The Squad resource appears in the Aspire dashboard as a logical resource. Its properties include the workspace location, roster file, decisions file, inbox directory, agent count, discovered agents, protocol (`maf-1.0`), runtime mode, and capabilities. Aspire assigns the `Configured` state during resource registration. The lifecycle hook publishes `Spawning`, `Active`, and `Finished`; the resource does not run a process and does not have a service health check.
+
+The resource also adds these dashboard commands:
+
+- **Refresh Agents** reports the roster read at startup. Roster changes take effect after restarting the AppHost.
+- **Open Team Root** opens the workspace directory in the system file explorer.
+- **Open Copilot CLI** opens a terminal in the workspace and runs `copilot --agent squad`. Install GitHub Copilot CLI and make `copilot` available on `PATH`. On Linux, a supported terminal emulator must also be installed.
+- **Check Inbox** counts Markdown files in `.squad/decisions/inbox/` and reports the result in the AppHost console.
+
+:::note
+`AddSquad` does not start a listener, container, or agent process. The
+consuming service uses the resource's connection string to configure an agent
+client separately.
+:::
+
+## Exported AppHost API
+
+The package exports the following AppHost API:
+
+| API                                                                                                     | Description                                                                  |
+| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `AddSquad(string name, string? teamRoot = null)`                                                        | Adds a Squad logical resource and returns `IResourceBuilder<SquadResource>`. |
+| `SquadResource(string name, string teamRoot)`                                                           | Creates a resource for the named workspace.                                  |
+| `SquadResource.TeamRoot`                                                                                | Gets the workspace root path.                                                |
+| `SquadResource.Agents`                                                                                  | Gets the discovered agent names.                                             |
+| `SquadResource.ConnectionStringExpression`                                                              | Provides the `squad://` connection descriptor.                               |
+| `SquadTeamAnnotation(string teamRoot, string decisionsMdPath, string inboxDir, string agentRosterFile)` | Creates the resource annotation used by the integration.                     |
+| `SquadTeamAnnotation.TeamRoot`                                                                          | Gets the workspace root path stored in the annotation.                       |
+| `SquadTeamAnnotation.DecisionsMdPath`                                                                   | Gets the decisions file path stored in the annotation.                       |
+| `SquadTeamAnnotation.InboxDir`                                                                          | Gets the decision inbox path stored in the annotation.                       |
+| `SquadTeamAnnotation.AgentRosterFile`                                                                   | Gets the roster file path stored in the annotation.                          |
+
+`AddSquad` attaches the annotation automatically. Create it directly only when working with the resource annotation API.
+
+For the resource's connection string fields and client setup, see [Connect to a Squad team](/integrations/ai/squad/squad-connect/).
+
+## See also
+
+- [Squad](https://github.com/bradygaster/squad)
+- [Squad integration source and runnable example](https://github.com/CommunityToolkit/Aspire/tree/main/examples/squad)

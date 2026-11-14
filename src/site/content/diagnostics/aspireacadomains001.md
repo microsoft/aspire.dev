@@ -1,0 +1,62 @@
+---
+title: Compiler Error ASPIREACADOMAINS001
+seoTitle: 'ASPIREACADOMAINS001 before Aspire 13.5'
+description: Learn what causes the Aspire compiler error ASPIREACADOMAINS001 and how to fix it so your AppHost builds cleanly.
+---
+
+{% badge "Version introduced: 9.0", variant: "note", size: "large", class: "mb-1" %}
+
+> Before Aspire 13.5, ConfigureCustomDomain was experimental and subject to change or removal in future updates, and using it required suppressing this diagnostic.
+
+Aspire 9.0 introduces the ability to customize container app resources using any of the following extension methods:
+
+- `Aspire.Hosting.AzureContainerAppProjectExtensions.PublishAsAzureContainerApp`
+- `Aspire.Hosting.AzureContainerAppContainerExtensions.PublishAsAzureContainerApp`
+- `Aspire.Hosting.AzureContainerAppExecutableExtensions.PublishAsAzureContainerApp`
+
+When you use one of these methods, the Azure Developer CLI (`azd`) can no longer preserve custom domains. Instead use the `Aspire.Hosting.ContainerAppExtensions.ConfigureCustomDomain` method to configure a custom domain within the Aspire AppHost.
+
+:::note
+{% api "Aspire.Hosting.ContainerAppExtensions.ConfigureCustomDomain" %} has graduated from experimental and no longer requires suppressing this diagnostic.
+:::
+
+## Example
+
+Before Aspire 13.5, the following code generated `ASPIREACADOMAINS001`:
+
+```csharp title="AppHost.cs"
+var customDomain = builder.AddParameter("customDomain");
+var certificateName = builder.AddParameter("certificateName");
+
+builder.AddProject<Projects.AzureContainerApps_ApiService>("api")
+       .WithExternalHttpEndpoints()
+       .PublishAsAzureContainerApp((infra, app) =>
+       {
+           app.ConfigureCustomDomain(customDomain, certificateName);
+       });
+```
+
+## To correct this error
+
+If you use Aspire 13.5 or later, you don't need to suppress this diagnostic and can remove any existing `ASPIREACADOMAINS001` suppressions.
+
+If you use an Aspire version earlier than 13.5, suppress the diagnostic with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREACADOMAINS001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREACADOMAINS001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREACADOMAINS001` directive.

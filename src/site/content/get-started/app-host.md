@@ -1,0 +1,862 @@
+---
+title: What is the AppHost?
+seoTitle: What is the Aspire AppHost? Introduction and concepts
+description: "Learn how the Aspire AppHost defines your application's architecture — services, containers, executables, and integrations, modeled with C# or TypeScript code."
+props:
+  pivot_selector_options:
+    - id: csharp
+      title: C#
+    - id: python
+      title: Python
+    - id: nodejs
+      title: Node.js
+    - id: go
+      title: Go
+    - id: java
+      title: Java
+  simple_app_host_code_collapse:
+    - 3-16
+  simple_app_host_code_collapse_2:
+    - 3-17
+  simple_app_host_code_mark:
+    range: 4-6
+  simple_app_host_code_collapse_3:
+    - 8-17
+  simple_app_host_code_collapse_4:
+    - 8-18
+  simple_app_host_code_mark_2:
+    range: 9-11
+  simple_app_host_code_collapse_5:
+    - 1-6
+    - 13-17
+  simple_app_host_code_mark_3:
+    range: 9-12
+  simple_app_host_code_collapse_6:
+    - 1-6
+    - 14-18
+  simple_app_host_code_mark_4:
+    range: 14-16
+  simple_app_host_code_collapse_7:
+    - 1-11
+  simple_app_host_code_mark_5:
+    range: 15-17
+  simple_app_host_code_collapse_8:
+    - 1-12
+---
+
+Aspire's AppHost is the code-first place where you declare your application's services and their relationships. Instead of managing scattered configuration files, you describe the architecture in code. Aspire then handles local orchestration so you can focus on building features.
+
+## Defining your architecture
+
+Consider a simple three-tier architecture where a frontend talks to an API, and the API relies on a database. Select an API language below to see the examples demonstrated in that language.
+
+{% pivot_selector title: "Select your API platform", key: "lang", margin_top: "1", options: props.pivot_selector_options %}
+
+:::note
+This three-tier architecture is just one example of how you can use Aspire. The AppHost is flexible and can model any distributed architecture, from microservices to serverless functions to multi-container apps. It works with any frontend, backend, database, or other resource—there are no limitations on the technologies you can use together.
+:::
+
+{% pivot "csharp" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:c-sharp)[API service]
+  service frontend(logos:react)[React frontend]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+This architecture demonstrates a **C# API** connecting to a **PostgreSQL database**, with a **React frontend** consuming the API. The C# API uses ASP.NET Core and connects to PostgreSQL using Entity Framework or a connection string. The React frontend is built with Vite and communicates with the API over HTTP.
+
+To build this architecture step-by-step, see the [Build your first app](/get-started/first-app/?lang=csharp) quickstart.
+{% endpivot %}
+{% pivot "python" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:python)[API service]
+  service frontend(logos:react)[React frontend]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+This architecture demonstrates a **Python API** (using FastAPI/Uvicorn) connecting to a **PostgreSQL database**, with a **React frontend** consuming the API. The Python API uses frameworks like FastAPI or Flask and connects to PostgreSQL using libraries like psycopg2 or SQLAlchemy. The React frontend is built with Vite and communicates with the API over HTTP.
+
+To add this architecture to an existing Python-backed app, start with [Add Aspire to an existing app](/get-started/add-aspire-existing-app/) and then review the [Python integration](/integrations/frameworks/python/).
+
+:::tip
+The Python integration is provided by the [Aspire.Hosting.Python](https://www.nuget.org/packages/Aspire.Hosting.Python) NuGet package. Learn more in the [Python integration](/integrations/frameworks/python/) documentation.
+:::
+{% endpivot %}
+{% pivot "nodejs" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:nodejs-icon)[API service]
+  service frontend(logos:react)[React frontend]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+This architecture demonstrates a **Node.js API** connecting to a **PostgreSQL database**, with a **React frontend** consuming the API. The Node.js API uses frameworks like Express or Fastify and connects to PostgreSQL using libraries like pg or Prisma. The React frontend is built with Vite and communicates with the API over HTTP.
+
+:::tip
+The JavaScript/Node.js integration is provided by the [Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) NuGet package. Learn more in the [JavaScript integration](/integrations/frameworks/javascript/) documentation.
+:::
+{% endpivot %}
+{% pivot "go" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:go)[API service]
+  service frontend(logos:react)[React frontend]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+This architecture demonstrates a **Go API** connecting to a **PostgreSQL database**, with a **React frontend** consuming the API. The Go API uses the standard library's `net/http` package or frameworks like Gin or Echo and connects to PostgreSQL using libraries like pgx or database/sql. The React frontend is built with Vite and communicates with the API over HTTP.
+
+:::tip
+The Go integration is provided by the [Aspire.Hosting.Go](https://www.nuget.org/packages/Aspire.Hosting.Go) NuGet package. Learn more in the [Go integration](/integrations/frameworks/go/go-get-started/) documentation.
+:::
+{% endpivot %}
+{% pivot "java" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:java)[API service]
+  service frontend(logos:react)[React frontend]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+This architecture demonstrates a **Java API** (using Spring Boot) connecting to a **PostgreSQL database**, with a **React frontend** consuming the API. The Java API uses Spring Boot with Spring Data JPA and connects to PostgreSQL using JDBC or Spring Data. The React frontend is built with Vite and communicates with the API over HTTP.
+
+:::tip
+The Java integration is provided by the [Aspire.Hosting.Java](https://www.nuget.org/packages/Aspire.Hosting.Java) NuGet package. Learn more in the [Java integration](/integrations/frameworks/java/java-get-started/) documentation.
+:::
+{% endpivot %}
+
+You can represent that architecture in an AppHost like this:
+
+{% pivot "csharp" %}
+{% simple_app_host_code lang: "csharp" %}
+{% slot "csharp-content" %}
+<p>Uses <code>AddProject&lt;Projects.Api&gt;()</code> to reference the API project.</p>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p>Uses <code>addProject()</code> to reference the API project.</p>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "python" %}
+{% simple_app_host_code lang: "python" %}
+<p>Uses {% api "Aspire.Hosting.PythonAppResourceBuilderExtensions.AddUvicornApp" %} with {% api "Aspire.Hosting.PythonAppResourceBuilderExtensions.WithUv" %} for ASGI apps like FastAPI.</p>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "nodejs" %}
+{% simple_app_host_code lang: "nodejs" %}
+<p>Uses {% api "Aspire.Hosting.JavaScriptHostingExtensions.AddNodeApp" %} with {% api "Aspire.Hosting.JavaScriptHostingExtensions.WithNpm", package: "Aspire.Hosting.JavaScript" %} for Node.js applications.</p>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "go" %}
+{% simple_app_host_code lang: "go" %}
+<p>Uses <code>AddGolangApp()</code> for Go applications.</p>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "java" %}
+{% simple_app_host_code lang: "java" %}
+<p>Uses <code>AddSpringBootApp()</code> for Spring Boot applications.</p>
+{% endsimple_app_host_code %}
+{% endpivot %}
+
+The AppHost models your distributed application declaratively. Each code sample above shows the same three-tier architecture—**PostgreSQL database**, **API service**, and **React frontend**—but with different API implementations and, when available, different AppHost languages.
+
+In all cases, the PostgreSQL database and React frontend remain identical. Aspire resource references establish dependencies between resources, and the app model ensures services start in the correct order.
+
+Aspire presents the same, consistent model regardless of the language or framework used: services, resources, and the connections between them.
+
+### Dissecting the AppHost code
+
+Below we highlight the key parts of a typical AppHost to explain what each step does.
+
+{% pivot "csharp" %}
+{% simple_app_host_code lang: "csharp", collapse: props.simple_app_host_code_collapse %}
+{% slot "csharp-content" %}
+<p><strong>In the non-collapsed lines you:</strong></p>
+
+<ul>
+
+<li>Create the distributed application builder with <code>DistributedApplication.CreateBuilder(args)</code>.</li>
+<li>Call <code>Build()</code> to materialize the configuration into a runnable AppHost.</li>
+<li>Call <code>Run()</code> to start orchestration; services launch in dependency order.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>In the non-collapsed lines you:</strong></p>
+
+<ul>
+
+<li>Create the distributed application builder with <code>await createBuilder()</code>.</li>
+<li>Call <code>build()</code> to materialize the configuration into a runnable AppHost.</li>
+<li>Call <code>run()</code> to start orchestration; services launch in dependency order.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "python" %}
+{% simple_app_host_code lang: "python", collapse: props.simple_app_host_code_collapse_2 %}
+{% slot "csharp-content" %}
+<p><strong>In the non-collapsed lines you:</strong></p>
+
+<ul>
+
+<li>Create the distributed application builder with <code>DistributedApplication.CreateBuilder(args)</code>.</li>
+<li>Call <code>Build()</code> to materialize the configuration into a runnable AppHost.</li>
+<li>Call <code>Run()</code> to start orchestration; services launch in dependency order.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>In the non-collapsed lines you:</strong></p>
+
+<ul>
+
+<li>Create the distributed application builder with <code>await createBuilder()</code>.</li>
+<li>Call <code>build()</code> to materialize the configuration into a runnable AppHost.</li>
+<li>Call <code>run()</code> to start orchestration; services launch in dependency order.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "nodejs" %}
+{% simple_app_host_code lang: "nodejs", collapse: props.simple_app_host_code_collapse_2 %}
+{% slot "csharp-content" %}
+<p><strong>In the non-collapsed lines you:</strong></p>
+
+<ul>
+
+<li>Create the distributed application builder with <code>DistributedApplication.CreateBuilder(args)</code>.</li>
+<li>Call <code>Build()</code> to materialize the configuration into a runnable AppHost.</li>
+<li>Call <code>Run()</code> to start orchestration; services launch in dependency order.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>In the non-collapsed lines you:</strong></p>
+
+<ul>
+
+<li>Create the distributed application builder with <code>await createBuilder()</code>.</li>
+<li>Call <code>build()</code> to materialize the configuration into a runnable AppHost.</li>
+<li>Call <code>run()</code> to start orchestration; services launch in dependency order.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "go" %}
+{% simple_app_host_code lang: "go", collapse: props.simple_app_host_code_collapse_2 %}
+<p><strong>In the non-collapsed lines you:</strong></p>
+
+<ul>
+
+<li>Create the distributed application builder with <code>DistributedApplication.CreateBuilder(args)</code>.</li>
+<li>Call <code>Build()</code> to materialize the configuration into a runnable AppHost.</li>
+<li>Call <code>Run()</code> to start orchestration; services launch in dependency order.</li>
+
+</ul>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "java" %}
+{% simple_app_host_code lang: "java", collapse: props.simple_app_host_code_collapse_2 %}
+<p><strong>In the non-collapsed lines you:</strong></p>
+
+<ul>
+
+<li>Create the distributed application builder with <code>DistributedApplication.CreateBuilder(args)</code>.</li>
+<li>Call <code>Build()</code> to materialize the configuration into a runnable AppHost.</li>
+<li>Call <code>Run()</code> to start orchestration; services launch in dependency order.</li>
+
+</ul>
+{% endsimple_app_host_code %}
+{% endpivot %}
+
+The AppHost is the blueprint for your distributed application—Aspire manages the rest.
+
+#### Adding a PostgreSQL resource
+
+With the builder ready, define resources and services. The snippet below shows how to add a PostgreSQL server and a database:
+
+{% pivot "csharp" %}
+{% simple_app_host_code lang: "csharp", mark: props.simple_app_host_code_mark, collapse: props.simple_app_host_code_collapse_3 %}
+{% slot "csharp-content" %}
+<p><strong>How this works:</strong></p>
+
+<ul>
+
+<li><code>AddPostgres("db")</code> registers a PostgreSQL container named <code>db</code>.</li>
+<li><code>.AddDatabase("appdata")</code> creates a database named <code>appdata</code> on that server.</li>
+<li><code>.WithDataVolume()</code> provisions a volume so data persists across container restarts.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>How this works:</strong></p>
+
+<ul>
+
+<li><code>await builder.addPostgres("db")</code> registers a PostgreSQL server resource named <code>db</code>.</li>
+<li><code>.addDatabase("appdata")</code> adds the <code>appdata</code> database to that server.</li>
+<li><code>.withDataVolume()</code> enables persistent storage for the database container.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "python" %}
+{% simple_app_host_code lang: "python", mark: props.simple_app_host_code_mark, collapse: props.simple_app_host_code_collapse_4 %}
+{% slot "csharp-content" %}
+<p><strong>How this works:</strong></p>
+
+<ul>
+
+<li><code>AddPostgres("db")</code> registers a PostgreSQL container named <code>db</code>.</li>
+<li><code>.AddDatabase("appdata")</code> creates a database named <code>appdata</code> on that server.</li>
+<li><code>.WithDataVolume()</code> provisions a volume so data persists across container restarts.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>How this works:</strong></p>
+
+<ul>
+
+<li><code>await builder.addPostgres("db")</code> registers a PostgreSQL server resource named <code>db</code>.</li>
+<li><code>.addDatabase("appdata")</code> adds the <code>appdata</code> database to that server.</li>
+<li><code>.withDataVolume()</code> enables persistent storage for the database container.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "nodejs" %}
+{% simple_app_host_code lang: "nodejs", mark: props.simple_app_host_code_mark, collapse: props.simple_app_host_code_collapse_4 %}
+{% slot "csharp-content" %}
+<p><strong>How this works:</strong></p>
+
+<ul>
+
+<li><code>AddPostgres("db")</code> registers a PostgreSQL container named <code>db</code>.</li>
+<li><code>.AddDatabase("appdata")</code> creates a database named <code>appdata</code> on that server.</li>
+<li><code>.WithDataVolume()</code> provisions a volume so data persists across container restarts.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>How this works:</strong></p>
+
+<ul>
+
+<li><code>await builder.addPostgres("db")</code> registers a PostgreSQL server resource named <code>db</code>.</li>
+<li><code>.addDatabase("appdata")</code> adds the <code>appdata</code> database to that server.</li>
+<li><code>.withDataVolume()</code> enables persistent storage for the database container.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "go" %}
+{% simple_app_host_code lang: "go", mark: props.simple_app_host_code_mark, collapse: props.simple_app_host_code_collapse_4 %}
+<div>
+
+<p><strong>How this works:</strong></p>
+
+<ul>
+
+<li><code>AddPostgres("db")</code> registers a PostgreSQL container named <code>db</code>.</li>
+<li><code>.AddDatabase("appdata")</code> creates a database named <code>appdata</code> on that server.</li>
+<li><code>.WithDataVolume()</code> provisions a volume so data persists across container restarts.</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "java" %}
+{% simple_app_host_code lang: "java", mark: props.simple_app_host_code_mark, collapse: props.simple_app_host_code_collapse_3 %}
+<div>
+
+<p><strong>How this works:</strong></p>
+
+<ul>
+
+<li><code>AddPostgres("db")</code> registers a PostgreSQL container named <code>db</code>.</li>
+<li><code>.AddDatabase("appdata")</code> creates a database named <code>appdata</code> on that server.</li>
+<li><code>.WithDataVolume()</code> provisions a volume so data persists across container restarts.</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+
+:::tip
+To also keep the container running between AppHost restarts (avoiding slow startup), add {% api "Aspire.Hosting.ResourceBuilderExtensions.WithPersistentLifetime" %}. See [resource lifetimes](/app-host/resource-lifetimes/) for details.
+:::
+
+{% learnmore %}
+Learn more about the official [PostgreSQL integration](/integrations/databases/postgres/postgres-get-started/).
+{% endlearnmore %}
+
+#### Adding an API resource and declaring a dependency
+
+Next, register the API service and wire it to the PostgreSQL resource with {% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %}:
+
+{% pivot "csharp" %}
+{% simple_app_host_code lang: "csharp", mark: props.simple_app_host_code_mark_2, collapse: props.simple_app_host_code_collapse_5 %}
+{% slot "csharp-content" %}
+<p><strong>What this does:</strong></p>
+
+<ul>
+
+<li><code>AddProject&lt;Projects.Api&gt;("api")</code> registers the API project as a service named <code>api</code>.</li>
+<li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
+<li><code>WaitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>What this does:</strong></p>
+
+<ul>
+
+<li><code>addProject("api", "../api/Api.csproj", "https")</code> registers the API project as a service named <code>api</code>.</li>
+<li><code>withReference(postgres)</code> wires the database dependency into the API resource.</li>
+<li><code>waitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "python" %}
+{% simple_app_host_code lang: "python", mark: props.simple_app_host_code_mark_3, collapse: props.simple_app_host_code_collapse_6 %}
+{% slot "csharp-content" %}
+<p><strong>What this does:</strong></p>
+
+<ul>
+
+<li><code>AddUvicornApp("api", "../api", "main:app")</code> registers a Uvicorn-based Python app named <code>api</code>.</li>
+<li><code>WithUv()</code> configures the app to use the <a href="https://docs.astral.sh/uv/">uv</a> package manager.</li>
+<li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
+<li><code>WaitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>What this does:</strong></p>
+
+<ul>
+
+<li><code>addUvicornApp("api", "../api", "main:app")</code> registers a Uvicorn-based Python app named <code>api</code>.</li>
+<li><code>withUv()</code> enables <a href="https://docs.astral.sh/uv/">uv</a>-based dependency management.</li>
+<li><code>withReference(postgres)</code> injects the database connection details.</li>
+<li><code>waitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "nodejs" %}
+{% simple_app_host_code lang: "nodejs", mark: props.simple_app_host_code_mark_3, collapse: props.simple_app_host_code_collapse_6 %}
+{% slot "csharp-content" %}
+<p><strong>What this does:</strong></p>
+
+<ul>
+
+<li><code>AddNodeApp("api", "../api", "server.js")</code> registers a Node.js app named <code>api</code>.</li>
+<li><code>WithNpm()</code> configures the app to use npm for dependency installation.</li>
+<li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
+<li><code>WaitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>What this does:</strong></p>
+
+<ul>
+
+<li><code>addNodeApp("api", "../api", "server.js")</code> registers a Node.js app named <code>api</code>.</li>
+<li><code>withNpm()</code> configures npm-based dependency installation.</li>
+<li><code>withReference(postgres)</code> injects the database connection details.</li>
+<li><code>waitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "go" %}
+{% simple_app_host_code lang: "go", mark: props.simple_app_host_code_mark_3, collapse: props.simple_app_host_code_collapse_6 %}
+<div>
+
+<p><strong>What this does:</strong></p>
+
+<ul>
+
+<li><code>AddGolangApp("api", "../api")</code> registers a Go app as a service named <code>api</code>.</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> configures the port and sets the <code>PORT</code> environment variable.</li>
+<li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
+<li><code>WaitFor(postgres)</code> delays the API startup until PostgreSQL is healthy.</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "java" %}
+{% simple_app_host_code lang: "java", mark: props.simple_app_host_code_mark_2, collapse: props.simple_app_host_code_collapse_5 %}
+<div>
+
+<p><strong>What this does:</strong></p>
+
+<ul>
+
+<li><code>AddSpringBootApp("api", "../api")</code> registers a Spring Boot app named <code>api</code> and declares an HTTP endpoint whose port Aspire passes to the app through the <code>SERVER_PORT</code> environment variable.</li>
+<li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
+<li><code>WaitFor(postgres)</code> delays the API startup until PostgreSQL is healthy.</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+
+Now that the `api` service is defined, you can attach the frontend.
+
+#### Adding a frontend resource
+
+Register the frontend project, declare its dependency on the API, and let the AppHost provide the API address automatically.
+
+:::note
+This example uses a Node.js (React) frontend, but Aspire treats frontends as executable services—any language or framework works.
+:::
+
+{% pivot "csharp" %}
+{% simple_app_host_code lang: "csharp", mark: props.simple_app_host_code_mark_4, collapse: props.simple_app_host_code_collapse_7 %}
+{% slot "csharp-content" %}
+<p><strong>Key points:</strong></p>
+
+<ul>
+
+<li><code>AddViteApp("frontend", "../frontend")</code> registers the frontend as a service named <code>frontend</code>.</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+<li><code>WithReference(api)</code> injects the API base address into the frontend configuration.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>Key points:</strong></p>
+
+<ul>
+
+<li><code>addViteApp("frontend", "../frontend")</code> registers the frontend as a service named <code>frontend</code>.</li>
+<li><code>withHttpEndpoint({ env: "PORT" })</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+<li><code>withReference(api)</code> injects the API base address into the frontend configuration.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "python" %}
+{% simple_app_host_code lang: "python", mark: props.simple_app_host_code_mark_5, collapse: props.simple_app_host_code_collapse_8 %}
+{% slot "csharp-content" %}
+<p><strong>Key points:</strong></p>
+
+<ul>
+
+<li><code>AddViteApp("frontend", "../frontend")</code> registers the frontend as a service named <code>frontend</code>.</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+<li><code>WithReference(api)</code> injects the API base address into the frontend configuration.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>Key points:</strong></p>
+
+<ul>
+
+<li><code>addViteApp("frontend", "../frontend")</code> registers the frontend as a service named <code>frontend</code>.</li>
+<li><code>withHttpEndpoint({ env: "PORT" })</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+<li><code>withReference(api)</code> injects the API base address into the frontend configuration.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "nodejs" %}
+{% simple_app_host_code lang: "nodejs", mark: props.simple_app_host_code_mark_5, collapse: props.simple_app_host_code_collapse_8 %}
+{% slot "csharp-content" %}
+<p><strong>Key points:</strong></p>
+
+<ul>
+
+<li><code>AddViteApp("frontend", "../frontend")</code> registers the frontend as a service named <code>frontend</code>.</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+<li><code>WithReference(api)</code> injects the API base address into the frontend configuration.</li>
+
+</ul>
+{% endslot %}
+
+{% slot "typescript-content" %}
+<p><strong>Key points:</strong></p>
+
+<ul>
+
+<li><code>addViteApp("frontend", "../frontend")</code> registers the frontend as a service named <code>frontend</code>.</li>
+<li><code>withHttpEndpoint({ env: "PORT" })</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+<li><code>withReference(api)</code> injects the API base address into the frontend configuration.</li>
+
+</ul>
+{% endslot %}
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "go" %}
+{% simple_app_host_code lang: "go", mark: props.simple_app_host_code_mark_5, collapse: props.simple_app_host_code_collapse_8 %}
+<div>
+
+<p><strong>Key points:</strong></p>
+
+<ul>
+
+<li><code>AddViteApp("frontend", "../frontend")</code> registers the frontend as a service named <code>frontend</code>.</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+<li><code>WithReference(api)</code> injects the API base address into the frontend configuration.</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+{% pivot "java" %}
+{% simple_app_host_code lang: "java", mark: props.simple_app_host_code_mark_4, collapse: props.simple_app_host_code_collapse_7 %}
+<div>
+
+<p><strong>Key points:</strong></p>
+
+<ul>
+
+<li><code>AddViteApp("frontend", "../frontend")</code> registers the frontend as a service named <code>frontend</code>.</li>
+<li><code>WithHttpEndpoint(env: "PORT")</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+<li><code>WithReference(api)</code> injects the API base address into the frontend configuration.</li>
+
+</ul>
+
+</div>
+{% endsimple_app_host_code %}
+{% endpivot %}
+
+In short: define the backend first (DB → API), then point the UI at the API. The AppHost captures the dependency graph, connection flows, and startup order.
+
+#### Configuration and networking
+
+These dependencies and connections are automatically managed by Aspire. The AppHost generates configuration values like connection strings and endpoints, injecting them into services as needed. In the AppHost when you add resources, you name them (e.g., `db`, `api`, `frontend`); Aspire uses these names for DNS resolution, so services can communicate using predictable addresses. Consuming services also rely on these names for configuration injection.
+
+{% pivot "csharp" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:c-sharp)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[frontend]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+The C# API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React frontend consumes. This creates a clear dependency chain: `PostgreSQL → C# API → React frontend`.
+{% endpivot %}
+{% pivot "python" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:python)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[frontend]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+The Python API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React frontend consumes. This creates a clear dependency chain: `PostgreSQL → Python API → React frontend`.
+{% endpivot %}
+{% pivot "nodejs" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:nodejs-icon)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[frontend]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+The Node.js API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React frontend consumes. This creates a clear dependency chain: `PostgreSQL → Node.js API → React frontend`.
+{% endpivot %}
+{% pivot "go" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:go)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[frontend]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+The Go API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React frontend consumes. This creates a clear dependency chain: `PostgreSQL → Go API → React frontend`.
+{% endpivot %}
+{% pivot "java" %}
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:java)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[frontend]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+The Java API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React frontend consumes. This creates a clear dependency chain: `PostgreSQL → Java API → React frontend`.
+{% endpivot %}
+
+**How these resources communicate**
+
+{% steps %}
+1. `pg` publishes a `ConnectionStringReference` (host, port, database, user, password)—a strongly typed bundle Aspire understands.
+1. `api` declares a dependency on that reference; Aspire injects the connection string into its config with a unique configuration-flow process that injects settings values, including secrets, parameters, and connection strings for both local runs and deployments.
+1. `api` then publishes an `EndpointReference` (its base URL) after its HTTP endpoint is allocated.
+1. `frontend` depends on that endpoint; Aspire injects the API base URL so no hard-coded addresses are needed.
+{% endsteps %}
+
+:::tip
+Aspire replaces ad-hoc run scripts, scattered environment variables, and fragile copy-pasted connection strings with a single, declarative source of truth. By modeling services, resources, and their dependencies in code, it delivers typed configuration (endpoints, credentials, connection strings) directly where needed—reducing setup drift, accelerating onboarding, and letting you evolve the architecture without rewriting glue.
+:::
+
+## How the AppHost works
+
+When you run the AppHost, Aspire performs these core responsibilities:
+
+{% steps %}
+1. **Service discovery**: Aspire discovers services and resources declared in the AppHost.
+1. **Dependency resolution**: Services start in the correct order based on declared dependencies.
+1. **Configuration injection**: Connection strings, endpoints, and other config values are injected automatically.
+1. **Health monitoring**: Aspire observes service health and can restart services when necessary.
+{% endsteps %}
+
+{% learnmore %}
+Dive deeper into Aspire's orchestration and the [Resource model](/architecture/resource-model/).
+{% endlearnmore %}
+
+## AppHost structure
+
+The template AppHost is structured in the following ways:
+
+{% tabs sync: "apphost-type" %}
+{% tab "File-based AppHost", icon: "seti:c-sharp" %}
+{% file_tree %}
+- **AspireApp.AppHost**
+    - apphost.cs  dev-time orchestrator
+    - apphost.run.json
+{% endfile_tree %}
+{% endtab %}
+{% tab "Project-based AppHost", icon: "seti:html" %}
+{% file_tree %}
+- **AspireApp.AppHost**
+    - Properties
+      - launchSettings.json
+    - appsettings.Development.json
+    - appsettings.json
+    - AspireApp.AppHost.csproj
+    - AppHost.cs  dev-time orchestrator
+{% endfile_tree %}
+{% endtab %}
+{% tab "TypeScript AppHost", icon: "seti:typescript" %}
+{% file_tree %}
+- **my-apphost/**
+    - .aspire/modules/  Generated SDK
+    - apphost.mts  dev-time orchestrator
+    - aspire.config.json
+    - package.json
+    - tsconfig.apphost.json
+{% endfile_tree %}
+{% endtab %}
+{% endtabs %}
+
+## AppHost lifecycle events
+
+You can hook into lifecycle events to run custom logic during startup and resource allocation.
+
+{% steps %}
+1. `BeforeStartEvent`: Raised before the AppHost begins starting services.
+1. `ResourceEndpointsAllocatedEvent`: Raised per resource after its endpoints are allocated.
+1. `AfterResourcesCreatedEvent`: Raised after all resources are created.
+{% endsteps %}
+
+{% learnmore %}
+For finer-grained lifecycle control, see the [well-known lifecycle events](/architecture/resource-model/#well-known-lifecycle-events).
+{% endlearnmore %}
+
+## Best practices
+
+- Keep the AppHost minimal to start; add complexity only as required.
+- Define explicit resource references to make dependency wiring obvious.
+- Use separate configurations for development, testing, and production.
+- Pick clear, descriptive names for resources to make debugging and logging easier.

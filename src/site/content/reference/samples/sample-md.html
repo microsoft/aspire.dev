@@ -1,0 +1,32 @@
+---
+# A sample's Markdown twin, /reference/samples/<slug>.md (src/frontend/src/pages/reference/samples/[sample].md.ts,
+# utils/samples.ts buildSampleMarkdown): source, AppHost and tags, then the upstream README (readmeRaw) with its
+# relative images pointing at GitHub. Until pagination the template keeps its default path (not Markdown, so not
+# collected).
+pagination: { data: samples, size: 1, alias: sample }
+permalink: "reference/samples/{{ sample.name | slug }}.md"
+localize: false
+layout: false
+markdown: false
+twin: true
+---
+{%- case sample.appHost -%}{%- when "typescript" -%}{%- assign sm_apphost = "TypeScript AppHost" -%}{%- when "csproj" -%}{%- assign sm_apphost = "C# AppHost" -%}{%- when "file-based" -%}{%- assign sm_apphost = "File-based AppHost" -%}{%- else -%}{%- assign sm_apphost = nil -%}{%- endcase -%}
+{%- comment -%} rewriteSampleImageUrls: relative image paths point at the sample's raw files on GitHub. {%- endcomment -%}
+{%- assign sm_base = "https://raw.githubusercontent.com/dotnet/aspire-samples/main/samples/" | append: sample.name | append: "/" -%}
+{%- assign sm_parts = sample.readmeRaw | default: sample.readme | split: "![" -%}
+{%- capture sm_body -%}
+{%- for sm_part in sm_parts -%}
+{%- if forloop.first -%}{{ sm_part | raw }}{%- continue -%}{%- endif -%}
+{%- assign sm_bits = sm_part | split: "](" -%}
+{%- assign sm_url = sm_bits[1] | split: ")" | first | split: " " | first -%}
+{%- assign sm_c = sm_url | slice: 0, 2 -%}{%- assign sm_c1 = sm_url | slice: 0 -%}
+{%- if sm_bits.size < 2 or sm_url contains "://" or sm_c == "//" or sm_c == "~/" or sm_url contains "data:" or sm_url == "" -%}![{{ sm_part | raw }}
+{%- else -%}{%- assign sm_clean = sm_url | remove_first: "./" -%}{%- if sm_c1 == "/" -%}{%- assign sm_clean = sm_url | remove_first: "/" -%}{%- endif -%}{%- assign sm_absolute = sm_base | append: sm_clean -%}![{{ sm_part | replace_first: sm_url, sm_absolute | raw }}
+{%- endif -%}
+{%- endfor -%}
+{%- endcapture -%}
+> **Source:** [{{ sample.name | raw }}]({{ sample.href | raw }})
+{% if sm_apphost %}> **AppHost:** {{ sm_apphost }}
+{% endif %}{% if sample.tags.size > 0 %}> **Tags:** {{ sample.tags | join: ", " | raw }}
+{% endif %}
+{{ sm_body | strip }}

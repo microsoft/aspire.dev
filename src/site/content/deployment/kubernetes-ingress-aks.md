@@ -1,0 +1,882 @@
+---
+title: Configure Ingress on AKS
+seoTitle: Configure Ingress on AKS for Aspire AppHost deployments
+description: Configure Kubernetes Ingress on AKS with Application Gateway for Containers and automatic TLS — route Aspire services, manage hostnames, and harden public exposure.
+sidebar:
+  badge:
+    text: Preview
+    variant: caution
+---
+
+This walkthrough shows how to use {% api "Aspire.Hosting.KubernetesIngressExtensions.AddIngress" %} to expose Aspire services on
+Azure Kubernetes Service (AKS) with **Application Gateway for Containers (AGC)**
+and automatic TLS certificate provisioning via **cert-manager** DNS-01 challenges.
+
+:::tip
+**Using {% api "Aspire.Hosting.AzureKubernetesEnvironmentExtensions.AddAzureKubernetesEnvironment" %}?** The integrated walkthrough at [Deploy to AKS — Expose your app to the internet](/deployment/kubernetes/aks/#expose-your-app-to-the-internet) covers AGC + cert-manager end to end without any of the manual `az aks`, `az network alb`, or `helm install` ceremony below. Use this page only if you have a pre-existing AKS cluster that wasn't provisioned by Aspire, or if you need DNS-01 certificate issuance against an Azure DNS zone.
+:::
+
+:::note
+This guide uses a **bring-your-own-cluster** model where you provision and
+manage the AKS cluster, container registry, and DNS zone yourself. If you
+want Aspire to provision the AKS cluster and registry as part of your
+application model, use
+[`AddAzureKubernetesEnvironment`](/deployment/kubernetes/aks/) instead.
+:::
+
+## Set up the AKS environment
+
+The following steps create all the Azure infrastructure needed for this walkthrough. If you already have an AKS cluster with ALB and cert-manager configured, skip to [Configure the AppHost](#configure-the-apphost).
+
+### Register resource providers and features
+
+Application Gateway for Containers requires several resource providers and preview features to be registered in your Azure subscription:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash
+# Register required resource providers
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.Network
+az provider register --namespace Microsoft.NetworkFunction
+az provider register --namespace Microsoft.ServiceNetworking
+
+# Register preview features for ALB controller and Gateway API
+az feature register --namespace Microsoft.ContainerService \
+  --name ManagedGatewayAPIPreview
+az feature register --namespace Microsoft.ContainerService \
+  --name ApplicationLoadBalancerPreview
+
+# Wait for registration to complete (may take a few minutes)
+az feature show --namespace Microsoft.ContainerService \
+  --name ApplicationLoadBalancerPreview --query properties.state -o tsv
+
+# Re-register the provider after feature registration
+az provider register --namespace Microsoft.ContainerService
+
+# Install required CLI extensions
+az extension add --name alb
+az extension add --name aks-preview
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell
+# Register required resource providers
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.Network
+az provider register --namespace Microsoft.NetworkFunction
+az provider register --namespace Microsoft.ServiceNetworking
+
+# Register preview features for ALB controller and Gateway API
+az feature register --namespace Microsoft.ContainerService `
+  --name ManagedGatewayAPIPreview
+az feature register --namespace Microsoft.ContainerService `
+  --name ApplicationLoadBalancerPreview
+
+# Wait for registration to complete (may take a few minutes)
+az feature show --namespace Microsoft.ContainerService `
+  --name ApplicationLoadBalancerPreview --query properties.state -o tsv
+
+# Re-register the provider after feature registration
+az provider register --namespace Microsoft.ContainerService
+
+# Install required CLI extensions
+az extension add --name alb
+az extension add --name aks-preview
+```
+{% endtab %}
+{% endos_tabs %}
+
+:::note
+Feature registration can take several minutes. Use `az feature show` to check
+the status. For the latest prerequisites and supported regions, see the
+[Application Gateway for Containers
+documentation](https://learn.microsoft.com/azure/application-gateway/for-containers/).
+:::
+
+### Create the resource group and cluster
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash
+# Variables — customize these for your environment
+RESOURCE_GROUP=my-aspire-aks
+LOCATION=westus3
+CLUSTER_NAME=my-aspire-aks
+ACR_NAME=myaspireacr
+DNS_ZONE=myapp.example.com
+
+# Create resource group
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# Create AKS cluster with ALB controller, OIDC issuer, and workload identity
+az aks create \
+  --resource-group $RESOURCE_GROUP \
+  --name $CLUSTER_NAME \
+  --location $LOCATION \
+  --enable-oidc-issuer \
+  --enable-workload-identity \
+  --generate-ssh-keys
+
+# Enable the ALB controller addon
+az aks update \
+  --resource-group $RESOURCE_GROUP \
+  --name $CLUSTER_NAME \
+  --enable-alb
+
+# Get cluster credentials
+az aks get-credentials \
+  --resource-group $RESOURCE_GROUP \
+  --name $CLUSTER_NAME
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell
+# Variables — customize these for your environment
+$RESOURCE_GROUP = "my-aspire-aks"
+$LOCATION = "westus3"
+$CLUSTER_NAME = "my-aspire-aks"
+$ACR_NAME = "myaspireacr"
+$DNS_ZONE = "myapp.example.com"
+
+# Create resource group
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# Create AKS cluster with ALB controller, OIDC issuer, and workload identity
+az aks create `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLUSTER_NAME `
+  --location $LOCATION `
+  --enable-oidc-issuer `
+  --enable-workload-identity `
+  --generate-ssh-keys
+
+# Enable the ALB controller addon
+az aks update `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLUSTER_NAME `
+  --enable-alb
+
+# Get cluster credentials
+az aks get-credentials `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLUSTER_NAME
+```
+{% endtab %}
+{% endos_tabs %}
+
+### Create and attach a container registry
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash
+# Create Azure Container Registry
+az acr create \
+  --resource-group $RESOURCE_GROUP \
+  --name $ACR_NAME \
+  --sku Basic
+
+# Attach ACR to AKS (grants AcrPull access)
+az aks update \
+  --resource-group $RESOURCE_GROUP \
+  --name $CLUSTER_NAME \
+  --attach-acr $ACR_NAME
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell
+# Create Azure Container Registry
+az acr create `
+  --resource-group $RESOURCE_GROUP `
+  --name $ACR_NAME `
+  --sku Basic
+
+# Attach ACR to AKS (grants AcrPull access)
+az aks update `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLUSTER_NAME `
+  --attach-acr $ACR_NAME
+```
+{% endtab %}
+{% endos_tabs %}
+
+### Create the ApplicationLoadBalancer
+
+Create a dedicated subnet for AGC in the cluster's VNet, then deploy the `ApplicationLoadBalancer` custom resource:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash
+# Get the managed cluster resource group and VNet
+MC_RG=$(az aks show --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME \
+  --query nodeResourceGroup -o tsv)
+VNET_NAME=$(az network vnet list --resource-group $MC_RG --query "[0].name" -o tsv)
+
+# Create a subnet for the ALB (delegated to ServiceNetworking)
+az network vnet subnet create \
+  --resource-group $MC_RG \
+  --vnet-name $VNET_NAME \
+  --name subnet-alb \
+  --address-prefix 10.237.0.0/24 \
+  --delegations Microsoft.ServiceNetworking/trafficControllers
+
+# Get the full subnet ID
+SUBNET_ID=$(az network vnet subnet show \
+  --resource-group $MC_RG \
+  --vnet-name $VNET_NAME \
+  --name subnet-alb \
+  --query id -o tsv)
+
+# Deploy the ApplicationLoadBalancer CRD
+kubectl apply -f - <<EOF
+apiVersion: alb.networking.azure.io/v1
+kind: ApplicationLoadBalancer
+metadata:
+  name: alb-aspire
+  namespace: default
+spec:
+  associations:
+  - $SUBNET_ID
+EOF
+
+# Wait for it to become ready
+kubectl get applicationloadbalancer alb-aspire --watch
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell
+# Get the managed cluster resource group and VNet
+$MC_RG = $(az aks show --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME `
+  --query nodeResourceGroup -o tsv)
+$VNET_NAME = $(az network vnet list --resource-group $MC_RG --query "[0].name" -o tsv)
+
+# Create a subnet for the ALB (delegated to ServiceNetworking)
+az network vnet subnet create `
+  --resource-group $MC_RG `
+  --vnet-name $VNET_NAME `
+  --name subnet-alb `
+  --address-prefix 10.237.0.0/24 `
+  --delegations Microsoft.ServiceNetworking/trafficControllers
+
+# Get the full subnet ID
+$SUBNET_ID = $(az network vnet subnet show `
+  --resource-group $MC_RG `
+  --vnet-name $VNET_NAME `
+  --name subnet-alb `
+  --query id -o tsv)
+
+# Deploy the ApplicationLoadBalancer CRD
+@"
+apiVersion: alb.networking.azure.io/v1
+kind: ApplicationLoadBalancer
+metadata:
+  name: alb-aspire
+  namespace: default
+spec:
+  associations:
+  - $SUBNET_ID
+"@ | kubectl apply -f -
+
+# Wait for it to become ready
+kubectl get applicationloadbalancer alb-aspire --watch
+```
+{% endtab %}
+{% endos_tabs %}
+
+### Create an Azure DNS zone
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash
+# Create the DNS zone
+az network dns zone create \
+  --resource-group $RESOURCE_GROUP \
+  --name $DNS_ZONE
+
+# List the name servers — delegate these in your domain registrar
+az network dns zone show \
+  --resource-group $RESOURCE_GROUP \
+  --name $DNS_ZONE \
+  --query nameServers -o tsv
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell
+# Create the DNS zone
+az network dns zone create `
+  --resource-group $RESOURCE_GROUP `
+  --name $DNS_ZONE
+
+# List the name servers — delegate these in your domain registrar
+az network dns zone show `
+  --resource-group $RESOURCE_GROUP `
+  --name $DNS_ZONE `
+  --query nameServers -o tsv
+```
+{% endtab %}
+{% endos_tabs %}
+
+:::note
+You need to add NS records for `$DNS_ZONE` at your domain registrar pointing
+to the name servers listed above. DNS delegation may take up to 48 hours to
+propagate, though it's typically much faster.
+:::
+
+### Install cert-manager with Azure DNS support
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash
+# Install cert-manager with Gateway API support
+helm upgrade --install cert-manager oci://quay.io/jetstack/charts/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --set crds.enabled=true \
+  --set config.enableGatewayAPI=true \
+  --wait
+
+# Create a managed identity for cert-manager
+az identity create \
+  --name cert-manager-identity \
+  --resource-group $RESOURCE_GROUP
+
+IDENTITY_CLIENT_ID=$(az identity show \
+  --name cert-manager-identity \
+  --resource-group $RESOURCE_GROUP \
+  --query clientId -o tsv)
+
+IDENTITY_PRINCIPAL_ID=$(az identity show \
+  --name cert-manager-identity \
+  --resource-group $RESOURCE_GROUP \
+  --query principalId -o tsv)
+
+# Grant DNS Zone Contributor role on the DNS zone
+DNS_ZONE_ID=$(az network dns zone show \
+  --resource-group $RESOURCE_GROUP \
+  --name $DNS_ZONE \
+  --query id -o tsv)
+
+az role assignment create \
+  --assignee-object-id $IDENTITY_PRINCIPAL_ID \
+  --assignee-principal-type ServicePrincipal \
+  --role "DNS Zone Contributor" \
+  --scope $DNS_ZONE_ID
+
+# Create a federated credential for cert-manager's service account
+OIDC_ISSUER=$(az aks show \
+  --resource-group $RESOURCE_GROUP \
+  --name $CLUSTER_NAME \
+  --query oidcIssuerProfile.issuerUrl -o tsv)
+
+az identity federated-credential create \
+  --name cert-manager-fedcred \
+  --identity-name cert-manager-identity \
+  --resource-group $RESOURCE_GROUP \
+  --issuer $OIDC_ISSUER \
+  --subject "system:serviceaccount:cert-manager:cert-manager" \
+  --audiences "api://AzureADTokenExchange"
+
+# Annotate and label the cert-manager service account for workload identity
+kubectl annotate serviceaccount cert-manager \
+  --namespace cert-manager \
+  azure.workload.identity/client-id=$IDENTITY_CLIENT_ID \
+  --overwrite
+
+kubectl label serviceaccount cert-manager \
+  --namespace cert-manager \
+  azure.workload.identity/use=true \
+  --overwrite
+
+# Patch the deployment to inject workload identity env vars
+kubectl patch deployment cert-manager \
+  --namespace cert-manager \
+  --type=json \
+  -p='[{"op":"add","path":"/spec/template/metadata/labels/azure.workload.identity~1use","value":"true"}]'
+
+# Wait for rollout
+kubectl rollout status deployment cert-manager --namespace cert-manager
+
+# Get the subscription ID for the ClusterIssuer
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+# Create a ClusterIssuer using Azure DNS for DNS-01 challenges
+kubectl apply -f - <<EOF
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: your-email@example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+    - dns01:
+        azureDNS:
+          hostedZoneName: $DNS_ZONE
+          resourceGroupName: $RESOURCE_GROUP
+          subscriptionID: $SUBSCRIPTION_ID
+          environment: AzurePublicCloud
+          managedIdentity:
+            clientID: $IDENTITY_CLIENT_ID
+EOF
+
+# Verify the issuer is ready
+kubectl get clusterissuer letsencrypt-prod
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell
+# Install cert-manager with Gateway API support
+helm upgrade --install cert-manager oci://quay.io/jetstack/charts/cert-manager `
+  --namespace cert-manager `
+  --create-namespace `
+  --set crds.enabled=true `
+  --set config.enableGatewayAPI=true `
+  --wait
+
+# Create a managed identity for cert-manager
+az identity create `
+  --name cert-manager-identity `
+  --resource-group $RESOURCE_GROUP
+
+$IDENTITY_CLIENT_ID = $(az identity show `
+  --name cert-manager-identity `
+  --resource-group $RESOURCE_GROUP `
+  --query clientId -o tsv)
+
+$IDENTITY_PRINCIPAL_ID = $(az identity show `
+  --name cert-manager-identity `
+  --resource-group $RESOURCE_GROUP `
+  --query principalId -o tsv)
+
+# Grant DNS Zone Contributor role on the DNS zone
+$DNS_ZONE_ID = $(az network dns zone show `
+  --resource-group $RESOURCE_GROUP `
+  --name $DNS_ZONE `
+  --query id -o tsv)
+
+az role assignment create `
+  --assignee-object-id $IDENTITY_PRINCIPAL_ID `
+  --assignee-principal-type ServicePrincipal `
+  --role "DNS Zone Contributor" `
+  --scope $DNS_ZONE_ID
+
+# Create a federated credential for cert-manager's service account
+$OIDC_ISSUER = $(az aks show `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLUSTER_NAME `
+  --query oidcIssuerProfile.issuerUrl -o tsv)
+
+az identity federated-credential create `
+  --name cert-manager-fedcred `
+  --identity-name cert-manager-identity `
+  --resource-group $RESOURCE_GROUP `
+  --issuer $OIDC_ISSUER `
+  --subject "system:serviceaccount:cert-manager:cert-manager" `
+  --audiences "api://AzureADTokenExchange"
+
+# Annotate and label the cert-manager service account for workload identity
+kubectl annotate serviceaccount cert-manager `
+  --namespace cert-manager `
+  azure.workload.identity/client-id=$IDENTITY_CLIENT_ID `
+  --overwrite
+
+kubectl label serviceaccount cert-manager `
+  --namespace cert-manager `
+  azure.workload.identity/use=true `
+  --overwrite
+
+# Patch the deployment to inject workload identity env vars
+kubectl patch deployment cert-manager `
+  --namespace cert-manager `
+  --type=json `
+  -p='[{"op":"add","path":"/spec/template/metadata/labels/azure.workload.identity~1use","value":"true"}]'
+
+# Wait for rollout
+kubectl rollout status deployment cert-manager --namespace cert-manager
+
+# Get the subscription ID for the ClusterIssuer
+$SUBSCRIPTION_ID = $(az account show --query id -o tsv)
+
+# Create a ClusterIssuer using Azure DNS for DNS-01 challenges
+@"
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: your-email@example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+    - dns01:
+        azureDNS:
+          hostedZoneName: $DNS_ZONE
+          resourceGroupName: $RESOURCE_GROUP
+          subscriptionID: $SUBSCRIPTION_ID
+          environment: AzurePublicCloud
+          managedIdentity:
+            clientID: $IDENTITY_CLIENT_ID
+"@ | kubectl apply -f -
+
+# Verify the issuer is ready
+kubectl get clusterissuer letsencrypt-prod
+```
+{% endtab %}
+{% endos_tabs %}
+
+## Configure the AppHost
+
+Define your Kubernetes environment, container registry, and ingress in the
+AppHost project. The example below uses parameters so that environment-specific
+values are supplied at deploy time.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript" %}
+```typescript
+import { DistributedApplication } from "@aspire/apphost";
+
+const builder = DistributedApplication.createBuilder();
+
+// Parameters
+const registryEndpoint = builder.addParameter("registryEndpoint");
+const helmNamespace = builder.addParameter("helmNamespace");
+const helmChartVersion = builder.addParameter("helmChartVersion");
+const helmChartReleaseName = builder.addParameter("helmChartReleaseName");
+const ingressClassName = builder.addParameter("ingressClassName");
+const loadBalancerName = builder.addParameter("loadBalancerName");
+const loadBalancerNamespace = builder.addParameter("loadBalancerNamespace");
+const clusterIssuer = builder.addParameter("clusterIssuer");
+const externalFqdn = builder.addParameter("externalFqdn");
+
+// Kubernetes environment
+const k8s = builder.addKubernetesEnvironment("k8s")
+    .withHelm((helm) => {
+        helm.namespace = helmNamespace;
+        helm.chartVersion = helmChartVersion;
+        helm.releaseName = helmChartReleaseName;
+    });
+
+// Container registry
+const acr = builder.addContainerRegistry("acr", registryEndpoint);
+
+// Application services
+const api = builder.addProject("api");
+
+const frontend = builder.addProject("frontend")
+    .withReference(api);
+
+// Ingress
+const ingress = k8s.addIngress("ingress")
+    .withIngressClass(ingressClassName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .withIngressAnnotation(
+        "cert-manager.io/cluster-issuer", clusterIssuer)
+    .withDefaultBackend(frontend.getEndpoint("http"))
+    .withHostname(externalFqdn)
+    .withTls();
+
+builder.build().run();
+```
+{% endtab %}
+{% tab "C#" %}
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Parameters
+var registryEndpoint = builder.AddParameter("registryEndpoint");
+var helmNamespace = builder.AddParameter("helmNamespace");
+var helmChartVersion = builder.AddParameter("helmChartVersion");
+var helmChartReleaseName = builder.AddParameter("helmChartReleaseName");
+var ingressClassName = builder.AddParameter("ingressClassName");
+var loadBalancerName = builder.AddParameter("loadBalancerName");
+var loadBalancerNamespace = builder.AddParameter("loadBalancerNamespace");
+var clusterIssuer = builder.AddParameter("clusterIssuer");
+var externalFqdn = builder.AddParameter("externalFqdn");
+
+// Kubernetes environment
+var k8s = builder.AddKubernetesEnvironment("k8s")
+    .WithHelm(helm =>
+    {
+        helm.Namespace = helmNamespace;
+        helm.ChartVersion = helmChartVersion;
+        helm.ReleaseName = helmChartReleaseName;
+    });
+
+// Container registry
+var acr = builder.AddContainerRegistry("acr", registryEndpoint);
+
+// Application services
+var api = builder.AddProject<Projects.ApiService>("api");
+
+var frontend = builder.AddProject<Projects.Frontend>("frontend")
+    .WithReference(api);
+
+// Ingress
+var ingress = k8s.AddIngress("ingress")
+    .WithIngressClass(ingressClassName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .WithIngressAnnotation(
+        "cert-manager.io/cluster-issuer", clusterIssuer)
+    .WithDefaultBackend(frontend.GetEndpoint("http"))
+    .WithHostname(externalFqdn)
+    .WithTls();
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Deploy
+
+Set environment variables to provide parameter values, then run `aspire deploy`:
+
+```bash
+export Parameters__registryEndpoint=myregistry.azurecr.io
+export Parameters__helmNamespace=my-app
+export Parameters__helmChartVersion=0.1.0
+export Parameters__helmChartReleaseName=my-app
+export Parameters__ingressClassName=azure-alb-external
+export Parameters__loadBalancerName=my-alb
+export Parameters__loadBalancerNamespace=alb-infra
+export Parameters__clusterIssuer=letsencrypt-dns
+export Parameters__externalFqdn=myapp.example.com
+
+aspire deploy
+```
+
+:::note
+Parameter values are provided via environment variables using the naming
+convention `Parameters__<name>`. You can also set these in a
+`appsettings.json` or user secrets file. The Aspire CLI will prompt for any
+missing parameter values interactively.
+:::
+
+## Verify
+
+After the deployment completes, verify the ingress is working:
+
+{% steps %}
+1. **Check the ingress address.** Wait for AGC to assign an IP or FQDN to the
+   ingress:
+
+   ```bash
+   kubectl get ingress -n my-app
+   ```
+
+   The `ADDRESS` column should show the AGC frontend address.
+
+2. **Check the certificate status.** Verify that cert-manager has issued a
+   certificate for your domain:
+
+   ```bash
+   kubectl get certificate -n my-app
+   ```
+
+   The `READY` column should show `True` once the certificate is issued.
+
+3. **Access the application.** Open `https://myapp.example.com` in your browser
+   and confirm you see a valid TLS certificate.
+{% endsteps %}
+
+## How TLS works with Ingress on AGC
+
+When you deploy an ingress with the `cert-manager.io/cluster-issuer` annotation
+and {% api "Aspire.Hosting.KubernetesIngressExtensions.WithTls" %}, the following sequence occurs:
+
+{% steps %}
+1. **Self-signed bootstrap certificate.** On the first deploy, cert-manager
+   creates a temporary self-signed certificate so AGC can start serving traffic
+   immediately.
+
+2. **Annotation detection.** cert-manager detects the
+   `cert-manager.io/cluster-issuer` annotation on the ingress resource and
+   creates a `Certificate` resource targeting the configured `ClusterIssuer`.
+
+3. **DNS-01 challenge.** The `ClusterIssuer` uses the DNS-01 solver to validate
+   domain ownership. cert-manager creates a `TXT` record in your Azure DNS zone,
+   the ACME server validates it, and a real certificate is issued.
+
+4. **Certificate rotation.** cert-manager stores the issued certificate in a
+   Kubernetes secret referenced by the ingress TLS configuration and
+   automatically renews it before expiry.
+{% endsteps %}
+
+:::note
+HTTP-01 challenges don't work with AGC Ingress because AGC creates a separate
+frontend for each Ingress resource. The ACME HTTP-01 validation request is
+routed to the AGC frontend, which may not reach the cert-manager solver pod.
+Use DNS-01 challenges instead.
+:::
+
+## Deploy without TLS
+
+<details>
+
+<summary>Deploy without TLS (not recommended for production)</summary>
+
+:::danger
+Deploying without TLS exposes your application over plain HTTP. This is not
+recommended for production workloads. Only use this approach for development or
+testing scenarios.
+:::
+
+Remove the `WithTls` call and the `cert-manager.io/cluster-issuer` annotation:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript" %}
+```typescript
+const ingress = k8s.addIngress("ingress")
+    .withIngressClass(ingressClassName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .withDefaultBackend(frontend.getEndpoint("http"))
+    .withHostname(externalFqdn);
+```
+{% endtab %}
+{% tab "C#" %}
+```csharp
+var ingress = k8s.AddIngress("ingress")
+    .WithIngressClass(ingressClassName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .WithDefaultBackend(frontend.GetEndpoint("http"))
+    .WithHostname(externalFqdn);
+```
+{% endtab %}
+{% endtabs %}
+
+</details>
+
+## Deploy without hostname
+
+<details>
+
+<summary>Deploy without a custom hostname</summary>
+
+:::caution
+When you omit {% api "Aspire.Hosting.KubernetesIngressExtensions.WithHostname" %}, AGC automatically assigns a generated FQDN to the
+ingress. You won't be able to use cert-manager for TLS because you don't control
+the domain. The AGC-assigned FQDN uses a wildcard certificate managed by Azure.
+:::
+
+Remove the `WithHostname`, `WithTls`, and cert-manager annotation calls:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript" %}
+```typescript
+const ingress = k8s.addIngress("ingress")
+    .withIngressClass(ingressClassName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .withDefaultBackend(frontend.getEndpoint("http"));
+```
+{% endtab %}
+{% tab "C#" %}
+```csharp
+var ingress = k8s.AddIngress("ingress")
+    .WithIngressClass(ingressClassName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .WithDefaultBackend(frontend.GetEndpoint("http"));
+```
+{% endtab %}
+{% endtabs %}
+
+</details>
+
+## Troubleshooting
+
+### AGC frontend limit
+
+AGC has a limit of **5 frontends** per Application Gateway for Containers
+instance. Each Ingress resource creates its own frontend. If you exceed this
+limit, new ingress resources remain in a pending state.
+
+To check your current frontend count:
+
+```bash
+kubectl get ingress -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.loadBalancer.ingress[0].hostname}{"\n"}{end}'
+```
+
+Consider consolidating multiple services behind a single ingress with path-based
+routing, or request a quota increase from Azure support.
+
+### Certificate not issuing
+
+If the certificate `READY` status remains `False`, check the following:
+
+{% steps %}
+1. **cert-manager logs.** Look for errors related to DNS-01 challenge creation:
+
+   ```bash
+   kubectl logs -n cert-manager deploy/cert-manager -f
+   ```
+
+2. **Challenge status.** Check if the ACME challenge is progressing:
+
+   ```bash
+   kubectl get challenges -n my-app
+   ```
+
+3. **Workload identity.** Verify that the cert-manager service account has the
+   correct federated credential and that the managed identity has
+   **DNS Zone Contributor** permissions on the Azure DNS zone:
+
+   ```bash
+   kubectl describe serviceaccount cert-manager -n cert-manager
+   ```
+
+4. **ClusterIssuer status.** Confirm the issuer is ready:
+
+   ```bash
+   kubectl get clusterissuer letsencrypt-dns -o yaml
+   ```
+{% endsteps %}
+
+### Ingress has no paths configured
+
+If you deploy an Ingress that has no paths and no default backend configured,
+Aspire skips it entirely — the Ingress and its TLS certificate are never
+created, and no deployment steps run for it. Ensure the Ingress has at least
+one path or a default backend so Aspire materializes it during deployment.
+
+### Browser showing HSTS redirect to HTTPS
+
+If your browser automatically redirects HTTP URLs to HTTPS even when you haven't
+configured TLS, this is due to **HTTP Strict Transport Security (HSTS)**. Modern
+browsers cache HSTS policies for domains, including subdomains of `.com` and
+other top-level domains.
+
+To work around this during development:
+
+- Clear your browser's HSTS cache for the domain.
+- Use a private/incognito browser window.
+- Deploy with TLS enabled to avoid the issue entirely.
+
+{% learnmore %}
+- [Application Gateway for Containers documentation](https://learn.microsoft.com/azure/application-gateway/for-containers/)
+- [Quickstart: Deploy ALB Controller (AKS add-on)](https://learn.microsoft.com/azure/application-gateway/for-containers/quickstart-deploy-application-gateway-for-containers-alb-controller-addon)
+- [cert-manager documentation](https://cert-manager.io/docs/)
+- [cert-manager with Let's Encrypt on AKS (Ingress API)](https://learn.microsoft.com/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-ingress-api)
+- [Aspire deployment overview](/deployment/deploy-with-aspire/)
+- [Deploy to AKS with Aspire](/deployment/kubernetes/aks/)
+{% endlearnmore %}

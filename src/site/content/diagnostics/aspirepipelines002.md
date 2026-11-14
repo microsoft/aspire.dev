@@ -1,0 +1,45 @@
+---
+title: Compiler Error ASPIREPIPELINES002
+seoTitle: 'ASPIREPIPELINES002: Deployment state manager APIs are for'
+description: Learn what causes the Aspire compiler error ASPIREPIPELINES002 and how to fix it so your AppHost builds cleanly.
+---
+
+{% badge "Version introduced: 13.0", variant: "note", size: "large", class: "mb-1" %}
+
+> Deployment state manager APIs are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+Aspire introduced deployment state manager APIs as part of the pipeline infrastructure starting in version 13.0. These APIs enable you to manage and persist deployment state information across pipeline executions. The deployment state manager provides functionality for storing, retrieving, and clearing deployment artifacts and metadata, which is essential for incremental deployments and tracking deployment history.
+
+Deployment state manager APIs are considered experimental and are expected to change in future updates.
+
+## APIs affected
+
+This diagnostic applies to the following deployment state manager APIs:
+
+- `IDeploymentStateManager` - Interface for managing deployment state
+- `DeploymentStateSection` - A versioned section of persisted deployment state
+- Deployment state manager implementations
+- Related extension methods and implementations
+
+## To correct this error
+
+Suppress the error with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREPIPELINES002.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREPIPELINES002</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREPIPELINES002` directive.

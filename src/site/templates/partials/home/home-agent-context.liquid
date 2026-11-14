@@ -1,0 +1,123 @@
+{%- comment -%}
+  Ported from src/frontend/src/components/home/HomeAgentContext.astro. Root class (components.css scope):
+  cid-home-home-agent-context. No script of its own (the reveal and network animations are home-page.ts's).
+  The context layers and agents are fixed lists in the component; they are unrolled here. Needs `lp`.
+  The two agent logo images load eagerly (Astro lazy loads them): the homepage spec reads their currentSrc right after
+  scrolling the section into view, which a lazy image only has once its load started (racy in both builds).
+{%- endcomment -%}
+<section
+  class="home-section home-agent-context cid-home-home-agent-context"
+  aria-labelledby="home-agent-context-title"
+  data-home-agent-context
+>
+  <div class="agent-grid" aria-hidden="true"></div>
+  <div class="home-shell">
+    <header class="agent-heading" data-home-reveal>
+      <p class="section-index"><span>02</span> {{ "home.agent.index" | t }}</p>
+      <div>
+        <h2 id="home-agent-context-title">{{ "home.agent.title" | t }}</h2>
+        <p>{{ "home.agent.body" | t }}</p>
+      </div>
+    </header>
+
+    <div class="agent-layout">
+      <div class="agent-copy" data-home-reveal>
+        <ul class="agent-context-layers">
+          {%- assign agent_layers = "AppHost,Runtime,Telemetry" | split: "," %}
+          {%- for layer in agent_layers %}
+          {%- assign layer_key = "home.agent.layer" | append: layer %}
+          <li>
+            <h3>{{ layer_key | append: "Title" | t }}</h3>
+            <p>{{ layer_key | append: "Description" | t }}</p>
+          </li>
+          {%- endfor %}
+        </ul>
+
+        <a
+          class="agent-link"
+          href="{{ lp }}/get-started/ai-coding-agents/"
+          data-home-link
+          data-home-link-icon
+        >
+          {{ "home.agent.setupLink" | t }}
+          {% icon "right-arrow", size: "0.95rem" %}
+        </a>
+      </div>
+
+      <div
+        class="agent-visual"
+        data-home-reveal
+        data-home-reveal-distance="major"
+        data-home-reveal-anchor=".agent-network"
+      >
+        <div class="agent-network" data-agent-network>
+          <svg
+            class="agent-connections"
+            viewBox="0 0 720 420"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <marker
+                id="agent-route-arrow"
+                viewBox="0 0 10 10"
+                refX="5"
+                refY="5"
+                markerWidth="10"
+                markerHeight="10"
+                markerUnits="userSpaceOnUse"
+                orient="auto-start-reverse"
+              >
+                <path class="agent-route-arrowhead" d="M1 1L5 5L1 9"></path>
+              </marker>
+            </defs>
+            <g class="agent-route" data-agent-route="github-copilot">
+              <path class="agent-route-line" d="M125 124 C170 156 235 176 310 194" marker-start="url(#agent-route-arrow)" marker-end="url(#agent-route-arrow)"></path>
+            </g>
+            <g class="agent-route" data-agent-route="claude">
+              <path class="agent-route-line" d="M360 124 C360 150 360 174 360 194" marker-start="url(#agent-route-arrow)" marker-end="url(#agent-route-arrow)"></path>
+            </g>
+            <g class="agent-route" data-agent-route="openai">
+              <path class="agent-route-line" d="M595 124 C550 156 485 176 410 194" marker-start="url(#agent-route-arrow)" marker-end="url(#agent-route-arrow)"></path>
+            </g>
+          </svg>
+
+          <div class="agent-core" aria-hidden="true">
+            <span class="agent-core-icon">
+              {% icon "rocket", size: "1.35rem" %}
+            </span>
+            <small>Aspire</small>
+            <strong>AppHost</strong>
+            <p>{{ "home.agent.coreCaption" | t }}</p>
+          </div>
+
+          <ul class="agent-logo-list" aria-label="{{ "home.agent.anyTool" | t }}">
+            <li class="agent-logo" data-agent-slot="0">
+              <div class="agent-logo-card" data-agent-logo="github-copilot">
+                {% icon "github", size: "3.25rem", class: "agent-logo-icon" %}
+                <span class="agent-logo-name">GitHub Copilot</span>
+              </div>
+            </li>
+            <li class="agent-logo" data-agent-slot="1">
+              <div class="agent-logo-card" data-agent-logo="claude">
+                <img src="/assets/images/icons/agent-claude.svg" alt="" width="72" height="72" class="agent-logo-image" data-agent-logo-source="lobehub" data-agent-logo-treatment="color" decoding="async">
+                <span class="agent-logo-name">Claude</span>
+              </div>
+            </li>
+            <li class="agent-logo" data-agent-slot="2">
+              <div class="agent-logo-card" data-agent-logo="openai">
+                <img src="/assets/images/icons/agent-openai.svg" alt="" width="72" height="72" class="agent-logo-image" data-agent-logo-source="lobehub" data-agent-logo-treatment="monochrome" decoding="async">
+                <span class="agent-logo-name">OpenAI</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="agent-story">
+          <p class="agent-story-sentence">{{ "home.agent.statement" | t }}</p>
+          <p class="agent-any-ai-note">{{ "home.agent.anyTool" | t }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

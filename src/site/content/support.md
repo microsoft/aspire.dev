@@ -1,0 +1,68 @@
+---
+title: Aspire support policy and lifecycle
+prev: false
+next: false
+description: "Review the official Aspire support policy: release cadence, lifecycle dates, and Microsoft Modern Lifecycle guidance for production deployments and upgrades."
+layout: splash
+editUrl: false
+---
+
+{% badge "📆 Last updated: October 7, 2026", variant: "tip", size: "large" %}
+
+## Microsoft support for Aspire
+
+Every Microsoft product has a lifecycle, including Aspire. The lifecycle begins when a product is released and ends when it is no longer supported. Knowing key dates in this lifecycle helps you make informed decisions about when to upgrade or make other changes to your software. This product is governed by the [Microsoft Modern Lifecycle](https://support.microsoft.com/lifecycle) policy.
+
+The Aspire support policy follows the Microsoft Modern Lifecycle with unique versioning and support policies specific to Aspire releases.
+
+## Release cadence
+
+Aspire ships roughly a new major release every year with various minor releases throughout the year.
+
+### Supported versions
+
+The following table lists Aspire versions that are actively supported:
+
+| Version     | Original release date | Latest patch version | Patch release date | End of support                               |
+| ----------- | --------------------- | -------------------- | ------------------ | -------------------------------------------- |
+| Aspire 13.6 | September 29, 2026    | 13.6.1               | October 7, 2026     | When next major or minor version is released. |
+
+### Out of support versions
+
+The following table lists Aspire versions no longer supported:
+
+| Version     | Original release date | Latest patch version | Patch release date | End of support     |
+| ----------- | --------------------- | -------------------- | ------------------ | ------------------ |
+| Aspire 13.5 | August 18, 2026       | 13.5.4               | September 15, 2026 | September 29, 2026 |
+| Aspire 13.4 | June 1, 2026          | 13.4.6               | June 20, 2026      | August 18, 2026    |
+| Aspire 13.3 | May 7, 2026           | 13.3.5               | May 21, 2026       | June 1, 2026       |
+| Aspire 13.2 | March 23, 2026        | 13.2.4               | April 24, 2026     | May 7, 2026        |
+| Aspire 13.1 | December 17, 2025     | 13.1.3               | March 19, 2026     | March 23, 2026     |
+| Aspire 13.0 | November 11, 2025     | 13.0.2               | December 3, 2025   | December 17, 2025  |
+| Aspire 9.5  | September 25, 2025    | 9.5.2                | October 23, 2025   | November 11, 2025  |
+| Aspire 9.4  | July 29, 2025         | 9.4.2                | September 2, 2025  | September 25, 2025 |
+| Aspire 9.3  | May 19, 2025          | 9.3.2                | June 20, 2025      | July 29, 2025      |
+| Aspire 9.2  | April 10, 2025        | 9.2.1                | April 24, 2025     | May 19, 2025       |
+| Aspire 9.1  | February 25, 2025     | 9.1.0                | February 25, 2025  | April 10, 2025     |
+| Aspire 9.0  | November 12, 2024     | 9.0.0                | November 12, 2024  | February 25, 2025  |
+| Aspire 8.2  | August 29, 2024       | 8.2.2                | October 24, 2024   | November 12, 2024  |
+| Aspire 8.1  | July 23, 2024         | 8.1.0                | July 23, 2024      | August 29, 2024    |
+| Aspire 8.0  | May 21, 2024          | 8.0.2                | June 28, 2024      | July 23, 2024      |
+
+## Versioning and support
+
+At any time, only the latest release of Aspire is supported by Microsoft. For example: support for Aspire 8.0 ended when Aspire 8.1 was released.
+
+To receive technical support from Microsoft, you need to be on the latest servicing level (update) for the latest Aspire release.
+
+## Servicing updates
+
+Servicing updates may be made available for supported versions of Aspire. Aspire updates may include a mix of security and non-security fixes in a single patch update. In months without a patch update, a release might not occur.
+
+## Support of containers used by Aspire
+
+Aspire enables the use of third-party containers through resources and integrations. The Aspire team cannot evaluate the underlying third-party containers for which we have API support for suitability for specific customer requirements.
+
+You should evaluate whichever containers you choose to compose and automate with Aspire to ensure they meet your, your employer's, or your government's requirements on security and safety as well as cryptographic regulations and any other regulatory or corporate standards that may apply to your use of the container.
+
+Updates to Aspire will from time to time bring updates to third-party containers.

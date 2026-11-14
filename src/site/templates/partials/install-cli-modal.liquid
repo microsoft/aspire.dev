@@ -1,0 +1,38 @@
+{%- comment -%}
+  The site's InstallCliModal.astro (scripts/client/install-cli-modal.ts): the install commands per OS and channel.
+  The version and release date come from site.versions (config/aspire-versions.mjs). The code blocks are
+  highlighted Expressive Code markup (partials/code-plain, data/chrome_code.yml). Root class: cid-install-cli-modal.
+{%- endcomment -%}
+{%- assign im_parts = site.versions.majorMinor | split: "." -%}
+{%- if im_parts[1] == "0" -%}{%- assign im_notes = "/whats-new/aspire-" | append: im_parts[0] | append: "/" -%}{%- else -%}{%- assign im_notes = "/whats-new/aspire-" | append: im_parts[0] | append: "-" | append: im_parts[1] | append: "/" -%}{%- endif -%}
+{%- assign im_date = site.versions.releaseDate | date: "%B %e, %Y" | replace: "  ", " " -%}
+{%- assign im_sh = "curl -sSL https://aspire.dev/install.sh | bash" -%}
+{%- assign im_unix = "macOS,Linux" | split: "," -%}
+<dialog id="install-cli-modal" class="install-cli-modal cid-install-cli-modal">
+<div class="modal-content not-content">
+<div class="modal-header"><h2>Install Aspire CLI</h2><button class="modal-close" aria-label="Close modal" data-close-modal>{% icon "close" %}</button></div>
+<div class="modal-body">
+<div class="release-info" data-quality="release"><span class="release-version">Installs Aspire <strong data-testid="install-cli-version">{{ site.versions.aspire }}</strong> <span class="release-date">· Released <time datetime="{{ site.versions.releaseDate }}">{{ im_date }}</time></span></span><a href="{{ im_notes }}" class="release-notes-link">Release notes{% icon "right-arrow" %}</a></div>
+{%- for im_os in im_unix %}
+<div class="install-option">
+<div class="option-header">{% if im_os == "macOS" %}{% icon "apple" %}{% else %}{% icon "linux" %}{% endif %}<h3>{{ im_os }}</h3></div>
+<div class="code-wrapper" data-version="release">{% include "partials/code-plain", cp_code: im_sh, cp_lang: "bash" %}</div>
+<div class="code-wrapper" data-version="staging" style="display: none;">{% include "partials/code-plain", cp_code: "curl -sSL https://aspire.dev/install.sh | bash -s -- -q staging", cp_lang: "bash" %}</div>
+<div class="code-wrapper" data-version="dev" style="display: none;">{% include "partials/code-plain", cp_code: "curl -sSL https://aspire.dev/install.sh | bash -s -- -q dev", cp_lang: "bash" %}</div>
+</div>
+{%- endfor %}
+<div class="install-option">
+<div class="option-header">{% icon "seti:windows", size: "1rem !important" %}<h3>Windows</h3></div>
+<div class="code-wrapper" data-version="release">{% include "partials/code-plain", cp_code: "irm https://aspire.dev/install.ps1 | iex", cp_lang: "powershell" %}</div>
+<div class="code-wrapper" data-version="staging" style="display: none;">{% include "partials/code-plain", cp_code: 'iex "& { $(irm https://aspire.dev/install.ps1) } -Quality staging"', cp_lang: "powershell" %}</div>
+<div class="code-wrapper" data-version="dev" style="display: none;">{% include "partials/code-plain", cp_code: 'iex "& { $(irm https://aspire.dev/install.ps1) } -Quality dev"', cp_lang: "powershell" %}</div>
+</div>
+<div class="quality-aside" data-quality="staging" style="display: none;">{% aside "note", title: nil, icon: nil %}Staging builds are prerelease versions. Not recommended for production.{% endaside %}</div>
+<div class="quality-aside" data-quality="dev" style="display: none;">{% aside "caution", title: nil, icon: nil %}Hot off the press! Dev builds are the latest versions and may be unstable.{% endaside %}</div>
+</div>
+<div class="modal-footer">
+<a href="/get-started/install-cli/" class="learn-more-link">More installation options{% icon "right-arrow" %}</a>
+<div class="version-selector"><span class="version-label">Channel:</span>{% include "partials/custom-select", cs_id: "version-select", cs_class: "channel-custom-select", cs_label: "Select release channel", cs_options: site.selects.install_channels, cs_menu_width: "content", cs_placement: nil, cs_icon_html: nil %}<a href="/reference/cli/install-script/#options" class="info-icon">{% icon "information", color: "var(--sl-color-text-accent)" %}</a></div>
+</div>
+</div>
+</dialog>

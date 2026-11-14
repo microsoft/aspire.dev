@@ -86,7 +86,7 @@ test.describe('live status', () => {
     });
   }
 
-  test('a missing live API stays disabled across navigation and visibility changes until reload', async ({ page }) => {
+  test('a missing live API stays disabled for each page load and visibility changes', async ({ page }) => {
     let snapshotRequests = 0;
     let socketRequests = 0;
     const errors: string[] = [];
@@ -114,22 +114,35 @@ test.describe('live status', () => {
     expect(socketRequests).toBeLessThanOrEqual(1);
     const initialSocketRequests = socketRequests;
 
-    const videos = await visibleLiveButton(page);
-    await expect(videos).toHaveAttribute('href', '/community/videos/');
-    await videos.click();
-    await expect(page).toHaveURL(/\/community\/videos\/$/);
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await page.clock.fastForward(120_000);
     expect(snapshotRequests).toBe(1);
     expect(socketRequests).toBe(initialSocketRequests);
+
+    // Navigation is a full page load: the new document seeds once, then stays disabled too.
+    const videos = await visibleLiveButton(page);
+    await expect(videos).toHaveAttribute('href', '/community/videos/');
+    const disabledOnVideos = page.waitForEvent('console', {
+      predicate: (message) => message.text().includes('live updates disabled until reload'),
+    });
+    await videos.click();
+    await page.waitForURL(/\/community\/videos\/$/);
+    await disabledOnVideos;
+    expect(snapshotRequests).toBe(2);
+    expect(socketRequests).toBeLessThanOrEqual(initialSocketRequests + 1);
+    const videosSocketRequests = socketRequests;
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await page.clock.fastForward(120_000);
+    expect(snapshotRequests).toBe(2);
+    expect(socketRequests).toBe(videosSocketRequests);
 
     const disabledAgain = page.waitForEvent('console', {
       predicate: (message) => message.text().includes('live updates disabled until reload'),
     });
     await page.reload();
     await disabledAgain;
-    expect(snapshotRequests).toBe(2);
-    expect(socketRequests).toBeLessThanOrEqual(initialSocketRequests + 1);
+    expect(snapshotRequests).toBe(3);
+    expect(socketRequests).toBeLessThanOrEqual(videosSocketRequests + 1);
     expect(errors).toEqual([]);
   });
 
@@ -458,7 +471,7 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('aria-label', /live/i);
   });
 
-  test('live header dialog opens site-global native picture-in-picture and suppresses strobe', async ({
+  test('live header dialog opens native picture-in-picture and suppresses strobe', async ({
     page,
   }) => {
     test.skip(await prefersProviderHandoff(page), 'Document Picture-in-Picture is desktop-only.');
@@ -563,45 +576,8 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('data-pip-open', 'true');
     expect(new URL(page.url()).pathname).not.toBe('/community/videos/');
 
-    const iframeSrcBeforeNavigation = await page.evaluate(() => {
-      const pipState = (
-        window as Window & {
-          __aspireLivePipState?: { pipWindow?: { document?: Document } };
-        }
-      ).__aspireLivePipState;
-      return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
-    });
-
-    await revealMobileSiteMenu(page);
-    await page.locator('a.docs-btn:visible, .mobile-site-links a[href="/docs/"]:visible').first().click();
-    await expect(page).toHaveURL(/\/docs\/$/);
-
-    await expect
-      .poll(() =>
-        page.evaluate(
-          () => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested
-        )
-      )
-      .toBe(1);
-    const liveBtnAfterNavigation = await visibleLiveButton(page);
-    await expect(liveBtnAfterNavigation).toHaveAttribute('data-live', 'false');
-    await expect(liveBtnAfterNavigation).toHaveAttribute('data-pip-open', 'true');
-    await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const pipState = (
-            window as Window & {
-              __aspireLivePipState?: { pipWindow?: { document?: Document } };
-            }
-          ).__aspireLivePipState;
-          return (
-            pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null
-          );
-        })
-      )
-      .toBe(iframeSrcBeforeNavigation);
-
-    await liveBtnAfterNavigation.click();
+    // Asking for the same source again reuses the open window and its player.
+    await liveBtn.click();
     await page
       .getByRole('dialog', { name: 'Choose how to watch' })
       .getByRole('button', { name: /Open Twitch Picture-in-Picture/ })
@@ -613,9 +589,9 @@ test.describe('live status', () => {
       )
     ).toBe(1);
 
-    await liveBtnAfterNavigation.click();
-    const dialogAfterNavigation = page.getByRole('dialog', { name: 'Choose how to watch' });
-    await expect(dialogAfterNavigation).toBeVisible();
+    await liveBtn.click();
+    const dialogAgain = page.getByRole('dialog', { name: 'Choose how to watch' });
+    await expect(dialogAgain).toBeVisible();
     const pickerLookups = await page.evaluate(() => {
       const getElementById = document.getElementById;
       let lookups = 0;
@@ -631,7 +607,21 @@ test.describe('live status', () => {
       }
     });
     expect(pickerLookups).toBe(2);
-    await expect(dialogAfterNavigation).toBeHidden();
+    await expect(dialogAgain).toBeHidden();
+
+    // A full page load unloads the opener, which closes its Document PiP window: the next page
+    // starts with no PiP open and does not reopen one on its own.
+    await revealMobileSiteMenu(page);
+    await page.locator('a.docs-btn:visible, .mobile-site-links a[href="/docs/"]:visible').first().click();
+    await page.waitForURL(/\/docs\/$/);
+    await page.waitForLoadState('load');
+    const liveBtnAfterNavigation = await visibleLiveButton(page);
+    await expect(liveBtnAfterNavigation).not.toHaveAttribute('data-pip-open', 'true');
+    expect(
+      await page.evaluate(
+        () => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested
+      )
+    ).toBe(0);
   });
 
   test('live header offers a provider choice when both streams are live', async ({ page }) => {

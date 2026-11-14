@@ -1,0 +1,245 @@
+---
+title: Aspire dashboard security considerations
+description: Security considerations for running the Aspire dashboard — authentication, network exposure, OTLP and resource service endpoints, and standalone hardening guidance.
+---
+
+The [Aspire dashboard](/dashboard/overview/) offers powerful insights to your apps. The dashboard displays information about resources, including their configuration, console logs and in-depth telemetry.
+
+Data displayed in the dashboard can be sensitive. For example, configuration can include secrets in environment variables, and telemetry can include sensitive runtime data. Care should be taken to secure access to the dashboard.
+
+## Scenarios for running the dashboard
+
+The dashboard can be run in different scenarios, such as being automatically starting by Aspire tooling, or as a standalone application that is separate from other Aspire integrations. Steps to secure the dashboard depend on how it's being run.
+
+### Aspire tooling
+
+The dashboard is automatically started when an Aspire AppHost is run. The dashboard is secure by default when run from Aspire tooling:
+
+- Transport is secured with HTTPS. Using HTTPS is configured by default in _launchSettings.json_. The launch profile includes `https` addresses in `applicationUrl` and `ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL` values.
+- Browser frontend authenticated with a browser token.
+- Incoming telemetry authenticated with an API key.
+
+HTTPS in the dashboard uses the ASP.NET Core development certificate. The certificate must be trusted for the dashboard to work correctly. The steps required to trust the development cert are different depending on the machine's operating system:
+
+- Trust the ASP.NET Core HTTPS development certificate on Windows and macOS
+- Trust HTTPS certificate on Linux
+
+There are scenarios where you might want to allow an unsecured transport. The dashboard can run without HTTPS from the Aspire AppHost by configuring the `ASPIRE_ALLOW_UNSECURED_TRANSPORT` setting to `true`.
+
+### Standalone mode
+
+The dashboard can run in standalone mode using `aspire dashboard run` or as a container image. When launched in standalone mode, it defaults to a mix of secure and unsecured settings.
+
+- Browser frontend authenticated with a browser token.
+- Incoming telemetry is unsecured. Warnings are displayed in the console and dashboard UI.
+
+The telemetry endpoint accepts incoming <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> data without authentication. When the endpoint is unsecured, the dashboard is open to receiving telemetry from untrusted apps.
+
+For information about securing the telemetry when running the dashboard in standalone mode, see [Securing the telemetry endpoint](#secure-telemetry-endpoint).
+
+## Protect persisted data
+
+The dashboard stores resources, console logs, structured logs, traces, and metrics in SQLite. Depending on the configured [persistence mode](/dashboard/data-persistence/#persistence-modes), these files can remain after the dashboard stops.
+
+Persisted data can contain sensitive application-supplied values, including environment variables, resource properties, console output, log bodies and attributes, trace attributes and events, metric dimensions, and exemplars. Resource property values marked as sensitive are stored without redaction or encryption. The sensitivity marker is retained so the dashboard masks those values in current and historical views, but masking doesn't protect values read directly from the database, write-ahead log files, backups, or copies.
+
+The SQLite database has no independent authorization or encryption layer. Its security boundary is the local file system. Application-name partitioning organizes data but isn't an authorization boundary.
+
+- Configure `ASPIRE_HOME` or `Dashboard:Data:Directory` so only the dashboard's account and authorized administrators can read or modify the entire data directory.
+- Apply equivalent access restrictions to backups, snapshots, and copies of the data directory.
+- On Unix-like systems, the dashboard creates the application-specific directory with owner-only permissions (`0700`) and changes an existing application directory to that mode.
+- On Windows, the dashboard uses the directory's inherited access control list (ACL) and doesn't set or validate a specific ACL. Verify that the configured data root doesn't grant access to unauthorized users.
+
+Don't modify dashboard data files with non-Aspire tools. The files don't have cryptographic integrity protection, and external changes can display misleading data, prevent runs from opening, or cause unexpected behavior.
+
+For storage locations and operational details, see [Aspire dashboard data persistence](/dashboard/data-persistence/).
+
+## Anonymous access
+
+By default, the dashboard requires browser token authentication because it can display sensitive information, including resource configuration, logs, and telemetry.
+
+During local development on a trusted machine, you might allow anonymous access to avoid signing in with a browser token:
+
+- Start a standalone dashboard with `aspire dashboard run --allow-anonymous`.
+- Set `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` to `true` in [AppHost configuration](/app-host/configuration/) when the dashboard is launched by an AppHost.
+
+Both settings disable dashboard authentication and have the same security risks.
+
+:::note[Restrict allowed hosts]
+When anonymous access is enabled, consider [configuring host filtering](https://learn.microsoft.com/aspnet/core/fundamentals/servers/kestrel/host-filtering) by setting `AllowedHosts` to the host names used to access the dashboard. Browser token authentication uses a host-scoped authentication cookie, which helps prevent an attacker-controlled host name from accessing dashboard responses in a DNS rebinding attack. Anonymous access removes this protection, so restricting accepted `Host` headers provides additional hardening.
+
+For example, provide a semicolon-delimited list of host names without port numbers:
+
+```bash title="Aspire CLI"
+aspire dashboard run --allow-anonymous --AllowedHosts='localhost;dashboard.example.com'
+```
+
+:::
+
+:::danger
+Anyone who can reach an anonymously accessible dashboard can view potentially sensitive resource and telemetry data without authentication. Untrusted apps can also send telemetry to an unsecured OTLP endpoint. Only allow anonymous access in trusted local development environments, and don't expose an anonymously accessible dashboard or its endpoints to an untrusted network.
+:::
+
+## Cookie scoping by application name
+
+Browser cookies are shared across ports on the same hostname. Without a distinguishing name, dashboards running on different ports of the same host, such as `localhost`, would use the same authentication and antiforgery cookie names and could interfere with each other, for example by signing one dashboard out when you sign in to another.
+
+To avoid this, the dashboard's browser-token and OpenID Connect authentication cookies, and its antiforgery cookie, include a suffix derived from `Dashboard:ApplicationName`. The suffix combines a lowercase, cookie-safe prefix of up to 32 characters with a hash of the full application name. For example, an application name of `My application` produces cookie names such as `.Aspire.Dashboard.Auth.my-application-<hash>` and `.Aspire.Dashboard.Antiforgery.my-application-<hash>`. Dashboards configured with the same application name use the same cookie names and can still collide; this doesn't guarantee that one dashboard can decrypt or accept another's authentication cookie.
+
+Configure a distinct `Dashboard:ApplicationName` for each dashboard whose cookies should be kept separate:
+
+```json title="Dashboard application settings"
+{
+  "Dashboard": {
+    "ApplicationName": "My application"
+  }
+}
+```
+
+Application-name cookie scoping avoids accidental collisions between dashboards; it isn't a security boundary, and the hash used to build the suffix is a non-cryptographic naming hash, not an authentication or integrity mechanism.
+
+Changing `Dashboard:ApplicationName` changes the cookie names, so existing browser sessions aren't migrated: you'll need to sign in again after the name changes. Other browser preferences that don't need to be application-specific, such as time format, can still be shared across dashboards that use the same browser origin. Collapsed-resource state in local storage follows the application name reported by the connected resource service, which can differ from the configured `Dashboard:ApplicationName` used for cookies and disk persistence; see [Storage layout](/dashboard/data-persistence/#storage-layout) for how persisted data is scoped by application name.
+
+## Secure telemetry endpoint
+
+The Aspire dashboard provides a variety of ways to view logs, traces, and metrics for your app. This information enables you to track the behavior and performance of your app and to diagnose any issues that arise. It's important that you can trust this information, and a warning is displayed in the dashboard UI if telemetry isn't secured.
+
+When the dashboard is launched by an Aspire AppHost, the OTLP and telemetry API endpoints are both enabled and secured with API key authentication automatically. However, when the dashboard is run in [standalone mode](/dashboard/standalone/), additional configuration is required to enable and secure these endpoints.
+
+### Incoming OTLP endpoint
+
+The dashboard collects telemetry through an [OTLP (OpenTelemetry protocol)](https://opentelemetry.io/docs/specs/otel/protocol/) endpoint. Apps send telemetry to this endpoint, and the dashboard stores the external information it receives in SQLite, which is then accessible via the UI.
+
+:::danger[Accept telemetry only from trusted sources]
+Treat the OTLP endpoint as an ingestion service, not as a public telemetry collector. A malicious or compromised sender can submit large volumes of telemetry or maliciously shaped telemetry, such as data with many attributes, long values, large numbers of span events, or high-cardinality metrics. Receiving, decoding, validating, and processing this data consumes network bandwidth, CPU, and memory, even when the dashboard later rejects, truncates, or evicts it.
+
+An untrusted sender can also perform **telemetry spoofing** by claiming another app's identity in sender-controlled resource attributes. For example, a malicious app could use the same `service.name` as a trusted app and send fabricated logs, traces, or metrics that appear to come from that app.
+:::
+
+To prevent untrusted apps from sending telemetry to Aspire, the OTLP endpoint should be secured. The OTLP endpoint is automatically secured with an API key when the dashboard is started by Aspire tooling. Additional configuration is required for standalone mode.
+
+API key authentication can be enabled on the telemetry endpoint with some additional configuration:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash title="Aspire CLI"
+aspire dashboard run \
+    --Dashboard:Otlp:AuthMode=ApiKey \
+    --Dashboard:Otlp:PrimaryApiKey='{MY_APIKEY}'
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell title="Aspire CLI"
+aspire dashboard run `
+    --Dashboard:Otlp:AuthMode=ApiKey `
+    --Dashboard:Otlp:PrimaryApiKey='{MY_APIKEY}'
+```
+{% endtab %}
+{% endos_tabs %}
+
+The preceding command:
+
+- Starts the dashboard with OTLP endpoints on port `4317` (gRPC) and port `4318` (HTTP)
+- Configures the OTLP endpoint to use `ApiKey` authentication. This requires that incoming telemetry has a valid `x-otlp-api-key` header value.
+- Configures the expected API key. `{MY_APIKEY}` in the example value should be replaced with a real API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended.
+
+When API key authentication is configured, the dashboard validates incoming telemetry has a required API key. Apps that send the dashboard telemetry must be configured to send the API key. The following examples show how to configure the API key header in each language:
+
+{% tabs sync: "consuming-lang" %}
+{% tab "C#" %}
+Configure the header using `OtlpExporterOptions.Headers`:
+
+```csharp title="Program.cs"
+builder.Services.Configure<OtlpExporterOptions>(
+    o => o.Headers = $"x-otlp-api-key={MY_APIKEY}");
+```
+{% endtab %}
+{% tab "Go" %}
+Set the `OTEL_EXPORTER_OTLP_HEADERS` environment variable, or configure the header on the OTLP exporter directly:
+
+```go title="main.go"
+import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+
+client := otlptracegrpc.NewClient(
+    otlptracegrpc.WithHeaders(map[string]string{
+        "x-otlp-api-key": apiKey,
+    }),
+)
+```
+{% endtab %}
+{% tab "Python" %}
+Set the `OTEL_EXPORTER_OTLP_HEADERS` environment variable, or configure the header in code:
+
+```python title="app.py"
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+    OTLPSpanExporter,
+)
+
+exporter = OTLPSpanExporter(
+    headers={"x-otlp-api-key": api_key},
+)
+```
+{% endtab %}
+{% tab "TypeScript" %}
+Set the `OTEL_EXPORTER_OTLP_HEADERS` environment variable, or configure the header in code:
+
+```typescript title="tracing.ts"
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+
+const exporter = new OTLPTraceExporter({
+    headers: {
+        'x-otlp-api-key': apiKey,
+    },
+});
+```
+{% endtab %}
+{% endtabs %}
+
+Passing the [`OTEL_EXPORTER_OTLP_HEADERS` environment variable](https://opentelemetry.io/docs/specs/otel/protocol/exporter/) to apps is a universal way to configure the header across all languages.
+
+### Telemetry API endpoint
+
+The dashboard has an optional HTTP API that exposes collected telemetry data as JSON at `/api/telemetry/*` endpoints. The telemetry API allows programmatic access to spans, logs, traces, and resource information stored in the dashboard. Because telemetry data can contain sensitive runtime information, the API is disabled by default and must be explicitly enabled.
+
+When enabled, the telemetry API is served on the same endpoint as the dashboard frontend (`ASPNETCORE_URLS`). Enable and secure the API with the following configuration:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash title="Aspire CLI"
+aspire dashboard run \
+    --Dashboard:Api:Enabled=true \
+    --Dashboard:Api:AuthMode=ApiKey \
+    --Dashboard:Api:PrimaryApiKey='{MY_APIKEY}'
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell title="Aspire CLI"
+aspire dashboard run `
+    --Dashboard:Api:Enabled=true `
+    --Dashboard:Api:AuthMode=ApiKey `
+    --Dashboard:Api:PrimaryApiKey='{MY_APIKEY}'
+```
+{% endtab %}
+{% endos_tabs %}
+
+When API key authentication is configured, each request to the telemetry API must include a valid `x-api-key` header. If the API is enabled without configuring an auth mode or API key, it defaults to `Unsecured` and a warning is logged at startup.
+
+## Resource exhaustion
+
+The dashboard uses resources for every telemetry payload it receives. Stored resource details and telemetry consume disk space, while queries and ingestion also consume memory, network bandwidth, and CPU. A burst of telemetry, many concurrent senders, or payloads designed to require excessive processing can degrade dashboard availability or exhaust resources on the host.
+
+### Telemetry limits
+
+The dashboard limits the count and size of telemetry it stores. For example, there is a maximum of 100,000 structured log entries shared across resources. Once the limit is reached, each new log entry received causes an old entry to be removed. Configurable limits also constrain attributes, span events, tracked resources, traces, and metric data points.
+
+Storage limits reduce retained data, but they aren't admission-control, rate, or disk-quota limits. The dashboard still incurs some cost to receive and process telemetry before applying storage limits, and the limits don't cap database file size or the total amount of telemetry that senders can transmit over time. Consequently, storage limits reduce but don't eliminate the risk of resource exhaustion.
+
+Use defense in depth when accepting telemetry:
+
+- Require API key authentication and rotate a key if an untrusted party might have obtained it.
+- Limit OTLP endpoint access with network controls such as firewall rules or private networks.
+- Apply request-size, rate, and concurrency limits at a gateway or reverse proxy when senders aren't fully trusted.
+- [Configure telemetry limits](/dashboard/configuration/#telemetry-limits), including attribute length and span event count, for the expected workload.
+- Monitor the dashboard host's CPU, memory, and disk use, and isolate the dashboard from critical workloads when appropriate.
+
+Review these controls whenever the expected telemetry volume or the set of trusted senders changes.

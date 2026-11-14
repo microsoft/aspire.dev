@@ -1,0 +1,66 @@
+---
+# The site's <IntegrationCard> (src/components/IntegrationCard.astro), a card of the integrations gallery:
+#   {% integration_card pkg, docs: "/integrations/x/x-get-started/" %}
+# `pkg`: an item of the site data `aspire-integrations` ({ title, href, icon?, description, downloads?, version?, tags? });
+# `docs`: its documentation url (from `integration-docs`), if any. The `aspire add` command is a code block for the
+# `code` worker step (frame none); the language buttons link the `-host/` sibling of a first-party `-get-started/`
+# page with `?aspire-lang=`. Root class: cid-integration-card.
+display: block
+args: [pkg]
+params: [docs]
+---
+{%- assign ic_title = pkg.title -%}
+{%- assign ic_ph = "{" | append: "{title}" | append: "}" -%}
+{%- assign ic_short = ic_title | replace: "Aspire.Hosting.", "" | replace: "aspire.hosting.", "" | replace: ".", "-" | downcase -%}
+{%- assign ic_first = docs | slice: 0, 1 -%}
+{%- if docs and ic_first == "/" -%}{%- assign ic_internal = true -%}{%- else -%}{%- assign ic_internal = false -%}{%- endif -%}
+{%- if docs and ic_internal -%}
+  {%- assign ic_host = docs -%}
+  {%- assign ic_tail = docs | slice: -13, 13 -%}
+  {%- if ic_tail == "-get-started/" -%}{%- assign ic_len = docs.size | minus: 13 -%}{%- assign ic_host = docs | slice: 0, ic_len | append: "-host/" -%}{%- endif -%}
+  {%- if ic_host contains "?" -%}{%- assign ic_sep = "&" -%}{%- else -%}{%- assign ic_sep = "?" -%}{%- endif -%}
+{%- endif -%}
+{%- assign ic_tags = pkg.tags | default: empty -%}
+{%- capture ic_filtered_csv -%}{%- for tag in ic_tags -%}{%- assign ic_lower = tag | downcase -%}{%- if ic_lower == "aspire" or ic_lower == "dotnetcommunitytoolkit" or ic_lower == "integration" -%}{%- continue -%}{%- endif -%}{{ tag }}§§{%- endfor -%}{%- endcapture -%}
+{%- assign ic_filtered = ic_filtered_csv | split: "§§" -%}
+{%- assign ic_n = 0 -%}{%- for t in ic_filtered -%}{%- if t != "" -%}{%- assign ic_n = ic_n | plus: 1 -%}{%- endif -%}{%- endfor -%}
+{%- if ic_n > 4 -%}{%- assign ic_visible = 3 -%}{%- else -%}{%- assign ic_visible = 4 -%}{%- endif -%}
+{%- assign ic_downloads = pkg.downloads | default: 0 -%}
+{%- if ic_downloads >= 1000000000 -%}{%- assign ic_dl = ic_downloads | divided_by: 1000000000.0 | round: 1 | append: "" | append: "~" | replace: ".0~", "" | remove: "~" | append: "B" -%}
+{%- elsif ic_downloads >= 1000000 -%}{%- assign ic_dl = ic_downloads | divided_by: 1000000.0 | round: 1 | append: "" | append: "~" | replace: ".0~", "" | remove: "~" | append: "M" -%}
+{%- elsif ic_downloads >= 1000 -%}{%- assign ic_dl = ic_downloads | divided_by: 1000.0 | round | append: "k" -%}
+{%- else -%}{%- assign ic_dl = ic_downloads | append: "" -%}{%- endif -%}
+{%- assign ic_icon_alt = "integrations.icon" | t | replace: ic_ph, ic_title -%}
+<article class="card cid-integration-card" data-tags="{{ ic_tags | join: ',' | escape }}" data-title="{{ ic_title | downcase | escape }}"{% if pkg.downloads %} data-downloads="{{ pkg.downloads }}"{% endif %} data-description="{{ pkg.description | downcase | escape }}"><div class="card-header">
+{%- if pkg.icon -%}<img class="icon" src="{{ pkg.icon }}" alt="{{ ic_icon_alt | escape }}" loading="lazy" data-zoom-off>{%- endif -%}
+{%- if docs -%}
+{%- assign ic_visit = "integrations.visitDocs" | t | replace: ic_ph, ic_title -%}
+<a class="title title-link" href="{{ docs }}" title="{{ ic_title | escape }}" data-tooltip-placement="top" aria-label="{{ ic_visit | escape }}"{% unless ic_internal %} target="_blank" rel="noopener noreferrer"{% endunless %}>{% readable_text ic_title %}</a>
+{%- else -%}<span class="title" title="{{ ic_title | escape }}" data-tooltip-placement="top">{% readable_text ic_title %}</span>{%- endif -%}
+</div><div class="body"><div class="desc">{{ pkg.description | escape }}</div>
+{%- if ic_n > 0 -%}<div class="badges">
+{%- assign ic_i = 0 -%}{%- assign ic_overflow = "" -%}
+{%- for t in ic_filtered -%}{%- if t == "" -%}{%- continue -%}{%- endif -%}
+{%- if ic_i < ic_visible -%}<span class="sl-badge default small cid-sl-badge">{{ t | escape }}</span>{%- else -%}{%- assign ic_clean = t | remove: "<" | remove: ">" | remove: "&" | remove: '"' | remove: "'" | remove: "`" | strip -%}{%- if ic_overflow != "" -%}{%- assign ic_overflow = ic_overflow | append: ", " -%}{%- endif -%}{%- assign ic_overflow = ic_overflow | append: ic_clean -%}{%- endif -%}
+{%- assign ic_i = ic_i | plus: 1 -%}
+{%- endfor -%}
+{%- if ic_n > 4 -%}{%- assign ic_remaining = ic_n | minus: 3 -%}<span class="sl-badge tip small cid-sl-badge" title="{{ ic_overflow | escape }}">+{{ ic_remaining }}</span>{%- endif -%}
+</div>{%- endif -%}
+{%- if ic_short != "" -%}
+{%- assign ic_add = "integrations.addCommand" | t | replace: ic_ph, ic_title -%}
+<div class="install-block" aria-label="{{ ic_add | escape }}"><div class="install-command not-content"><pre data-lang="bash" data-meta="frame=&quot;none&quot;"><code class="language-bash">aspire add {{ ic_short | escape }}</code></pre></div>
+{%- if docs and ic_internal -%}
+{%- assign ic_by_lang = "integrations.viewLanguageDocs" | t | replace: ic_ph, ic_title -%}
+{%- assign ic_ts = "integrations.viewTypescriptDocs" | t | replace: ic_ph, ic_title -%}
+{%- assign ic_cs = "integrations.viewCsharpDocs" | t | replace: ic_ph, ic_title -%}
+<div class="lang-buttons" role="group" aria-label="{{ ic_by_lang | escape }}"><a class="lang-button" href="{{ ic_host }}{{ ic_sep }}aspire-lang=typescript" aria-label="{{ ic_ts | escape }}" data-tooltip-placement="top" title="{{ ic_ts | escape }}"><img src="/assets/images/icons/typescript.svg" alt="" aria-hidden="true" loading="lazy" decoding="async" width="22" height="22"></a><a class="lang-button" href="{{ ic_host }}{{ ic_sep }}aspire-lang=csharp" aria-label="{{ ic_cs | escape }}" data-tooltip-placement="top" title="{{ ic_cs | escape }}"><img src="/assets/images/icons/csharp.svg" alt="" aria-hidden="true" loading="lazy" decoding="async" width="22" height="22"></a></div>
+{%- elsif docs -%}
+{%- assign ic_view = "integrations.viewDocs" | t | replace: ic_ph, ic_title -%}
+<div class="lang-buttons docs-fallback"><a class="lang-button docs-link" href="{{ docs }}" aria-label="{{ ic_view | escape }}" data-tooltip-placement="top" title="{{ ic_view | escape }}">{% icon "open-book", size: "1.25rem", label: nil, color: nil, class: nil %}<span>{{ "integrations.viewDocsLabel" | t }}</span></a></div>
+{%- endif -%}
+</div>
+{%- endif -%}
+{%- assign ic_ver_ph = "{" | append: "{version}" | append: "}" -%}
+{%- assign ic_version = "integrations.version" | t | replace: ic_ver_ph, pkg.version -%}
+{%- assign ic_link = "integrations.link" | t | replace: ic_ph, ic_title -%}
+<div class="footer"><div class="downloads">{% icon "download", size: "1.25rem", label: nil, color: nil, class: nil %}<span class="count">{{ ic_dl }}</span></div><div class="version">{{ ic_version | escape }}</div><div><a href="{{ pkg.href }}" target="_blank" rel="noopener noreferrer" class="link">{{ "integrations.package" | t }}{% icon "right-arrow", size: "1.25rem", label: nil, color: nil, class: nil %}<span class="sr-only">{{ ic_link | escape }}</span></a></div></div></div></article>

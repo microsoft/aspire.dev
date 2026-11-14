@@ -1,0 +1,20 @@
+---
+# The site's <YouTubeEmbed> (src/components/YouTubeEmbed.astro, youtubeEmbedUrl in stream-embeds.ts):
+#   {% youtube_embed "dQw4w9WgXcQ", title: "...", aspect_ratio: "16 / 9", autoplay: false, max_width: "100%" %}
+#   {% youtube_embed channel_id: "UC..." %}   {% youtube_embed playlist_id: "PL..." %}
+# One of video_id, channel_id or playlist_id is required. Root class: cid-you-tube-embed.
+display: block
+args: [video_id]
+params: [channel_id, playlist_id, title, aspect_ratio, autoplay, max_width]
+---
+{%- if autoplay -%}{%- assign yt_auto = "1" -%}{%- else -%}{%- assign yt_auto = "0" -%}{%- endif -%}
+{%- assign yt_query = "rel=0&modestbranding=1&playsinline=1&autoplay=" | append: yt_auto | append: "&mute=" | append: yt_auto -%}
+{%- if playlist_id -%}
+  {%- assign yt_path = "videoseries" -%}{%- assign yt_query = yt_query | append: "&list=" | append: playlist_id -%}
+{%- elsif channel_id -%}
+  {%- assign yt_path = "live_stream" -%}{%- assign yt_query = yt_query | append: "&channel=" | append: channel_id -%}
+{%- else -%}
+  {%- assign yt_path = video_id | url_encode -%}
+{%- endif -%}
+{%- assign yt_title = title | default: "" | strip -%}
+<div class="yt-embed not-content cid-you-tube-embed" style="--aspect-ratio: {{ aspect_ratio | default: '16 / 9' }}; --max-width: {{ max_width | default: '100%' }};"><iframe src="https://www.youtube-nocookie.com/embed/{{ yt_path }}?{{ yt_query }}" aria-label="{% if yt_title != '' %}{{ yt_title | escape }}{% else %}YouTube video player{% endif %}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen loading="lazy" data-stream-provider="youtube"></iframe></div>

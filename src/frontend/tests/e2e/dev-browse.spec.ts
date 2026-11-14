@@ -967,6 +967,8 @@ test('language icons show article coverage opposite the type badge in both theme
 });
 
 test('filters and cards remain accessible in both themes', async ({ page }) => {
+  // Several axe scans of the browse page (every resource is in its markup): about 15 s locally, near 60 s on CI runners.
+  test.slow();
   for (const theme of ['light', 'dark']) {
     await page.goto('/hub/browse/?type=sample');
     await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);

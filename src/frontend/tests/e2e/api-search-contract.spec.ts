@@ -13,17 +13,20 @@ const surfaces = [
   { path: 'typescript/aspire.hosting/idistributedapplicationbuilder/', prefix: 'type' },
 ];
 
+// The site navigates with full page loads: leaving and coming back with Back must restore the
+// search text and filters from the history entry (its URL), whether or not the page comes from the bfcache.
 async function navigateAwayAndBack(page: Page) {
+  const before = page.url();
   await page.evaluate(() => {
-    Reflect.set(window, '__apiSearchContractVisit', true);
     const link = document.createElement('a');
     link.href = '/reference/overview/';
     document.body.append(link);
     link.click();
   });
-  await expect(page).toHaveURL(/\/reference\/overview\/$/);
+  await page.waitForURL(/\/reference\/overview\/$/);
   await page.goBack();
-  await expect.poll(() => page.evaluate(() => Reflect.get(window, '__apiSearchContractVisit'))).toBe(true);
+  await page.waitForURL(before);
+  await page.waitForLoadState('load');
 }
 
 for (const { path, prefix } of surfaces) {
@@ -68,10 +71,7 @@ for (const { path, prefix } of surfaces) {
     }
   });
 
-  test(`API clear/reset contract: ${path}`, async ({ page, isMobile }) => {
-    if (isMobile) await page.addInitScript(() => {
-      Object.defineProperty(document, 'startViewTransition', { configurable: true, value: undefined });
-    });
+  test(`API clear/reset contract: ${path}`, async ({ page }) => {
     await page.goto(`/reference/api/${path}?keep=1&sort=name`);
     await dismissCookieConsentIfVisible(page);
     const input = page.locator(`#${prefix}-search-input`);

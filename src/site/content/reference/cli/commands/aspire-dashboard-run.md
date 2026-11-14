@@ -1,0 +1,107 @@
+---
+title: aspire dashboard run command
+description: Learn about the aspire dashboard run command and its usage. This command starts a standalone Aspire Dashboard instance.
+sidebar:
+  badge: Preview
+---
+
+## Name
+
+`aspire dashboard run` - Start the Aspire dashboard.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire dashboard run [options]
+```
+
+:::tip[Run without installing]{icon="node"}
+If your [Node.js](https://nodejs.org/) version meets the [`@microsoft/aspire-cli` npm package requirements](https://www.npmjs.com/package/@microsoft/aspire-cli), you can start the dashboard without installing the CLI by running it through [npx](https://docs.npmjs.com/cli/commands/npx):
+
+```bash title="Run dashboard with npx"
+npx -y @microsoft/aspire-cli dashboard run
+```
+:::
+
+## Description
+
+The `aspire dashboard run` command starts a standalone Aspire Dashboard instance. The dashboard receives OpenTelemetry data (logs, traces, and metrics) and provides a web-based UI for viewing telemetry.
+
+By default, the dashboard frontend is served at `http://localhost:18888`, the OTLP/gRPC endpoint listens on `http://localhost:4317`, and the OTLP/HTTP endpoint listens on `http://localhost:4318`. All endpoints can be customized using the options below.
+
+The dashboard is secured with a browser token by default. When the dashboard starts, a login URL with the token is displayed in the terminal. Use `--allow-anonymous` to disable authentication during local development. For more details, see [Dashboard security considerations](/dashboard/security-considerations/#anonymous-access).
+
+Any additional arguments not recognized by the CLI are forwarded directly to the dashboard process, allowing you to pass dashboard configuration settings (for example, `--Dashboard:TelemetryLimits:MaxLogCount=5000`).
+
+The CLI initially prepares the dashboard bundle without showing a status. If preparation is still in progress after 200 ms, it shows `Preparing dashboard bits...` until the bundle is ready. The CLI then launches the dashboard process and shows the separate `Starting dashboard...` status.
+
+To stop the dashboard, press <kbd>Ctrl+C</kbd> in the terminal where it's running. The CLI prints a single `Stopping dashboard.` message when shutdown is initiated.
+
+## Options
+
+The following options are available:
+
+- **`--frontend-url <url>`**
+  One or more HTTP endpoints through which the dashboard frontend is served. Default: `http://localhost:18888`.
+
+- **`--otlp-grpc-url <url>`**
+  The OTLP/gRPC endpoint. This endpoint hosts an OTLP service and receives telemetry using gRPC. Default: `http://localhost:4317`.
+
+- **`--otlp-http-url <url>`**
+  The OTLP/HTTP endpoint. This endpoint hosts an OTLP service and receives telemetry using Protobuf over HTTP. Default: `http://localhost:4318`.
+
+- **`--allow-anonymous`**
+  Allow anonymous access to the dashboard. When not specified, the dashboard is secured with a browser token for the frontend and an API key for the telemetry API.
+
+- **`--application-name <name>`**
+  The application name displayed in the dashboard and used to scope persisted dashboard data. To keep telemetry across restarts, use a stable name with `--persistence Resume`, which reopens that application's stored data. `--persistence Run` creates a new data directory for each run.
+
+- **`--persistence <None|Run|Resume>`**
+  The dashboard data persistence mode: `None`, `Run`, or `Resume`. For details about each mode, see [Aspire dashboard data persistence](/dashboard/data-persistence/).
+
+- **`--config-file-path <path>`**
+  The path for a JSON configuration file.
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Examples
+
+- Start the dashboard with default settings:
+  ```bash title="Aspire CLI"
+  aspire dashboard run
+  ```
+
+- Start the dashboard on a custom port:
+  ```bash title="Aspire CLI"
+  aspire dashboard run --frontend-url http://localhost:9000
+  ```
+
+- Start with custom OTLP endpoints:
+  ```bash title="Aspire CLI"
+  aspire dashboard run --otlp-grpc-url http://localhost:14317 --otlp-http-url http://localhost:14318
+  ```
+
+- Start with anonymous access (local development only):
+  ```bash title="Aspire CLI"
+  aspire dashboard run --allow-anonymous
+  ```
+
+- Start with a JSON configuration file:
+  ```bash title="Aspire CLI"
+  aspire dashboard run --config-file-path ./dashboard-config.json
+  ```
+
+- Persist telemetry across dashboard restarts for a named application:
+  ```bash title="Aspire CLI"
+  aspire dashboard run --application-name my-app --persistence Resume
+  ```
+
+## See also
+
+- [aspire dashboard command](../aspire-dashboard/)
+- [Dashboard configuration](/dashboard/configuration/)

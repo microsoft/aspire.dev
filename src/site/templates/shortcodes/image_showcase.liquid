@@ -1,0 +1,22 @@
+---
+# The site's <ImageShowcase> (src/components/ImageShowcase.astro):
+#   {% image_showcase title: "...", description: "...", image_alt: "...", image_position: "left",
+#      dark_image: "/assets/images/dashboard/x-dark.png", light_image: "/assets/images/dashboard/x-light.png",
+#      cta: { label: "...", href: "/x/" } %}
+#   or image: "/assets/images/x.png" for one image.
+# The images are plain <img> with the ThemeImage markup (`theme-image`, data-light/data-dark swapped by the theme
+# image client script) inside starlight-image-zoom's zoomable element, until Douze's image tag (3.8) gives them
+# width, height and WebP variants. Root class: cid-image-showcase.
+display: block
+params: [title, description, image_alt, image_position, image, light_image, dark_image, cta]
+---
+{%- capture is_zoom_button %}<button aria-label="Zoom image{% if image_alt and image_alt != '' %}: {{ image_alt }}{% endif %}" class="starlight-image-zoom-control"><svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><use href="#starlight-image-zoom-icon-zoom"></use></svg></button>{% endcapture -%}
+<section class="image-showcase not-content{% if image_position == 'left' %} reversed{% endif %} cid-image-showcase"><div class="showcase-text"><h3 class="showcase-title">{{ title | escape }}</h3><p class="showcase-desc">{{ description | escape }}</p>
+{%- if cta %}<a href="{{ cta.href }}" class="showcase-cta">{{ cta.label | escape }}{% icon "right-arrow", size: "0.85rem" %}</a>{% endif -%}
+</div><div class="showcase-image">
+{%- if light_image and dark_image -%}
+<starlight-image-zoom-zoomable><img class="theme-image cid-theme-image" src="{{ dark_image }}" alt="{{ image_alt | escape }}" data-light="{{ light_image }}" data-dark="{{ dark_image }}" decoding="async" loading="lazy">{{ is_zoom_button }}</starlight-image-zoom-zoomable>
+{%- elsif image -%}
+<starlight-image-zoom-zoomable><img src="{{ image }}" alt="{{ image_alt | escape }}" loading="lazy" decoding="async">{{ is_zoom_button }}</starlight-image-zoom-zoomable>
+{%- endif -%}
+</div></section>

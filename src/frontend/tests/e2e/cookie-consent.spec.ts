@@ -30,7 +30,6 @@ type WcpStubOptions = {
 
 type WcpStubState = {
   initCalls: number;
-  swaps: number;
   host: HTMLElement | null;
   consent: unknown;
   consentChanged: (() => void) | undefined;
@@ -95,13 +94,11 @@ async function installWcpStub(page: Page, options: WcpStubOptions): Promise<void
     const themes: Record<string, unknown> = { dark: {}, light: {}, 'high-contrast': {} };
     const state: WcpStubState = {
       initCalls: 0,
-      swaps: 0,
       host: null,
       consent: null,
       consentChanged: undefined,
     };
     window.__wcpStub = state;
-    document.addEventListener('astro:after-swap', () => state.swaps++);
     let preferences: HTMLElement;
 
     const siteConsent = {
@@ -254,22 +251,19 @@ async function waitForConsentBootstrap(page: Page): Promise<void> {
     .toBe(true);
 }
 
+// Douze navigates with full page loads, so every destination boots WCP and the bridge again.
 async function navigateWithConsent(page: Page, destination: 'videos' | 'home'): Promise<void> {
-  const swaps = await page.evaluate(() => {
-    if (!window.__wcpStub) throw new Error('WCP stub has not initialized');
-    return window.__wcpStub.swaps;
-  });
   const link =
     destination === 'videos'
       ? page.locator('.live-btn:visible').first()
       : page.locator('.header .site-title');
   if (destination === 'videos') await revealMobileSiteMenu(page);
   await link.click();
-  await expect(page).toHaveURL(
+  await page.waitForURL(
     destination === 'videos' ? /\/community\/videos\/$/ : /^https?:\/\/[^/]+\/$/
   );
-  // A page.goto or full reload would reset this counter, masking the regression.
-  await expect.poll(() => page.evaluate(() => window.__wcpStub?.swaps)).toBe(swaps + 1);
+  await page.waitForLoadState('load');
+  await waitForConsentBootstrap(page);
 }
 
 test.describe('WCP cookie consent bridge', () => {
@@ -310,7 +304,7 @@ test.describe('WCP cookie consent bridge', () => {
     expect(await page.evaluate(() => sessionStorage.getItem('wcp-test-choice'))).toBe('Reject');
   });
 
-  test('keeps an unanswered banner and its original callbacks usable across client navigation', async ({
+  test('keeps an unanswered banner and its original callbacks usable on every page load', async ({
     page,
   }) => {
     await installWcpStub(page, { consentRequired: true, analyticsGranted: false });
@@ -318,17 +312,6 @@ test.describe('WCP cookie consent bridge', () => {
     await waitForConsentBootstrap(page);
     const banner = page.getByRole('region', { name: 'Cookie consent', exact: true });
     await expect(banner).toBeVisible();
-    const originalHost = await page.locator('#wcp-cookie-banner').elementHandle();
-    const originalRuntime = await page.evaluateHandle(() => {
-      const w = window;
-      return {
-        consent: w.__aspireWcpSiteConsent,
-        bannerObserver: w.__aspireWcpBannerObserver,
-        themeObserver: w.__aspireWcpThemeObserver,
-        callback: w.__wcpStub?.consentChanged,
-      };
-    });
-
     for (const destination of ['videos', 'home', 'videos'] as const) {
       await navigateWithConsent(page, destination);
       await expect(banner).toBeVisible();
@@ -336,23 +319,8 @@ test.describe('WCP cookie consent bridge', () => {
       await expect(page.locator('style[data-wcp-test-base]')).toHaveCount(1);
       await expect(page.locator('#ms-consent-banner-theme-styles')).toHaveCount(1);
       await expect(banner).toHaveCSS('min-height', '96px');
-      expect(
-        await page
-          .locator('#wcp-cookie-banner')
-          .evaluate((host, original) => host === original, originalHost)
-      ).toBe(true);
-      expect(
-        await page.evaluate((original) => {
-          const w = window;
-          return (
-            w.__wcpStub?.initCalls === 1 &&
-            w.__aspireWcpSiteConsent === original.consent &&
-            w.__aspireWcpBannerObserver === original.bannerObserver &&
-            w.__aspireWcpThemeObserver === original.themeObserver &&
-            w.__wcpStub.consentChanged === original.callback
-          );
-        }, originalRuntime)
-      ).toBe(true);
+      // One WCP instance per document, still unanswered.
+      expect(await page.evaluate(() => window.__wcpStub?.initCalls)).toBe(1);
       await expect(page.locator('html')).not.toHaveAttribute('data-consent-not-required');
       await expect
         .poll(() =>
@@ -390,8 +358,6 @@ test.describe('WCP cookie consent bridge', () => {
     await page.locator(SCANNER_XPATH).click();
     const preferences = page.getByRole('dialog', { name: 'Cookie preferences', exact: true });
     await expect(preferences).toBeVisible();
-    await navigateWithConsent(page, 'home');
-    await expect(preferences).toBeVisible();
     await preferences.getByRole('button', { name: 'Close cookie preferences' }).click();
     await expect(preferences).toBeHidden();
     expect(
@@ -400,22 +366,36 @@ test.describe('WCP cookie consent bridge', () => {
       )
     ).toBe(1);
 
-    // Answer the persisted banner, not a replacement. Its original WCP callback
-    // must still run exactly once and trigger the application's reload path.
+    // A page load starts with the preferences closed and the scanner target working again.
+    await navigateWithConsent(page, 'home');
+    await expect(preferences).toBeHidden();
+    await page.locator(SCANNER_XPATH).click();
+    await expect(preferences).toBeVisible();
+    await preferences.getByRole('button', { name: 'Close cookie preferences' }).click();
+    await expect(preferences).toBeHidden();
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __wcpManageConsentCalls: number }).__wcpManageConsentCalls
+      )
+    ).toBe(1);
+    await expect(banner).toBeVisible();
+
+    // Answer the banner: its WCP callback must run exactly once and trigger the
+    // application's reload path, after which the banner stays answered.
     await banner.getByRole('button', { name: 'Reject all', exact: true }).click();
     await expect
       .poll(() =>
         safeEvaluate(page, () => ({
           choice: sessionStorage.getItem('wcp-test-choice'),
           changes: sessionStorage.getItem('wcp-test-changes'),
-          swaps: window.__wcpStub?.swaps,
         }))
       )
-      .toEqual({ choice: 'Reject all', changes: '1', swaps: 0 });
+      .toEqual({ choice: 'Reject all', changes: '1' });
     await waitForConsentBootstrap(page);
+    await expect(banner).toBeHidden();
   });
 
-  test('preserves the no-consent region state across client navigation', async ({ page }) => {
+  test('preserves the no-consent region state across page loads', async ({ page }) => {
     await installWcpStub(page, { consentRequired: false, analyticsGranted: false });
     await page.goto('/');
     await waitForConsentBootstrap(page);

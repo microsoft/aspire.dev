@@ -1,0 +1,189 @@
+---
+title: Bun integration
+seoTitle: Bun integration for Aspire AppHost
+description: Learn how to use the Aspire.Hosting.JavaScript Bun hosting APIs to orchestrate Bun applications alongside other resources in the Aspire app host.
+---
+
+{% image "/assets/images/icons/bun-icon.png", alt: "Bun logo", width: 100, height: 100, fit: "contain", class: "float-inline-left icon", zoomable: false %}
+
+The Aspire Bun hosting integration enables you to run [Bun](https://bun.sh/) applications alongside your other Aspire resources in the app host. Bun apps participate in the same service discovery, health checks, OpenTelemetry export, and Aspire dashboard support as the rest of your solution.
+
+:::caution[Community Toolkit package deprecated]
+The [📦 CommunityToolkit.Aspire.Hosting.Bun](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Bun) package is deprecated. Bun support has graduated to the official `Aspire.Hosting.JavaScript` package.
+:::
+
+## Hosting integration
+
+To access the Bun hosting APIs in your [`AppHost`](/get-started/app-host/) project, install the [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) NuGet package:
+
+{% install_package "Aspire.Hosting.JavaScript" %}
+
+### Migrate from the Community Toolkit package
+
+Remove `CommunityToolkit.Aspire.Hosting.Bun` and install `Aspire.Hosting.JavaScript`. The official API requires the app directory and script path separately:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Deprecated Toolkit API:
+// await builder.addBunApp('bun-api', {
+//   workingDirectory: '../bun-app',
+//   entryPoint: 'server.ts',
+// });
+
+// Official Aspire.Hosting.JavaScript API:
+await builder.addBunApp('bun-api', '../bun-app', 'server.ts');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Deprecated Toolkit API:
+// builder.AddBunApp(
+//     "bun-api",
+//     workingDirectory: "../bun-app",
+//     entryPoint: "server.ts");
+
+// Official Aspire.Hosting.JavaScript API:
+builder.AddBunApp("bun-api", "../bun-app", "server.ts");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The official package requires both paths. In TypeScript, replace the Toolkit options object with the official `appDirectory` and `scriptPath` arguments.
+
+### Add Bun app
+
+Add a Bun application to your AppHost using {% api "Aspire.Hosting.JavaScriptHostingExtensions.AddBunApp" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const bunApp = await builder.addBunApp('bun-api', '../bun-app', 'server.ts');
+await bunApp.withHttpEndpoint({ port: 3000, env: 'PORT' });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var bunApp = builder.AddBunApp("bun-api", "../bun-app", "server.ts")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(bunApp);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+`AddBunApp` requires:
+
+- **name**: The name of the resource in the Aspire dashboard.
+- **appDirectory**: The path to the directory containing your Bun application, relative to the AppHost project.
+- **scriptPath**: The script to run relative to `appDirectory`, such as `server.ts`.
+
+The resource is typed as `BunAppResource`.
+
+### Specify a custom entrypoint
+
+Pass a different `scriptPath` to run a different script:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const bunApp = await builder.addBunApp(
+  'bun-api',
+  '../bun-app',
+  'src/http/server.ts'
+);
+await bunApp.withHttpEndpoint({ port: 3000, env: 'PORT' });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var bunApp = builder.AddBunApp("bun-api", "../bun-app", "src/http/server.ts")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### Install packages before startup
+
+When your Bun app includes a `package.json` file, Aspire uses Bun as the package manager and installs packages automatically before the application starts.
+
+### Configure HTTP endpoints
+
+Bun applications typically read the port from an environment variable. Use {% api "Aspire.Hosting.ResourceBuilderExtensions.WithHttpEndpoint" %} to declare the HTTP endpoint and bind it to a named environment variable:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const bunApp = await builder.addBunApp('bun-api', '../bun-app', 'server.ts');
+await bunApp.withHttpEndpoint({ port: 3000, env: 'PORT' });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var bunApp = builder.AddBunApp("bun-api", "../bun-app", "server.ts")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+Your Bun application reads the `PORT` variable at startup:
+
+```typescript title="server.ts"
+const server = Bun.serve({
+  port: process.env.PORT || 3000,
+  fetch(request) {
+    return new Response('Hello from Bun!');
+  },
+});
+
+console.log(`Server listening on port ${server.port}`);
+```
+
+## See also
+
+- [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript)
+- [JavaScript hosting integration](/integrations/frameworks/javascript/)
+- [Bun documentation](https://bun.sh/docs)
+- [Aspire integrations overview](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)

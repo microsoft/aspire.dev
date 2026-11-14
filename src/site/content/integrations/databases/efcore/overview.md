@@ -1,0 +1,658 @@
+---
+title: Entity Framework Core integrations overview
+description: Learn how Aspire Entity Framework Core integrations simplify pooled DbContext registration, health checks, tracing, and connection resiliency for SQL Server, PostgreSQL, MySQL, Oracle, Cosmos DB, and MongoDB.
+props:
+  pivot_selector_options:
+    - id: sql-server-ef
+      title: SQL Server
+    - id: postgresql-ef
+      title: PostgreSQL
+    - id: oracle-ef
+      title: Oracle
+    - id: mysql-ef
+      title: Pomelo MySQL
+---
+
+{% image "/assets/images/icons/dotnet.svg", alt: ".NET / Entity Framework Core logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+[Entity Framework Core (EF Core)](https://learn.microsoft.com/ef/core) is Microsoft's modern, open-source object-relational mapper (O/RM) for .NET. Aspire provides EF Core client integrations for the most popular relational and document databases, making it straightforward to register a pooled `DbContext`, enable health checks and distributed tracing, and configure connection-retry resiliency — all from the consuming project's `Program.cs`. Because EF Core is a .NET library, all client-side registration code is C# only; the [AppHost](/get-started/app-host/) hosting integrations for the underlying databases support both C# and TypeScript.
+
+## Why use EF Core with Aspire
+
+Aspire's EF Core integrations build on standard EF Core patterns and extend them for cloud-native microservices:
+
+- **Centrally managed connections** — Database resources (containers or connection strings) are declared once in the `AppHost` project and forwarded as named references to any consuming service.
+- **Pooled `DbContext` by default** — `Add<DatabaseSystem>DbContext` registers a context pool automatically, reducing per-request allocation overhead.
+- **Built-in observability** — Health checks, OpenTelemetry distributed tracing, and connection-retry resiliency are enabled out of the box.
+- **Enrichment API** — When you need custom `AddDbContextPool` configuration, call `Enrich<DatabaseSystem>DbContext` afterwards to layer Aspire's defaults on top of your own setup.
+- **Migrations support** — Run EF Core schema migrations at startup or publish them as container images for deployment. See [Apply EF Core migrations in Aspire](/integrations/databases/efcore/migrations/).
+- **.NET-only client code** — EF Core runs inside consuming .NET services; all `DbContext` registration code is C#.
+
+## Supported EF Core integrations
+
+Each database has its own Aspire EF Core client integration package. Select an integration to get started:
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin: 2rem 0;">
+{% icon_link_card title: "Azure Cosmos DB", description: "Entity Framework Core integration for Azure Cosmos DB", icon: "/assets/images/icons/azure-cosmosdb-icon.png", href: "/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-get-started/" %}
+
+{% icon_link_card title: "Azure PostgreSQL", description: "Entity Framework Core integration for Azure Database for PostgreSQL", icon: "/assets/images/icons/azure-postgresql-icon.png", href: "/integrations/databases/efcore/azure-postgresql/azure-postgresql-get-started/" %}
+
+{% icon_link_card title: "Azure SQL", description: "Entity Framework Core integration for Azure SQL Database", icon: "/assets/images/icons/azure-sqlserver-icon.png", href: "/integrations/databases/efcore/azure-sql/azure-sql-get-started/" %}
+
+{% icon_link_card title: "MongoDB", description: "Entity Framework Core integration for MongoDB", icon: "/assets/images/icons/mongodb-icon.png", href: "/integrations/databases/efcore/mongodb/mongodb-efcore-get-started/" %}
+
+{% icon_link_card title: "MySQL (Pomelo)", description: "Pomelo Entity Framework Core integration for MySQL", icon: "/assets/images/icons/mysqlconnector-icon.png", href: "/integrations/databases/efcore/mysql/mysql-get-started/" %}
+
+{% icon_link_card title: "Oracle", description: "Entity Framework Core integration for Oracle Database", icon: "/assets/images/icons/oracle-o-icon.png", href: "/integrations/databases/efcore/oracle/oracle-get-started/" %}
+
+{% icon_link_card title: "PostgreSQL", description: "Entity Framework Core integration for PostgreSQL", icon: "/assets/images/icons/postgresql-icon.png", href: "/integrations/databases/efcore/postgres/postgresql-get-started/" %}
+
+{% icon_link_card title: "SQL Server", description: "Entity Framework Core integration for SQL Server", icon: "/assets/images/icons/sql-icon.png", href: "/integrations/databases/efcore/sql-server/sql-server-get-started/" %}
+</div>
+
+## Underlying database hosting integrations
+
+EF Core is a _client_ integration — it runs inside consuming .NET services, not in the AppHost. The AppHost uses separate _hosting_ integrations to model and launch the database container or cloud resource. The following hosting integrations pair with the EF Core client integrations listed above:
+
+| Database | Hosting integration |
+|---|---|
+| PostgreSQL | [PostgreSQL hosting](/integrations/databases/postgres/postgres-host/) |
+| SQL Server | [SQL Server hosting](/integrations/databases/sql-server/sql-server-host/) |
+| MySQL | [MySQL hosting](/integrations/databases/mysql/mysql-host/) |
+| MongoDB | [MongoDB hosting](/integrations/databases/mongodb/mongodb-host/) |
+| Oracle | [Oracle hosting](/integrations/databases/efcore/oracle/oracle-host/) |
+| Azure Cosmos DB | [Azure Cosmos DB hosting](/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-host/) |
+| Azure SQL | [Azure SQL hosting](/integrations/databases/efcore/azure-sql/azure-sql-host/) |
+
+:::caution
+In Aspire, EF Core is implemented by **client** integrations, not hosting integrations. The centralized management of the database in the AppHost doesn't involve EF Core, which runs in consuming microservice projects instead.
+:::
+
+## EF Core model fundamentals
+
+O/RMs create a model that maps to the schema and relationships defined in the database. In EF Core the model consists of:
+
+- A set of **entity classes**, each of which represents a table in the database.
+- A **context class** that represents the whole database and inherits from `Microsoft.EntityFrameworkCore.DbContext`.
+
+An entity class might look like this:
+
+```csharp title="SupportTicket.cs"
+using System.ComponentModel.DataAnnotations;
+
+namespace SupportDeskProject.Data;
+
+public sealed class SupportTicket
+{
+    public int Id { get; set; }
+    [Required]
+    public string Title { get; set; } = string.Empty;
+    [Required]
+    public string Description { get; set; } = string.Empty;
+}
+```
+
+This entity class represents a database table with three columns: **Id**, **Title**, and **Description**.
+
+A context class looks like this:
+
+```csharp title="TicketContext.cs"
+using Microsoft.EntityFrameworkCore;
+
+namespace SupportDeskProject.Data;
+
+public class TicketContext(DbContextOptions options) : DbContext(options)
+{
+    public DbSet<SupportTicket> Tickets => Set<SupportTicket>();
+}
+```
+
+This context represents a database with a single table of support tickets. An instance of the context is usually created for each unit of work in the database and disposed once that work is complete.
+
+:::note
+For more information about creating models in EF Core, see [Creating and Configuring a Model](https://learn.microsoft.com/ef/core/modeling/) in the EF Core documentation.
+:::
+
+Once you've created a model, you can use LINQ to query it:
+
+```csharp title="Querying data with EF Core"
+using (var db = new TicketContext())
+{
+    var tickets = await db.Tickets
+        .Where(t => t.Title == "Unable to log on")
+        .OrderBy(t => t.Description)
+        .ToListAsync();
+}
+```
+
+:::note
+EF Core also supports creating, modifying, and deleting records and complex queries. For more information, see [Querying Data](https://learn.microsoft.com/ef/core/querying/) and [Saving Data](https://learn.microsoft.com/ef/core/saving/).
+:::
+
+## How Aspire orchestrates EF Core
+
+{% image dark: "/assets/images/integrations/efcore/ef-core-aspire-architecture.svg", light: "/assets/images/integrations/efcore/ef-core-aspire-architecture-light.svg", alt: "A diagram showing how Aspire utilizes EF Core to interact with a database.", label: "EF Core in Aspire architecture overview" %}
+
+To use EF Core in your microservice with Aspire:
+
+1. **Define the EF Core model** with entity classes and a context class in your service project.
+1. **Register the context** using an Aspire `Add<DatabaseSystem>DbContext` extension method in `Program.cs`, passing the connection name used in the AppHost.
+1. **Inject and use the context** via constructor injection in your service classes, exactly as you would in any EF Core app.
+
+Both defining the EF Core model and querying the database are identical in Aspire projects to any other EF Core application. Only the _context registration_ step differs, which is where Aspire adds health checks, tracing, and resiliency.
+
+{% pivot_selector title: "Select a database to view database-specific examples", key: "efcore", options: props.pivot_selector_options %}
+
+## Use Aspire to create an EF Core context
+
+In EF Core, a [**context**](https://learn.microsoft.com/ef/core/dbcontext-configuration/) is a class used to interact with the database. Contexts inherit from the `Microsoft.EntityFrameworkCore.DbContext` class. They provide access to the database through properties of type `DbSet<T>`, where each `DbSet` represents a table or collection of entities in the database. The context also manages database connections, tracks changes to entities, and handles operations like saving data and executing queries.
+
+The Aspire EF Core client integrations each include extension methods named `Add<DatabaseSystem>DbContext`, where **`<DatabaseSystem>`** is the name identifying the database product you're using. For example, the SQL Server EF Core client integration exposes `AddSqlServerDbContext` and the PostgreSQL client integration exposes `AddNpgsqlDbContext`.
+
+These Aspire `Add*DbContext` methods:
+
+- Check that a context of the same type isn't already registered in the dependency injection (DI) container.
+- Resolve the connection string from the application configuration using the name you pass to the method. This name must match the resource name used in the AppHost project.
+- Apply any `DbContext` options you provide.
+- Register the specified `DbContext` in the DI container with context pooling enabled.
+- Apply the recommended defaults unless you've disabled them via the Aspire EF Core settings:
+  - Enable tracing.
+  - Enable health checks.
+  - Enable connection resiliency.
+
+Use these methods when you want a simple way to create a context and don't yet need advanced EF Core customization.
+
+{% pivot "sql-server-ef" %}
+```csharp title="Program.cs"
+builder.AddSqlServerDbContext<ExampleDbContext>(
+    connectionName: "database");
+```
+
+:::tip
+For more information about SQL Server hosting and client integrations, see [SQL Server Entity Framework Core integration](/integrations/databases/efcore/sql-server/sql-server-get-started/).
+:::
+{% endpivot %}
+{% pivot "postgresql-ef" %}
+```csharp title="Program.cs"
+builder.AddNpgsqlDbContext<ExampleDbContext>(
+    connectionName: "database");
+```
+
+:::tip
+For more information about PostgreSQL hosting and client integrations, see [PostgreSQL Entity Framework Core integration](/integrations/databases/efcore/postgres/postgresql-get-started/).
+:::
+{% endpivot %}
+{% pivot "oracle-ef" %}
+```csharp title="Program.cs"
+builder.AddOracleDatabaseDbContext<ExampleDbContext>(
+    connectionName: "database");
+```
+
+:::tip
+For more information about Oracle Database hosting and client integrations, see [Oracle Entity Framework Core integration](/integrations/databases/efcore/oracle/oracle-get-started/).
+:::
+{% endpivot %}
+{% pivot "mysql-ef" %}
+```csharp title="Program.cs"
+builder.AddMySqlDbContext<ExampleDbContext>(
+    connectionName: "database");
+```
+
+:::tip
+For more information about MySQL hosting and client integrations, see [Pomelo MySQL Entity Framework Core integration](/integrations/databases/efcore/mysql/mysql-get-started/).
+:::
+{% endpivot %}
+
+You obtain the `ExampleDbContext` object from the DI container in the same way as for any other service:
+
+```csharp title="ExampleService.cs"
+public class ExampleService(ExampleDbContext context)
+{
+    // Use context...
+}
+```
+
+## Use EF Core to add and enrich context
+
+Alternatively, you can add a context to the DI container using the standard EF Core `AddDbContextPool` method, as commonly used in non-Aspire projects:
+
+{% pivot "sql-server-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.");
+    options.UseSqlServer(connectionString);
+});
+```
+{% endpivot %}
+{% pivot "postgresql-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.");
+    options.UseNpgsql(connectionString);
+});
+```
+{% endpivot %}
+{% pivot "oracle-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.");
+    options.UseOracle(connectionString);
+});
+```
+{% endpivot %}
+{% pivot "mysql-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.");
+    options.UseMySql(connectionString);
+});
+```
+{% endpivot %}
+
+You have more flexibility when you create the context this way, for example:
+
+- You can reuse existing context configuration code without rewriting it for Aspire.
+- You can choose not to use EF Core context pooling. For more information, see [Use EF Core context pooling in Aspire](#use-ef-core-context-pooling-in-aspire).
+- You can use EF Core context factories or change the service lifetime. For more information, see [Use EF Core context factories in Aspire](#use-ef-core-context-factories-in-aspire).
+- You can use dynamic connection strings. For more information, see [Use EF Core with dynamic connection strings in Aspire](#use-ef-core-with-dynamic-connection-strings-in-aspire).
+- You can use [EF Core interceptors](https://learn.microsoft.com/ef/core/logging-events-diagnostics/interceptors) that depend on DI services. For more information, see [Use EF Core interceptors in Aspire](#use-ef-core-interceptors-with-aspire).
+
+By default, a context configured this way doesn't include Aspire features such as telemetry and health checks. To add those features, each Aspire EF Core client integration includes a method named `Enrich<DatabaseSystem>DbContext`. These enrich methods:
+
+- Apply an EF Core settings object, if you passed one.
+- Configure connection retry settings.
+- Apply the recommended defaults unless you've disabled them via the Aspire EF Core settings:
+  - Enable tracing.
+  - Enable health checks.
+  - Enable connection resiliency.
+
+:::note
+You must add a context to the DI container before you call an enrich method.
+:::
+
+{% pivot "sql-server-ef" %}
+```csharp title="Program.cs"
+builder.EnrichSqlServerDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "postgresql-ef" %}
+```csharp title="Program.cs"
+builder.EnrichNpgsqlDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "oracle-ef" %}
+```csharp title="Program.cs"
+builder.EnrichOracleDatabaseDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "mysql-ef" %}
+```csharp title="Program.cs"
+builder.EnrichMySqlDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+
+Obtain the context from the DI container using the same constructor-injection pattern:
+
+```csharp title="ExampleService.cs"
+public class ExampleService(ExampleDbContext context)
+{
+    // Use context...
+}
+```
+
+### Use EF Core interceptors with Aspire
+
+EF Core interceptors allow developers to hook into and modify database operations at various points during query and command execution. You can use them to log, modify, or suppress operations. Your interceptor must implement one or more interfaces from `Microsoft.EntityFrameworkCore.Diagnostics`.
+
+Interceptors that depend on DI services are not supported by the Aspire `Add<DatabaseSystem>DbContext` methods. Use the EF Core `AddDbContextPool` method and call `AddInterceptors` in the options builder:
+
+{% pivot "sql-server-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>((serviceProvider, options) =>
+    {
+        options.UseSqlServer(builder.Configuration.GetConnectionString("database"));
+        options.AddInterceptors(serviceProvider.GetRequiredService<ExampleInterceptor>());
+    });
+
+builder.EnrichSqlServerDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "postgresql-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>((serviceProvider, options) =>
+    {
+        options.UseNpgsql(builder.Configuration.GetConnectionString("database"));
+        options.AddInterceptors(serviceProvider.GetRequiredService<ExampleInterceptor>());
+    });
+
+builder.EnrichNpgsqlDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "oracle-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>((serviceProvider, options) =>
+    {
+        options.UseOracle(builder.Configuration.GetConnectionString("database"));
+        options.AddInterceptors(serviceProvider.GetRequiredService<ExampleInterceptor>());
+    });
+
+builder.EnrichOracleDatabaseDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "mysql-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>((serviceProvider, options) =>
+    {
+        options.UseMySql(builder.Configuration.GetConnectionString("database"));
+        options.AddInterceptors(serviceProvider.GetRequiredService<ExampleInterceptor>());
+    });
+
+builder.EnrichMySqlDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+
+:::note
+For more information about EF Core interceptors and their use, see [Interceptors](https://learn.microsoft.com/ef/core/logging-events-diagnostics/interceptors).
+:::
+
+### Use EF Core with dynamic connection strings in Aspire
+
+Most microservices always connect to the same database with the same credentials, so they always use the same connection string. However, you may need to change the connection string per request, for example:
+
+- Multi-tenant services that route to a different database per customer.
+- Services that authenticate with a different database user account per customer.
+
+For these requirements, formulate a **dynamic connection string** at runtime, then register the context manually and enrich it:
+
+{% pivot "sql-server-ef" %}
+```csharp title="Program.cs"
+var connectionStringTemplate = builder.Configuration.GetConnectionString("database")
+    ?? throw new InvalidOperationException("Connection string 'database' not found.");
+
+var connectionString = connectionStringTemplate.Replace("{DatabaseName}", "ContosoDatabase");
+
+builder.Services.AddDbContext<ExampleDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+builder.EnrichSqlServerDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "postgresql-ef" %}
+```csharp title="Program.cs"
+var connectionStringTemplate = builder.Configuration.GetConnectionString("database")
+    ?? throw new InvalidOperationException("Connection string 'database' not found.");
+
+var connectionString = connectionStringTemplate.Replace("{DatabaseName}", "ContosoDatabase");
+
+builder.Services.AddDbContext<ExampleDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+builder.EnrichNpgsqlDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "oracle-ef" %}
+```csharp title="Program.cs"
+var connectionStringTemplate = builder.Configuration.GetConnectionString("database")
+    ?? throw new InvalidOperationException("Connection string 'database' not found.");
+
+var connectionString = connectionStringTemplate.Replace("{DatabaseName}", "ContosoDatabase");
+
+builder.Services.AddDbContext<ExampleDbContext>(options =>
+    options.UseOracle(connectionString));
+
+builder.EnrichOracleDatabaseDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "mysql-ef" %}
+```csharp title="Program.cs"
+var connectionStringTemplate = builder.Configuration.GetConnectionString("database")
+    ?? throw new InvalidOperationException("Connection string 'database' not found.");
+
+var connectionString = connectionStringTemplate.Replace("{DatabaseName}", "ContosoDatabase");
+
+builder.Services.AddDbContext<ExampleDbContext>(options =>
+    options.UseMySql(connectionString));
+
+builder.EnrichMySqlDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+
+The preceding code replaces the `{DatabaseName}` placeholder in the connection string with `ContosoDatabase` at runtime before creating and enriching the context.
+
+### Use EF Core context factories in Aspire
+
+An EF Core context is designed for a single unit of work. In many ASP.NET Core applications, each HTTP request maps to one unit of work, so you can register a pooled context tied to the request lifetime using `AddDbContextPool` paired with `Enrich<DatabaseSystem>DbContext`.
+
+Other application types, such as ASP.NET Core Blazor, use a different dependency-injection scope and may need multiple units of work within a single request. In those cases, register a context factory using `AddPooledDbContextFactory`:
+
+{% pivot "sql-server-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddPooledDbContextFactory<ExampleDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+
+builder.EnrichSqlServerDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "postgresql-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddPooledDbContextFactory<ExampleDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+
+builder.EnrichNpgsqlDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "oracle-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddPooledDbContextFactory<ExampleDbContext>(options =>
+    options.UseOracle(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+
+builder.EnrichOracleDatabaseDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+{% pivot "mysql-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddPooledDbContextFactory<ExampleDbContext>(options =>
+    options.UseMySql(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+
+builder.EnrichMySqlDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+{% endpivot %}
+
+When you register a context factory, resolve an `IDbContextFactory<T>` from the DI container and create contexts from it explicitly:
+
+```csharp title="ExampleService.cs"
+public class ExampleService(IDbContextFactory<ExampleDbContext> contextFactory)
+{
+    using (var context = contextFactory.CreateDbContext())
+    {
+        // Use context...
+    }
+}
+```
+
+Contexts created from factories are not tied to an HTTP request lifetime and are not disposed automatically. Always dispose of them explicitly, as shown with the `using` block above.
+
+## Use EF Core context pooling in Aspire
+
+In EF Core, a context is relatively inexpensive to create, but if your microservice creates contexts at high frequency you may observe overhead. Context pooling mitigates this: when a context is disposed it is reset and returned to a pool, so the next request reuses it rather than creating a new one.
+
+In an Aspire consuming project, there are three ways to use context pooling:
+
+- **Use `Add<DatabaseSystem>DbContext`** — pools are created automatically by the Aspire method.
+- **Call `AddDbContextPool`** instead of `AddDbContext`:
+
+    {% pivot "sql-server-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+```
+{% endpivot %}
+    {% pivot "postgresql-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+```
+{% endpivot %}
+    {% pivot "oracle-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>(options =>
+    options.UseOracle(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+```
+{% endpivot %}
+    {% pivot "mysql-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddDbContextPool<ExampleDbContext>(options =>
+    options.UseMySql(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+```
+{% endpivot %}
+
+- **Call `AddPooledDbContextFactory`** instead of `AddDbContextFactory`:
+
+    {% pivot "sql-server-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddPooledDbContextFactory<ExampleDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+```
+{% endpivot %}
+    {% pivot "postgresql-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddPooledDbContextFactory<ExampleDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+```
+{% endpivot %}
+    {% pivot "oracle-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddPooledDbContextFactory<ExampleDbContext>(options =>
+    options.UseOracle(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+```
+{% endpivot %}
+    {% pivot "mysql-ef" %}
+```csharp title="Program.cs"
+builder.Services.AddPooledDbContextFactory<ExampleDbContext>(options =>
+    options.UseMySql(builder.Configuration.GetConnectionString("database")
+        ?? throw new InvalidOperationException("Connection string 'database' not found.")));
+```
+{% endpivot %}
+
+Remember to call the appropriate `Enrich<DatabaseSystem>DbContext` method after using the last two approaches, as described above.
+
+:::caution
+Only the base context state is reset when it's returned to the pool. If you've manually changed the state of the `DbConnection` or another service, you must also manually reset it. Additionally, context pooling prevents you from using `OnConfiguring` to configure the context. See [DbContext pooling](https://learn.microsoft.com/ef/core/performance/advanced-performance-topics#dbcontext-pooling) for more information.
+:::
+
+## See also
+
+- [Entity Framework Core documentation hub](https://learn.microsoft.com/ef/core)
+- [Apply Entity Framework Core migrations in Aspire](/integrations/databases/efcore/migrations/)
+- [Seed a database in Aspire](/integrations/databases/efcore/seed-database/)
+- [Get started with the SQL Server EF Core integration](/integrations/databases/efcore/sql-server/sql-server-get-started/)
+- [Get started with the PostgreSQL EF Core integration](/integrations/databases/efcore/postgres/postgresql-get-started/)
+- [Get started with the MySQL EF Core integration](/integrations/databases/efcore/mysql/mysql-get-started/)
+- [Get started with the Oracle EF Core integration](/integrations/databases/efcore/oracle/oracle-get-started/)
+- [Get started with the Azure Cosmos DB EF Core integration](/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-get-started/)
+- [PostgreSQL hosting integration](/integrations/databases/postgres/postgres-host/)
+- [SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/)
+- [MySQL hosting integration](/integrations/databases/mysql/mysql-host/)
+- [DbContext Lifetime, Configuration, and Initialization](https://learn.microsoft.com/ef/core/dbcontext-configuration/)
+- [Advanced Performance Topics](https://learn.microsoft.com/ef/core/performance/advanced-performance-topics)
+- [Entity Framework Core Interceptors](https://learn.microsoft.com/ef/core/logging-events-diagnostics/interceptors)
+

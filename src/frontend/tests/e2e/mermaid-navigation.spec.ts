@@ -18,13 +18,9 @@ async function expectCenteredDiagrams(page: Page): Promise<void> {
   }), { timeout: 15000 }).toBe(true);
 }
 
-async function navigateClient(page: Page, destination: string): Promise<void> {
+// The Douze site navigates with full page loads: follow a real anchor and wait for the destination document.
+async function navigate(page: Page, destination: string): Promise<void> {
   await page.evaluate((href) => {
-    Reflect.set(window, '__mermaidPageLoaded', false);
-    document.addEventListener('astro:page-load', () => {
-      Reflect.set(window, '__mermaidPageLoaded', true);
-    }, { once: true });
-    // Use a real anchor to exercise ClientRouter even on mobile's collapsed sidebar.
     const link = document.createElement('a');
     link.id = 'mermaid-navigation-link';
     link.href = href;
@@ -33,38 +29,25 @@ async function navigateClient(page: Page, destination: string): Promise<void> {
     document.body.append(link);
   }, destination);
   await page.locator('#mermaid-navigation-link').click();
-  await expect.poll(() => page.evaluate(() => Reflect.get(window, '__mermaidPageLoaded')), {
-    timeout: 30000,
-  }).toBe(true);
-  await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
-  expect(await page.evaluate(() => Reflect.get(window, '__mermaidSession'))).toBe(true);
+  await page.waitForURL((url) => url.pathname === destination, { timeout: 30000 });
+  await page.waitForLoadState('load');
 }
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`Mermaid stays centered and responsive after client navigation in ${theme} mode`, async ({
+  test(`Mermaid stays centered and responsive after navigation in ${theme} mode`, async ({
     page,
-    isMobile,
   }) => {
     test.setTimeout(120000);
-    if (isMobile) {
-      // Exercise ClientRouter's swap fallback, as in the API navigation suite.
-      await page.addInitScript(() => {
-        Object.defineProperty(document, 'startViewTransition', {
-          configurable: true,
-          value: undefined,
-        });
-      });
-    }
     await page.addInitScript((value) => localStorage.setItem('starlight-theme', value), theme);
     await page.goto('/get-started/app-host/');
     await dismissCookieConsentIfVisible(page);
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     await expectCenteredDiagrams(page);
-    await page.evaluate(() => Reflect.set(window, '__mermaidSession', true));
 
     for (let visit = 0; visit < 2; visit++) {
-      await navigateClient(page, '/docs/');
-      await navigateClient(page, '/get-started/app-host/');
+      await navigate(page, '/docs/');
+      await navigate(page, '/get-started/app-host/');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expectCenteredDiagrams(page);
     }
   });

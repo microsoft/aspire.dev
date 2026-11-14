@@ -1,0 +1,499 @@
+---
+title: Azure integrations overview
+description: Learn how to model, configure, and deploy Azure resources in Aspire applications using Azure hosting and client integrations.
+---
+
+{% image "/assets/images/icons/azure-icon.png", alt: "Azure logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+Aspire provides a comprehensive set of integrations for Azure services that enable you to build cloud-native distributed applications. These integrations handle configuration, health checks, telemetry, and deployment for various Azure services. Use the AppHost APIs to model Azure resources alongside your application services—Aspire provisions them automatically during local development and generates Bicep templates for production deployments. Both C# and TypeScript AppHosts are supported, with consistent API conventions across all Azure integrations.
+
+## Connect your app to Azure Blob Storage
+
+From your AppHost directory, run `aspire add azure-storage`. This example connects an existing `Api` project to blob storage backed by the local Azurite emulator. You need a [container runtime](/get-started/prerequisites/), but not an Azure subscription, to run this example.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage('storage');
+await storage.runAsEmulator();
+const blobs = await storage.addBlobs('blobs');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(blobs);
+await api.waitFor(blobs);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var blobs = builder.AddAzureStorage("storage")
+    .RunAsEmulator()
+    .AddBlobs("blobs");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(blobs)
+    .WaitFor(blobs);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The resource reference supplies connection information to your API, and the startup dependency waits for blob storage to be ready. Your app still uses a Blob Storage client to read and write data—you don't need to copy emulator endpoints or connection strings into its configuration. The emulator is only for local runs; publishing models an Azure Storage account.
+
+- [Connect to Azure Blob Storage](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-connect/) to add the consuming client.
+- [Configure the hosting integration](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-host/) for blob containers, persistent emulator data, and existing accounts.
+- [Deploy to Azure Container Apps](/deployment/azure/container-apps/) when you're ready to deploy your application and Azure resources.
+
+## Why use Azure with Aspire?
+
+- **Unified app model**: Define Azure services and application code side-by-side in a single AppHost project.
+- **Frictionless local development**: Aspire provisions real Azure resources (or emulators/containers) automatically when you run your app locally.
+- **Observability built in**: Azure client integrations wire up health checks, distributed tracing, and metrics out of the box.
+- **Bicep-first deployment**: Aspire generates Bicep templates from your app model, giving you full control over what's deployed to Azure.
+- **Consistent API patterns**: All Azure integrations share common `AddAzure*`, `RunAs*`, `PublishAs*`, and {% api "Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" %} conventions.
+
+## What are Azure integrations?
+
+Azure integrations in Aspire provide two main capabilities:
+
+{% steps %}
+1. **Hosting integrations**: Model Azure resources in your AppHost project, enabling local development and streamlined deployment.
+2. **Client integrations**: Configure .NET clients to connect to Azure services with proper defaults for observability and resilience.
+{% endsteps %}
+
+## Add Azure resources
+
+All Aspire Azure hosting integrations expose Azure resources and by convention are added using `AddAzure*` APIs. When you add these resources to your Aspire AppHost, they represent an Azure service. The `AddAzure*` API returns an `IResourceBuilder<T>` where `T` is the type of Azure resource. These `IResourceBuilder<T>` (builder) interfaces provide a fluent API that allows you to configure the underlying Azure resource within the [app model](/get-started/app-host/). There are APIs for adding new Azure resources, marking resources as existing, and configuring how the resources behave in various execution contexts.
+
+### Typical developer experience
+
+When your Aspire AppHost contains Azure resources, and you run it locally (typical developer {% kbd windows: "F5" %} or `dotnet run` experience), the [Azure resources are provisioned](/integrations/cloud/azure/local-provisioning/) in your Azure subscription. This allows you as the developer to debug against them locally in the context of your AppHost.
+
+Aspire aims to minimize costs by defaulting to _Basic_ or _Standard_ [Stock Keeping Unit (SKU)](https://learn.microsoft.com/partner-center/developer/product-resources#sku) for its Azure integrations. While these sensible defaults are provided, you can [customize the Azure resources](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization) to suit your needs. Additionally, some integrations support [emulators](#local-emulators) or [containers](#local-containers), which are useful for local development, testing, and debugging. By default, when you run your app locally, the Azure resources use the actual Azure service. However, you can configure them to use local emulators or containers, avoiding costs associated with the actual Azure service during local development.
+
+### Local emulators
+
+Some Azure services can be emulated to run locally. Currently, Aspire supports the following Azure emulators:
+
+| Hosting integration | Description |
+|--|--|
+| [Azure App Configuration](/integrations/cloud/azure/azure-app-configuration/azure-app-configuration-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureAppConfigurationResource>` to configure the Azure App Configuration resource to be [emulated with the Azure App Configuration Emulator](https://learn.microsoft.com/azure/azure-app-configuration/emulator-overview). |
+| [Azure Cosmos DB](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureCosmosDBResource>` to configure the Cosmos DB resource to be [emulated with the NoSQL API](https://learn.microsoft.com/azure/cosmos-db/how-to-develop-emulator). |
+| [Microsoft Foundry](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/) | Call {% api "Aspire.Hosting.FoundryExtensions.RunAsFoundryLocal" %} on the `IResourceBuilder<FoundryResource>` to configure the resource to be [emulated with Foundry Local](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started). |
+| [Azure Event Hubs](/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureEventHubsResource>` to configure the Event Hubs resource to be [emulated](https://learn.microsoft.com/azure/event-hubs/overview-emulator). |
+| [Azure Service Bus](/integrations/cloud/azure/azure-service-bus/azure-service-bus-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureServiceBusResource>` to configure the Service Bus resource to be [emulated with Service Bus emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator). |
+| [Azure SignalR Service](/integrations/cloud/azure/azure-signalr/azure-signalr-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureSignalRResource>` to configure the SignalR resource to be [emulated with Azure SignalR emulator](https://learn.microsoft.com/azure/azure-signalr/signalr-howto-emulator). |
+| [Azure Storage](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-get-started/) | Call `RunAsEmulator` on the `IResourceBuilder<AzureStorageResource>` to configure the Storage resource to be [emulated with Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite). |
+
+To have your Azure resources use the local emulators, chain a call the `RunAsEmulator` method on the Azure resource builder. This method configures the Azure resource to use the local emulator instead of the actual Azure service.
+
+:::caution
+Calling any of the available `RunAsEmulator` APIs on an Azure resource builder doesn't affect the [publishing manifest](/architecture/resource-publishing/). When you publish your app, [the generated Bicep file](/integrations/cloud/azure/customize-resources/) reflects the actual Azure service, not the local emulator.
+:::
+
+When you run an AppHost, Aspire adds an `azure-environment` resource to represent the Azure provisioning environment. If every Azure resource in the app model is configured with `RunAsEmulator` (so none require provisioning), Aspire hides the `azure-environment` resource from the dashboard, since it has no provisioning work to represent. Adding any Azure resource that requires provisioning—one that isn't running as an emulator—makes the `azure-environment` resource visible again.
+
+### Local containers
+
+Some Azure resources can be substituted locally using open-source or on-premises containers. To substitute an Azure resource locally in a container, chain a call to the `RunAsContainer` method on the Azure resource builder. This method configures the Azure resource to use a containerized version of the service for local development and testing, rather than the actual Azure service.
+
+Currently, Aspire supports the following Azure services as containers:
+
+| Hosting integration | Details |
+|--|--|
+| [Azure Cache for Redis](/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-get-started/) | Call `RunAsContainer` on the `IResourceBuilder<AzureRedisCacheResource>` to configure it to run locally in a container, based on the `docker.io/library/redis` image. |
+| [Azure PostgreSQL Flexible Server](/integrations/cloud/azure/azure-postgresql/azure-postgresql-get-started/) | Call `RunAsContainer` on the `IResourceBuilder<AzurePostgresFlexibleServerResource>` to configure it to run locally in a container, based on the `docker.io/library/postgres` image. |
+| [Azure SQL Server](/integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started/) | Call `RunAsContainer` on the `IResourceBuilder<AzureSqlServerResource>` to configure it to run locally in a container, based on the `mcr.microsoft.com/mssql/server` image. |
+
+:::note
+Like emulators, calling `RunAsContainer` on an Azure resource builder doesn't affect the [publishing manifest](/architecture/resource-publishing/). When you publish your app, the [generated Bicep file](/integrations/cloud/azure/customize-resources/) reflects the actual Azure service, not the local container.
+:::
+
+### Understand Azure integration APIs
+
+Aspire's strength lies in its ability to provide an amazing developer inner-loop. The Azure integrations are no different. They provide a set of common APIs and patterns that are shared across all Azure resources. These APIs and patterns are designed to make it easy to work with Azure resources in a consistent manner.
+
+In the preceding containers section, you saw how to run Azure services locally in containers. If you're familiar with Aspire, you might wonder how calling `AddAzureRedis("redis").RunAsContainer()` to get a local `docker.io/library/redis` container differs from `AddRedis("redis")`—as they both result in the same local container.
+
+The answer is that there's no difference when running locally. However, when they're published you get different resources:
+
+| API | Run mode | Publish mode |
+|--|--|--|
+| `AddAzureRedis("redis").RunAsContainer()` | Local Redis container | Azure Cache for Redis |
+| `AddRedis("redis")` | Local Redis container | Azure Container App with Redis image |
+
+The same is true for SQL and PostgreSQL services:
+
+| API | Run mode | Publish mode |
+|--|--|--|
+| `AddAzurePostgresFlexibleServer("postgres").RunAsContainer()` | Local PostgreSQL container | Azure PostgreSQL Flexible Server |
+| `AddPostgres("postgres")` | Local PostgreSQL container | Azure Container App with PostgreSQL image |
+| `AddAzureSqlServer("sql").RunAsContainer()` | Local SQL Server container | Azure SQL Server |
+| `AddSqlServer("sql")` | Local SQL Server container | Azure Container App with SQL Server image |
+
+For more information on the difference between run and publish modes, see [Aspire AppHost: Execution context](/get-started/app-host/).
+
+### APIs for expressing Azure resources in different modes
+
+The distributed application builder, part of the [AppHost](/get-started/app-host/), uses the builder pattern to `AddAzure*` resources to the [_app model_](/architecture/resource-model/). Developers can configure these resources and define their behavior in different execution contexts. Azure hosting integrations provide APIs to specify how these resources should be "published" and "run."
+
+When the AppHost executes, the [_execution context_](/get-started/app-host/) is used to determine whether the AppHost is in `Run` or `Publish` mode. The naming conventions for these APIs indicate the intended action for the resource.
+
+The following table summarizes the naming conventions used to express Azure resources:
+
+| Operation | API | Description |
+|--|--|--|
+| Publish | {% api "Aspire.Hosting.ParameterResourceBuilderExtensions.PublishAsConnectionString" %} _(obsolete)_ | Changes the resource to be published as a connection string reference in the manifest. Use {% api "Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" %} with the [execution context](/get-started/app-host/) instead. |
+| Publish | {% api "Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" %} | Uses an existing Azure resource when the application is deployed instead of creating a new one. |
+| Run | `RunAsContainer` | Configures an equivalent container to run locally. For more information, see [Local containers](#local-containers). |
+| Run | `RunAsEmulator` | Configures the Azure resource to be emulated. For more information, see [Local emulators](#local-emulators). |
+| Run | {% api "Aspire.Hosting.ExistingAzureResourceExtensions.RunAsExisting" %} | Uses an existing resource when the application is running instead of creating a new one. |
+| Publish and Run | `AsExisting` | Uses an existing resource regardless of the operation. |
+
+:::caution[PublishAsConnectionString is obsolete]
+`PublishAsConnectionString` is obsolete as of Aspire 9.5. It only changes the manifest representation and has no effect on other publishers. To add the Azure resource in run mode and represent it as a connection string in publish mode, use [`AddConnectionString`](/fundamentals/external-parameters/#connection-string-values) with the execution context:
+
+```csharp
+IResourceBuilder<IResourceWithConnectionString> resource = builder.ExecutionContext.IsPublishMode
+    ? builder.AddConnectionString("messaging")
+    : builder.AddAzureServiceBus("messaging");
+```
+
+:::
+
+:::note
+Not all APIs are available on all Azure resources. For example, some Azure resources can be containerized or emulated, while others can't.
+:::
+
+For more information on execution modes, see [Execution context](/get-started/app-host/).
+
+#### General run mode API use cases
+
+Use `RunAsExisting` when you need to dynamically interact with an existing resource during runtime without needing to deploy or update it. Use `PublishAsExisting` when declaring existing resources as part of a deployment configuration, ensuring the correct scopes and permissions are applied. Finally, use `AsExisting` when declaring existing resources in both configurations, with a requirement to parameterize the references.
+
+You can query whether a resource is marked as an existing resource, by calling the `IsExisting` extension method on the `IResource`. For more information, see [Use existing Azure resources](#use-existing-azure-resources).
+
+## Use existing Azure resources
+
+Aspire provides support for referencing existing Azure resources. You mark an existing resource through the `PublishAsExisting`, `RunAsExisting`, and `AsExisting` APIs. These APIs allow developers to reference already-deployed Azure resources, configure them, and generate appropriate deployment manifests using Bicep templates.
+
+
+:::caution
+When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` methods to work with resources that are already present in your Azure subscription, you must add certain configuration values to your AppHost to ensure that Aspire can locate them. The necessary configuration values include **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you don't set them, "Missing configuration" errors appear in the Aspire dashboard. For more information about how to set them, see [Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+:::
+
+Existing resources referenced with these APIs can be enhanced with [role assignments](/integrations/cloud/azure/role-assignments/) and other customizations that are available with Aspire's [infrastructure as code capabilities](/integrations/cloud/azure/customize-resources/). These APIs are limited to Azure resources that can be deployed with Bicep templates.
+
+### Configure existing Azure resources for run mode
+
+The `RunAsExisting` method is used when a distributed application is executing in "run" mode. In this mode, it assumes that the referenced Azure resource already exists and integrates with it during execution without provisioning the resource. To mark an Azure resource as existing, call the `RunAsExisting` method on the resource builder. Consider the following example:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingServiceBusName = await builder.addParameter("existingServiceBusName");
+const existingServiceBusResourceGroup = await builder.addParameter("existingServiceBusResourceGroup");
+
+const serviceBus = await builder.addAzureServiceBus("messaging");
+await serviceBus.runAsExisting(existingServiceBusName, existingServiceBusResourceGroup);
+
+await serviceBus.addServiceBusQueue("queue");
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder();
+
+var existingServiceBusName = builder.AddParameter("existingServiceBusName");
+var existingServiceBusResourceGroup = builder.AddParameter("existingServiceBusResourceGroup");
+
+var serviceBus = builder.AddAzureServiceBus("messaging")
+                        .RunAsExisting(existingServiceBusName, existingServiceBusResourceGroup);
+
+serviceBus.AddServiceBusQueue("queue");
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code:
+
+- Creates a new `builder` instance.
+- Adds a parameter named `existingServiceBusName` to the builder.
+- Adds an Azure Service Bus resource named `messaging` to the builder.
+- Calls the `RunAsExisting` method on the `serviceBus` resource builder, passing the `existingServiceBusName` parameter—alternatively, you can use the `string` parameter overload.
+- Adds a queue named `queue` to the `serviceBus` resource.
+
+By default, the Service Bus parameter reference is assumed to be in the same Azure resource group. However, if it's in a different resource group, you can pass the resource group explicitly as a parameter to correctly specify the appropriate resource grouping.
+
+### Configure existing Azure resources for publish mode
+
+The `PublishAsExisting` method is used in "publish" mode when the intent is to declare and reference an already-existing Azure resource during publish mode. This API facilitates the creation of manifests and templates that include resource definitions that map to existing resources in Bicep.
+
+To mark an Azure resource as existing in for the "publish" mode, call the `PublishAsExisting` method on the resource builder. Consider the following example:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingServiceBusName = await builder.addParameter("existingServiceBusName");
+const existingServiceBusResourceGroup = await builder.addParameter("existingServiceBusResourceGroup");
+
+const serviceBus = await builder.addAzureServiceBus("messaging");
+await serviceBus.publishAsExisting(existingServiceBusName, existingServiceBusResourceGroup);
+
+await serviceBus.addServiceBusQueue("queue");
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder();
+
+var existingServiceBusName = builder.AddParameter("existingServiceBusName");
+var existingServiceBusResourceGroup = builder.AddParameter("existingServiceBusResourceGroup");
+
+var serviceBus = builder.AddAzureServiceBus("messaging")
+                        .PublishAsExisting(existingServiceBusName, existingServiceBusResourceGroup);
+
+serviceBus.AddServiceBusQueue("queue");
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code:
+
+- Creates a new `builder` instance.
+- Adds a parameter named `existingServiceBusName` to the builder.
+- Adds an Azure Service Bus resource named `messaging` to the builder.
+- Calls the `PublishAsExisting` method on the `serviceBus` resource builder, passing the `existingServiceBusName` parameter—alternatively, you can use the `string` parameter overload.
+- Adds a queue named `queue` to the `serviceBus` resource.
+
+After the AppHost is executed in publish mode, the generated Bicep output will reference the existing Azure resource using the `existingServiceBusName` parameter. Consider the following generated Bicep template:
+
+```bicep
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param existingServiceBusName string
+
+param principalType string
+
+param principalId string
+
+resource messaging 'Microsoft.ServiceBus/namespaces@2024-01-01' existing = {
+  name: existingServiceBusName
+}
+
+resource messaging_AzureServiceBusDataOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(messaging.id, principalId, subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions', '090c5cfd-751d-490a-894a-3ce6f1109419'))
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId(
+        'Microsoft.Authorization/roleDefinitions', '090c5cfd-751d-490a-894a-3ce6f1109419')
+    principalType: principalType
+  }
+  scope: messaging
+}
+
+resource queue 'Microsoft.ServiceBus/namespaces/queues@2024-01-01' = {
+  name: 'queue'
+  parent: messaging
+}
+
+output serviceBusEndpoint string = messaging.properties.serviceBusEndpoint
+```
+
+For more information on the generated Bicep templates, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/) and [consider other publishing APIs](#publish-as-azure-container-app).
+
+:::caution
+When interacting with existing resources that require authentication, ensure the authentication strategy that you're configuring in the Aspire application model aligns with the authentication strategy allowed by the existing resource. For example, it's not possible to use managed identity against an existing Azure PostgreSQL resource that isn't configured to allow managed identity. Similarly, if an existing Azure Redis resource disabled access keys, it's not possible to use access key authentication.
+:::
+
+### Configure existing Azure resources in all modes
+
+The `AsExisting` method is used when the distributed application is running in "run" or "publish" mode. Because the `AsExisting` method operates in both scenarios, it only supports a parameterized reference to the resource name or resource group name. This approach helps prevent the use of the same resource in both testing and production environments.
+
+To mark an Azure resource as existing, call the `AsExisting` method on the resource builder. Consider the following example:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingServiceBusName = await builder.addParameter("existingServiceBusName");
+const existingServiceBusResourceGroup = await builder.addParameter("existingServiceBusResourceGroup");
+
+const serviceBus = await builder.addAzureServiceBus("messaging");
+await serviceBus.asExisting(existingServiceBusName, existingServiceBusResourceGroup);
+
+await serviceBus.addServiceBusQueue("queue");
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder();
+
+var existingServiceBusName = builder.AddParameter("existingServiceBusName");
+var existingServiceBusResourceGroup = builder.AddParameter("existingServiceBusResourceGroup");
+
+var serviceBus = builder.AddAzureServiceBus("messaging")
+    .AsExisting(existingServiceBusName, existingServiceBusResourceGroup);
+
+serviceBus.AddServiceBusQueue("queue");
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code:
+
+- Creates a new `builder` instance.
+- Adds a parameter named `existingServiceBusName` to the builder.
+- Adds an Azure Service Bus resource named `messaging` to the builder.
+- Calls the `AsExisting` method on the `serviceBus` resource builder, passing the `existingServiceBusName` parameter.
+- Adds a queue named `queue` to the `serviceBus` resource.
+
+## Add existing Azure resources with connection strings
+
+Aspire provides the ability to [connect to existing resources](/get-started/resources/), including Azure resources. Expressing connection strings is useful when you have existing Azure resources that you want to use in your Aspire app. The `AddConnectionString` API is used with the AppHost's [execution context](/get-started/app-host/) to conditionally add a connection string to the app model.
+
+:::note
+Connection strings are used to represent a wide range of connection information, including database connections, message brokers, endpoint URIs, and other services. In Aspire nomenclature, the term "connection string" is used to represent any kind of connection information.
+:::
+
+Consider the following example, where in _publish_ mode you add an Azure Storage resource while in _run_ mode you add a connection string to an existing Azure Storage:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = builder.executionContext.isPublishMode
+    ? await builder.addAzureStorage("storage")
+    : await builder.addConnectionString("storage");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(storage);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.ExecutionContext.IsPublishMode
+    ? builder.AddAzureStorage("storage")
+    : builder.AddConnectionString("storage");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(storage);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code:
+
+- Creates a new `builder` instance.
+- Adds an Azure Storage resource named `storage` in "publish" mode.
+- Adds a connection string to an existing Azure Storage named `storage` in "run" mode.
+- Adds a project named `api` to the builder.
+- The `api` project references the `storage` resource regardless of the mode.
+
+The consuming API project uses the connection string information with no knowledge of how the AppHost configured it. In "publish" mode, the code adds a new Azure Storage resource—which would be reflected in the [deployment manifest](/architecture/resource-publishing/) accordingly. When in "run" mode the connection string corresponds to a configuration value visible to the AppHost. It's assumed that all role assignments for the target resource are configured. This means, you'd likely configure an environment variable or a user secret to store the connection string. The configuration is resolved from the `ConnectionStrings__storage` (or `ConnectionStrings:storage`) configuration key. These configuration values can be viewed when the app runs. For more information, see [Resource details](/dashboard/explore/#resource-details).
+
+Unlike existing resources modeled with [the first-class `AsExisting` API](#use-existing-azure-resources), existing resource modeled as connection strings can't be enhanced with additional role assignments or infrastructure customizations.
+
+## Publish as Azure Container App
+
+Aspire deploys compute resources to [Azure Container Apps](https://learn.microsoft.com/azure/container-apps/overview) through an ACA environment. Supported resource types include:
+
+- `ContainerResource`: Represents a specified container.
+- `ExecutableResource`: Represents a specified executable process.
+- `ProjectResource`: Represents a specified .NET project.
+
+Add an ACA environment with {% api "Aspire.Hosting.AzureContainerAppExtensions.AddAzureContainerAppEnvironment" %} to target these resources to Azure Container Apps.
+
+Use the following APIs when you want to customize the generated Container App resource for a specific resource:
+
+- `PublishAsAzureContainerApp` for containers
+- `PublishAsAzureContainerApp` for executables
+- `PublishAsAzureContainerApp` for projects
+
+You don't need `PublishAsAzureContainerApp` for a standard ACA deployment. Use it only when you want to customize the generated Container App resource. As an example, consider the following code:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var env = builder.AddParameter("env");
+
+builder.AddAzureContainerAppEnvironment("aca-env");
+
+var api = builder.AddProject<Projects.AspireApi>("api")
+    .PublishAsAzureContainerApp<Projects.AspireApi>((infra, app) =>
+    {
+        app.Template.Containers[0].Value!.Env.Add(new ContainerAppEnvironmentVariable
+        {
+            Name = "Hello",
+            Value = env.AsProvisioningParameter(infra)
+        });
+    });
+```
+
+:::note
+The `PublishAsAzureContainerApp` customization callback uses strongly-typed Azure SDK types (`AzureResourceInfrastructure`, `ContainerApp`, `ContainerAppEnvironmentVariable`) that are only available in a C# AppHost. TypeScript AppHosts support standard ACA deployment but do not expose these strongly-typed Azure provisioning APIs directly.
+:::
+
+The preceding code:
+
+- Creates a new `builder` instance.
+- Adds a parameter named `env` to the builder.
+- Adds an ACA environment named `aca-env`.
+- Adds a project named `api` to the builder.
+- Calls the `PublishAsAzureContainerApp` method on the `api` resource builder to customize the generated Container App—where `infra` is the `AzureResourceInfrastructure` and `app` is the `ContainerApp`.
+  - Adds an environment variable named `Hello` to the container app, using the `env` parameter.
+  - The `AsProvisioningParameter` method is used to treat `env` as either a new `ProvisioningParameter` in infrastructure, or reuses an existing bicep parameter if one with the same name already exists.
+
+To configure the Azure Container App environment, see [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/). For information about publishing resources as Azure Container App Jobs, see [Azure Container App Jobs](/integrations/cloud/azure/container-app-jobs/). For more information, see [Azure.Provisioning.AppContainers.ContainerApp](https://learn.microsoft.com/dotnet/api/azure.provisioning.appcontainers.containerapp) and the `AsProvisioningParameter` API documentation.
+
+:::tip
+If you're working with Azure Container Apps, you might also be interested in the [Aspire Azure Container Registry integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/).
+:::
+
+## See also
+
+- [Azure Cosmos DB integration](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started/)
+- [Azure Service Bus integration](/integrations/cloud/azure/azure-service-bus/azure-service-bus-get-started/)
+- [Azure Storage Blobs integration](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-get-started/)
+- [Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started/)
+- [Azure Cache for Redis integration](/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-get-started/)
+- [Azure Event Hubs integration](/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-get-started/)
+- [Azure SQL Database integration](/integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started/)
+- [Azure PostgreSQL Flexible Server integration](/integrations/cloud/azure/azure-postgresql/azure-postgresql-get-started/)
+- [Azure OpenAI integration](/integrations/cloud/azure/azure-openai/azure-openai-get-started/)
+- [Azure App Configuration integration](/integrations/cloud/azure/azure-app-configuration/azure-app-configuration-get-started/)
+- [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
+- [Azure role assignments](/integrations/cloud/azure/role-assignments/)
+- [Aspire integrations overview](/integrations/overview/)
+- [Azure documentation](https://learn.microsoft.com/azure/)

@@ -1,0 +1,134 @@
+{%- comment -%}
+  renderTypeScriptItemMarkdown of src/frontend/src/utils/typescript-api-markdown.ts, without the final normalization
+  (␞ separated blocks for api/md/finalize). Inputs: doc (the module's api["ts-modules"] entry), item, itemKind
+  (handle, dto, enum, function), index (the item's index in its collection).
+  Differences: methods are sorted with sort_natural (case-insensitive ordinal) instead of localeCompare.
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign moduleName = doc.package.name -%}{%- assign moduleSlug = moduleName | downcase -%}
+{%- assign allItems = api.routes["typescript-items"] -%}
+{%- assign istart = allItems | find_index: "module", moduleName -%}
+{%- assign icount = doc.handleTypes.size | plus: doc.dtoTypes.size | plus: doc.enumTypes.size | plus: doc.functions.size -%}
+{%- assign items = allItems | slice: istart, icount | where: "module", moduleName -%}
+{%- if itemKind == "handle" -%}
+  {%- assign allMembers = api.routes["typescript-members"] -%}
+  {%- assign mstart = allMembers | find_index: "module", moduleName -%}
+  {%- assign methods = "" | split: "" -%}
+  {%- if mstart != nil and mstart >= 0 -%}
+    {%- assign mcount = 0 -%}{%- for handle in doc.handleTypes -%}{%- assign mcount = mcount | plus: handle.capabilities.size -%}{%- endfor -%}
+    {%- assign methods = allMembers | slice: mstart, mcount | where: "module", moduleName | where: "item", index | sort_natural: "name" -%}
+  {%- endif -%}
+  {%- assign getters = item.capabilities | where: "kind", "PropertyGetter" -%}
+  {%- assign setters = item.capabilities | where: "kind", "PropertySetter" -%}
+  {%- capture setterNames -%}{%- for setter in setters -%}␟{% assign sn = setter.name %}{% assign s3 = sn | slice: 0, 3 %}{% if s3 == "set" %}{{ sn | slice: 3, sn.size | downcase }}{% else %}{{ sn | downcase }}{% endif %}{%- endfor -%}␟{%- endcapture -%}
+  {%- capture getterNames -%}␟{%- for getter in getters -%}{{ getter.name | downcase }}␟{%- endfor -%}{%- endcapture -%}
+{%- endif -%}
+{%- case itemKind -%}
+  {%- when "handle" -%}{%- if item.isInterface -%}{%- assign kindLabel = "interface" -%}{%- else -%}{%- assign kindLabel = "handle" -%}{%- endif -%}
+  {%- when "dto" -%}{%- assign kindLabel = "type" -%}
+  {%- when "function" -%}{%- if item.expandedTargetTypes.size > 0 -%}{%- assign kindLabel = "method" -%}{%- else -%}{%- assign kindLabel = "function" -%}{%- endif -%}
+  {%- else -%}{%- assign kindLabel = "enum" -%}
+{%- endcase -%}
+# {{ item.name }}
+␞- Module: [{{ moduleName }}](/reference/api/typescript/{{ moduleSlug }}.md)
+{%- if doc.package.version -%}{{ nl }}- Version: `{{ doc.package.version }}`{%- endif -%}
+{{ nl }}- Kind: `{{ kindLabel }}`
+{%- if doc.package.sourceRepository -%}{{ nl }}- Source: [GitHub]({{ doc.package.sourceRepository }}{% if doc.package.sourceCommit %}/tree/{{ doc.package.sourceCommit }}{% endif %}){%- endif -%}
+␞{{ item.description }}
+␞## Definition{{ nl }}{{ nl }}
+{%- capture declaration -%}
+  {%- case itemKind -%}
+    {%- when "handle" -%}
+      {%- capture members -%}
+        {%- for getter in getters -%}
+          {%- assign key = getter.name | downcase | prepend: "␟" | append: "␟" -%}
+          ␞  {% unless setterNames contains key %}readonly {% endunless %}{{ getter.name }}: {{ getter.returnType | default: "unknown" }};
+        {%- endfor -%}
+        {%- for setter in setters -%}
+          {%- assign sn = setter.name -%}{%- assign s3 = sn | slice: 0, 3 -%}
+          {%- if s3 == "set" -%}{%- assign key = sn | slice: 3, sn.size | downcase -%}{%- else -%}{%- assign key = sn | downcase -%}{%- endif -%}
+          {%- assign key = key | prepend: "␟" | append: "␟" -%}
+          {%- unless getterNames contains key -%}
+            ␞  {{ setter.name }}(value: {{ setter.parameters[0].type | default: "unknown" }}): void;
+          {%- endunless -%}
+        {%- endfor -%}
+        {%- for entry in methods -%}
+          {%- assign method = item.capabilities[entry.capability] -%}
+          {%- capture raw -%}{{ method.name }}({% render 'api/md/ts-param-list', parameters: method.parameters %}): {{ method.returnType | default: "void" }};{%- endcapture -%}
+          {%- capture formatted -%}{%- render 'api/md/ts-signature', sig: raw -%}{%- endcapture -%}
+          ␞{%- assign lines = formatted | split: nl -%}{%- for line in lines -%}{%- unless forloop.first -%}{{ nl }}{%- endunless -%}{{ "  " }}{{ line }}{%- endfor -%}
+        {%- endfor -%}
+      {%- endcapture -%}
+      interface {{ item.name -}}
+      {%- assign interfaceCount = item.implementedInterfaces.size | default: 0 -%}
+      {%- if interfaceCount == 1 -%}{{ " " }}extends {% render 'api/md/ts-simplify', t: item.implementedInterfaces[0] %}
+      {%- elsif interfaceCount > 1 -%}{{ nl }}  extends {% for iface in item.implementedInterfaces -%}{%- unless forloop.first -%},{{ nl }}    {% endunless -%}{%- render 'api/md/ts-simplify', t: iface -%}{%- endfor -%}
+      {%- endif -%}
+      {%- if members != "" -%}{{ " {" }}{{ members | remove_first: "␞" | replace: "␞", nl | prepend: nl }}{{ nl }}{{ "}" }}{%- else -%}{{ " { }" }}{%- endif -%}
+    {%- when "dto" -%}
+      type {{ item.name }} = {% if item.fields.size > 0 %}{{ "{" }}{% for field in item.fields %}{{ nl }}  {{ field.name }}{% if field.isOptional %}?{% endif %}: {{ field.type | default: "unknown" }};{% endfor %}{{ nl }}{{ "}" }}{% else %}{{ "{ }" }}{% endif %}
+    {%- when "enum" -%}
+      enum {{ item.name }} {% if item.members.size > 0 %}{{ "{" }}{% for member in item.members %}{{ nl }}  {{ member }} = {{ forloop.index0 }},{% endfor %}{{ nl }}{{ "}" }}{% else %}{{ "{ }" }}{% endif %}
+    {%- else -%}
+      {%- capture memberSignature -%}{{ item.name }}({% render 'api/md/ts-param-list', parameters: item.parameters %}): {{ item.returnType | default: "void" }}{%- endcapture -%}
+      {%- capture formatted -%}{%- render 'api/md/ts-signature', sig: memberSignature -%}{%- endcapture -%}
+      {%- if item.expandedTargetTypes.size > 0 -%}
+        interface {% render 'api/md/ts-simplify', t: item.expandedTargetTypes[0] %} {{ "{" }}{{ nl }}  // ... omitted for brevity{{ nl }}  {{ formatted }}{{ nl }}{{ "}" }}
+      {%- else -%}
+        function {{ formatted }}
+      {%- endif -%}
+  {%- endcase -%}
+{%- endcapture -%}
+{%- render 'api/md/codeblock', code: declaration, lang: "typescript" -%}
+{%- case itemKind -%}
+  {%- when "handle" -%}
+    {%- if getters.size > 0 or setters.size > 0 -%}
+␞## Properties{{ nl }}
+      {%- for getter in getters -%}
+        {%- assign key = getter.name | downcase | prepend: "␟" | append: "␟" -%}
+        {{- nl }}- `{{ getter.name }}`: {% render 'api/md/ts-type-ref', typeRef: getter.returnType, items: items, moduleSlug: moduleSlug %} `{% if setterNames contains key %}get · set{% else %}get{% endif %}`{% if getter.description %} — {{ getter.description }}{% endif -%}
+      {%- endfor -%}
+      {%- for setter in setters -%}
+        {%- assign sn = setter.name -%}{%- assign s3 = sn | slice: 0, 3 -%}
+        {%- if s3 == "set" -%}{%- assign key = sn | slice: 3, sn.size | downcase -%}{%- else -%}{%- assign key = sn | downcase -%}{%- endif -%}
+        {%- assign key = key | prepend: "␟" | append: "␟" -%}
+        {%- unless getterNames contains key -%}
+          {%- assign valueType = setter.parameters[0].type | default: "unknown" -%}
+          {{- nl }}- `{{ setter.name }}`({% render 'api/md/ts-type-ref', typeRef: valueType, items: items, moduleSlug: moduleSlug %}) `set`{% if setter.description %} — {{ setter.description }}{% endif -%}
+        {%- endunless -%}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- if methods.size > 0 -%}
+␞## Methods{{ nl }}
+      {%- for entry in methods -%}
+        {%- assign method = item.capabilities[entry.capability] -%}
+        {%- capture block -%}{%- render 'api/md/codeblock', code: method.signature, lang: "typescript" -%}{%- endcapture -%}
+        {{- nl }}- [{{ method.name }}](/reference/api/typescript/{{ moduleSlug }}/{{ entry.itemSlug }}/{{ entry.slug }}.md) — `method`{% if method.description %} — {{ method.description }}{% endif %}{{ nl }}  {% assign lines = block | split: nl %}{% for line in lines %}{% unless forloop.first %}{{ nl }}{% endunless %}{% if line != "" %}  {{ line }}{% endif %}{% endfor -%}
+      {%- endfor -%}
+    {%- endif -%}
+  {%- when "dto" -%}
+    {%- if item.fields.size > 0 -%}
+␞## Fields{{ nl }}
+      {%- for field in item.fields -%}
+        {{- nl }}- `{{ field.name }}`: {% render 'api/md/ts-type-ref', typeRef: field.type, items: items, moduleSlug: moduleSlug %}{% if field.isOptional %} `optional`{% endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+  {%- when "enum" -%}
+    {%- if item.members.size > 0 -%}
+␞## Values{{ nl }}
+      {%- for member in item.members -%}{{ nl }}- `{{ member }}` = `{{ forloop.index0 }}`{%- endfor -%}
+    {%- endif -%}
+  {%- else -%}
+    {%- render 'api/md/ts-params', callable: item, items: items, moduleSlug: moduleSlug -%}
+    {%- if item.expandedTargetTypes.size > 0 -%}
+␞## Applies to{{ nl }}
+      {%- for targetType in item.expandedTargetTypes -%}
+        {%- capture simple -%}{%- render 'api/md/ts-simplify', t: targetType -%}{%- endcapture -%}
+        {%- assign candidates = items | where: "name", simple -%}
+        {%- assign target = nil -%}
+        {%- for candidate in candidates -%}{%- if candidate.itemKind != "function" -%}{%- assign target = candidate -%}{%- break -%}{%- endif -%}{%- endfor -%}
+        {{- nl }}- [{{ simple }}](/reference/api/typescript/{{ moduleSlug }}/{% if target %}{{ target.slug }}{% else %}{% render 'api/md/ts-slugify', name: simple %}{% endif %}.md)
+      {%- endfor -%}
+    {%- endif -%}
+{%- endcase -%}

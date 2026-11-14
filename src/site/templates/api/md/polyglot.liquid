@@ -1,0 +1,68 @@
+{%- comment -%}
+  collectPolyglotNotes of src/frontend/src/utils/csharp-api-markdown.ts, rendered as the `## ATS metadata` section
+  (mode "section") or as one line (mode "inline", for parameters). Inputs: attributes, context (type, member,
+  parameter), entity, pkg, mode.
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign exportAttr = nil -%}{%- assign dtoAttr = nil -%}{%- assign ignoreAttr = nil -%}{%- assign unionAttr = nil -%}
+{%- for attribute in attributes -%}
+  {%- assign short = attribute.name | split: "." | last | default: "" -%}
+  {%- assign suffix = short | slice: -9, 9 -%}
+  {%- if suffix == "Attribute" -%}{%- assign n = short.size | minus: 9 -%}{%- assign short = short | slice: 0, n -%}{%- endif -%}
+  {%- case short -%}
+    {%- when "AspireExport" -%}{%- if exportAttr == nil -%}{%- assign exportAttr = attribute -%}{%- endif -%}
+    {%- when "AspireDto" -%}{%- if dtoAttr == nil -%}{%- assign dtoAttr = attribute -%}{%- endif -%}
+    {%- when "AspireExportIgnore" -%}{%- if ignoreAttr == nil -%}{%- assign ignoreAttr = attribute -%}{%- endif -%}
+    {%- when "AspireUnion" -%}{%- if unionAttr == nil -%}{%- assign unionAttr = attribute -%}{%- endif -%}
+  {%- endcase -%}
+{%- endfor -%}
+{%- capture notes -%}
+  {%- if exportAttr -%}
+    {%- assign exportId = exportAttr.constructorArguments[0] -%}
+    {%- assign exportType = exportAttr.arguments.Type -%}
+    {%- capture lines -%}
+      {%- if context == "member" and exportId != nil and exportId != "" -%}␟Capability ID: `{% if pkg.package.name != "" %}{{ pkg.package.name }}/{% endif %}{{ exportId }}`{%- endif -%}
+      {%- assign typeContext = false -%}{%- if context == "type" and entity != "" and entity != nil -%}{%- assign typeContext = true -%}{%- endif -%}
+      {%- if typeContext and exportType == nil or typeContext and exportType == "" -%}␟Type ID: `{{ pkg.package.name }}/{{ entity }}`{%- endif -%}
+      {%- if exportType != nil and exportType != "" -%}␟Export target: {% render 'api/md/type-ref', raw: exportType, pkg: pkg %}{%- endif -%}
+      {%- if exportId == nil or exportId == "" -%}{%- if exportType == nil or exportType == "" -%}{%- unless typeContext -%}␟Available to Polyglot AppHosts through the Aspire Type System.{%- endunless -%}{%- endif -%}{%- endif -%}
+      {%- if exportAttr.arguments.MethodName != nil and exportAttr.arguments.MethodName != "" -%}␟Generated method name override: `{{ exportAttr.arguments.MethodName }}`{%- endif -%}
+      {%- if exportAttr.arguments.ExposeProperties == "True" -%}␟Public instance properties are exported as ATS capabilities.{%- endif -%}
+      {%- if exportAttr.arguments.ExposeMethods == "True" -%}␟Public instance methods are exported as ATS capabilities.{%- endif -%}
+      {%- if exportAttr.arguments.RunSyncOnBackgroundThread == "True" -%}␟Synchronous exports run on a background thread.{%- endif -%}
+    {%- endcapture -%}
+    {%- if lines != "" -%}␞ATS export{{ lines }}{%- endif -%}
+  {%- endif -%}
+  {%- if dtoAttr -%}
+    {%- assign dtoTypeId = dtoAttr.arguments.DtoTypeId -%}
+    ␞ATS DTO␟{%- if dtoTypeId != nil and dtoTypeId != "" -%}Serialized type identifier: `{{ dtoTypeId }}`{%- else -%}Serialized as a plain JSON object without a `$type` discriminator.{%- endif -%}
+  {%- endif -%}
+  {%- if ignoreAttr -%}
+    {%- assign reason = ignoreAttr.arguments.Reason -%}
+    ␞Ignored by ATS␟{%- if reason != nil and reason != "" -%}Reason: {{ reason }}{%- else -%}Excluded from automatic Polyglot export.{%- endif -%}
+  {%- endif -%}
+  {%- if unionAttr and unionAttr.constructorArguments.size > 0 -%}
+    ␞ATS union␟Accepted types: {% for typeName in unionAttr.constructorArguments -%}{%- unless forloop.first %} | {% endunless -%}{%- render 'api/md/type-ref', raw: typeName, pkg: pkg -%}{%- endfor -%}
+  {%- endif -%}
+{%- endcapture -%}
+{%- if notes != "" -%}
+  {%- assign noteList = notes | split: "␞" -%}
+  {%- if mode == "inline" -%}
+    {%- assign first = true -%}
+    {%- for note in noteList -%}{%- if note != "" -%}
+      {%- assign noteLines = note | split: "␟" -%}
+      {%- unless first -%}; {% endunless -%}{%- assign first = false -%}
+      {{- noteLines[0] }}: {% for line in noteLines offset: 1 -%}{%- unless forloop.first %} {% endunless -%}{{ line }}{%- endfor -%}
+    {%- endif -%}{%- endfor -%}
+  {%- else -%}
+## ATS metadata{{ nl }}{{ nl }}
+    {%- assign first = true -%}
+    {%- for note in noteList -%}{%- if note != "" -%}
+      {%- assign noteLines = note | split: "␟" -%}
+      {%- unless first -%}{{ nl }}{{ nl }}{%- endunless -%}{%- assign first = false -%}
+      ### {{ noteLines[0] }}{{ nl }}
+      {%- for line in noteLines offset: 1 -%}{{ nl }}- {{ line }}{%- endfor -%}
+    {%- endif -%}{%- endfor -%}
+  {%- endif -%}
+{%- endif -%}

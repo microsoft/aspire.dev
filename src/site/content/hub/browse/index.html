@@ -1,0 +1,83 @@
+---
+# The resource browser (src/frontend/src/pages/hub/browse/index.astro with ResourceBrowser.astro): every resource of
+# the catalog (templates/partials/hub/catalog.liquid) as a card, with the search, filters, sort and pagination that
+# scripts/client/resource-browser.ts drives; the readiness script stays inline, as in the Astro component.
+layout: hub
+localize: false   # English only, as on the Astro site (no locale copies)
+title: Browse resources
+description: Find Aspire guides, samples, and integrations by type, topic, and language.
+show_description: false
+pageActions: false
+pagefind: false
+# The catalog's sort keys and row separators (control characters: they sort before any character of a title), and
+# the printable ASCII characters whose position gives a character code (the grain hash of the cards).
+ca_tie: "\x03"
+ca_key_end: "\x01"
+ca_row_end: "\x02"
+ca_ascii: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+ca_bits: [128, 64, 32, 16, 8, 4, 2, 1]
+# Titles sort as localeCompare does for English (ICU): punctuation in this order, before digits and letters; titles
+# equal but for case put lowercase first (ca_upper: each uppercase letter becomes ca_upper_key in a second key).
+ca_punctuation: " _-,;:!?.'’\"()@*/\\&#%+"
+ca_punctuation_keys: "\x04\x05\x06\x07\x08\x0b\x0c\x0e\x0f\x10\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b"
+# Symbols (the emoji of the data, "|" separated) sort after punctuation, before digits and letters.
+ca_symbols: "💫|📺"
+ca_symbol_key: "\x1c"
+ca_upper: "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+ca_upper_key: "\x7f"
+---
+{%- comment -%} InpageSearch's scoped styles (the search field, chips and stats) are in the API components' stylesheet,
+which only the API layout links. {%- endcomment -%}
+<link rel="stylesheet" href="/assets/css/api-components.css">
+{%- assign ca_punctuation = ca_punctuation | split: "" -%}{%- assign ca_punctuation_keys = ca_punctuation_keys | split: "" -%}{%- assign ca_symbols = ca_symbols | split: "|" -%}{%- assign ca_upper = ca_upper | split: "" -%}
+{%- include "partials/hub/catalog" -%}
+{%- assign br_count = ca_rows.size -%}
+<resource-browser class="not-content cid-dev-center-resource-browser" data-filter-path="/hub/browse/"><script>
+    {
+      const browser = document.currentScript.parentElement;
+      // Run before the catalog can paint, without hiding links when JavaScript is disabled.
+      if (!browser.hasAttribute('data-ready')) {
+        const controller = new AbortController();
+        const { signal } = controller;
+        const materialize = (card) => {
+          card.querySelectorAll('template[data-resource-image]').forEach((source) => {
+            source.replaceWith(source.content);
+          });
+        };
+        browser.setAttribute('data-loading', '');
+        browser.setAttribute('aria-busy', 'true');
+        const finish = () => queueMicrotask(() => {
+          if (signal.aborted) return;
+          controller.abort();
+          if (!browser.isConnected || !browser.hasAttribute('data-loading')) return;
+          const note = browser.querySelector('[data-browse-static]');
+          note.textContent = 'Interactive browsing could not load. All resource links are listed below.';
+          note.hidden = false;
+          browser.querySelectorAll('[data-resource-entry]').forEach((card) => {
+            materialize(card);
+            card.hidden = false;
+          });
+          browser.removeAttribute('data-loading');
+          browser.removeAttribute('aria-busy');
+        });
+        window.addEventListener('load', finish, { once: true, signal });
+      }
+    }
+  </script><div class="browse-controls hub-grain"><form role="search" aria-label="Search resources" class="browse-search" hidden>
+{%- assign is_id = "browse" -%}{%- assign is_label = nil -%}{%- assign is_placeholder = "Search resources..." -%}{%- assign is_topics = ca_none -%}{%- capture is_stats %}{{ br_count }} resources{% endcapture -%}
+{%- include "partials/hub/inpage-search" -%}
+</form><div class="browse-filters" role="group" aria-label="Filter resources" hidden><div class="browse-filter-content">
+{%- comment -%} Type, topic and language filters: the values in use, in the order of the types, topics and languages. {%- endcomment -%}
+{%- capture bd_options -%}{%- for br_type in dev_hub.resource_types -%}{%- assign br_key = "|type:" | append: br_type.id | append: "|" -%}{%- if ca_facets contains br_key -%}{%- assign bo_name = "type" -%}{%- assign bo_id = br_type.id -%}{%- assign bo_label = br_type.label -%}{%- assign bo_color = nil -%}{%- include "partials/hub/browse-option" -%}{%- endif -%}{%- endfor -%}{%- endcapture -%}
+{%- if bd_options != "" -%}{%- assign bd_name = "type" -%}{%- assign bd_label = "Type" -%}{%- assign bd_multiple = true -%}{%- include "partials/hub/browse-dropdown" -%}{%- endif -%}
+{%- capture bd_options -%}{%- for br_topic in dev_hub.topics -%}{%- assign br_key = "|topic:" | append: br_topic.id | append: "|" -%}{%- if ca_facets contains br_key -%}{%- assign bo_name = "topic" -%}{%- assign bo_id = br_topic.id -%}{%- assign bo_label = br_topic.title -%}{%- assign bo_color = br_topic.color -%}{%- include "partials/hub/browse-option" -%}{%- endif -%}{%- endfor -%}{%- endcapture -%}
+{%- if bd_options != "" -%}{%- assign bd_name = "topic" -%}{%- assign bd_label = "Topic" -%}{%- assign bd_multiple = true -%}{%- include "partials/hub/browse-dropdown" -%}{%- endif -%}
+{%- capture br_languages -%}{%- assign br_parts = ca_facets | split: "|language:" -%}{%- for br_part in br_parts offset: 1 -%}{{ br_part | split: "|" | first | raw }}~{%- endfor -%}{%- endcapture -%}
+{%- assign br_languages = br_languages | split: "~" | where_exp: "br_l", "br_l != ''" | uniq | sort -%}
+{%- capture bd_options -%}{%- for tl_tag in br_languages -%}{%- assign tl_facet = true -%}{%- include "partials/hub/tag-label" -%}{%- assign bo_name = "language" -%}{%- assign bo_id = tl_tag -%}{%- assign bo_label = tl_label -%}{%- assign bo_color = nil -%}{%- include "partials/hub/browse-option" -%}{%- endfor -%}{%- assign tl_facet = false -%}{%- endcapture -%}
+{%- if bd_options != "" -%}{%- assign bd_name = "language" -%}{%- assign bd_label = "Language" -%}{%- assign bd_multiple = true -%}{%- include "partials/hub/browse-dropdown" -%}{%- endif -%}
+{%- capture bd_options -%}<div class="browse-sort-row" data-option-label="Date"><span class="browse-sort-label">Date<small data-sort-selection="date"></small></span><div class="browse-sort-choices" role="radiogroup" aria-label="Date order"><label class="browse-sort-choice" title="Oldest first"><input type="radio" name="sort-date" value="oldest" aria-label="Oldest first" data-sort-label="Oldest first"><span class="browse-sort-icon i-mdi:sort-calendar-ascending" aria-hidden="true"></span></label><label class="browse-sort-choice" title="Newest first"><input type="radio" name="sort-date" value="newest" aria-label="Newest first" data-sort-label="Newest first"><span class="browse-sort-icon i-mdi:sort-calendar-descending" aria-hidden="true"></span></label></div></div><div class="browse-sort-row" data-option-label="Title"><span class="browse-sort-label">Title<small data-sort-selection="title"></small></span><div class="browse-sort-choices" role="radiogroup" aria-label="Title order"><label class="browse-sort-choice" title="Title (A-Z)"><input type="radio" name="sort-title" value="asc" aria-label="Title (A-Z)" data-sort-label="A-Z"><span class="browse-sort-icon i-mdi:sort-alphabetical-ascending" aria-hidden="true"></span></label><label class="browse-sort-choice" title="Title (Z-A)"><input type="radio" name="sort-title" value="desc" aria-label="Title (Z-A)" data-sort-label="Z-A"><span class="browse-sort-icon i-mdi:sort-alphabetical-descending" aria-hidden="true"></span></label></div></div>{%- endcapture -%}
+{%- assign bd_name = "sort" -%}{%- assign bd_label = "Sort by" -%}{%- assign bd_multiple = false -%}{%- include "partials/hub/browse-dropdown" -%}
+</div></div></div><p data-browse-static>All resources are listed below. Enable JavaScript to search, filter, and sort them.</p><div class="browse-layout"><section class="browse-results" aria-labelledby="browse-results-heading"><div class="browse-results-toolbar"><h2 id="browse-results-heading" class="search-results-summary" tabindex="-1" data-results-summary>{{ br_count }} resources</h2><button type="button" class="search-action" data-reset-filters hidden>Clear filters</button><button type="button" class="search-action" data-reset-all hidden>Reset all</button></div><div class="browse-empty search-empty" hidden><div class="search-empty-content"><h3 class="search-empty-title">{% if br_count > 0 %}No matching resources{% else %}No resources available{% endif %}</h3><p class="search-empty-query" hidden></p><p class="search-empty-hint">{% if br_count > 0 %}Try a broader search or remove a filter.{% else %}Resources will appear here when they are available.{% endif %}</p><button type="button" class="search-action" data-reset-search{% if br_count == 0 %} hidden{% endif %}>Reset all</button></div></div><ul class="browse-grid">{% for br_row in ca_rows %}{{ br_row | split: ca_key_end | last | raw }}{% endfor %}</ul><nav class="browse-pagination" aria-label="Resource pages" hidden><span class="sr-only" data-page-label></span><button type="button" class="browse-page-edge" data-page-first aria-label="First page" title="First page"><span class="i-mdi:page-first" aria-hidden="true"></span></button><button type="button" class="browse-page-direction" data-page-previous aria-label="Previous">{% icon "left-arrow", size: "1rem", class: nil, label: nil, color: nil %}<span>Previous</span></button><div class="browse-page-numbers" data-page-numbers></div><button type="button" class="browse-page-direction" data-page-next aria-label="Next"><span>Next</span>{% icon "right-arrow", size: "1rem", class: nil, label: nil, color: nil %}</button><button type="button" class="browse-page-edge" data-page-last aria-label="Last page" title="Last page"><span class="i-mdi:page-last" aria-hidden="true"></span></button></nav></section></div><div class="browse-loading"><div class="browse-layout"><div class="browse-results-toolbar"><p role="status">Loading resources...</p></div><ul class="browse-loading-grid" aria-hidden="true">{% for br_i in (1..24) %}<li class="browse-skeleton"><div class="browse-skeleton-image"></div><div class="browse-skeleton-copy"><span></span><span></span><span></span></div></li>{% endfor %}</ul></div></div></resource-browser>
+{%- comment -%} async: module scripts otherwise run in document order, so site.js (the header, the chrome) would wait for this one. {%- endcomment -%}
+<script type="module" async src="/assets/js/ResourceBrowser.js"></script>

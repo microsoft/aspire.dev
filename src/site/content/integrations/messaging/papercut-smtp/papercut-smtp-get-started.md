@@ -1,0 +1,60 @@
+---
+title: Get started with Papercut SMTP integration
+description: Add Papercut SMTP to an Aspire AppHost to capture application email locally, inspect messages in its web console, and configure SMTP ports.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+{% image light: "/assets/images/icons/papercut-light-icon.png", dark: "/assets/images/icons/papercut-icon.png", alt: "Papercut SMTP logo", width: 100, height: 100 %}
+
+[Papercut SMTP](https://github.com/ChangemakerStudios/Papercut-SMTP) captures email sent by an application and provides a web console for inspecting messages. Use the Community Toolkit integration to run it alongside your app during development and testing.
+
+## Prerequisites
+
+- An Aspire AppHost project
+- An application that can send mail through an SMTP server
+
+## Add Papercut SMTP to your AppHost
+
+Install the [📦 CommunityToolkit.Aspire.Hosting.PapercutSmtp](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.PapercutSmtp) package in the AppHost:
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.PapercutSmtp
+```
+
+Add the resource and reference it from the application that sends email. See [Set up Papercut SMTP in the AppHost](../papercut-smtp-host/) for port configuration and connection details.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const papercut = await builder.addPapercutSmtp('papercut');
+const mailer = await builder.addProject('mailer', '../Mailer/Mailer.csproj');
+await mailer.withReference(papercut);
+await mailer.waitFor(papercut);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var papercut = builder.AddPapercutSmtp("papercut");
+
+builder.AddProject<Projects.Mailer>("mailer")
+    .WithReference(papercut)
+    .WaitFor(papercut);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## See also
+
+- [Set up Papercut SMTP in the AppHost](../papercut-smtp-host/)
+- [Papercut SMTP project](https://github.com/ChangemakerStudios/Papercut-SMTP)
+- [CommunityToolkit.Aspire.Hosting.PapercutSmtp source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.PapercutSmtp)

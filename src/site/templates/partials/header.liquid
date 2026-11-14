@@ -1,0 +1,32 @@
+{%- comment -%}
+  The site's Header override (src/frontend/src/components/starlight/Header.astro): site title and environment badge,
+  search, the icon buttons (install CLI, live streams, resources hub, cookies, site tour), the Docs and Try Aspire
+  links, then the install CLI modal and the live picture-in-picture menu. The header height script and the live
+  status are in scripts/client/header.ts and live-pip.ts.
+  `site.environment_badge` replaces PUBLIC_ENVIRONMENT_BADGE ('localhost' in astro dev), `site.site_tour`
+  PUBLIC_ENABLE_SITE_TOUR. Reads base.liquid's sl_prefix, sl_url. Root class: cid-starlight-header.
+{%- endcomment -%}
+{%- assign hd_try_label = "home.hero.tryAspire" | t -%}
+<div class="header cid-starlight-header">
+<div class="title-wrapper sl-flex{% if site.environment_badge and site.environment_badge != "" %} has-environment-badge{% endif %}">
+{% include "partials/site-title" %}
+{%- if site.environment_badge and site.environment_badge != "" %}<span class="sl-badge tip small cid-sl-badge" title="{{ site.environment_badge }}">{{ site.environment_badge }}</span>{% endif %}
+</div>
+<div class="sl-flex print:hidden" data-tour-target="search" data-tour-step="search">
+{% include "partials/search" %}
+</div>
+<div class="sl-hidden md:sl-flex print:hidden right-group">
+<button class="header-icon-btn install-cli-btn" data-open-install-modal data-tour-target="install-cli" data-tour-step="install-cli" aria-label="Open install Aspire CLI dialog"><span class="sr-only">Install Aspire CLI</span>{% icon "download" %}</button>
+<a href="/community/videos/" class="header-icon-btn live-btn" data-live="false" data-source="none" data-tour-target="live-status" aria-label="Watch Aspire live streams"{% if sl_url == "/community/videos/" %} aria-current="page"{% endif %}><span class="sr-only">Watch Aspire live streams</span>{% include "partials/svg/live" %}<span class="live-dot" aria-hidden="true"></span></a>
+<a href="/hub/" class="header-icon-btn dev-center-btn" aria-label="Aspire resources" title="Aspire resources"{% if sl_url contains "/hub/" %} aria-current="page"{% endif %}>{% include "partials/svg/dev-hub" %}</a>
+<button type="button" class="header-icon-btn cookie-consent-btn" data-cookie-manage-consent data-tour-target="cookie-preferences" data-tour-step="cookie-preferences" aria-label="Open cookie preferences dialog"><span class="sr-only">Cookie Preferences</span>{% include "partials/svg/cookies" %}</button>
+{%- if site.site_tour %}
+<button type="button" class="header-icon-btn tour-help-btn" data-tour-trigger data-tour-target="tour-help" data-tour-step="tour-help" aria-label="Start site tour"><span class="sr-only">Start site tour</span>{% include "partials/svg/site-nav-help" %}</button>
+{%- endif %}
+<a href="{{ sl_prefix }}/docs/" class="docs-btn">{{ "header.docs" | t }}</a>
+<a href="{{ sl_prefix }}/get-started/first-app/" class="try-aspire-btn">{{ hd_try_label }}</a>
+</div>
+<div class="sl-flex md:sl-hidden print:hidden right-group-mobile"><a href="{{ sl_prefix }}/get-started/first-app/" class="try-aspire-btn-mobile" aria-label="{{ hd_try_label }}">{{ "header.try" | t }}</a></div>
+</div>
+{% include "partials/install-cli-modal" %}
+{% include "partials/live-pip" %}
