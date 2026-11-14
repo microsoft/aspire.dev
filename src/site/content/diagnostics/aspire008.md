@@ -1,0 +1,62 @@
+---
+title: Compiler Error ASPIRE008
+seoTitle: "ASPIRE008: The project requires GenerateAssemblyInfo to be"
+description: Learn what causes the Aspire compiler error ASPIRE008 — the project requires GenerateAssemblyInfo to be enabled for the AppHost to function correctly.
+---
+
+{% badge "Version introduced: 9.2.0", variant: "note", size: "large", class: "mb-1" %}
+
+> '[ProjectName]' project requires GenerateAssemblyInfo to be enabled. The Aspire AppHost relies on assembly metadata attributes to locate required dependencies.
+
+This error appears when an Aspire AppHost project has `GenerateAssemblyInfo` set to `false`. The Aspire AppHost relies on `AssemblyMetadataAttribute` to embed DCP (Developer Control Plane) and Dashboard paths during compilation. When `GenerateAssemblyInfo` is disabled, these attributes aren't generated, causing runtime failures about missing orchestration dependencies.
+
+## Example
+
+The following AppHost project file has `GenerateAssemblyInfo` disabled, which causes `ASPIRE008`:
+
+```xml title="C# project file"
+<Project Sdk="Aspire.AppHost.Sdk/%ASPIRE_VERSION%">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>98048c9c-bf28-46ba-a98e-63767ee5e3a8</UserSecretsId>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+</Project>
+```
+
+## To correct this error
+
+Remove the `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>` line from your project file, or set it to `true`:
+
+```xml title="C# project file"
+<Project Sdk="Aspire.AppHost.Sdk/%ASPIRE_VERSION%">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>98048c9c-bf28-46ba-a98e-63767ee5e3a8</UserSecretsId>
+  </PropertyGroup>
+
+</Project>
+```
+
+## Suppress the error
+
+:::danger
+Suppressing this error isn't recommended, as it will cause runtime failures when the AppHost attempts to locate orchestration dependencies.
+:::
+
+If you must temporarily suppress this error, add the following property to your project file:
+
+```xml title="C# project file"
+<PropertyGroup>
+  <NoWarn>$(NoWarn);ASPIRE008</NoWarn>
+</PropertyGroup>
+```

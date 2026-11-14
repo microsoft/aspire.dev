@@ -1,0 +1,25 @@
+---
+# The site's <SessionGrid> (src/components/SessionGrid.astro): {% session_grid sessions: aspireconf_sessions %}.
+# `sessions`: a list of session_card sessions (data/aspireconf_sessions.json). Sessions are grouped by timeslot, in the
+# order of their first appearance, as collapsible groups (open unless every abstract is empty or TBD); sessions
+# without a timeslot follow in a plain list. The search box, the time zone and clock toggles are wired by
+# scripts/client/content/session-grid.ts. Root class: cid-session-grid.
+display: block
+params: [sessions]
+---
+{%- assign sg_times = sessions | map: "timeslot" | compact | uniq -%}
+{%- assign sg_index = 0 -%}
+<div class="session-controls not-content cid-session-grid" data-count-template="{{ "catalogSearch.sessionsCount" | t | escape }}"><div class="controls-row"><div class="search-wrapper search-field search-field-wrap"><svg class="search-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg><input type="search" name="session-search" spellcheck="false" class="session-search search-field-input" placeholder="{{ "catalogSearch.sessionsPlaceholder" | t | escape }}" aria-label="{{ "catalogSearch.sessionsLabel" | t | escape }}" autocomplete="off"><button type="button" class="clear-search search-field-clear" aria-label="{{ "catalogSearch.clearSearch" | t | escape }}" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"></path></svg></button></div><div class="filter-toggles"><button class="tz-toggle" aria-label="Toggle timezone display" title="Toggle timezone display" data-tooltip-placement="top"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg><span class="tz-label">Show local time</span></button><button class="clock-toggle" aria-label="Toggle 12/24 hour format" title="Toggle 12/24 hour format" data-tooltip-placement="top"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span class="clock-label">24h</span></button></div></div><div class="active-filters"><span class="filter-summary search-results-summary" role="status" aria-live="polite" aria-atomic="true"></span></div><div class="no-results-msg search-empty" data-query-label="{{ "catalogSearch.query" | t | escape }}" hidden><div class="search-empty-content"><p class="search-empty-title">{% if sessions.size > 0 %}{{ "catalogSearch.sessionsEmpty" | t }}{% else %}{{ "catalogSearch.sessionsUnavailable" | t }}{% endif %}</p><p class="search-empty-query" hidden></p>{% if sessions.size > 0 %}<p class="search-empty-hint">{{ "catalogSearch.queryGuidance" | t }}</p><button type="button" class="search-action" data-session-recover>{{ "catalogSearch.clearSearch" | t }}</button>{% endif %}</div></div></div>
+<div class="session-timeline not-content cid-session-grid">
+{%- for sg_time in sg_times -%}
+{%- assign sg_group = sessions | where: "timeslot", sg_time -%}
+{%- assign sg_open = false -%}
+{%- for s in sg_group -%}{%- if s.abstract and s.abstract != "" and s.abstract != "TBD" -%}{%- assign sg_open = true -%}{%- endif -%}{%- endfor -%}
+<details class="time-group"{% if sg_open %} open{% endif %}><summary class="time-marker"><div class="time-dot" aria-hidden="true"></div><span class="time-label" data-original-time="{{ sg_time | escape }}">{{ sg_time | escape }}</span><svg class="collapse-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg><span class="collapsed-info">{{ sg_group.size }} {% if sg_group.size == 1 %}session{% else %}sessions{% endif %}</span></summary><div class="session-list-wrapper"><ul class="session-list{% if sg_group.size == 1 %} single-session{% endif %}">
+{%- for s in sg_group -%}{% session_card s, index: sg_index %}{%- assign sg_index = sg_index | plus: 1 -%}{%- endfor -%}
+</ul></div></details>
+{%- endfor -%}
+{%- assign sg_untimed = 0 -%}
+{%- for s in sessions -%}{%- unless s.timeslot -%}{%- assign sg_untimed = sg_untimed | plus: 1 -%}{%- endunless -%}{%- endfor -%}
+{%- if sg_untimed > 0 -%}<ul class="session-list no-timeline">{%- for s in sessions -%}{%- unless s.timeslot -%}{% session_card s, index: sg_index %}{%- assign sg_index = sg_index | plus: 1 -%}{%- endunless -%}{%- endfor -%}</ul>{%- endif -%}
+</div>

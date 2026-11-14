@@ -1,0 +1,136 @@
+---
+title: Connect Aspire apps to Data API Builder
+description: Resolve Data API Builder through Aspire service discovery and call its REST or GraphQL endpoints from C#, TypeScript, Python, and Go.
+next: false
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+{% image "/assets/images/icons/data-api-builder-icon.png", alt: "Data API Builder logo", width: 100, height: 100, fit: "contain", class: "float-inline-left icon", zoomable: false %}
+
+This page describes how consuming apps connect to a Data API Builder resource. For configuration files, database references, image settings, and health checks, see [Set up Data API Builder in the AppHost](../dab-host/).
+
+DAB has no dedicated Community Toolkit client package. It exposes standard REST and GraphQL endpoints, so use the HTTP or GraphQL client for your app's language.
+
+## Connection values
+
+`DataApiBuilderContainerResource` implements service discovery rather than a connection string. Referencing a DAB resource named `dab` injects:
+
+| Environment variable     | Description                            |
+| ------------------------ | -------------------------------------- |
+| `services__dab__http__0` | Resolved URL for the DAB HTTP endpoint |
+
+The AppHost resource also exposes endpoint properties for building custom expressions. These are AppHost properties, not additional consuming-app environment variables. See [Use endpoint properties](../dab-host/#use-endpoint-properties) for synchronized C# and TypeScript examples.
+
+:::note
+DAB doesn't implement `IResourceWithConnectionString`, so referencing it does
+not create `ConnectionStrings__dab`.
+:::
+
+## Connect from your app
+
+Each example calls the REST route `/api/Product`. Use `/graphql` for GraphQL requests.
+
+{% tabs sync: "dab-consuming-lang" %}
+{% tab "C#" %}
+Apps that use Aspire service defaults can address the resource by name:
+
+```csharp title="Program.cs"
+builder.Services.AddHttpClient("dab", client =>
+{
+    client.BaseAddress = new Uri("https+http://dab");
+});
+```
+
+Or read the resolved service-discovery endpoint directly:
+
+```csharp title="Program.cs"
+var endpoint = Environment.GetEnvironmentVariable("services__dab__http__0")
+    ?? throw new InvalidOperationException(
+        "services__dab__http__0 is not set.");
+
+using var client = new HttpClient
+{
+    BaseAddress = new Uri(endpoint)
+};
+
+var products = await client.GetStringAsync("/api/Product");
+```
+{% endtab %}
+{% tab "TypeScript" %}
+Node.js includes `fetch`, so no DAB-specific package is required:
+
+```typescript title="index.ts"
+const endpoint = process.env.services__dab__http__0;
+if (!endpoint) {
+  throw new Error('services__dab__http__0 is not set.');
+}
+
+const response = await fetch(new URL('/api/Product', endpoint));
+if (!response.ok) {
+  throw new Error(`DAB request failed: ${response.status}`);
+}
+
+const products = await response.json();
+```
+{% endtab %}
+{% tab "Python" %}
+Use `urllib.request` from the Python standard library:
+
+```python title="app.py"
+import json
+import os
+from urllib.request import urlopen
+
+endpoint = os.environ["services__dab__http__0"].rstrip("/")
+
+with urlopen(f"{endpoint}/api/Product") as response:
+    products = json.load(response)
+```
+{% endtab %}
+{% tab "Go" %}
+Use Go's standard `net/http` package:
+
+```go title="main.go"
+package main
+
+import (
+    "fmt"
+    "io"
+    "net/http"
+    "os"
+    "strings"
+)
+
+func main() {
+    endpoint := strings.TrimRight(
+        os.Getenv("services__dab__http__0"),
+        "/",
+    )
+    if endpoint == "" {
+        panic("services__dab__http__0 is not set")
+    }
+
+    response, err := http.Get(endpoint + "/api/Product")
+    if err != nil {
+        panic(err)
+    }
+    defer response.Body.Close()
+
+    body, err := io.ReadAll(response.Body)
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(string(body))
+}
+```
+{% endtab %}
+{% endtabs %}
+
+## See also
+
+- [REST API in Data API Builder](https://learn.microsoft.com/azure/data-api-builder/concept/rest/overview)
+- [GraphQL in Data API Builder](https://learn.microsoft.com/azure/data-api-builder/concept/graphql/overview)
+- [Service discovery in Aspire](/fundamentals/service-discovery/)
+- [Set up Data API Builder in the AppHost](../dab-host/)

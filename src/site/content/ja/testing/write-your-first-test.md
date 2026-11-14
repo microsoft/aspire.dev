@@ -1,0 +1,682 @@
+---
+title: 最初のテストを書く
+description: xUnit.net、NUnit、MSTest の各テスト フレームワークを使用して Aspire ソリューションをテストする方法を学ぶ
+props:
+  pivot_selector_options:
+    - id: xunit
+      title: xUnit.net
+    - id: mstest
+      title: MSTest
+    - id: nunit
+      title: NUnit
+---
+
+{% pivot_selector title: "使用するテストフレームワークを選択してください", key: "testing-framework", options: props.pivot_selector_options %}
+
+この記事では、Aspire ソリューション向けにテストプロジェクトを作成し、C# でテストを書き、それらを実行する方法を学びます。これらはユニットテストではなく、分散アプリケーションの各コンポーネントがどのように連携して動作するかを検証するための 機能テストおよび統合テスト です。Aspire では、xUnit.net、MSTest、NUnit 向けのテストプロジェクトテンプレートが提供されており、それぞれにサンプルテストが含まれているため、すぐに始めることができます。
+
+## 分散アプリケーションテストの考え方
+
+Aspire ソリューションのテストを始める前に、[📦 Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing) NuGet パッケージが必要です。この強力なパッケージは、分散アプリケーション用のテストホストを作成するための入り口となる `DistributedApplicationTestingBuilder` クラスを提供します。
+
+`DistributedApplicationTestingBuilder` は、組み込みの計測機能を備えた状態で AppHost プロジェクトを起動するテストハーネスと考えることができます。これにより、ライフサイクル全体を通してホストにアクセスし、操作するための細かな制御が可能になります。`IDistributedApplicationBuilder` や `DistributedApplication` といった馴染みのある Aspire の型を使って [AppHost](/ja/get-started/app-host/) を構築・起動できるため、自然で直感的な形でテストを記述できます。
+
+## テストプロジェクトの作成
+
+Aspire のテストプロジェクトを作成するには、テスト用のプロジェクトテンプレートを使用します。新しい Aspire プロジェクトを開始する際、一部のテンプレートでは IDE や CLI のツールからテストプロジェクトを作成するかどうかを尋ねられます。既存の Aspire ソリューションにテストプロジェクトを追加する場合は、[`dotnet new`](https://learn.microsoft.com/dotnet/core/tools/dotnet-new) コマンドを使用します:
+
+{% pivot "xunit" %}
+```bash
+dotnet new aspire-xunit -o xUnit.Tests
+```
+{% endpivot %}
+{% pivot "mstest" %}
+```bash
+dotnet new aspire-mstest -o MSTest.Tests
+```
+{% endpivot %}
+{% pivot "nunit" %}
+```bash
+dotnet new aspire-nunit -o NUnit.Tests
+```
+{% endpivot %}
+
+新しく作成されたテストプロジェクトのディレクトリに移動します:
+
+{% pivot "xunit" %}
+```bash
+cd xUnit.Tests
+```
+{% endpivot %}
+{% pivot "mstest" %}
+```bash
+cd MSTest.Tests
+```
+{% endpivot %}
+{% pivot "nunit" %}
+```bash
+cd NUnit.Tests
+```
+{% endpivot %}
+
+テストプロジェクトを Aspire ソリューションに追加した後、対象となる AppHost へのプロジェクト参照を追加します。たとえば、Aspire ソリューションに `AspireApp.AppHost` という名前の AppHost プロジェクトが含まれている場合、次のようにテストプロジェクトから参照を追加します:
+
+{% pivot "xunit" %}
+```bash
+dotnet reference add ../AspireApp.AppHost/AspireApp.AppHost.csproj --project xUnit.Tests.csproj
+```
+{% endpivot %}
+{% pivot "mstest" %}
+```bash
+dotnet reference add ../AspireApp.AppHost/AspireApp.AppHost.csproj --project MSTest.Tests.csproj
+```
+{% endpivot %}
+{% pivot "nunit" %}
+```bash
+dotnet reference add ../AspireApp.AppHost/AspireApp.AppHost.csproj --project NUnit.Tests.csproj
+```
+{% endpivot %}
+
+最後に、テストプロジェクト内の `IntegrationTest1.cs` ファイルのコメントアウトを解除すると、サンプルテストを確認できます。
+
+## テストプロジェクトを確認する
+
+次のサンプル テストプロジェクトは、**Blazor & Minimal API starter** テンプレートの一部として作成されたものです。もしこのテンプレートに馴染みがない場合は、[最初のアプリを作成する — C#](/ja/get-started/first-app/?lang=csharp)をご参照ください。Aspire のテストプロジェクトは、対象となる AppHost に対してプロジェクト参照の依存関係を持ちます。以下はテンプレート プロジェクトの例です:
+
+{% pivot "xunit" %}
+```xml title="xUnit.Tests.csproj"
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Testing" Version="%ASPIRE_VERSION%" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AspireApp.AppHost\AspireApp.AppHost.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="System.Net" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Aspire.Hosting.ApplicationModel" />
+    <Using Include="Aspire.Hosting.Testing" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
+```
+{% endpivot %}
+{% pivot "mstest" %}
+```xml title="MSTest.Tests.csproj"
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Testing" Version="%ASPIRE_VERSION%" />
+    <PackageReference Include="MSTest" Version="3.10.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AspireApp.AppHost\AspireApp.AppHost.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="System.Net" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Aspire.Hosting.ApplicationModel" />
+    <Using Include="Aspire.Hosting.Testing" />
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+</Project>
+```
+{% endpivot %}
+{% pivot "nunit" %}
+```xml title="NUnit.Tests.csproj"
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Testing" Version="%ASPIRE_VERSION%" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="NUnit" Version="4.4.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="4.10.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AspireApp.AppHost\AspireApp.AppHost.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="System.Net" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Aspire.Hosting.ApplicationModel" />
+    <Using Include="Aspire.Hosting.Testing" />
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
+</Project>
+```
+{% endpivot %}
+
+上記のプロジェクト ファイルは、比較的一般的な構成になっています。[📦 Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing) NuGet パッケージへの `PackageReference` が含まれており、これには Aspire プロジェクト向けのテストを記述するために必要な型がすべて含まれています。
+
+テンプレートのテストプロジェクトには、1 つのテストを含む `IntegrationTest1` クラスが用意されています。このテストでは、次のシナリオを検証します:
+
+- AppHost が正常に作成され、起動できること
+- `webfrontend` リソースが利用可能で、実行中であること
+- `webfrontend` リソースに対して HTTP リクエストを送信でき、成功レスポンス（HTTP 200 OK）が返ること
+
+Consider the following test class:
+
+{% pivot "xunit" %}
+```csharp title="IntegrationTest1.cs"
+using Microsoft.Extensions.Logging;
+
+namespace xUnit.Tests.Tests;
+
+public class IntegrationTest1
+{
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+
+    [Fact]
+    public async Task GetWebResourceRootReturnsOkStatusCode()
+    {
+        // 準備（Arrange）
+        var cancellationToken = CancellationToken.None;
+        var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>(cancellationToken);
+        appHost.Services.AddLogging(logging =>
+        {
+            logging.SetMinimumLevel(LogLevel.Debug);
+            // アプリの構成からのログ フィルターを上書き
+            logging.AddFilter(appHost.Environment.ApplicationName, LogLevel.Debug);
+            logging.AddFilter("Aspire.", LogLevel.Debug);
+        });
+        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        {
+            clientBuilder.AddStandardResilienceHandler();
+        });
+
+        await using var app = await appHost.BuildAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        await app.StartAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+
+        // 実行（Act）
+        using var httpClient = app.CreateHttpClient("webfrontend");
+        await app.ResourceNotifications.WaitForResourceHealthyAsync(
+            "webfrontend", cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        using var response = await httpClient.GetAsync("/", cancellationToken);
+
+        // 検証（Assert）
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+}
+```
+{% endpivot %}
+{% pivot "mstest" %}
+```csharp title="IntegrationTest1.cs"
+using Microsoft.Extensions.Logging;
+
+namespace MSTest.Tests;
+
+[TestClass]
+public class IntegrationTest1
+{
+    public TestContext TestContext { get; set; }
+
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+
+    [TestMethod]
+    public async Task GetWebResourceRootReturnsOkStatusCode()
+    {
+        // 準備（Arrange）
+        var cancellationToken = TestContext.CancellationTokenSource.Token;
+        var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+        appHost.Services.AddLogging(logging =>
+        {
+            logging.SetMinimumLevel(LogLevel.Debug);
+            // アプリの構成からのログ フィルターを上書き
+            logging.AddFilter(appHost.Environment.ApplicationName, LogLevel.Debug);
+            logging.AddFilter("Aspire.", LogLevel.Debug);
+        });
+        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        {
+            clientBuilder.AddStandardResilienceHandler();
+        });
+
+        await using var app = await appHost.BuildAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        await app.StartAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+
+        // 実行（Act）
+        using var httpClient = app.CreateHttpClient("webfrontend");
+        await app.ResourceNotifications.WaitForResourceHealthyAsync(
+            "webfrontend", cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        using var response = await httpClient.GetAsync("/", cancellationToken);
+
+        // 検証（Assert）
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+}
+```
+{% endpivot %}
+{% pivot "nunit" %}
+```csharp title="IntegrationTest1.cs"
+using Microsoft.Extensions.Logging;
+
+namespace NUnit.Tests;
+
+public class IntegrationTest1
+{
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+
+    [Test]
+    public async Task GetWebResourceRootReturnsOkStatusCode()
+    {
+        // 準備（Arrange）
+        using var cts = new CancellationTokenSource(DefaultTimeout);
+        var cancellationToken = cts.Token;
+        var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+        appHost.Services.AddLogging(logging =>
+        {
+            logging.SetMinimumLevel(LogLevel.Debug);
+            // アプリの構成からのログ フィルターを上書き
+            logging.AddFilter(appHost.Environment.ApplicationName, LogLevel.Debug);
+            logging.AddFilter("Aspire.", LogLevel.Debug);
+        });
+        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        {
+            clientBuilder.AddStandardResilienceHandler();
+        });
+
+        await using var app = await appHost.BuildAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        await app.StartAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+
+        // 実行（Act）
+        using var httpClient = app.CreateHttpClient("webfrontend");
+        await app.ResourceNotifications.WaitForResourceHealthyAsync(
+            "webfrontend", cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        using var response = await httpClient.GetAsync("/", cancellationToken);
+
+        // 検証（Assert）
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+}
+```
+{% endpivot %}
+
+上記のコードでは、次のことを行っています:
+
+- `DistributedApplicationTestingBuilder.CreateAsync` API を使用して、AppHost を非同期に作成しています。
+- `appHost` は `IDistributedApplicationTestingBuilder` のインスタンスで、AppHost を表します。
+- `appHost` のサービス コレクションに対して、ログ設定および標準の HTTP レジリエンス ハンドラーを構成しています。詳細については [回復性がある HTTP アプリを構築する: 主要な開発パターン](https://learn.microsoft.com/ja-jp/dotnet/core/resilience/http-resilience)をご参照ください。
+- `appHost.BuildAsync` を呼び出し、`DistributedApplication` インスタンスを `app` として取得しています。
+- `app` を非同期に起動しています。
+- `app.CreateHttpClient` を呼び出して、`webfrontend` リソース用の `HttpClient` を作成しています。
+- `app.ResourceNotifications` を使用して、`webfrontend` リソースが正常状態になるまで待機しています。
+- `webfrontend` リソースのルートに対して、シンプルな HTTP GET リクエストを送信しています。
+- レスポンスのステータス コードが OK（HTTP 200）であることを検証しています。
+
+## リソースの環境変数をテストする
+
+Aspire ソリューション内のリソースと、そのリソースが表現している依存関係をさらにテストするために、環境変数が正しく注入されているかを検証できます。次の例では、`webfrontend` リソースに `apiservice` リソースへ解決される HTTPS の環境変数が存在することをテストする方法を示します:
+
+{% pivot "xunit" %}
+```csharp title="EnvVarTests.cs"
+using Aspire.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Tests;
+
+public class EnvVarTests
+{
+    [Fact]
+    public async Task WebResourceEnvVarsResolveToApiService()
+    {
+        // 準備（Arrange）
+        var builder = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+
+        var frontend = builder.CreateResourceBuilder<ProjectResource>("webfrontend");
+
+        // 実行（Act）
+        var executionConfiguration = await ExecutionConfigurationBuilder.Create(frontend.Resource)
+            .WithEnvironmentVariablesConfig()
+            .BuildAsync(new(DistributedApplicationOperation.Publish), NullLogger.Instance, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        var envVars = executionConfiguration.EnvironmentVariables.ToDictionary();
+
+        // 検証（Assert）
+        Assert.Contains(envVars, static (kvp) =>
+        {
+            var (key, value) = kvp;
+
+            return key is "APISERVICE_HTTPS"
+                && value is "{apiservice.bindings.https.url}";
+        });
+    }
+}
+```
+{% endpivot %}
+{% pivot "mstest" %}
+```csharp title="EnvVarTests.cs"
+using Aspire.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Tests;
+
+[TestClass]
+public class EnvVarTests
+{
+    [TestMethod]
+    public async Task WebResourceEnvVarsResolveToApiService()
+    {
+        // 準備（Arrange）
+        var builder = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+
+        var frontend = builder.CreateResourceBuilder<ProjectResource>("webfrontend");
+
+        // 実行（Act）
+        var executionConfiguration = await ExecutionConfigurationBuilder.Create(frontend.Resource)
+            .WithEnvironmentVariablesConfig()
+            .BuildAsync(new(DistributedApplicationOperation.Publish), NullLogger.Instance, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        var envVars = executionConfiguration.EnvironmentVariables.ToDictionary();
+
+        // 検証（Assert）
+        CollectionAssert.Contains(envVars,
+            new KeyValuePair<string, string>(
+                key: "APISERVICE_HTTPS",
+                value: "{apiservice.bindings.https.url}"));
+    }
+}
+```
+{% endpivot %}
+{% pivot "nunit" %}
+```csharp title="EnvVarTests.cs"
+using Aspire.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Tests;
+
+public class EnvVarTests
+{
+    [Test]
+    public async Task WebResourceEnvVarsResolveToApiService()
+    {
+        // 準備（Arrange）
+        var builder = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+
+        var frontend = builder.CreateResourceBuilder<ProjectResource>("webfrontend");
+
+        // 実行（Act）
+        var executionConfiguration = await ExecutionConfigurationBuilder.Create(frontend.Resource)
+            .WithEnvironmentVariablesConfig()
+            .BuildAsync(new(DistributedApplicationOperation.Publish), NullLogger.Instance, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        var envVars = executionConfiguration.EnvironmentVariables.ToDictionary();
+
+        // 検証（Assert）
+        Assert.That(envVars, Does.Contain(
+            new KeyValuePair<string, string>(
+                key: "APISERVICE_HTTPS",
+                value: "{apiservice.bindings.https.url}")));
+    }
+}
+```
+{% endpivot %}
+
+上記のコードでは、次のことを行っています:
+
+- `DistributedApplicationTestingBuilder.CreateAsync` API を利用して、AppHost を非同期に作成しています。
+- `builder` インスタンスの `Resources` プロパティから 「webfrontend」 という名前の `IResourceWithEnvironment` インスタンスを取得しています。
+- `ExecutionConfigurationBuilder` を使用して `webfrontend` リソースの `ExecutionConfiguration` を構築し、{% api "Aspire.Hosting.ApplicationModel.ExecutionConfigurationBuilderExtensions.WithEnvironmentVariablesConfig" %} によって環境変数の構成を明示的に有効化しています。
+- `DistributedApplicationOperation.Publish` を指定して `BuildAsync` を呼び出し、未解決のバインディング式を含む、そのリソースに対して公開される環境変数を生成しています。
+- 返却された環境変数を用いて、テストでは `webfrontend` リソースが `apiservice` リソースへ解決される HTTPS の環境変数が存在することを検証しています。
+
+## テストからログを取得する
+
+Aspire ソリューションのテストを記述する際、デバッグやテスト実行状況の確認のためにログを取得・表示したい場面があるかと思います。`DistributedApplicationTestingBuilder` ではサービス コレクションにアクセスできるため、テスト シナリオ向けにログ設定を行うことができます。
+
+### ログ プロバイダーを構成する
+
+テストからログを取得するには、`builder.Services` に対して `AddLogging` メソッドを使用し、テスト フレームワーク向けのログ プロバイダーを構成します:
+
+{% pivot "xunit" %}
+```csharp title="LoggingTest.cs"
+using Microsoft.Extensions.Logging;
+
+namespace Tests;
+
+public class LoggingTest
+{
+    [Fact]
+    public async Task GetWebResourceRootReturnsOkStatusCodeWithLogging()
+    {
+        // 準備（Arrange）
+        var builder = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+
+        builder.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        {
+            clientBuilder.AddStandardResilienceHandler();
+        });
+
+        // テスト実行時のログを取得するためのログ設定
+        builder.Services.AddLogging(logging => logging
+            .AddConsole() // ログをコンソールに出力
+            .AddFilter("Default", LogLevel.Information)
+            .AddFilter("Microsoft.AspNetCore", LogLevel.Warning)
+            .AddFilter("Aspire.Hosting.Dcp", LogLevel.Warning));
+
+        await using var app = await builder.BuildAsync();
+
+        await app.StartAsync();
+
+        // 実行（Act）
+        var httpClient = app.CreateHttpClient("webfrontend");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await app.ResourceNotifications.WaitForResourceHealthyAsync(
+            "webfrontend",
+            cts.Token);
+
+        var response = await httpClient.GetAsync("/");
+
+        // 検証（Assert）
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+}
+```
+{% endpivot %}
+{% pivot "mstest" %}
+```csharp title="LoggingTest.cs"
+using Microsoft.Extensions.Logging;
+
+namespace Tests;
+
+[TestClass]
+public class LoggingTest
+{
+    [TestMethod]
+    public async Task GetWebResourceRootReturnsOkStatusCodeWithLogging()
+    {
+        // 準備（Arrange）
+        var builder = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+
+        builder.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        {
+            clientBuilder.AddStandardResilienceHandler();
+        });
+
+        // テスト実行時のログを取得するためのログ設定
+        builder.Services.AddLogging(logging => logging
+            .AddConsole() // ログをコンソールに出力
+            .AddFilter("Default", LogLevel.Information)
+            .AddFilter("Microsoft.AspNetCore", LogLevel.Warning)
+            .AddFilter("Aspire.Hosting.Dcp", LogLevel.Warning));
+
+        await using var app = await builder.BuildAsync();
+
+        await app.StartAsync();
+
+        // 実行（Act）
+        var httpClient = app.CreateHttpClient("webfrontend");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await app.ResourceNotifications.WaitForResourceHealthyAsync(
+            "webfrontend",
+            cts.Token);
+
+        var response = await httpClient.GetAsync("/");
+
+        // 検証（Assert）
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+}
+```
+{% endpivot %}
+{% pivot "nunit" %}
+```csharp title="LoggingTest.cs"
+using Microsoft.Extensions.Logging;
+
+namespace Tests;
+
+public class LoggingTest
+{
+    [Test]
+    public async Task GetWebResourceRootReturnsOkStatusCodeWithLogging()
+    {
+        // 準備（Arrange）
+        var builder = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+
+        builder.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        {
+            clientBuilder.AddStandardResilienceHandler();
+        });
+
+        // テスト実行時のログを取得するためのログ設定
+        builder.Services.AddLogging(logging => logging
+            .AddConsole() // ログをコンソールに出力
+            .AddFilter("Default", LogLevel.Information)
+            .AddFilter("Microsoft.AspNetCore", LogLevel.Warning)
+            .AddFilter("Aspire.Hosting.Dcp", LogLevel.Warning));
+
+        await using var app = await builder.BuildAsync();
+
+        await app.StartAsync();
+
+        // 実行（Act）
+        var httpClient = app.CreateHttpClient("webfrontend");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await app.ResourceNotifications.WaitForResourceHealthyAsync(
+                "webfrontend",
+                cts.Token);
+
+        var response = await httpClient.GetAsync("/");
+
+        // 検証（Assert）
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+}
+```
+{% endpivot %}
+
+### ログ フィルターを構成する
+
+テスト プロジェクトでは、アプリケーション側の _appsettings.json_ の構成が自動的に反映されるわけではありません。そのため、ログ フィルターを明示的に構成する必要があります。これは、インフラストラクチャ関連の大量のログによってテスト出力が埋もれてしまうのを防ぐために、とても重要です。次のスニペットでは、ログ フィルターを明示的に設定しています:
+
+```csharp
+builder.Services.AddLogging(logging => logging
+    .AddFilter("Default", LogLevel.Information)
+    .AddFilter("Microsoft.AspNetCore", LogLevel.Warning)
+    .AddFilter("Aspire.Hosting.Dcp", LogLevel.Warning));
+```
+
+この構成では、次のような設定を行っています:
+
+- ほとんどのアプリケーション ログについて、既定のログ レベルを `Information` に設定しています。
+- ASP.NET Core のインフラストラクチャ由来のノイズを抑えるため、ログ レベルを `Warning` にセットしています。
+- Aspire のホスティング基盤に関するログも `Warning` レベルに制限し、アプリケーション固有のログに集中できるようにしています。
+
+### よく使われるログ関連パッケージ
+
+テスト実行中のログ管理を支援するために、テスト フレームワークごとに利用できるログ プロバイダー パッケージが異なります:
+
+{% pivot "xunit" %}
+xUnit.net では、テストのログ出力は自動的にテスト結果としてキャプチャされません。そのため、ログをテスト出力として扱うには、[`ITestOutputHelper` インターフェイス](https://xunit.net/docs/capturing-output)を使用する必要があります。
+
+xUnit.net では、次のようなログ パッケージの利用が考えられます:
+
+- [📦 MartinCostello.Logging.XUnit](https://www.nuget.org/packages/MartinCostello.Logging.XUnit) - `ILogger` のログを `ITestOutputHelper` の出力として表示できます。
+- [📦 Xunit.DependencyInjection.Logging](https://www.nuget.org/packages/Xunit.DependencyInjection.Logging) - xUnit.net の依存性注入と統合できます。
+- [📦 Serilog.Extensions.Logging.File](https://www.nuget.org/packages/Serilog.Extensions.Logging.File) - ログをファイルに出力します。
+- [📦 Microsoft.Extensions.Logging.Console](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Console) - ログをコンソールに出力します。
+{% endpivot %}
+{% pivot "mstest" %}
+MSTest では、次のようなログ パッケージの利用が考えられます:
+
+- [📦 Serilog.Extensions.Logging.File](https://www.nuget.org/packages/Serilog.Extensions.Logging.File) - ログをファイルに出力します。
+- [📦 Microsoft.Extensions.Logging.Console](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Console) - ログをコンソールに出力します。
+{% endpivot %}
+{% pivot "nunit" %}
+NUnit では、次のようなログ パッケージの利用が考えられます:
+
+- [📦 Extensions.Logging.NUnit](https://www.nuget.org/packages/Extensions.Logging.NUnit) - NUnit フレームワークと統合できます。
+- [📦 Serilog.Extensions.Logging.File](https://www.nuget.org/packages/Serilog.Extensions.Logging.File) - ログをファイルに出力します。
+- [📦 Microsoft.Extensions.Logging.Console](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Console) - ログをコンソールに出力します。
+{% endpivot %}
+
+## Summary
+
+Aspire のテスト プロジェクト テンプレートを使うことで、Aspire ソリューション向けのテスト プロジェクトを簡単に作成できます。テンプレートにはサンプル テストが含まれており、それを出発点として独自のテストを作成できます。`DistributedApplicationTestingBuilder` は、ASP.NET Core における `WebApplicationFactory<T>` とよく似たパターンに従って設計されています。分散アプリケーション用のテスト ホストを作成し、それに対してテストを実行できる点が特長です。
+
+また、`DistributedApplicationTestingBuilder` を使用すると、すべてのリソース ログは既定で `DistributedApplication` にリダイレクトされます。この仕組みにより、特定のリソースが正しくログを出力しているかどうかをテストで検証する、といったシナリオも実現できます。

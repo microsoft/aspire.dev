@@ -1,0 +1,659 @@
+---
+title: Resource Hierarchies
+seoTitle: Aspire resource parent-child hierarchies in AppHost
+description: Model parent-child resource relationships in Aspire to express ownership, lifecycle containment, and dashboard grouping for distributed application topologies.
+---
+
+Aspire supports modeling **parent-child relationships** between resources to express ownership, containment, and grouping.
+
+Parent-child relationships serve two purposes:
+
+- **Lifecycle Containment**: The child's execution is tied to the parent's — starting, stopping, and failures cascade from parent to child automatically.
+- **Dashboard Visualization**: The child appears **nested beneath** the parent in dashboards and visualizations, improving readability.
+
+## Lifecycle containment
+
+When a resource implements the `IResourceWithParent` interface, it declares **true containment** — meaning its lifecycle is controlled by its parent:
+
+- **Startup**: The child resource will only start after its parent starts (though readiness is independent).
+- **Shutdown**: If the parent is stopped or removed, the child is also stopped automatically.
+- **Failure Propagation**: If a parent enters a terminal failure state (`FailedToStart`, etc.), dependent children are stopped.
+
+:::note
+A logging sidecar container is tied to the lifecycle of a main application
+container — if the main app stops, the logging sidecar is also terminated.
+:::
+
+## Visual grouping (without lifecycle impact)
+
+Aspire also supports **visual-only parent-child relationships** using the {% api "Aspire.Hosting.ResourceBuilderExtensions.WithParentRelationship" %} method during resource construction.
+
+Visual relationships:
+
+- Affect **only the dashboard layout**.
+- **Do not affect lifecycle** — the resources are independent operationally.
+- Improve **clarity** by logically grouping related components.
+
+:::tip
+A Redis database container and a Redis Commander admin UI container can be
+grouped visually, even though they start independently.
+:::
+
+## Manual Relationships — No Inference
+
+Aspire **does not infer** parent-child relationships automatically based on names, dependencies, or network links.
+
+You must **explicitly declare** relationships by either:
+
+- **Implementing `IResourceWithParent`**: Creates lifecycle dependency and visual nesting.
+- **Using `.WithParentRelationship()`**: Creates visual nesting only.
+
+This explicitness ensures developers have full control over resource containment and presentation.
+
+## Real-world scenarios
+
+The following scenarios illustrate how Aspire models parent-child relationships:
+
+| Scenario                                        | Parent             | Child                  |
+| ----------------------------------------------- | ------------------ | ---------------------- |
+| Main application container with logging sidecar | App container      | Fluentd container      |
+| Database with admin dashboard                   | Database container | Admin UI container     |
+| Microservice with associated health monitor     | API container      | Health probe container |
+
+## Values and references
+
+In Aspire, configuration, connectivity details, and dependencies between distributed resources are modeled using **structured values**. These values capture relationships explicitly—not just as simple strings—making the application graph **portable, inspectable, and evolvable**.
+
+Aspire represents these relationships through a **heterogeneous Directed Acyclic Graph (<abbr title="Directed Acyclic Graph" data-tooltip-placement="top">DAG</abbr>)**. This graph tracks not only dependency ordering but also how **structured values** are passed between resources at multiple abstraction levels: configuration, connection, and runtime behavior.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("pg");
+var api = builder.AddProject("api").WithReference(db);
+var web = builder.AddJavaScriptApp("web", "../web").WithReference(api);
+
+builder.Build().Run();
+```
+
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:dotnet)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[web]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+### Special case: Endpoints
+
+Normally, resource references form an acyclic graph — **no cycles allowed**. However, **endpoint references are treated specially** and **may form cycles** intentionally.
+
+Endpoints are modeled as **external entities**:
+
+- They are **not edges** in the resource dependency graph.
+- They enable realistic mutual references like:
+  - A frontend app and an OIDC server mutually referencing each other's URLs (redirects, login callbacks).
+  - A backend exposing CORS settings that reference the frontend URL.
+
+:::tip
+Endpoints are managed separately from strict dependency edges to allow
+flexible, real-world service wiring.
+:::
+
+### How the DAG forms
+
+Resources connect to each other through:
+
+- **{% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %} calls**: Direct resource-to-resource dependencies.
+- **Environment variables and CLI arguments**: Configuration values containing structured references.
+- **Other configuration sources**: Settings populated with structured value references.
+
+Each reference **adds an edge** to the graph, allowing Aspire to:
+
+- Track dependency ordering.
+- Propagate structured values cleanly between services.
+- Validate application integrity before execution.
+
+:::note
+Aspire **never infers references automatically** — all value flows must be
+explicitly authored by developers.
+:::
+
+### Structured vs literal values
+
+Aspire distinguishes between **structured values** and **literal values**.
+
+- **Structured values** preserve meaning (e.g., "this is a service URL" vs. "this is a raw string").
+- **Literal values** are inert — they are carried unchanged across modes.
+
+At publish time and run time:
+
+- Structured values are either **resolved** (if possible) or **translated into target artifacts** (e.g., environment variables, argument values, etc.).
+- Literal values are simply copied.
+
+:::caution
+**Flattening values too early destroys portability, environment substitution,
+and cross-platform compatibility.** Aspire delays flattening as long as
+possible to maintain graph fidelity.
+:::
+
+### Value providers and deferred evaluation
+
+Every structured value type in Aspire implements two fundamental interfaces:
+
+| Interface                     | When Used    | Purpose                                                                           |
+| ----------------------------- | ------------ | --------------------------------------------------------------------------------- |
+| `IValueProvider`              | Run mode     | Resolves live values when the application starts.                                 |
+| `IManifestExpressionProvider` | Publish mode | Emits structured expressions (like `{pg.outputs.url}`) into deployment artifacts. |
+
+This dual-interface model enables **deferred evaluation**:
+
+- During **publish**, structured placeholders are emitted — no runtime values are resolved yet.
+- During **run**, structured references are resolved to live values like URLs, ports, or connection strings.
+
+Internally, value providers are attached to environment variables, CLI arguments, configuration fields, and other structured outputs during application graph construction.
+
+:::note
+Deferred evaluation guarantees that Aspire applications can be **published
+safely**, **deployed flexibly**, and **run consistently** across environments.
+:::
+
+### Core value types (expanded)
+
+| Type                          | Represents                                            | Run Mode                                | Publish Mode                                               |
+| ----------------------------- | ----------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------- |
+| `string`                      | A literal string value.                               | Same literal.                           | Same literal.                                              |
+| `EndpointReference`           | A link to a named endpoint on another resource.       | Concrete URL (`http://localhost:5000`). | Target-specific endpoint translation (DNS, ingress, etc.). |
+| `EndpointReferenceExpression` | A property of an endpoint (`Host`, `Port`, `Scheme`). | Concrete value.                         | Platform-specific translation.                             |
+| `ConnectionStringReference`   | A symbolic pointer to a resource's connection string. | Concrete string.                        | Token or externalized secret.                              |
+| `ParameterResource`           | An external input, secret, or setting.                | Local dev value or environment lookup.  | Placeholder `${PARAM}` for substitution.                   |
+| `ReferenceExpression`         | A composite string with embedded references.          | Concrete formatted string.              | Format string preserved for substitution.                  |
+
+## `ReferenceExpression`
+
+`ReferenceExpression` preserves **structured value objects**—endpoints, parameters, connection strings, etc.—inside an interpolated string and defers evaluation until it is safe.
+
+Aspire evaluates the model in **two distinct modes**:
+
+| Phase       | `ReferenceExpression` yields                                            |
+| ----------- | ----------------------------------------------------------------------- |
+| **Publish** | Publisher-specific placeholder text (e.g., `{api.bindings.http.host}`). |
+| **Run**     | Concrete value such as `localhost`.                                     |
+
+**Example — Using `ReferenceExpression`:**
+
+```csharp title="AppHost.cs"
+var ep = api.GetEndpoint("http");
+
+builder.WithEnvironment("HEALTH_URL",
+    ReferenceExpression.Create(
+        $"https://{ep.Property(EndpointProperty.Host)}:{ep.Property(EndpointProperty.Port)}/health"
+    )
+);
+```
+
+_Publish manifest excerpt:_
+
+```ini
+HEALTH_URL=https://{api.bindings.http.host}:{api.bindings.http.port}/health
+```
+
+_Run-time value:_
+
+```ini
+HEALTH_URL=https://localhost:5000/health
+```
+
+:::tip
+**Avoid resolving values directly** — build the string inside
+`ReferenceExpression.Create()` to preserve structure.
+:::
+
+### Alternate pattern using `ExecutionContext`
+
+```csharp title="AppHost.cs"
+var ep = api.GetEndpoint("http");
+
+if (builder.ExecutionContext.IsRunMode)
+{
+    builder.WithEnvironment("HEALTH_URL",
+        $"{ep.Url}/health"); // concrete
+}
+else
+{
+    builder.WithEnvironment("HEALTH_URL",
+        ReferenceExpression.Create($"{ep}/health")); // structured
+}
+```
+
+### Pattern used by `IResourceWithConnectionString`
+
+A common implementation builds the connection string with `ReferenceExpression`, mixing any value objects (endpoint properties, parameters, other references):
+
+```csharp
+private static ReferenceExpression BuildConnectionString(
+    EndpointReference endpoint,
+    ParameterResource  passwordParameter)
+{
+    var host = endpoint.Property(EndpointProperty.IPV4Host);
+    var port = endpoint.Property(EndpointProperty.Port);
+    var pwd  = passwordParameter;
+
+    return ReferenceExpression.Create(
+        $"Server={host},{port};User ID=sa;Password={pwd};TrustServerCertificate=true");
+}
+```
+
+### Common errors
+
+The following patterns are common mistakes when using `ReferenceExpression`:
+
+| Error                                  | Correct approach                                        |
+| -------------------------------------- | ------------------------------------------------------- |
+| Build the string first, wrap later.    | Build **inside** `ReferenceExpression.Create(...)`.     |
+| Access `Endpoint.Url` during publish.  | Use `Endpoint.Property(...)` in the expression.         |
+| Mix resolved strings and placeholders. | Keep the entire value inside one `ReferenceExpression`. |
+
+## Endpoint primitives
+
+The `EndpointReference` is the fundamental type used to interact with another resource's endpoint. It provides properties such as:
+
+- `Url`: The full URL of the endpoint, e.g., `http://localhost:6379`.
+- `Host`: The hostname or IP address of the endpoint.
+- `Port`: The port number of the endpoint.
+
+These properties are dynamically resolved during the application's startup sequence. Accessing them before the endpoints are allocated results in an exception.
+
+### `IResourceWithEndpoints`
+
+Resources supporting endpoints should implement `IResourceWithEndpoints`, enabling the use of `GetEndpoint(name)` to retrieve an `EndpointReference`. This is implemented on the built-in `ProjectResource`, `ContainerResource` and `ExecutableResource`. It allows endpoints to be programmatically accessed and passed between resources.
+
+```csharp title="Example — Endpoint Access and Resolution"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddContainer("redis", "redis")
+                   .WithEndpoint(name: "tcp", targetPort: 6379);
+
+// Get a reference to the "tcp" endpoint by name
+var endpoint = redis.GetEndpoint("tcp");
+
+builder.Build().Run();
+```
+
+### What does "allocated" mean?
+
+An endpoint is **allocated** when Aspire resolves its runtime values (e.g., `Host`, `Port`, `Url`) during **run mode**. Allocation happens as part of the **startup sequence**, ensuring endpoints are ready for use in local development.
+
+In **publish mode**, endpoints are not allocated with concrete values. Instead, their values are represented as **manifest expressions** or bindings (e.g., `{redis.bindings.tcp.host}:{redis.bindings.tcp.port}`) that are resolved by the deployment infrastructure.
+
+#### Comparison: Run Mode vs Publish Mode
+
+| **Context**         | **Run Mode**                             | **Publish Mode**                                                  |
+| ------------------- | ---------------------------------------- | ----------------------------------------------------------------- |
+| **Endpoint Values** | Fully resolved (`tcp://localhost:6379`). | Represented by manifest expressions (`{redis.bindings.tcp.url}`). |
+| **Use Case**        | Local development and debugging.         | Deployed environments (e.g., Kubernetes, Azure, AWS, etc.).       |
+| **Behavior**        | Endpoints are allocated dynamically.     | Endpoint placeholders resolve at runtime.                         |
+
+Use the `IsAllocated` property on an `EndpointReference` to check whether an endpoint has been allocated before accessing its runtime values.
+
+### Accessing Allocated Endpoints Safely
+
+Endpoint resolution happens during the startup sequence of the `DistributedApplication`. To safely access endpoint values (e.g., `Url`, `Host`, `Port`), you must wait until endpoints are allocated. Aspire provides eventing APIs, such as `ResourceEndpointsAllocatedEvent`, to access a resource's endpoints after allocation. These APIs ensure code executes only when endpoints are ready.
+
+```csharp title="Example — Checking Allocation and Using Eventing"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add a Redis container with a TCP endpoint
+var redis = builder.AddContainer("redis", "redis")
+                   .WithEndpoint(name: "tcp", targetPort: 6379);
+
+// Retrieve the EndpointReference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Check allocation status and access Url
+Console.WriteLine($"IsAllocated: {endpoint.IsAllocated}");
+
+try
+{
+    Console.WriteLine($"Url: {endpoint.Url}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error accessing Url: {ex.Message}");
+}
+
+// Subscribe to ResourceEndpointsAllocatedEvent for resolved properties
+redis.OnResourceEndpointsAllocated(
+    (resource, @event, cancellationToken) =>
+    {
+        Console.WriteLine($"Endpoint allocated: {endpoint.IsAllocated}");
+        Console.WriteLine($"Resolved Url: {endpoint.Url}");
+        return Task.CompletedTask;
+    });
+
+// Start the application
+builder.Build().Run();
+```
+
+The preceding code will output different results depending on whether the application is running in **run mode** or **publish mode**:
+
+**Run Mode**:
+
+```bash title="Run Mode — Console Output"
+IsAllocated: True
+Resolved Url: http://localhost:6379
+```
+
+**Publish Mode**:
+
+```bash title="Publish Mode — Console Output"
+IsAllocated: False
+Error accessing Url: Endpoint has not been allocated.
+```
+
+:::tip
+The overloads of {% api "Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" %} that take a callback run after endpoints
+have been allocated.
+:::
+
+## Referencing Endpoints from Other Resources
+
+This section covers how to reference endpoints from other resources in Aspire, allowing you to wire up dependencies and configurations effectively.
+
+### Using `WithReference`
+
+The `WithReference` API allows you to pass an endpoint reference directly to a target resource.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddContainer("redis", "redis")
+                   .WithEndpoint(name: "tcp", targetPort: 6379);
+
+builder.AddProject<Projects.Worker>("worker")
+       .WithReference(redis.GetEndpoint("tcp"));
+
+builder.Build().Run();
+```
+
+`WithReference` is optimized for applications that use service discovery.
+
+### Using `WithEnvironment`
+
+The `WithEnvironment` API exposes endpoint details as environment variables, enabling runtime configuration.
+
+```csharp title="Example — Passing Redis Endpoint as Environment Variable"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddContainer("redis", "redis")
+                   .WithEndpoint(name: "tcp", targetPort: 6379);
+
+builder.AddProject<Worker>("worker")
+       .WithEnvironment("RedisUrl", redis.GetEndpoint("tcp"));
+
+builder.Build().Run();
+```
+
+`WithEnvironment` gives full control over the configuration names injected into the target resource.
+
+## `EndpointReferenceExpression` — Accessing Endpoint Parts
+
+`EndpointReferenceExpression` represents **one field** of an endpoint (`Host`, `Port`, `Scheme`, etc.).
+In C#, call `endpoint.Property(...)` to get that field. In TypeScript AppHosts, call `await endpoint.property(...)`. The result is still a structured value and stays deferred until publish/run time.
+
+| Need                                    | Pattern                                                                                                          |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Only one part (e.g., host)              | C#: `endpoint.Property(EndpointProperty.Host)`<br />TypeScript: `await endpoint.property(EndpointProperty.Host)` |
+| Compose multiple parts into one setting | Build a `ReferenceExpression` (see dedicated section).                                                           |
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const redis = await builder.addContainer('redis', 'redis');
+await redis.withEndpoint({ name: 'tcp', targetPort: 6379 });
+
+const ep = await redis.getEndpoint('tcp');
+const redisHost = await ep.property(EndpointProperty.Host);
+const redisPort = await ep.property(EndpointProperty.Port);
+
+await builder
+  .addProject('worker', '../Worker/Worker.csproj')
+  .withEnvironment('REDIS_HOST', redisHost)
+  .withEnvironment('REDIS_PORT', redisPort);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var redis = builder.AddContainer("redis", "redis")
+                   .WithEndpoint("tcp", 6379);
+
+builder.AddProject("worker")
+       .WithEnvironment(ctx =>
+       {
+           var ep = redis.GetEndpoint("tcp");
+           ctx.EnvironmentVariables["REDIS_HOST"] = ep.Property(EndpointProperty.Host);
+           ctx.EnvironmentVariables["REDIS_PORT"] = ep.Property(EndpointProperty.Port);
+       });
+```
+{% endtab %}
+{% endtabs %}
+
+In this pattern, the endpoint property call returns an `EndpointReferenceExpression`, which is a structured value that will be resolved at runtime.
+
+```csharp title="Example — Build a Full Redis URL"
+var ep = redis.GetEndpoint("tcp");
+
+builder.WithEnvironment("REDIS_URL",
+    ReferenceExpression.Create(
+        $"redis://{ep.Property(EndpointProperty.HostAndPort)}"
+    )
+);
+```
+
+This pattern avoids resolving endpoint values prematurely and works in both publish and run modes.
+
+### `EndpointProperty` API Surface
+
+| Property               | Meaning                                          |
+| ---------------------- | ------------------------------------------------ |
+| `Url`                  | Fully qualified URL (`scheme://host:port`).      |
+| `Host` or `IPV4Host`   | Host name or IPv4 literal.                       |
+| `Port` or `TargetPort` | Allocated host port vs. container-internal port. |
+| `Scheme`               | `http`, `tcp`, etc.                              |
+| `HostAndPort`          | Convenience composite (`host:port`).             |
+
+The `EndpointReference` type exposes live or placeholder values for an endpoint and provides `.Property(...)` to create an `EndpointReferenceExpression`.
+
+Key members:
+
+| Member                                                   | Description                                            |
+| -------------------------------------------------------- | ------------------------------------------------------ |
+| `Url`, `Host`, `Port`, `Scheme`, `TargetPort`            | Concrete in run mode; undefined in publish mode.       |
+| `bool IsAllocated`                                       | Indicates if concrete values are available (run mode). |
+| `EndpointReferenceExpression Property(EndpointProperty)` | Creates a deferred expression for one field.           |
+
+`EndpointReferenceExpression` implements the same `IManifestExpressionProvider` / `IValueProvider` pair, so it can be embedded in a `ReferenceExpression` or resolved directly with `GetValueAsync()`.
+
+## Context-based endpoint resolution
+
+Aspire resolves endpoints differently based on the relationship between the source resource (the caller) and the target resource (the endpoint owner). This ensures that the resolved address is reachable from the caller's network context.
+
+### Resolution Rules
+
+| **Source**           | **Target**           | **Tunnel state**  | **Resolution**                                                    | **Example URL**                                     |
+| -------------------- | -------------------- | ----------------- | ----------------------------------------------------------------- | --------------------------------------------------- |
+| Container            | Container            | Not applicable    | Container network (`resource name:target port`).                  | `redis:6379`                                        |
+| Executable / Project | Container            | Not applicable    | Host network (`localhost:host port`).                             | `localhost:6379`                                    |
+| Container            | Executable / Project | Enabled (default) | Container tunnel address and allocated port (TCP endpoints only). | `aspire.dev.internal:<tunnel-port>`                 |
+| Container            | Executable / Project | Disabled          | Container-runtime host address and host port.                     | `host.docker.internal:<host-port>` (Docker Desktop) |
+
+When the container tunnel is enabled, resolving a non-TCP executable or project endpoint for the default Aspire container network causes the consuming resource to fail.
+
+For details about how Aspire projects host-process endpoints into the container network, see [Container networking](/fundamentals/container-networking/).
+
+### Advanced Scenario: Overriding default endpoint resolution
+
+Aspire resolves endpoints differently based on the execution context (e.g., run mode vs. publish mode, container vs. executable). Sometimes you need to override that resolution behavior to get an endpoint from a different perspective than the default.
+
+Consider a scenario where a project resource needs to configure Grafana and Keycloak containers. The project must provide container-to-container URLs for these services to communicate with each other, even though the project itself would normally receive host-based URLs.
+
+### Explicit context resolution with ValueProviderContext
+
+Starting with Aspire 13.2, you can explicitly control endpoint resolution context using `ValueProviderContext`. This provides a cleaner alternative to manually constructing URLs when you need endpoints resolved from a specific resource's perspective or network context.
+
+#### Resolve from a specific resource (Caller)
+
+Use the `Caller` property to resolve an endpoint from the perspective of a specific calling resource:
+
+```csharp title="Resolve endpoint from a resource's perspective"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+var containerApp = builder.AddContainer("worker", "myimage");
+
+// Get the endpoint reference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Resolve the URL from the container's perspective
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Caller = containerApp.Resource,
+});
+
+// The URL will be appropriate for container-to-container communication
+// e.g., "cache:6379" using the resource name as the hostname
+```
+
+This is particularly useful when you need to pass connection information between resources that may be running in different contexts (containers vs. host processes).
+
+#### Resolve from a specific network
+
+Use the `Network` property to resolve an endpoint from the perspective of a specific network:
+
+```csharp title="Resolve endpoint from a network's perspective"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+
+// Get the endpoint reference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Resolve the URL for the default Aspire container network
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
+});
+
+// Redis is a container target, so the URL uses its resource name and target port
+// e.g., "cache:6379"
+```
+
+The `KnownNetworkIdentifiers` class provides predefined network identifiers:
+
+- `LocalhostNetwork` resolves to localhost-based URLs.
+- `DefaultAspireContainerNetwork` resolves an endpoint as reachable from the default Aspire container network. Container targets use their resource name and target port. Executable and project targets use the container tunnel address and allocated tunnel port when the tunnel is enabled, or the container-host address and host port when it's disabled.
+- `PublicInternet` resolves to externally accessible URLs.
+
+:::caution
+Aspire creates the default container network only when the application model
+contains at least one container resource. If an executable or project
+explicitly resolves an executable or project endpoint for
+`DefaultAspireContainerNetwork` without a container resource in the model, the
+consuming resource fails with an error that identifies the invalid endpoint
+reference.
+:::
+
+:::note
+These APIs existed in Aspire 13.1 but did not behave as expected. In Aspire
+13.2, they now correctly resolve endpoints based on the specified context. For
+more details, see [What's new in Aspire
+13.2](/whats-new/aspire-13-2/#contextual-endpoint-resolution).
+:::
+
+### Cross-Context Communication Example
+
+The following code demonstrates how to set environment variables for a project that needs to communicate with other resources like Grafana and Keycloak. It ensures that the URLs are correctly resolved based on the execution context (run mode vs. publish mode).
+
+With Aspire 13.2, you can simplify this using `ValueProviderContext`:
+
+```csharp title="Simplified with ValueProviderContext (Aspire 13.2+)"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var keycloak = builder.AddKeycloak("keycloak", 8080);
+var grafana = builder.AddContainer("grafana", "grafana/grafana");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithEnvironment(async ctx =>
+    {
+        var keyCloakEndpoint = keycloak.GetEndpoint("http");
+        var grafanaEndpoint = grafana.GetEndpoint("http");
+
+        ctx.EnvironmentVariables["Grafana__Url"] = grafanaEndpoint;
+
+        if (ctx.ExecutionContext.IsRunMode)
+        {
+            // Resolve from container network perspective
+            var keycloakUrl = await keyCloakEndpoint.GetValueAsync(new ValueProviderContext
+            {
+                Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
+            });
+
+            ctx.EnvironmentVariables["Keycloak__AuthServerUrl"] = keycloakUrl;
+        }
+        else
+        {
+            // In publish mode let the endpoint resolver handle the URL
+            ctx.EnvironmentVariables["Keycloak__AuthServerUrl"] = keyCloakEndpoint;
+        }
+    });
+
+builder.Build().Run();
+```
+
+**Before Aspire 13.2**, you would need to manually construct the URL:
+
+```csharp title="Manual URL construction (pre-13.2)"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var keycloak = builder.AddKeycloak("keycloak", 8080);
+var grafana = builder.AddContainer("grafana", "grafana/grafana");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithEnvironment(ctx =>
+    {
+        var keyCloakEndpoint = keycloak.GetEndpoint("http");
+        var grafanaEndpoint = grafana.GetEndpoint("http");
+
+        ctx.EnvironmentVariables["Grafana__Url"] = grafanaEndpoint;
+
+        if (ctx.ExecutionContext.IsRunMode)
+        {
+            // Manual URL construction required in pre-13.2
+            var keycloakUrl = new UriBuilder(keyCloakEndpoint.Url)
+            {
+                Host = keycloak.Resource.Name,
+                Port = keyCloakEndpoint.TargetPort ?? keyCloakEndpoint.Port,
+            };
+
+            ctx.EnvironmentVariables["Keycloak__AuthServerUrl"] = keycloakUrl.ToString();
+        }
+        else
+        {
+            // In publish mode let the endpoint resolver handle the URL
+            ctx.EnvironmentVariables["Keycloak__AuthServerUrl"] = keyCloakEndpoint;
+        }
+    });
+
+builder.Build().Run();
+```

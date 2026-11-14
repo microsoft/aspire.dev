@@ -1,0 +1,155 @@
+---
+# The Markdown twin of a C# type page: renderCSharpTypeMarkdown of src/frontend/src/utils/csharp-api-markdown.ts.
+layout: false
+pagination: { data: api.routes.csharp-types, size: 1, alias: route }
+permalink: "{{ route.md }}"
+---
+{%- assign pkg = api.pkgs[route.file] -%}{%- assign type = pkg.types[route.type] -%}
+{%- assign tstart = api.routes["csharp-types"] | find_index: "file", route.file -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign pslug = route.packageSlug -%}
+{%- capture text -%}
+# {% render 'api/md/type-display', t: type %}
+␞
+{%- comment -%} metadata {%- endcomment -%}
+- Kind: `{{ type.kind }}`{{ nl }}- Package: [{{ pkg.package.name }}](/reference/api/csharp/{{ pslug }}.md){{ nl }}- Version: `{{ pkg.package.version }}`
+{%- if type.namespace -%}{{ nl }}- Namespace: `{{ type.namespace }}`{%- endif -%}
+{{ nl }}- Target framework: `{{ pkg.package.targetFramework }}`
+{%- if pkg.package.sourceRepository and pkg.package.sourceCommit -%}
+{{ nl }}- Source: [GitHub]({% if type.sourceFile %}{{ pkg.package.sourceRepository }}/blob/{{ pkg.package.sourceCommit }}/{{ type.sourceFile }}{% else %}{{ pkg.package.sourceRepository }}/tree/{{ pkg.package.sourceCommit }}{% endif %})
+{%- endif -%}
+{%- if type.baseType and type.baseType != "System.Object" -%}{{ nl }}- Inherits: {% render 'api/md/type-ref', raw: type.baseType, pkg: pkg %}{%- endif -%}
+{%- if type.interfaces.size > 0 -%}{{ nl }}- Implements: {% for iface in type.interfaces -%}{%- unless forloop.first %}, {% endunless -%}{%- render 'api/md/type-ref', raw: iface, pkg: pkg -%}{%- endfor -%}{%- endif -%}
+␞{%- render 'api/md/doc', content: type.docs.summary, pkg: pkg, tstart: tstart -%}
+␞## Definition{{ nl }}{{ nl }}
+{%- capture signature -%}
+{%- if type.namespace -%}namespace {{ type.namespace }};{{ nl }}{{ nl }}{%- endif -%}
+{%- if type.accessibility -%}{{ type.accessibility }}{%- else -%}public{%- endif -%}
+{%- if type.isStatic %} static{% endif -%}{%- if type.isAbstract %} abstract{% endif -%}{%- if type.isSealed %} sealed{% endif -%}{%- if type.isReadOnly %} readonly{% endif -%}
+{%- if type.kind == "delegate" -%}
+  {{- " " }}delegate {{ type.delegateReturnType | default: "void" }} {{ type.name -}}
+  {%- if type.isGeneric and type.genericParameters.size > 0 -%}<{{ type.genericParameters | map: "name" | join: ", " }}>{%- endif -%}
+  {%- if type.delegateParameters.size > 0 -%}({%- for p in type.delegateParameters -%}{{ nl }}    {{ p.type }} {{ p.name }}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}){%- else -%}(){%- endif -%}
+{%- else -%}
+  {{- " " }}{{ type.kind }} {{ type.name -}}
+  {%- if type.isGeneric and type.genericParameters.size > 0 -%}<{{ type.genericParameters | map: "name" | join: ", " }}>{%- endif -%}
+  {%- if type.baseType or type.interfaces.size > 0 -%}
+    {{- nl }}    : {% if type.baseType %}{{ type.baseType }}{% for iface in type.interfaces %},{{ nl }}      {{ iface }}{% endfor %}{% else %}{% for iface in type.interfaces %}{% unless forloop.first %},{{ nl }}      {% endunless %}{{ iface }}{% endfor %}{% endif -%}
+  {%- endif -%}
+{%- endif -%}
+{%- for gp in type.genericParameters -%}{%- if gp.constraints.size > 0 -%}{{ nl }}    where {{ gp.name }} : {% for c in gp.constraints -%}{%- unless forloop.first %}, {% endunless -%}{%- render 'api/md/short-type', t: c -%}{%- endfor -%}{%- endif -%}{%- endfor -%}
+{%- unless type.kind == "delegate" or type.kind == "enum" -%}{{ nl }}{{ "{" }}{{ nl }}    // ...{{ nl }}{{ "}" }}{%- endunless -%}
+{%- endcapture -%}
+{%- render 'api/md/codeblock', code: signature, lang: "csharp" -%}
+␞{%- render 'api/md/polyglot', attributes: type.attributes, context: "type", entity: type.name, pkg: pkg, mode: "section" -%}
+{%- if type.delegateParameters.size > 0 -%}
+␞## Delegate Parameters{{ nl }}{{ nl }}
+  {%- for p in type.delegateParameters -%}
+    {%- unless forloop.first -%}{{ nl }}{%- endunless -%}
+    {%- capture description -%}{%- render 'api/md/doc', content: type.docs.parameters[p.name], pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+    - `{{ p.name }}` ({% render 'api/md/type-ref', raw: p.type, pkg: pkg %})
+    {%- if p.isNullable or p.isOptional %} {% endif -%}{%- if p.isNullable -%}`nullable`{%- endif -%}{%- if p.isNullable and p.isOptional %} {% endif -%}{%- if p.isOptional -%}`optional`{%- endif -%}
+    {%- if description != "" %} — {{ description }}{% endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- if type.docs.typeParameters.size > 0 -%}
+␞## Type Parameters{{ nl }}{{ nl }}
+  {%- for kv in type.docs.typeParameters -%}
+    {%- unless forloop.first -%}{{ nl }}{%- endunless -%}
+    {%- capture description -%}{%- render 'api/md/doc', content: kv[1], pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+    - `{{ kv[0] }}`{%- if description != "" %} — {{ description }}{% endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- capture remarks -%}{%- render 'api/md/doc', content: type.docs.remarks, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+{%- if remarks != "" -%}␞## Remarks{{ nl }}{{ nl }}{{ remarks }}{%- endif -%}
+{%- capture value -%}{%- render 'api/md/doc', content: type.docs.value, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+{%- if value != "" -%}␞## Value{{ nl }}{{ nl }}{{ value }}{%- endif -%}
+{%- if type.enumMembers.size > 0 -%}
+  {%- assign hasFlags = false -%}
+  {%- for attribute in type.attributes -%}
+    {%- assign short = attribute.name | split: "." | last | default: "" -%}
+    {%- if short == "Flags" or short == "FlagsAttribute" -%}{%- assign hasFlags = true -%}{%- endif -%}
+  {%- endfor -%}
+␞## Enum Members{{ nl }}{{ nl }}
+  {%- if hasFlags -%}Values can be combined with bitwise OR.{{ nl }}{%- endif -%}
+  | Name | Value | Description |{{ nl }}| --- | --- | --- |
+  {%- for em in type.enumMembers -%}
+    {%- if em.description and em.description != "—" -%}{%- assign description = em.description -%}{%- else -%}{%- assign description = "" -%}{%- endif -%}
+    {{- nl }}| {% render 'api/md/table-cell', value: em.name %} | {% render 'api/md/table-cell', value: em.value %} | {% render 'api/md/table-cell', value: description %} |
+  {%- endfor -%}
+{%- endif -%}
+{%- comment -%} renderTypeMemberOverview {%- endcomment -%}
+{%- assign typeSlug = route.typeSlug -%}
+{%- for group in route.memberKinds -%}
+␞## {% case group.kind %}{% when "constructor" %}Constructors{% when "property" %}Properties{% when "method" %}Methods{% when "field" %}Fields{% when "event" %}Events{% when "indexer" %}Indexers{% else %}{{ group.kind }}{% endcase %}{{ nl }}
+  {%- for member in type.members -%}
+    {%- if member.kind == group.kind -%}
+      {{- nl }}- [{% render 'api/md/member-display', m: member, ctor: type.name %}](/reference/api/csharp/{{ pslug }}/{{ typeSlug }}/{{ group.slug }}.md#{{ route.anchors[forloop.index0].exact }})
+      {%- if member.returnType and member.returnType != "void" %} : {% render 'api/md/type-ref', raw: member.returnType, pkg: pkg %}{% endif -%}
+      {%- assign obsolete = false -%}{%- assign experimental = false -%}{%- assign atsExport = false -%}{%- assign atsIgnored = false -%}
+      {%- for attribute in member.attributes -%}
+        {%- assign short = attribute.name | split: "." | last | default: "" -%}
+        {%- assign suffix = short | slice: -9, 9 -%}
+        {%- if suffix == "Attribute" -%}{%- assign n = short.size | minus: 9 -%}{%- assign short = short | slice: 0, n -%}{%- endif -%}
+        {%- case short -%}
+          {%- when "Obsolete" -%}{%- assign obsolete = true -%}
+          {%- when "Experimental" -%}{%- assign experimental = true -%}
+          {%- when "AspireExport" -%}{%- assign atsExport = true -%}
+          {%- when "AspireExportIgnore" -%}{%- assign atsIgnored = true -%}
+        {%- endcase -%}
+      {%- endfor -%}
+      {%- capture badges -%}
+        {%- if member.isStatic and member.isExtension != true -%}␟`static`{%- endif -%}
+        {%- if member.isExtension -%}␟`extension`{%- endif -%}
+        {%- if member.isAbstract -%}␟`abstract`{%- endif -%}
+        {%- if member.isVirtual -%}␟`virtual`{%- endif -%}
+        {%- if member.kind == "property" or member.kind == "indexer" -%}
+          {%- if member.hasGet and member.hasSet -%}{%- if member.isInitOnly -%}␟`get; init`{%- else -%}␟`get; set`{%- endif -%}
+          {%- elsif member.hasGet -%}␟`get`{%- elsif member.hasSet -%}␟`set`{%- endif -%}
+        {%- endif -%}
+        {%- if obsolete -%}␟`obsolete`{%- endif -%}
+        {%- if experimental -%}␟`experimental`{%- endif -%}
+        {%- if atsExport -%}␟`ats export`{%- endif -%}
+        {%- if atsIgnored -%}␟`ats ignored`{%- endif -%}
+      {%- endcapture -%}
+      {%- if badges != "" -%}{{ badges | replace: "␟", " " }}{%- endif -%}
+      {%- capture summary -%}{%- render 'api/md/doc', content: member.docs.summary, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+      {%- assign summary = summary | split: " " | join: " " -%}
+      {%- if summary != "" %} — {{ summary }}{% endif -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endfor -%}
+{%- if type.nestedTypes.size > 0 -%}
+  {%- capture nested -%}
+    {%- for fullName in type.nestedTypes -%}
+      {%- assign match = pkg.types | find: "fullName", fullName -%}
+      {%- if match -%}
+        {%- capture summary -%}{%- render 'api/md/doc', content: match.docs.summary, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+        {%- assign summary = summary | split: " " | join: " " -%}
+        {{- nl }}- [{% render 'api/md/type-display', t: match %}](/reference/api/csharp/{{ pslug }}/{% render 'api/md/type-slug', t: match %}.md){% if summary != "" %} — {{ summary }}{% endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endcapture -%}
+  {%- if nested != "" -%}␞## Nested Types{{ nl }}{{ nested }}{%- endif -%}
+{%- endif -%}
+{%- capture examples -%}{%- render 'api/md/examples', examples: type.docs.examples, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+{%- if examples != "" -%}␞## Examples{{ nl }}{{ nl }}{{ examples }}{%- endif -%}
+{%- if type.docs.permissions.size > 0 -%}
+␞## Permissions{{ nl }}{{ nl }}
+  {%- for permission in type.docs.permissions -%}
+    {%- unless forloop.first -%}{{ nl }}{%- endunless -%}
+    {%- capture description -%}{%- render 'api/md/doc', content: permission.description, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+    - `{{ permission.type }}`{%- if description != "" %} — {{ description }}{% endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- if type.docs.seeAlso.size > 0 -%}
+␞## See Also{{ nl }}{{ nl }}
+  {%- for reference in type.docs.seeAlso -%}
+    {%- unless forloop.first -%}{{ nl }}{%- endunless -%}
+    {%- assign scheme = reference | slice: 0, 8 -%}{%- assign scheme7 = reference | slice: 0, 7 -%}
+    - {% if scheme == "https://" or scheme7 == "http://" %}[{{ reference }}]({{ reference }}){% else %}{% render 'api/md/cref', cref: reference, pkg: pkg, tstart: tstart %}{% endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- endcapture -%}
+{%- render 'api/md/finalize', text: text -%}

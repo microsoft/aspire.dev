@@ -1,0 +1,75 @@
+---
+title: Compiler Warning ASPIRECONTAINERRUNTIME001
+seoTitle: "ASPIRECONTAINERRUNTIME001: The container runtime APIs are"
+description: Learn what causes the Aspire compiler warning ASPIRECONTAINERRUNTIME001 — the container runtime APIs are experimental and subject to change.
+---
+
+{% badge "Version introduced: 13.1", variant: "note", size: "large", class: "mb-1" %}
+
+> Container runtime types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental `IContainerRuntime` interface and related container runtime implementations. These APIs provide abstraction over container runtimes like Docker and Podman for building, tagging, pushing, and managing container images during deployment.
+
+The `IContainerRuntime` interface provides a unified abstraction for interacting with container runtimes:
+
+- **Runtime detection**: Check if Docker or Podman is running and available
+- **Image building**: Build container images from Dockerfiles with build arguments and secrets
+- **Image management**: Tag, push, and remove container images
+- **Registry operations**: Login to container registries for authentication
+
+This API is experimental because the container runtime abstraction layer is being refined based on deployment scenario requirements, and the interface may evolve to support additional container runtime features or optimizations.
+
+## Example
+
+The following code generates `ASPIRECONTAINERRUNTIME001`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Using IContainerRuntime
+var containerRuntime = builder.Services.BuildServiceProvider().GetRequiredService<IContainerRuntime>();
+var isRunning = await containerRuntime.CheckIfRunningAsync(cancellationToken);
+var runtimeName = containerRuntime.Name;
+```
+
+### Related types
+
+- **`IContainerRuntime`**: Interface representing a container runtime (Docker, Podman)
+- **`DockerContainerRuntime`**: Implementation for Docker runtime
+- **`PodmanContainerRuntime`**: Implementation for Podman runtime
+- **`CheckIfRunningAsync()`**: Verifies if the container runtime is available
+- **`BuildImageAsync()`**: Builds a container image from a Dockerfile
+- **`TagImageAsync()`**: Tags a container image with a new name
+- **`PushImageAsync()`**: Pushes a container image to a registry
+- **`RemoveImageAsync()`**: Removes a container image
+- **`LoginToRegistryAsync()`**: Authenticates with a container registry
+
+## To correct this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRECONTAINERRUNTIME001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRECONTAINERRUNTIME001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRECONTAINERRUNTIME001` directive:
+
+  ```csharp title="Suppressing the warning"
+  #pragma warning disable ASPIRECONTAINERRUNTIME001
+  var containerRuntime = builder.Services.BuildServiceProvider().GetRequiredService<IContainerRuntime>();
+  var isRunning = await containerRuntime.CheckIfRunningAsync(cancellationToken);
+  #pragma warning restore ASPIRECONTAINERRUNTIME001
+  ```

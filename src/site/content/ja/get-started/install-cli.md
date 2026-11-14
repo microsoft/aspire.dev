@@ -1,0 +1,114 @@
+---
+title: Aspire CLI をインストール
+description: クラウドネイティブ アプリを管理するために、Aspire CLI をインストール スクリプトまたはパッケージ マネージャー (npm、NuGet、WinGet、Homebrew) でインストールする方法を学びます。
+tableOfContents: true
+---
+
+Aspire には、Aspire ベースのアプリの作成と管理を支援するコマンドライン インターフェイス (CLI) ツールが用意されています。CLI は、インタラクティブファーストな体験で開発ワークフローを効率化します。このガイドでは、システムに Aspire CLI をインストールする方法を説明します。最速のセットアップにはインストール スクリプトを使用するか、環境に合ったパッケージ マネージャー (npm、NuGet、WinGet、Homebrew) を選択してください。
+
+{% learnmore %}
+Aspire CLI をインストールする前に、[必要な
+前提条件](/ja/get-started/prerequisites/) が整っていることを確認してください。
+{% endlearnmore %}
+
+## Aspire CLI をインストール
+
+Aspire CLI をインストールするには、1 つのコマンドでインストール スクリプトをダウンロードして実行します:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash title="インストール スクリプト (macOS/Linux)"
+curl -sSL https://aspire.dev/install.sh | bash
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell title="インストール スクリプト (Windows)"
+irm https://aspire.dev/install.ps1 | iex
+```
+{% endtab %}
+{% endos_tabs %}
+
+このスクリプトは Aspire CLI の最新の安定版リリースをインストールします。インストール中に `Do you want to continue?` と表示されることがあります。インストール スクリプトのダウンロードと実行を続けるには、Yes の `Y` または Yes to All の `A` で応答してください。インストールを確認するには [検証](#検証) を参照してください。
+
+:::tip
+上部ナビゲーション (ダウンロード アイコン {% icon "download", class: "d-inline", size: "large" %}) から **Install Aspire CLI** コマンド モーダルをいつでも再度開けます。モーダルには OS 向けのダウンロード兼インストール コマンドが表示されるため、必要に応じてインストーラーを再実行できます。
+:::
+
+スクリプトを確認したい場合や、インストーラーをコマンドを分けて実行したい場合にのみ、スクリプトを個別にダウンロードする必要があります。詳細は [aspire-install スクリプト リファレンス](/ja/reference/cli/install-script/) を参照してください。
+
+## パッケージ マネージャーでインストール
+
+インストール スクリプトは、サポートされているすべてのプラットフォームで動作します。Aspire CLI を他の開発ツールと一緒に管理したい場合は、代わりにパッケージ マネージャーでインストールできます。環境に合ったオプションを選択してください:
+
+{% tabs sync: "install-pkg" %}
+{% tab "Homebrew" %}
+macOS (Apple シリコンと Intel) では、[Homebrew](https://brew.sh/) で Aspire CLI をインストールします。
+
+```bash title="Homebrew でインストール"
+brew install --cask microsoft/aspire/aspire
+```
+{% endtab %}
+{% tab "npm" %}
+開発ツールを npm で管理している場合は、[npm](https://www.npmjs.com/package/@microsoft/aspire-cli) から Aspire CLI をインストールします。このオプションには [Node.js](/ja/get-started/prerequisites/) が必要です。
+
+```bash title="npm でインストール"
+npm install -g @microsoft/aspire-cli
+```
+
+同じコマンドが Windows、macOS、Linux (Alpine などの musl ベースのディストリビューションを含む) で動作します。npm はお使いのオペレーティング システムとアーキテクチャに適したネイティブ バイナリを自動的に選択します。
+
+:::note
+npm からインストールすると、Aspire CLI はセルフ更新を npm 経由でルーティングします。`aspire update --self` を実行すると、バイナリを直接ダウンロードする代わりに、実行すべき `npm install -g @microsoft/aspire-cli@latest` コマンドが表示されます。詳細は [`aspire update`](/ja/reference/cli/commands/aspire-update/) を参照してください。
+:::
+{% endtab %}
+{% tab "NuGet" %}
+開発ツールを .NET SDK で管理している場合は、Aspire CLI を .NET グローバル ツールとしてインストールします。このオプションには [.NET SDK](/ja/get-started/prerequisites/) が必要です。
+
+```bash title=".NET CLI でインストール"
+dotnet tool install -g Aspire.Cli
+```
+
+CLI は [Aspire.Cli](https://www.nuget.org/packages/Aspire.Cli) グローバル ツールとして NuGet.org に公開されており、Windows、macOS、Linux で動作します。
+{% endtab %}
+{% tab "WinGet" %}
+Windows (x64 と Arm64) では、[Windows パッケージ マネージャー](https://learn.microsoft.com/windows/package-manager/) (WinGet) で Aspire CLI をインストールします。
+
+```powershell title="WinGet でインストール"
+winget install Microsoft.Aspire
+```
+{% endtab %}
+{% endtabs %}
+
+## 検証
+
+Aspire CLI がインストールされていることを検証するには、`aspire --version` を使用して Aspire CLI からバージョン番号を取得します:
+
+```bash title="インストール バージョンの確認"
+aspire --version
+```
+
+そのコマンドが動作すると、Aspire CLI ツールのバージョンが表示されます:
+
+```bash title="Aspire CLI — Output" data-disable-copy
+%ASPIRE_VERSION%+{commitSHA}
+```
+
+`+{commitSHA}` サフィックスは、Aspire CLI がビルドされた特定のコミットを示します。
+
+{% learnmore %}
+[Aspire CLI リファレンス](/ja/reference/cli/overview/) を読むと、さらに詳しく学べます。
+ドキュメントを参照してください。
+{% endlearnmore %}
+
+:::caution[トラブルシューティング]
+バージョン番号が表示されない場合は、端末の
+セッションを再起動して PATH 環境変数の変更を反映する必要がある
+可能性があります。端末を閉じて再度開き、`aspire
+--version` コマンドをもう一度実行してください。
+:::
+
+## 関連情報
+
+- [aspire-install スクリプト リファレンス](/ja/reference/cli/install-script/)
+- [`aspire` コマンド リファレンス](/ja/reference/cli/commands/aspire/)
+- [Aspire VS Code 拡張機能](/ja/get-started/aspire-vscode-extension/) - CLI をインストールして、VS Code 内から Aspire コマンドを使用する

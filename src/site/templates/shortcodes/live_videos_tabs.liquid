@@ -1,0 +1,15 @@
+---
+# The site's <LiveVideosTabs> (src/components/LiveVideosTabs.astro):
+#   {% live_videos_tabs youtube_channel_id: "UC...", youtube_playlist_id: "UU...", twitch_channel: "aspiredotdev" %}
+# Starlight tabs (sync key stream-source) with the YouTube uploads playlist and the Twitch channel embeds; the client
+# script (scripts/client/content/live-videos-tabs.ts, loaded when #aspire-live-tabs is on the page) switches the tab
+# and the embeds to the live stream. The tab panels are inside starlight-tabs (another component root), so their
+# rules are in content-components.css. Root class: cid-live-videos-tabs.
+display: block
+params: [youtube_channel_id, youtube_playlist_id, twitch_channel]
+---
+{%- capture lvt_panels -%}
+<div role="tabpanel" data-label="YouTube" data-icon="youtube"><div class="live-embed-wrapper" data-source="youtube" data-live="false">{% youtube_embed playlist_id: youtube_playlist_id, title: "Aspire on YouTube" %}</div><p class="muted">When we&rsquo;re not live, browse our latest uploads here. Videos play when you select Play. Browse all past streams on <a href="https://youtube.com/@aspiredotdev">youtube.com/@aspiredotdev</a>.</p></div>
+<div role="tabpanel" data-label="Twitch" data-icon="twitch"><div class="live-embed-wrapper" data-source="twitch" data-live="false">{% twitch_embed twitch_channel, title: "Aspire on Twitch" %}</div><p class="muted">When we&rsquo;re not live, the Twitch player shows the offline screen. Follow <a href="https://twitch.tv/{{ twitch_channel }}">twitch.tv/{{ twitch_channel }}</a> to get notified.</p></div>
+{%- endcapture -%}
+<div id="aspire-live-tabs" class="cid-live-videos-tabs" data-active-source="none" data-youtube-channel-id="{{ youtube_channel_id }}" data-youtube-playlist-id="{{ youtube_playlist_id }}">{% include "partials/tabs-markup", body: lvt_panels, sync: "stream-source", tabs_class: nil, tabs_attrs: nil %}</div>

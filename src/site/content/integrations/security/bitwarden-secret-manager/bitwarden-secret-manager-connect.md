@@ -1,0 +1,141 @@
+---
+title: Connect to Bitwarden Secrets Manager
+description: Register an authenticated Bitwarden SDK client in a .NET app using connection settings provided by the Aspire hosting integration.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+The Bitwarden client integration registers authenticated `Bitwarden.Sdk.BitwardenClient` instances from Aspire configuration. Reference the hosting resource from the consuming app, then use the same connection name when you register the client.
+
+## Client integration
+
+Add the client package to the consuming .NET application:
+
+{% install_dotnet_package "CommunityToolkit.Aspire.Bitwarden.SecretManager" %}
+
+### Add a Bitwarden client
+
+Register an unkeyed client with `AddBitwardenSecretManagerClient`. The connection name must match the Bitwarden resource name in the AppHost. In this example, the name is `bitwarden`.
+
+```csharp title="Program.cs"
+using Bitwarden.Sdk;
+using CommunityToolkit.Aspire.Bitwarden.SecretManager;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddBitwardenSecretManagerClient("bitwarden");
+
+var app = builder.Build();
+
+app.MapGet("/secret-count", (BitwardenClient client, BitwardenSecretManagerClientSettings settings) =>
+{
+    var sync = client.Secrets.Sync(settings.OrganizationId, null);
+    return Results.Ok(sync.Secrets.Length);
+});
+
+app.Run();
+```
+
+The integration registers the SDK client and its settings as singletons. The example calls `Secrets.Sync` for the configured organization and returns the number of synchronized secret records. Use the Bitwarden SDK to access the project secrets your application needs.
+
+### Add a keyed Bitwarden client
+
+Register multiple Bitwarden connections with `AddKeyedBitwardenSecretManagerClient`. The connection name is also the dependency-injection service key. Resolve the matching client with keyed dependency injection:
+
+```csharp title="Program.cs"
+using Bitwarden.Sdk;
+using CommunityToolkit.Aspire.Bitwarden.SecretManager;
+using Microsoft.Extensions.DependencyInjection;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddKeyedBitwardenSecretManagerClient("billing-bitwarden");
+builder.AddKeyedBitwardenSecretManagerClient("support-bitwarden");
+
+var app = builder.Build();
+
+app.MapGet("/billing-secret-count", (IServiceProvider services) =>
+{
+    var client = services.GetRequiredKeyedService<BitwardenClient>("billing-bitwarden");
+    var settings = services.GetRequiredKeyedService<BitwardenSecretManagerClientSettings>("billing-bitwarden");
+    var sync = client.Secrets.Sync(settings.OrganizationId, null);
+    return Results.Ok(sync.Secrets.Length);
+});
+
+app.Run();
+```
+
+For details, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+### Configuration
+
+The client reads its settings from `Aspire:Bitwarden:SecretManager:{connectionName}`. With an AppHost reference named `bitwarden`, the equivalent environment variable prefix is `Aspire__Bitwarden__SecretManager__bitwarden`.
+
+#### Connection settings
+
+The hosting integration injects these settings when you call `WithReference(bitwarden)`:
+
+| Setting          | Required | Description                                                                    |
+| ---------------- | -------- | ------------------------------------------------------------------------------ |
+| `OrganizationId` | Yes      | Bitwarden organization GUID.                                                   |
+| `ProjectId`      | Yes      | Bitwarden project GUID resolved by the AppHost.                                |
+| `AccessToken`    | Yes      | Client access token. Use a read-only token for deployed applications.          |
+| `ApiUrl`         | Yes      | Absolute Bitwarden API URL. Defaults to `https://api.bitwarden.com`.           |
+| `IdentityUrl`    | Yes      | Absolute Bitwarden identity URL. Defaults to `https://identity.bitwarden.com`. |
+
+The AppHost reference does not inject client settings such as `AuthCacheDirectory`, `DisableHealthChecks`, or `HealthCheckTimeout`. Configure them separately in the consuming app. `AuthCacheDirectory` is a directory path; the SDK manages the cache filename using the access token identifier.
+
+#### Configuration providers
+
+Set values in `appsettings.json` when the app is not receiving configuration from an AppHost reference. The connection name in the JSON section must match the name passed to the registration method:
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "Bitwarden": {
+      "SecretManager": {
+        "bitwarden": {
+          "OrganizationId": "00000000-0000-0000-0000-000000000000",
+          "ProjectId": "00000000-0000-0000-0000-000000000000",
+          "AccessToken": "<read-only-access-token>",
+          "ApiUrl": "https://api.bitwarden.com",
+          "IdentityUrl": "https://identity.bitwarden.com",
+          "AuthCacheDirectory": "/data/bitwarden"
+        }
+      }
+    }
+  }
+}
+```
+
+Do not store access tokens in committed configuration files. Supply tokens through a secure configuration provider such as user secrets in development or an environment-specific secret store in deployment.
+
+#### Inline settings
+
+Pass a delegate to override settings after the configuration section is bound:
+
+```csharp title="Program.cs"
+builder.AddBitwardenSecretManagerClient("bitwarden", settings =>
+{
+    settings.AuthCacheDirectory = "/data/bitwarden";
+    settings.HealthCheckTimeout = TimeSpan.FromSeconds(10);
+});
+```
+
+The hosting integration also provides `WithBitwardenAuthCacheDirectory` for the AppHost to configure an app's directory, or `WithBitwardenAuthCacheVolume` to mount a named volume into a container. Prefer persistent storage if the app restarts often.
+
+### Client integration health checks
+
+The client package registers a health check named `BitwardenSecretManager_{connectionName}` by default. The check calls `BitwardenClient.Secrets.Sync` for the configured organization. It reports healthy when the SDK call succeeds and unhealthy when it throws. Set `DisableHealthChecks` to `true` in the configuration or settings delegate to skip registration.
+
+:::caution
+The health check makes an authenticated request to Bitwarden Secrets Manager.
+Ensure the configured token has permission to read the project and that the
+application can reach the configured API and identity endpoints.
+:::
+
+## See also
+
+- [Host Bitwarden Secrets Manager](/integrations/security/bitwarden-secret-manager/bitwarden-secret-manager-host/)
+- [Bitwarden Secrets Manager SDK](https://bitwarden.com/help/secrets-manager-sdk/)
+- [Bitwarden Secrets Manager](https://bitwarden.com/products/secrets-manager/)

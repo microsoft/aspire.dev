@@ -1,0 +1,110 @@
+---
+title: 事前準備
+description: Aspire に必要なツール関連の基本的な概念について学びます。
+giscus: false
+tableOfContents:
+  minHeadingLevel: 1
+  maxHeadingLevel: 4
+props:
+  container_runtime_choices:
+    - id: "docker"
+      title: "Docker Desktop"
+      href: "https://www.docker.com/products/docker-desktop"
+      linkLabel: "Docker Desktop をインストール"
+      statusLabel: "推奨されるデフォルト"
+      description: "コンテナーを構築・実行するための、馴染みがあり広くサポートされた環境です。"
+    - id: "podman"
+      title: "Podman"
+      href: "https://podman.io/"
+      linkLabel: "Podman をインストール"
+      statusLabel: "サポートされている代替案"
+      description: "Open Container Initiative (OCI) コンテナーを構築・実行するためのオープンソースでデーモンレスのランタイムです。"
+    - id: "rancher"
+      title: "Rancher Desktop"
+      href: "https://rancherdesktop.io/"
+      linkLabel: "Rancher Desktop について詳しく"
+      statusLabel: "コミュニティ報告済み"
+      description: "ユーザーから、特に Docker CLI を使用するよう設定した場合に成功したという報告を受けています。ただし、Rancher Desktop は正式にサポートされている Aspire シナリオではなく、定期的にテストされていません。"
+  container_runtime_podman_setup:
+    heading: "Aspire で Podman を使用"
+    body: "Podman をインストール後、ASPIRE_CONTAINER_RUNTIME を podman に設定します。"
+    bashTitle: "Podman ランタイムを設定"
+    powershellTitle: "Podman ランタイムを設定"
+---
+
+Aspire を始める準備はできていますか？開始する前に、開発環境にいくつかの必須ツールが整っていることを確認してください。このガイドでは、Aspire ソリューションを自信を持って構築・実行するために必要なすべてのセットアップについて説明します。
+
+{% steps %}
+1. #### 言語ランタイムをインストール
+
+    {% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+Aspire の TypeScript AppHost には、サポートされている [Node.js](https://nodejs.org/) リリース (**Node.js 20.19 以降、22.13 以降、または 24 以降**) が必要です。`aspire init` を実行すると、CLI はこのエンジン範囲をスキャフォールドされた `package.json` に書き込みます:
+
+```json title="package.json"
+{
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  }
+}
+```
+
+また、[サポートされている AppHost ルートのパッケージ マネージャー](/ja/app-host/typescript-apphost/#パッケージマネージャー) も必要です: **npm** (デフォルト、Node.js に含まれています)、**pnpm**、**Yarn 4 以降** (Berry)、または **Bun**。**Yarn Classic (v1) はサポートされていません。** Aspire CLI は `package.json` の `packageManager` フィールドまたはプロジェクト ディレクトリと親ディレクトリのロックファイルからアクティブなツールチェーンを自動検出します。
+
+お使いのオペレーティング システム (Windows、macOS、Linux) に応じた [Node.js のインストール手順](https://nodejs.org/) に従ってセットアップを完了します。別のパッケージ マネージャーを使う場合は、個別にインストールしてください:
+
+- [pnpm](https://pnpm.io/installation)
+- [Yarn](https://yarnpkg.com/getting-started/install)
+- [Bun](https://bun.sh/docs/installation)
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+Aspire の C# AppHost は .NET を基盤としています。.NET は、モダンなアプリケーションとクラウド サービスを構築するための、無料でオープンソースのクロスプラットフォーム フレームワークです。[.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) をインストールする必要があります。C# の事前知識は必須ではありません。
+
+:::caution[重要]
+C# AppHost には .NET 10.0 SDK が必要です。ただし、Aspire は .NET 8.0 以降をターゲットとするアプリケーションを実行できます。
+:::
+
+お使いのオペレーティング システム (Windows、macOS、Linux) に応じた [インストール手順](https://dotnet.microsoft.com/download/dotnet/10.0) に従ってセットアップを完了します。
+{% endtab %}
+{% endtabs %}
+
+1. #### OCI 準拠のコンテナー ランタイムをインストール
+
+    {% container_runtime_choices aria_label: "コンテナー ランタイムの選択肢", intro: "ローカル コンテナー サポート用に 1 つのランタイムを選択します。ほとんどの Aspire 開発者には Docker Desktop が推奨されるデフォルトです。", choices: props.container_runtime_choices, podman_setup: props.container_runtime_podman_setup %}
+
+    :::tip[1 つのランタイムを選択]{icon='approve-check-circle'}
+    上のタブから 1 つのオプションだけをインストールしてください。ほとんどのユーザーは **Docker Desktop** を選択します。Podman または Rancher Desktop を使いたいという理由がある場合を除き、それらをインストールしないでください。
+    :::
+
+1. #### 統合開発環境 (IDE) をインストール
+
+    Aspire は複数の IDE とコード エディターをサポートしています。ワークフローに最適なものを選択できます:
+
+    :::note[Visual Studio Code]{icon="vscode"}
+    最適な利用体験のため、[Visual Studio Code](https://code.visualstudio.com/) をお勧めします。軽量でクロスプラットフォーム対応のコード エディターで、Aspire のサポートが優れています。使い始めるには、次の拡張機能をインストールしてください:
+
+    [Aspire 拡張機能](/ja/get-started/aspire-vscode-extension/) - Aspire 固有のコマンドと機能用です。
+    :::
+
+    {% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+Aspire 拡張機能をインストールした Visual Studio Code が、TypeScript AppHost の推奨環境です。
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+さらに、C# 言語サポートのため [C# 拡張機能](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) をインストールしてください。
+
+Aspire は次の IDE でもよく動作します:
+
+- [Visual Studio](https://visualstudio.microsoft.com/vs/): C# 開発用のフル機能 IDE で、デバッグ、IntelliSense、Git サポートを備えています。
+- [JetBrains Rider](https://plugins.jetbrains.com/plugin/23289--net-aspire): コード分析、リファクタリング、デバッグなどの高度な機能を備えた、クロスプラットフォーム対応の強力な C# IDE です。
+{% endtab %}
+{% endtabs %}
+{% endsteps %}
+
+#### ローカル インストールの代替案を検討する (オプション)
+
+ローカル マシンに前提条件をインストールしない場合は、[GitHub Codespaces](/ja/get-started/github-codespaces/) や [Dev Containers](/ja/get-started/dev-containers/) などのクラウドベースのオプションを使用して Aspire ソリューションを開発できます。これらのオプションを使用すると、クラウド環境で作業でき、ローカル インストールが不要になりますが、ローカル インストールと同じパフォーマンスは提供されない場合があります。
+
+Aspire チームは、すぐに開始できるように、事前設定されている Dev Container を備えた GitHub Codespaces 設定を保守しています:
+
+{% codespaces_button "microsoft", "aspire-devcontainer" %}

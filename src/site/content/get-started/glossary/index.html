@@ -1,0 +1,44 @@
+---
+# The former glossary url (src/frontend/src/pages/get-started/glossary.astro): a standalone "glossary has moved" page
+# (noindex, canonical to /hub/glossary/) that sends the reader to the hub glossary with the query and the fragment (a
+# meta refresh would drop the fragment), and, without JavaScript, lists every term under its legacy group with the
+# anchors of the former page (legacyGroup and legacyAnchors of the terms' front matter).
+layout: false
+localize: false   # English only, as on the Astro site (no locale copies)
+tags: []
+title: Aspire glossary has moved
+pagefind: false
+---
+{%- include "partials/hub/glossary-terms" -%}
+{%- assign lg_groups = "core-concepts|Core concepts,apis-and-patterns|APIs and patterns,key-terms|Key terms,resource-types|Resource types,execution-modes|Execution modes,dashboard-and-observability|Dashboard and observability,common-patterns|Common patterns,api-reference-terms|API reference terms" | split: "," -%}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<meta name="robots" content="noindex, follow">
+<link rel="canonical" href="https://aspire.dev/hub/glossary/">
+<title>Aspire glossary has moved</title>
+<script>window.location.replace('/hub/glossary/' + window.location.search + window.location.hash);</script>
+<style>:root{color-scheme:light dark;font-family:system-ui,sans-serif;line-height:1.6}main{max-width:65ch;margin:2rem auto;padding:0 1rem}a{text-underline-offset:.2em}a:focus-visible{outline-offset:3px;outline:2px solid}</style>
+</head>
+<body data-pagefind-ignore>
+<main class="not-content">
+<h1>The Aspire glossary has moved</h1>
+<p><a href="/hub/glossary/">Open the Aspire glossary</a>, or follow a definition below.</p>
+{%- for lg_group in lg_groups -%}
+{%- assign lg_parts = lg_group | split: "|" %}
+<section aria-labelledby="{{ lg_parts[0] }}"><h2 id="{{ lg_parts[0] }}">{{ lg_parts[1] }}</h2><ul>
+{%- for lg_url in gt_urls -%}
+{%- assign lg_term = collections.urls[lg_url].data -%}
+{%- if lg_term.legacyGroup == lg_parts[0] %}
+<li id="{{ lg_term.legacyAnchors[0] }}">{% for lg_anchor in lg_term.legacyAnchors offset: 1 %}<span id="{{ lg_anchor }}"></span>{% endfor %}<a href="{{ lg_url }}">{{ lg_term.title }}</a><p>{{ lg_term.description }}</p></li>
+{%- endif -%}
+{%- endfor %}
+</ul></section>
+{%- endfor %}
+<h2 id="see-also">See also</h2>
+<p><a href="/hub/browse/">Browse Aspire resources</a></p>
+</main>
+</body>
+</html>

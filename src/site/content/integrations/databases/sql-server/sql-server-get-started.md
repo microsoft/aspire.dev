@@ -1,0 +1,68 @@
+---
+title: Get started with the SQL Server integrations
+description: Learn how the Aspire SQL Server integrations provision a SQL Server container resource and configure the .NET client connection from your AppHost.
+---
+
+{% image "/assets/images/icons/sql-icon.png", alt: "SQL Server logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server integration lets you model a SQL Server instance and its databases as first-class resources in your AppHost, then hand the connection information to any consuming app — regardless of language.
+
+## Why use SQL Server with Aspire
+
+Adding SQL Server through Aspire — rather than wiring up containers and connection strings by hand — gives you:
+
+- **Zero-config local development.** Aspire runs SQL Server from the [`mcr.microsoft.com/mssql/server`](https://hub.docker.com/_/microsoft-mssql-server) container image with credentials generated automatically for you.
+- **Consistent connection info across languages.** Once you reference the database from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the dashboard and your orchestrator can tell when the server is ready.
+- **Dashboard observability.** The database resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **A first-class C# client integration.** C# apps can use the `Aspire.Microsoft.Data.SqlClient` package for dependency injection, health checks, and OpenTelemetry, all wired up from the same resource name.
+
+## How the pieces fit together
+
+The SQL Server integration has two sides: a **hosting integration** that you use in your AppHost to model the database resource, and a **connection story** for consuming apps that reference it.
+
+```mermaid
+architecture-beta
+
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
+
+  service hosting(server)[Hosting integration] in apphost
+  service sqlserver(database)[SQL Server] in apphost
+  service db(database)[sqldb] in apphost
+
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
+
+  hosting:R --> L:sqlserver
+  sqlserver:R --> L:db
+  db:R --> L:client
+  client:R --> L:app
+```
+
+The **hosting integration** lives in your AppHost project and models the SQL Server instance and databases as resources. The **client integration** lives in each consuming app and uses the connection information Aspire injects to talk to the database.
+
+Getting there is a two-step process: model the SQL Server resources in your AppHost, then connect to the database from each app that needs it.
+
+{% steps %}
+1. ### Model SQL Server in your AppHost
+
+    Add the SQL Server hosting integration to your AppHost, then declare a SQL Server instance, one or more databases, and reference them from the apps that need to talk to the database. The [SQL Server Hosting integration](/integrations/databases/sql-server/sql-server-host/) article walks through every capability — adding databases, data volumes, bind mounts, custom parameters, image tags, and more — with side-by-side C# and TypeScript examples.
+
+    {% linkbutton "/integrations/databases/sql-server/sql-server-host/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Set up SQL Server in the AppHost
+{% endlinkbutton %}
+
+2. ### Connect from your consuming app
+
+    When you reference a SQL Server database from a consuming app, Aspire injects its connection information as environment variables. See [Connect to SQL Server](/integrations/databases/sql-server/sql-server-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration.
+
+    {% linkbutton "/integrations/databases/sql-server/sql-server-connect/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Connect to SQL Server
+{% endlinkbutton %}
+{% endsteps %}
+
+## See also
+
+- [SQL Server community extensions](/integrations/databases/sql-server/sql-server-extensions/)
+- [SQL Server Entity Framework Core integrations](/integrations/databases/efcore/sql-server/sql-server-get-started/)

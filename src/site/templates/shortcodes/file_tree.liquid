@@ -1,0 +1,20 @@
+---
+# starlight-plugin-icons' <FileTree> (starlight-plugin-icons/src/components/FileTree.astro), the one the site imports:
+#   {% file_tree %}
+#   - src/
+#     - **Program.cs** the entry point
+#     - ...
+#   - README.md
+#   {% endfile_tree %}
+# DEVIATION: the component turns the nested list into the tree markup at build time (lib/rehype-file-tree.ts:
+# entries, comments, highlighted `**name**`, placeholders `...`/`…`, <details open> for directories, material icon
+# theme classes `i-material-icon-theme:<icon>` resolved from the file name). Liquid cannot transform HTML, so this
+# shortcode renders the body list as is inside the element, and scripts/client/file-tree.ts applies the same
+# transform on load: same final markup and classes (`.directory`/`.file`/`.empty`, `.tree-entry`, `.highlight`,
+# `.comment`, `.tree-icon`, `.icon-open`/`.icon-closed`, `<span class="sr-only">` + data-directory-label before
+# directory icons), with sprite icons (`<svg class="tree-icon"><use href="/assets/icons.svg#material-icon-theme:x">`)
+# instead of UnoCSS classes. Root class: cid-icons-file-tree.
+block: true
+params: []
+---
+<starlight-file-tree class="not-content cid-icons-file-tree" data-pagefind-ignore data-directory-label="{{ 'fileTree.directory' | t | escape }}">{{ body | strip }}</starlight-file-tree>

@@ -1,0 +1,323 @@
+---
+title: Aspire skills
+seoTitle: Aspire skills for AI coding agents and AppHost projects
+description: Learn how Aspire skills teach AI coding agents to initialize, operate, observe, deploy, and wire Aspire apps.
+---
+
+Aspire skills are Markdown instruction bundles for AI coding agents. Each skill lives in a folder with a `SKILL.md` file that describes when the skill applies and what workflow the agent should follow. Skills don't run services or expose application data; they teach the agent how to use Aspire tools correctly.
+
+Aspire ships multiple skills for different parts of the app lifecycle. The exact list can vary by Aspire CLI version and project type, but the [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) bundle includes seven workflow skills: `aspire`, `aspire-init`, `aspire-orchestration`, `aspire-monitoring`, `aspire-deployment`, `aspire-project-v2-migration`, and `aspireify`.
+
+{% learnmore %}
+To configure AI coding agents end to end, see [Use AI coding
+agents](/get-started/ai-coding-agents/).
+{% endlearnmore %}
+
+## Install Aspire guidance
+
+Use Aspire's first-party agent setup when creating a new app, adding Aspire to an existing repo, or refreshing agent guidance later. The Aspire CLI is the recommended path for project-local setup because it installs Aspire skill files into detected agent environments.
+
+### Set up or refresh agent guidance
+
+```bash title="Aspire CLI"
+aspire agent init
+```
+
+Run `aspire agent init` in an existing Aspire project when you want to set up AI coding agents or refresh installed skill files. Skills don't require MCP. MCP setup is an explicit opt-in during standalone interactive setup or through `--mcp`; setup chained from `aspire new` or `aspire init` doesn't offer it.
+
+{% learnmore %}
+For command options and examples, see the [`aspire agent init` command
+reference](/reference/cli/commands/aspire-agent-init/).
+{% endlearnmore %}
+
+### Create a new Aspire app
+
+```bash title="Aspire CLI"
+aspire new
+```
+
+When prompted to configure AI agent environments, press {% kbd windows: "Y", mac: "Y", linux: "Y" %} then {% kbd windows: "Enter", mac: "Return", linux: "Enter" %}.
+
+{% learnmore %}
+For template and command options, see the [`aspire new` command
+reference](/reference/cli/commands/aspire-new/).
+{% endlearnmore %}
+
+### Add Aspire to an existing repo
+
+```bash title="Aspire CLI"
+aspire init
+```
+
+When prompted to install Aspire agent guidance, press {% kbd windows: "Y", mac: "Y", linux: "Y" %} then {% kbd windows: "Enter", mac: "Return", linux: "Enter" %}.
+
+{% learnmore %}
+For command options and examples, see the [`aspire init` command
+reference](/reference/cli/commands/aspire-init/).
+{% endlearnmore %}
+
+### Configure non-interactive setup
+
+For non-interactive setup, add `--non-interactive` and pass the skill and location options explicitly. Install the Aspire workflow skills together; the top-level `aspire` skill routes work to workflow-specific skills and isn't useful as the only Aspire skill. This example installs all available skills into the standard skill location:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash title="Aspire CLI"
+aspire agent init \
+  --non-interactive \
+  --skills all \
+  --skill-locations standard
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell title="Aspire CLI"
+aspire agent init `
+  --non-interactive `
+  --skills all `
+  --skill-locations standard
+```
+{% endtab %}
+{% endos_tabs %}
+
+When the same repo is intentionally used with both a Standard-compatible host and Claude Code, install the same skills into both locations:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash title="Aspire CLI"
+aspire agent init \
+  --non-interactive \
+  --skills all \
+  --skill-locations standard,claudecode
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell title="Aspire CLI"
+aspire agent init `
+  --non-interactive `
+  --skills all `
+  --skill-locations standard,claudecode
+```
+{% endtab %}
+{% endos_tabs %}
+
+### Other installation options
+
+Use these tabs when you need to install from a coding agent's marketplace or a skills-compatible installer instead of using the Aspire CLI.
+
+{% tabs sync: "agent-install" %}
+{% tab "Copilot CLI", id: "copilot-cli" %}
+Add the Aspire skills marketplace once, then install the Aspire plugin by name.
+
+```bash title="GitHub Copilot CLI"
+copilot plugin marketplace add microsoft/aspire-skills
+copilot plugin install aspire@aspire-skills
+```
+
+Use this path for terminal workflows where GitHub Copilot needs Aspire-specific guidance for AppHost, lifecycle, deployment, and diagnostics tasks.
+
+{% learnmore %}
+For plugin install details, see [Finding and installing plugins for GitHub
+Copilot
+CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing).
+{% endlearnmore %}
+{% endtab %}
+{% tab "GitHub Copilot app", id: "copilot-app" %}
+The GitHub Copilot app plugin installs Aspire skills and canvas extensions for the current user.
+
+#### Prerequisites
+
+Before you install, make sure you have:
+
+- [GitHub Copilot app](https://gh.io/app) installed.
+- A GitHub Copilot subscription (paid or free).
+
+#### Install
+
+Install the `microsoft/aspire-skills` marketplace through the GitHub Copilot app:
+
+1. Open the [`aspire-skills` marketplace install link](https://github.com/copilot/app/launch?entry_point=aspire_skills_docs&open=ghapp%3A%2F%2Fplugins%2Fmarketplace%2Fadd%3Fsource%3Dmicrosoft%2Faspire-skills) to automatically open the **Settings** > **Plugins** window in the GitHub Copilot app.
+2. In the **Add plugin marketplace?** dialog, select **Allow**.
+3. The **Plugins** window opens with the `microsoft/aspire-skills` marketplace. Select **Add marketplace**.
+4. Expand the `aspire-skills` entry and select **Install** on the `aspire` plugin.
+{% endtab %}
+{% tab "Claude Code", id: "claude-code" %}
+Start Claude Code in your terminal, add the Aspire marketplace, then install the Aspire plugin.
+
+```bash title="Terminal"
+claude
+```
+
+```text title="Claude Code CLI session"
+/plugin marketplace add microsoft/aspire-skills
+/plugin install aspire@aspire-skills
+```
+
+Run the slash commands inside the Claude Code CLI session.
+
+{% learnmore %}
+For plugin marketplace details, see [Discover and install prebuilt plugins
+through marketplaces](https://code.claude.com/docs/en/discover-plugins).
+{% endlearnmore %}
+{% endtab %}
+{% tab "Codex CLI", id: "codex-cli" %}
+Add the Aspire marketplace, then open the Codex plugin directory and install the Aspire plugin from the plugin browser.
+
+```bash title="Terminal"
+codex plugin marketplace add microsoft/aspire-skills
+codex
+```
+
+```text title="Codex CLI session"
+/plugins
+```
+
+Use this path for terminal-first Codex work that needs repeatable Aspire setup, orchestration, and diagnostics guidance.
+
+{% learnmore %}
+For plugin install details, see the [Codex plugin
+documentation](https://developers.openai.com/codex/plugins).
+{% endlearnmore %}
+{% endtab %}
+{% tab "OpenCode", id: "opencode" %}
+Use APM to install Aspire skills into agent hosts that support OpenCode-compatible skill locations.
+
+```bash title="OpenCode"
+apm install microsoft/aspire-skills
+opencode
+```
+
+Use this path when APM is your preferred way to manage agent skills.
+
+{% learnmore %}
+For APM install details, see the [Agent Package Manager
+quickstart](https://microsoft.github.io/apm/quickstart/).
+{% endlearnmore %}
+{% endtab %}
+{% tab "skills.sh", id: "npx" %}
+Use the Skills-compatible installer when your agent host supports skills.sh-managed skill locations.
+
+```bash title="skills.sh NPX"
+npx skills add microsoft/aspire-skills
+```
+
+For hosts that need an explicit skills directory and target agent, install from the `skills/` folder:
+
+```bash title="skills.sh NPX with explicit target"
+npx skills add https://github.com/microsoft/aspire-skills/tree/main/skills -a github-copilot -g -y
+```
+
+In that command, `-a github-copilot` selects the target agent, `-g` installs globally, and `-y` accepts prompts.
+
+{% learnmore %}
+For installer options, see the [skills.sh CLI
+documentation](https://www.skills.sh/docs/cli).
+{% endlearnmore %}
+{% endtab %}
+{% endtabs %}
+
+## Aspire workflow skills
+
+| Skill                         | Use it for                                                                                             | What it teaches                                                                                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `aspire`                      | Routing Aspire tasks to the right workflow                                                             | Detect the AppHost, apply Aspire safety guardrails, and choose the appropriate workflow for the user's request                                                           |
+| `aspire-init`                 | Starting a new Aspire app or adding Aspire to an existing repo                                         | Choose `aspire new` or `aspire init`, create the AppHost skeleton, and hand off existing-codebase wiring to `aspireify`                                                  |
+| `aspire-orchestration`        | Managing the local AppHost lifecycle                                                                   | Start, stop, restart, wait for, and inspect Aspire resources, including recovery from port conflicts and orphaned processes                                              |
+| `aspire-monitoring`           | Observing running Aspire apps                                                                          | Inspect resource state, logs, traces, metrics, browser telemetry, and dashboard data before making changes                                                               |
+| `aspire-deployment`           | Publishing, deploying, and tearing down Aspire apps                                                    | Use AppHost-modeled deployments for targets such as Docker Compose, Kubernetes, Azure, and AWS                                                                           |
+| `aspire-project-v2-migration` | Migrating eligible AppHosts to Project v2 resource APIs                                                | Assess legacy project resources, require approval for exact edits, and preserve supported behavior while migrating to `DotnetProjectResource` APIs                       |
+| `aspireify`                   | Completing Aspire initialization in an existing codebase after `aspire init` drops an AppHost skeleton | Scan the repo, propose a resource graph, wire projects and containers into the AppHost, connect resources, configure telemetry when appropriate, and validate the wiring |
+
+Use the top-level `aspire` skill when the request is about an Aspire app and the right workflow isn't obvious. Use a workflow-specific skill directly when the task is clear, such as `aspire-orchestration` for local lifecycle work, `aspire-monitoring` for telemetry investigation, `aspire-deployment` for publish and deploy workflows, `aspire-project-v2-migration` for eligible legacy project resources, or `aspireify` for existing-codebase AppHost wiring.
+
+## GitHub Copilot app canvas extensions
+
+Currently, the Aspire CLI setup flow doesn't install canvas extensions. Install them through the GitHub Copilot app plugin.
+
+| Canvas          | Use it for                              | What it shows                                                                                  |
+| --------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `aspire-doctor` | Diagnosing your Aspire development setup | Environment checks, suggested fixes, and detected Aspire CLI installations in an app side panel |
+
+## Companion skills and tools
+
+The Aspire CLI setup flow can offer companion options, but they aren't part of the `microsoft/aspire-skills` workflow bundle.
+
+| Skill            | Use it for                                 | What it teaches                                                                                                   |
+| ---------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `playwright-cli` | Testing running web resources in a browser | Use Playwright CLI for browser automation, including navigation, form interaction, screenshots, and visual checks |
+| `dotnet-inspect` | Inspecting .NET APIs outside Aspire        | Query .NET package and type surfaces that aren't covered by Aspire API docs                                       |
+
+Use `playwright-cli` when an agent needs to test or inspect a running frontend. For Playwright commands and options, see the [Playwright command line documentation](https://playwright.dev/docs/test-cli).
+
+:::caution[dotnet-inspect scope]
+Use `dotnet-inspect` only when an agent needs to inspect .NET code or packages outside Aspire. If you're only working with Aspire APIs, use the Aspire CLI instead: `aspire docs api` already provides C# and TypeScript API docs from aspire.dev.
+:::
+
+{% learnmore %}
+For more information, see the [`aspire docs api` command
+reference](/reference/cli/commands/aspire-docs-api/).
+{% endlearnmore %}
+
+## Playwright handoff
+
+The `playwright-cli` skill works best alongside the `aspire` skill. The agent will first use Aspire to discover the running app and the correct frontend endpoint, especially when multiple web resources exist. After it has the target URL, it can use the Playwright CLI to automate browser testing.
+
+## Skill locations
+
+Aspire installs each selected skill into the selected skill locations. For example, a standard location can contain every Aspire workflow skill and selected companion skills:
+
+:::note[Prefer one location]
+Install skills to a single location for the agent environment you actively use. Select multiple locations only when the same repo is intentionally shared across different agent hosts.
+:::
+
+{% file_tree %}
+- .agents/skills/
+  - aspire/
+    - SKILL.md
+  - aspire-init/
+    - SKILL.md
+  - aspire-orchestration/
+    - SKILL.md
+  - aspire-monitoring/
+    - SKILL.md
+  - aspire-deployment/
+    - SKILL.md
+  - aspire-project-v2-migration/
+    - SKILL.md
+  - aspireify/
+    - SKILL.md
+  - playwright-cli/
+    - SKILL.md
+  - dotnet-inspect/
+    - SKILL.md
+{% endfile_tree %}
+
+Other supported locations use the same skill folder names:
+
+| Location          | Directory          | Notes                                              |
+| ----------------- | ------------------ | -------------------------------------------------- |
+| **Standard**      | `.agents/skills/`  | Supported by VS Code, GitHub Copilot, and OpenCode |
+| **Claude Code**   | `.claude/skills/`  | Claude Code specific                               |
+| **GitHub Skills** | `.github/skills/`  | VS Code / GitHub Copilot specific                  |
+| **OpenCode**      | `.opencode/skill/` | OpenCode specific                                  |
+
+## Troubleshoot skill bundle errors
+
+When the Aspire CLI installs Aspire workflow skills, it validates the Aspire skills bundle before copying files. If the embedded bundle that ships with the CLI is corrupted or inconsistent, you might see errors such as:
+
+- `Embedded Aspire skills bundle metadata is invalid: <reason>`
+- `Embedded Aspire skills metadata must specify a version.`
+- `Embedded Aspire skills archive failed SHA-512 verification. Expected '<expected>', got '<actual>'.`
+
+These errors indicate a problem with the Aspire CLI installation itself, not your project configuration. To resolve the issue, update the CLI:
+
+```bash title="Aspire CLI"
+aspire update --self
+```
+
+The update replaces the embedded bundle. If your installation method doesn't support self-updating, follow the [Install the Aspire CLI](/get-started/install-cli/) instructions to reinstall or update the CLI. If the problem persists after updating or reinstalling, [open an issue on GitHub](https://github.com/microsoft/aspire/issues).
+
+## See also
+
+- [Use AI coding agents](/get-started/ai-coding-agents/) — set up your project for AI agents
+- [aspire agent init command](/reference/cli/commands/aspire-agent-init/)
+- [aspire init command](/reference/cli/commands/aspire-init/)

@@ -1,0 +1,316 @@
+---
+title: Aspire MCP server for application observability
+description: Give coding agents MCP tools for application logs, distributed traces, and resource health. Configure optional runtime access alongside Aspire CLI skills.
+---
+
+:::note
+The MCP server that was previously built into the Aspire dashboard has been removed. The [`aspire agent mcp`](/reference/cli/commands/aspire-agent-mcp/) CLI command is now the way to start the Aspire MCP server.
+:::
+
+The Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server exposes application observability to AI coding agents. Agents can query resource status and health, read application logs, inspect distributed traces, and execute resource commands. They use the same runtime evidence you inspect in the [Aspire dashboard](/dashboard/overview/), rather than inferring application behavior from source code alone.
+
+:::tip[Aspire skills are preferred]
+For most AI coding-agent workflows, install [Aspire skills](/get-started/aspire-skills/) first. Skills teach agents Aspire CLI commands, workflows, and TypeScript or C# AppHost conventions, including how to query live runtime data. Add the optional MCP server when you prefer to expose that data through MCP tools instead.
+:::
+
+{% learnmore %}
+To set up your project for AI coding agents, see [Use AI coding agents](/get-started/ai-coding-agents/).
+For a request-level investigation, see [Debug application failures with AI coding agents](/dashboard/ai-coding-agents/).
+{% endlearnmore %}
+
+## Configuration
+
+When you select **Install Aspire MCP server**, the `aspire agent init` command creates MCP server configuration files for your detected AI environment:
+
+{% tabs sync: "ai-ide" %}
+{% tab "VS Code", id: "vscode" %}
+Creates or updates `.vscode/mcp.json`:
+
+```json title=".vscode/mcp.json"
+{
+  "servers": {
+    "aspire": {
+      "type": "stdio",
+      "command": "aspire",
+      "args": [
+        "agent",
+        "mcp"
+      ]
+    }
+  }
+}
+```
+{% endtab %}
+{% tab "Claude Code", id: "claude" %}
+Creates or updates `.mcp.json`:
+
+```json title=".mcp.json"
+{
+  "mcpServers": {
+    "aspire": {
+      "command": "aspire",
+      "args": [
+        "agent",
+        "mcp"
+      ]
+    }
+  }
+}
+```
+{% endtab %}
+{% tab "Copilot CLI", id: "copilot-cli" %}
+Creates or updates `~/.copilot/mcp-config.json`:
+
+```json title="~/.copilot/mcp-config.json"
+{
+  "mcpServers": {
+    "aspire": {
+      "type": "local",
+      "command": "aspire",
+      "args": [
+        "agent",
+        "mcp"
+      ]
+    }
+  }
+}
+```
+{% endtab %}
+{% tab "OpenCode", id: "opencode" %}
+Creates or updates `opencode.jsonc`:
+
+```jsonc title="opencode.jsonc"
+{
+  "mcp": {
+    "aspire": {
+      "type": "local",
+      "command": [
+        "aspire",
+        "agent",
+        "mcp"
+      ],
+      "enabled": true
+    }
+  }
+}
+```
+{% endtab %}
+{% endtabs %}
+
+## Tools
+
+The Aspire MCP server provides the following tools to AI agents:
+
+| Tool | Description |
+|------|-------------|
+| `list_resources` | Lists all resources, including state, health status, source, endpoints, and commands |
+| `list_console_logs` | Lists console logs for a resource |
+| `list_structured_logs` | Lists structured logs, optionally filtered by resource name |
+| `list_traces` | Lists distributed traces, optionally filtered by resource name |
+| `list_trace_structured_logs` | Lists structured logs for a specific trace |
+| `execute_resource_command` | Executes a resource command (start, stop, restart) |
+| `list_apphosts` | Lists detected AppHost connections and their scope |
+| `select_apphost` | Selects which AppHost to use when multiple are running |
+| `list_integrations` | Lists available Aspire hosting integration packages |
+| `get_integration_docs` | Gets documentation for a specific integration package |
+| `list_docs` | Lists all available documentation pages from aspire.dev |
+| `search_docs` | Searches aspire.dev documentation using keyword-based search |
+| `get_doc` | Retrieves the full content of a documentation page by slug |
+| `doctor` | Diagnoses Aspire environment issues and verifies setup |
+| `refresh_tools` | Requests the server to re-emit its tool list for clients to re-fetch |
+
+### Exclude resources from MCP
+
+By default, all resources, console logs, and telemetry are accessible through the MCP server. You can exclude specific resources and their associated telemetry by annotating them with {% api "Aspire.Hosting.ResourceBuilderExtensions.ExcludeFromMcp" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const apiservice = await builder
+  .addProject("apiservice", "./api/ApiService.csproj")
+  .excludeFromMcp();
+
+await builder
+  .addProject("webfrontend", "./web/Web.csproj")
+  .withExternalHttpEndpoints()
+  .withReference(apiservice);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiservice = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+    .ExcludeFromMcp();
+
+builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+    .WithExternalHttpEndpoints()
+    .WithReference(apiservice);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Security
+
+The Aspire MCP server is a development-time tool designed for local use.
+
+### How it works
+
+The MCP server uses the **STDIO transport protocol** when started via `aspire agent mcp`:
+
+- The MCP server runs as a **local child process** spawned by your AI assistant.
+- Communication happens over **standard input/output (STDIO) pipes**.
+- There are **no open network ports** — the server doesn't listen on any network interface.
+- Only the parent process (your AI assistant) can communicate with the MCP server.
+
+:::tip
+Because STDIO transport uses pipes rather than network sockets, there is no network attack surface. The MCP server is only accessible to the AI assistant process that started it.
+:::
+
+### What data is accessible
+
+The MCP server provides access to:
+
+- **Resource metadata** — names, types, states, health status, endpoints, and commands
+- **Console logs** — standard output and error streams
+- **Structured logs** — log entries via OpenTelemetry
+- **Distributed traces** — request flow across resources
+- **Integration catalog** — available hosting integration packages
+- **Product documentation** — Official LLMS.txt-based `aspire.dev` content 
+
+The MCP server does **not** expose:
+
+- Source code or file system contents
+- Environment variable values or secrets
+- Network traffic or raw request/response payloads
+- Access to the host machine beyond the Aspire AppHost process
+
+### Authentication
+
+With STDIO transport (the default), no additional authentication is required — communication is restricted to the local process pipe.
+
+### Enterprise considerations
+
+For teams evaluating the Aspire MCP server:
+
+- **Development-time only** — not included in published or deployed applications
+- **No external network access** — no network listeners when using STDIO transport
+- **Data stays local** — telemetry remains on the developer's machine. Data shared with AI assistants is governed by the assistant's own data policies
+- **Granular access control** — exclude sensitive resources and their telemetry from MCP access
+- **No persistent storage** — all data is in memory for the session duration
+- **Open specification** — implements the [Model Context Protocol specification](https://modelcontextprotocol.io/)
+
+## Deployment considerations
+
+The MCP server is part of the Aspire CLI tooling and runs separately from your AppHost — it doesn't require explicit exclusion from deployments.
+
+If your AppHost includes dev-only resources, use `ExecutionContext.IsRunMode` to exclude them from production:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder
+  .addProject("api", "./api/Api.csproj");
+
+if (await builder.executionContext.isRunMode()) {
+    // Only available during local development
+    await builder.addContainer("dev-tool", { image: "some-dev-image", tag: "latest" });
+}
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+if (builder.ExecutionContext.IsRunMode)
+{
+    // Only available during local development
+    builder.AddContainer("dev-tool", "some-dev-image");
+}
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Limitations
+
+AI models have limits on how much data they can process. The Aspire MCP server may limit data returned from tools:
+
+- Large data fields (e.g., long stack traces) may be truncated
+- Large collections of telemetry may be shortened by omitting older items
+
+## Troubleshooting
+
+If you run into issues, check the [open MCP issues on GitHub](https://github.com/microsoft/aspire/issues?q=is%3Aissue+is%3Aopen+label%3Aarea-mcp).
+
+### AppHost detection
+
+The MCP server automatically detects running AppHosts within the working directory scope:
+
+- It continuously monitors for AppHost changes — no restart needed
+- Use `list_apphosts` to see detected AppHosts
+- Use `select_apphost` to switch between multiple running AppHosts
+
+:::note
+If your AI assistant doesn't detect your AppHost, verify it's running with `aspire start` and that the assistant was started from the same workspace directory.
+:::
+
+### If your agent can't connect
+
+{% steps %}
+1. Verify the Aspire CLI is installed:
+
+   ```bash title="Aspire CLI"
+   aspire --version
+   ```
+
+1. Confirm your AppHost is running:
+
+   ```bash title="Aspire CLI"
+   aspire start
+   ```
+
+1. Test the MCP server directly:
+
+   ```bash title="Aspire CLI"
+   aspire agent mcp
+   ```
+
+   If it starts without errors, the issue is in your AI assistant's configuration.
+
+1. Regenerate configuration and select **Install Aspire MCP server**:
+
+   ```bash title="Aspire CLI"
+   aspire agent init
+   ```
+{% endsteps %}
+
+### Claude Code issues
+
+- Ensure `.mcp.json` exists in your project root — run `aspire agent init` and select **Install Aspire MCP server** to regenerate
+- On Windows, commands like `npx` require a `cmd.exe /c` prefix
+- Restart Claude Code to re-establish stale MCP connections
+
+## See also
+
+- [Use AI coding agents](/get-started/ai-coding-agents/) — set up your project for AI agents
+- [Aspire skills](/get-started/aspire-skills/) — project-local guidance for AI coding agents
+- [aspire agent mcp command](/reference/cli/commands/aspire-agent-mcp/)
+- [Dashboard security considerations](/dashboard/security-considerations/)

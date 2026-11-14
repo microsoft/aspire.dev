@@ -1,0 +1,424 @@
+---
+title: Build your first Aspire app
+category: quickstart
+description: "Build your first Aspire app from scratch with either a C# or TypeScript AppHost — add resources, run the dashboard, and explore telemetry in a few minutes."
+prev: false
+props:
+  pivot_selector_options:
+    - id: csharp
+      title: C#
+    - id: typescript
+      title: TypeScript
+---
+
+{% pivot_selector title: "Select your programming language", key: "aspire-lang", options: props.pivot_selector_options %}
+
+{% pivot "csharp" %}
+This quickstart uses the starter template that generates a C# AppHost. You'll create the solution, review the generated AppHost, and run it locally with Aspire.
+
+:::note[Prerequisites]
+Before you run through this quickstart, make sure you've installed the [prerequisites](/get-started/prerequisites/) and the [Aspire CLI](/get-started/install-cli/).
+:::
+
+:::tip[Prefer VS Code?]
+Install the [Aspire VS Code extension](/get-started/aspire-vscode-extension/) if you want the same path in the editor: create or open the app, run **Aspire: Configure launch.json file**, then press {% kbd windows: "F5", mac: "F5" %} to start the AppHost and open the dashboard.
+:::
+
+This starter template uses modern C#:
+
+- [Minimal APIs](https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis) for lightweight HTTP APIs
+- [Blazor](https://learn.microsoft.com/aspnet/core/blazor) for interactive web UIs using C#
+- [Service defaults](/get-started/csharp-service-defaults/) for shared configuration of observability and resilience
+
+The following diagram shows the architecture of the sample app you're creating:
+
+```mermaid
+architecture-beta
+
+  service api(logos:dotnet)[API service]
+  service frontend(aspire:blazor)[Blazor frontend]
+
+  frontend:L --> R:api
+```
+{% endpivot %}
+{% pivot "typescript" %}
+This quickstart uses the JavaScript starter template, which generates a TypeScript AppHost in `apphost.mts`. You'll create the solution, review the generated TypeScript AppHost, and run it locally with Aspire.
+
+:::note[Prerequisites]
+Before you run through this quickstart, make sure you've installed the [prerequisites](/get-started/prerequisites/) and the [Aspire CLI](/get-started/install-cli/).
+:::
+
+:::tip[Prefer VS Code?]
+Install the [Aspire VS Code extension](/get-started/aspire-vscode-extension/) if you want the same path in the editor: create or open the app, run **Aspire: Configure launch.json file**, then press {% kbd windows: "F5", mac: "F5" %} to start the AppHost and open the dashboard.
+:::
+
+This starter template combines a modern JavaScript stack:
+
+- [Express](https://expressjs.com/) for building APIs with Node.js
+- [React](https://react.dev/) for building user interfaces with JavaScript
+- [TypeScript](https://www.typescriptlang.org/) for type-safe development across the entire stack
+
+The following diagram shows the architecture of the sample app you're creating:
+
+```mermaid
+architecture-beta
+  service api(logos:nodejs-icon)[API service]
+  service frontend(logos:react)[React frontend]
+
+  frontend:L --> R:api
+```
+{% endpivot %}
+
+## Create a new app
+
+{% pivot "csharp" %}
+To create your first Aspire application, use the [Aspire CLI](/get-started/install-cli/) to generate a new solution from a template. These template include multiple projects, such as an API service, a web frontend, and an [Aspire AppHost](/get-started/app-host/).
+
+{% steps %}
+1. Create a new Aspire solution from a template:
+
+    ```bash title="Create a new aspire solution"
+    aspire new aspire-starter -n AspireApp -o AspireApp
+    ```
+
+    The template provides several projects, including an API service, web frontend, and AppHost.
+
+    :::tip[CLI flags]{icon='list-format'}
+
+    The following flags are used in the command:
+
+    - `-n`: specifies the name of the solution.
+    - `-o`: specifies the output directory.
+
+    :::
+
+    {% learnmore %}
+For further CLI reference, see [`aspire new`](/reference/cli/commands/aspire-new/) command information.
+{% endlearnmore %}
+
+    If prompted for additional selections, use the {% kbd windows: "↑", mac: "↑" %} and {% kbd windows: "↓", mac: "↓" %} keys to navigate the options. Press {% kbd windows: "Enter", mac: "Return" %} to confirm your selection.
+{% endsteps %}
+{% endpivot %}
+{% pivot "typescript" %}
+To create your first Aspire application, use the [Aspire CLI](/get-started/install-cli/) to generate a new solution from a template. These template include multiple projects, such as an API service, a web frontend, and an [Aspire AppHost](/get-started/app-host/).
+
+{% steps %}
+1. Create a new Aspire solution from a template:
+
+    ```bash title="Create a new aspire solution"
+    aspire new aspire-ts-starter -n aspire-app -o aspire-app
+    ```
+
+    The template provides several projects, including an API service, web frontend, and AppHost.
+
+    :::tip[CLI flags]{icon='list-format'}
+    The following flags are used in the command:
+
+    - `-n`: specifies the name of the solution.
+    - `-o`: specifies the output directory.
+    :::
+
+    {% learnmore %}
+For further CLI reference, see [`aspire new`](/reference/cli/commands/aspire-new/) command information.
+{% endlearnmore %}
+
+    If prompted for additional selections, use the {% kbd windows: "↑", mac: "↑" %} and {% kbd windows: "↓", mac: "↓" %} keys to navigate the options. Press {% kbd windows: "Enter", mac: "Return" %} to confirm your selection.
+
+    :::note[AI agent environments]
+    When prompted "Would you like to configure AI agent environments for this project?", select `y`. This sets up workspace configurations (such as Aspire skills and <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server settings) for your project, enabling a richer experience with AI coding assistants. For more information, see [Use AI coding agents](/get-started/ai-coding-agents/) and the [`aspire agent init`](/reference/cli/commands/aspire-agent-init/) reference.
+    :::
+{% endsteps %}
+{% endpivot %}
+
+## Review the template code
+
+Both templates start with {% api "Aspire.Hosting.DistributedApplication.CreateBuilder" %} to create the AppHost builder. They use {% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %} to connect resources and {% api "Aspire.Hosting.ResourceBuilderExtensions.WaitFor" %} to wait for dependencies before starting dependent resources.
+
+{% pivot "csharp" %}
+{% steps %}
+1. Examine the created template structure. The Aspire CLI creates a new folder with the name you provided in the current directory. This folder contains the solution file and several projects, including:
+
+    {% file_tree %}
+- AspireApp.sln
+- AspireApp.ApiService  mock weather data API
+    - Properties/
+    - appsettings.Development.json
+    - appsettings.json
+    - AspireApp.ApiService.csproj
+    - Program.cs
+- **AspireApp.AppHost** dev-time orchestrator
+    - Properties/
+    - appsettings.Development.json
+    - appsettings.json
+    - AspireApp.AppHost.csproj
+    - AppHost.cs
+- AspireApp.ServiceDefaults
+    - Extensions.cs
+    - AspireApp.ServiceDefaults.csproj
+- AspireApp.Web  ASP.NET Core Blazor frontend
+    - Properties/
+    - wwwroot/
+    - appsettings.Development.json
+    - appsettings.json
+    - AspireApp.Web.csproj
+    - Program.cs
+    - WeatherApiClient.cs
+{% endfile_tree %}
+
+    This solution structure is based on the Aspire templates. If they're not installed already, the CLI will install them for you.
+
+1. Explore the AppHost code that orchestrates your app.
+
+    The [AppHost](/get-started/app-host/) is the heart of your Aspire application. It defines which services run, how they connect, and in what order they start. Let's look at the generated code:
+
+    ```csharp title="AppHost.cs project-based orchestrator"
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+        .WithHttpHealthCheck("/health");
+
+    builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+        .WithExternalHttpEndpoints()
+        .WithHttpHealthCheck("/health")
+        .WithReference(apiService)
+        .WaitFor(apiService);
+
+    builder.Build().Run();
+    ```
+
+    _What's happening here?_
+
+    - {% api "Aspire.Hosting.DistributedApplication.CreateBuilder" %} creates the distributed application builder
+    - {% api "Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" %} registers your API service and web frontend
+    - {% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %} connects services. It injects the API's URL as an environment variable and sets up service discovery so you can use service names instead of hardcoded URLs
+    - {% api "Aspire.Hosting.ResourceBuilderExtensions.WaitFor" %} ensures the API is healthy before starting the frontend, preventing connection errors from race conditions
+    - {% api "Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" %} monitors service health
+
+    :::note[Code-first orchestration]
+    Your application topology is defined in code, making it easy to understand, modify, and version control. Learn more about the [AppHost](/get-started/app-host/).
+    :::
+{% endsteps %}
+{% endpivot %}
+{% pivot "typescript" %}
+{% steps %}
+1. Examine the created template structure. The Aspire CLI creates a new folder with the name you provided in the current directory. This folder contains the solution file and several projects, including:
+
+    {% file_tree %}
+- aspire-app/
+    - api/  Express mock weather data API
+        - src/
+            - index.ts
+            - instrumentation.ts
+        - package.json
+        - tsconfig.json
+    - frontend/  Vite + React web frontend
+        - public/
+            - Aspire.png
+            - github.svg
+        - src/
+            - App.css
+            - App.tsx
+            - index.css
+            - main.tsx
+            - vite-env.d.ts
+        - .dockerignore
+        - eslint.config.js
+        - index.html
+        - package.json
+        - tsconfig.json
+        - vite.config.ts
+    - **apphost.mts** dev-time orchestrator
+    - .aspire/
+        - modules/  generated TypeScript SDK
+    - aspire.config.json
+    - package.json
+    - tsconfig.apphost.json
+{% endfile_tree %}
+
+    This solution structure is based on the Aspire templates. If they're not installed already, the CLI will install them for you.
+
+1. Explore the AppHost code that orchestrates your app.
+
+    The [AppHost](/get-started/app-host/) is the heart of your Aspire application. It defines which services run, how they connect, and in what order they start. Let's look at the generated code:
+
+    ```typescript title="apphost.mts" twoslash
+    import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+    const builder = await createBuilder();
+
+    // Run the Express API and expose its HTTP endpoint externally.
+    const app = await builder
+        .addNodeApp("app", "./api", "src/index.ts")
+        .withHttpEndpoint({ env: "PORT" })
+        .withExternalHttpEndpoints();
+
+    // Run the Vite frontend after the API and inject the API URL for local proxying.
+    const frontend = await builder
+        .addViteApp("frontend", "./frontend")
+        .withReference(app)
+        .waitFor(app);
+
+    // Bundle the frontend build output into the API container for publish/deploy.
+    await app.publishWithContainerFiles(frontend, "./static");
+
+    await builder.build().run();
+    ```
+
+    _What's happening here?_
+
+    - {% api "Aspire.Hosting.DistributedApplication.CreateBuilder" %} creates the distributed application builder
+    - {% api "Aspire.Hosting.JavaScriptHostingExtensions.AddNodeApp" %} adds a Node.js application (the Express API)
+    - {% api "Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" %} registers your React frontend
+    - {% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %} connects the frontend to the API. It injects the API's URL and sets up service discovery
+    - {% api "Aspire.Hosting.ResourceBuilderExtensions.WaitFor" %} ensures the API is running before starting the frontend, preventing connection errors
+    - {% api "Aspire.Hosting.ResourceBuilderExtensions.PublishWithContainerFiles" %} bundles the frontend for production deployment
+
+    {% learnmore %}
+This template uses a TypeScript AppHost. To learn more about how multi-language AppHosts work, see [Multi-language architecture](/architecture/multi-language-architecture/).
+{% endlearnmore %}
+
+    :::note[Code-first orchestration]
+    Your application topology is defined in code, making it easy to understand, modify, and version control. Learn more about the [AppHost](/get-started/app-host/).
+    :::
+{% endsteps %}
+{% endpivot %}
+
+## Run the app
+
+{% pivot "csharp" %}
+{% steps %}
+1. Change to the output directory:
+
+    ```bash title="Change directories"
+    cd ./AspireApp
+    ```
+
+1. Call `aspire run` to start dev-time orchestration:
+
+    ```bash title="Run dev-time orchestration"
+    aspire run
+    ```
+
+    When you run this command, the Aspire CLI:
+
+    - Automatically finds the AppHost
+    - Builds your solution
+    - Launches dev-time orchestration
+
+    Once the dashboard is ready, its URL (with a login token highlighted in the example output below) appears in your terminal. The dashboard provides a live, real-time view of your running resources and their current states.
+
+    ```bash title="Example output" mark={8}
+    🔍  Finding apphosts...
+    AspireApp.AppHost/AspireApp.AppHost.csproj
+
+    🗄  Created settings file at 'aspire.config.json'.
+
+         AppHost:  AspireApp.AppHost/AspireApp.AppHost.csproj
+
+       Dashboard:  https://localhost:17068/login?t=ea559845d54cea66b837dc0ff33c3bd3
+
+            Logs:  %USERPROFILE%/.aspire/cli/logs/apphost-13024-2025-10-31-19-40-58.log
+
+                   Press CTRL+C to stop the apphost and exit.
+    ```
+
+    {% learnmore %}
+For further CLI reference, see [`aspire run`](/reference/cli/commands/aspire-run/) command information.
+{% endlearnmore %}
+
+1. Explore the running distributed application. From the dashboard, open the `HTTPS` endpoint from each resource.
+
+    {% image light: "/assets/images/get-started/csharp-aspire-dashboard-light.png", dark: "/assets/images/get-started/csharp-aspire-dashboard-dark.png", label: "Aspire dashboard Resources page", alt: "Aspire dashboard Resources page displaying two running resources: apiservice and webfrontend. Both are marked as Running with green check icons. The table lists columns for Name, State, Start time, Source, URLs, and Actions." %}
+
+    {% learnmore %}
+To learn more, see [Aspire dashboard overview](/dashboard/overview/).
+{% endlearnmore %}
+{% endsteps %}
+{% endpivot %}
+{% pivot "typescript" %}
+{% steps %}
+1. Change to the output directory:
+
+    ```bash title="Change directories"
+    cd ./aspire-app
+    ```
+
+1. Call `aspire run` to start dev-time orchestration:
+
+    ```bash title="Run dev-time orchestration"
+    aspire run
+    ```
+
+    When you run this command, the Aspire CLI:
+
+    - Automatically finds the AppHost
+    - Builds your solution
+    - Launches dev-time orchestration
+
+    Once the dashboard is ready, its URL (with a login token highlighted in the example output below) appears in your terminal. The dashboard provides a live, real-time view of your running resources and their current states.
+
+    ```bash title="Example output" mark={6}
+    🔍  Finding apphosts...
+    apphost.mts
+
+         AppHost:  apphost.mts
+
+       Dashboard:  https://localhost:17174/login?t=afb274c630f48b1c4ddfe139011c1cb7
+
+            Logs:  %USERPROFILE%/.aspire/logs/cli_20260318T134627_f31ad598.log
+
+                   Press CTRL+C to stop the apphost and exit.
+    ```
+
+    {% learnmore %}
+For further CLI reference, see [`aspire run`](/reference/cli/commands/aspire-run/) command information.
+{% endlearnmore %}
+
+1. Explore the running distributed application. From the dashboard, open the `HTTPS` endpoint from each resource.
+
+    {% image light: "/assets/images/get-started/javascript-aspire-dashboard-light.png", dark: "/assets/images/get-started/javascript-aspire-dashboard-dark.png", label: "Aspire dashboard Resources page", alt: "Aspire dashboard Resources page displaying two running and two finished resources: app and frontend. Both app and frontend are marked as Running with green check icons while their installer resources show as Finished. The table lists columns for Name, State, Start time, Source, URLs, and Actions." %}
+
+    {% learnmore %}
+To learn more, see [Aspire dashboard overview](/dashboard/overview/).
+{% endlearnmore %}
+{% endsteps %}
+{% endpivot %}
+
+## Stop the app
+
+{% pivot "csharp" %}
+{% steps %}
+1. Stop the AppHost and close the dashboard by pressing {% kbd windows: "Ctrl+C", mac: "⌃+C" %} in your terminal.
+
+    ```bash title="Stop dev-time orchestration"
+    🛑  Stopping Aspire.
+    ```
+
+    **🥳 Congratulations! You've created your first Aspire app.**
+{% endsteps %}
+
+{% learnmore %}
+You might be eager to deploy this app next and we'll show you how Aspire handles that, but you're probably also wondering: "How do I test all this?" Aspire doesn't just orchestrate locally and deploy, it also helps you test service and resource integrations too. Ready to dive in? [Write your first test](/testing/write-your-first-test/) 💜
+{% endlearnmore %}
+{% endpivot %}
+
+{% pivot "typescript" %}
+{% steps %}
+1. Stop the AppHost and close the dashboard by pressing {% kbd windows: "Ctrl+C", mac: "⌃+C" %} in your terminal.
+
+    ```bash title="Stop dev-time orchestration"
+    🛑  Stopping Aspire.
+    ```
+
+    **🥳 Congratulations! You've created your first Aspire app.**
+{% endsteps %}
+
+{% learnmore %}
+Ready to deploy? Follow the [Deploy your first Aspire app — TypeScript AppHost](/get-started/deploy-first-app/) tutorial to ship your app to Docker Compose or Azure. Or, if you're wondering "How do I test all this?" Aspire helps you test service and resource integrations too. [Write your first test](/testing/write-your-first-test/) 💜
+{% endlearnmore %}
+{% endpivot %}
+
+## See also
+
+- Having trouble? Check out our [Troubleshooting guide](/get-started/troubleshooting/) for solutions to common problems.
+- Prefer a GUI? The [Aspire VS Code extension](/get-started/aspire-vscode-extension/) lets you create, run, and debug Aspire apps from VS Code.

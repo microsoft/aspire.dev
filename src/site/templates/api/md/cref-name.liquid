@@ -1,0 +1,32 @@
+{%- comment -%}
+  The doc id without its prefix, parameter list and ``N method arities (parseSeeAlso then the `(` and /``\d+/g strips
+  of src/frontend/src/utils/csharp-api-markdown.ts). Input: cref. With label: true, cleanCrefLabel: the last two
+  segments (`Type.Member`), or the last one.
+{%- endcomment -%}
+{%- assign fullName = cref -%}
+{%- if cref contains ":" -%}
+  {%- assign prefix = cref | split: ":" | first -%}
+  {%- if prefix != "" -%}{%- assign start = prefix.size | plus: 1 -%}{%- assign fullName = cref | slice: start, cref.size -%}{%- endif -%}
+{%- endif -%}
+{%- assign name = fullName | split: "(" | first | default: "" -%}
+{%- if name contains "``" -%}
+  {%- assign parts = name | split: "``" -%}
+  {%- capture name -%}
+    {%- for part in parts -%}
+      {%- if forloop.first -%}{{ part }}{%- else -%}
+        {%- assign rest = part -%}
+        {%- for i in (1..6) -%}
+          {%- assign c = rest | slice: 0 -%}
+          {%- if c == "0" or c == "1" or c == "2" or c == "3" or c == "4" or c == "5" or c == "6" or c == "7" or c == "8" or c == "9" -%}{%- assign rest = rest | slice: 1, rest.size -%}{%- else -%}{%- break -%}{%- endif -%}
+        {%- endfor -%}
+        {%- if rest.size == part.size -%}``{%- endif -%}{{ rest }}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endcapture -%}
+{%- endif -%}
+{%- if label -%}
+  {%- assign segments = name | split: "." -%}
+  {%- if segments.size >= 3 -%}{%- assign n = segments.size | minus: 2 -%}{{ segments | slice: n, 2 | join: "." }}{%- elsif segments.size == 2 -%}{{ segments | last }}{%- else -%}{{ name }}{%- endif -%}
+{%- else -%}
+  {{- name -}}
+{%- endif -%}

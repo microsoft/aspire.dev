@@ -1,0 +1,277 @@
+---
+title: Connect with the DuckDB integration
+description: Connect Aspire apps to embedded DuckDB files with scoped or keyed .NET connections, configuration, health checks, and other language clients.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+The DuckDB client integration registers an ADO.NET connection to an embedded database. Model and reference the file as shown in [DuckDB hosting integration](/integrations/databases/duckdb/duckdb-host/). The examples use a resource named `analytics`.
+
+## Connection properties
+
+The resource produces one of these exact connection-string formats:
+
+```text title="Writable connection"
+DataSource={databaseFilePath}
+```
+
+```text title="Read-only connection"
+DataSource={databaseFilePath};Access Mode=ReadOnly
+```
+
+Aspire injects the string as `ConnectionStrings__analytics`. .NET configuration reads `ConnectionStrings:analytics`.
+
+| Property     | Environment variable   | Value                                                               |
+| ------------ | ---------------------- | ------------------------------------------------------------------- |
+| `DataSource` | `ANALYTICS_DATASOURCE` | Database file path formed from the resource directory and filename. |
+
+The resource exposes no server host, port, or URI. `DataSource` contains only the path, not the access mode.
+
+:::caution
+The database file must be accessible to the consuming process. Referencing a
+resource does not copy the file or grant access to it. Follow [DuckDB
+concurrency guidance](https://duckdb.org/docs/stable/connect/concurrency) for
+multiple processes; do not run independent writers against the same file.
+:::
+
+## Installation
+
+Install [📦 CommunityToolkit.Aspire.DuckDB.NET.Data](https://nuget.org/packages/CommunityToolkit.Aspire.DuckDB.NET.Data) in the consuming .NET project:
+
+{% install_dotnet_package "CommunityToolkit.Aspire.DuckDB.NET.Data" %}
+
+The package uses `DuckDB.NET.Data.DuckDBConnection`.
+
+## Add DuckDB client
+
+Register a scoped connection, then open it before executing SQL:
+
+```csharp title="Program.cs"
+using DuckDB.NET.Data;
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.AddDuckDBConnection("analytics");
+
+var app = builder.Build();
+app.MapGet("/analytics", async (DuckDBConnection connection) =>
+{
+    await connection.OpenAsync();
+    using var command = connection.CreateCommand();
+    command.CommandText = "SELECT CAST(SUM(i) AS BIGINT) FROM range(10) AS values_table(i)";
+    var total = await command.ExecuteScalarAsync();
+    return Results.Ok(Convert.ToInt64(total));
+});
+app.Run();
+```
+
+The query calculates a sum without requiring a table or seed data. Dependency injection disposes the scoped connection at the end of the request.
+
+The connection name must match the referenced resource name. Registration creates a closed connection; it does not run migrations or initialize application tables.
+
+## Add keyed DuckDB client
+
+Use a keyed scoped connection to select a database by name:
+
+```csharp title="Program.cs"
+using DuckDB.NET.Data;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.AddKeyedDuckDBConnection("analytics");
+
+var app = builder.Build();
+app.MapGet("/analytics", async (
+    [FromKeyedServices("analytics")] DuckDBConnection connection) =>
+{
+    await connection.OpenAsync();
+    using var command = connection.CreateCommand();
+    command.CommandText = "SELECT 1";
+    return Results.Ok(await command.ExecuteScalarAsync());
+});
+app.Run();
+```
+
+For multiple databases, add a keyed registration for each name and reference the corresponding resources from the AppHost. See [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Configuration
+
+`DuckDBConnectionSettings` exposes `ConnectionString` and `DisableHealthChecks`. The disable flag defaults to `false`. There are no integration settings for retries, tracing, metrics, or command timeouts.
+
+### Connection strings
+
+For a standalone app, provide the same connection name in configuration:
+
+```json title="appsettings.json"
+{
+  "ConnectionStrings": {
+    "analytics": "DataSource=C:\\Data\\analytics.duckdb"
+  }
+}
+```
+
+Use `DataSource=:memory:` for an in-memory database. It is not the AppHost file resource and does not persist data to disk.
+
+### Configuration providers
+
+The non-keyed client binds `Aspire:DuckDB:Client`. A keyed client binds `Aspire:DuckDB:Client:{name}`:
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "DuckDB": {
+      "Client": {
+        "ConnectionString": "DataSource=C:\\Data\\analytics.duckdb",
+        "DisableHealthChecks": false,
+        "analytics": {
+          "ConnectionString": "DataSource=C:\\Data\\analytics.duckdb",
+          "DisableHealthChecks": false
+        }
+      }
+    }
+  }
+}
+```
+
+The root `Client` settings apply to `AddDuckDBConnection`. The nested `analytics` settings apply to `AddKeyedDuckDBConnection("analytics")`; keyed registration binds that subsection rather than merging it with the root.
+
+The named `ConnectionStrings` value overrides the settings section's `ConnectionString`. An inline delegate runs last. Validation is delayed until a connection is resolved.
+
+### Inline delegates
+
+Configure settings after connection-string binding:
+
+```csharp title="Program.cs"
+using DuckDB.NET.Data;
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.AddDuckDBConnection("analytics", settings =>
+{
+    settings.DisableHealthChecks = true;
+});
+
+var app = builder.Build();
+app.MapGet("/analytics", async (DuckDBConnection connection) =>
+{
+    await connection.OpenAsync();
+    using var command = connection.CreateCommand();
+    command.CommandText = "SELECT 1";
+    return Results.Ok(await command.ExecuteScalarAsync());
+});
+app.Run();
+```
+
+## Client integration health checks
+
+The integration creates a separate connection, opens it, and executes `SELECT 1`. The check is named `DuckDB` for a non-keyed registration or `DuckDB_{name}` for a keyed registration. Set `DisableHealthChecks=true` to omit it.
+
+A writable health-check connection can create a missing database file. A read-only check requires an existing file. For `:memory:`, the check opens a separate in-memory database and does not verify the application's tables.
+
+Use [service defaults](/get-started/csharp-service-defaults/) to expose the registered health checks. The package does not map HTTP health endpoints itself.
+
+## Observability and telemetry
+
+This client integration does not register OpenTelemetry tracing, metrics, or a logging provider. Configure application instrumentation and exporters separately. The AppHost's `Running` file-resource state is not proof of successful SQL execution.
+
+## Connect from other languages
+
+Use the injected `ANALYTICS_DATASOURCE` path with each language's DuckDB client. The following examples require an **existing database file** and explicitly open it read-only. They do not infer the access mode from the `DataSource` property.
+
+Choose compatible DuckDB engine versions when several language clients open the same file.
+
+{% tabs sync: "duckdb-client-lang" %}
+{% tab "TypeScript" %}
+Install the [DuckDB Node.js Neo client](https://duckdb.org/docs/stable/clients/node_neo/overview):
+
+```bash title="Terminal"
+npm install @duckdb/node-api
+```
+
+Run this file with a TypeScript runner, or compile it for Node.js:
+
+```typescript title="index.ts"
+import { DuckDBInstance } from '@duckdb/node-api';
+
+const dataSource = process.env.ANALYTICS_DATASOURCE;
+if (!dataSource) {
+  throw new Error('ANALYTICS_DATASOURCE is required');
+}
+
+const instance = await DuckDBInstance.create(dataSource, {
+  access_mode: 'READ_ONLY',
+});
+const connection = await instance.connect();
+try {
+  const result = await connection.runAndReadAll('SELECT 1 AS value');
+  console.log(result.getRows());
+} finally {
+  connection.closeSync();
+}
+```
+{% endtab %}
+{% tab "Python" %}
+Install the [DuckDB Python client](https://duckdb.org/docs/stable/clients/python/overview):
+
+```bash title="Terminal"
+python -m pip install duckdb
+```
+
+```python title="app.py"
+import os
+import duckdb
+
+connection = duckdb.connect(
+    os.environ["ANALYTICS_DATASOURCE"],
+    read_only=True,
+)
+try:
+    print(connection.execute("SELECT 1").fetchone())
+finally:
+    connection.close()
+```
+{% endtab %}
+{% tab "Go" %}
+Install [duckdb-go](https://github.com/duckdb/duckdb-go) in a Go module. The driver requires CGo and a supported C/C++ toolchain:
+
+```bash title="Terminal"
+go get github.com/duckdb/duckdb-go/v2
+```
+
+```go title="main.go"
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    "os"
+
+    _ "github.com/duckdb/duckdb-go/v2"
+)
+
+func main() {
+    dataSource := os.Getenv("ANALYTICS_DATASOURCE")
+    if dataSource == "" {
+        panic("ANALYTICS_DATASOURCE is required")
+    }
+    db, err := sql.Open("duckdb", dataSource+"?access_mode=read_only")
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+    var value int
+    if err := db.QueryRow("SELECT 1").Scan(&value); err != nil {
+        panic(err)
+    }
+    fmt.Println(value)
+}
+```
+{% endtab %}
+{% endtabs %}
+
+## See also
+
+- [DuckDB hosting integration](/integrations/databases/duckdb/duckdb-host/)
+- [DuckDB.NET](https://github.com/Giorgi/DuckDB.NET)
+- [DuckDB client integration source](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.DuckDB.NET.Data)

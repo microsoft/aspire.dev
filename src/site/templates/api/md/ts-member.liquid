@@ -1,0 +1,26 @@
+{%- comment -%}
+  renderTypeScriptMemberMarkdownPage of src/frontend/src/utils/typescript-api-markdown.ts, without the final
+  normalization (␞ separated blocks for api/md/finalize). Inputs: doc, parent (the handle), method, parentSlug.
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign moduleName = doc.package.name -%}{%- assign moduleSlug = moduleName | downcase -%}
+{%- assign allItems = api.routes["typescript-items"] -%}
+{%- assign istart = allItems | find_index: "module", moduleName -%}
+{%- assign icount = doc.handleTypes.size | plus: doc.dtoTypes.size | plus: doc.enumTypes.size | plus: doc.functions.size -%}
+{%- assign items = allItems | slice: istart, icount | where: "module", moduleName -%}
+# {{ parent.name }}.{{ method.name }}
+␞- Module: [{{ moduleName }}](/reference/api/typescript/{{ moduleSlug }}.md){{ nl }}- Defined on: [{{ parent.name }}](/reference/api/typescript/{{ moduleSlug }}/{{ parentSlug }}.md)
+{%- if doc.package.version -%}{{ nl }}- Version: `{{ doc.package.version }}`{%- endif -%}
+{{ nl }}- Kind: `method`
+␞{{ method.description }}
+␞## Definition{{ nl }}{{ nl }}
+{%- capture raw -%}{{ method.name }}({% render 'api/md/ts-param-list', parameters: method.parameters %}): {{ method.returnType | default: "void" }};{%- endcapture -%}
+{%- capture formatted -%}{%- render 'api/md/ts-signature', sig: raw -%}{%- endcapture -%}
+{%- capture declaration -%}interface {{ parent.name }} {{ "{" }}{{ nl }}  // ... omitted for brevity{% assign lines = formatted | split: nl %}{% for line in lines %}{{ nl }}  {{ line }}{% endfor %}{{ nl }}{{ "}" }}{%- endcapture -%}
+{%- render 'api/md/codeblock', code: declaration, lang: "typescript" -%}
+␞## Signature{{ nl }}{{ nl }}
+{%- capture signature -%}{%- render 'api/md/ts-signature', sig: method.signature -%}{%- endcapture -%}
+{%- render 'api/md/codeblock', code: signature, lang: "typescript" -%}
+{%- render 'api/md/ts-params', callable: method, items: items, moduleSlug: moduleSlug -%}
+␞## Defined on{{ nl }}{{ nl }}- [{{ parent.name }}](/reference/api/typescript/{{ moduleSlug }}/{{ parentSlug }}.md) — `{% if parent.isInterface %}interface{% else %}handle{% endif %}`{{- "" -}}

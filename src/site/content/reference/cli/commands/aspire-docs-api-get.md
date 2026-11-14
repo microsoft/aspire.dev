@@ -1,0 +1,80 @@
+---
+title: aspire docs api get command
+description: Learn about the aspire docs api get command and its usage. This command retrieves the full content of an Aspire API reference entry from aspire.dev.
+---
+
+## Name
+
+`aspire docs api get` - Get the full content of an API reference entry by identifier.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire docs api get <id> [options]
+```
+
+## Description
+
+The `aspire docs api get` command retrieves and displays the full API reference content for a specific entry from [aspire.dev](https://aspire.dev). The content is rendered as Markdown in the terminal.
+
+Use the [`aspire docs api list`](../aspire-docs-api-list/) command to browse available scopes and discover identifiers, or use the [`aspire docs api search`](../aspire-docs-api-search/) command to find identifiers by keyword.
+
+## Arguments
+
+- **`<id>`**
+
+  The identifier of the API reference entry to retrieve. Identifiers are path-based strings derived from the API route structure on `aspire.dev`, for example `csharp/aspire.hosting/iresourcebuilder-1` or `typescript/aspire.hosting.redis/addredis`.
+
+  Use [`aspire docs api list`](../aspire-docs-api-list/) or [`aspire docs api search`](../aspire-docs-api-search/) to discover valid identifiers.
+
+## Options
+
+The following options are available:
+
+- **`--format <Table|Json>`**
+
+  Output format. Choose `Table` for a human-readable table or `Json` for machine-readable JSON output. Defaults to `Table`.
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Examples
+
+- Get the API reference for a C# package:
+
+  ```bash title="Aspire CLI"
+  aspire docs api get csharp/aspire.hosting
+  ```
+
+- Get the API reference for a specific C# type:
+
+  ```bash title="Aspire CLI"
+  aspire docs api get csharp/aspire.hosting/iresourcebuilder-1
+  ```
+
+- Get the API reference for a TypeScript module symbol:
+
+  ```bash title="Aspire CLI"
+  aspire docs api get typescript/aspire.hosting.redis/addredis
+  ```
+
+- Get API content in JSON format:
+
+  ```bash title="Aspire CLI"
+  aspire docs api get csharp/aspire.hosting/iresourcebuilder-1 --format Json
+  ```
+
+## See also
+
+- [aspire docs api command](../aspire-docs-api/)
+- [aspire docs api list command](../aspire-docs-api-list/)
+- [aspire docs api search command](../aspire-docs-api-search/)

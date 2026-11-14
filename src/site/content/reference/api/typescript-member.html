@@ -1,0 +1,39 @@
+---
+# /reference/api/typescript/<module>/<item>/<member>/: src/frontend/src/pages/reference/api/typescript/[module]/[item]/[member]/index.astro
+# (a method of a handle type): api["ts-modules"][route.file].handleTypes[route.item].capabilities[route.capability].
+layout: api.liquid
+pagination: { data: api.routes.typescript-members, size: 1, alias: route }
+permalink: "{{ route.url }}"
+---
+{%- assign doc = api["ts-modules"][route.file] -%}
+{%- assign parent = doc.handleTypes[route.item] -%}
+{%- assign method = parent.capabilities[route.capability] -%}
+{%- assign pkg_name = doc.package.name -%}
+{%- assign module_url = "/reference/api/typescript/" | append: route.moduleSlug | append: "/" -%}
+{%- assign parent_url = module_url | append: route.itemSlug | append: "/" -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- capture title %}{{ parent.name | raw }}.{{ method.name | raw }}{% endcapture -%}
+{%- capture description %}Method — TypeScript API reference for {{ method.name | raw }} on {{ parent.name | raw }} in {{ pkg_name | raw }}{% endcapture -%}
+{%- assign member_sig = method.name | append: "(" -%}
+{%- for p in method.parameters -%}
+  {%- unless forloop.first -%}{%- assign member_sig = member_sig | append: ", " -%}{%- endunless -%}
+  {%- assign p_type = p.type -%}{%- if p.isCallback and p.callbackSignature -%}{%- assign p_type = p.callbackSignature -%}{%- endif -%}
+  {%- assign member_sig = member_sig | append: p.name -%}{%- if p.isOptional -%}{%- assign member_sig = member_sig | append: "?" -%}{%- endif -%}
+  {%- assign member_sig = member_sig | append: ": " | append: p_type -%}
+{%- endfor -%}
+{%- assign m_return = method.returnType | default: "void" -%}
+{%- assign tfs_sig = member_sig | append: "): " | append: m_return | append: ";" -%}{%- capture tfs_out -%}{%- render 'api/ts-format-sig', tfs_sig: tfs_sig -%}{%- endcapture -%}
+{%- assign indented = tfs_out | split: nl | join: "¶  " | prepend: "  " | replace: "¶", nl -%}
+{%- assign decl = "interface " | append: parent.name | append: " {" | append: nl | append: "  // ... omitted for brevity" | append: nl | append: indented | append: nl | append: "}" -%}
+<div class="cid-api-page-typescript-member">
+{%- assign crumbs = "Docs§/docs/§docs¦Reference§/reference/overview/¦Search TypeScript APIs§/reference/api/typescript/¦" | append: pkg_name | append: "§" | append: module_url | append: "¦" | append: parent.name | append: "§" | append: parent_url | append: "¦" | append: method.name %}
+{% render 'api/breadcrumb', crumbs: crumbs %}
+<div class="not-content kind-tint-method">
+<div class="api-hero type-hero not-content"><div class="type-hero-top"><div class="type-hero-badges"><span class="api-kind-pill kind-method">Method</span></div></div><span class="type-hero-pkg">📦 {{ pkg_name }} {% if doc.package.version %}<span class="type-hero-ver">v{{ doc.package.version }}</span>{% endif %}</span><div class="ts not-content"><div class="ts-code">{% render 'api/code-block', code: decl, lang: "typescript" %}</div></div></div>
+<div id="type-content-sections">
+<section><h2 id="signature">Signature</h2><div class="api-list">{% render 'api/ts-member-card', member: method, variant: "method" %}</div></section>
+<section><h2 id="defined-on">Defined on</h2><p class="member-defined-desc">This method is defined on the following type:</p><div class="api-list not-content"><a href="{{ parent_url }}" class="api-list-item"><div class="api-list-header">{% if parent.isInterface %}<span class="api-kind-pill kind-interface">interface</span>{% else %}<span class="api-kind-pill kind-handle">handle</span>{% endif %}<code class="api-type-link">{{ parent.name }}</code><span class="api-mini-badge">{{ parent.capabilities.size | default: 0 }} members</span></div></a></div></section>
+</div>
+</div>
+</div>

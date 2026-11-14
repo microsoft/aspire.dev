@@ -1,0 +1,53 @@
+---
+title: Compiler Error ASPIREPIPELINES001
+seoTitle: 'ASPIREPIPELINES001: Pipeline infrastructure APIs are for'
+description: Learn what causes the Aspire compiler error ASPIREPIPELINES001 and how to fix it so your AppHost builds cleanly.
+---
+
+{% badge "Version introduced: 13.0", variant: "note", size: "large", class: "mb-1" %}
+
+> Pipeline infrastructure APIs are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+Aspire introduced pipeline infrastructure APIs starting in version 9.2. These APIs provide core functionality for building deployment pipelines, including interfaces and types for pipeline activity reporting, step management, and pipeline execution contexts. Pipeline infrastructure enables you to create custom deployment workflows and track their execution.
+
+Pipeline infrastructure APIs are considered experimental and are expected to change in future updates.
+
+## APIs affected
+
+This diagnostic applies to the following pipeline infrastructure APIs:
+
+- `IDistributedApplicationPipeline` - Interface for configuring pipeline steps
+- `PipelineStep` - Class that defines a pipeline action and its dependencies
+- `PipelineContext` and `PipelineStepContext` - Contexts provided during pipeline execution
+- `IPipelineActivityReporter` - Interface for reporting pipeline activities
+- `IReportingStep` - Interface for managing pipeline steps
+- `IReportingTask` - Interface for managing tasks within a step
+- `WellKnownPipelineSteps` and `WellKnownPipelineTags` - Constants for standard steps and tags
+- Related extension methods and implementations
+
+:::note
+In Aspire 13.5, the `CompletionState` enumeration graduated from experimental and no longer triggers this diagnostic. The APIs listed above remain experimental and continue to require suppressing `ASPIREPIPELINES001`.
+:::
+
+## To correct this error
+
+Suppress the error with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREPIPELINES001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREPIPELINES001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREPIPELINES001` directive.

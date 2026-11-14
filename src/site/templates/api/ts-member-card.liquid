@@ -1,0 +1,23 @@
+{%- comment -%}
+  TsMemberCard.astro: a TypeScript member (method, property, field) on MemberCardBase. Inputs: member (a capability
+  or function; for a field, the DTO field: its `type` is the return type and it has no description), variant
+  (method, property or field; default method), href, accessor_label.
+{%- endcomment -%}
+{%- assign tmc_variant = variant | default: "method" -%}
+{%- case tmc_variant -%}
+  {%- when "property" -%}{%- assign tmc_label = "property" -%}{%- assign tmc_class = "kind-property" -%}
+  {%- when "field" -%}{%- assign tmc_label = nil -%}{%- assign tmc_class = "kind-field" -%}
+  {%- else -%}{%- assign tmc_label = "method" -%}{%- assign tmc_class = "kind-method" -%}
+{%- endcase -%}
+{%- assign tmc_badges = "" -%}
+{%- if member.returnsBuilder -%}{%- assign tmc_badges = tmc_badges | append: "¦builder" -%}{%- endif -%}
+{%- if accessor_label -%}{%- assign tmc_badges = tmc_badges | append: "¦" | append: accessor_label -%}{%- endif -%}
+{%- if member.isOptional -%}{%- assign tmc_badges = tmc_badges | append: "¦optional" -%}{%- endif -%}
+{%- assign tmc_badges = tmc_badges | remove_first: "¦" -%}
+{%- if tmc_variant == "field" -%}
+  {%- render 'api/member-card-base', name: member.name, kind_label: tmc_label, kind_class: tmc_class, badges: tmc_badges, lang: "typescript", return_type: member.type, show_return_in_header: true, href: href -%}
+{%- elsif tmc_variant == "method" -%}
+  {%- render 'api/member-card-base', name: member.name, kind_label: tmc_label, kind_class: tmc_class, badges: tmc_badges, description: member.description, signature: member.signature, lang: "typescript", return_type: member.returnType, parameters: member.parameters, callback_types: true, description_params: true, show_return_in_header: false, href: href -%}
+{%- else -%}
+  {%- render 'api/member-card-base', name: member.name, kind_label: tmc_label, kind_class: tmc_class, badges: tmc_badges, description: member.description, lang: "typescript", return_type: member.returnType, show_return_in_header: true, href: href -%}
+{%- endif -%}

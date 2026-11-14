@@ -1,0 +1,20 @@
+{%- comment -%}
+  The site's EditLink override around Starlight's EditLink.astro: "Edit page" (site.edit_link + the page's source
+  path; `editUrl: false` hides it, a string `editUrl` replaces it) and "Translate this page", which pointed at the
+  Lunaria dashboard (/i18n/, dropped, plan 8) and now points at the translation guide. The source path is derived
+  from the url (/a/b/ -> a/b.md, / -> index.md; a fallback copy edits the default locale's file): a folder index
+  file (a/b/index.md) gets a/b.md, a known deviation until Douze exposes the source path.
+  Root classes: cid-starlight-edit-link (the wrapper), cid-sl-edit-link (the link).
+{%- endcomment -%}
+{%- unless editUrl == false -%}
+{%- if editUrl -%}
+  {%- assign el_href = editUrl -%}
+{%- else -%}
+  {%- if fallback -%}{%- assign el_path = sl_locale_url -%}{%- else -%}{%- assign el_path = sl_url -%}{%- endif -%}
+  {%- assign el_path = el_path | remove_first: "/" -%}
+  {%- assign el_len = el_path.size | minus: 1 -%}
+  {%- if el_len < 0 -%}{%- assign el_path = "index" -%}{%- else -%}{%- assign el_path = el_path | slice: 0, el_len -%}{%- endif -%}
+  {%- assign el_href = site.edit_link | append: el_path | append: ".md" -%}
+{%- endif -%}
+<div class="sl-flex cid-starlight-edit-link"><div class="sl-flex" data-tour-target="edit-page" data-tour-step="edit-page"><a href="{{ el_href }}" class="sl-flex print:hidden cid-sl-edit-link">{% icon "pencil", size: "1.2em", class: nil, label: nil, color: nil %}{{ "page.editLink" | t }}</a></div><a href="/community/translation-guide/" class="sl-flex" target="_blank" rel="noopener noreferrer">{% icon "translate", size: "1.2em", class: nil, label: nil, color: nil %} {{ "footer.translatePage" | t }}</a></div>
+{%- endunless -%}

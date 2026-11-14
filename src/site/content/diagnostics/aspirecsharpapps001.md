@@ -1,0 +1,49 @@
+---
+title: Compiler Error ASPIRECSHARPAPPS001
+seoTitle: "ASPIRECSHARPAPPS001: `AddCSharpApp` is for evaluation"
+description: Learn what causes the Aspire compiler error ASPIRECSHARPAPPS001 and how to fix it so your AppHost builds cleanly.
+---
+
+{% badge "Version introduced: 13.0", variant: "note", size: "large", class: "mb-1" %}
+
+> {% api "Aspire.Hosting.ProjectResourceBuilderExtensions.AddCSharpApp" %} is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+Aspire provides a way to add C# app resources to the Aspire AppHost with the `AddCSharpApp` extension. This allows you to reference C# file-based app files (.cs), project files (.csproj), or project directories (directories containing a .csproj file) directly without needing a `ProjectReference` from the AppHost project to the C# application. Since the shape of this API is expected to change in the future, it's experimental.
+
+## Example
+
+The following code generates `ASPIRECSHARPAPPS001`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddCSharpApp("worker", "../worker/Program.cs")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+## To correct this error
+
+Suppress the error with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRECSHARPAPPS001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRECSHARPAPPS001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRECSHARPAPPS001` directive.

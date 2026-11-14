@@ -1,0 +1,55 @@
+---
+title: Compiler Error ASPIRECOSMOSDB001
+seoTitle: "ASPIRECOSMOSDB001: `RunAsPreviewEmulator` is for evaluation"
+description: Learn what causes the Aspire compiler error ASPIRECOSMOSDB001 and how to fix it so your AppHost builds cleanly.
+---
+
+{% badge "Version introduced: 9.0", variant: "note", size: "large", class: "mb-1" %}
+
+:::note
+As of Aspire 13.6, {% api "Aspire.Hosting.AzureCosmosExtensions.RunAsPreviewEmulator" %} and {% api "Aspire.Hosting.AzureCosmosExtensions.WithDataExplorer" %} are no longer experimental and do not trigger `ASPIRECOSMOSDB001`. {% api "Aspire.Hosting.AzureCosmosExtensions.RunAsEmulator" %} now defaults to the Linux-based (vNext) emulator, and `RunAsPreviewEmulator` is retained only as an obsolete compatibility alias that forwards to `RunAsEmulator`. Use {% api "Aspire.Hosting.AzureCosmosExtensions.RunAsClassicEmulator" %} if you need the classic (Windows-based) emulator instead. This diagnostic only applies if you're using an earlier version of Aspire.
+:::
+
+> `RunAsPreviewEmulator` is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+—or—
+
+> `WithDataExplorer` is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+Both `RunAsPreviewEmulator` and `WithDataExplorer` are considered experimental APIs.
+
+Aspire provides a way to use the Cosmos DB Linux-based (preview) emulator and data explorer. These APIs are considered experimental and are expected to change in the future.
+
+## Example
+
+The following sample generates `ASPIRECOSMOSDB001`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos")
+                    .RunAsPreviewEmulator(e => e.WithDataExplorer());
+```
+
+## To correct this error
+
+Suppress the Error with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRECOSMOSDB001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRECOSMOSDB001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRECOSMOSDB001` directive.

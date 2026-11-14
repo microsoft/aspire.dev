@@ -1,0 +1,33 @@
+{%- comment -%}
+  The site's ReadableText component (src/frontend/src/components/ReadableText.astro): `rt_text` with <wbr> break hints
+  between the segments of technical identifiers, so a long title wraps whole segments. A hint goes before a character
+  where the component's split regex matches:
+    /(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[a-zA-Z][./:])|(?<=[_-])|(?=[<(])|(?<=[>,)\]])/
+  (never before the first character). Each segment is written encoded, as {{ rt_text }} would be, and whole: split
+  yields UTF-16 units, so an emoji's surrogate pair is only valid once its halves are joined again (a hint is always
+  next to an ASCII character, never inside a pair).
+  Usage: {% assign rt_text = title %}{% include "partials/readable-text" %}
+{%- endcomment -%}
+{%- assign rt_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" -%}
+{%- assign rt_lower = "abcdefghijklmnopqrstuvwxyz" -%}
+{%- assign rt_lower_digit = "abcdefghijklmnopqrstuvwxyz0123456789" -%}
+{%- assign rt_letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" -%}
+{%- assign rt_chars = rt_text | split: "" -%}
+{%- assign rt_p = "" -%}{%- assign rt_pp = "" -%}{%- assign rt_segment = "" -%}
+{%- for rt_c in rt_chars -%}
+  {%- unless forloop.first -%}
+    {%- assign rt_break = false -%}
+    {%- assign rt_n = rt_chars[forloop.index] | default: "" -%}
+    {%- if rt_lower_digit contains rt_p and rt_upper contains rt_c -%}{%- assign rt_break = true -%}
+    {%- elsif rt_upper contains rt_p and rt_upper contains rt_c and rt_n != "" and rt_lower contains rt_n -%}{%- assign rt_break = true -%}
+    {%- elsif "./:" contains rt_p and rt_pp != "" and rt_letters contains rt_pp -%}{%- assign rt_break = true -%}
+    {%- elsif "_-" contains rt_p -%}{%- assign rt_break = true -%}
+    {%- elsif "<(" contains rt_c -%}{%- assign rt_break = true -%}
+    {%- elsif ">,)]" contains rt_p -%}{%- assign rt_break = true -%}
+    {%- endif -%}
+    {%- if rt_break -%}{{- rt_segment -}}<wbr>{%- assign rt_segment = "" -%}{%- endif -%}
+  {%- endunless -%}
+  {%- assign rt_segment = rt_segment | append: rt_c -%}
+  {%- assign rt_pp = rt_p -%}{%- assign rt_p = rt_c -%}
+{%- endfor -%}
+{{- rt_segment -}}

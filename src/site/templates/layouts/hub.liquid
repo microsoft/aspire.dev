@@ -1,0 +1,37 @@
+---
+# The resources hub layout (src/frontend/src/components/dev-center/HubLayout.astro): a splash page (no sidebar, no
+# table of contents, no breadcrumbs, edit link, last updated or giscus; the default social image) whose content is
+# wrapped in .dev-center with the hub breadcrumbs and description. Page front matter:
+#   hub_layout: landing (default; breadcrumbs and description) | article (the page brings its own)
+#   accent: a CSS colour (--dev-accent, default var(--aspire-color-purple)); show_description: false hides it.
+# The values below are fallbacks: the page's front matter wins. Root class: cid-dev-center-hub-layout.
+layout: base.liquid
+has_sidebar: false
+has_toc: false
+tableOfContents: false
+crumbs: false
+editUrl: false
+giscus: false
+prev: false
+next: false
+ogImage: /og-image.png
+---
+{%- include "partials/page-vars" -%}
+{%- capture mc_html -%}
+<div class="dev-center cid-dev-center-hub-layout" data-dev-center style="--dev-accent: {{ accent | default: 'var(--aspire-color-purple)' }}">
+{%- unless hub_layout == "article" %}
+<div class="dev-breadcrumbs">
+<nav class="breadcrumb not-content cid-breadcrumb" aria-label="Breadcrumb"><ol class="bc-inline">
+{%- if sl_locale_url == "/hub/" %}
+<li><a class="bc-parent" href="/"><span>Home</span></a></li><li><span class="sep" aria-hidden="true">/</span><span class="current" aria-current="page">Aspire resources</span></li>
+{%- else %}
+<li><a class="bc-parent" href="/hub/">{% include "partials/svg/dev-hub" %}<span>Aspire resources</span></a></li><li><span class="sep" aria-hidden="true">/</span><span class="current" aria-current="page">{% if sl_locale_url == "/hub/glossary/" %}Glossary{% elsif sl_locale_url == "/hub/browse/" %}Resources{% else %}{{ title }}{% endif %}</span></li>
+{%- endif %}
+</ol></nav>
+</div>
+{%- unless show_description == false %}<p class="dev-description">{{ description }}</p>{% endunless %}
+{%- endunless %}
+{{ content }}
+</div>
+{%- endcapture -%}
+{% include "partials/page-content" %}

@@ -6,31 +6,12 @@ const api = (language: string) => `/reference/api/${language}/`;
 const redis = (language: string) => `${api(language)}aspire.hosting.redis/redisresource/`;
 const routes = [home, docs, api('csharp'), api('typescript'), redis('csharp'), redis('typescript')];
 
-async function markNavigation(page: Page) {
-  await page.evaluate(() => {
-    Reflect.set(window, '__routeStyleLoaded', false);
-    document.addEventListener(
-      'astro:page-load',
-      () => {
-        Reflect.set(window, '__routeStyleLoaded', true);
-      },
-      { once: true }
-    );
-  });
-}
-
+// The Douze site navigates with full page loads: wait for the destination document to finish loading.
 async function settled(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => Reflect.get(window, '__routeStyleLoaded')), {
-      timeout: 30_000,
-    })
-    .toBe(true);
-  await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
-  expect(await page.evaluate(() => Reflect.get(window, '__routeStyleSession'))).toBe(true);
+  await page.waitForLoadState('load', { timeout: 30_000 });
 }
 
 async function navigate(page: Page, href: string) {
-  await markNavigation(page);
   await page.evaluate((destination) => {
     const anchor = document.createElement('a');
     anchor.id = 'route-style-link';
@@ -41,7 +22,7 @@ async function navigate(page: Page, href: string) {
   }, href);
   await page.locator('#route-style-link').click({ force: true });
   const destination = new URL(href, page.url());
-  await expect(page).toHaveURL(
+  await page.waitForURL(
     (url) =>
       url.pathname === destination.pathname &&
       [...destination.searchParams].every(([key, value]) => url.searchParams.get(key) === value),
@@ -153,7 +134,7 @@ async function appearance(page: Page) {
 
 for (const theme of ['light', 'dark']) {
   test.describe(`${theme} route styles`, () => {
-    test.beforeEach(async ({ page, isMobile }) => {
+    test.beforeEach(async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.route('**/scripts/analytics/*.js', (route) =>
         route.fulfill({ contentType: 'application/javascript', body: '' })
@@ -161,21 +142,13 @@ for (const theme of ['light', 'dark']) {
       await page.route('**/wcp-consent.js', (route) =>
         route.fulfill({ contentType: 'application/javascript', body: '' })
       );
-      await page.addInitScript(
-        ({ theme, fallback }) => {
-          localStorage.setItem('starlight-theme', theme);
-          localStorage.setItem('aspireConsentRequired', 'false');
-          if (fallback)
-            Object.defineProperty(document, 'startViewTransition', {
-              configurable: true,
-              value: undefined,
-            });
-        },
-        { theme, fallback: isMobile }
-      );
+      await page.addInitScript((theme) => {
+        localStorage.setItem('starlight-theme', theme);
+        localStorage.setItem('aspireConsentRequired', 'false');
+      }, theme);
     });
 
-    test('fresh rendering matches API/search/Home, docs/Home, cross-language and history swaps', async ({
+    test('fresh rendering matches API/search/Home, docs/Home, cross-language and history navigation', async ({
       page,
     }) => {
       test.setTimeout(180000);
@@ -186,19 +159,38 @@ for (const theme of ['light', 'dark']) {
         baseline.set(route, await appearance(page));
       }
       const matchesFresh = async (route: string) => {
-        await expect
-          .poll(() => appearance(page), {
-            message: `${route} must match its fresh ${theme} rendering after a client swap`,
-          })
-          .toEqual(baseline.get(route));
+        try {
+          await expect
+            .poll(() => appearance(page), {
+              message: `${route} must match its fresh ${theme} rendering after navigating to it`,
+              // The API landing page takes more than the default 5 s to settle on CI runners.
+              timeout: 15_000,
+            })
+            .toEqual(baseline.get(route));
+        } catch (error) {
+          // Name what differs: the poll's own message has no diff.
+          const current = await appearance(page);
+          const expected = baseline.get(route);
+          const differences: string[] = [];
+          const compare = (a: unknown, b: unknown, path: string) => {
+            if (a && b && typeof a === 'object' && typeof b === 'object') {
+              for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+                compare((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key], `${path}.${key}`);
+              }
+            } else if (JSON.stringify(a) !== JSON.stringify(b)) {
+              differences.push(`${path}: fresh ${JSON.stringify(b)}, after navigating ${JSON.stringify(a)}`);
+            }
+          };
+          compare(current, expected, route);
+          throw new Error(`${(error as Error).message}\n${differences.join('\n')}`);
+        }
       };
       await page.goto(api('csharp'));
-      await page.evaluate(() => Reflect.set(window, '__routeStyleSession', true));
       await page.locator('#api-search-input').fill('RedisResource');
       const result = page.locator(`#api-search-results a[href="${redis('csharp')}"]`).first();
       await expect(result).toBeVisible();
-      await markNavigation(page);
       await result.click();
+      await page.waitForURL((url) => url.pathname === redis('csharp'), { timeout: 30_000 });
       await settled(page);
       await matchesFresh(redis('csharp'));
       await navigate(page, home);
@@ -215,12 +207,12 @@ for (const theme of ['light', 'dark']) {
         await navigate(page, route);
         await matchesFresh(route);
       }
-      await markNavigation(page);
       await page.goBack();
+      await page.waitForURL((url) => url.pathname === redis('csharp'));
       await settled(page);
       await matchesFresh(redis('csharp'));
-      await markNavigation(page);
       await page.goForward();
+      await page.waitForURL((url) => url.pathname === home);
       await settled(page);
       await matchesFresh(home);
     });
@@ -229,14 +221,15 @@ for (const theme of ['light', 'dark']) {
       page,
     }) => {
       test.setTimeout(120000);
-      await page.addInitScript(() => {
+      // Seed the saved preferences once: an init script would reset them on every page load.
+      await page.goto(home);
+      await page.evaluate(() => {
         localStorage.setItem('aspire-lang', 'csharp');
         localStorage.setItem('api-sidebar-collapsed', '1');
         localStorage.setItem('topic-sidebar-collapsed', '1');
       });
       await page.goto(api('csharp'));
       await expect(page.locator('html')).toHaveAttribute('data-sidebar-collapsed', '');
-      await page.evaluate(() => Reflect.set(window, '__routeStyleSession', true));
       for (const route of [home, '/get-started/app-host/', api('typescript'), api('csharp')]) {
         await navigate(page, route);
         const isApi = route.startsWith('/reference/api/');
@@ -262,13 +255,12 @@ for (const theme of ['light', 'dark']) {
       await expect(page.locator('html')).toHaveAttribute('data-apphost-lang', 'typescript');
     });
 
-    test('header install affordance retains responsive visibility and dialog layout after swaps', async ({
+    test('header install affordance retains responsive visibility and dialog layout across navigation', async ({
       page,
       isMobile,
     }) => {
       test.setTimeout(120000);
       await page.goto(home);
-      await page.evaluate(() => Reflect.set(window, '__routeStyleSession', true));
       const dialog = page.locator('#install-cli-modal');
       const trigger = page.locator('header [data-open-install-modal]:visible');
       if (page.viewportSize()!.width < 800) {

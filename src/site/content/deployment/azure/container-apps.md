@@ -1,0 +1,457 @@
+---
+title: Deploy to Azure Container Apps
+seoTitle: Deploy Aspire apps to Azure Container Apps with azd
+description: "Deploy Aspire applications to Azure Container Apps with the `aspire deploy` command — environments, revisions, scaling, ingress, and secret-backed configuration."
+---
+
+Use `aspire deploy` to deploy Aspire applications to Azure Container Apps. Aspire provisions the Container Apps environment, Azure Container Registry, managed identity, and the Container Apps resources needed for the compute resources in your AppHost.
+
+{% learnmore %}
+Start with [Deploy to Azure](/deployment/azure/) for the shared Azure deployment model and target selection. If you need to keep an existing `azd` deployment workflow, see [Use existing azd workflows](/deployment/azure/azure-developer-cli/).
+{% endlearnmore %}
+
+## Prerequisites
+
+- [Aspire prerequisites](/get-started/prerequisites/)
+- [Aspire CLI](/get-started/install-cli/) installed
+- For local deployment with the default credential source, [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and available on your `PATH`
+- An active Azure account and subscription
+
+By default, local deployment uses Azure CLI credentials. Authenticate with Azure CLI before deploying:
+
+```bash title="Authenticate with Azure CLI"
+az login
+```
+
+## Configure your AppHost for Azure Container Apps
+
+Add Azure Container Apps support to your AppHost:
+
+```bash title="Aspire CLI — Add Azure App Containers"
+aspire add azure-appcontainers
+```
+
+The Aspire CLI adds the [📦 Aspire.Hosting.Azure.AppContainers](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppContainers) integration to your AppHost. If prompted, select the matching package result.
+
+{% learnmore %}
+Learn more about the `aspire add` command in the [reference docs](/reference/cli/commands/aspire-add/).
+{% endlearnmore %}
+
+Then add the Azure Container Apps environment in your AppHost and a web app you want to place in that environment:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureContainerAppEnvironment("aca-env");
+
+await builder
+    .addDockerfile("web", "./web")
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: "http" })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("aca-env");
+
+builder.AddDockerfile("web", "./web")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+For a standard Azure Container Apps deployment, you only need the environment and the app resource. Use `PublishAsAzureContainerApp` only when you want to customize the generated Container App resource.
+
+{% learnmore %}
+For general Azure resource customization such as naming, existing resources, role assignments, and outputs, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/). For environment configuration, see [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/).
+{% endlearnmore %}
+
+## How Aspire maps your app to Azure Container Apps
+
+### Supported compute resources
+
+Compute resources assigned to an Azure Container Apps environment are deployed to Azure Container Apps. If one AppHost uses multiple Azure environments, assign each resource to the environment you want it to use.
+
+:::note
+Azure Container Apps can host both your app containers and supporting service containers such as databases, caches, or brokers. That flexibility is useful in development and some specialized deployments, but managed services are still the recommended production default for those dependencies.
+:::
+
+### Default mapping
+
+Start with the common cases:
+
+| AppHost endpoint shape | Azure Container Apps result |
+| --- | --- |
+| One external HTTP endpoint | One public HTTP ingress, exposed through the platform HTTPS endpoint by default |
+| One internal HTTP endpoint | One internal-only HTTP ingress inside the Container Apps environment |
+| One TCP endpoint | One TCP ingress |
+
+### How Aspire decides
+
+Aspire groups endpoints by target port before it generates Azure Container Apps ingress settings. In practice, that means:
+
+- Azure Container Apps supports `http`, `http2`, and `tcp` transports for deployment.
+- One HTTP or HTTP/2 target-port group becomes the main ingress.
+- The environment can host both internal and external endpoints.
+- HTTP and TCP traffic can't share the same target port.
+
+### HTTP and HTTPS behavior
+
+Azure Container Apps uses an Envoy-based HTTP edge proxy for HTTP ingress:
+
+- public HTTP-style ingress is exposed through the platform HTTPS endpoint by default
+- HTTP requests sent to the app are redirected to HTTPS
+
+To match the deployed serving scheme, Aspire upgrades external HTTP endpoints in an Azure Container Apps environment to HTTPS when it generates endpoint URLs and service discovery connection strings for dependent resources. If you intentionally need generated endpoint URLs and connection strings to preserve `http://`, disable the upgrade on the environment:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder
+    .addAzureContainerAppEnvironment("aca-env")
+    .withHttpsUpgrade(false);
+
+await builder
+    .addDockerfile("web", "./web")
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: "http" })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("aca-env")
+    .WithHttpsUpgrade(false);
+
+builder.AddDockerfile("web", "./web")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+Disabling the upgrade primarily affects generated endpoint configuration for dependent resources. Azure Container Apps can still redirect HTTP requests to HTTPS after deployment.
+
+### Constraints and edge cases
+
+Most apps map cleanly from one endpoint group to one ingress. When an app exposes more than one endpoint group, keep these rules in mind:
+
+- each app gets one HTTP ingress
+- additional endpoint groups are published as additional TCP ports
+- built-in HTTP ingress features apply only to the main HTTP ingress
+- external non-HTTP endpoints aren't supported
+- Azure Container Apps supports up to five additional ports per app
+
+### Volumes and bind mounts
+
+When you deploy to Azure Container Apps, Aspire translates both named volumes and bind mounts into Azure Files-backed mounts in the Container Apps environment.
+
+- Aspire provisions Azure Storage file shares and managed environment storage entries for the mounts used by deployed resources.
+- Both named volumes and bind mounts become mounted Azure Files shares in the deployed app.
+- A bind mount's local host path isn't preserved as a host bind mount in Azure deployment.
+
+Use these mounts as persistent storage for the deployed app, not as a way to project files from the AppHost machine into the deployed environment.
+
+### Image publishing and identity
+
+During `aspire deploy`, Aspire:
+
+- provisions or attaches an Azure Container Registry
+- builds container images for the compute resources in the environment
+- pushes those images to the registry
+- creates a user-assigned managed identity
+- grants the deployed Container Apps permission to pull images
+
+This lets Container Apps pull deployed images without manual registry credentials.
+
+### Health checks and probes
+
+Probe traffic stays on the internal container network. If a probe is associated with an ingress-enabled endpoint, Aspire still configures the probe against the container target port instead of sending probe traffic through Container Apps ingress.
+
+## Customize generated Container Apps
+
+Use `PublishAsAzureContainerApp` when you want to customize the generated Container App resource for a project, container, or executable. It isn't required for a standard Container Apps deployment.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureContainerAppEnvironment("env");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.publishAsAzureContainerApp(async (_infrastructure, _app) => {
+    // Customize the generated Container App here.
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("env");
+
+builder.AddProject<Projects.Api>("api")
+    .PublishAsAzureContainerApp((infrastructure, app) =>
+    {
+        app.Template.Scale.MinReplicas = 1;
+        app.Template.Scale.MaxReplicas = 10;
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### Custom domains
+
+Use {% api "Aspire.Hosting.ContainerAppExtensions.ConfigureCustomDomain" %} when you want Aspire to configure a custom domain and managed certificate on the generated Container App.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const customDomain = await builder.addParameter("customDomain");
+const certificateName = await builder.addParameter("certificateName");
+
+await builder.addAzureContainerAppEnvironment("env");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.publishAsAzureContainerApp(async (_infrastructure, app) => {
+    await app.configureCustomDomain(customDomain, certificateName);
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var customDomain = builder.AddParameter("customDomain");
+var certificateName = builder.AddParameter("certificateName");
+
+builder.AddAzureContainerAppEnvironment("env");
+
+builder.AddProject<Projects.Api>("api")
+    .PublishAsAzureContainerApp((infrastructure, app) =>
+    {
+        app.ConfigureCustomDomain(customDomain, certificateName);
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### Internal service discovery
+
+Services deployed to Azure Container Apps use internal DNS for service discovery. Use {% api "Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" %} only for endpoints you want reachable outside the Container Apps environment.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.withExternalHttpEndpoints();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints();
+```
+{% endtab %}
+{% endtabs %}
+
+## Optional environment settings
+
+### Use a specific Azure Container Registry
+
+By default, Aspire provisions an Azure Container Registry for the environment. If you want to use a shared or explicitly named registry instead, add an Azure Container Registry resource and attach it to the environment:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const acr = await builder.addAzureContainerRegistry("shared-acr");
+const env = await builder.addAzureContainerAppEnvironment("aspire-env");
+await env.withAzureContainerRegistry(acr);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var acr = builder.AddAzureContainerRegistry("shared-acr");
+
+builder.AddAzureContainerAppEnvironment("aspire-env")
+    .WithAzureContainerRegistry(acr);
+```
+{% endtab %}
+{% endtabs %}
+
+{% learnmore %}
+For more information, see [Azure Container Registry integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/).
+{% endlearnmore %}
+
+### Aspire Dashboard
+
+The Azure Container Apps environment includes the Aspire Dashboard by default. It helps you inspect the compute resources deployed into that environment. Managed Azure backing services aren't shown as dashboard resources there. If you don't want to deploy it, disable it on the environment:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const env = await builder.addAzureContainerAppEnvironment("aspire-env");
+await env.withDashboard(false);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("aspire-env")
+    .WithDashboard(false);
+```
+{% endtab %}
+{% endtabs %}
+
+### Express environments
+
+:::danger[Experimental]
+Express environments are experimental and may change in future releases. The
+{% api "Aspire.Hosting.AzureContainerAppExtensions.AsExpress" %} API reports [ASPIREACAEXPRESS001](/diagnostics/aspireacaexpress001/),
+which you must suppress to build. Check the
+[Azure Container Apps Express overview](https://learn.microsoft.com/azure/container-apps/express-overview)
+for current availability and supported features before you adopt it.
+:::
+
+[Azure Container Apps Express](https://learn.microsoft.com/azure/container-apps/express-overview) is a preview environment type for HTTP applications. To use Express, call `AsExpress` on the environment resource in your AppHost, as shown below:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const env = await builder.addAzureContainerAppEnvironment("aspire-env");
+await env.asExpress();
+
+const api = await builder.addCSharpApp("api", "../Api/Api.csproj");
+await api.withExternalHttpEndpoints();
+
+const frontend = await builder.addCSharpApp("frontend", "../Frontend/Frontend.csproj");
+await frontend.withExternalHttpEndpoints();
+await frontend.withReference(api);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREACAEXPRESS001
+builder.AddAzureContainerAppEnvironment("aspire-env")
+    .AsExpress();
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints();
+
+builder.AddProject<Projects.Frontend>("frontend")
+    .WithExternalHttpEndpoints()
+    .WithReference(api);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+Express is emitted as `properties.environmentMode: "Express"` on the managed environment, and local `aspire run` orchestration is unchanged.
+
+Express adjusts the defaults Aspire applies to the environment:
+
+- **Scale to zero.** Minimum replicas default to `0` when no replica count is specified, so apps must tolerate cold starts. Explicit replica counts and scale customizations still take precedence.
+- **Fewer implicit resources.** Aspire omits the implicit Consumption workload profile, the managed Aspire Dashboard, and automatic .NET data-protection configuration.
+
+The following limitations apply when you use Express:
+
+- **No managed Aspire Dashboard.** The managed Aspire Dashboard isn't available in Azure Container Apps Express environments. This limitation doesn't affect the local Aspire Dashboard.
+- **Referenced endpoints must be public.** Express apps have no private `.internal` hostname, so a referenced endpoint must be explicitly exposed with `WithExternalHttpEndpoints`. Referencing an internal-only endpoint fails during deployment rather than emitting an address that can't resolve. Exposing an endpoint doesn't add authentication — enforce authorization in the app.
+- **HTTPS ingress is required.** Combining `AsExpress` with `WithHttpsUpgrade(false)` is rejected, in either call order.
+
+You can combine `AsExpress` with {% api "Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" %} or {% api "Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" %} to declare that an existing environment already uses Express. Aspire doesn't verify or convert the deployed environment's mode.
+
+## Deploy with aspire deploy
+
+Once your AppHost is configured, deploy it with:
+
+```bash title="Deploy to Azure Container Apps"
+aspire deploy
+```
+
+Aspire can prompt for missing Azure settings and AppHost parameters during an interactive deploy, then provisions and deploys the Container Apps resources behind the scenes.
+
+{% learnmore %}
+For Azure authentication, shared Azure settings, and `Parameters__*` inputs, see [Deploy to Azure](/deployment/azure/) and [Environments](/deployment/environments/#how-parameter-values-are-resolved).
+{% endlearnmore %}
+
+## After deployment
+
+After deployment, use the dashboard URL in the CLI output, the Azure portal, or `az containerapp show` to inspect the deployed compute resources and application URLs.
+
+## Clean up resources
+
+To tear down deployed resources, use `aspire destroy`. The command discovers the deployment, lists the Azure resources it will remove, and prompts for confirmation before deleting the resource group:
+
+```bash title="Aspire CLI - Destroy the deployed environment"
+aspire destroy
+```
+
+:::danger
+`aspire destroy` deletes the entire resource group, including any resources that weren't created by the Aspire CLI. Pass `--yes` only in automated or CI scenarios where you've already validated what will be removed. This action cannot be undone.
+:::
+
+## See also
+
+- [Deploy to Azure](/deployment/azure/)
+- [Azure Container Registry integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/)
+- [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/)
+- [`aspire deploy` command reference](/reference/cli/commands/aspire-deploy/)
+- [Azure Container Apps overview](https://learn.microsoft.com/azure/container-apps/overview)
+- [Ingress in Azure Container Apps](https://learn.microsoft.com/azure/container-apps/ingress-overview)
+- [Networking in Azure Container Apps environment](https://learn.microsoft.com/azure/container-apps/networking#http-edge-proxy-behavior)

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 test('Dev Hub TypeScript quickstart overrides a saved C# preference', async ({ page }) => {
@@ -262,12 +262,11 @@ test('first-app pivots default to TypeScript and preserve history and shared pre
   await expect(page.locator('[data-pivot-block="typescript"]').first()).toBeVisible();
   await expect(page.locator('[data-pivot-block="csharp"]').first()).toBeHidden();
 
-  const index = await page.evaluate(() => {
-    const state = history.state as { index: number };
-    history.replaceState({ ...state, pivotTest: 'preserved' }, '');
-    return state.index;
+  // Pivot changes rewrite the URL in place: they keep the current history entry and its state.
+  const historyLength = await page.evaluate(() => {
+    history.replaceState({ ...(history.state ?? {}), pivotTest: 'preserved' }, '');
+    return history.length;
   });
-  expect(index).toEqual(expect.any(Number));
   await selector.getByRole('button', { name: 'C#', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\?keep=1&aspire-lang=csharp$/);
@@ -277,13 +276,15 @@ test('first-app pivots default to TypeScript and preserve history and shared pre
     .poll(() =>
       page.evaluate(() => ({
         state: history.state,
+        length: history.length,
         preference: localStorage.getItem('aspire-lang'),
         tabs: localStorage.getItem('starlight-synced-tabs__aspire-lang'),
         language: document.documentElement.dataset.apphostLang,
       }))
     )
     .toMatchObject({
-      state: { index, pivotTest: 'preserved' },
+      state: { pivotTest: 'preserved' },
+      length: historyLength,
       preference: 'csharp',
       tabs: 'C#',
       language: 'csharp',
@@ -345,161 +346,111 @@ test('floating pivot controls clear the TOC across its responsive breakpoint', a
   }
 });
 
-for (const transition of ['native', 'fallback'] as const) {
-  test(`ApiReference links and tooltips survive navigation and history with ${transition} swaps`, async ({
-    page, isMobile,
-  }) => {
-    test.skip(isMobile && transition === 'native',
-      'Chromium touch emulation aborts native transitions; touch projects cover the swap fallback.');
-    test.setTimeout(120_000);
-    const errors: string[] = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-    if (transition === 'fallback') {
-      await page.addInitScript(() => {
-        Object.defineProperty(document, 'startViewTransition', { value: undefined });
-      });
-    }
-    await page.goto('/docs/');
-    await dismissCookieConsentIfVisible(page);
-    const marker = await page.evaluate(() => {
-      const value = crypto.randomUUID();
-      Reflect.set(window, '__apiReferenceSession', value);
-      return value;
-    });
-    const navigate = async (action: () => Promise<unknown>) => {
-      await page.evaluate(() => {
-        Reflect.set(window, '__apiReferenceLoaded', false);
-        document.addEventListener('astro:page-load', () => {
-          Reflect.set(window, '__apiReferenceLoaded', true);
-        }, { once: true });
-      });
-      await action();
-      await expect.poll(() => page.evaluate(() => Reflect.get(window, '__apiReferenceLoaded'))).toBe(true);
-      await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
-      expect(await page.evaluate(() => Reflect.get(window, '__apiReferenceSession'))).toBe(marker);
-    };
-    await navigate(() => page.locator('a[href="/get-started/first-app/"]:visible').first().click());
-    const reference = page.locator('.api-reference').first();
-
-    for (const language of ['csharp', 'typescript'] as const) {
-      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-      await page.locator('#pivot-selector-aspire-lang').getByRole('button', {
-        name: language === 'csharp' ? 'C#' : 'TypeScript', exact: true,
-      }).click();
-      const chip = reference.locator(`a[data-lang="${language}"]`);
-      await expect(chip).toBeVisible();
-      await expect(chip).toHaveAttribute('href', new RegExp(`/reference/api/${language}/`));
-      const destination = new URL((await chip.getAttribute('href'))!, page.url()).href;
-
-      await chip.focus();
-      await expect(page.getByRole('tooltip')).toBeVisible();
-      await expect(page.getByRole('tooltip')).not.toBeEmpty();
-      await navigate(() => chip.press('Enter'));
-      await expect(page).toHaveURL(destination);
-      await expect(page.getByRole('tooltip')).toHaveCount(0);
-
-      await navigate(() => page.goBack());
-      await expect(page.locator('html')).toHaveAttribute('data-apphost-lang', language);
-      await expect(chip).toBeVisible();
-      await chip.focus();
-      await expect(page.getByRole('tooltip')).toBeVisible();
-      await expect(page.getByRole('tooltip')).not.toBeEmpty();
-      await chip.press('Escape');
-      await expect(page.getByRole('tooltip')).toHaveCount(0);
-      await chip.blur();
-
-      await navigate(() => page.goForward());
-      await expect(page).toHaveURL(destination);
-      await expect(page.getByRole('tooltip')).toHaveCount(0);
-      await navigate(() => page.goBack());
-      await expect(page.locator('html')).toHaveAttribute('data-apphost-lang', language);
-      await expect(chip).toBeVisible();
-    }
-    expect(errors).toEqual([]);
-  });
-
-  test(`pivot lifecycle survives repeated visits and history with ${transition} swaps`, async ({
-    page, isMobile,
-  }) => {
-    test.skip(isMobile && transition === 'native',
-      'Chromium touch emulation aborts native transitions; touch projects cover the swap fallback.');
-    test.setTimeout(120_000);
-    const warnings: string[] = [];
-    const errors: string[] = [];
-    page.on('console', (message) => {
-      if (message.type() === 'warning' && /pivot.*not found/i.test(message.text())) {
-        warnings.push(message.text());
-      }
-    });
-    page.on('pageerror', (error) => errors.push(error.message));
-    if (transition === 'fallback') {
-      await page.addInitScript(() => {
-        Object.defineProperty(document, 'startViewTransition', { value: undefined });
-      });
-    }
-    await page.goto('/docs/');
-    await dismissCookieConsentIfVisible(page);
-    const documentMarker = await page.evaluate(() => {
-      const marker = crypto.randomUUID();
-      Object.defineProperty(window, '__pivotNavigationMarker', { value: marker });
-      return marker;
-    });
-    const selector = page.locator('#pivot-selector-aspire-lang');
-    const root = page.locator('aspire-pivot-selector[data-pivot-key="aspire-lang"]');
-    const navigate = async (action: () => Promise<unknown>) => {
-      await page.evaluate(() => {
-        Reflect.set(window, '__pivotPageLoaded', false);
-        document.addEventListener('astro:page-load', () => {
-          Reflect.set(window, '__pivotPageLoaded', true);
-        }, { once: true });
-      });
-      await action();
-      await expect.poll(() => page.evaluate(() => Reflect.get(window, '__pivotPageLoaded'))).toBe(true);
-      await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
-    };
-
-    for (let visit = 0; visit < 3; visit++) {
-      await navigate(() => page.locator('a[href="/get-started/first-app/"]:visible').first().click());
-      await expect(selector).toHaveAttribute('data-pivot-initialized', 'true');
-      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-      await selector.getByRole('button', { name: 'C#', exact: true }).click();
-      await expect(page).toHaveURL(/\/get-started\/first-app\/\?aspire-lang=csharp$/);
-      await expect
-        .poll(() => page.evaluate(() => history.state))
-        .toMatchObject({
-          index: expect.any(Number),
-        });
-      await page.evaluate(() => window.scrollTo({ top: 1200, behavior: 'instant' }));
-      await expect(root).toHaveClass(/floating/);
-      await expect(root).toHaveClass(/collapsed/);
-      await root.getByRole('button', { name: 'Expand selector', exact: true }).click();
-      await expect(root).not.toHaveClass(/collapsed/);
-
-      // Leave while the old selector still owns its five-second expansion timer.
-      await navigate(() => page.locator('header a[href="/"]:visible').click());
-      await expect(page).toHaveURL(url => url.pathname === '/');
-      await expect(root).toHaveCount(0);
-      await expect(page.locator('.pivot-placeholder')).toHaveCount(0);
-      await navigate(() => page.goBack());
-      await expect(selector).toHaveAttribute('data-pivot-initialized', 'true');
-      await expect(selector.locator('[data-pivot-option="csharp"]')).toHaveClass(/active/);
-      await expect
-        .poll(() => page.evaluate(() => history.state))
-        .toMatchObject({
-          index: expect.any(Number),
-        });
-      await navigate(() => page.goForward());
-      await expect(page).toHaveURL(url => url.pathname === '/');
-      await expect(root).toHaveCount(0);
-      await page.evaluate(() => {
-        window.dispatchEvent(new Event('scroll'));
-        window.dispatchEvent(new Event('resize'));
-      });
-      await expect
-        .poll(() => page.evaluate(() => Reflect.get(window, '__pivotNavigationMarker')))
-        .toBe(documentMarker);
-    }
-    expect(warnings).toEqual([]);
-    expect(errors).toEqual([]);
-  });
+// Douze navigates with full page loads: wait for the incoming document instead of a router event.
+async function loadPage(page: Page, action: () => Promise<unknown>, url?: string | RegExp | ((url: URL) => boolean)) {
+  await action();
+  if (url) await page.waitForURL(url);
+  await page.waitForLoadState('load');
 }
+
+test('ApiReference links and tooltips survive navigation and history', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/docs/');
+  await dismissCookieConsentIfVisible(page);
+  await loadPage(
+    page,
+    () => page.locator('a[href="/get-started/first-app/"]:visible').first().click(),
+    /\/get-started\/first-app\//
+  );
+  const reference = page.locator('.api-reference').first();
+
+  for (const language of ['csharp', 'typescript'] as const) {
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.locator('#pivot-selector-aspire-lang').getByRole('button', {
+      name: language === 'csharp' ? 'C#' : 'TypeScript', exact: true,
+    }).click();
+    await expect(page).toHaveURL(new RegExp(`\\?aspire-lang=${language}$`));
+    const chip = reference.locator(`a[data-lang="${language}"]`);
+    await expect(chip).toBeVisible();
+    await expect(chip).toHaveAttribute('href', new RegExp(`/reference/api/${language}/`));
+    const destination = new URL((await chip.getAttribute('href'))!, page.url()).href;
+
+    await chip.focus();
+    await expect(page.getByRole('tooltip')).toBeVisible();
+    await expect(page.getByRole('tooltip')).not.toBeEmpty();
+    await loadPage(page, () => chip.press('Enter'), destination);
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+
+    await loadPage(page, () => page.goBack(), /\/get-started\/first-app\//);
+    await expect(page.locator('html')).toHaveAttribute('data-apphost-lang', language);
+    await expect(chip).toBeVisible();
+    await chip.focus();
+    await expect(page.getByRole('tooltip')).toBeVisible();
+    await expect(page.getByRole('tooltip')).not.toBeEmpty();
+    await chip.press('Escape');
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await chip.blur();
+
+    await loadPage(page, () => page.goForward(), destination);
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await loadPage(page, () => page.goBack(), /\/get-started\/first-app\//);
+    await expect(page.locator('html')).toHaveAttribute('data-apphost-lang', language);
+    await expect(chip).toBeVisible();
+  }
+  expect(errors).toEqual([]);
+});
+
+test('pivot lifecycle survives repeated visits and history', async ({ page }) => {
+  test.setTimeout(120_000);
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'warning' && /pivot.*not found/i.test(message.text())) {
+      warnings.push(message.text());
+    }
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/docs/');
+  await dismissCookieConsentIfVisible(page);
+  const selector = page.locator('#pivot-selector-aspire-lang');
+  const root = page.locator('aspire-pivot-selector[data-pivot-key="aspire-lang"]');
+
+  for (let visit = 0; visit < 3; visit++) {
+    await loadPage(
+      page,
+      () => page.locator('a[href="/get-started/first-app/"]:visible').first().click(),
+      /\/get-started\/first-app\//
+    );
+    await expect(selector).toHaveAttribute('data-pivot-initialized', 'true');
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await selector.getByRole('button', { name: 'C#', exact: true }).click();
+    await expect(page).toHaveURL(/\/get-started\/first-app\/\?aspire-lang=csharp$/);
+    await page.evaluate(() => window.scrollTo({ top: 1200, behavior: 'instant' }));
+    await expect(root).toHaveClass(/floating/);
+    await expect(root).toHaveClass(/collapsed/);
+    await root.getByRole('button', { name: 'Expand selector', exact: true }).click();
+    await expect(root).not.toHaveClass(/collapsed/);
+
+    // Leave while the selector still owns its five-second expansion timer.
+    await loadPage(page, () => page.locator('header a[href="/"]:visible').click(), (url) => url.pathname === '/');
+    await expect(root).toHaveCount(0);
+    await expect(page.locator('.pivot-placeholder')).toHaveCount(0);
+    await loadPage(page, () => page.goBack(), /\/get-started\/first-app\/\?aspire-lang=csharp$/);
+    await expect(selector).toHaveAttribute('data-pivot-initialized', 'true');
+    await expect(selector.locator('[data-pivot-option="csharp"]')).toHaveClass(/active/);
+    await expect(page.locator('[data-pivot-block="csharp"]').first()).toBeVisible();
+    await loadPage(page, () => page.goForward(), (url) => url.pathname === '/');
+    await expect(root).toHaveCount(0);
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event('scroll'));
+      window.dispatchEvent(new Event('resize'));
+    });
+  }
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('aspire-lang')))
+    .toBe('csharp');
+  expect(warnings).toEqual([]);
+  expect(errors).toEqual([]);
+});

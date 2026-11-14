@@ -1,0 +1,24 @@
+{%- comment -%}
+  EnumTable.astro. Inputs: enum_members, has_flags. Root class: cid-api-reference-enum-table.
+{%- endcomment -%}
+{%- if enum_members.size > 0 -%}
+<div class="enum-list-wrap cid-api-reference-enum-table">
+{%- if has_flags %}<p class="enum-flags-note"><span class="api-kind-pill kind-enum">[Flags]</span> Values can be combined with bitwise OR.</p>{% endif -%}
+<div class="api-list not-content">
+{%- for em in enum_members -%}
+<div class="api-list-item"><div class="api-list-header"><code class="enum-name">{{ em.name }}</code><span class="api-list-meta">= <code>{{ em.value }}</code>
+{%- if has_flags and em.value > 0 -%}
+  {%- comment -%} 0b<binary, at least 4 digits> and 0x<HEX> {%- endcomment -%}
+  {%- assign et_n = em.value -%}{%- assign et_bin = "" -%}
+  {%- for i in (1..64) -%}{%- assign et_d = et_n | modulo: 2 -%}{%- assign et_bin = et_bin | prepend: et_d -%}{%- assign et_n = et_n | divided_by: 2 | floor -%}{%- if et_n == 0 -%}{%- break -%}{%- endif -%}{%- endfor -%}
+  {%- if et_bin.size < 4 -%}{%- assign et_bin = et_bin | prepend: "000" | slice: -4, 4 -%}{%- endif -%}
+  {%- assign et_n = em.value -%}{%- assign et_hex = "" -%}
+  {%- for i in (1..16) -%}{%- assign et_d = et_n | modulo: 16 -%}{%- assign et_hex = "0123456789ABCDEF" | slice: et_d | append: et_hex -%}{%- assign et_n = et_n | divided_by: 16 | floor -%}{%- if et_n == 0 -%}{%- break -%}{%- endif -%}{%- endfor -%}
+<span class="binary-hint" title="0b{{ et_bin }}">0x{{ et_hex }}</span>
+{%- endif -%}
+</span></div>
+{%- if em.description and em.description != "—" %}<div class="api-list-desc">{{ em.description }}</div>{% endif -%}
+</div>
+{%- endfor -%}
+</div></div>
+{%- endif -%}

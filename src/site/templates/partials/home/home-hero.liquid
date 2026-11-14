@@ -1,0 +1,16 @@
+{%- comment -%}
+  The hero of the home pages, included by the splash layout's hero partial (partials/hero.liquid) where the Astro Hero
+  override rendered HomeHero. The hero is rendered with the page's body (home-body.liquid, between the comments
+  <!--home-hero--> and <!--/home-hero-->), because the code worker highlights the code of page bodies only (it runs
+  before the layout step) and the hero holds the AppHost builder's example: this writes that part of `content` here
+  and sets `mc_html`, the rest of the body, for partials/markdown-content. A page without the markers gets the hero
+  rendered here, its code not highlighted.
+{%- endcomment -%}
+{%- if content contains "<!--/home-hero-->" -%}
+{%- assign hh_parts = content | split: "<!--/home-hero-->" -%}
+{%- assign hh_hero = hh_parts | first | split: "<!--home-hero-->" | last -%}
+{%- capture mc_html -%}{{ hh_parts | slice: 1, hh_parts.size | join: "<!--/home-hero-->" | raw }}{%- endcapture -%}
+{{ hh_hero | raw }}
+{%- else -%}
+{% include "partials/home/home-hero-story.liquid" %}
+{%- endif -%}

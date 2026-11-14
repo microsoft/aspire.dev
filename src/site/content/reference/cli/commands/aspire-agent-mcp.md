@@ -1,0 +1,70 @@
+---
+title: aspire agent mcp command
+description: Learn about the aspire agent mcp command and its usage. This command starts the MCP (Model Context Protocol) server.
+---
+
+## Name
+
+`aspire agent mcp` - Start the <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> (Model Context Protocol) server.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire agent mcp [options]
+```
+
+## Description
+
+The `aspire agent mcp` command starts the MCP (Model Context Protocol) server, which enables AI assistants and development tools to interact with your Aspire AppHost. The MCP server provides a standardized interface for resource management, diagnostics, and observability operations.
+
+When the server is running, MCP-compatible clients can connect to it to:
+
+- List and manage Aspire resources
+- View structured logs and traces
+- Execute resource commands (start, stop, restart)
+- Query integration information
+
+By default, the server discovers running AppHosts from the current workspace. You can also connect directly to a standalone Aspire Dashboard (one not managed by an AppHost) by providing `--dashboard-url`. In this dashboard-only mode, only the three telemetry tools (`list_structured_logs`, `list_traces`, `list_trace_structured_logs`) are exposed; AppHost-specific tools are not available.
+
+## Options
+
+The following options are available:
+
+- **`--dashboard-url <dashboard-url>`**
+
+  The base URL of a standalone Aspire Dashboard to connect to instead of discovering one from an AppHost, for example `http://localhost:18888`. Browser login tokens aren't used to authenticate MCP telemetry tools.
+
+- **`--api-key <api-key>`**
+
+  The API key used to authenticate with the dashboard's Telemetry API. Provide it when `--dashboard-url` targets a dashboard configured with `ApiKey` authentication.
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Examples
+
+- Start the MCP server:
+
+  ```bash title="Aspire CLI"
+  aspire agent mcp
+  ```
+
+- Start the MCP server in dashboard-only mode with an API key:
+
+  ```bash title="Aspire CLI"
+  aspire agent mcp --dashboard-url "http://localhost:18888" --api-key "<api-key>"
+  ```
+
+## See also
+
+- [aspire agent command](../aspire-agent/)
+- [aspire agent init command](../aspire-agent-init/)

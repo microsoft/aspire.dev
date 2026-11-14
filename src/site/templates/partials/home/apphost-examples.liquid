@@ -1,0 +1,1079 @@
+{%- comment -%}
+  The examples of the AppHost builder (apphost-builder.liquid): a code-lang-group per language, a code-variant per
+  toggle combination, each a fence highlighted by the code worker. The builder renders it with
+  ahx_initial_only: true (the TypeScript front end example alone, the default selection); content/apphost-examples.html
+  renders all of it into /_astro/apphost-examples.<build>.html, which the builder script fetches on the first
+  interaction, as the Astro build deferred them (src/frontend/config/apphost-examples.mjs).
+{%- endcomment -%}
+    <!-- C# variants -->
+    <div class="code-lang-group" data-code-lang="csharp" style="display: none;">
+{%- unless ahx_initial_only %}
+      <div class="code-variant" data-variant="empty" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// This would be a rather boring AppHost ☹️...
+// Toggle the options above to see what an AppHost might look like.
+// For example, select &quot;Front end&quot; to add a frontend service.
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="frontend">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add frontend service
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="frontendContainer" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add frontend service
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;);
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseFrontend" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddPostgres(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;);
+
+// Add frontend service
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseFrontendContainer" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddPostgres(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;);
+
+// Add frontend service
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;);
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiFrontend" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add API service
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;);
+
+// Add frontend service and reference the API
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .WithReference(api);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiFrontendContainer" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add API service
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;);
+
+// Add frontend service and reference the API
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .WithReference(api);
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontend" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddPostgres(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;);
+
+// Add API service and reference the database
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .WithReference(postgres);
+
+// Add frontend service and reference the API
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .WithReference(api);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontendContainer" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddPostgres(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;);
+
+// Add API service and reference the database
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .WithReference(postgres);
+
+// Add frontend service and reference the API
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .WithReference(api);
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="database" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddPostgres(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseContainer" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddPostgres(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;);
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="api" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add API service
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiContainer" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add API service
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;);
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApi" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddPostgres(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;);
+
+// Add API service and reference the database
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .WithReference(postgres);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiContainer" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddPostgres(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;);
+
+// Add API service and reference the database
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .WithReference(postgres);
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="container" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080);
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="frontendDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add frontend service
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .PublishAsDockerFile();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="frontendContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add frontend service
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .PublishAsDockerFile();
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080)
+    .PublishAsKubernetes();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseFrontendDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddAzurePostgresFlexibleServer(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;)
+    .WithDataVolume()
+    .RunAsContainer();
+
+// Add frontend service
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .PublishAsDockerFile();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseFrontendContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddAzurePostgresFlexibleServer(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;)
+    .WithDataVolume()
+    .RunAsContainer();
+
+// Add frontend service
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .PublishAsDockerFile();
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080)
+    .PublishAsKubernetes();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiFrontendDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add API service
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .PublishAsAzureContainerApp();
+
+// Add frontend service and reference the API
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .WithReference(api)
+    .PublishAsDockerFile();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiFrontendContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add API service
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .PublishAsAzureContainerApp();
+
+// Add frontend service and reference the API
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .WithReference(api)
+    .PublishAsDockerFile();
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080)
+    .PublishAsKubernetes();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontendDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddAzurePostgresFlexibleServer(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;)
+    .WithDataVolume()
+    .RunAsContainer();
+
+// Add API service and reference the database
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .PublishAsAzureContainerApp();
+
+// Add frontend service and reference the API
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .WithReference(api)
+    .PublishAsDockerFile();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontendContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddAzurePostgresFlexibleServer(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;)
+    .WithDataVolume()
+    .RunAsContainer();
+
+// Add API service and reference the database
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .PublishAsAzureContainerApp();
+
+// Add frontend service and reference the API
+var frontend = builder.AddViteApp(&quot;frontend&quot;, &quot;../frontend&quot;)
+    .WithHttpEndpoint(env: &quot;PORT&quot;)
+    .WithReference(api)
+    .PublishAsDockerFile();
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080)
+    .PublishAsKubernetes();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddAzurePostgresFlexibleServer(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;)
+    .WithDataVolume()
+    .RunAsContainer();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddAzurePostgresFlexibleServer(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;)
+    .WithDataVolume()
+    .RunAsContainer();
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080)
+    .PublishAsKubernetes();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add API service
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .PublishAsAzureContainerApp();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add API service
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .PublishAsAzureContainerApp();
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080)
+    .PublishAsKubernetes();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddAzurePostgresFlexibleServer(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;)
+    .WithDataVolume()
+    .RunAsContainer();
+
+// Add API service and reference the database
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .PublishAsAzureContainerApp();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database
+var postgres = builder.AddAzurePostgresFlexibleServer(&quot;db&quot;)
+    .AddDatabase(&quot;appdata&quot;)
+    .WithDataVolume()
+    .RunAsContainer();
+
+// Add API service and reference the database
+var api = builder.AddProject(&quot;api&quot;, &quot;../api/ApiService.csproj&quot;)
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .PublishAsAzureContainerApp();
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080)
+    .PublishAsKubernetes();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="containerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="cs" data-meta="title=&quot;AppHost.cs&quot;"><code class="language-cs">var builder = DistributedApplication.CreateBuilder(args);
+
+// Add custom container
+var customContainer = builder.AddContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .WithHttpEndpoint(targetPort: 8080)
+    .PublishAsKubernetes();
+
+builder.Build().Run();</code></pre>{% endraw %}
+      </div>
+    {%- endunless %}
+    </div>
+    <!-- TypeScript variants -->
+    <div class="code-lang-group" data-code-lang="typescript">
+{%- unless ahx_initial_only %}
+      <div class="code-variant" data-variant="empty" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// This would be a rather boring AppHost ☹️...
+// Toggle the options above to see what an AppHost might look like.
+// For example, select &quot;Front end&quot; to add a frontend service.
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+    {%- endunless %}
+      <div class="code-variant" data-variant="frontend" style="">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+{%- unless ahx_initial_only %}
+      <div class="code-variant" data-variant="frontendContainer" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; });
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseFrontend" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;);
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseFrontendContainer" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;);
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; });
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiFrontend" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; });
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(api);
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiFrontendContainer" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; });
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(api);
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontend" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;);
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(postgres);
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(api);
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontendContainer" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;);
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(postgres);
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(api);
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="database" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;);
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseContainer" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;);
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="api" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiContainer" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; });
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApi" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;);
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(postgres);
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiContainer" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;);
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(postgres);
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="container" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="frontendDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .publishAsDockerFile();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="frontendContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .publishAsDockerFile();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseFrontendDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;)
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .publishAsDockerFile();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseFrontendContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;)
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .publishAsDockerFile();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiFrontendDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .publishAsAzureContainerApp();
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(api)
+    .publishAsDockerFile();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiFrontendContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .publishAsAzureContainerApp();
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(api)
+    .publishAsDockerFile();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontendDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;)
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(postgres)
+    .waitFor(postgres)
+    .publishAsAzureContainerApp();
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(api)
+    .publishAsDockerFile();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontendContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;)
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(postgres)
+    .waitFor(postgres)
+    .publishAsAzureContainerApp();
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp(&quot;frontend&quot;, &quot;./frontend&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(api)
+    .publishAsDockerFile();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;)
+    .withDataVolume()
+    .runAsContainer();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;)
+    .withDataVolume()
+    .runAsContainer();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .publishAsAzureContainerApp();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="apiContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .publishAsAzureContainerApp();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;)
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(postgres)
+    .waitFor(postgres)
+    .publishAsAzureContainerApp();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="databaseApiContainerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer(&quot;db&quot;)
+    .addDatabase(&quot;appdata&quot;)
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp(&quot;api&quot;, &quot;./api&quot;, &quot;src/index.ts&quot;)
+    .withHttpEndpoint({ env: &quot;PORT&quot; })
+    .withReference(postgres)
+    .waitFor(postgres)
+    .publishAsAzureContainerApp();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+      <div class="code-variant" data-variant="containerDeployment" style="display: none;">
+        {% raw %}<pre data-lang="ts" data-meta="title=&quot;apphost.mts&quot;"><code class="language-ts">import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer(&quot;mycustomcontainer&quot;, &quot;myregistry/myapp&quot;, &quot;latest&quot;)
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();</code></pre>{% endraw %}
+      </div>
+    {%- endunless %}
+    </div>

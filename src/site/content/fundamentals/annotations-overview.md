@@ -1,0 +1,364 @@
+---
+title: Resource annotations
+seoTitle: Aspire resource annotations overview for AppHost authors
+description: Learn how Aspire annotations work, how the AppHost composes built-in annotations, and how to create custom annotations to extend the resource model in your apps.
+---
+
+Annotations are a key extensibility mechanism in Aspire that allow you to attach metadata and behavior to resources. They provide a way to customize how resources are configured, deployed, and managed throughout the application lifecycle. This article explains how annotations work and how to use them effectively in your Aspire applications.
+
+## What are annotations
+
+Annotations in Aspire are objects that implement the `IResourceAnnotation` interface. They're attached to resources to provide additional metadata, configuration, or behavior. Annotations are consumed by various parts of the Aspire stack, including:
+
+- The dashboard for displaying custom URLs and commands.
+- Deployment tools for generating infrastructure as code.
+- The hosting layer for configuring runtime behavior.
+- Testing infrastructure for resource inspection.
+
+Every annotation is associated with a specific resource and can contain any data or behavior needed to extend that resource's functionality.
+
+## How annotations work
+
+When you add a resource to your app model, you can attach annotations using various extension methods. These annotations are stored with the resource and can be retrieved and processed by different components of the system.
+
+Here's a simple example of how annotations are used:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache")
+    .WithCommand("clear-cache", "Clear Cache",
+        async context => new ExecuteCommandResult { Success = true })
+    .WithUrl("admin", "http://localhost:8080/admin");
+
+builder.Build().Run();
+```
+
+In this example:
+
+- {% api "Aspire.Hosting.ResourceBuilderExtensions.WithCommand" %} adds a `ResourceCommandAnnotation` that defines a custom command.
+- {% api "Aspire.Hosting.ResourceBuilderExtensions.WithUrl" %} adds a `ResourceUrlAnnotation` that defines a custom URL.
+
+## Adding and managing annotations
+
+The `WithAnnotation` extension method is the primary way to add annotations to resources. It supports different behaviors when an annotation of the same type already exists:
+
+```csharp title="AppHost.cs"
+// Add only if no annotation of this type exists (default)
+builder.AddContainer("mycontainer", "myimage")
+    .WithAnnotation(new MyAnnotation(), ResourceAnnotationMutationBehavior.None);
+
+// Replace any existing annotation of this type
+builder.AddContainer("mycontainer", "myimage")
+    .WithAnnotation(new MyAnnotation(), ResourceAnnotationMutationBehavior.Replace);
+```
+
+### Reading annotations
+
+To read annotations from a resource, use the `Annotations` collection or helper methods:
+
+```csharp title="Reading annotations"
+// Get all annotations of a type
+var endpoints = resource.Annotations.OfType<EndpointAnnotation>();
+
+// Try to get the last annotation of a type (most recently added)
+if (resource.TryGetLastAnnotation<EndpointAnnotation>(out var endpoint))
+{
+    Console.WriteLine($"Endpoint: {endpoint.Name}");
+}
+
+// Check if an annotation exists
+bool hasEndpoints = resource.Annotations.OfType<EndpointAnnotation>().Any();
+```
+
+## Built-in annotation types
+
+Aspire includes many built-in annotation types for common scenarios. This section covers _some_ of the more commonly used annotations, but there are many more available for specific use cases.
+
+### `EndpointAnnotation`
+
+The `EndpointAnnotation` defines network endpoints for resources. It contains information about ports, protocols, and endpoint configuration.
+
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithEndpoint(callback: endpoint =>
+    {
+        endpoint.Port = 5000;
+        endpoint.IsExternal = true;
+        endpoint.Protocol = Protocol.Tcp;
+        endpoint.Transport = "http";
+    });
+```
+
+### `ResourceUrlAnnotation`
+
+The `ResourceUrlAnnotation` defines custom URLs that appear in the dashboard, often pointing to management interfaces or documentation.
+
+```csharp title="AppHost.cs"
+var database = builder.AddPostgres("postgres")
+    .WithUrl("admin", "https://localhost:5050");
+```
+
+### `EnvironmentCallbackAnnotation`
+
+The `EnvironmentCallbackAnnotation` allows you to modify environment variables at runtime based on the state of other resources.
+
+```csharp title="AppHost.cs"
+// This is typically used internally by WithReference
+var app = builder.AddProject<Projects.MyApp>("app")
+    .WithReference(database);
+```
+
+### `ContainerMountAnnotation`
+
+The `ContainerMountAnnotation` defines volume mounts for containerized resources.
+
+```csharp title="AppHost.cs"
+var postgres = builder.AddPostgres("postgres")
+    .WithDataVolume(); // Adds a ContainerMountAnnotation
+```
+
+### `HealthCheckAnnotation`
+
+The `HealthCheckAnnotation` associates health checks with a resource, used by {% api "Aspire.Hosting.ResourceBuilderExtensions.WaitFor" %} to determine when a resource is ready:
+
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpHealthCheck("/health");  // Adds HealthCheckAnnotation
+```
+
+{% learnmore %}
+Learn more about how Aspire uses health checks for orchestration in the [Health checks guide](/fundamentals/health-checks/).
+{% endlearnmore %}
+
+### `WaitAnnotation`
+
+The `WaitAnnotation` declares a dependency on another resource and controls startup order. The `WaitFor`, {% api "Aspire.Hosting.ResourceBuilderExtensions.WaitForStart" %}, and {% api "Aspire.Hosting.ResourceBuilderExtensions.WaitForCompletion" %} methods add this annotation:
+
+```csharp title="AppHost.cs"
+var cache = builder.AddRedis("cache");
+
+// Wait for cache to be healthy before starting web
+var web = builder.AddProject<Projects.Web>("web")
+    .WaitFor(cache);  // Adds WaitAnnotation with WaitType.WaitForHealthy
+```
+
+The `WaitType` enum specifies what condition to wait for:
+
+| Wait type | Description |
+|----------|-------------|
+| `WaitForStart` | Wait for resource to start (not necessarily healthy) |
+| `WaitForHealthy` | Wait for resource to be healthy (default for `WaitFor`) |
+| `WaitForCompletion` | Wait for resource to exit (for one-time tasks) |
+
+### `ReplicaAnnotation`
+
+The `ReplicaAnnotation` specifies how many instances of a resource should run:
+
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReplicas(3);  // Adds ReplicaAnnotation
+```
+
+### `PersistenceAnnotation`
+
+The `PersistenceAnnotation` controls whether a supported resource uses the default session lifetime, persists across AppHost runs, matches another resource's lifetime, or is scoped to a parent process:
+
+```csharp title="AppHost.cs"
+var postgres = builder.AddPostgres("postgres")
+    .WithPersistentLifetime();  // Resource survives AppHost restarts
+```
+
+{% learnmore %}
+For details on supported lifetime modes and their use cases, see [Resource lifetimes](/app-host/resource-lifetimes/).
+{% endlearnmore %}
+
+### `ExplicitStartupAnnotation`
+
+The `ExplicitStartupAnnotation` prevents a resource from starting automatically. Users must manually start it from the dashboard:
+
+```csharp title="AppHost.cs"
+var worker = builder.AddProject<Projects.BatchJob>("batch")
+    .WithExplicitStart();  // Adds ExplicitStartupAnnotation
+```
+
+## Creating custom annotations
+
+Custom annotations in Aspire are designed to capture resource-specific metadata and behavior that can be leveraged throughout the application lifecycle. They're commonly used by:
+
+- **Extension methods** to infer user intent and configure resource behavior.
+- **Deployment tools** to generate deployment-specific configuration.
+- **Lifecycle hooks** to query the app model and make runtime decisions.
+- **Development tools** like the dashboard to display resource information.
+
+Custom annotations should focus on a single concern and provide clear value to consumers of the resource metadata.
+
+### 1. Define the annotation class
+
+Start by creating a class that implements `IResourceAnnotation`. Focus on capturing specific metadata that other components need to reason about your resource:
+
+```csharp title="ServiceMetricsAnnotation.cs"
+public sealed class ServiceMetricsAnnotation : IResourceAnnotation
+{
+    public string MetricsPath { get; set; } = "/metrics";
+    public int Port { get; set; } = 9090;
+    public bool Enabled { get; set; } = true;
+    public string[] AdditionalLabels { get; set; } = [];
+}
+```
+
+### 2. Create extension methods
+
+Create fluent extension methods that follow Aspire's builder pattern. These methods should make it easy for AppHost authors to configure your annotation:
+
+```csharp title="ServiceMetricsExtensions.cs"
+public static class ServiceMetricsExtensions
+{
+    public static IResourceBuilder<T> WithMetrics<T>(
+        this IResourceBuilder<T> builder,
+        string path = "/metrics",
+        int port = 9090,
+        params string[] labels)
+        where T : class, IResource
+    {
+        var annotation = new ServiceMetricsAnnotation
+        {
+            MetricsPath = path,
+            Port = port,
+            Enabled = true,
+            AdditionalLabels = labels
+        };
+
+        return builder.WithAnnotation(annotation);
+    }
+
+    public static IResourceBuilder<T> WithoutMetrics<T>(
+        this IResourceBuilder<T> builder)
+        where T : class, IResource
+    {
+        return builder.WithAnnotation(new ServiceMetricsAnnotation { Enabled = false });
+    }
+}
+```
+
+The extension methods serve as the primary API surface for your annotation. They should:
+
+- Follow naming conventions (start with `With` for additive operations).
+- Provide sensible defaults.
+- Return the builder for method chaining.
+- Include comprehensive XML documentation.
+
+### 3. Use the custom annotation
+
+Once defined, annotations integrate seamlessly into the AppHost model:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithMetrics("/api/metrics", 9090, "environment:production", "service:api");
+```
+
+## Testing with annotations
+
+When writing tests, you can inspect annotations to verify resource configuration:
+
+```csharp title="ResourceAnnotationsTests.cs"
+[Fact]
+public async Task Resource_Should_Have_Expected_Annotations()
+{
+    var appHost = await DistributedApplicationTestingBuilder
+        .CreateAsync<Projects.MyApp_AppHost>();
+
+    await using var app = await appHost.BuildAsync();
+
+    var resource = app.Resources.GetResource("my-resource");
+
+    // Assert that specific annotations exist
+    Assert.NotEmpty(resource.Annotations.OfType<ServiceMetricsAnnotation>());
+
+    // Assert annotation properties
+    var metricsConfig = resource.Annotations
+        .OfType<ServiceMetricsAnnotation>()
+        .First();
+
+    Assert.True(metricsConfig.Enabled);
+    Assert.Equal("/metrics", metricsConfig.MetricsPath);
+}
+```
+
+For more information, see [Testing with Aspire](/testing/overview/).
+
+## Best practices
+
+When working with annotations, consider these best practices:
+
+### Use meaningful names
+
+Choose descriptive names for your annotation classes and properties:
+
+```csharp title="DatabaseConnectionPoolAnnotation.cs"
+// Good
+public sealed class DatabaseConnectionPoolAnnotation : IResourceAnnotation
+```
+
+```csharp title="DbAnnotation.cs" data-disable-copy
+// Avoid
+public sealed class DbAnnotation : IResourceAnnotation
+```
+
+### Follow the builder pattern
+
+Create fluent extension methods that follow Aspire's builder pattern:
+
+```csharp title="AppHost.cs"
+var resource = builder.AddMyResource("name")
+    .WithCustomBehavior()
+    .WithAnotherFeature();
+```
+
+### Document your annotations
+
+Provide XML documentation for custom annotations and extension methods:
+
+```csharp title="CachingExtensions.cs"
+/// <summary>
+/// Configures custom caching behavior for the resource.
+/// </summary>
+/// <param name="builder">The resource builder.</param>
+/// <param name="ttl">The time-to-live for cached items.</param>
+/// <returns>The resource builder for chaining.</returns>
+public static IResourceBuilder<T> WithCaching<T>(
+    this IResourceBuilder<T> builder,
+    TimeSpan ttl)
+    where T : class, IResource { /*...*/ }
+```
+
+### Keep annotations simple
+
+Annotations should be focused on a single responsibility:
+
+```csharp title="RetryPolicyAnnotation.cs"
+// Good - single responsibility
+public sealed class RetryPolicyAnnotation : IResourceAnnotation
+{
+    public int MaxRetries { get; set; }
+    public TimeSpan Delay { get; set; }
+}
+```
+
+```csharp title="ConfigAnnotation.cs" data-disable-copy
+// Avoid - multiple responsibilities
+public sealed class ConfigAnnotation : IResourceAnnotation
+{
+    public RetryPolicy RetryPolicy { get; set; }
+    public LoggingSettings Logging { get; set; }
+    public SecuritySettings Security { get; set; }
+}
+```
+
+## See also
+
+- [Custom resources](/extensibility/custom-resources/) - Creating custom resource types that use annotations
+- [Resource API patterns](/architecture/resource-api-patterns/) - Advanced API patterns for resources
+- [AppHost eventing](/app-host/eventing/) - Handling lifecycle events in resources

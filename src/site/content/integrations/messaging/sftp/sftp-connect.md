@@ -1,0 +1,136 @@
+---
+title: Connect to an SFTP server with Aspire
+description: Register the Community Toolkit SFTP client, configure connection strings and authentication, and use keyed SSH.NET clients in a consuming app.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+The Community Toolkit SFTP client registers SSH.NET's `SftpClient` in dependency injection. Reference an SFTP resource from your consuming app to provide its connection string. For server configuration, see [Set up SFTP with the Aspire integration](../sftp-host/).
+
+## Install the client integration
+
+Install the [📦 CommunityToolkit.Aspire.Sftp](https://www.nuget.org/packages/CommunityToolkit.Aspire.Sftp) package in the consuming project:
+
+{% install_dotnet_package "CommunityToolkit.Aspire.Sftp" %}
+
+## Add the SFTP client
+
+Call `AddSftpClient` with the name of the connection from the AppHost. Provide a username and one authentication method:
+
+```csharp title="Program.cs"
+builder.AddSftpClient(
+    "sftp",
+    settings =>
+    {
+        settings.Username = "fileuser";
+        settings.Password = builder.Configuration["Sftp:Password"];
+    });
+```
+
+The connection name must match the SFTP resource name in the AppHost. Inject `SftpClient` into a service to transfer files:
+
+```csharp title="FileTransferService.cs"
+using Renci.SshNet;
+
+public sealed class FileTransferService(SftpClient client)
+{
+    public void Upload(string localPath, string remotePath)
+    {
+        if (!client.IsConnected)
+        {
+            client.Connect();
+        }
+
+        using var stream = File.OpenRead(localPath);
+        client.UploadFile(stream, remotePath);
+    }
+}
+```
+
+The integration registers `SftpClient` as a singleton. Dependency injection disposes it when the application shuts down.
+
+## Add keyed SFTP clients
+
+Register keyed clients to connect to multiple SFTP servers:
+
+```csharp title="Program.cs"
+builder.AddKeyedSftpClient(
+    "archive",
+    settings =>
+    {
+        settings.Username = "archive-user";
+        settings.PrivateKeyFile = builder.Configuration["Sftp:ArchivePrivateKeyFile"];
+    });
+```
+
+Although `SftpSettings` includes `PrivateKeyPassphrase`, the client factory creates `PrivateKeyFile` with only the path. Use an unencrypted private key for `SftpClient`. The health check uses the passphrase, so it can succeed with an encrypted key even though client creation fails.
+
+Resolve a keyed client using dependency injection:
+
+```csharp title="ArchiveService.cs"
+using Renci.SshNet;
+
+public sealed class ArchiveService([FromKeyedServices("archive")] SftpClient client)
+{
+}
+```
+
+For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Configure the client
+
+### Connection strings
+
+The AppHost resource exposes the connection URI `sftp://host:port`. For a standalone app, set the connection string named `sftp`:
+
+```json title="appsettings.json"
+{
+  "ConnectionStrings": {
+    "sftp": "sftp://localhost:22"
+  }
+}
+```
+
+### Configuration providers
+
+The client loads `SftpSettings` from the `Aspire:Sftp:Client` section. Provide a password or private key path through a secret or deployment configuration provider:
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "Sftp": {
+      "Client": {
+        "ConnectionString": "sftp://localhost:22",
+        "Username": "fileuser",
+        "PrivateKeyFile": "/path/to/private/key",
+        "DisableHealthChecks": false,
+        "DisableTracing": false
+      }
+    }
+  }
+}
+```
+
+The client requires a connection string and username, and it requires either a password or a private key. The health check is enabled by default and verifies that the SFTP server accepts a connection. Set `DisableHealthChecks` to `true` to opt out.
+
+### Inline delegates
+
+Pass an `Action<SftpSettings>` to configure settings in code:
+
+```csharp title="Program.cs"
+builder.AddSftpClient(
+    "sftp",
+    settings =>
+    {
+        settings.Username = "fileuser";
+        settings.PrivateKeyFile = builder.Configuration["Sftp:PrivateKeyFile"];
+        settings.DisableTracing = true;
+    });
+```
+
+## See also
+
+- [Get started with the SFTP integration](../sftp-get-started/)
+- [Set up SFTP with the Aspire integration](../sftp-host/)
+- [SSH.NET documentation](https://github.com/sshnet/SSH.NET)
+- [CommunityToolkit.Aspire.Sftp source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Sftp)

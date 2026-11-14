@@ -1,0 +1,58 @@
+{%- comment -%}
+  The site's Breadcrumb.astro fed by utils/content-breadcrumbs.ts: the topic (icon, localized label and link), then
+  the sidebar path to the page (`nav_breadcrumbs`), the last item being the page itself (no link); an "Overview"
+  leaf of a group without a link is folded into its group; an ancestor group without a link links to its overview
+  child. Nothing on the topic's root page, on API pages, or with `crumbs: false`. Reads sidebar.liquid's
+  conventions (site.sidebar_topics, sidebar.<topic>) and base.liquid's sl_prefix, sl_lang, sl_locale_url.
+  Labels have ReadableText's <wbr> hints (partials/readable-text). Root class: cid-breadcrumb.
+{%- endcomment -%}
+{%- unless crumbs == false or api_page -%}
+{%- assign bc_topic = nil -%}{%- assign bc_path = nil -%}
+{%- for bc_key in site.sidebar_topics -%}
+  {%- if bc_topic == nil -%}
+    {%- if sidebars[bc_key].link == sl_locale_url -%}
+      {%- assign bc_topic = "root" -%}
+    {%- else -%}
+      {%- assign bc_found = sidebars[bc_key].items | nav_breadcrumbs: url -%}
+      {%- if bc_found.size > 0 -%}{%- assign bc_topic = sidebars[bc_key] -%}{%- assign bc_path = bc_found -%}{%- endif -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- if bc_topic and bc_topic != "root" -%}
+{%- comment -%} Fold an "Overview" leaf into its link-less parent group. {%- endcomment -%}
+{%- assign bc_count = bc_path.size -%}
+{%- if bc_count >= 2 -%}
+  {%- assign bc_last = bc_path | last -%}
+  {%- assign bc_parent_index = bc_count | minus: 2 -%}
+  {%- assign bc_parent = bc_path[bc_parent_index] -%}
+  {%- assign bc_last_link = bc_last.link | default: "" -%}
+  {%- if bc_last.label == "Overview" or bc_last_link contains "/overview/" -%}
+    {%- if bc_parent.link == nil and bc_parent.items.size > 0 -%}{%- assign bc_count = bc_count | minus: 1 -%}{%- endif -%}
+  {%- endif -%}
+{%- endif -%}
+{%- comment -%} The link of each ancestor (its own, or its Overview child's), and the last ancestor with one (bc-parent). {%- endcomment -%}
+{%- assign bc_hrefs = "" -%}{%- assign bc_parent_pos = 0 -%}
+{%- for bc_item in bc_path limit: bc_count -%}
+  {%- assign bc_href = bc_item.link -%}
+  {%- unless bc_href -%}{%- for bc_child in bc_item.items -%}{%- if bc_href == nil -%}{%- assign bc_child_link = bc_child.link | default: "" -%}{%- if bc_child.label == "Overview" or bc_child_link contains "/overview/" -%}{%- assign bc_href = bc_child.link -%}{%- endif -%}{%- endif -%}{%- endfor -%}{%- endunless -%}
+  {%- assign bc_hrefs = bc_hrefs | append: bc_href | append: "|" -%}
+  {%- if bc_href and forloop.last == false -%}{%- assign bc_parent_pos = forloop.index -%}{%- endif -%}
+{%- endfor -%}
+{%- assign bc_href_list = bc_hrefs | split: "|" -%}
+{%- assign sb_item = bc_topic -%}{%- include "partials/sidebar-label" -%}
+<nav class="breadcrumb not-content cid-breadcrumb" aria-label="Breadcrumb"><ol class="bc-inline">
+<li><a{% if bc_parent_pos == 0 %} class="bc-parent"{% endif %} href="{{ sl_prefix }}{{ bc_topic.link }}">{% if bc_topic.icon %}{% icon bc_topic.icon, class: nil, label: nil, size: nil, color: nil %}{% endif %}<span>{%- assign rt_text = sb_label -%}{%- include "partials/readable-text" -%}</span></a></li>
+{%- for bc_item in bc_path limit: bc_count %}
+{%- assign sb_item = bc_item -%}{%- include "partials/sidebar-label" -%}
+<li><span class="sep" aria-hidden="true">/</span>
+{%- if forloop.last -%}
+<span class="current" aria-current="page">{%- assign rt_text = sb_label -%}{%- include "partials/readable-text" -%}</span>
+{%- else -%}
+  {%- assign bc_href = bc_href_list[forloop.index0] -%}
+  {%- if bc_href != blank and bc_href != "" -%}<a{% if forloop.index == bc_parent_pos %} class="bc-parent"{% endif %} href="{{ sl_prefix }}{{ bc_href }}"><span>{%- assign rt_text = sb_label -%}{%- include "partials/readable-text" -%}</span></a>{%- else -%}<span>{%- assign rt_text = sb_label -%}{%- include "partials/readable-text" -%}</span>{%- endif -%}
+{%- endif -%}
+</li>
+{%- endfor %}
+</ol></nav>
+{%- endif -%}
+{%- endunless -%}

@@ -1,0 +1,320 @@
+---
+title: Set up NATS in the AppHost
+seoTitle: "Set up NATS in the Aspire AppHost: hosting integration"
+description: Learn how to use the Aspire NATS Hosting integration to orchestrate and configure a NATS resource in an Aspire solution.
+---
+
+{% image "/assets/images/icons/nats-icon.png", alt: "NATS logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire NATS Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a NATS resource in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the NATS integration, start with the [Get started with NATS integrations](/integrations/messaging/nats/nats-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to NATS](../nats-connect/).
+
+## Installation
+
+To start building an Aspire app that uses NATS, install the [📦 Aspire.Hosting.Nats](https://www.nuget.org/packages/Aspire.Hosting.Nats) NuGet package:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add nats
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+This updates your `aspire.config.json` with the NATS hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Nats": "%ASPIRE_VERSION%"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add nats
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Nats@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Nats" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+## Add NATS resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a NATS resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const nats = await builder.addNats("nats");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(nats);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nats = builder.AddNats("nats");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(nats);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+{% steps %}
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/library/nats` image, it creates a new NATS instance on your local machine.
+
+1. The NATS resource is configured with a randomly generated password by default. To set explicit credentials, see [Add NATS resource with parameters](#add-nats-resource-with-parameters).
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced NATS resource, such as `nats` in the preceding example.
+{% endsteps %}
+
+:::note
+When you reference a NATS resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, port numbers, and credentials. For a complete list of these properties and per-language connection examples, see [Connect to NATS](../nats-connect/).
+:::
+
+{% container_images package: "Aspire.Hosting.Nats" %}
+
+## Add NATS resource with JetStream
+
+[JetStream](https://docs.nats.io/nats-concepts/jetstream) is NATS's built-in persistence engine that provides at-least-once delivery, replay, and stream retention. To enable JetStream on the NATS resource, use {% api "Aspire.Hosting.NatsBuilderExtensions.WithJetStream" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const nats = await builder.addNats("nats");
+await nats.withJetStream();
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(nats);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nats = builder.AddNats("nats")
+    .WithJetStream();
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(nats);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+## Add NATS resource with data volume
+
+Add a data volume to the NATS resource to persist messages and JetStream state across container restarts:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const nats = await builder.addNats("nats");
+await nats.withJetStream();
+await nats.withDataVolume({ isReadOnly: false });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(nats);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nats = builder.AddNats("nats")
+    .WithJetStream()
+    .WithDataVolume(isReadOnly: false);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(nats);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The data volume is used to persist the NATS data outside the lifecycle of its container. The data volume is mounted at the `/data` path in the NATS container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-nats-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+## Add NATS resource with data bind mount
+
+Add a data bind mount to the NATS resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const nats = await builder.addNats("nats");
+await nats.withJetStream();
+await nats.withDataBindMount("/Nats/Data", { isReadOnly: false });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(nats);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nats = builder.AddNats("nats")
+    .WithJetStream()
+    .WithDataBindMount(
+        source: @"C:\Nats\Data",
+        isReadOnly: false);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(nats);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+:::
+
+Data bind mounts rely on the host machine's filesystem to persist NATS data across container restarts. The data bind mount is mounted at the `C:\Nats\Data` on Windows (or `/Nats/Data` on Unix) path on the host machine in the NATS container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+
+## Add NATS resource with parameters
+
+When you want to explicitly provide the port and credentials used by the NATS container, you can pass them as parameters:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const userName = await builder.addParameter("natsUser");
+const password = await builder.addParameter("natsPass", { secret: true });
+
+const nats = await builder.addNats("nats", { userName, password });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(nats);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var userName = builder.AddParameter("natsUser");
+var password = builder.AddParameter("natsPass", secret: true);
+
+var nats = builder.AddNats("nats", userName: userName, password: password);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(nats);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+When no `userName` or `password` parameters are provided, Aspire generates strong credentials automatically using the `CreateDefaultPasswordParameter` method.
+
+## Pass custom environment variables
+
+By default, Aspire injects the NATS connection information using variable names derived from the resource name (for example, `NATS_URI`, `NATS_HOST`, `NATS_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const nats = await builder.addNats("nats");
+const natsEndpoint = await nats.primaryEndpoint();
+const natsHost = await natsEndpoint.property(EndpointProperty.Host);
+const natsPort = await natsEndpoint.property(EndpointProperty.Port);
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(nats)
+    .withEnvironment("NATS_HOST", natsHost)
+    .withEnvironment("NATS_PORT", natsPort)
+    .withEnvironment("NATS_USER", nats.userNameParameter)
+    .withEnvironment("NATS_PASSWORD", nats.passwordParameter);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nats = builder.AddNats("nats");
+
+var app = builder.AddExecutable("my-app", "node", "app.js", ".")
+    .WithReference(nats)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["NATS_HOST"] = nats.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["NATS_PORT"] = nats.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+        context.EnvironmentVariables["NATS_USER"] = nats.Resource.UserNameParameter;
+        context.EnvironmentVariables["NATS_PASSWORD"] = nats.Resource.PasswordParameter;
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Connection properties
+
+For the full reference of NATS connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to NATS](../nats-connect/).
+
+## Hosting integration health checks
+
+The NATS hosting integration automatically adds a health check for the NATS resource. The health check verifies that the NATS instance is running and that a connection can be established to it.
+
+The hosting integration relies on the [📦 AspNetCore.HealthChecks.Nats](https://www.nuget.org/packages/AspNetCore.HealthChecks.Nats) NuGet package.

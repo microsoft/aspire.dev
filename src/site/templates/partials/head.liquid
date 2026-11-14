@@ -1,0 +1,128 @@
+{%- comment -%}
+  The <head> of every page: Starlight's Head (utils/head.ts defaults, the site's head.attrs.ts entries, page `head`
+  front matter is not merged: only its `title` entry is read) and the site's Head override
+  (src/frontend/src/components/starlight/Head.astro): Open Graph and Twitter meta (utils/page-metadata.ts), JSON-LD
+  (partials/structured-data.liquid), font preloads, the pre-paint scripts (theme, preferences, kbd, tabs restore),
+  the WCP consent runtime and the analytics scripts (inert until consent, see scripts/client/consent.ts).
+  <meta name="git-commit-id">: the build's commit, `build.commit` (data/build.json, written before the build by
+  scripts/write-build-info.mjs; empty when unknown). Dropped with ClientRouter (plan 4.4): <ClientRouter> and
+  deployment-guard, which compared that meta across navigations (every navigation is a full document load now), and
+  the git-source-url meta (only deployment-guard read it).
+  Reads the variables set by base.liquid: sl_url, sl_lang, sl_dir, sl_is_home, sl_is_splash, sl_is_404.
+  Filters: absolute_url, xml_escape (planned, Douze 3.12), t (3.6).
+{%- endcomment -%}
+{%- comment -%} The <title>: a `head` front matter title entry wins (index.md), else "<title> | Aspire". {%- endcomment -%}
+{%- assign sl_title_tag = nil -%}
+{%- for entry in head -%}{%- if entry.tag == "title" -%}{%- assign sl_title_tag = entry.content -%}{%- endif -%}{%- endfor -%}
+{%- if sl_title_tag == nil -%}{%- assign sl_title_tag = title | append: " | " | append: site.title -%}{%- endif -%}
+{%- assign sl_description = description | default: site.description -%}
+{%- comment -%} The root 404 page is written at /404.html, but its url is /404/ (Starlight's canonical). {%- endcomment -%}
+{%- if sl_is_404 -%}{%- assign sl_canonical = sl_prefix | append: sl_locale_url | absolute_url -%}{%- else -%}{%- assign sl_canonical = sl_url | absolute_url -%}{%- endif -%}
+{%- comment -%} Open Graph values (utils/page-metadata.ts). {%- endcomment -%}
+{%- assign sl_fallback_description = "Aspire streamlines your development workflow with code-first control, modularity, and observability for distributed applications." -%}
+{%- assign sl_og_description = description | strip | default: sl_fallback_description | truncate: 200, "…" -%}
+{%- assign sl_title_text = title | strip | default: site.title -%}
+{%- if seoTitle -%}
+  {%- assign sl_og_title = seoTitle | strip -%}
+{%- elsif sl_is_home or sl_is_splash or sl_title_text == site.title -%}
+  {%- assign sl_og_title = sl_title_text -%}
+{%- else -%}
+  {%- assign sl_og_title = sl_title_text | append: " · " | append: site.title -%}
+{%- endif -%}
+{%- if sl_is_home or sl_is_splash -%}{%- assign sl_og_type = "website" -%}{%- else -%}{%- assign sl_og_type = "article" -%}{%- endif -%}
+{%- comment -%}
+  og:image: an `ogImage` override, else the default image for opt-outs (og: false), other locales, splash pages,
+  the home page, the 404 page and the API reference, else the social image of the page (`og` step, plan 3.2:
+  og/<locale_url>index.png, today /og/<slug>.png: the url changes from /og/a/b.png to /og/a/b/index.png).
+{%- endcomment -%}
+{%- assign sl_og_image = nil -%}
+{%- if ogImage -%}
+  {%- assign sl_og_image = ogImage | strip | absolute_url -%}
+{%- elsif og == false or sl_prefix != "" or sl_is_splash or sl_is_home or sl_is_404 or api_page -%}
+  {%- assign sl_og_image = "/og-image.png" | absolute_url -%}
+{%- else -%}
+  {%- assign sl_og_path = "/og" | append: sl_locale_url | append: "x" | replace: "/x", ".png" -%}
+  {%- assign sl_og_image = sl_og_path | absolute_url -%}
+{%- endif -%}
+{%- assign sl_og_ext = sl_og_image | split: "?" | first | split: "." | last | downcase -%}
+{%- case sl_og_ext -%}
+  {%- when "jpg", "jpeg" -%}{%- assign sl_og_type_mime = "image/jpeg" -%}
+  {%- when "webp" -%}{%- assign sl_og_type_mime = "image/webp" -%}
+  {%- when "gif" -%}{%- assign sl_og_type_mime = "image/gif" -%}
+  {%- when "svg" -%}{%- assign sl_og_type_mime = "image/svg+xml" -%}
+  {%- when "avif" -%}{%- assign sl_og_type_mime = "image/avif" -%}
+  {%- else -%}{%- assign sl_og_type_mime = "image/png" -%}
+{%- endcase -%}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="git-commit-id" content="{{ build.commit }}">
+<title>{{ sl_title_tag }}</title>
+<link rel="canonical" href="{{ sl_canonical }}">
+<meta name="generator" content="Douze">
+<meta property="og:title" content="{{ sl_og_title }}">
+<meta property="og:type" content="{{ sl_og_type }}">
+<meta property="og:url" content="{{ sl_canonical }}">
+<meta property="og:locale" content="{{ sl_lang }}">
+<meta property="og:description" content="{{ sl_og_description }}">
+<meta property="og:site_name" content="{{ site.title }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="{{ sl_description }}">
+{%- comment -%} hreflang alternates: every locale (Starlight lists all of them, the fallback copies exist), except on
+  the English-only pages, whose localized URLs are 404s (route-data-middleware.ts). {%- endcomment -%}
+{%- unless sl_default_locale_only %}
+{%- for language in site.languages %}
+<link rel="alternate" hreflang="{{ language.lang }}" href="{{ language.prefix | append: sl_locale_url | absolute_url }}">
+{%- endfor %}
+<link rel="alternate" hreflang="x-default" href="{{ sl_locale_url | absolute_url }}">
+{%- endunless %}
+{%- if api_page %}
+<link rel="stylesheet" href="/assets/css/api-components.css">
+{%- endif %}
+<link rel="sitemap" href="/sitemap-index.xml">
+<meta name="twitter:site" content="@aspiredotdev">
+{%- comment -%} config/head.attrs.ts {%- endcomment %}
+<meta name="keywords" content="Aspire, .NET Aspire, dotnet aspire, distributed applications, cloud-native, microservices, orchestration, .NET, observability, otel, opentelemetry, dashboard, service discovery, integrations, C#, csharp, multi-language, polyglot, python, go, node.js, javascript, typescript, vite, react, blazor, wasm, webassembly, aspnetcore, minimal apis, docker, containers, kubernetes, compose, AI, MCP, model context protocol, AI coding agents, agentic development, copilot, cursor, claude code, vibe coding">
+<meta name="alternate-name" content=".NET Aspire">
+<meta name="twitter:domain" content="aspire.dev">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Aspire">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Aspire Docs RSS" href="/rss.xml">
+<script type="text/plain" src="https://js.monitor.azure.com/scripts/c/ms.analytics-web-3.min.js" defer data-category="analytics"></script>
+<script type="text/plain" src="/scripts/analytics/1ds.js" defer data-category="analytics"></script>
+<script type="text/plain" src="/scripts/analytics/track.js" defer data-category="analytics"></script>
+{%- comment -%} Head.astro: Poppins weights of the first viewport (the @font-face rules are in fonts.css). {%- endcomment %}
+<link rel="preload" as="font" type="font/woff2" href="/assets/fonts/poppins-latin-400-normal.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="/assets/fonts/poppins-latin-600-normal.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="/assets/fonts/poppins-latin-700-normal.woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/site.css">
+{%- comment -%} Per-page Open Graph image and Twitter card values (Head.astro). {%- endcomment %}
+<meta property="og:image" content="{{ sl_og_image }}">
+<meta property="og:image:type" content="{{ sl_og_type_mime }}">
+<meta property="og:image:alt" content="{{ sl_og_title }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:title" content="{{ sl_og_title }}">
+<meta name="twitter:description" content="{{ sl_og_description }}">
+<meta name="twitter:url" content="{{ sl_canonical }}">
+<meta name="twitter:image" content="{{ sl_og_image }}">
+<meta name="twitter:image:alt" content="{{ sl_og_title }}">
+{%- unless sl_is_404 %}
+{% include "partials/structured-data" %}
+{%- endunless %}
+{%- comment -%}
+  Pre-paint scripts (scripts/client/inline, built to assets/js/inline by scripts/build-client.mjs), classic and
+  blocking like Astro's is:inline ones: the theme provider (ThemeProvider.astro), the site preferences (Head.astro:
+  AppHost language, sidebar collapse state, consent state), starlight-kbd's provider and the synced tabs restore.
+{%- endcomment %}
+<script>{% include "partials/inline/theme" %}</script>
+<template id="theme-icons">{% icon "sun", class: "light" %}{% icon "moon", class: "dark" %}{% icon "laptop", class: "auto" %}</template>
+<script>{% include "partials/inline/preferences" %}</script>
+<script>{% include "partials/inline/kbd" %}</script>
+<script>{% include "partials/inline/tabs-restore" %}</script>
+{%- comment -%} WCP consent runtime: must be loaded live from the CDN (Microsoft WCP requirement), async. {%- endcomment %}
+<script async src="https://wcpstatic.microsoft.com/mscc/lib/v2/wcp-consent.js"></script>
+{%- comment -%} Page.astro's inline <style> is in components.css (cid-sl-page); print.css is part of site.css (@media print). {%- endcomment -%}

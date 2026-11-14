@@ -1,0 +1,24 @@
+---
+# The site's <PivotSelector> (src/components/PivotSelector.astro):
+#   {% pivot_selector key: "aspire-lang", title: "Language", options: [{ id: "csharp", title: "C#" }, { id: "typescript", title: "TypeScript" }] %}
+# options: { id, title, disabled? }; for key "aspire-lang" TypeScript is listed first, then C#, then the others (as
+# the component orders them). margin_top: a number of rem (the component's marginTop, via --marginTop).
+# Behavior: the `aspire-pivot-selector` custom element (pivot-selector.ts, ported to scripts/client).
+# Root class: cid-pivot-selector.
+display: block
+params: [key, title, options, margin_top]
+---
+<aspire-pivot-selector class="pivot-container not-content cid-pivot-selector" data-pivot-key="{{ key | escape }}" data-tour-target="pivot-selector" data-tour-step="pivot-selector" style="--marginTop: {% if margin_top != nil %}{{ margin_top }}rem{% else %}0rem{% endif %}">
+  {%- if title %}<div class="pivot-title">{{ title | escape }}</div>{% endif -%}
+  <div class="pivot-selector" id="pivot-selector-{{ key | escape }}">
+    {%- if key == "aspire-lang" -%}
+      {%- for o in options -%}{%- if o.id == "typescript" -%}<button type="button" data-pivot-option="{{ o.id | escape }}"{% if o.disabled %} disabled{% endif %}>{{ o.title | escape }}</button>{%- endif -%}{%- endfor -%}
+      {%- for o in options -%}{%- if o.id == "csharp" -%}<button type="button" data-pivot-option="{{ o.id | escape }}"{% if o.disabled %} disabled{% endif %}>{{ o.title | escape }}</button>{%- endif -%}{%- endfor -%}
+      {%- for o in options -%}{%- unless o.id == "typescript" or o.id == "csharp" -%}<button type="button" data-pivot-option="{{ o.id | escape }}"{% if o.disabled %} disabled{% endif %}>{{ o.title | escape }}</button>{%- endunless -%}{%- endfor -%}
+    {%- else -%}
+      {%- for o in options -%}<button type="button" data-pivot-option="{{ o.id | escape }}"{% if o.disabled %} disabled{% endif %}>{{ o.title | escape }}</button>{%- endfor -%}
+    {%- endif -%}
+  </div>
+  <button type="button" class="pivot-collapse-btn" id="pivot-collapse-{{ key | escape }}" data-tour-target="pivot-collapse" data-tour-step="pivot-selector" aria-label="Collapse selector"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 10L8 6L4 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+  <button type="button" class="pivot-expand-btn" id="pivot-expand-{{ key | escape }}" data-tour-target="pivot-expand" data-tour-step="pivot-selector" aria-label="Expand selector" data-tooltip-placement="top"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+</aspire-pivot-selector>

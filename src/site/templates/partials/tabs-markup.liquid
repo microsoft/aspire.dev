@@ -1,0 +1,23 @@
+{%- comment -%}
+  Starlight's <Tabs> markup built on the server from the tab panels of `body` (each `<div role="tabpanel" data-label="..."
+  data-icon="...">`, from the tab shortcode): the tab list, then the panels with their ids (unique per page through
+  sl_tab_counter). Used by the tabs and os_tabs shortcodes: `sync`, `tabs_class`, `tabs_attrs`.
+{%- endcomment -%}
+{%- comment -%} Ids unique per tab set: a number from the hash of its panels, then the panel index (shortcodes render in their own context, so a page counter is not available). {%- endcomment -%}
+{%- assign sl_tab_base = body | sha256 | slice: 0, 7 | replace: "a", "1" | replace: "b", "2" | replace: "c", "3" | replace: "d", "4" | replace: "e", "5" | replace: "f", "6" -%}
+{%- assign panels = body | strip | split: '<div role="tabpanel" data-label="' -%}
+{%- assign tab_count = panels.size | minus: 1 -%}
+<starlight-tabs class="cid-sl-tabs{% if tabs_class %} {{ tabs_class }}{% endif %}"{% if sync %} data-sync-key="{{ sync | escape }}"{% endif %}{{ tabs_attrs }}><div class="tablist-wrapper not-content"><ul role="tablist">
+{%- for panel in panels offset: 1 -%}
+{%- assign n = sl_tab_base | append: forloop.index -%}
+{%- assign label = panel | split: '"' | first -%}
+{%- assign head = panel | split: '>' | first -%}
+{%- if head contains 'data-icon="' -%}{%- assign tab_icon = head | split: 'data-icon="' | last | split: '"' | first -%}{%- else -%}{%- assign tab_icon = nil -%}{%- endif -%}
+<li role="presentation" class="tab"><a role="tab" href="#tab-panel-{{ n }}" id="tab-{{ n }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}" tabindex="{% if forloop.first %}0{% else %}-1{% endif %}">{% if tab_icon %}{% icon tab_icon, size: "1rem", class: nil, label: nil, color: nil %}{% endif %}{{ label }}</a></li>
+{%- endfor -%}
+</ul></div>
+{%- for panel in panels offset: 1 -%}
+{%- assign n = sl_tab_base | append: forloop.index -%}
+<div id="tab-panel-{{ n }}" aria-labelledby="tab-{{ n }}" role="tabpanel"{% unless forloop.first %} hidden{% endunless %} data-label="{{ panel | raw }}
+{%- endfor -%}
+{% if sync %}<starlight-tabs-restore></starlight-tabs-restore>{% endif %}</starlight-tabs>

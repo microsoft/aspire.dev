@@ -1,0 +1,35 @@
+{%- comment -%}renderDocList of src/frontend/src/utils/csharp-api-markdown.ts. Inputs: node, pkg, tstart.{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- if node.items.size > 0 -%}
+{%- if node.style == "table" -%}
+  {%- capture headerTerm -%}{%- render 'api/md/doc', content: node.header.term, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+  {%- assign headerTerm = headerTerm | split: " " | join: " " | default: "Term" -%}
+  {%- capture headerDescription -%}{%- render 'api/md/doc', content: node.header.description, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+  {%- assign headerDescription = headerDescription | split: " " | join: " " | default: "Description" -%}
+  | {% render 'api/md/table-cell', value: headerTerm %} | {% render 'api/md/table-cell', value: headerDescription %} |{{ nl }}| --- | --- |
+  {%- for item in node.items -%}
+    {%- capture term -%}{%- render 'api/md/doc', content: item.term, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+    {%- capture description -%}{%- render 'api/md/doc', content: item.description, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+    {%- assign term = term | split: " " | join: " " -%}{%- assign description = description | split: " " | join: " " -%}
+    {{- nl }}| {% render 'api/md/table-cell', value: term %} | {% render 'api/md/table-cell', value: description %} |
+  {%- endfor -%}
+{%- else -%}
+  {%- assign first = true -%}
+  {%- for item in node.items -%}
+    {%- assign term = "" -%}
+    {%- if item.term -%}{%- capture term -%}**{% render 'api/md/inline', nodes: item.term, pkg: pkg, tstart: tstart %}**{%- endcapture -%}{%- endif -%}
+    {%- capture description -%}{%- render 'api/md/doc', content: item.description, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+    {%- capture combined -%}{%- if term != "" -%}{{ term }} — {% endif -%}{{ description }}{%- endcapture -%}
+    {%- assign combined = combined | strip -%}
+    {%- if combined != "" -%}
+      {%- unless first -%}{{ nl }}{%- endunless -%}{%- assign first = false -%}
+      {%- if node.style == "number" -%}{{ forloop.index }}. {% else -%}- {% endif -%}
+      {%- assign lines = combined | split: nl -%}
+      {%- for line in lines -%}
+        {%- if forloop.first -%}{{ line }}{%- else -%}{{ nl }}{%- if line != "" -%}{{ "   " }}{{ line }}{%- endif -%}{%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- endif -%}

@@ -1,0 +1,220 @@
+---
+title: Configuration settings
+description: Learn about Aspire CLI configuration, the aspire.config.json settings and their default values, and the JSON Schema for editor completions and validation.
+---
+
+Aspire configuration is a rooted `aspire.config.json` file for
+project-scoped CLI configuration. Use the `aspire config` command family to
+inspect and update those settings, and use `aspire config list --all` to see
+the feature flags surfaced by your installed CLI.
+
+## Configuration file model
+
+{% include_markdown "reference/cli/includes/config-file-description.md" %}
+
+The consolidated `aspire.config.json` file also stores other rooted Aspire
+configuration, such as the SDK version, launch profiles, and integration
+packages. The [settings table](#settings-surfaced-by-aspire-config) lists the
+settings you can configure in the file and their default values.
+
+## Example `aspire.config.json`
+
+```json title="aspire.config.json" {2}
+{
+  "$schema": "https://aspire.dev/reference/cli/configuration/schema.json",
+  "appHost": {
+    "path": "./apphost.mts"
+  },
+  "channel": "staging",
+  "features": {
+    "defaultWatchEnabled": true,
+    "showAllTemplates": true,
+    "updateNotificationsEnabled": true
+  }
+}
+```
+
+:::tip[The highlighted `$schema` property is additive]
+By default, the configuration files do not include the `$schema` property. You can add it manually to enable editor support for JSON Schema.
+:::
+
+## JSON Schema support
+
+Aspire publishes a JSON Schema for `aspire.config.json` so editors can provide
+completions, validation, and hover documentation while you edit the file.
+
+Two URLs are available:
+
+- The **latest** URL always points to the newest published schema:
+
+  ```text title="Latest schema URL"
+  https://aspire.dev/reference/cli/configuration/schema.json
+  ```
+
+  [`schema.json`](/reference/cli/configuration/schema.json)
+
+- A **versioned** URL pins to a specific Aspire release, such as `%ASPIRE_VERSION%`:
+
+  ```text title="Versioned schema URL"
+  https://aspire.dev/reference/cli/configuration/schema/%ASPIRE_VERSION%.json
+  ```
+
+  Every stable Aspire release starting with 13.2.0 has a versioned schema, and that schema never changes after the release ships.
+
+### Reference the schema from `aspire.config.json`
+
+Most editors automatically pick up a schema when the JSON file declares a
+top-level `$schema` property:
+
+```json title="aspire.config.json" ins={2}
+{
+  "$schema": "https://aspire.dev/reference/cli/configuration/schema.json",
+  "appHost": {
+    "path": "./apphost.mts"
+  }
+}
+```
+
+:::note
+Use a versioned URL, such as `.../schema/%ASPIRE_VERSION%.json`, when you want
+schema behavior to stay stable alongside a pinned Aspire CLI version. Use the
+unversioned `schema.json` when you want to always validate against the latest
+release.
+:::
+
+### Associate the schema in Visual Studio Code
+
+With the [Aspire VS Code extension](/get-started/aspire-vscode-extension/) installed, the schema is registered for `aspire.config.json` automatically. Without the extension, add a `$schema` property to the top of `aspire.config.json` (see above) or map the schema manually in `.vscode/settings.json` under `json.schemas`.
+
+### Other editors
+
+Any editor or tool that understands JSON Schema draft-07 can consume the
+hosted schema — including JetBrains IDEs (**Settings → Languages & Frameworks →
+Schemas and DTDs → JSON Schema Mappings**), Neovim with
+[`jsonls`](https://github.com/microsoft/vscode-json-languageservice), and
+command-line validators such as
+[`ajv`](https://ajv.js.org/) or [`check-jsonschema`](https://github.com/python-jsonschema/check-jsonschema).
+Point the tool at either the latest or versioned URL above.
+
+## Settings surfaced by `aspire config`
+
+Use `aspire config list` to see the values that are currently set, and use
+`aspire config list --all` to enumerate the feature flags your installed CLI
+can configure. The following table lists the settings, their default values, and
+what they control.
+
+{% include_markdown "reference/cli/includes/config-settings-table.md" %}
+
+### Configure the AppHost path
+
+Use `appHost.path` to set the default AppHost entry point for the current
+configuration root:
+
+```bash title="Set the local AppHost path"
+aspire config set appHost.path ./apphost.mts
+```
+
+The CLI writes this value to the local `aspire.config.json` file:
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "./apphost.mts"
+  }
+}
+```
+
+The AppHost path can point to the entry point used by your AppHost language, such
+as `apphost.mts`, `Program.cs`, or an AppHost project file. The path is
+project-specific and can't be configured globally. If a global settings file
+contains `appHost.path` or the legacy `appHostPath` key, the CLI ignores that
+value and warns that AppHost paths must be configured locally. The legacy
+`appHostPath` key is also blocked by `aspire config set`; use `appHost.path`
+instead.
+
+### Configure browser certificate trust on Linux
+
+On Linux, the NSS databases used to trust the Aspire HTTPS development
+certificate can be configured through `certificates.nssDbPaths`, including
+user-level configuration:
+
+```bash title="Set the NSS database paths globally"
+aspire config set --global certificates.nssDbPaths "firefox=/path/to/firefox/profile:chromium=/path/to/chromium/nssdb"
+```
+
+Prefix a path with `firefox=` or `chromium=` to apply the trust settings
+expected by that browser family, and separate multiple paths with the
+platform path separator.
+
+If `certificates.nssDbPaths` is unset, `aspire certs trust` will also honor the `DOTNET_DEV_CERTS_NSSDB_PATHS` environment variable, but Aspire configuration will take precedence when present. When no specific configuration is supplied, Aspire applies certificate trust to NSS databases in well-known browser specific paths for Firefox and Chrome/Chromium. Run [`aspire certs trust`](../commands/aspire-certs-trust/) to apply the configured trust settings.
+
+## Toggle preview feature experiences
+
+Use feature flags to opt in to preview experiences that your installed Aspire
+CLI supports.
+
+:::tip
+The available feature flags depend on your installed CLI version. Treat the
+output of `aspire config list --all` as the authoritative list of feature flags
+and their default values.
+:::
+
+{% steps %}
+1. Run `aspire config list --all` to discover available `features.*` keys.
+
+2. Enable a feature flag for the current project with `aspire config set`:
+
+   ```bash title="Enable a project-scoped preview feature"
+   aspire config set features.<featureKey> true
+   ```
+
+3. Use `--global` (or `-g`) when you want the feature enabled by default across projects.
+   Copy the key name exactly from `aspire config list --all` because some
+   language-specific flags use a `:<language>` suffix:
+
+   ```bash title="Enable a user-scoped preview feature default"
+   aspire config set features.<featureKey> true --global
+   ```
+
+   For example, consider the following that enables global support for Go:
+
+   ```bash title="Enable global Go support"
+   aspire config set features.experimentalPolyglot:go true --global
+   ```
+
+   Always set `experimentalPolyglot:<language>` flags with `--global`, or add
+   them to the local `aspire.config.json` file by hand. For details, see the
+   caution under [Settings surfaced by `aspire config`](#settings-surfaced-by-aspire-config).
+
+4. Turn a feature off by setting it to `false`, or remove the override with
+   `aspire config delete <key>`.
+{% endsteps %}
+
+## Working with configuration
+
+- Use `aspire config list` to show currently set project-scoped and global
+  values.
+
+- Use `aspire config list --all` to include the feature flags that your
+  installed CLI can configure.
+
+- Use `aspire config get <key>` to inspect a specific setting such as
+  `channel` or `appHost.path`.
+
+- Use `aspire config set <key> <value>` to update a setting, and
+  `aspire config set --global ...` when you want a user-scoped default.
+
+## CLI commands
+
+| Command                                                                         | Status | Function                                                                       |
+| ------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------ |
+| [`aspire config`](/reference/cli/commands/aspire-config/)                       | Stable | Command driver for managing Aspire configuration.                              |
+| [`aspire config list`](/reference/cli/commands/aspire-config-list/)             | Stable | List currently configured values, or all available feature flags with `--all`. |
+| [`aspire config get <key>`](/reference/cli/commands/aspire-config-get/)         | Stable | Get a configuration value.                                                     |
+| [`aspire config set <key> <value>`](/reference/cli/commands/aspire-config-set/) | Stable | Set a configuration value.                                                     |
+| [`aspire config delete <key>`](/reference/cli/commands/aspire-config-delete/)   | Stable | Delete a configuration value.                                                  |
+
+{% learnmore %}
+For command-level details, see the [`aspire config` command
+reference](/reference/cli/commands/aspire-config/).
+{% endlearnmore %}

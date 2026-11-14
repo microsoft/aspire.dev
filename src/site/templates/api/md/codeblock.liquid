@@ -1,0 +1,31 @@
+{%- comment -%}
+  codeBlock of src/frontend/src/utils/api-markdown-shared.ts: a fence around the code dedented by dedentText (blank
+  lines at both ends dropped, the common indentation removed), right trimmed. Inputs: code, lang.
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign lines = code | split: nl -%}
+{%- assign firstLine = -1 -%}{%- assign lastLine = -1 -%}{%- assign minIndent = 100000 -%}
+{%- for line in lines -%}
+  {%- assign stripped = line | strip -%}
+  {%- if stripped != "" -%}
+    {%- if firstLine < 0 -%}{%- assign firstLine = forloop.index0 -%}{%- endif -%}
+    {%- assign lastLine = forloop.index0 -%}
+    {%- assign rest = line | lstrip -%}
+    {%- assign indent = line.size | minus: rest.size -%}
+    {%- if indent < minIndent -%}{%- assign minIndent = indent -%}{%- endif -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- capture body -%}
+  {%- if firstLine >= 0 -%}
+    {%- for i in (firstLine..lastLine) -%}
+      {%- unless forloop.first -%}{{ nl }}{%- endunless -%}
+      {%- assign line = lines[i] -%}
+      {%- if minIndent > 0 -%}
+        {%- assign stripped = line | strip -%}
+        {%- if stripped != "" -%}{{ line | slice: minIndent, line.size }}{%- endif -%}
+      {%- else -%}{{ line }}{%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+{%- endcapture -%}
+```{{ lang }}{{ nl }}{{ body | rstrip }}{{ nl }}```{{- "" -}}

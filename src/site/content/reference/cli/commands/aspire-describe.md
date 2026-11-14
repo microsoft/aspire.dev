@@ -1,0 +1,141 @@
+---
+title: aspire describe command
+description: Learn about the aspire describe command which displays resource details for a running Aspire AppHost, with optional continuous streaming.
+---
+
+## Name
+
+`aspire describe` - Describe resources in a running AppHost.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire describe [<resource>] [options]
+```
+
+## Description
+
+The `aspire describe` command displays resource details for a running Aspire AppHost. It shows a table of resources with their name, type, state, health status, and URLs. Hidden resources are excluded by default; use the `--include-hidden` option to show them. Use the `--follow` option to continuously stream resource state changes in real time.
+
+When a specific resource name is provided, only matching resources are displayed. If no matching resource is found, the command returns an error.
+
+When executed without the `--apphost` option, the command:
+
+{% steps %}
+1. Scans for all running AppHost processes.
+2. If multiple AppHosts are running within the current directory scope, prompts you to select which one to target.
+3. If only one AppHost is running in scope, connects to it directly.
+4. If no in-scope AppHosts are found but out-of-scope AppHosts exist, displays all running AppHosts for selection.
+{% endsteps %}
+
+:::tip
+The `aspire resources` command is a backward-compatible alias for `aspire describe`. Both names invoke the same command.
+:::
+
+:::note
+Environment-variable values that exactly match a resolved secret parameter—such as a generated PostgreSQL, Redis, or SQL Server password—are redacted from every referencing resource. Secrets embedded within larger values, such as connection strings, are not redacted.
+:::
+
+## Arguments
+
+- **`<resource>`**
+
+  The name of the resource to display. If not specified, all resources are shown.
+
+## Options
+
+The following options are available:
+
+- **`-f, --follow`**
+
+  Continuously stream resource state changes. The current state of every resource is emitted immediately when streaming starts, even if no further changes occur, and then each subsequent update is emitted as it happens. In table mode, each update prints a line showing the resource name, state, health, and endpoints. In JSON mode, each update emits a single JSON object per line ([Newline Delimited JSON (NDJSON)](https://github.com/ndjson/ndjson-spec) format).
+
+- **`--apphost <path>`**
+
+  The path to the Aspire AppHost project file. When specified, the command connects to the AppHost running from that project file without prompting for selection.
+
+- **`--format <Json|Table>`**
+
+  Output format. Use `Json` for machine-readable output suitable for scripting and automation. Defaults to `Table`. Values are case-insensitive.
+
+  In snapshot mode (without `--follow`), JSON output wraps resources in a `{ "resources": [...] }` object. In follow mode, JSON output uses [Newline Delimited JSON (NDJSON)](https://github.com/ndjson/ndjson-spec) for streaming, emitting one JSON object per line.
+
+- {% include_markdown "reference/cli/includes/option-include-hidden.md" %}
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Examples
+
+- Show all resources in a running AppHost:
+
+  ```bash title="Aspire CLI"
+  aspire describe
+  ```
+
+  Example output:
+
+  ```text title="Output"
+  Name            Type        State    Health    Endpoints
+  cache           container   Running  Healthy   tcp://localhost:63122
+  webfrontend     project     Running  Healthy   https://localhost:17015, http://localhost:15099
+  apiservice      project     Running  Healthy   https://localhost:17016, http://localhost:15100
+  ```
+
+- Show details for a specific resource:
+
+  ```bash title="Aspire CLI"
+  aspire describe webfrontend
+  ```
+
+- Continuously stream resource state changes:
+
+  ```bash title="Aspire CLI"
+  aspire describe --follow
+  ```
+
+- Stream state changes for a specific resource:
+
+  ```bash title="Aspire CLI"
+  aspire describe webfrontend --follow
+  ```
+
+- Output resource details as JSON:
+
+  ```bash title="Aspire CLI"
+  aspire describe --format Json
+  ```
+
+- Stream resource changes as Newline Delimited JSON (NDJSON) for scripting:
+
+  ```bash title="Aspire CLI"
+  aspire describe --follow --format Json
+  ```
+
+- Target a specific AppHost project:
+
+  ```bash title="Aspire CLI"
+  aspire describe --apphost './src/MyApp.AppHost/MyApp.AppHost.csproj'
+  ```
+
+- Show all resources including hidden ones:
+
+  ```bash title="Aspire CLI"
+  aspire describe --include-hidden
+  ```
+
+## See also
+
+- [aspire run](/reference/cli/commands/aspire-run/)
+- [aspire ps](/reference/cli/commands/aspire-ps/)
+- [aspire wait](/reference/cli/commands/aspire-wait/)
+- [aspire stop](/reference/cli/commands/aspire-stop/)

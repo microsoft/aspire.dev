@@ -1,0 +1,29 @@
+---
+# /reference/api/typescript/: src/frontend/src/pages/reference/api/typescript/index.astro. Not a route list: the
+# pagination over the two landing entries (one page) gives it a permalink in this workflow, which has no permalink
+# step. `route` is the TypeScript landing entry of api.routes.indexes, for templates/api/sidebar.liquid (an assign in
+# the page would not reach the layout).
+route: { url: /reference/api/typescript/, md: /reference/api/typescript.md, language: typescript }
+layout: api.liquid
+# The search controller (scripts/client/api/typescript-index.js), loaded by the layout as a module script of the document.
+api_search: typescript-index
+pagination: { data: api.routes.indexes, size: 2 }
+permalink: /reference/api/typescript/
+---
+{%- capture title %}TypeScript API Reference{% endcapture -%}
+{%- capture description %}Search and browse all TypeScript APIs available in the Aspire AppHost SDK.{% endcapture -%}
+{%- assign landing = api.counts.landing.typescript -%}
+{%- assign modules = api.routes["typescript-modules"] | sort_natural: "module" -%}
+<div class="cid-api-page-typescript-index">
+{% render 'api/breadcrumb', crumbs: "Docs§/docs/§docs¦Reference§/reference/overview/¦Search TypeScript APIs" %}
+<div class="api-ref-landing not-content" data-api-search-language="typescript" data-api-search-kind="landing"><script type="application/json" data-api-search-index>{% render 'api/ts-json-flat', items: api["search-typescript"] %}</script>
+<p class="ts-api-intro">Browse the TypeScript APIs available when writing an<a href="/get-started/first-app/?lang=typescript">Aspire TypeScript AppHost</a>. These are the capabilities exposed by the Aspire hosting modules for use in <code>apphost.ts</code>.</p>
+{% render 'api/api-search-bar', id: "ts-api", placeholder: "Search functions, methods, properties, types…", kinds: landing.kinds, versions: landing.versions, default_stats: landing.statsText, size: "lg" %}
+<div id="ts-api-package-list" class="api-list">
+{%- for m in modules -%}
+{%- assign types = m.counts.handleTypes | plus: m.counts.dtoTypes | plus: m.counts.enumTypes -%}
+<a href="{{ m.url }}" class="api-list-item" data-version="{{ m.version }}"><div class="api-list-header"><span class="api-pkg-link" title="{{ m.module }}">{{ m.module }}</span><div class="trailing">{% if m.version %}<span class="api-list-meta" title="{{ m.version }}"><code>{{ m.version }}</code></span>{% endif %}<span class="api-mini-badge">{{ m.counts.functions }} functions</span><span class="api-mini-badge">{{ types }} types</span></div></div></a>
+{%- endfor -%}
+</div>
+</div>
+</div>

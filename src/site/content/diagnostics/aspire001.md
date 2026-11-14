@@ -1,0 +1,36 @@
+---
+title: Compiler Warning ASPIRE001
+seoTitle: "ASPIRE001: The code language isn't fully supported by Aspire"
+description: "Learn what causes the Aspire compiler warning ASPIRE001 — the code language isn't fully supported by Aspire — and how to fix it in your AppHost."
+---
+
+{% badge "Version introduced: 8.0.0", variant: "note", size: "large", class: "mb-1" %}
+
+> The 'CODELANGUAGE' language isn't fully supported by Aspire - some code generation targets will not run, so will require manual authoring.
+
+This diagnostic warning is reported when using a code language other than C#.
+
+## To correct this warning
+
+In your Aspire project, use C#.
+
+## Suppress the warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRE001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title=C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRE001</NoWarn>
+  </PropertyGroup>
+  ```

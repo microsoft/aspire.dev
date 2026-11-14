@@ -1,0 +1,89 @@
+---
+# starlight-kbd's <Kbd> (starlight-kbd/user-components/Kbd.astro), with the site's configuration (astro.config.mjs):
+# types mac, windows (default), linux.
+#   {% kbd "Ctrl+C" %}                                   one shortcut for every type
+#   {% kbd windows: "Ctrl+C", mac: "⌃+C", linux: "Ctrl+C" %}   a type without a value shows the windows one
+# A shortcut is chords separated by spaces, a chord keys joined by `+` (split only after a word character, like the
+# component's /\b\+/: `⌃+C` stays one key). The screen reader label spells the keys out (a subset of the
+# component's replacement table) and joins chords with the locale's `starlightKbd.kbd.keywords.then`.
+# The type picker and the restore (`starlight-kbd-restore`, `sl-kbd-type` in localStorage, KbdProvider's platform
+# detection) are client scripts. Root class: cid-kbd-kbd.
+args: [keys]
+params: [windows, mac, linux]
+---
+{%- assign kbd_default = windows | default: keys -%}
+{%- assign kbd_types = "mac,windows,linux" | split: "," -%}
+{%- assign kbd_word = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" -%}
+{%- assign kbd_then = "starlightKbd.kbd.keywords.then" | t -%}
+<starlight-kbd class="cid-kbd-kbd">
+{%- for kbd_type in kbd_types -%}
+  {%- case kbd_type -%}
+    {%- when "mac" -%}{%- assign kbd_value = mac | default: kbd_default -%}
+    {%- when "linux" -%}{%- assign kbd_value = linux | default: kbd_default -%}
+    {%- else -%}{%- assign kbd_value = kbd_default -%}
+  {%- endcase -%}
+  {%- assign kbd_chords = kbd_value | strip | split: " " -%}
+  {%- assign kbd_label = "" -%}
+  {%- capture kbd_markup -%}
+    {%- for kbd_chord in kbd_chords -%}
+      {%- comment -%} Split the chord into keys on `+` preceded by a word character. {%- endcomment -%}
+      {%- assign kbd_chars = kbd_chord | split: "" -%}
+      {%- assign kbd_keys_text = "" -%}
+      {%- assign kbd_prev = "" -%}
+      {%- for c in kbd_chars -%}
+        {%- if c == "+" and kbd_prev != "" and kbd_word contains kbd_prev -%}
+          {%- assign kbd_keys_text = kbd_keys_text | append: "~~kbd~~" -%}
+        {%- else -%}
+          {%- assign kbd_keys_text = kbd_keys_text | append: c -%}
+        {%- endif -%}
+        {%- assign kbd_prev = c -%}
+      {%- endfor -%}
+      {%- assign kbd_keys = kbd_keys_text | split: "~~kbd~~" -%}
+      <kbd aria-hidden="true" class="sl-kbd-chord">{% for k in kbd_keys %}{% if k != "" %}<kbd>{{ k | escape }}</kbd>{% endif %}{% endfor %}</kbd>{% unless forloop.last %} {% endunless %}
+      {%- assign kbd_chord_label = "" -%}
+      {%- for k in kbd_keys -%}
+        {%- if k == "" -%}{%- continue -%}{%- endif -%}
+        {%- case k -%}
+          {%- when "Ctrl", "⌃" -%}{%- assign kl = "Control" -%}
+          {%- when "Opt", "⌥" -%}{%- assign kl = "Option" -%}
+          {%- when "Cmd", "⌘" -%}{%- assign kl = "Command" -%}
+          {%- when "Win", "⊞" -%}{%- assign kl = "Windows" -%}
+          {%- when "Esc", "⎋" -%}{%- assign kl = "Escape" -%}
+          {%- when "Fn" -%}{%- assign kl = "Function" -%}
+          {%- when "Del", "⌦" -%}{%- assign kl = "Delete" -%}
+          {%- when "Ins" -%}{%- assign kl = "Insert" -%}
+          {%- when "PgUp", "⇱", "⇞" -%}{%- assign kl = "Page Up" -%}
+          {%- when "PgDn", "⇲", "⇟" -%}{%- assign kl = "Page Down" -%}
+          {%- when "Up", "↑" -%}{%- assign kl = "Up Arrow" -%}
+          {%- when "Down", "↓" -%}{%- assign kl = "Down Arrow" -%}
+          {%- when "Left", "←" -%}{%- assign kl = "Left Arrow" -%}
+          {%- when "Right", "→" -%}{%- assign kl = "Right Arrow" -%}
+          {%- when "⇧" -%}{%- assign kl = "Shift" -%}
+          {%- when "⇪" -%}{%- assign kl = "Caps Lock" -%}
+          {%- when "⌫" -%}{%- assign kl = "Backspace" -%}
+          {%- when "⇥" -%}{%- assign kl = "Tab" -%}
+          {%- when "↖" -%}{%- assign kl = "Home" -%}
+          {%- when "↘" -%}{%- assign kl = "End" -%}
+          {%- when "␣" -%}{%- assign kl = "Space" -%}
+          {%- when "⏎", "↵" -%}{%- assign kl = "Return" -%}
+          {%- when "`" -%}{%- assign kl = "Backtick" -%}
+          {%- when "~" -%}{%- assign kl = "Tilde" -%}
+          {%- when "+" -%}{%- assign kl = "Plus Sign" -%}
+          {%- when "-" -%}{%- assign kl = "Minus Sign" -%}
+          {%- when "=" -%}{%- assign kl = "Equal Sign" -%}
+          {%- when "/" -%}{%- assign kl = "Slash" -%}
+          {%- when "\" -%}{%- assign kl = "Backslash" -%}
+          {%- when "." -%}{%- assign kl = "Period" -%}
+          {%- when "," -%}{%- assign kl = "Comma" -%}
+          {%- when ";" -%}{%- assign kl = "Semicolon" -%}
+          {%- when ":" -%}{%- assign kl = "Colon" -%}
+          {%- else -%}{%- assign kl = k -%}
+        {%- endcase -%}
+        {%- if kbd_chord_label == "" -%}{%- assign kbd_chord_label = kl -%}{%- else -%}{%- assign kbd_chord_label = kbd_chord_label | append: " + " | append: kl -%}{%- endif -%}
+      {%- endfor -%}
+      {%- if forloop.first -%}{%- assign kbd_label = kbd_chord_label -%}{%- else -%}{%- assign kbd_label = kbd_label | append: kbd_then | append: kbd_chord_label -%}{%- endif -%}
+    {%- endfor -%}
+  {%- endcapture -%}
+  <span data-sl-kbd-type="{{ kbd_type }}"{% if kbd_type == "windows" %} data-sl-kbd-active{% endif %}><span class="sr-only">{{ kbd_label | escape }}</span>{{ kbd_markup }}</span>
+{%- endfor -%}
+<starlight-kbd-restore></starlight-kbd-restore></starlight-kbd>

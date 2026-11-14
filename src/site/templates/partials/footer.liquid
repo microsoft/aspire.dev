@@ -1,0 +1,32 @@
+{%- comment -%}
+  The site's Footer override (src/frontend/src/components/starlight/Footer.astro): Starlight's footer (edit link,
+  last updated, previous/next) except on the home page, then the site footer (identity, resources, legal, socials,
+  preferences, the build's commit when build.commit is set (data/build.json, scripts/write-build-info.mjs), the community map on the home
+  page, the copyright year), then the scroll-to-top button. Scripts: footer-external-links.ts (external link
+  attributes, the "opens in a new tab" label from data-opens-in-new-tab), footer-map.ts (the map disclosure).
+  The copyright year is the build's (the Astro build wrote it from the browser's clock with an inline script).
+  Root class: cid-starlight-footer.
+{%- endcomment -%}
+{%- comment -%} No data-opens-in-new-tab: the former site never rendered it, so its script left the links' accessible names alone. {%- endcomment -%}
+<div class="footer-wrapper cid-starlight-footer">
+<div class="footer-container">
+{%- unless sl_is_home %}
+{% include "partials/starlight-footer" %}
+{%- endunless %}
+<div class="site-footer-content {% if sl_is_home %}is-homepage{% else %}is-docs{% endif %}">
+<div class="footer-main">
+<div class="footer-identity"><a class="footer-wordmark" href="/" aria-label="Aspire"><img src="/assets/images/aspire-logo-256.svg" alt="" width="48" height="48" decoding="async" loading="lazy"><strong>Aspire</strong></a><p class="footer-promise">{{ "landing.statementPlayer.quotes.03.text" | t }}</p></div>
+<div class="footer-directory">{% include "partials/footer-resources" %}{% include "partials/footer-legal" %}</div>
+</div>
+<div class="footer-utility">{% include "partials/footer-socials" %}{% include "partials/footer-preferences" %}</div>
+<div class="footer-bottom">
+{%- if build.commit and build.commit != "" %}{%- assign ft_sha = build.commit | slice: 0, 7 %}<a class="commit-link" href="{{ build.repo }}/commit/{{ build.commit }}" target="_blank" title="Built on commit SHA: {{ ft_sha }}" rel="noopener noreferrer">SHA {{ ft_sha }}</a>{% endif %}
+{%- if sl_is_home %}
+<details class="footer-map-disclosure" dir="{{ sl_dir }}"><summary><span>{{ "footer.madeWithLove" | t }}</span>{% icon "right-arrow", size: "0.85rem", class: nil, label: nil, color: nil %}</summary><div class="footer-map-content">{% include "partials/aspire-map" %}</div></details>
+{%- endif %}
+<span class="copyright">© Microsoft {{ "now" | date: "%Y" }}</span>
+</div>
+</div>
+</div>
+</div>
+{% include "partials/scroll-to-top" %}

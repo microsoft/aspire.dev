@@ -1,0 +1,20 @@
+---
+title: Retired compiler warning ASPIREATS001
+seoTitle: "ASPIREATS001 retired in Aspire 13.4"
+description: ASPIREATS001 was removed in Aspire 13.4 when TypeScript AppHosts became generally available. Learn what to do if you still see this warning.
+---
+
+{% badge "Version introduced: 13.2", variant: "note", size: "large", class: "mb-1" %}
+
+{% badge "Retired in: 13.4", variant: "tip", size: "large", class: "mb-1" %}
+
+`ASPIREATS001` was emitted by Aspire 13.2 and 13.3 when code used Aspire Type System (ATS) types and attributes while TypeScript AppHost support was still in preview. This diagnostic no longer applies in Aspire 13.4 and later because TypeScript AppHosts are generally available.
+
+## If you still see this warning
+
+Upgrade the Aspire CLI, AppHost SDK, and hosting integration packages to Aspire 13.4 or later. After upgrading, remove any `ASPIREATS001` suppressions from _.editorconfig_ files, project files, and `#pragma warning` blocks.
+
+{% learnmore %}
+For more information, see [What's new in Aspire 13.4](/whats-new/aspire-13-4/)
+and [TypeScript AppHosts](/app-host/typescript-apphost/).
+{% endlearnmore %}

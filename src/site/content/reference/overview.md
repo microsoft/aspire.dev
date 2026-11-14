@@ -1,0 +1,199 @@
+---
+title: Aspire Reference
+seoTitle: 'Aspire reference: APIs, CLI, and packages'
+prev:
+  link: /deployment/
+  label: Deployment
+next:
+  link: /community/
+  label: Community
+description: Comprehensive reference documentation for Aspire — CLI tools, APIs, and command-line reference materials.
+editUrl: false
+tableOfContents: false
+pageActions: false
+props:
+  topic_hero_floating_icons:
+    - seti:powershell
+    - document
+    - open-book
+    - magnifier
+    - laptop
+  topic_hero_primary_cta:
+    label: CLI overview
+    href: /reference/cli/overview/
+  topic_hero_secondary_cta:
+    label: Browse samples
+    href: /reference/samples/
+  capability_grid_capabilities:
+    - icon: seti:json
+      title: aspire new
+      description: Scaffold a new Aspire project from a rich library of templates. Interactive prompts guide you through every option.
+      href: /reference/cli/commands/aspire-new/
+    - icon: seti:powershell
+      title: aspire run
+      description: Start your entire distributed application locally. The dashboard launches automatically for real-time monitoring.
+      href: /reference/cli/commands/aspire-run/
+    - icon: rocket
+      title: aspire publish
+      description: Generate deployment artifacts — Docker Compose, Kubernetes manifests, Bicep, and more — with parameterized secrets.
+      href: /reference/cli/commands/aspire-publish/
+    - icon: cloud-download
+      title: aspire deploy
+      description: Resolve parameters and execute a deployment to your target environment. Works with Azure, Docker, and custom integrations.
+      href: /reference/cli/commands/aspire-deploy/
+    - icon: puzzle
+      title: aspire init
+      description: Add Aspire orchestration to an existing repo with a C# or TypeScript AppHost. Creates the AppHost and wires up the initial configuration.
+      href: /reference/cli/commands/aspire-init/
+    - icon: heart
+      title: aspire doctor
+      description: Diagnose your development environment. Checks SDKs, container runtimes, and environment settings.
+      href: /reference/cli/commands/aspire-doctor/
+  capability_grid_capabilities_2:
+    - icon: add-document
+      title: aspire add
+      description: Add integrations and resources to your AppHost project interactively.
+      href: /reference/cli/commands/aspire-add/
+    - icon: bars
+      title: aspire ps
+      description: List all running Aspire processes and their status.
+      href: /reference/cli/commands/aspire-ps/
+    - icon: close
+      title: aspire stop
+      description: Gracefully stop a running Aspire application.
+      href: /reference/cli/commands/aspire-stop/
+    - icon: forward-slash
+      title: aspire resource
+      description: Execute a command exposed by a resource in a running Aspire apphost.
+      href: /reference/cli/commands/aspire-resource/
+    - icon: setting
+      title: aspire config
+      description: Get, set, list, and manage CLI configuration values.
+      href: /reference/cli/commands/aspire-config/
+    - icon: star
+      title: aspire agent
+      description: Initialize and configure AI agent support, including the MCP server.
+      href: /reference/cli/commands/aspire-agent/
+  capability_grid_capabilities_3:
+    - icon: open-book
+      title: aspire docs
+      description: Browse and search Aspire documentation from aspire.dev, right from your terminal.
+      href: /reference/cli/commands/aspire-docs/
+    - icon: magnifier
+      title: aspire docs search
+      description: Search Aspire documentation pages by keyword and get ranked, relevant results.
+      href: /reference/cli/commands/aspire-docs-search/
+    - icon: cloud-download
+      title: aspire docs get
+      description: Retrieve the full content of a documentation page by its slug.
+      href: /reference/cli/commands/aspire-docs-get/
+    - icon: seti:json
+      title: aspire docs api
+      description: Browse, search, and retrieve Aspire API reference documentation from aspire.dev.
+      href: /reference/cli/commands/aspire-docs-api/
+    - icon: magnifier
+      title: aspire docs api search
+      description: Search Aspire API reference entries, including types, methods, and members, by keyword.
+      href: /reference/cli/commands/aspire-docs-api-search/
+    - icon: download
+      title: aspire docs api get
+      description: Get the full content of a specific API reference entry by identifier.
+      href: /reference/cli/commands/aspire-docs-api-get/
+  feature_showcase_features:
+    - icon: seti:c-sharp
+      title: Search C# APIs
+      description: A searchable interface to explore all Aspire C# APIs, types, and members across every Aspire package. Find exactly the type or method you need.
+      href: /reference/api/csharp/
+      label: Search C# APIs
+      accent: purple
+    - icon: seti:typescript
+      title: Search TypeScript APIs
+      description: Explore the full TypeScript API surface for Aspire — from core SDK types to CLI configuration interfaces. Searchable and cross-referenced for easy discovery.
+      href: /reference/api/typescript/
+      label: Search TypeScript APIs
+      accent: blue
+    - icon: setting
+      title: CLI configuration
+      description: Customize CLI behavior, default templates, telemetry, and more with per-user and per-project configuration.
+      href: /reference/cli/configuration/
+      label: View config options
+      accent: purple
+    - icon: download
+      title: Install script reference
+      description: Detailed reference for the cross-platform Aspire CLI install script — options, parameters, and automation scenarios.
+      href: /reference/cli/install-script/
+      label: Script reference
+      accent: green
+  feature_showcase_features_2:
+    - icon: puzzle
+      title: Browse all samples
+      description: Filter by technology, language, or feature to find the perfect starting point for your next project. Each sample links directly to its GitHub repository for easy cloning.
+      href: /reference/samples/
+      label: View samples
+      accent: orange
+  capability_grid_capabilities_4:
+    - icon: warning
+      title: Warnings
+      description: Non-blocking issues that flag potential problems — unsupported languages, experimental APIs, and configuration suggestions that keep your project on the right track.
+      href: /diagnostics/overview/
+    - icon: error
+      title: Errors
+      description: Blocking issues that must be resolved — missing SDK references, invalid resource names, and API usage violations that prevent your app from building correctly.
+      href: /diagnostics/overview/
+  cta_banner_primary_cta:
+    label: Install the Aspire CLI
+    href: /get-started/install-cli/
+  cta_banner_secondary_cta:
+    label: Build your first app
+    href: /get-started/first-app/
+---
+
+{% topic_hero icon: "seti:json", title: "The tools you need,", highlight: "at your fingertips.", subtitle: "From the interactive CLI to the full API surface — everything you need to build, run, and deploy Aspire applications is documented here.", accent: "cyan", floating_icons: props.topic_hero_floating_icons, primary_cta: props.topic_hero_primary_cta, secondary_cta: props.topic_hero_secondary_cta %}
+
+## The Aspire CLI
+
+The `aspire` CLI is a cross-platform, interactive-first tool that manages the full lifecycle of your distributed applications — from scaffolding to deployment.
+
+{% terminal_showcase title: "Create, run, and deploy", highlight: "from one tool.", description: "The aspire CLI scaffolds projects from templates, orchestrates multi-service apps, publishes deployment artifacts, and deploys to cloud environments — all with a single, intuitive command-line experience.", cast: "/casts/aspire-new.cast", poster: "npt:0:03", rows: 12, speed: 0.5, cta_label: "View full CLI reference", cta_href: "/reference/cli/overview/" %}
+
+## Core commands
+
+Every `aspire` command is designed to be discoverable and interactive. Pass `--help` to any command for inline documentation.
+
+{% capability_grid columns: 3, capabilities: props.capability_grid_capabilities %}
+
+## More commands
+
+{% capability_grid columns: 3, capabilities: props.capability_grid_capabilities_2 %}
+
+## Docs and API reference commands
+
+Use the `aspire docs` and `aspire docs api` command groups to browse, search, and retrieve Aspire documentation and API reference content without leaving the terminal.
+
+{% capability_grid columns: 3, capabilities: props.capability_grid_capabilities_3 %}
+
+{% aside "tip", title: "Give AI coding agents current Aspire context", icon: "rocket" %}
+The `aspire docs` commands give AI coding agents current guidance from
+aspire.dev. The `aspire docs api` commands provide package, type, and member
+reference content. Install [Aspire skills](/get-started/aspire-skills/) and
+follow [Use AI coding agents](/get-started/ai-coding-agents/) to help agents
+choose the right commands and verify changes with application evidence.
+{% endaside %}
+
+## API reference
+
+{% feature_showcase features: props.feature_showcase_features %}
+
+## Samples
+
+Explore fully functional sample projects that demonstrate real-world patterns and best practices with Aspire — from e-commerce apps with databases and caching, to multi-language integrations with JavaScript and Python, to cloud deployments with Azure Functions.
+
+{% feature_showcase features: props.feature_showcase_features_2 %}
+
+## Diagnostics
+
+Every diagnostic Aspire emits falls into one of two categories. Both help you catch issues early — before they become runtime problems.
+
+{% capability_grid columns: 2, capabilities: props.capability_grid_capabilities_4 %}
+
+{% cta_banner title: "Ready to get hands-on?", description: "Install the CLI and start building your first distributed application in minutes.", primary_cta: props.cta_banner_primary_cta, secondary_cta: props.cta_banner_secondary_cta %}

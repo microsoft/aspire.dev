@@ -1,0 +1,24 @@
+{%- comment -%}
+  Sets sb_current_key, the key of the current sidebar topic (sidebars.<key>, in site.sidebar_topics; the data is
+  data/sidebars/, not `sidebar`, which pages set in their front matter: label, order), or nil for a page of no topic:
+  "reference" on the API reference; else front matter `topic` (a topic key or id); else the topic whose link is the
+  page; else the topic whose tree holds the page (`nav_breadcrumbs`, Douze plan 3.5).
+  Included by page-vars.
+{%- endcomment -%}
+{%- assign sb_current_key = nil -%}
+{%- if topic -%}
+  {%- for sb_key in site.sidebar_topics -%}{%- if sb_key == topic or sidebars[sb_key].id == topic -%}{%- assign sb_current_key = sb_key -%}{%- endif -%}{%- endfor -%}
+{%- endif -%}
+{% if api_page -%}{%- assign sb_current_key = "reference" -%}{%- endif -%}
+{%- if sb_current_key == nil -%}
+  {%- for sb_key in site.sidebar_topics -%}
+    {%- if sb_current_key == nil -%}
+      {%- if sidebars[sb_key].link == sl_locale_url -%}
+        {%- assign sb_current_key = sb_key -%}
+      {%- else -%}
+        {%- assign sb_crumbs = sidebars[sb_key].items | nav_breadcrumbs: url -%}
+        {%- if sb_crumbs.size > 0 -%}{%- assign sb_current_key = sb_key -%}{%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}

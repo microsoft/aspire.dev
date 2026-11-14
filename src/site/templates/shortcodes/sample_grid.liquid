@@ -1,0 +1,76 @@
+---
+# The site's <SampleGrid> with its <SampleCard>s (src/frontend/src/components/SampleGrid.astro, SampleCard.astro):
+#   {% sample_grid samples: samples %}
+# `samples`: data/samples.json. The search box, the tag chips (the first eight on phones, with a disclosure), the
+# results bar, the cards and the empty state; scripts/client/content/sample-grid.ts wires them and reads the messages
+# from data-messages, sample-card.ts the cards (read more, tag badges, card clicks).
+# Approximations: a card's description preview splits at the first paragraph break only (SampleCard also tried the
+# first two sentences); thumbnails are the original images (no 400/800 widths).
+# Root classes: cid-sample-grid (the browser), cid-sample-card (each card).
+display: block
+params: [samples]
+---
+{%- assign sg_samples = samples | default: empty -%}
+{%- capture sg_tags_csv -%}{%- for sg_s in sg_samples -%}{%- for sg_t in sg_s.tags -%}{{ sg_t }},{%- endfor -%}{%- endfor -%}{%- endcapture -%}
+{%- assign sg_raw = sg_tags_csv | split: "," | uniq | sort -%}{%- assign sg_tags = "" | split: "~" -%}
+{%- for sg_t in sg_raw -%}{%- if sg_t != blank -%}{%- assign sg_one = sg_t | split: "~" -%}{%- assign sg_tags = sg_tags | concat: sg_one -%}{%- endif -%}{%- endfor -%}
+{%- capture sg_messages -%}{"clearSearch":{{ "catalogSearch.clearSearch" | t | json | raw }},"clearFilters":{{ "catalogSearch.clearFilters" | t | json | raw }},"resetAll":{{ "catalogSearch.resetAll" | t | json | raw }},"count":{{ "catalogSearch.samplesCount" | t | json | raw }},"query":{{ "catalogSearch.query" | t | json | raw }},"queryGuidance":{{ "catalogSearch.queryGuidance" | t | json | raw }},"preserveFiltersGuidance":{{ "catalogSearch.preserveFiltersGuidance" | t | json | raw }},"preserveQueryGuidance":{{ "catalogSearch.preserveQueryGuidance" | t | json | raw }},"filtersGuidance":{{ "catalogSearch.filtersGuidance" | t | json | raw }},"resetGuidance":{{ "catalogSearch.resetGuidance" | t | json | raw }}}{%- endcapture -%}
+<div class="samples-browser not-content cid-sample-grid" data-samples-browser data-messages="{{ sg_messages | escape }}"><div class="search-container search-field search-field-wrap"><svg class="search-field-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg><label class="sr-only" for="samples-search-input">{{ "catalogSearch.samplesLabel" | t }}</label><input autocomplete="off" spellcheck="false" type="search" name="q" id="samples-search-input" class="search-box search-field-input" placeholder="{{ "catalogSearch.samplesPlaceholder" | t | escape }}" data-search-input><button type="button" class="search-clear search-field-clear" aria-label="{{ "catalogSearch.clearSearch" | t | escape }}" data-clear-btn hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 6-12 12M6 6l12 12"></path></svg></button></div>
+<div class="tag-filters" id="sample-tags" data-tag-filters data-collapsed="true">
+{%- for tl_tag in sg_tags -%}
+{%- include "partials/hub/tag-label" -%}
+{%- assign sg_count = 0 -%}{%- for sg_s in sg_samples -%}{%- if sg_s.tags contains tl_tag -%}{%- assign sg_count = sg_count | plus: 1 -%}{%- endif -%}{%- endfor -%}
+<button class="tag-chip" data-tag="{{ tl_tag }}" data-tag-label="{{ tl_label | escape }}" type="button" aria-pressed="false"><span class="tag-label">{{ tl_label }}</span><span class="tag-count" aria-label="{{ sg_count }} {% if sg_count == 1 %}sample{% else %}samples{% endif %}">{{ sg_count }}</span></button>
+{%- endfor -%}
+</div><button class="tag-toggle" type="button" data-tag-toggle aria-controls="sample-tags" aria-expanded="false" hidden><span data-tag-toggle-label>Show all {{ sg_tags.size }} tags</span><svg class="tag-toggle-caret" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+<div class="results-bar"><span class="results-count search-results-summary" data-results-count role="status" aria-live="polite" aria-atomic="true">{{ sg_samples.size }} {% if sg_samples.size == 1 %}sample{% else %}samples{% endif %}</span><button class="clear-all search-action" type="button" data-clear-filters hidden>{{ "catalogSearch.clearFilters" | t }}</button><button class="clear-all search-action" type="button" data-clear-all hidden>{{ "catalogSearch.resetAll" | t }}</button></div>
+<div class="card-grid" data-card-grid>
+{%- for sample in sg_samples -%}
+{%- assign sc_slug = sample.name | slug -%}{%- assign sc_href = "/reference/samples/" | append: sc_slug | append: "/" -%}
+{%- comment -%} The thumbnail: ~/assets/... is the site's /assets/images/..., without the #gh-*-mode-only suffix. {%- endcomment -%}
+{%- assign sc_light = nil -%}{%- assign sc_dark = nil -%}{%- assign sc_single = nil -%}
+{%- if sample.thumbnail.light or sample.thumbnail.dark -%}
+  {%- if sample.thumbnail.light -%}{%- assign sc_light = sample.thumbnail.light | split: "#" | first | replace: "~/assets/", "/assets/images/" -%}{%- endif -%}
+  {%- if sample.thumbnail.dark -%}{%- assign sc_dark = sample.thumbnail.dark | split: "#" | first | replace: "~/assets/", "/assets/images/" -%}{%- endif -%}
+  {%- unless sc_light and sc_dark -%}{%- assign sc_single = sc_light | default: sc_dark -%}{%- assign sc_light = nil -%}{%- assign sc_dark = nil -%}{%- endunless -%}
+{%- elsif sample.thumbnail -%}
+  {%- assign sc_single = sample.thumbnail | split: "#" | first | replace: "~/assets/", "/assets/images/" -%}
+{%- endif -%}
+{%- assign sc_has_thumb = false -%}{%- if sc_single or sc_light -%}{%- assign sc_has_thumb = true -%}{%- endif -%}
+{%- comment -%} The description as text (sampleDescriptionText): tables dropped, Markdown stripped. {%- endcomment -%}
+{%- assign sc_lines = sample.description | default: "" | split: "
+" -%}
+{%- capture sc_text -%}{%- for sc_line in sc_lines -%}{%- unless sc_line contains "|" -%}{{ sc_line | raw }}
+{% endunless -%}{%- endfor -%}{%- endcapture -%}
+{%- assign sc_text = sc_text | replace: "![", "[" | strip_markdown | strip -%}
+{%- assign sc_preview = sc_text -%}{%- assign sc_rest = nil -%}
+{%- if sc_has_thumb and sc_text.size > 200 -%}
+  {%- assign sc_parts = sc_text | split: "
+
+" -%}
+  {%- assign sc_first = sc_parts | first | strip -%}
+  {%- if sc_parts.size > 1 and sc_first.size > 40 -%}
+    {%- assign sc_preview = sc_first -%}
+    {%- assign sc_rest = sc_text | slice: sc_first.size, sc_text.size | strip -%}
+  {%- endif -%}
+{%- endif -%}
+<div class="card-item" data-sample-item><article class="sample-card cid-sample-card{% if sc_has_thumb %} has-thumbnail{% endif %}" data-sample-detail-href="{{ sc_href }}" data-tags="{{ sample.tags | join: "," }}" data-title="{{ sample.title | downcase | escape }}" data-name="{{ sample.name }}" data-description="{{ sample.description | default: "" | downcase | escape }}">
+{%- if sc_single -%}<div class="thumbnail"><img src="{{ sc_single }}" alt="Screenshot of the {{ sample.title | escape }} sample" loading="lazy" decoding="async"></div>
+{%- elsif sc_light -%}<div class="thumbnail"><img src="{{ sc_dark }}" alt="Screenshot of the {{ sample.title | escape }} sample" data-light="{{ sc_light }}" data-dark="{{ sc_dark }}" data-light-srcset="" data-dark-srcset="" decoding="async" loading="lazy" class="theme-image cid-theme-image"></div>
+{%- endif -%}
+<div class="card-body"><h2 class="title"><a href="{{ sc_href }}">{{ sample.title }}</a></h2>
+{%- if sc_preview != blank -%}<div class="desc" data-desc><p>{{ sc_preview }}</p>{% if sc_rest != blank %}<div class="desc-rest" data-desc-rest hidden><p>{{ sc_rest }}</p></div><button class="read-more-btn" data-read-more type="button">Read more&hellip;</button>{% endif %}</div>{%- endif -%}
+{%- if sample.tags.size > 0 -%}<div class="badges">
+{%- for tl_tag in sample.tags limit: 5 -%}{%- include "partials/hub/tag-label" -%}<span data-tag-key="{{ tl_tag }}">{% badge tl_label, size: "small", variant: nil, class: nil %}</span>{%- endfor -%}
+{%- if sample.tags.size > 5 -%}{%- assign sc_overflow = "" -%}{%- for tl_tag in sample.tags offset: 5 -%}{%- include "partials/hub/tag-label" -%}{%- if forloop.first -%}{%- assign sc_overflow = tl_label -%}{%- else -%}{%- assign sc_overflow = sc_overflow | append: ", " | append: tl_label -%}{%- endif -%}{%- endfor -%}{%- assign sc_more = sample.tags.size | minus: 5 | prepend: "+" -%}<span class="sl-badge tip small cid-sl-badge" title="{{ sc_overflow | escape }}">{{ sc_more }}</span>{%- endif -%}
+</div>{%- endif -%}
+<div class="footer">
+{%- case sample.appHost -%}
+  {%- when "typescript" -%}<div class="apphost-pill" data-apphost="typescript">{% icon "seti:typescript", size: "0.85rem", class: nil, label: nil, color: nil %}<span>TypeScript AppHost</span></div>
+  {%- when "file-based" -%}<div class="apphost-pill" data-apphost="file-based">{% icon "seti:c-sharp", size: "0.85rem", class: nil, label: nil, color: nil %}<span>File-based AppHost</span></div>
+  {%- when "csproj" -%}<div class="apphost-pill" data-apphost="csproj"><svg class="apphost-glyph" aria-hidden="true" viewBox="0 0 16 16" width="12" height="12"><path d="M5.6 4.2 2.2 7.6c-.22.22-.22.58 0 .8L5.6 11.8c.22.22.58.22.8 0a.566.566 0 0 0 0-.8L3.42 8l3-3a.566.566 0 0 0 0-.8.566.566 0 0 0-.82 0Zm4.8 0a.566.566 0 0 0-.8.8l3 3-3 3a.566.566 0 0 0 0 .8c.22.22.58.22.8 0l3.4-3.4a.566.566 0 0 0 0-.8l-3.4-3.4Z" fill="currentColor"/></svg><span>C# (csproj) AppHost</span></div>
+{%- endcase -%}
+<a href="{{ sample.href }}" target="_blank" rel="noopener noreferrer" class="link">{% icon "github", size: "1rem", class: nil, label: nil, color: nil %}View on GitHub</a></div></div></article></div>
+{%- endfor -%}
+</div>
+<div class="empty-state search-empty" data-empty-state style="display: none;"><div class="search-empty-content"><p class="search-empty-title">{% if sg_samples.size > 0 %}{{ "catalogSearch.samplesEmpty" | t }}{% else %}{{ "catalogSearch.samplesUnavailable" | t }}{% endif %}</p><p class="search-empty-query" hidden></p>{% if sg_samples.size > 0 %}<p class="empty-state-detail search-empty-hint">{{ "catalogSearch.guidance" | t }}</p>{% endif %}<catalog-search-active-filters data-label="{{ "catalogSearch.activeFilters" | t | escape }}" data-labels="[]" hidden></catalog-search-active-filters><button class="reset-btn search-action" data-reset-btn type="button"{% if sg_samples.size == 0 %} hidden{% endif %}>{{ "catalogSearch.resetAll" | t }}</button></div></div></div>

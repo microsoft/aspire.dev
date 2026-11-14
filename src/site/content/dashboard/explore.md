@@ -1,0 +1,629 @@
+---
+title: Explore the Aspire dashboard with the Starter app
+description: Explore Aspire dashboard features — resource graph, console logs, traces, metrics, and the GenAI visualizer — using the Aspire Starter app as a guided tour.
+---
+
+In the upcoming sections, you discover how to create an Aspire project and embark on the following tasks:
+
+- Investigate the dashboard's capabilities by using the app generated from the project template as explained in the [Quickstart: Build your first Aspire project.](/get-started/first-app/)
+- Delve into the features of the Aspire dashboard app.
+
+The screenshots and animations follow the site's light or dark theme. For more information about changing the dashboard itself, see [Theme selection](#theme-selection).
+
+The Aspire dashboard is compiled with Native AOT and uses Fluent UI v5. The normal AppHost and CLI workflows select the packaged dashboard automatically, without additional application telemetry configuration.
+
+## Dashboard authentication
+
+When you run an Aspire AppHost, the orchestrator starts up all the app's dependent resources and then opens a browser window to the dashboard. The Aspire dashboard requires token-based authentication for its users because it displays environment variables and other sensitive information.
+
+When the dashboard is launched from Visual Studio or Visual Studio Code (with the [Aspire extension](https://aka.ms/aspire/vscode) or [C# Dev Kit extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit)), the browser is automatically logged in, and the dashboard opens directly. This is the typical developer F5 experience, and the authentication login flow is automated by the Aspire tooling.
+
+However, if you start the AppHost from the command line, you're presented with the login page. The console window displays a URL that you can select on to open the dashboard in your browser.
+
+```bash title="Example output of aspire run" {10}
+aspire run
+
+🔍  Finding apphosts...
+apphost.cs
+
+🗄  Created settings file at '.aspire/settings.json'.
+
+        AppHost:  apphost.cs
+
+    Dashboard:  https://localhost:17213/login?t=2b4a2ebc362b7fef9b5ccf73e702647b
+
+        Logs:  $HOME/.aspire/cli/logs/apphost-27732-2025-10-31-19-21-27.log
+
+                Press CTRL+C to stop the apphost and exit.
+```
+
+The URL contains a token query string (with the token value mapped to the `t` name part) that's used to _log in_ to the dashboard. If your console supports it, you can hold the {% kbd windows: "Ctrl", mac: "Command", linux: "Ctrl" %} key and then select the link to open the dashboard in your browser. This method is easier than copying the token from the console and pasting it into the login page. If you end up on the dashboard login page without either of the previously described methods, you can always return to the console to copy the token.
+
+{% image dark: "/assets/images/dashboard/explore/aspire-login.png", light: "/assets/images/dashboard/explore/aspire-login-light.png", alt: "Aspire dashboard login page." %}
+
+The login page accepts a token and provides helpful instructions on how to obtain the token, as shown in the following screenshot:
+
+{% image dark: "/assets/images/dashboard/explore/aspire-login-help.png", light: "/assets/images/dashboard/explore/aspire-login-help-light.png", alt: "Aspire dashboard login page with instructions on how to obtain the token." %}
+
+After copying the token from the console and pasting it into the login page, select the **Log in** button.
+
+{% image dark: "/assets/images/dashboard/explore/aspire-login-filled.png", light: "/assets/images/dashboard/explore/aspire-login-filled-light.png", alt: "Aspire dashboard login page with the token pasted into the textbox." %}
+
+The dashboard persists the token as a browser persistent cookie, which remains valid for three days. Persistent cookies have an expiration date and remain valid even after closing the browser. This means that users don't need to log in again if they close and reopen the browser. For more information, see the [Security considerations for running the Aspire dashboard](/dashboard/security-considerations/) documentation.
+
+:::tip
+You can also obtain the login token from the container logs. For more information, see [Login to the dashboard](/dashboard/standalone/#login-to-the-dashboard).
+:::
+
+## Resources page
+
+Management integrations such as pgAdmin, pgweb, phpMyAdmin, Kafka UI, Mongo Express, and Attu hide their management containers and expose **Manage** links on the resources they administer. These links appear ahead of other resource URLs. Built-in management endpoints, including RabbitMQ and Qdrant, also use the **Manage** label.
+
+The **Resources** page is the default home page of the Aspire dashboard. This page lists all of the projects, containers, and executables included in your Aspire solution. For example, the starter application includes two projects:
+
+- **apiservice**: A backend API project built using Minimal APIs.
+- **webfrontend**: The frontend UI project built using Blazor.
+
+The dashboard also provides essential details about each resource:
+
+- **Type**: Displays whether the resource is a project, container, or executable.
+- **Name**: The name of the resource.
+- **State**: Displays whether or not the resource is currently running.
+  - **Errors**: Within the **State** column, errors are displayed as a badge with the error count. It's useful to understand quickly what resources are reporting errors. Selecting the badge takes you to the [semantic logs](#structured-logs-page) for that resource with the filter at an error level.
+- **Start time**: When the resource started running.
+- **Source**: The location of the resource on the device.
+- **Endpoints**: One or more URLs to reach the running resource directly.
+- **Logs**: A link to the resource logs page.
+- **Actions**: A [set of actions](#resource-actions) that can be performed on the resource:
+  - **Stop / Start**: Stop (or Start) the resource—depending on the current **State**.
+  - **Console logs**: Navigate to the resource's console logs.
+  - **Ellipsis**: A submenu with extra resource specific actions:
+    - **View details**: View the resource details.
+    - **Console log**: Navigate to the resource's console logs.
+    - **Structured logs**: Navigate to the resource's structured logs.
+    - **Traces**: Navigate to the resource's traces.
+    - **Metrics**: Navigate to the resource's metrics.
+    - **Restart**: Stop and then start the resource.
+
+Consider the following screenshot of the resources page:
+
+{% image dark: "/assets/images/dashboard/explore/projects-dark.png", light: "/assets/images/dashboard/explore/projects-light.png", alt: "A screenshot of the Aspire dashboard Resources page." %}
+
+Alternatively, you can view the resources as a graph. The graph view provides a visual representation of the resources and their dependencies. This view is useful for understanding how the different resources in your app are connected and how they interact with each other:
+
+{% image dark: "/assets/images/dashboard/explore/project-graphs.png", light: "/assets/images/dashboard/explore/project-graphs-light.png", alt: "A screenshot of the Aspire dashboard Resources page in graph view." %}
+
+You can interact with the graph by selecting a resource to view its details. The overall view also supports zooming in and out. To access a resource's actions from the graph, hover over a node to reveal a cog icon below its status badge, and then select the cog to open the resource's context menu—the same menu available from the resources table. The menu header identifies which resource its actions target. You can also right-click a node to open the same menu.
+
+### Resource actions
+
+Each resource has a set of available actions based on its current state, capabilities, and telemetry. For example, if a resource is running, the **Stop** action is enabled. If the resource is stopped, the **Start** action is enabled. Actions that don't apply to a resource may be omitted from its menu.
+
+#### Stop or Start a resource
+
+The Aspire dashboard allows you to stop or start a resource by selecting the **Stop** or **Start** button in the **Actions** column. Consider the following screenshot of the resources page with the **Stop** button selected:
+
+{% image dark: "/assets/images/dashboard/explore/resource-stop-action.png", light: "/assets/images/dashboard/explore/resource-stop-action-light.png", alt: "Aspire dashboard stop resource." %}
+
+When you select **Stop**, the resource stops running, and the **State** column updates to reflect the change.
+
+:::note
+For project resources, when the debugger is attached, it's reattached on restart.
+:::
+
+The **Start** button is then enabled, allowing you to start the resource again. Additionally, the dashboard displays a notification of the result of the action in the [notification center](#notification-center):
+
+{% image dark: "/assets/images/dashboard/explore/resource-stopped-action.png", light: "/assets/images/dashboard/explore/resource-stopped-action-light.png", alt: "Aspire dashboard resource stopped." %}
+
+When a resource is in a non-running state, the **Start** button is enabled. Selecting **Start** starts the resource, and the **State** column updates to reflect the change. The **Stop** button is then enabled, allowing you to stop the resource again. The dashboard displays a notification of the result of the action in the [notification center](#notification-center):
+
+{% image dark: "/assets/images/dashboard/explore/resource-started-action.png", light: "/assets/images/dashboard/explore/resource-started-action-light.png", alt: "Aspire dashboard started resource." %}
+
+:::tip
+Resources that depend on other resources that are stopped, or restarted, might experience temporary errors. This is expected behavior and is typically resolved when the dependent resources are in a **Running** state once again.
+:::
+
+##### Resource submenu actions
+
+Selecting the horizontal ellipsis icon in the **Actions** column opens a submenu with additional resource-specific actions. In addition to the built-in resource submenu actions, you can also define custom resource actions by defining custom commands. For more information, see [Custom resource commands in Aspire](/fundamentals/custom-resource-commands/). For the built-in resource submenu actions, consider the following screenshot:
+
+{% image dark: "/assets/images/dashboard/explore/resource-actions.png", light: "/assets/images/dashboard/explore/resource-actions-light.png", alt: "Aspire dashboard resource submenu actions." %}
+
+The following submenu actions are available:
+
+- **View details**: View the resource details.
+- **Console log**: Navigate to the resource's console logs.
+- **Structured logs**: Navigate to the resource's structured logs.
+- **Traces**: Navigate to the resource's traces.
+- **Metrics**: Navigate to the resource's metrics.
+- **Restart**: Stop and then start the resource.
+
+:::caution
+Available submenu actions depend on the resource. For example, this cache resource exposes console logs and traces, but doesn't show **Structured logs** or **Metrics** actions:
+
+{% image dark: "/assets/images/dashboard/explore/resource-submenu-actions.png", light: "/assets/images/dashboard/explore/resource-submenu-actions-light.png", alt: "Aspire dashboard cache resource actions menu." %}
+:::
+
+#### Copy or Open in text visualizer
+
+To view a _text visualizer_ of certain columns, on hover you see a vertical ellipsis icon. Select the icon to display the available options:
+
+- **Copy to clipboard**
+- **Open in text visualizer**
+
+Consider the following screenshot of the ellipsis menu options:
+
+{% image dark: "/assets/images/dashboard/explore/text-visualizer-selection-menu.png", light: "/assets/images/dashboard/explore/text-visualizer-selection-menu-light.png", alt: "A screenshot of the Aspire dashboard Resources page, showing the ellipsis menu options." %}
+
+When you select the **Open in text visualizer** option, a modal dialog opens with the text displayed in a larger format. Consider the following screenshot of the text visualizer modal dialog:
+
+{% image dark: "/assets/images/dashboard/explore/text-visualizer-resources.png", light: "/assets/images/dashboard/explore/text-visualizer-resources-light.png", alt: "A screenshot of the Aspire dashboard Resources page, showing the text visualizer." %}
+
+Some values are formatted as JSON or XML. In these cases, the text visualizer enables the **Select format** dropdown to switch between the different formats.
+
+### Resource details
+
+You can obtain full details about each resource by selecting the ellipsis button in the **Actions** column and then selecting **View details**. The **Details** page provides a comprehensive view of the resource:
+
+{% image dark: "/assets/images/dashboard/explore/resource-details.png", light: "/assets/images/dashboard/explore/resource-details-light.png", alt: "A screenshot of the Aspire dashboard Resources page with the details of a selected resource displayed." %}
+
+The search bar in the upper right of the dashboard also provides the option to filter the list, which is useful for Aspire projects with many resources. To select the types of resources that are displayed, drop down the arrow to the left of the filter textbox:
+
+{% image dark: "/assets/images/dashboard/explore/select-resource-type.png", light: "/assets/images/dashboard/explore/select-resource-type-light.png", alt: "A screenshot of the resource type selector list in the Aspire dashboard Resources page." %}
+
+In this example, only containers are displayed in the list. For example, if you enable **Use Redis for caching** when creating a Aspire project, you should see a Redis container listed:
+
+{% image dark: "/assets/images/dashboard/explore/resources-filtered-containers.png", light: "/assets/images/dashboard/explore/resources-filtered-containers-light.png", alt: "A screenshot of the Aspire dashboard Resources page filtered to show only containers." %}
+
+Executables are stand-alone processes. You can configure a Aspire project to run a stand-alone executable during startup, though the default starter templates don't include any executables by default.
+
+The following screenshot shows an example of a project that has errors:
+
+{% image dark: "/assets/images/dashboard/explore/projects-errors.png", light: "/assets/images/dashboard/explore/projects-errors-light.png", alt: "A screenshot of the Aspire dashboard Resources page, showing a project with errors." %}
+
+Selecting the error count badge navigates to the [Structured logs](#structured-logs-page) page with a filter applied to show only the logs relevant to the resource:
+
+{% image dark: "/assets/images/dashboard/explore/structured-logs-errors.png", light: "/assets/images/dashboard/explore/structured-logs-errors-light.png", alt: "A screenshot of the Aspire dashboard Structured logs page, showing a filter applied to show only the logs relevant to the resource." %}
+
+To inspect an error log entry, open its **Actions** menu and select **View details**. The details pane shows the selected entry's message and properties:
+
+{% image dark: "/assets/images/dashboard/explore/structured-logs-errors-view.png", light: "/assets/images/dashboard/explore/structured-logs-errors-view-light.png", alt: "Aspire dashboard Structured logs page with the selected error entry in the details pane." %}
+
+For more information and examples of Structured logs, see the [Structured logs page](#structured-logs-page) section.
+
+:::note
+The resources page isn't available if the dashboard is started without a configured resource service. The dashboard starts on the [Structured logs page](#structured-logs-page) instead. This is the default experience when the dashboard is run in standalone mode without additional configuration.
+
+{% learnmore %}
+For more information about configuring a resource service, see [Dashboard configuration](/dashboard/configuration/).
+{% endlearnmore %}
+:::
+
+## Monitoring pages
+
+The Aspire dashboard provides various ways to view logs, traces, and metrics for your app. This information enables you to track the behavior and performance of your app and to diagnose any issues that arise.
+
+### Console logs page
+
+The **Console logs** page displays text that each resource in your app has sent to standard output. Logs are a useful way to monitor the health of your app and diagnose issues. Logs are displayed differently depending on the source, such as project, container, or executable.
+
+When you open the Console logs page, you must select a source in the **Select a resource** drop-down list.
+
+If you select a project, the live logs are rendered with a stylized set of colors that correspond to the severity of the log; green for information as an example. Consider the following example screenshot of project logs with the `apiservice` project selected:
+
+{% image dark: "/assets/images/dashboard/explore/project-logs.png", light: "/assets/images/dashboard/explore/project-logs-light.png", alt: "A screenshot of the Aspire dashboard Console Logs page with a source selected." %}
+
+When errors occur, they're styled in the logs such that they're easy to identify. Consider the following example screenshot of project logs with errors:
+
+{% image dark: "/assets/images/dashboard/explore/project-logs-error.png", light: "/assets/images/dashboard/explore/project-logs-error-light.png", alt: "A screenshot of the Aspire dashboard Console Logs page, showing logs with errors." %}
+
+If you select a container or executable, formatting is different from a project but verbose behavior information is still available. Consider the following example screenshot of a container log with the `cache` container selected:
+
+{% image dark: "/assets/images/dashboard/explore/container-logs.png", light: "/assets/images/dashboard/explore/container-logs-light.png", alt: "A screenshot of the Aspire dashboard Console logs page with a container source selected." %}
+
+You can download any console log to your local machine and use your preferred text programs to analyze it:
+
+{% image dark: "/assets/images/dashboard/explore/download-console-logs.png", light: "/assets/images/dashboard/explore/download-console-logs-light.png", alt: "A screenshot of the Aspire dashboard Console logs page showing how to download a log to your local machine." %}
+
+Resources configured with {% api "Aspire.Hosting.TerminalResourceBuilderExtensions.WithTerminal" %} also provide an interactive **Terminal** view. For resource terminals, the AppHost terminal dock, detached windows, and keyboard controls, see [Dashboard terminals](/dashboard/terminals/).
+
+#### Resource replicas
+
+When project resources are replicated using the {% api "Aspire.Hosting.ProjectResourceBuilderExtensions.WithReplicas" %} API, they're represented in the resource selector under a top-level named resource entry with an icon to indicator. Each replicated resource is listed under the top-level resource entry, with its corresponding unique name. Consider the following example screenshot of a replicated project resource:
+
+{% image dark: "/assets/images/dashboard/explore/console-logs-with-replicas.png", light: "/assets/images/dashboard/explore/console-logs-with-replicas-light.png", alt: "Aspire dashboard: Console logs page resource selector with nested replica resources." %}
+
+The preceding screenshot groups two generated `catalogservice` replica entries beneath their application heading. Select a specific replica to view its console logs, or select **(All)** for aggregate console output. Replica suffixes are generated for each run.
+
+### Interactive terminals
+
+A resource configured with [`WithTerminal`](/app-host/with-terminal/) provides a live terminal alongside its console logs. You can type commands and inspect their output directly in the dashboard:
+
+{% image dark: "/assets/images/dashboard/terminals/terminal-resource-dark.png", light: "/assets/images/dashboard/terminals/terminal-resource-light.png", alt: "Aspire dashboard displaying an interactive resource terminal with local shell input and output." %}
+
+AppHosts can also create their own terminals for development and setup workflows. These terminals appear in a resizable dock with separate tabs, so you can keep working in a terminal while viewing resources:
+
+{% image dark: "/assets/images/dashboard/terminals/terminal-dock-dark.png", light: "/assets/images/dashboard/terminals/terminal-dock-light.png", alt: "Aspire dashboard resources above an open terminal dock with Workspace and Catalog checks tabs." %}
+
+AppHost-owned dock terminals are separate from resource terminals configured with `WithTerminal`. For an interactive setup workflow, see [Terminal interactions](/dashboard/terminal-interactions/#terminal-interactions).
+
+Open the empty terminal dock using the backtick key ({% kbd windows: "`", mac: "`", linux: "`" %}) when you're not typing in a terminal or text field. It shows **No docked terminals**, a **More information** link to this documentation, and a hint to press {% kbd windows: "`", mac: "`", linux: "`" %} again to hide the panel.
+
+### Structured logs page
+
+Aspire automatically configures your projects with logging using OpenTelemetry. Navigate to the **Structured logs** page to view the semantic logs for your Aspire project. [Semantic, or structured logging](https://github.com/NLog/NLog/wiki/How-to-use-structured-logging) makes it easier to store and query log-events, as the log-event message-template and message-parameters are preserved, instead of just transforming them into a formatted message. You notice a clean structure for the different logs displayed on the page using columns:
+
+- **Resource**: The resource the log originated from.
+- **Level**: The log level of the entry, such as information, warning, or error.
+- **Timestamp**: The time that the log occurred.
+- **Message**: The details of the log.
+- **Trace**: A link to the relevant trace for the log, if applicable.
+- **Details**: Additional details or metadata about the log entry.
+
+Consider the following example screenshot of semantic logs:
+
+{% image dark: "/assets/images/dashboard/explore/structured-logs.png", light: "/assets/images/dashboard/explore/structured-logs-light.png", alt: "A screenshot of the Aspire dashboard Semantic logs page." %}
+
+#### Filter structured logs
+
+The structured logs page also provides a search bar to filter the logs by service, level, or message. You use the **Level** drop down to filter by log level. You can also filter by any log property by selecting the filter icon button, which opens the advanced filter dialog.
+
+Consider the following screenshots showing the structured logs filter dialog:
+
+{% image dark: "/assets/images/dashboard/explore/structured-logs-filtered-dark.png", light: "/assets/images/dashboard/explore/structured-logs-filtered-light.png", alt: "A screenshot of the Aspire dashboard Structured logs page showing the filter dialog." %}
+
+### Traces page
+
+Navigate to the **Traces** page to view all of the traces for your app. Aspire automatically configures tracing for the different projects in your app. Distributed tracing is a diagnostic technique that helps engineers localize failures and performance issues within applications, especially those that might be distributed across multiple machines or processes. For more information, see [.NET distributed tracing](https://learn.microsoft.com/dotnet/core/diagnostics/distributed-tracing). This technique tracks requests through an application and correlates work done by different application integrations. Traces also help identify how long different stages of the request took to complete. The traces page displays the following information:
+
+- **Timestamp**: When the trace completed.
+- **Name**: The name of the trace, prefixed with the project name.
+- **Spans**: The resources involved in the request.
+- **Duration**: The time it took to complete the request. This column includes a radial icon that illustrates the duration of the request in comparison with the others in the list.
+
+{% image dark: "/assets/images/dashboard/explore/traces.png", light: "/assets/images/dashboard/explore/traces-light.png", alt: "A screenshot of the Aspire dashboard Traces page." %}
+
+#### Filter traces
+
+The traces page also provides a search bar to filter the traces by name or span. Apply a filter, and notice the trace results are updated immediately. Consider the following screenshot of traces with a filter applied to `weather` and notice how the search term is highlighted in the results:
+
+{% image dark: "/assets/images/dashboard/explore/trace-view-filter.png", light: "/assets/images/dashboard/explore/trace-view-filter-light.png", alt: "A screenshot of the Aspire dashboard Traces page, showing a filter applied to show only traces with the term 'weather'." %}
+
+When filtering traces in the **Add filter** dialog, after selecting a **Parameter** and corresponding **Condition**, the **Value** selection is pre-populated with the available values for the selected parameter. Consider the following screenshot of the **Add filter** dialog with the `http.route` parameter selected:
+
+{% image dark: "/assets/images/dashboard/explore/traces-filtering-dark.png", light: "/assets/images/dashboard/explore/traces-filtering-light.png", alt: "A screenshot of the Aspire dashboard Traces page, showing the Add filter dialog with the http.route parameter selected." %}
+
+#### Combine telemetry from multiple resources
+
+When a resource has multiple replicas, you can filter telemetry to view data from all instances at once. Select the parent resource, labeled `(application)`, as shown in the following screenshot:
+
+{% image dark: "/assets/images/dashboard/explore/telemetry-resource-filter.png", light: "/assets/images/dashboard/explore/telemetry-resource-filter-light.png", alt: "Filter by all instances of a resource" %}
+
+After selecting the parent resource, the traces page displays telemetry from all instances of the resource.
+
+#### Trace details
+
+The trace details page contains various details pertinent to the request, including:
+
+- **Trace Detail**: When the trace started.
+- **Duration**: The time it took to complete the request.
+- **Resources**: The number of resources involved in the request.
+- **Depth**: The number of layers involved in the request.
+- **Total Spans**: The total number of spans involved in the request.
+
+Each span is represented as a row in the table, and contains a **Name**. Spans also display the error icon if an error occurred within that particular span of the trace. Spans that have a type of client/consumer, but don't have a span on the server, show an arrow icon and then the destination address. This represents a client call to a system outside of the Aspire project. For example, an HTTP request an external web API, or a database call.
+
+Within the trace details page, there's a **View Logs** button that takes you to the structured logs page with a filter applied to show only the logs relevant to the request. Consider an example screenshot depicting the structured logs page with a filter applied to show only the logs relevant to the trace:
+
+{% image dark: "/assets/images/dashboard/explore/structured-logs-trace-errors.png", light: "/assets/images/dashboard/explore/structured-logs-trace-errors-light.png", alt: "A screenshot of the Aspire dashboard Structured logs page, showing a filter applied to show only the logs relevant to the trace." %}
+
+The structured logs page is discussed in more detail in the [Structured logs page](#structured-logs-page) section.
+
+#### Trace examples
+
+Each trace has a color, which is generated to help differentiate between spans—one color for each resource. The colors are reflected in both the _traces page_ and the _trace detail page_. When traces depict an arrow icon, those icons are colorized as well to match the span of the target trace. Consider the following example screenshot of traces:
+
+{% image dark: "/assets/images/dashboard/explore/traces.png", light: "/assets/images/dashboard/explore/traces-light.png", alt: "A screenshot of the Aspire dashboard Traces page." %}
+
+In the **Actions** column, you can select **View details** to navigate to a detailed view of the request and the duration of time it spent traveling through each application layer. Consider an example selection of a trace to view its details:
+
+{% image dark: "/assets/images/dashboard/explore/trace.png", light: "/assets/images/dashboard/explore/trace-light.png", alt: "A screenshot of the Aspire dashboard Trace details page." %}
+
+For each span in the trace, select **View details** to see more details:
+
+{% image dark: "/assets/images/dashboard/explore/trace-span-details.png", light: "/assets/images/dashboard/explore/trace-span-details-light.png", alt: "A screenshot of the Aspire dashboard Trace details page with the details of a span displayed." %}
+
+Scroll down in the span details pain to see full information. At the bottom of the span details pane, some span types, such as this call to a cache, show span event timings:
+
+{% image dark: "/assets/images/dashboard/explore/trace-span-event-details.png", light: "/assets/images/dashboard/explore/trace-span-event-details-light.png", alt: "A screenshot of the Aspire dashboard Trace details page with the event timings for a span displayed." %}
+
+For complex traces with many spans, use the **Filter** textbox to find matching spans while retaining their surrounding trace context:
+
+{% image dark: "/assets/images/dashboard/explore/filter-spans-trace-details.png", light: "/assets/images/dashboard/explore/filter-spans-trace-details-light.png", alt: "Aspire dashboard Trace details page finding weather spans while preserving related Redis and HTTP spans." %}
+
+When errors are present, the page renders an error icon next to the trace name. Consider an example screenshot of traces with errors:
+
+{% image dark: "/assets/images/dashboard/explore/traces-errors.png", light: "/assets/images/dashboard/explore/traces-errors-light.png", alt: "A screenshot of the Aspire dashboard Traces page, showing traces with errors." %}
+
+And the corresponding detailed view of the trace with errors:
+
+{% image dark: "/assets/images/dashboard/explore/trace-view-errors.png", light: "/assets/images/dashboard/explore/trace-view-errors-light.png", alt: "A screenshot of the Aspire dashboard Trace details page, showing a trace with errors." %}
+
+### Metrics page
+
+Navigate to the **Metrics** page to view the metrics for your app. Aspire automatically configures metrics for the different projects in your app. Metrics are a way to measure the health of your application and can be used to monitor the performance of your app over time.
+
+Each metric-publishing project in your app has its own metrics. The metrics page displays a selection pane for each top-level meter and the corresponding instruments that you can select to view the metric.
+
+Consider the following example screenshot of the metrics page, with the `webfrontend` project selected and the `System.Net.Http` meter's `http.client.request.duration` metric selected:
+
+{% image dark: "/assets/images/dashboard/explore/metrics-view.png", light: "/assets/images/dashboard/explore/metrics-view-light.png", alt: "A screenshot of the Aspire dashboard Metrics page." %}
+
+In addition to the metrics chart, the metrics page includes an option to view the data as a table instead. Consider the following screenshot of the metrics page with the table view selected:
+
+{% image dark: "/assets/images/dashboard/explore/metrics-table-view.png", light: "/assets/images/dashboard/explore/metrics-table-view-light.png", alt: "A screenshot of the Aspire dashboard Metrics page with the table view selected." %}
+
+Under the chart, there's a list of filters you can apply to focus on the data that interests you. The following screenshot shows the **error.type** filter menu, where you can choose between successful requests without an error type and requests that returned **500**:
+
+{% image dark: "/assets/images/dashboard/explore/metrics-view-filtered.png", light: "/assets/images/dashboard/explore/metrics-view-filtered-light.png", alt: "A screenshot of the Aspire dashboard Metrics page with a filter applied to the chart." %}
+
+Each dimension filter row lists available tag values. Values are ordered numerically when all values parse as numbers, or alphabetically otherwise. Values that don't fit inline are shown as a **+N** count badge. Selecting the badge opens a popover with the full list of values. The popover stays open as new tag values arrive while metrics continue to update, so you don't lose your place while monitoring live data.
+
+You can also choose to select the count of the displayed metric on the vertical access, instead of its values:
+
+{% image dark: "/assets/images/dashboard/explore/metrics-view-count.png", light: "/assets/images/dashboard/explore/metrics-view-count-light.png", alt: "A screenshot of the Aspire dashboard Metrics page with the count option applied." %}
+
+For more information about metrics, see [Built-in Metrics in .NET](https://learn.microsoft.com/dotnet/core/diagnostics/built-in-metrics).
+
+### GenAI telemetry visualization
+
+The Aspire dashboard provides a specialized dialog for viewing GenAI (Generative AI) telemetry data. This feature helps you analyze and understand AI-related operations in your application, including chat completions, embeddings, and other AI interactions.
+
+The following is an animation demonstrating the GenAI telemetry visualizer in action:
+
+{% looping_image light: "/assets/images/dashboard/explore/dashboard-geni-visualizer-light.gif", dark: "/assets/images/dashboard/explore/dashboard-geni-visualizer-dark.gif", alt: "An animated screenshot of the Aspire dashboard GenAI telemetry visualizer in action." %}
+
+The GenAI telemetry visualizer works best when message content is recorded to telemetry. Without message content, the dialog displays a note and provides a link to documentation about how to enable this feature.
+
+#### Configure message content recording
+
+To get the most value from the GenAI telemetry visualizer, configure your AI integrations to record message content. This configuration varies depending on which AI client library you're using:
+
+##### Microsoft.Extensions.AI (MEAI)
+
+When using `Microsoft.Extensions.AI` (`IChatClient` and related abstractions), you can enable sensitive data recording by configuring the chat client options. For specific AI integrations that support `Microsoft.Extensions.AI`, refer to their individual documentation for the exact configuration syntax. The configuration typically involves setting an `EnableSensitiveData` property or similar telemetry-related option
+
+##### Environment variable configuration
+
+Many OpenTelemetry libraries support the `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` environment variable to enable message content capture. Set this environment variable to `true`:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash
+OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell
+$env:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT="true"
+```
+{% endtab %}
+{% endos_tabs %}
+
+You can set this environment variable in your application's configuration, in your development environment, or in your deployment settings.
+
+##### AI integrations
+
+For specific guidance on configuring message content recording with different AI integrations, see the documentation for each integration:
+
+- [Azure OpenAI integration](/integrations/cloud/azure/azure-openai/azure-openai-connect/).
+- [Azure AI Inference integration](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/#observability-and-telemetry).
+- [OpenAI integration](/integrations/ai/openai/openai-client/).
+
+:::tip
+When message content recording is disabled, the GenAI telemetry visualizer still provides valuable information about AI operations, including timing, metadata, and performance metrics. However, enabling message content recording provides the most comprehensive view of your AI interactions.
+:::
+
+##### Other AI clients
+
+Please refer to your AI client’s documentation for instructions on enabling message content recording in telemetry.
+
+### Exemplars
+
+The Aspire dashboard supports and displays OpenTelemetry _Exemplars_. An _exemplar_ links a metric data point to the operation that recorded it, serving as a bridge between metrics and traces.
+
+Exemplars are useful because they provide additional context about why a specific metric value was recorded. For example, if you notice a spike in latency in the `http.client.request.duration` metric, an exemplar could point to a specific trace or span that caused the spike, helping you understand the root cause.
+
+Exemplars are displayed in the metrics chart as a small round dot next to the data point. When you hover over the indicator, a tooltip displays the exemplar details as shown in the following screenshot:
+
+{% image dark: "/assets/images/dashboard/explore/metrics-page-exemplars.png", light: "/assets/images/dashboard/explore/metrics-page-exemplars-light.png", alt: "Aspire Dashboard: Metrics Page, with exemplar indicator hover details." %}
+
+The preceding screenshot shows the exemplar details for the `http.client.request.duration` metric. The exemplar details include the:
+
+- Resource name.
+- Operation performed, in this case an:
+
+  ```http title="Weather forecast request"
+  GET /weatherforecast
+  ```
+
+- Corresponding value and the time stamp.
+
+Selecting the exemplar indicator opens the trace details page, where you can view the trace associated, for example consider the following screenshot:
+
+{% image dark: "/assets/images/dashboard/explore/trace-page-from-exemplars.png", light: "/assets/images/dashboard/explore/trace-page-from-exemplars-light.png", alt: "Aspire Dashboard: Trace Page, navigated to from the corresponding Metrics Page exemplar." %}
+
+For more information, see [OpenTelemetry Docs: Exemplars](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exemplars).
+
+### Interact with telemetry
+
+Telemetry information is generated continuously while you run a Aspire application and it can flood the dashboard with information. The dashboard includes tools you can use to reduce the amount of data displayed in monitoring pages and make it easier to target specific events.
+
+#### Pause telemetry output
+
+In the **Console logs**, **Structured logs**, **Traces**, and **Metrics** pages, you can pause the collection of telemetry data:
+
+{% image dark: "/assets/images/dashboard/explore/pause-telemetry.png", light: "/assets/images/dashboard/explore/pause-telemetry-light.png", alt: "A screenshot of the Aspire dashboard Console logs page, showing how to pause telemetry." %}
+
+The pause button affects only the type of telemetry displayed on that page. So, for example, if you pause console logs collection, your app continues to collect structured logs, traces, and metrics telemetry.
+
+#### Remove data
+
+Next to the **Pause** button, the **Remove data** button enables you to clear the telemetry on the current page. Drop down the list, and choose whether to remove the telemetry for all resource, or only for the current resource:
+
+{% image dark: "/assets/images/dashboard/explore/remove-telemetry-data.png", light: "/assets/images/dashboard/explore/remove-telemetry-data-light.png", alt: "A screenshot of the Aspire dashboard Structured logs page, showing how to remove telemetry." %}
+
+The button is available for console logs, structured logs, traces, and metrics. It works independently for each type of data.
+
+For more advanced data management, including exporting and importing telemetry, see [Manage data](#manage-data).
+
+#### Manage data
+
+The Aspire dashboard provides a **Manage logs and telemetry** dialog that lets you export, import, and remove telemetry data across all resources. To open it, select the **Settings** icon in the top-right corner of the dashboard, then select **Manage** under **Resource logs and telemetry**:
+
+{% image dark: "/assets/images/dashboard/explore/settings-manage-telemetry.png", light: "/assets/images/dashboard/explore/settings-manage-telemetry-light.png", alt: "A screenshot of the Aspire dashboard Settings dialog, showing the Manage button under Resource logs and telemetry." %}
+
+The dialog displays a grid of resources and their available data types. Each resource row shows icons summarizing which data types are present: **Resource** details, **Console logs**, **Structured logs**, **Traces**, and **Metrics**. You can expand a resource to see and select individual data types:
+
+{% image dark: "/assets/images/dashboard/explore/manage-data-expanded.png", light: "/assets/images/dashboard/explore/manage-data-expanded-light.png", alt: "A screenshot of the Aspire dashboard Manage logs and telemetry dialog, showing a resource expanded to display individual data types." %}
+
+Use the checkboxes to select resources or individual data types, then choose an action:
+
+##### Export data
+
+Select the resources and data types you want to export, then select **Export selected**. The dashboard downloads a `.zip` file containing the selected data organized by type:
+
+- **Resources**: JSON files with resource details.
+- **Console logs**: Text files with console output.
+- **Structured logs**: <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> JSON files with structured log entries.
+- **Traces**: OTLP JSON files with distributed trace spans.
+- **Metrics**: OTLP JSON files with metric data points.
+
+The exported `.zip` file is named `aspire-telemetry-export-{timestamp}.zip` and can be shared with team members or imported back into another dashboard session.
+
+##### Import data
+
+Select **Import logs and telemetry** to import previously exported data. The dashboard accepts `.zip` files (exported from the dashboard) and individual `.json` files containing OTLP telemetry data. The maximum file size is 100 MB.
+
+Imported data appears alongside any existing telemetry in the dashboard, enabling you to review data from previous sessions or data shared by other team members.
+
+##### Remove data
+
+To remove data for specific resources or data types, select the items you want to clear, then select **Remove selected**. This provides more granular control than the per-page **Remove data** button, and enables you to clear multiple data types across multiple resources in a single step.
+
+{% image dark: "/assets/images/dashboard/explore/manage-data-dialog.png", light: "/assets/images/dashboard/explore/manage-data-dialog-light.png", alt: "A screenshot of the Aspire dashboard Manage logs and telemetry dialog, showing resources with available data types and export, remove, and import buttons." %}
+
+A resource that no longer has any remaining data types can still be selected using its checkbox or by selecting its row, and removed with **Remove selected**. This lets you clear resources that remain known to the dashboard after all of their telemetry has already been removed.
+
+## Dashboard runs
+
+By default, the dashboard retains resource data and telemetry from each AppHost run, allowing you to review and analyze historical data. Use the selector in the header to switch between the live run and completed runs.
+
+{% image dark: "/assets/images/dashboard/explore/dashboard-run-selector.png", light: "/assets/images/dashboard/explore/dashboard-run-selector.png", alt: "Aspire dashboard header showing the Live run selector button." %}
+
+Open the selector to browse runs for the Aspire app:
+
+- Select a completed run by its start time to inspect its saved data. Historical runs are read-only, but the dashboard continues to save data for the live run while you view them. Select **Live run** to return to the current run.
+- The dashboard keeps up to 10 unpinned runs per app. After a new run starts, the oldest unpinned runs beyond that limit are cleaned up.
+- Runs can be pinned to prevent them from being cleaned up. Hover over a run and select its pin icon. Pinned runs don't count toward the limit and appear above unpinned runs in the list. Select the icon again to unpin the run.
+- Pinning or unpinning a run keeps the selector open and preserves your current run selection, even though the item moves to its updated sort position in the list.
+
+{% image dark: "/assets/images/dashboard/explore/dashboard-run-selector-expanded.png", light: "/assets/images/dashboard/explore/dashboard-run-selector-expanded.png", alt: "Expanded Aspire dashboard run selector showing the live run and a pinned historical run." %}
+
+For details about run retention and persistence modes, see [Aspire dashboard data persistence](/dashboard/data-persistence/).
+
+## Notification center
+
+The dashboard includes a notification center accessible via the bell icon in the top-right corner of the header. When there are unread notifications, a badge with the unread count appears on the icon.
+
+{% image dark: "/assets/images/dashboard/explore/notification-center-bell.png", light: "/assets/images/dashboard/explore/notification-center-bell-light.png", alt: "Aspire dashboard header showing the notification center bell icon with an unread count badge." %}
+
+Selecting the bell icon opens the **Notifications** dialog, which lists all notifications. Notifications are generated when:
+
+- A resource command starts, succeeds, fails, or is canceled. The notification center retains entries for all completed command states — success (information), failure (error), and canceled (warning).
+- System events occur that require user attention.
+
+Each notification shows its title, message body, and a relative timestamp. Success and error notifications that include a command result provide a **View response** action button to open the result in the text visualizer.
+
+{% image dark: "/assets/images/dashboard/explore/notification-center-open.png", light: "/assets/images/dashboard/explore/notification-center-open-light.png", alt: "Aspire dashboard Notifications dialog showing a list of command notifications with timestamps." %}
+
+Selecting **View response** opens the text visualizer with the command's result content:
+
+{% image dark: "/assets/images/dashboard/explore/notification-center-response.png", light: "/assets/images/dashboard/explore/notification-center-response-light.png", alt: "Aspire dashboard text visualizer showing a command response opened from the notification center." %}
+
+:::note
+Markdown command results render as formatted Markdown in the text visualizer (for example, headings and tables), not as raw Markdown source.
+:::
+
+The unread count resets when you open the notification center. To clear all notifications, select the **Dismiss all** button in the dialog.
+
+:::tip
+Notifications are capped at 100 entries. When the limit is reached, the oldest notifications are removed automatically.
+:::
+
+For information on returning command result payloads from custom commands, see [Custom resource commands](/fundamentals/custom-resource-commands/).
+
+## Settings dialog
+
+<span id="theme-selection"></span>
+
+The Aspire dashboard provides a settings dialog that allows you to configure the theme, language, and time format, manage logs and telemetry data, and view the .NET version used by the dashboard.
+
+By default, the theme is set to follow the System theme, which means the dashboard uses the same theme as your operating system. You can also select the **Light** or **Dark** theme to override the system theme. Theme selections are persisted.
+
+The **Time format** preference provides **System**, **12-hour**, and **24-hour** options. **System** follows the browser's time format, while **12-hour** and **24-hour** override it. The resulting format applies to metrics chart axis labels.
+
+The following screenshot shows the theme selection dialog, with the default System theme selected:
+
+{% image dark: "/assets/images/dashboard/explore/theme-selection.png", light: "/assets/images/dashboard/explore/theme-selection-system-light.png", alt: "The Aspire dashboard Settings dialog, showing the System theme default selection." %}
+
+To override the system preference, select **Light** or **Dark** in the theme selection dialog:
+
+{% image dark: "/assets/images/dashboard/explore/theme-selection-explicit-dark.png", light: "/assets/images/dashboard/explore/theme-selection-light.png", alt: "The Aspire dashboard Settings dialog with an explicit theme selected." %}
+
+## Dashboard shortcuts
+
+The Aspire dashboard provides various shortcuts to _help_ you navigate and control different parts of the dashboard. To display the keyboard shortcuts, press {% kbd windows: "Shift+?", mac: "Shift+?", linux: "Shift+?" %}, or select the question mark icon in the top-right corner of the dashboard:
+
+{% image dark: "/assets/images/dashboard/explore/dashboard-help.png", light: "/assets/images/dashboard/explore/dashboard-help-light.png", alt: "Aspire dashboard Help modal dialog." %}
+
+The following shortcuts are available:
+
+**Panels**:
+
+- {% kbd windows: "+", mac: "+", linux: "+" %}: Increase panel size.
+- {% kbd windows: "-", mac: "-", linux: "-" %}: Decrease panel size.
+- {% kbd windows: "Shift+R", mac: "Shift+R", linux: "Shift+R" %}: <u>R</u>eset panel size.
+- {% kbd windows: "Shift+T", mac: "Shift+T", linux: "Shift+T" %}: <u>T</u>oggle panel orientation.
+- {% kbd windows: "Shift+X", mac: "Shift+X", linux: "Shift+X" %}: Close panel.
+
+**Page navigation**:
+
+- {% kbd windows: "R", mac: "R", linux: "R" %}: Go to **<u>R</u>esources**.
+- {% kbd windows: "C", mac: "C", linux: "C" %}: Go to **<u>C</u>onsole Logs**.
+- {% kbd windows: "S", mac: "S", linux: "S" %}: Go to **<u>S</u>tructured Logs**.
+- {% kbd windows: "T", mac: "T", linux: "T" %}: Go to **<u>T</u>races**.
+- {% kbd windows: "M", mac: "M", linux: "M" %}: Go to **<u>M</u>etrics**.
+
+**Site-wide navigation**:
+
+- {% kbd windows: "?", mac: "?", linux: "?" %}: Got to **Help**.
+- {% kbd windows: "Shift+S", mac: "Shift+S", linux: "Shift+S" %}: Go to **<u>S</u>ettings**.
+
+## Interaction prompts
+
+Some resources or commands might prompt you for values when using the dashboard. This interactive functionality is powered by the **interaction service**, which allows integrations to display notifications or to request input from users when needed.
+
+For example, Azure resources that are missing required configuration might prompt you for configuration values when the dashboard starts or when you interact with those resources. These prompts help ensure that resources are properly configured and can function correctly within your Aspire application.
+
+In the dashboard, interaction prompts appear as:
+
+- Input dialogs for missing configuration values.
+- Confirmation dialogs for important actions.
+- Notification messages with details about resource status.
+
+These prompts appear directly in the dashboard interface, making it easy to provide the necessary information without switching to external tools or configuration files.
+
+## Next steps
+
+[Standalone Aspire dashboard](/dashboard/standalone/)

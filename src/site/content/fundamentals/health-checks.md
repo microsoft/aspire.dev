@@ -1,0 +1,499 @@
+---
+title: Health checks
+seoTitle: Aspire health checks and readiness gates for resources
+description: Add health checks to Aspire resources to gate startup, surface readiness in the dashboard, and tie WaitFor / WaitForCompletion behavior to real application signals.
+---
+
+Health checks provide availability and state information about an app. Health checks are often exposed as HTTP endpoints, but can also be used internally by the app to write logs or perform other tasks based on the current health. Health checks are typically used in combination with an external monitoring service or container orchestrator to check the status of an app.
+
+## Two types of health checks
+
+Aspire uses health checks in two distinct contexts. Understanding the difference is crucial:
+
+| Health check type           | Where it runs    | What it checks            | Used for                           |
+| --------------------------- | ---------------- | ------------------------- | ---------------------------------- |
+| **AppHost resource checks** | AppHost project  | "Is my dependency ready?" | Startup orchestration, {% api "Aspire.Hosting.ResourceBuilderExtensions.WaitFor" %} |
+| **Service endpoint checks** | Your application | "Am I healthy?"           | Load balancers, Kubernetes probes  |
+
+:::tip[Key insight]
+AppHost health checks answer: "Should I start services that depend on this
+resource?" Service endpoint health checks answer: "Should traffic be sent to
+this instance?"
+:::
+
+## Readiness vs. Liveness
+
+The two endpoint types serve different purposes:
+
+- **Readiness (`/health`)** - "Am I ready to receive traffic?" Checks that dependencies are connected, initialization is complete, and the service can handle requests. A failing readiness check means "don't send me traffic yet."
+
+- **Liveness (`/alive`)** - "Am I still running?" Checks that the process hasn't deadlocked or crashed. A failing liveness check means "restart me."
+
+## Aspire health check endpoints
+
+Aspire exposes two default health check HTTP endpoints in **Development** environments when the `AddServiceDefaults` and `MapDefaultEndpoints` methods are called from the _Program.cs_ file:
+
+- The `/health` endpoint indicates if the app is running normally where it's ready to receive requests. All health checks must pass for app to be considered ready to accept traffic after starting.
+
+  ```http title="HTTP"
+  GET /health
+  ```
+
+  The `/health` endpoint returns an HTTP status code 200 and a `text/plain` value of `Healthy` when the app is _healthy_.
+
+- The `/alive` indicates if an app is running or has crashed and must be restarted. Only health checks tagged with the _live_ tag must pass for app to be considered alive.
+
+  ```http title="HTTP"
+  GET /alive
+  ```
+
+  The `/alive` endpoint returns an HTTP status code 200 and a `text/plain` value of `Healthy` when the app is _alive_.
+
+The `AddServiceDefaults` and `MapDefaultEndpoints` methods also apply various configurations to your app beyond just health checks, such as OpenTelemetry and [service discovery](/fundamentals/service-discovery/) configurations.
+
+### Non-development environments
+
+In non-development environments, the `/health` and `/alive` endpoints are disabled by default. If you need to enable them, its recommended to protect these endpoints with various routing features, such as host filtering and/or authorization. For more information, see [Health checks in ASP.NET Core](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks#use-health-checks-routing).
+
+Additionally, it may be advantageous to configure request timeouts and output caching for these endpoints to prevent abuse or denial-of-service attacks. To do so, consider the following modified `AddDefaultHealthChecks` method:
+
+{% tabs sync: "consuming-lang" %}
+{% tab "C#" %}
+```csharp title="Extensions.cs"
+public static IHostApplicationBuilder AddDefaultHealthChecks(
+    this IHostApplicationBuilder builder)
+{
+    builder.Services.AddRequestTimeouts(
+        configure: static timeouts =>
+            timeouts.AddPolicy("HealthChecks", TimeSpan.FromSeconds(5)));
+
+    builder.Services.AddOutputCache(
+        configureOptions: static caching =>
+            caching.AddPolicy("HealthChecks",
+            build: static policy => policy.Expire(TimeSpan.FromSeconds(10))));
+
+    builder.Services.AddHealthChecks()
+        // Add a default liveness check to ensure app is responsive
+        .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+
+    return builder;
+}
+```
+{% endtab %}
+{% tab "Go" %}
+```go title="health.go"
+package main
+
+import (
+    "net/http"
+)
+
+// healthHandler returns HTTP 200 when the app is healthy.
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/plain")
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Healthy"))
+}
+
+// aliveHandler returns HTTP 200 when the app is running.
+func aliveHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/plain")
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Healthy"))
+}
+```
+{% endtab %}
+{% tab "Python" %}
+```python title="health.py"
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/health")
+async def health():
+    """Readiness check — returns 200 when the app is ready for traffic."""
+    return {"status": "Healthy"}
+
+@app.get("/alive")
+async def alive():
+    """Liveness check — returns 200 when the app is running."""
+    return {"status": "Healthy"}
+```
+{% endtab %}
+{% tab "TypeScript" %}
+```typescript title="health.ts"
+import express from 'express';
+
+const app = express();
+
+// Readiness check — returns 200 when the app is ready for traffic
+app.get('/health', (req, res) => {
+  res.type('text/plain').send('Healthy');
+});
+
+// Liveness check — returns 200 when the app is running
+app.get('/alive', (req, res) => {
+  res.type('text/plain').send('Healthy');
+});
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code:
+
+- Adds a timeout of 5 seconds to the health check requests with a policy named `HealthChecks`.
+- Adds a 10-second cache to the health check responses with a policy named `HealthChecks`.
+
+Now consider the updated `MapDefaultEndpoints` method:
+
+{% tabs sync: "consuming-lang" %}
+{% tab "C#" %}
+```csharp title="Extensions.cs"
+public static WebApplication MapDefaultEndpoints(
+    this WebApplication app)
+{
+    var healthChecks = app.MapGroup("");
+
+    healthChecks
+        .CacheOutput("HealthChecks")
+        .WithRequestTimeout("HealthChecks");
+
+    // All health checks must pass for app to be
+    // considered ready to accept traffic after starting
+    healthChecks.MapHealthChecks("/health");
+
+    // Only health checks tagged with the "live" tag
+    // must pass for app to be considered alive
+    healthChecks.MapHealthChecks("/alive", new()
+    {
+        Predicate = static r => r.Tags.Contains("live")
+    });
+
+    return app;
+}
+```
+{% endtab %}
+{% tab "Go" %}
+```go title="health.go"
+package main
+
+import (
+    "net/http"
+    "time"
+)
+
+func main() {
+    mux := http.NewServeMux()
+    mux.HandleFunc("/health", healthHandler)
+    mux.HandleFunc("/alive", aliveHandler)
+
+    server := &http.Server{
+        Addr:         ":8080",
+        Handler:      mux,
+        ReadTimeout:  5 * time.Second,
+        WriteTimeout: 5 * time.Second,
+    }
+
+    server.ListenAndServe()
+}
+```
+{% endtab %}
+{% tab "Python" %}
+```python title="main.py"
+import uvicorn
+
+# The /health and /alive endpoints defined above
+# are automatically available when running the FastAPI app
+if __name__ == "__main__":
+    uvicorn.run("health:app", host="0.0.0.0", port=8080)
+```
+{% endtab %}
+{% tab "TypeScript" %}
+```typescript title="server.ts"
+// The /health and /alive endpoints defined above
+// are automatically available when the Express app starts
+app.listen(8080, () => {
+  console.log('Server running on port 8080');
+});
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code:
+
+- Groups the health check endpoints under the `/` path.
+- Caches the output and specifies a request time with the corresponding `HealthChecks` policy.
+
+In addition to the updated `AddDefaultHealthChecks` and `MapDefaultEndpoints` methods, you must also add the corresponding services for both request timeouts and output caching.
+
+In the appropriate consuming app's entry point (usually the _Program.cs_ file), add the following code:
+
+{% tabs sync: "consuming-lang" %}
+{% tab "C#" %}
+```csharp
+// Wherever your services are being registered.
+// Before the call to Build().
+builder.Services.AddRequestTimeouts();
+builder.Services.AddOutputCache();
+
+var app = builder.Build();
+
+// Wherever your app has been built, before the call to Run().
+app.UseRequestTimeouts();
+app.UseOutputCache();
+
+app.Run();
+```
+{% endtab %}
+{% tab "Go" %}
+```go title="main.go"
+import (
+    "context"
+    "net/http"
+    "time"
+)
+
+// In Go, use context timeouts for request timeout control
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+    ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+    defer cancel()
+    // Use the ctx for your health check logic
+    _ = ctx
+}
+```
+{% endtab %}
+{% tab "Python" %}
+```python title="main.py"
+from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
+import asyncio
+
+# FastAPI supports request timeouts via middleware or
+# server-level configuration (e.g., uvicorn --timeout-keep-alive)
+```
+{% endtab %}
+{% tab "TypeScript" %}
+```typescript title="server.ts"
+// In Express, use middleware for request timeouts
+import timeout from 'connect-timeout';
+
+app.use('/health', timeout('5s'));
+app.use('/alive', timeout('5s'));
+```
+{% endtab %}
+{% endtabs %}
+
+For more information, see [Request timeouts middleware in ASP.NET Core](https://learn.microsoft.com/aspnet/core/performance/timeouts) and [Output caching middleware in ASP.NET Core](https://learn.microsoft.com/aspnet/core/performance/caching/output).
+
+## Integration health checks
+
+Aspire integrations can also register additional health checks for your app. These health checks contribute to the returned status of the `/health` and `/alive` endpoints. For example, the Aspire PostgreSQL integration automatically adds a health check to verify the following conditions:
+
+- A database connection could be established.
+- A database query could be executed successfully.
+
+If either of these operations fail, the corresponding health check also fails.
+
+### Configure health checks
+
+You can disable health checks for a given integration using one of the available configuration options. Aspire integrations support [Microsoft.Extensions.Configurations](https://learn.microsoft.com/dotnet/api/microsoft.extensions.configuration) to apply settings through config files such as _appsettings.json_:
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "Npgsql": {
+      "DisableHealthChecks": true
+    }
+  }
+}
+```
+
+You can also use an inline delegate to configure health checks:
+
+{% tabs sync: "consuming-lang" %}
+{% tab "C#" %}
+```csharp title="Program.cs"
+builder.AddNpgsqlDbContext<MyDbContext>(
+    "postgresdb",
+    static settings => settings.DisableHealthChecks  = true);
+```
+{% endtab %}
+{% tab "Go" %}
+```go title="main.go"
+package main
+
+import (
+    "net/http"
+    "os"
+    "context"
+    "github.com/jackc/pgx/v4"
+)
+
+connStr := os.Getenv("ConnectionStrings__postgresdb")
+conn, err := pgx.Connect(context.Background(), connStr)
+
+// Health endpoint returns healthy without checking
+// the database. In Go, health checks are explicit —
+// omit a database ping to disable them.
+http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Healthy"))
+})
+```
+{% endtab %}
+{% tab "Python" %}
+```python title="app.py"
+import os
+import psycopg2
+
+if __name__ == "__main__":
+    uvicorn.run("health:app", host="0.0.0.0", port=8080)
+
+conn_str = os.environ.get("ConnectionStrings__postgresdb")
+conn = psycopg2.connect(conn_str)
+
+# Health endpoint returns healthy without checking
+# the database. In Python, health checks are explicit —
+# omit a database ping to disable them.
+@app.get("/health")
+async def health():
+    return {"status": "Healthy"}
+```
+{% endtab %}
+{% tab "TypeScript" %}
+```typescript title="app.ts"
+import pg from 'pg';
+import express from 'express';
+
+const app = express();
+
+const pool = new pg.Pool({
+    connectionString: process.env.ConnectionStrings__postgresdb,
+});
+
+// Health endpoint returns healthy without checking
+// the database. In TypeScript, health checks are explicit —
+// omit a database ping to disable them.
+app.get('/health', (req, res) => {
+    res.type('text/plain').send('Healthy');
+});
+```
+{% endtab %}
+{% endtabs %}
+
+## AppHost resource health checks
+
+AppHost resource health checks are different from the health check endpoints described earlier. These health checks are configured in the AppHost project and determine the readiness of resources from the orchestrator's perspective. They're particularly important for controlling when dependent resources start via the `WaitFor` functionality and are displayed in the Aspire dashboard.
+
+### Resource readiness with health checks
+
+When a resource has health checks configured, the AppHost uses them to determine if the resource is ready before starting dependent resources. If no health checks are registered for a resource, the AppHost waits for the resource to be in the `Running` state.
+
+### HTTP health checks for resources
+
+For resources that expose HTTP endpoints, you can add health checks that poll specific paths:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalogApi = await builder.addContainer('catalog-api', {
+  image: 'catalog-api',
+  tag: 'latest',
+});
+await catalogApi.withHttpEndpoint({ targetPort: 8080 });
+await catalogApi.withHttpHealthCheck('/health');
+
+const webapp = await builder.addNodeApp('webapp', './webapp', 'index.js');
+await webapp.withReference(catalogApi);
+await webapp.waitFor(catalogApi); // Waits for /health to return HTTP 200
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
+                        .WithHttpEndpoint(targetPort: 8080)
+                        .WithHttpHealthCheck("/health");
+
+builder.AddProject<Projects.WebApp>("webapp")
+       .WithReference(catalogApi)
+       .WaitFor(catalogApi); // Waits for /health to return HTTP 200
+```
+{% endtab %}
+{% endtabs %}
+
+The {% api "Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" %} method can also be applied to project resources:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const backend = await builder.addNodeApp('backend', './backend', 'index.js');
+await backend.withHttpHealthCheck('/health');
+
+const frontend = await builder.addNodeApp('frontend', './frontend', 'index.js');
+await frontend.withReference(backend);
+await frontend.waitFor(backend);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var backend = builder.AddProject<Projects.Backend>("backend")
+                     .WithHttpHealthCheck("/health");
+
+builder.AddProject<Projects.Frontend>("frontend")
+       .WithReference(backend)
+       .WaitFor(backend);
+```
+{% endtab %}
+{% endtabs %}
+
+### Custom resource health checks
+
+You can create custom health checks for more complex readiness scenarios. Start by defining the health check in the AppHost's service collection, then associate it with resources:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var startAfter = DateTime.Now.AddSeconds(30);
+
+builder.Services.AddHealthChecks().AddCheck("mycheck", () =>
+    {
+        return DateTime.Now > startAfter
+            ? HealthCheckResult.Healthy()
+            : HealthCheckResult.Unhealthy();
+    });
+
+var pg = builder.AddPostgres("pg")
+    .WithHealthCheck("mycheck");
+
+builder.AddProject<Projects.MyApp>("myapp")
+    .WithReference(pg)
+    .WaitFor(pg); // Waits for both the Postgres container to be running
+                  // AND the custom "mycheck" health check to be healthy
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+TypeScript AppHost support for registering custom health checks with
+`builder.Services.AddHealthChecks()` is not yet available.
+:::
+
+The `AddCheck` method registers the health check, and {% api "Aspire.Hosting.ResourceBuilderExtensions.WithHealthCheck" %} associates it with specific resources. For more details about creating and registering custom health checks, see [Create health checks](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks#create-health-checks).
+
+### Dashboard integration
+
+Resource health check status is displayed in the Aspire dashboard, providing real-time visibility into resource readiness. When resources are waiting for health checks to pass, the dashboard shows the current status and any failure details.
+
+{% image dark: "/assets/images/fundamentals/health-checks-dashboard-status.png", light: "/assets/images/fundamentals/health-checks-dashboard-status-light.png", alt: "Screenshot of the Aspire dashboard showing health check status for resources" %}

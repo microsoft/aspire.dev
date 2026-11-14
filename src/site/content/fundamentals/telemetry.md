@@ -1,0 +1,122 @@
+---
+title: OpenTelemetry and distributed tracing in Aspire
+description: Correlate application logs, distributed traces, and metrics across local services. Learn how Aspire receives OpenTelemetry and makes it available to coding agents.
+---
+
+Aspire uses OpenTelemetry to make distributed applications easier to debug. Instrumented services send logs, traces, and metrics to the [Aspire dashboard](/dashboard/overview/), where you can follow a request across local services and correlate errors with the work that produced them.
+
+Telemetry depends on each application's instrumentation and exporter configuration. .NET service defaults and client integrations configure the .NET OpenTelemetry SDK; [Python](/dashboard/standalone-for-python/) and [JavaScript on Node.js](/dashboard/standalone-for-nodejs/) use their own SDKs. Running a service through Aspire doesn't automatically instrument every language or library.
+
+## The three pillars of observability
+
+- **[Logging](https://learn.microsoft.com/dotnet/core/diagnostics/logging-tracing)** — Log events describe what's happening as an app runs. A baseline set is enabled for Aspire integrations by default and more extensive logging can be enabled on-demand to diagnose particular problems.
+
+- **[Tracing](https://learn.microsoft.com/dotnet/core/diagnostics/distributed-tracing)** — Traces correlate log events that are part of the same logical activity (for example, the handling of a single request), even if they're spread across multiple machines or processes.
+
+- **[Metrics](https://learn.microsoft.com/dotnet/core/diagnostics/metrics)** — Metrics expose the performance and health characteristics of an app as simple numerical values. As a result, they have low performance overhead and many services configure them as always-on telemetry. This also makes them suitable for triggering alerts when potential problems are detected.
+
+Together, these types of telemetry allow you to gain insights into your application's behavior and performance using various monitoring and analysis tools. Depending on the backing service, some integrations may only support some of these features.
+
+### Follow a request across local services
+
+A distributed trace groups spans from one request under a shared trace ID. Instrument the incoming request handlers and outgoing clients in each service so they propagate trace context across HTTP calls or other supported transports. The dashboard can then show which service or dependency failed, how long each operation took, and logs that carry the same trace ID.
+
+Resource health and request success answer different questions. A process can be running and pass its health check while a particular request returns an error. Inspect the failed request's trace and correlated logs, not only the resource's health indicator.
+
+## Aspire OpenTelemetry integration
+
+The [.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet) includes features for gathering data from several .NET APIs, including `ILogger`, `Activity`, `Meter`, and `Instrument<T>`. These APIs correspond to telemetry features like logging, tracing, and metrics.
+
+.NET projects using service defaults define OpenTelemetry SDK configuration there. By default, the `ConfigureOpenTelemetry` method enables logging, tracing, and metrics for the app. It also configures exporters so other monitoring tools can collect these signals.
+
+{% learnmore %}
+For more information, see [Service defaults](/get-started/csharp-service-defaults/).
+{% endlearnmore %}
+
+## Export OpenTelemetry data for monitoring
+
+Aspire enables export of telemetry data to a data store or reporting tool. The telemetry export mechanism relies on the [OpenTelemetry Protocol (OTLP)](https://opentelemetry.io/docs/specs/otel/protocol), which serves as a standardized approach for transmitting telemetry data through REST or gRPC.
+
+The `ConfigureOpenTelemetry` method registers exporters to provide your telemetry data to other monitoring tools, such as Prometheus or Azure Monitor.
+
+{% learnmore %}
+For more information, see [OpenTelemetry configuration](/get-started/csharp-service-defaults/#opentelemetry-configuration).
+{% endlearnmore %}
+
+## OpenTelemetry environment variables
+
+OpenTelemetry has a [list of known environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) that configure the most important behavior for collecting and exporting telemetry. OpenTelemetry SDKs, including the .NET SDK, support reading these variables.
+
+Aspire projects launch with environment variables that configure the name and ID of the app in exported telemetry and set the address endpoint of the <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> server to export data. For example:
+
+- `OTEL_SERVICE_NAME=myfrontend`
+- `OTEL_RESOURCE_ATTRIBUTES=service.instance.id=1a5f9c1e-e5ba-451b-95ee-ced1ee89c168`
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`
+
+These environment variables are automatically set in local development.
+
+## Local development workflow
+
+When you create an Aspire project, the Aspire dashboard provides a UI for viewing app telemetry by default. Telemetry data is sent to the dashboard using OTLP, and the dashboard implements an OTLP server to receive telemetry data and store it in memory.
+
+### Telemetry flow in local development
+
+When you start an Aspire project with debugging (pressing {% kbd windows: "F5" %}), the following workflow occurs:
+
+1. **Dashboard and DCP start** — The Aspire dashboard and developer control plane (DCP) start
+2. **App configuration runs** — The AppHost project runs its configuration:
+   - OpenTelemetry environment variables are automatically added to .NET projects
+   - DCP provides the service name (`OTEL_SERVICE_NAME`) and ID (`OTEL_RESOURCE_ATTRIBUTES`) for exported telemetry
+   - The OTLP endpoint is an HTTP/2 port started by the dashboard, set in `OTEL_EXPORTER_OTLP_ENDPOINT`
+   - Small export intervals (`OTEL_BSP_SCHEDULE_DELAY`, `OTEL_BLRP_SCHEDULE_DELAY`, `OTEL_METRIC_EXPORT_INTERVAL`) ensure data is quickly available in the dashboard
+3. **Resources start** — The DCP starts configured projects, containers, and executables
+4. **Telemetry flows** — Once started, apps send telemetry to the dashboard
+5. **Dashboard displays** — The dashboard displays near real-time telemetry of all Aspire projects
+
+All of these steps happen internally, so in most cases you simply need to run the app to see this process in action.
+
+### Use telemetry with AI coding agents
+
+AI coding agents can access the same application telemetry you inspect in the dashboard to diagnose failures and verify fixes. This is observability of your application for coding agents, not monitoring of the agents' reasoning or token usage. [Aspire skills](/get-started/aspire-skills/) teach CLI-first workflows, including non-interactive commands and `--format Json` output.
+
+When running an Aspire AppHost, agents use CLI commands like `aspire otel logs`, `aspire otel traces`, and `aspire describe` to fetch structured logs, distributed traces, and resource status directly from the dashboard. A typical agent workflow starts the app with `aspire start`, waits for resources with `aspire wait`, then queries telemetry to diagnose issues and verify fixes.
+
+When using a standalone dashboard, agents pass `--dashboard-url` to point CLI commands at the dashboard instance and query telemetry from any application sending OTLP data.
+
+{% learnmore %}
+- [AI coding agents and Aspire](/get-started/ai-coding-agents/) — using AI agents with an Aspire AppHost
+- [Debug application failures with AI coding agents](/dashboard/ai-coding-agents/) — investigate the same logs and traces as a human
+- [AI coding agents and the Aspire Dashboard](/dashboard/ai-coding-agents/#standalone-mode) — using AI agents with a standalone dashboard
+{% endlearnmore %}
+
+## APIs and data access
+
+The Aspire dashboard exposes APIs for both receiving and querying telemetry data. Applications write data to the dashboard using OTLP endpoints, and developers and tools read data back through multiple interfaces:
+
+- **Aspire CLI** — The `aspire otel logs`, `aspire otel traces`, and `aspire otel spans` commands query telemetry directly from the terminal. Use `--format Json` for structured output suitable for scripting and automation.
+- **Export** — The `aspire export` command packages telemetry and resource data into a zip file for offline analysis or sharing.
+- **MCP server** — The Aspire MCP server exposes dashboard data to AI coding agents through Model Context Protocol tools.
+- **HTTP telemetry API** — The dashboard exposes HTTP endpoints under `/api/telemetry/` that return data in OTLP JSON format, supporting real-time streaming and resource filtering.
+
+{% learnmore %}
+For more information, see [Dashboard APIs and data access](/dashboard/apis/).
+{% endlearnmore %}
+
+## Deployment
+
+Aspire deployment environments should configure OpenTelemetry environment variables that make sense for their environment. For example, `OTEL_EXPORTER_OTLP_ENDPOINT` should be configured to the environment's local OTLP collector or monitoring service.
+
+:::note
+Aspire telemetry works best in environments that support OTLP. OTLP exporting is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` isn't configured.
+:::
+
+{% learnmore %}
+For more information, see [Aspire deployments](/deployment/deploy-with-aspire/).
+{% endlearnmore %}
+
+## See also
+
+- [Service defaults](/get-started/csharp-service-defaults/)
+- [Dashboard overview](/dashboard/overview/)
+- [OpenTelemetry Protocol specification](https://opentelemetry.io/docs/specs/otel/protocol)
+- [.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet)

@@ -1,0 +1,68 @@
+---
+title: Get started with the Azure SQL EF Core integrations
+description: Understand why you use the Aspire Azure SQL EF Core integrations and how they fit together in your Aspire AppHost.
+---
+
+{% image "/assets/images/icons/azure-sqlserver-icon.png", alt: "Azure SQL Database logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+[Azure SQL](https://azure.microsoft.com/products/azure-sql) is a family of managed relational database services built on SQL Server that run in the Azure cloud. The Aspire Azure SQL integration lets you model an Azure SQL server and its databases as first-class resources in your AppHost, then hand the connection information to consuming C# apps using Entity Framework Core (EF Core).
+
+## Why use Azure SQL with Aspire
+
+Adding Azure SQL through Aspire — rather than managing connection strings and Azure resources by hand — gives you:
+
+- **Zero-config local development.** Aspire can run Azure SQL locally using the SQL Server container image via {% api "Aspire.Hosting.AzureSqlExtensions.RunAsContainer" %}, with credentials generated automatically.
+- **Seamless cloud deployment.** When you're ready to deploy, the same AppHost model provisions a real Azure SQL Database with managed identity access — no code changes needed.
+- **Consistent connection info.** Once you reference the database from a consuming app, Aspire injects connection properties as environment variables in a predictable format.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the Aspire dashboard and your orchestrator can tell when the server is ready.
+- **Dashboard observability.** The database resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **A first-class C# EF Core client integration.** C# apps can use the `Aspire.Microsoft.EntityFrameworkCore.SqlServer` package for dependency injection, health checks, and OpenTelemetry, all wired up from the same resource name.
+
+## How the pieces fit together
+
+The Azure SQL EF Core integration has two sides: a **hosting integration** that you use in your AppHost to model the database resource, and a **C# EF Core client integration** for consuming apps that reference it.
+
+```mermaid
+architecture-beta
+
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
+
+  service hosting(server)[Hosting integration] in apphost
+  service sql(database)[Azure SQL server] in apphost
+  service db(database)[database] in apphost
+
+  service client(iconoir:server-connection)[EF Core client integration] in consumer
+  service app(server)[App] in consumer
+
+  hosting:R --> L:sql
+  sql:R --> L:db
+  db:R --> L:client
+  client:R --> L:app
+```
+
+The **hosting integration** lives in your AppHost project and models the Azure SQL server and databases as resources. The **EF Core client integration** lives in each consuming C# app and uses the connection information Aspire injects to talk to the database via Entity Framework Core.
+
+Getting there is a two-step process: model the Azure SQL resources in your AppHost, then connect to the database from each C# app that needs it.
+
+{% steps %}
+1. ### Model Azure SQL in your AppHost
+
+    Add the Azure SQL hosting integration to your AppHost, then declare an Azure SQL server, one or more databases, and reference them from the apps that need to talk to the database. The [Azure SQL Hosting integration](/integrations/databases/efcore/azure-sql/azure-sql-host/) article walks through every capability — adding databases, connecting to existing servers, running as a container, customizing provisioning infrastructure, and more — with side-by-side C# and TypeScript examples.
+
+    {% linkbutton "/integrations/databases/efcore/azure-sql/azure-sql-host/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Set up Azure SQL in the AppHost
+{% endlinkbutton %}
+
+2. ### Connect from your C# app using EF Core
+
+    When you reference an Azure SQL database from a consuming C# app, Aspire injects its connection information. See [Connect to Azure SQL with EF Core](/integrations/databases/efcore/azure-sql/azure-sql-connect/) for the full EF Core registration reference, including `DbContext` setup, configuration options, health checks, and observability.
+
+    {% linkbutton "/integrations/databases/efcore/azure-sql/azure-sql-connect/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Connect to Azure SQL with EF Core
+{% endlinkbutton %}
+{% endsteps %}
+
+## See also
+
+- [Azure SQL Database hosting integration (cloud)](/integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started/) — the standalone Azure SQL Database hosting integration, covering AppHost APIs, provisioned Bicep, and multi-language connection examples.

@@ -1,0 +1,166 @@
+---
+title: aspire run command
+seoTitle: aspire run command reference for the Aspire CLI
+description: Learn about the aspire run command, which builds and runs an Aspire AppHost project locally and streams logs and telemetry to your terminal.
+---
+
+## Name
+
+`aspire run` - Run an Aspire AppHost in development mode.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire run [options] [[--] <additional arguments>...]
+```
+
+## Description
+
+The `aspire run` command runs the AppHost project in development mode, which configures the Aspire environment, builds and starts resources defined by the AppHost, launches the web dashboard, and prints a list of endpoints.
+
+{% include_markdown "reference/cli/includes/project-search-logic-description.md" %}
+
+The command performs the following steps to run an Aspire AppHost:
+
+- Creates or updates the rooted `aspire.config.json` file and records the
+  selected AppHost there. Legacy `.aspire/settings.json` files are still read
+  during migration.
+- Installs or verifies that Aspire's local hosting certificates are installed and trusted.
+- Builds the AppHost project and its resources.
+- Starts the AppHost and its resources.
+- Starts the dashboard.
+
+## Stopping the AppHost
+
+To stop the running AppHost and exit, press {% kbd windows: "Ctrl+C", mac: "⌃+C", linux: "Ctrl+C" %} (or send `SIGTERM` on Linux/macOS). The shutdown follows a three-step sequence. If shutdown takes longer than a moment, a `🛑 Stopping Aspire.` message is displayed shortly after you press {% kbd windows: "Ctrl+C", mac: "⌃+C", linux: "Ctrl+C" %} to confirm that shutdown is in progress.
+
+{% steps %}
+1. **Cooperative cancellation** — The CLI requests that the AppHost stop gracefully.
+2. **Graceful wait** — The CLI waits for the AppHost process to exit cleanly on its own.
+3. **Automatic force-kill** — If the AppHost does not exit within the graceful timeout, the CLI terminates the process automatically.
+{% endsteps %}
+
+If graceful shutdown is taking too long and you need to exit immediately, press {% kbd windows: "Ctrl+C", mac: "⌃+C", linux: "Ctrl+C" %} a second time. This collapses the graceful window and starts the force-kill sequence immediately.
+
+:::note
+On Windows, TypeScript/JavaScript AppHosts started with `tsx` or `npm` run in an isolated console session so that the Ctrl+C signal is delivered correctly to the Node.js process rather than to an unrelated foreground window.
+:::
+
+## Configuring the startup timeout
+
+`aspire run` uses a default timeout of 120 seconds when connecting to the AppHost after preparation completes. If this connection takes longer—for example on a slow machine or in a CI environment—set the `ASPIRE_CLI_START_TIMEOUT` environment variable to a higher number of seconds:
+
+```bash title="Aspire CLI"
+export ASPIRE_CLI_START_TIMEOUT=300
+aspire run
+```
+
+If `ASPIRE_CLI_START_TIMEOUT` is set to a value that isn't a positive whole number of seconds, `aspire run` displays an error and exits without starting the AppHost. This behavior also applies to `aspire run --detach` and to `aspire start`.
+
+`ASPIRE_CLI_START_TIMEOUT` excludes AppHost preparation, including restore and build, guest dependency installation and pre-execution checks, and extension-owned builds. For file-based C# AppHosts, the required safety build performed even with `--no-build` is also excluded. Once preparation completes, the CLI has the full configured timeout to connect to the AppHost.
+
+`ASPIRE_CLI_START_TIMEOUT` controls how long `aspire run` and `aspire start` wait for the AppHost to start. It's separate from `aspire wait --timeout`, which controls how long `aspire wait` waits for an individual *resource* inside an already-running AppHost to reach a target status.
+
+## Hot Reload and watch behavior
+
+By default, `aspire run` starts the distributed application once. It doesn't watch the AppHost or resource source files. After you change AppHost code, stop the running AppHost with {% kbd windows: "Ctrl+C", mac: "⌃+C", linux: "Ctrl+C" %}, and then run `aspire run` again. For individual resource changes, keep the AppHost running and restart or rebuild the resource from the Aspire CLI or dashboard when needed.
+
+Aspire also has an opt-in `defaultWatchEnabled` feature flag. When enabled, Aspire uses watch mode by default and automatically restarts the Aspire application after file changes:
+
+```bash title="Aspire CLI"
+aspire config set features.defaultWatchEnabled true
+```
+
+Use Aspire watch mode when you want Aspire to restart the AppHost-managed application for you after AppHost changes. It supports both C# and TypeScript AppHosts; C# project resources are also controlled by this setting today. Other resource hot reload behavior depends on the framework or runtime backing the resource. For more information, see [Hot Reload and watch](/app-host/hot-reload-and-watch/).
+
+The following snippet is an example of the output displayed by the `aspire run` command:
+
+```bash title="Aspire CLI"
+Dashboard:  https://localhost:17244/login?t=9db79f2885dae24ee06c6ef10290b8b2
+
+    Logs:  /home/vscode/.aspire/cli/logs/apphost-5932-2025-08-25-18-37-31.log
+
+        Press CTRL+C to stop the apphost and exit.
+```
+
+## Options
+
+The following options are available:
+
+- **`--`**
+
+  Delimits arguments to `aspire run` from arguments for the AppHost being run. All arguments after this delimiter are passed to the AppHost run.
+
+- **`--detach`**
+
+  Run the AppHost in the background and exit after it starts. The AppHost continues running as a background process. Use `aspire ps` to list running AppHosts and `aspire stop` to stop them.
+
+- **`--format <Json|Table>`**
+
+  Output result format. Only valid when used with `--detach`. Use `Json` for machine-readable output suitable for scripting and automation.
+
+- **`--isolated`**
+
+  Run in isolated mode with randomized ports and isolated user secrets, allowing multiple instances of the same AppHost to run simultaneously. This is useful for parallel testing or comparing different configurations side-by-side.
+
+- **`--no-build`**
+
+  Do not build or restore the project before running. Use this option when you have already built the project and want to skip the build step for faster startup.
+
+- {% include_markdown "reference/cli/includes/option-project.md" %}
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Examples
+
+- Search the current directory structure for AppHost projects to build and run:
+
+  ```bash title="Aspire CLI"
+  aspire run
+  ```
+
+- Run a specific AppHost project:
+
+  ```bash title="Aspire CLI"
+  aspire run --apphost './projects/apphost/orchestration.AppHost.csproj'
+  ```
+
+- Run a specific AppHost project with arguments:
+
+  ```bash title="Aspire CLI"
+  aspire run --apphost './projects/apphost/orchestration.AppHost.csproj' -- -fast
+  ```
+
+- Run the AppHost in the background:
+
+  ```bash title="Aspire CLI"
+  aspire run --detach
+  ```
+
+- Run the AppHost in the background with JSON output:
+
+  ```bash title="Aspire CLI"
+  aspire run --detach --format Json
+  ```
+
+- Run in isolated mode for parallel testing:
+
+  ```bash title="Aspire CLI"
+  aspire run --isolated
+  ```
+
+- Skip building and run immediately:
+
+  ```bash title="Aspire CLI"
+  aspire run --no-build
+  ```

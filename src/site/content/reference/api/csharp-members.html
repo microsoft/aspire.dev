@@ -1,0 +1,45 @@
+---
+# A C# member-kind page (constructors, properties, methods, ...): src/frontend/src/pages/reference/api/csharp/
+# [package]/[type]/[memberKind].astro, one page per entry of data/api/routes/csharp-members.json (route.members:
+# the index of each member of that kind in the type's members, with its exact anchor and its aliases).
+layout: api.liquid
+pagination: { data: api.routes.csharp-members, size: 1, alias: route }
+permalink: "{{ route.url }}"
+---
+{%- assign pkg = api.pkgs[route.file] -%}{%- assign type = pkg.types[route.type] -%}
+{%- case route.memberKind -%}
+  {%- when "constructor" -%}{%- assign kind_label = "Constructors" -%}
+  {%- when "property" -%}{%- assign kind_label = "Properties" -%}
+  {%- when "method" -%}{%- assign kind_label = "Methods" -%}
+  {%- when "field" -%}{%- assign kind_label = "Fields" -%}
+  {%- when "event" -%}{%- assign kind_label = "Events" -%}
+  {%- when "indexer" -%}{%- assign kind_label = "Indexers" -%}
+  {%- else -%}{%- assign kind_label = route.memberKind -%}
+{%- endcase -%}
+{%- case type.kind -%}
+  {%- when "class" -%}{%- assign type_kind = "Class" -%}
+  {%- when "struct" -%}{%- assign type_kind = "Struct" -%}
+  {%- when "interface" -%}{%- assign type_kind = "Interface" -%}
+  {%- when "enum" -%}{%- assign type_kind = "Enum" -%}
+  {%- when "delegate" -%}{%- assign type_kind = "Delegate" -%}
+  {%- when "record" -%}{%- assign type_kind = "Record" -%}
+  {%- when "record struct" -%}{%- assign type_kind = "Record Struct" -%}
+  {%- else -%}{%- assign type_kind = type.kind -%}
+{%- endcase -%}
+{%- capture display_raw %}{{ type.name | raw }}{% if type.isGeneric and type.genericParameters.size > 0 %}<{{ type.genericParameters | map: "name" | join: ", " | raw }}>{% endif %}{% endcapture -%}
+{%- capture title %}{{ display_raw }} {{ kind_label | raw }}{% endcapture -%}
+{%- capture description %}{{ kind_label | raw }} for {{ display_raw }} in {{ pkg.package.name | raw }}{% endcapture -%}
+{%- assign pkg_url = "/reference/api/csharp/" | append: route.packageSlug | append: "/" -%}
+{%- assign type_url = pkg_url | append: route.typeSlug | append: "/" -%}
+{%- assign crumbs = "Docs§/docs/§docs¦Reference§/reference/overview/¦Search C# APIs§/reference/api/csharp/¦" | append: pkg.package.name | append: "§" | append: pkg_url | append: "¦" | append: type.name | append: "§" | append: type_url | append: "¦" | append: kind_label -%}
+<div class="cid-api-page-csharp-members">
+{% render 'api/breadcrumb', crumbs: crumbs %}
+<div class="api-hero not-content"><div class="api-hero-header"><span class="api-kind-pill kind-{{ type.kind | replace: ' ', '-' }}">{{ type_kind }}</span><span class="api-mod-badge">{{ kind_label }}</span><span class="member-count">{{ route.members.size }} {% if route.members.size == 1 %}member{% else %}members{% endif %}</span></div>
+{%- if type.docs.summary %}<div class="api-hero-summary">{% render 'api/doc-content', content: type.docs.summary %}</div>{% endif -%}
+</div>
+<div class="ml"><div class="ml-cards">
+{%- for entry in route.members -%}
+{% render 'api/member-card', member: type.members[entry.index], anchor: entry.anchor, aliases: entry.aliases, type: type, pkg: pkg %}
+{%- endfor -%}
+</div></div>
+</div>

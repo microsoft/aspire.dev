@@ -1,0 +1,646 @@
+---
+title: Apply EF Core migrations in Aspire
+category: tutorial
+description: Learn about how to apply Entity Framework Core migrations in Aspire, including running migrations at startup and publishing migration bundles as container images for deployment.
+---
+
+{% image "/assets/images/icons/dotnet.svg", alt: "Entity Framework Core logo", width: 60, height: 60, style: "float: inline-start; margin-inline-end: 1rem;", zoomable: false %}
+
+Since Aspire projects use a containerized architecture, databases are ephemeral and can be recreated at any time. Entity Framework Core (EF Core) uses a feature called [migrations](https://learn.microsoft.com/ef/core/managing-schemas/migrations) to create and update database schemas. Since databases are recreated when the app starts, you need to apply migrations to initialize the database schema each time your app starts. This is accomplished by registering a migration service project in your app that runs migrations during startup.
+
+In this article, you learn how to configure Aspire projects to run EF Core migrations during app startup. Before continuing, ensure your development environment is set up — see [Prerequisites](/get-started/prerequisites/).
+
+## Obtain the starter app
+
+This tutorial uses a sample app that demonstrates how to apply EF Core migrations in Aspire. Use Visual Studio to clone [the sample app from GitHub](https://github.com/MicrosoftDocs/aspire-docs-samples/) or use the following command:
+
+```bash
+git clone https://github.com/MicrosoftDocs/aspire-docs-samples/
+```
+
+The sample app is in the *SupportTicketApi* folder. Open the solution in Visual Studio or VS Code and take a moment to review the sample app and make sure it runs before proceeding. The sample app is a rudimentary support ticket API, and it contains the following projects:
+
+- **SupportTicketApi.Api**: The ASP.NET Core project that hosts the API.
+- **SupportTicketApi.AppHost**: Contains the Aspire AppHost and configuration.
+- **SupportTicketApi.Data**: Contains the EF Core contexts and models.
+- **SupportTicketApi.ServiceDefaults**: Contains the default service configurations.
+
+Run the app to ensure it works as expected. In the Aspire dashboard, wait until all resources are running and healthy. Then select the **https** Swagger endpoint and test the API's:
+
+```http title="HTTP"
+GET /api/SupportTickets/1 HTTP/1.1
+Host: example.com
+Accept: application/json
+```
+
+To do this, expand the **GET /api/SupportTickets/1** endpoint by expanding the operation and selecting **Try it out**. Select **Execute** to send the request and view the response:
+
+```json title="example response"
+[
+  {
+    "id": 1,
+    "title": "Initial Ticket",
+    "description": "Test ticket, please ignore."
+  }
+]
+```
+
+Close the browser tabs that display the Swagger endpoint and the Aspire dashboard and then stop debugging.
+
+## Create migrations
+
+Start by creating some migrations to apply.
+
+{% tabs sync: "nuget-installer" %}
+{% tab ".NET CLI" %}
+{% steps %}
+1. Open a terminal ({% kbd windows: "Ctrl+`", mac: "Command+`", linux: "Ctrl+`" %} in Visual Studio Code).
+1. Set `SupportTicketApi/SupportTicketApi.Api` as the current directory.
+1. Use the [`dotnet ef` command-line tool](https://learn.microsoft.com/ef/core/managing-schemas/migrations/#install-the-tools) to create a new migration to capture the initial state of the database schema:
+
+    ```bash title=".NET CLI"
+    dotnet ef migrations add InitialCreate --project ../SupportTicketApi.Data/SupportTicketApi.Data.csproj
+    ```
+
+    The preceding command:
+
+    - Runs EF Core migration command-line tool in the *SupportTicketApi.Api* directory. `dotnet ef` is run in this location because the API service is where the DB context is used.
+    - Creates a migration named *InitialCreate*.
+    - Creates the migration in the in the *Migrations* folder in the *SupportTicketApi.Data* project.
+{% endsteps %}
+{% endtab %}
+{% tab "Package Manager Console" %}
+If you prefer using Visual Studio's Package Manager Console instead of the command line:
+
+{% steps %}
+1. Open the **Package Manager Console** in Visual Studio by selecting **Tools** > **NuGet Package Manager** > **Package Manager Console**.
+1. Set the **Default project** dropdown to *SupportTicketApi.Data*.
+1. Set the **Startup project** to *SupportTicketApi.Api* using the dropdown in the toolbar or by right-clicking the project in Solution Explorer and selecting **Set as Startup Project**.
+1. Run the migration command:
+
+    ```powershell
+    Add-Migration InitialCreate
+    ```
+
+    :::caution
+    When using Package Manager Console, ensure the startup project is set to the project that contains the DbContext registration (usually your API or web project), and the default project is set to where you want the migrations to be created (usually your data project). Remember to change the startup project back to your AppHost project when you're done, or the Aspire dashboard won't start when you press {% kbd windows: "F5" %}.
+    :::
+{% endsteps %}
+{% endtab %}
+{% endtabs %}
+
+{% steps %}
+1. Modify the model so that it includes a new property. Open `SupportTicketApi.Data/Models/SupportTicket.cs` and add a new property to the `SupportTicket` class:
+
+    ```csharp title="SupportTicket.cs" {12}
+    using System.ComponentModel.DataAnnotations;
+
+    namespace SupportTicketApi.Data.Models;
+
+    public sealed class SupportTicket
+    {
+        public int Id { get; set; }
+        [Required]
+        public string Title { get; set; } = string.Empty;
+        [Required]
+        public string Description { get; set; } = string.Empty;
+        public bool Completed { get; set; }
+    }
+
+    ```
+
+1. Create another new migration to capture the changes to the model:
+
+    {% tabs sync: "nuget-installer" %}
+{% tab ".NET CLI" %}
+```bash title=".NET CLI"
+dotnet ef migrations add AddCompleted --project ../SupportTicketApi.Data/SupportTicketApi.Data.csproj
+```
+{% endtab %}
+{% tab "Package Manager Console" %}
+```powershell title="Package Manager Console"
+Add-Migration AddCompleted
+```
+{% endtab %}
+{% endtabs %}
+{% endsteps %}
+
+Now you've got some migrations to apply. Next, you'll create a migration service that applies these migrations during app startup.
+
+## Troubleshoot migration issues
+
+When working with EF Core migrations in Aspire projects, you might encounter some common issues. Here are solutions to the most frequent problems:
+
+### "No database provider has been configured" error
+
+If you get an error like "No database provider has been configured for this DbContext" when running migration commands, it's because the EF tools can't find a connection string or database provider configuration. This happens because Aspire projects use service discovery and orchestration that's only available at runtime.
+
+**Solution**: Temporarily add a connection string to your project's `appsettings.json` file:
+
+{% steps %}
+1. In your API project (where the DbContext is registered), open or create an `appsettings.json` file.
+1. Add a connection string with the same name used in your Aspire AppHost:
+
+    ```json title="appsettings.json"
+    {
+      "ConnectionStrings": {
+        "ticketdb": "Server=(localdb)\\mssqllocaldb;Database=TicketDb;Trusted_Connection=true"
+      }
+    }
+    ```
+
+1. Run your migration commands as normal.
+1. Remove the connection string from `appsettings.json` when you're done, as Aspire will provide it at runtime.
+{% endsteps %}
+
+:::tip
+The connection string name must match what you use in your AppHost. For example, if you use `builder.AddProject<Projects.SupportTicketApi_Api>().WithReference(sqlServer.AddDatabase("ticketdb"))`, then use "ticketdb" as the connection string name.
+:::
+
+### Multiple databases in one solution
+
+When your Aspire solution has multiple services with different databases, create migrations for each database separately:
+
+{% steps %}
+1. Navigate to each service project directory that has a DbContext.
+1. Run migration commands with the appropriate project reference:
+
+    ```bash title=".NET CLI"
+    # For the first service/database
+    dotnet ef migrations add InitialCreate --project ../FirstService.Data/FirstService.Data.csproj
+
+    # For the second service/database  
+    dotnet ef migrations add InitialCreate --project ../SecondService.Data/SecondService.Data.csproj
+    ```
+
+1. Create separate migration services for each database, or handle multiple DbContexts in a single migration service.
+{% endsteps %}
+
+### Startup project configuration
+
+Ensure you're running migration commands from the correct project:
+
+- **CLI**: Navigate to the project directory that contains the DbContext registration (usually your API project)
+- **Package Manager Console**: Set the startup project to the one that configures the DbContext, and the default project to where migrations should be created
+
+## Create the migration service
+
+To execute migrations, call the EF Core `Microsoft.EntityFrameworkCore.Migrations.IMigrator.Migrate` method or the `IMigrator.MigrateAsync` method. In this tutorial, you'll create a separate worker service to apply migrations. This approach separates migration concerns into a dedicated project, which is easier to maintain and allows migrations to run before other services start.
+
+:::note
+**Where to create migrations**: Migrations should be created in the project that contains your Entity Framework DbContext and model classes (in this example, *SupportTicketApi.Data*). The migration service project references this data project to apply the migrations at startup.
+:::
+
+To create a service that applies the migrations:
+
+{% steps %}
+1. Add a new Worker Service project to the solution. If using Visual Studio, right-click the solution in Solution Explorer and select `Add > New Project`. Select `Worker Service`, name the project `SupportTicketApi.MigrationService` and target **.NET 10.0**. If using the command line, use the following commands from the solution directory:
+
+    ```bash title=".NET CLI"
+    dotnet new worker -n SupportTicketApi.MigrationService -f "net10.0"
+    dotnet sln add SupportTicketApi.MigrationService
+    ```
+
+1. Add the SupportTicketApi.Data` and `SupportTicketApi.ServiceDefaults` project references to the `SupportTicketApi.MigrationService` project using Visual Studio or the command line:
+
+    ```bash title=".NET CLI"
+    dotnet add SupportTicketApi.MigrationService reference SupportTicketApi.Data
+    dotnet add SupportTicketApi.MigrationService reference SupportTicketApi.ServiceDefaults
+    ```
+
+1. Add the [📦 Aspire.Microsoft.EntityFrameworkCore.SqlServer](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.SqlServer) NuGet package reference to the *`SupportTicketApi.MigrationService`* project using Visual Studio or the command line:
+
+    ```bash title=".NET CLI"
+    cd SupportTicketApi.MigrationService
+    dotnet add package Aspire.Microsoft.EntityFrameworkCore.SqlServer -v "%ASPIRE_VERSION%"
+    ```
+
+    :::tip
+    In some cases, you might also need to add the [📦 Microsoft.EntityFrameworkCore.Tools](https://www.nuget.org/packages/Microsoft.EntityFrameworkCore.Tools) package to prevent EF Core from failing silently without applying migrations. This is particularly relevant when using databases other than SQL Server, such as PostgreSQL. For more information, see [dotnet/efcore#27215](https://github.com/dotnet/efcore/issues/27215#issuecomment-2045767772).
+    :::
+
+1. Add the highlighted lines to the *`Program.cs`* file in the *`SupportTicketApi.MigrationService`* project:
+
+    ```csharp title="Program.cs" {6,9-10,12}
+    using SupportTicketApi.Data.Contexts;
+    using SupportTicketApi.MigrationService;
+
+    var builder = Host.CreateApplicationBuilder(args);
+
+    builder.AddServiceDefaults();
+    builder.Services.AddHostedService<Worker>();
+
+    builder.Services.AddOpenTelemetry()
+        .WithTracing(tracing => tracing.AddSource(Worker.ActivitySourceName));
+
+    builder.AddSqlServerDbContext<TicketContext>("sqldata");
+
+    var host = builder.Build();
+    host.Run();
+    ```
+
+    In the preceding code:
+
+    - The `AddServiceDefaults` extension method [adds service defaults functionality](/get-started/csharp-service-defaults/#add-service-defaults-functionality).
+    - The `AddOpenTelemetry` extension method [configures OpenTelemetry functionality](/fundamentals/telemetry/#aspire-opentelemetry-integration).
+    - The `AddSqlServerDbContext` extension method adds the `TicketContext` service to the service collection. This service is used to run migrations and seed the database.
+
+1. Replace the contents of the `Worker.cs` file in the *`SupportTicketApi.MigrationService`* project with the following code:
+
+    ```csharp title="Worker.cs"
+    using System.Diagnostics;
+
+    using Microsoft.EntityFrameworkCore;
+    using Microsoft.EntityFrameworkCore.Infrastructure;
+    using Microsoft.EntityFrameworkCore.Storage;
+
+    using OpenTelemetry.Trace;
+
+    using SupportTicketApi.Data.Contexts;
+    using SupportTicketApi.Data.Models;
+
+    namespace SupportTicketApi.MigrationService;
+
+    public class Worker(
+        IServiceProvider serviceProvider,
+        IHostApplicationLifetime hostApplicationLifetime) : BackgroundService
+    {
+        public const string ActivitySourceName = "Migrations";
+        private static readonly ActivitySource s_activitySource = new(ActivitySourceName);
+
+        protected override async Task ExecuteAsync(
+            CancellationToken cancellationToken)
+        {
+            using var activity = s_activitySource.StartActivity(
+                "Migrating database", ActivityKind.Client);
+
+            try
+            {
+                using var scope = serviceProvider.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<TicketContext>();
+
+                await RunMigrationAsync(dbContext, cancellationToken);
+                await SeedDataAsync(dbContext, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                activity?.AddException(ex);
+                throw;
+            }
+
+            hostApplicationLifetime.StopApplication();
+        }
+
+        private static async Task RunMigrationAsync(
+            TicketContext dbContext, CancellationToken cancellationToken)
+        {
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                // Run migration in a transaction to avoid partial migration if it fails.
+                await dbContext.Database.MigrateAsync(cancellationToken);
+            });
+        }
+
+        private static async Task SeedDataAsync(
+            TicketContext dbContext, CancellationToken cancellationToken)
+        {
+            SupportTicket firstTicket = new()
+            {
+                Title = "Test Ticket",
+                Description = "Default ticket, please ignore!",
+                Completed = true
+            };
+
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                // Seed the database
+                await using var transaction = await dbContext.Database
+                    .BeginTransactionAsync(cancellationToken);
+
+                await dbContext.Tickets.AddAsync(firstTicket, cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            });
+        }
+    }
+    ```
+
+    In the preceding code:
+
+    - The `ExecuteAsync` method is called when the worker starts. It in turn performs the following steps:
+      {% steps %}
+1. Gets a reference to the `TicketContext` service from the service provider.
+1. Calls `RunMigrationAsync` to apply any pending migrations.
+1. Calls `SeedDataAsync` to seed the database with initial data.
+1. Stops the worker with `StopApplication`.
+{% endsteps %}
+    - The `RunMigrationAsync` and `SeedDataAsync` methods both encapsulate their respective database operations using execution strategies to handle transient errors that may occur when interacting with the database. To learn more about execution strategies, see [Connection Resiliency](https://learn.microsoft.com/ef/core/miscellaneous/connection-resiliency).
+{% endsteps %}
+
+## Add the migration service to the orchestrator
+
+The migration service is created, but it needs to be added to the Aspire AppHost so that it runs when the app starts.
+
+{% steps %}
+1. In the *`SupportTicketApi.AppHost`* project, open the *`AppHost.cs`* file.
+1. Add the following highlighted code:
+
+    ```csharp title="AppHost.cs" {6-8,12-13}
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var sql = builder.AddSqlServer("sql")
+        .AddDatabase("sqldata");
+
+    var migrations = builder.AddProject<Projects.SupportTicketApi_MigrationService>("migrations")
+        .WithReference(sql)
+        .WaitFor(sql);
+
+    builder.AddProject<Projects.SupportTicketApi_Api>("api")
+        .WithReference(sql)
+        .WithReference(migrations)
+        .WaitForCompletion(migrations);
+
+    builder.Build().Run();
+    ```
+
+    This code enlists the *`SupportTicketApi.MigrationService`* project as a service in the Aspire AppHost. It also ensures that the API resource doesn't run until the migrations are complete.
+
+    :::note
+    In the preceding code, the call to {% api "Aspire.Hosting.SqlServerBuilderExtensions.AddDatabase" %} adds a representation of a SQL Server database to the Aspire application model with a connection string. It *doesn't* create a database in the SQL Server container. To ensure that the database is created, the sample project calls the EF Core `IDatabaseCreator.EnsureCreated` method from the support ticket API's `Program.cs` file.
+    :::
+
+    :::tip
+    The code creates the SQL Server container each time it runs and applies migrations to it. Data doesn't persist across debugging sessions and any new database rows you create during testing will not survive an app restart. If you would prefer to persist this data, add a data volume to your container. For more information, see [Add SQL Server resource with data volume](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume).
+    :::
+
+1. If the code cannot resolve the migration service project, add a reference to the migration service project in the AppHost project:
+
+    ```bash title=".NET CLI"
+    dotnet add SupportTicketApi.AppHost reference SupportTicketApi.MigrationService
+    ```
+
+    :::caution
+    If you are using Visual Studio, and you selected the **`Enlist in Aspire orchestration`** option when creating the Worker Service project, similar code is added automatically with the service name `supportticketapi-migrationservice`. Replace that code with the preceding code.
+    :::
+{% endsteps %}
+
+## Multiple databases scenario
+
+If your Aspire solution uses multiple databases, you have two options for managing migrations:
+
+### Option 1: Separate migration services (Recommended)
+
+Create a dedicated migration service for each database. This approach provides better isolation and makes it easier to manage different database schemas independently.
+
+{% steps %}
+1. Create separate migration service projects for each database:
+
+    ```bash title=".NET CLI"
+    dotnet new worker -n FirstService.MigrationService -f "net8.0"
+    dotnet new worker -n SecondService.MigrationService -f "net8.0"
+    ```
+
+1. Configure each migration service to handle its specific database context.
+1. Add both migration services to your AppHost:
+
+    ```csharp title="AppHost.cs"
+    var firstDb = sqlServer.AddDatabase("firstdb");
+    var secondDb = postgres.AddDatabase("seconddb");
+
+    var firstMigrations = builder.AddProject<Projects.FirstService_MigrationService>()
+        .WithReference(firstDb);
+
+    var secondMigrations = builder.AddProject<Projects.SecondService_MigrationService>()
+        .WithReference(secondDb);
+
+    // Ensure services wait for their respective migrations
+    builder.AddProject<Projects.FirstService_Api>()
+        .WithReference(firstDb)
+        .WaitFor(firstMigrations);
+
+    builder.AddProject<Projects.SecondService_Api>()
+        .WithReference(secondDb)
+        .WaitFor(secondMigrations);
+    ```
+{% endsteps %}
+
+### Option 2: Single migration service with multiple contexts
+
+Alternatively, you can create one migration service that handles multiple database contexts:
+
+{% steps %}
+1. Add references to all data projects in the migration service.
+1. Register all DbContexts in the migration service's `Program.cs`.
+1. Modify the `Worker.cs` to apply migrations for each context:
+
+    ```csharp title="Worker.cs"
+    public async Task<bool> RunMigrationAsync(IServiceProvider serviceProvider)
+    {
+        await using var scope = serviceProvider.CreateAsyncScope();
+        
+        var firstContext = scope.ServiceProvider.GetRequiredService<FirstDbContext>();
+        var secondContext = scope.ServiceProvider.GetRequiredService<SecondDbContext>();
+        
+        await firstContext.Database.MigrateAsync();
+        await secondContext.Database.MigrateAsync();
+        
+        return true;
+    }
+    ```
+{% endsteps %}
+
+## Remove existing seeding code
+
+Since the migration service seeds the database, you should remove the existing data seeding code from the API project.
+
+{% steps %}
+1. In the *`SupportTicketApi.Api`* project, open the *`Program.cs`* file.
+1. Delete the highlighted lines.
+
+    ```csharp title="Program.cs" {6-21}
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+
+        using (var scope = app.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
+            context.Database.EnsureCreated();
+
+            if(!context.Tickets.Any())
+            {
+                context.Tickets.Add(new SupportTicket
+                {
+                    Title = "Initial Ticket",
+                    Description = "Test ticket, please ignore."
+                });
+
+                context.SaveChanges();
+            }
+        }
+    }
+    ```
+{% endsteps %}
+
+## Test the migration service
+
+Now that the migration service is configured, run the app to test the migrations.
+
+{% steps %}
+1. Run the app and observe the `SupportTicketApi` dashboard.
+1. After a short wait, the `migrations` service state will display **Finished**.
+
+    {% image dark: "/assets/images/integrations/efcore/dashboard-post-migration-dark.png", light: "/assets/images/integrations/efcore/dashboard-post-migration-light.png", alt: "A screenshot of the Aspire dashboard with the migration service in a Finished state." %}
+
+1. Select the `Console logs` icon on the migration service to investigate the logs showing the SQL commands that were executed.
+{% endsteps %}
+
+## Get the code
+
+You can find the [completed sample app on GitHub](https://github.com/MicrosoftDocs/aspire-docs-samples/tree/solution/SupportTicketApi).
+
+## More sample code
+
+The [Aspire Shop](https://learn.microsoft.com/samples/microsoft/aspire-samples/aspire-shop/) sample app uses this approach to apply migrations. See the `AspireShop.CatalogDbManager` project for the migration service implementation.
+
+## Automated EF migrations with `AddEFMigrations`
+
+In addition to creating a dedicated worker service as described above, Aspire provides a first-class AppHost API for managing EF Core migrations: {% api "Aspire.Hosting.EFResourceBuilderExtensions.AddEFMigrations" %}. This API integrates migration execution directly into the AppHost orchestration and the Aspire publishing pipeline, without requiring a separate migration service project.
+
+### Add the package
+
+Add the [📦 Aspire.Hosting.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore) NuGet package to your AppHost project:
+
+```bash title=".NET CLI"
+dotnet add package Aspire.Hosting.EntityFrameworkCore
+```
+
+### Configure migrations in the AppHost
+
+Call `AddEFMigrations` on any project resource that hosts an EF Core `DbContext`:
+
+```csharp title="AppHost.cs"
+var db = builder.AddPostgres("pg").AddDatabase("appdb");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(db);
+
+var apiMigrations = api.AddEFMigrations("api-migrations");
+```
+
+The first argument is a resource name for the migration resource. The optional second argument is the fully qualified name of the `DbContext` type; it's only required when the target assembly contains more than one `DbContext`.
+
+If your migrations live in a separate project (for example, `Projects.Data`), reference that project from your AppHost and point to it using `.WithMigrationsProject<Projects.Data>()`:
+
+```csharp title="AppHost.cs"
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .WithMigrationsProject<Projects.Data>();
+```
+
+### Run migrations on startup
+
+To apply migrations automatically when running locally with [`aspire run`](/reference/cli/commands/aspire-run/), chain {% api "Aspire.Hosting.EFMigrationResourceBuilderExtensions.RunDatabaseUpdateOnStart" %}:
+
+```csharp title="AppHost.cs"
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .RunDatabaseUpdateOnStart();
+
+// The api project waits for migrations to complete before starting
+api.WaitForCompletion(apiMigrations);
+```
+
+:::note
+`RunDatabaseUpdateOnStart` only affects local run mode. The migration resource is not deployed with the app, so this call has no effect during [`aspire publish`](/reference/cli/commands/aspire-publish/) or deployment.
+:::
+
+When `RunDatabaseUpdateOnStart()` is called, a health check is registered for the migration resource. The resource transitions through the following states:
+
+| State | Description |
+|---|---|
+| **Pending** | Waiting for database resource to become healthy |
+| **Running** | Executing the `dotnet ef database update` command |
+| **Finished** | Migrations applied successfully |
+| **FailedToStart** | An error occurred during migration |
+
+### Publish migration artifacts
+
+To generate migration artifacts during [`aspire publish`](/reference/cli/commands/aspire-publish/), use {% api "Aspire.Hosting.EFMigrationResourceBuilderExtensions.PublishAsMigrationScript" %} or {% api "Aspire.Hosting.EFMigrationResourceBuilderExtensions.PublishAsMigrationBundle" %}:
+
+```csharp title="AppHost.cs"
+// Generate both a SQL script and a self-contained bundle during publish
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .PublishAsMigrationScript()
+    .PublishAsMigrationBundle();
+```
+
+Both methods add pipeline steps that run during [`aspire publish`](/reference/cli/commands/aspire-publish/) and write their artifacts into the publish output directory under `efmigrations/`.
+
+### Publish the migration bundle as a container image
+
+Pass `publishContainer: true` to `PublishAsMigrationBundle` to wrap the generated bundle in a container image. The migration resource becomes a compute resource that each compute environment (Docker Compose, Azure Container Apps, Kubernetes, and so on) deploys like any other container:
+
+```csharp title="AppHost.cs"
+var db  = builder.AddPostgres("pg").AddDatabase("appdb");
+var api = builder.AddProject<Projects.Api>("api").WithReference(db);
+
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .WithReference(db)
+    .WaitFor(db)
+    .PublishAsMigrationBundle(publishContainer: true);
+```
+
+:::note
+When using `publishContainer: true`, declaring both `.WithReference(db)` and `.WaitFor(db)` is the recommended approach. `.WithReference(db)` provides the authoritative connection-string source for the migration container, and `.WaitFor(db)` ensures the database is healthy before the container starts.
+
+When generating the container's Dockerfile or bundle environment variables, Aspire uses the database resource from `.WithReference()` as the authoritative source of the connection string when one is declared. If no `.WithReference()` is declared, Aspire falls back to inferring the connection string from `.WaitFor()` dependencies. Declaring `.WithReference(db)` explicitly is recommended and takes priority over any wait-based inference, while `.WaitFor(db)` is used for readiness and health ordering.
+:::
+
+Key behaviors:
+
+- Use the `baseImage` argument to specify a custom base image for the generated container.
+- The `targetRuntime` argument defaults to `linux-x64` when `publishContainer: true`; set it explicitly for other architectures (for example, `linux-arm64`).
+- Local run mode ([`aspire run`](/reference/cli/commands/aspire-run/)) is unaffected — no container image is built, and the migration resource still appears in the dashboard with its tool commands.
+
+#### Preventing container restarts per environment
+
+A migration bundle is idempotent (running it twice is safe), but different compute environments need explicit configuration to avoid restarting the container after it exits.
+
+{% tabs sync: "deploy-target" %}
+{% tab "Azure Container Apps" %}
+Publish the migration resource as an [Azure Container App Job](https://learn.microsoft.com/azure/container-apps/jobs) so it runs once and stops:
+
+```csharp title="AppHost.cs"
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .WithReference(db)
+    .WaitFor(db)
+    .PublishAsMigrationBundle(publishContainer: true)
+    .PublishAsAzureContainerAppJob(); // requires Aspire.Hosting.Azure.AppContainers
+```
+{% endtab %}
+{% tab "Docker Compose" %}
+Tell Compose not to restart the container after it exits:
+
+```csharp title="AppHost.cs"
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .WithReference(db)
+    .WaitFor(db)
+    .PublishAsMigrationBundle(publishContainer: true)
+    .PublishAsDockerComposeService((_, service) => service.Restart = "no"); // requires Aspire.Hosting.Docker
+```
+{% endtab %}
+{% tab "Kubernetes" %}
+Customize the generated manifest to use a `Job` workload or set `restartPolicy: OnFailure` using your Kubernetes publisher customization hook.
+{% endtab %}
+{% endtabs %}
+
+## See also
+
+- [EF Core migrations](https://learn.microsoft.com/ef/core/managing-schemas/migrations/)
+- [Connection resiliency](https://learn.microsoft.com/ef/core/miscellaneous/connection-resiliency)
+- [Seed data in a database using Aspire](/integrations/databases/efcore/seed-database/)
+- [Entity Framework Core overview](/integrations/databases/efcore/overview/)
+- [📦 Aspire.Hosting.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore)
+- [📦 Aspire.Microsoft.EntityFrameworkCore.SqlServer](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.SqlServer)

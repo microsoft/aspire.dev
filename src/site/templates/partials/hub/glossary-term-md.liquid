@@ -1,0 +1,32 @@
+{%- comment -%}
+  The Markdown twin of a glossary term, /hub/glossary/<term>.md (src/frontend/src/pages/hub/[...page].md.ts): type,
+  pronunciation, description, aliases, the body (`content`, the term's Markdown after Liquid), the practical
+  example, the learn-more links and the related terms in glossary order. It is the `content` template of a fork of
+  the term pages (douze.yml: a `glossary-twins` fork step over hub/glossary/*/index.md, which the generic `twins`
+  fork leaves out); it renders without HTML encoding. Reads the term's data, collections.glossary and `content`.
+{%- endcomment -%}
+{%- include "partials/hub/glossary-terms" -%}
+# {{ title }}
+{% if termType %}
+Term type: {{ termType }}
+{% endif %}{% if pronunciation %}
+Pronounced: {{ pronunciation }}
+{% endif %}
+{{ description }}
+{% if aliases.size > 0 %}
+Also known as: {{ aliases | join: ", " }}
+{% endif %}
+{{ content | strip }}
+
+## Practical example
+
+{{ context }}
+{% if resources.size > 0 %}
+## Learn more
+{% for gtm_link in resources %}
+- [{{ gtm_link.title }}](https://aspire.dev{{ gtm_link.href }})
+{% endfor %}{% endif %}
+## Related terms
+{% for gtm_url in gt_urls %}{% assign gtm_id = gtm_url | remove_first: "/hub/glossary/" | remove: "/" %}{% if related contains gtm_id %}
+- [{{ collections.urls[gtm_url].data.title }}](https://aspire.dev{{ gtm_url }})
+{% endif %}{% endfor %}

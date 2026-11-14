@@ -1,0 +1,45 @@
+---
+title: Compiler Error ASPIREHOSTINGPYTHON001
+seoTitle: "ASPIREHOSTINGPYTHON001: `AddPythonApp` is for evaluation"
+description: Learn what causes the Aspire compiler error ASPIREHOSTINGPYTHON001 and how to fix it so your AppHost builds cleanly.
+---
+
+{% badge "Version introduced: 9.0", variant: "note", size: "large", class: "mb-1" %}
+
+> {% api "Aspire.Hosting.PythonAppResourceBuilderExtensions.AddPythonApp" %} is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+Aspire provides a way to add Python executables or applications to the Aspire AppHost with the `AddPythonApp` extension. Since the shape of this API is expected to change in the future, it's experimental.
+
+## Example
+
+The following code generates `ASPIREHOSTINGPYTHON001`:
+
+```csharp title="AppHost.cs"
+var pythonApp = builder.AddPythonApp("hello-python", "../hello-python", "main.py")
+       .WithHttpEndpoint(env: "PORT")
+       .WithExternalHttpEndpoints()
+       .WithOtlpExporter();
+```
+
+## To correct this error
+
+Suppress the error with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREHOSTINGPYTHON001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREHOSTINGPYTHON001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREHOSTINGPYTHON001` directive.

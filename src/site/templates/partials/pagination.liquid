@@ -1,0 +1,22 @@
+{%- comment -%}
+  Starlight's Pagination.astro with the site's rules (route-data-middleware.ts, starlight-sidebar-topics): previous
+  and next are the adjacent links of the same sidebar group (`nav_prev_next` over the current topic's tree, Douze
+  plan 3.5), none on pages without a sidebar (splash, hub) unless the front matter gives them; front matter
+  `prev`/`next` win: false hides, a string relabels, { link, label } replaces. Labels are localized, links get the
+  locale prefix. Reads sidebar.liquid's sb_current_key, base.liquid's sl_prefix, sl_dir. Root class:
+  cid-sl-pagination.
+{%- endcomment -%}
+{%- assign pg_prev = nil -%}{%- assign pg_next = nil -%}
+{%- assign pg_prev_label = nil -%}{%- assign pg_next_label = nil -%}
+{%- if has_sidebar and sb_current_key -%}
+  {%- assign pg_nav = sidebars[sb_current_key].items | nav_prev_next: url -%}
+  {%- if pg_nav.prev -%}{%- assign sb_item = pg_nav.prev -%}{%- include "partials/sidebar-label" -%}{%- assign pg_prev = sl_prefix | append: pg_nav.prev.link -%}{%- assign pg_prev_label = sb_label -%}{%- endif -%}
+  {%- if pg_nav.next -%}{%- assign sb_item = pg_nav.next -%}{%- include "partials/sidebar-label" -%}{%- assign pg_next = sl_prefix | append: pg_nav.next.link -%}{%- assign pg_next_label = sb_label -%}{%- endif -%}
+{%- endif -%}
+{%- if prev == false -%}{%- assign pg_prev = nil -%}{%- elsif prev.link -%}{%- assign pg_prev = prev.link -%}{%- assign pg_prev_label = prev.label | default: pg_prev_label -%}{%- elsif prev.label -%}{%- assign pg_prev_label = prev.label -%}{%- elsif prev and prev != true -%}{%- assign pg_prev_label = prev -%}{%- endif -%}
+{%- if next == false -%}{%- assign pg_next = nil -%}{%- elsif next.link -%}{%- assign pg_next = next.link -%}{%- assign pg_next_label = next.label | default: pg_next_label -%}{%- elsif next.label -%}{%- assign pg_next_label = next.label -%}{%- elsif next and next != true -%}{%- assign pg_next_label = next -%}{%- endif -%}
+{%- if sl_dir == "rtl" -%}{%- assign pg_prev_icon = "right-arrow" -%}{%- assign pg_next_icon = "left-arrow" -%}{%- else -%}{%- assign pg_prev_icon = "left-arrow" -%}{%- assign pg_next_icon = "right-arrow" -%}{%- endif -%}
+<div class="pagination-links print:hidden cid-sl-pagination" dir="{{ sl_dir }}">
+{%- if pg_prev and pg_prev_label %}<a href="{{ pg_prev }}" rel="prev">{% icon pg_prev_icon, size: "1.5rem", class: nil, label: nil, color: nil %}<span>{{ "page.previousLink" | t }}<br><span class="link-title">{{ pg_prev_label }}</span></span></a>{% endif -%}
+{%- if pg_next and pg_next_label %}<a href="{{ pg_next }}" rel="next">{% icon pg_next_icon, size: "1.5rem", class: nil, label: nil, color: nil %}<span>{{ "page.nextLink" | t }}<br><span class="link-title">{{ pg_next_label }}</span></span></a>{% endif -%}
+</div>

@@ -1,0 +1,201 @@
+{%- comment -%}
+  The Markdown twin of the home page (/index.md, the `home-twin` step of douze.yml): the landing sections of
+  home-hero-story.liquid, home-page.liquid and the partials it includes, as the Astro build converted their HTML (the
+  text of every section, the links, the AppHost examples, the testimonials). Strings are the same i18n keys; the
+  code examples repeat home-page.liquid's (keep them in step).
+{%- endcomment -%}
+{%- comment -%} The locale homes link to their own locale's pages. {%- endcomment -%}
+{%- if locale and locale != "en" -%}{%- assign hm_prefix = "/" | append: locale -%}{%- else -%}{%- assign hm_prefix = "" -%}{%- endif -%}
+{%- capture hm_code_ts -%}
+import { createBuilder } from "./.aspire/modules/aspire.mjs";
+
+const builder = await createBuilder();
+const postgres = await builder
+    .addPostgres("postgres")
+    .addDatabase("catalogdb");
+const cache = await builder.addRedis("basketcache");
+
+const catalog = await builder
+    .addNodeApp("catalogservice", "./catalog", "src/index.ts")
+    .withReference(postgres);
+
+await builder.addViteApp("frontend", "./frontend")
+    .withReference(catalog)
+    .withReference(cache);
+
+await builder.build().run();
+{%- endcapture -%}
+{%- capture hm_code_cs -%}
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .AddDatabase("catalogdb");
+var cache = builder.AddRedis("basketcache");
+
+var catalog = builder
+    .AddProject<Projects.CatalogService>("catalogservice")
+    .WithReference(postgres);
+
+builder.AddProject<Projects.Frontend>("frontend")
+    .WithReference(catalog)
+    .WithReference(cache);
+
+builder.Build().Run();
+{%- endcapture -%}
+# {{ "home.hero.title" | t | strip_html }}
+
+{{ "home.hero.summary" | t }}
+
+* [{{ "home.hero.tryAspire" | t }}]({{ hm_prefix }}/get-started/first-app/)
+* [{{ "home.hero.exploreDocs" | t }}]({{ hm_prefix }}/docs/)
+
+{{ "home.languages.index" | t }}
+
+## {{ "home.languages.title" | t }}
+
+{{ "home.languages.body" | t }}
+
+* C#
+* TypeScript
+* JavaScript
+* Python
+* Java
+* Go
+* Rust
+* {{ "home.languages.containers" | t }}
+
+[{{ "home.languages.link" | t }}]({{ hm_prefix }}/get-started/resources/)
+
+{{ "home.agent.index" | t }}
+
+## {{ "home.agent.title" | t }}
+
+{{ "home.agent.body" | t }}
+
+{% for hm_layer in (1..3) -%}
+{%- case hm_layer -%}{%- when 1 -%}{%- assign hm_key = "home.agent.layerAppHost" -%}{%- when 2 -%}{%- assign hm_key = "home.agent.layerRuntime" -%}{%- else -%}{%- assign hm_key = "home.agent.layerTelemetry" -%}{%- endcase -%}
+* ### {{ hm_key | append: "Title" | t }}
+
+  {{ hm_key | append: "Description" | t }}
+
+{% endfor -%}
+[{{ "home.agent.setupLink" | t }}]({{ hm_prefix }}/get-started/ai-coding-agents/)
+
+{{ "home.model.index" | t }}
+
+## {{ "home.model.title" | t }}
+
+{{ "home.model.body" | t }}
+
+{{ "home.model.badgeDescription" | t }}
+
+{{ "home.model.summary" | t }}
+
+```typescript
+{{ hm_code_ts }}
+```
+
+```csharp
+{{ hm_code_cs }}
+```
+
+{% assign hm_links = "/get-started/app-host/,/reference/cli/commands/aspire-run/,/dashboard/,/deployment/" | split: "," -%}
+{%- for hm_link in hm_links -%}
+{%- assign hm_key = "home.principles.0" | append: forloop.index -%}
+{{ forloop.index }}. ### {{ hm_key | append: ".title" | t }}
+
+   {{ hm_key | append: ".description" | t }}
+
+   [{{ hm_key | append: ".label" | t }}]({{ hm_prefix }}{{ hm_link }})
+
+{% endfor -%}
+{{ "home.environments.index" | t }}
+
+## {{ "home.environments.title" | t }}
+
+{{ "home.environments.body" | t }}
+
+{{ "home.environments.badgeDescription" | t }}
+
+{{ "home.environments.localEyebrow" | t }}
+
+### {{ "home.environments.localTitle" | t }}
+
+{{ "home.environments.localDescription" | t }}
+
+* `aspire run`
+* {{ "home.environments.localStatus" | t }}
+
+{{ "home.environments.testEyebrow" | t }}
+
+### {{ "home.environments.testTitle" | t }}
+
+{{ "home.environments.testDescription" | t }}
+
+* [{{ "home.environments.testDocsLink" | t }}]({{ hm_prefix }}/testing/overview/)
+* {{ "home.environments.testStatus" | t }}
+
+{{ "home.environments.productionEyebrow" | t }}
+
+### {{ "home.environments.productionTitle" | t }}
+
+{{ "home.environments.productionDescription" | t }}
+
+* `aspire deploy`
+* {{ "home.environments.productionStatus" | t }}
+
+{{ "home.observability.index" | t }}
+
+## {{ "home.observability.title" | t }}
+
+{{ "home.observability.body" | t }}
+
+{{ "home.observability.badgeDescription" | t }}
+
+* [{{ "home.observability.link" | t }}]({{ hm_prefix }}/dashboard/overview/)
+* [{{ "home.observability.standaloneLink" | t }}]({{ hm_prefix }}/dashboard/standalone/)
+* [{{ "home.observability.telemetryLink" | t }}]({{ hm_prefix }}/fundamentals/telemetry/)
+* [{{ "home.observability.agentsLink" | t }}]({{ hm_prefix }}/dashboard/ai-coding-agents/)
+
+{{ "home.integrations.index" | t }}
+
+## {{ "home.integrations.title" | t }}
+
+{{ "home.integrations.body" | t }}
+
+[{{ "home.integrations.link" | t }}]({{ hm_prefix }}/integrations/)
+
+{{ "home.testimonials.index" | t }}
+
+## {{ "home.testimonials.title" | t }}
+
+{{ "home.testimonials.body" | t }}
+
+{% for testimonial in home_testimonials -%}
+{%- assign hm_attribution = "" -%}
+{%- if testimonial.role and testimonial.company -%}{%- assign hm_attribution = testimonial.role | append: ", " | append: testimonial.company -%}
+{%- elsif testimonial.role -%}{%- assign hm_attribution = testimonial.role -%}
+{%- elsif testimonial.company -%}{%- assign hm_attribution = testimonial.company -%}{%- endif -%}
+> {{ testimonial.text }}
+
+**{% if testimonial.link %}[{{ testimonial.name }}]({{ testimonial.link }}){% else %}{{ testimonial.name }}{% endif %}**{% if hm_attribution != "" %} — {{ hm_attribution }}{% endif %}
+
+{% endfor -%}
+[{{ "home.testimonials.communityLink" | t }}]({{ hm_prefix }}/community/)
+
+{{ "home.closing.index" | t }}
+
+## {{ "home.closing.title" | t }}
+
+{{ "home.closing.body" | t }}
+
+* [{{ "home.closing.install" | t }}]({{ hm_prefix }}/get-started/install-cli/)
+* [{{ "home.closing.firstApp" | t }}]({{ hm_prefix }}/get-started/first-app/)
+
+[{{ "home.closing.github" | t }}](https://github.com/microsoft/aspire)
+
+### {{ "home.devHub.title" | t }}
+
+{{ "home.devHub.body" | t }}
+
+[{{ "home.devHub.link" | t }}]({{ hm_prefix }}/hub/)

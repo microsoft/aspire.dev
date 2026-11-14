@@ -1,0 +1,26 @@
+---
+title: Compiler Error ASPIRE006
+seoTitle: "ASPIRE006: Resource name is invalid · Aspire"
+description: Learn what causes Aspire compiler error ASPIRE006 — invalid AppHost resource names — and how to fix the issue by following Aspire naming constraints and conventions.
+---
+
+{% badge "Version introduced: 8.2.2", variant: "note", size: "large", class: "mb-1" %}
+
+> The resource name 'NAME' is invalid: CONSTRAINT
+
+This diagnostic error is reported when a resource's name is invalid, such as a name with consecutive hyphen (`-`) characters.
+
+This error shouldn't be suppressed, as invalid model names throw an exception at runtime.
+
+## Example
+
+The following code generates `ASPIRE006`:
+
+```csharp title="AppHost.cs"
+var bbsContainer = builder.AddContainer("bbs--server", "coldwall/mystic")
+                          .WithEndpoint(19991, 23);
+```
+
+## To correct this error
+
+Use a valid name. For more information, see [Resource naming conventions](/architecture/resource-model/#resource-basics).

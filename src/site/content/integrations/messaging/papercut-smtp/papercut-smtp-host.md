@@ -1,0 +1,67 @@
+---
+title: Set up Papercut SMTP with the Aspire integration
+description: Run Papercut SMTP in an Aspire AppHost, pin its web and SMTP host ports, and pass the generated endpoint to an email-sending application.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+{% image light: "/assets/images/icons/papercut-light-icon.png", dark: "/assets/images/icons/papercut-icon.png", alt: "Papercut SMTP logo", width: 100, height: 100 %}
+
+Use this hosting integration to run Papercut SMTP as a container resource for local email testing. For an introduction, see [Get started with Papercut SMTP integration](../papercut-smtp-get-started/).
+
+## Installation
+
+{% install_package "CommunityToolkit.Aspire.Hosting.PapercutSmtp" %}
+
+## Add a Papercut SMTP resource
+
+The optional `httpPort` and `smtpPort` arguments pin the host ports for the web console and SMTP listener. If omitted, Aspire assigns ports.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const papercut = await builder.addPapercutSmtp('papercut', {
+  httpPort: 8080,
+  smtpPort: 2525,
+});
+
+const mailer = await builder.addProject('mailer', '../Mailer/Mailer.csproj');
+await mailer.withReference(papercut);
+await mailer.waitFor(papercut);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var papercut = builder.AddPapercutSmtp("papercut", httpPort: 8080, smtpPort: 2525);
+
+builder.AddProject<Projects.Mailer>("mailer")
+    .WithReference(papercut)
+    .WaitFor(papercut);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The resource provides an SMTP connection string in the form `Endpoint=smtp://host:port`. Referencing applications receive the connection under the resource name, such as `ConnectionStrings:papercut` in .NET configuration. Configure your SMTP library with the host and port from that endpoint. Papercut's web console is available through the resource's HTTP endpoint in the Aspire dashboard.
+
+The integration does not provide an email client library. Use an SMTP library in the consuming app, and use `WaitFor` when the app must wait for Papercut to be ready before starting.
+
+## AppHost API
+
+| Method                                | Purpose                                                            |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| `AddPapercutSmtp` / `addPapercutSmtp` | Add Papercut SMTP and optionally pin its HTTP and SMTP host ports. |
+
+## See also
+
+- [Get started with Papercut SMTP integration](../papercut-smtp-get-started/)
+- [Papercut SMTP project](https://github.com/ChangemakerStudios/Papercut-SMTP)
+- [CommunityToolkit.Aspire.Hosting.PapercutSmtp source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.PapercutSmtp)

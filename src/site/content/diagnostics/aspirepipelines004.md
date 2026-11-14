@@ -1,0 +1,71 @@
+---
+title: Compiler Warning ASPIREPIPELINES004
+seoTitle: "ASPIREPIPELINES004: The pipeline output service APIs are"
+description: Learn what causes the Aspire compiler warning ASPIREPIPELINES004 — the pipeline output service APIs are experimental and subject to change.
+---
+
+{% badge "Version introduced: 13.1", variant: "note", size: "large", class: "mb-1" %}
+
+> Pipeline output service types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental `IPipelineOutputService` interface and the `PipelineOutputService` implementation. These APIs are part of the Aspire pipeline infrastructure for managing output and temporary directories during deployment operations.
+
+The `IPipelineOutputService` interface provides directory management functionality for Aspire deployment pipelines:
+
+- **Output directories**: Manages the location where deployment artifacts are written
+- **Temporary directories**: Provides isolated temporary storage for build operations
+- **Resource-specific paths**: Creates subdirectories for individual resources
+
+This API is experimental because the pipeline infrastructure is under active development, and the directory management strategy may evolve based on deployment scenario requirements.
+
+## Example
+
+The following code generates `ASPIREPIPELINES004`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Using IPipelineOutputService
+var outputService = builder.Services.BuildServiceProvider().GetRequiredService<IPipelineOutputService>();
+var outputDir = outputService.GetOutputDirectory();
+var tempDir = outputService.GetTempDirectory();
+```
+
+### Related types
+
+- **`IPipelineOutputService`**: Service for managing pipeline output and temporary directories
+- **`PipelineOutputService`**: Default implementation managing configured and default paths
+- **`GetOutputDirectory()`**: Gets the base output directory for deployment artifacts
+- **`GetOutputDirectory(IResource)`**: Gets a resource-specific output subdirectory
+- **`GetTempDirectory()`**: Gets the base temporary directory for build artifacts
+- **`GetTempDirectory(IResource)`**: Gets a resource-specific temporary subdirectory
+
+## To correct this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREPIPELINES004.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREPIPELINES004</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREPIPELINES004` directive:
+
+  ```csharp title="Suppressing the warning"
+  #pragma warning disable ASPIREPIPELINES004
+  var outputService = builder.Services.BuildServiceProvider().GetRequiredService<IPipelineOutputService>();
+  var outputDir = outputService.GetOutputDirectory();
+  #pragma warning restore ASPIREPIPELINES004
+  ```

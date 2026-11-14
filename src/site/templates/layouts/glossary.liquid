@@ -1,0 +1,62 @@
+---
+# A glossary term (src/frontend/src/pages/hub/glossary/[term].astro) inside the hub layout: the term's front matter
+# (title, description, termType, pronunciation, aliases, context, resources, related) around its Markdown body
+# (`content`). Related terms (ids are the terms' file names, the last segment of their url) come from
+# `collections.glossary` (a `collect` step naming the glossary collection, plan 3.2), sorted by title as
+# sortGlossary does. Previous/next (the neighbours in that order) are the page's `prev`/`next` front matter,
+# which the glossary route template must set: an inner layout cannot pass values to the hub layout's footer. Root class: cid-glossary-term (glossary-term.css styles it).
+layout: hub.liquid
+hub_layout: article
+---
+{%- assign gl_terms = collections.glossary | sort_by: "data.title" -%}
+<div class="dev-breadcrumbs"><nav class="breadcrumb not-content cid-breadcrumb" aria-label="Breadcrumb"><ol class="bc-inline"><li><a href="/hub/">{% include "partials/svg/dev-hub" %}<span>Aspire resources</span></a></li><li><span class="sep" aria-hidden="true">/</span><a class="bc-parent" href="/hub/glossary/"><span>Glossary</span></a></li><li><span class="sep" aria-hidden="true">/</span><span class="current" aria-current="page">{{ title }}</span></li></ol></nav></div>
+<article class="term-reading cid-glossary-term">
+<div class="term-main">
+<section class="term-definition not-content" aria-labelledby="term-definition-heading"><h2 id="term-definition-heading">Definition</h2>
+{%- if termType or pronunciation %}<dl class="term-meta">{% if termType %}<div><dt class="sr-only">Term type</dt><dd>{{ termType }}</dd></div>{% endif %}{% if pronunciation %}<div><dt>Pronounced</dt><dd>{{ pronunciation }}</dd></div>{% endif %}</dl>{% endif %}
+<p class="term-description">{{ description }}</p>
+{%- if aliases.size > 0 %}<dl class="term-aliases"><dt>Also known as</dt><dd>{{ aliases | join: ", " }}</dd></dl>{% endif %}
+</section>
+<div class="sl-markdown-content term-body">{{ content }}</div>
+<section class="term-example not-content" aria-labelledby="practical-example"><h2 id="practical-example">Practical example</h2><p>{{ context }}</p></section>
+{%- if resources.size > 0 %}
+<div class="term-learn-more sl-markdown-content">{% learnmore %}{% for gl_resource in resources %}{% unless forloop.first %}; {% endunless %}<a href="{{ gl_resource.href }}">{{ gl_resource.title }}</a>{% endfor %}{% endlearnmore %}</div>
+{%- endif %}
+</div>
+{%- capture gl_related -%}
+{%- for gl_term in gl_terms -%}
+{%- assign gl_term_url = gl_term.url | default: gl_term.data.url -%}
+{%- assign gl_parts = gl_term_url | split: "/" | reverse -%}
+{%- if gl_parts[0] == "index.html" -%}{%- assign gl_id = gl_parts[1] -%}{%- else -%}{%- assign gl_id = gl_parts[0] -%}{%- endif -%}
+{%- if related contains gl_id %}<li><a href="{{ gl_term_url | replace: 'index.html', '' }}"><span class="related-term-title"><span>{{ gl_term.data.title }}</span>{% icon "right-arrow", size: "1rem", class: nil, label: nil, color: nil %}</span><span class="related-term-summary">{{ gl_term.data.description }}</span></a></li>{% endif -%}
+{%- endfor -%}
+{%- endcapture -%}
+{%- if gl_related != "" %}
+<aside class="term-related not-content" aria-labelledby="related-terms"><h2 id="related-terms">Related terms</h2><ul>{{ gl_related }}</ul></aside>
+{%- endif %}
+</article>
+{%- comment -%} The return to the filtered glossary results ([term].astro's script): a `from` query naming the
+glossary index (same origin, /hub/glossary/ with its query) replaces the breadcrumb's glossary link and is carried by
+the previous/next links. A module script runs once the document (the hub layout's footer included) is parsed. {%- endcomment %}
+<script type="module">
+const from = (() => {
+  const value = new URLSearchParams(location.search).get('from');
+  if (!value) return undefined;
+  try {
+    const target = new URL(value, location.origin);
+    if (target.origin === location.origin && target.pathname === '/hub/glossary/') return target.pathname + target.search;
+  } catch {}
+  return undefined;
+})();
+if (from) {
+  for (const back of document.querySelectorAll('.dev-breadcrumbs a[href="/hub/glossary/"]')) {
+    back.href = from;
+    back.setAttribute('aria-label', 'Back to your glossary results');
+  }
+  for (const link of document.querySelectorAll('.pagination-links a[href^="/hub/glossary/"]')) {
+    const destination = new URL(link.href);
+    destination.searchParams.set('from', from);
+    link.href = destination.href;
+  }
+}
+</script>

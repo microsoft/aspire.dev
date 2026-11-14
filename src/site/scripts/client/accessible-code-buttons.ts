@@ -1,0 +1,298 @@
+// Ported from src/frontend/src/components/AccessibleCodeButtons.astro (<script>), M3 of docs/douze-migration-plan.md.
+// Astro view transition events removed: every page load is a full document load.
+document.documentElement.dataset.accessibilityEnhancementsReady = 'pending';
+
+function normalizeText(value: string | null | undefined) {
+  return value?.replace(/\s+/g, ' ').trim() || '';
+}
+
+function findNearestHeadingText(element: Element, headings: Element[]) {
+  let nearestHeading = '';
+
+  headings.forEach((heading) => {
+    const position = heading.compareDocumentPosition(element);
+    if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+      nearestHeading = normalizeText(heading.textContent || '');
+    }
+  });
+
+  return nearestHeading;
+}
+
+function describeCodeRegion(region: Element, headings: Element[]) {
+  const figure = region.closest('figure.frame, .expressive-code');
+  const titleText = normalizeText(
+    figure?.querySelector('figcaption, .header .title, .frame-title')?.textContent || ''
+  );
+  const language = normalizeText(region.getAttribute('data-language') || '').toLowerCase();
+  const section = findNearestHeadingText(region, headings);
+  const languageLabels: Record<string, string> = {
+    bash: 'Bash',
+    powershell: 'PowerShell',
+    json: 'JSON',
+    txt: 'text',
+    text: 'text',
+    cs: 'C#',
+    csharp: 'C#',
+    ts: 'TypeScript',
+    typescript: 'TypeScript',
+    xml: 'XML',
+    yaml: 'YAML',
+  };
+
+  const languageLabel = languageLabels[language] || (language ? language.toUpperCase() : 'Code');
+
+  const baseLabel = titleText || `${languageLabel} code example`;
+  return section ? `${baseLabel} in ${section}` : baseLabel;
+}
+
+function labelCodeRegions(headings: Element[]) {
+  const regions = Array.from(
+    document.querySelectorAll('figure.frame.has-title pre, pre[role="region"]')
+  );
+  const labels = regions.map((region) => describeCodeRegion(region, headings));
+  const totals = new Map();
+  const seen = new Map();
+
+  labels.forEach((label) => {
+    totals.set(label, (totals.get(label) || 0) + 1);
+  });
+
+  regions.forEach((region, index) => {
+    const label = labels[index];
+    const total = totals.get(label) || 1;
+    const count = (seen.get(label) || 0) + 1;
+    seen.set(label, count);
+
+    const uniqueLabel = total > 1 ? `${label} (${count} of ${total})` : label;
+    region.setAttribute('aria-label', uniqueLabel);
+    region.removeAttribute('aria-labelledby');
+  });
+}
+
+function makeScrollableCodeRegionsFocusable() {
+  const regions = document.querySelectorAll('figure.frame pre, pre[role="region"]');
+
+  regions.forEach((regionEl) => {
+    const region = regionEl as HTMLElement;
+    const isScrollable = region.scrollWidth > region.clientWidth + 1;
+
+    if (!isScrollable) {
+      if (region.dataset.autoFocusable === 'true') {
+        region.removeAttribute('tabindex');
+        delete region.dataset.autoFocusable;
+      }
+      return;
+    }
+
+    if (!region.hasAttribute('tabindex')) {
+      region.setAttribute('tabindex', '0');
+      region.dataset.autoFocusable = 'true';
+    }
+  });
+}
+
+function makeScrollableTablesFocusable(headings: Element[]) {
+  const tables = document.querySelectorAll('main table');
+
+  tables.forEach((table) => {
+    const element = table as HTMLTableElement;
+    const isScrollable = element.scrollWidth > element.clientWidth + 1;
+
+    if (!isScrollable) {
+      if (element.dataset.autoFocusable === 'true') {
+        element.removeAttribute('tabindex');
+        if (element.dataset.autoAriaLabel === 'true') {
+          element.removeAttribute('aria-label');
+          delete element.dataset.autoAriaLabel;
+        }
+        delete element.dataset.autoFocusable;
+      }
+      return;
+    }
+
+    if (!element.hasAttribute('tabindex')) {
+      element.setAttribute('tabindex', '0');
+      element.dataset.autoFocusable = 'true';
+    }
+
+    if (!element.hasAttribute('aria-label')) {
+      const section = findNearestHeadingText(element, headings);
+      if (section) {
+        element.setAttribute('aria-label', `${section} table`);
+        element.dataset.autoAriaLabel = 'true';
+      }
+    }
+  });
+}
+
+/**
+ * Starlight's desktop and mobile tables of contents both render a `<nav>`
+ * labelled "On this page", and both exist in the DOM at once (CSS toggles
+ * which is visible). Give the mobile one a distinct accessible name so the
+ * two nav landmarks aren't indistinguishable to assistive tech (WCAG 1.3.1).
+ */
+function disambiguateMobileTocLandmark() {
+  const nav = document.querySelector('nav[aria-labelledby="starlight__on-this-page--mobile"]');
+  if (!nav || nav.hasAttribute('aria-label')) return;
+
+  const label = normalizeText(
+    document.getElementById('starlight__on-this-page--mobile')?.textContent
+  );
+  if (!label) return;
+
+  nav.removeAttribute('aria-labelledby');
+  nav.setAttribute('aria-label', `${label} (mobile)`);
+}
+
+/**
+ * Aside/callout boxes (Note, Tip, Caution, etc.) get their accessible name
+ * from their type label. Multiple asides of the same type on one page then
+ * share an identical landmark name, which is indistinguishable to assistive
+ * tech (WCAG 1.3.1). Number same-named asides so each is unique.
+ */
+function disambiguateAsideLandmarks() {
+  const asides = Array.from(document.querySelectorAll('main aside[aria-label]'));
+  const groups = new Map();
+
+  asides.forEach((aside) => {
+    const label = aside.getAttribute('aria-label') || '';
+    if (!aside.dataset.baseAriaLabel) {
+      aside.dataset.baseAriaLabel = label;
+    }
+    const baseLabel = aside.dataset.baseAriaLabel;
+    if (!groups.has(baseLabel)) groups.set(baseLabel, []);
+    groups.get(baseLabel).push(aside);
+  });
+
+  groups.forEach((elements, baseLabel) => {
+    elements.forEach((aside, index) => {
+      aside.setAttribute(
+        'aria-label',
+        elements.length > 1 ? `${baseLabel} (${index + 1} of ${elements.length})` : baseLabel
+      );
+    });
+  });
+}
+
+/**
+ * Add accessible labels to code blocks, copy buttons, and scrollable tables.
+ * This runs after the page loads and whenever the DOM changes
+ */
+function addAccessibilityEnhancements() {
+  const headings = Array.from(
+    document.querySelectorAll('main h1, main h2, main h3, main h4, main h5, main h6')
+  );
+
+  labelCodeRegions(headings);
+  makeScrollableCodeRegionsFocusable();
+  makeScrollableTablesFocusable(headings);
+  disambiguateMobileTocLandmark();
+  disambiguateAsideLandmarks();
+
+  // Find all figures with copy buttons (includes both .expressive-code and direct figures)
+  const figures = document.querySelectorAll('figure.frame');
+
+  figures.forEach((figure) => {
+    const copyButton = figure.querySelector('.copy button');
+    const copyContainer = figure.querySelector('.copy');
+
+    if (!copyButton || !copyContainer) return;
+
+    // Check if copy should be disabled via:
+    // 1. data-disable-copy attribute on the figure itself
+    // 2. disable-copy attribute on the figure itself
+    // 3. data-disable-copy on any parent element (div, etc.)
+    const hasDisableCopy =
+      figure.hasAttribute('data-disable-copy') ||
+      figure.hasAttribute('disable-copy') ||
+      figure.closest('[data-disable-copy]') !== null ||
+      figure.closest('[disable-copy]') !== null;
+
+    if (hasDisableCopy) {
+      // Remove the entire copy container
+      copyContainer.remove();
+      return;
+    }
+
+    // Only add aria-label if it doesn't already exist
+    if (!copyButton.hasAttribute('aria-label')) {
+      // Get the code content from data attribute or tooltip
+      const codeText = copyButton.getAttribute('data-code') || '';
+      const tooltip = copyButton.getAttribute('title') || copyButton.getAttribute('data-copied');
+
+      // Set appropriate aria-label based on state
+      if (tooltip === 'Copied!' || copyButton.getAttribute('data-copied') === 'Copied!') {
+        copyButton.setAttribute('aria-label', `Copied ${codeText} to clipboard`);
+      } else {
+        copyButton.setAttribute(
+          'aria-label',
+          `Copy ${codeText ? codeText + ' ' : ''}code to clipboard`
+        );
+      }
+    }
+
+    // Ensure title attribute is not empty
+    if (copyButton.hasAttribute('title') && copyButton.getAttribute('title') === '') {
+      copyButton.setAttribute('title', 'Copy to clipboard');
+    }
+  });
+
+  document.documentElement.dataset.accessibilityEnhancementsReady = 'true';
+}
+
+let accessibilityEnhancementFrame: number | null = null;
+
+function scheduleAccessibilityEnhancements() {
+  if (accessibilityEnhancementFrame !== null) {
+    return;
+  }
+
+  document.documentElement.dataset.accessibilityEnhancementsReady = 'pending';
+  accessibilityEnhancementFrame = window.requestAnimationFrame(() => {
+    accessibilityEnhancementFrame = null;
+    addAccessibilityEnhancements();
+  });
+}
+
+// Run on initial page load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', scheduleAccessibilityEnhancements);
+} else {
+  scheduleAccessibilityEnhancements();
+}
+
+window.addEventListener('resize', scheduleAccessibilityEnhancements);
+
+// Watch for dynamically added code blocks
+const observer = new MutationObserver((mutations) => {
+  let hasRelevantContent = false;
+  mutations.forEach((mutation) => {
+    mutation.addedNodes.forEach((node) => {
+      if (node.nodeType === 1) {
+        const element = node as Element;
+        if (
+          element.classList?.contains('expressive-code') ||
+          element.classList?.contains('frame') ||
+          element.matches?.('table') ||
+          element.querySelector?.('.expressive-code') ||
+          element.querySelector?.('figure.frame') ||
+          element.querySelector?.('table')
+        ) {
+          hasRelevantContent = true;
+        }
+      }
+    });
+  });
+
+  if (hasRelevantContent) {
+    scheduleAccessibilityEnhancements();
+  }
+});
+
+// Start observing the document body for changes
+observer.observe(document.body, {
+  childList: true,
+  subtree: true,
+});
+export {};

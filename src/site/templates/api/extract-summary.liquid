@@ -1,0 +1,14 @@
+{%- comment -%}
+  extractSummary of the C# pages' search indexes: the plain text of a summary (text, the last dotted segment of a
+  cref, paramref, typeparamref and langword values), whitespace collapsed, at most 160 characters. An include used
+  as a function: reads es_in (doc nodes), sets es_out (raw text, for `| json`).
+{%- endcomment -%}
+{%- assign es_out = "" -%}
+{%- for es_node in es_in -%}
+  {%- case es_node.kind -%}
+    {%- when "text" -%}{%- assign es_out = es_out | append: es_node.text -%}
+    {%- when "cref" -%}{%- assign es_part = es_node.value | split: "." | last -%}{%- assign es_out = es_out | append: es_part -%}
+    {%- when "paramref", "typeparamref", "langword" -%}{%- assign es_out = es_out | append: es_node.value -%}
+  {%- endcase -%}
+{%- endfor -%}
+{%- assign es_out = es_out | split: " " | join: " " | slice: 0, 160 -%}

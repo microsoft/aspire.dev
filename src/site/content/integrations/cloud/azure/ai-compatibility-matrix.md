@@ -1,0 +1,250 @@
+---
+title: AI integrations compatibility matrix
+description: View the compatibility matrix for Aspire AI integrations including Azure OpenAI, Azure AI Inference, and IChatClient support.
+---
+
+{% image "/assets/images/icons/azure-openai-icon.png", alt: "Azure OpenAI logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+Aspire provides several AI hosting and client integrations that enable you to work with different AI services and platforms. This article is a compatibility reference showing which client integrations work with which hosting integrations, along with the recommended pairings and AppHost API examples.
+
+## Compatibility matrix
+
+The following table shows the compatibility between Aspire AI hosting and client integrations:
+
+| **Hosting Integration** | **Aspire.OpenAI** | **Aspire.Azure.AI.OpenAI** | **Aspire.Azure.AI.Inference** |
+|--|--|--|--|
+| `Aspire.Hosting.Foundry` | ⚠️ Partial — Foundry Local only (preferred) | ⚠️ Partial | ❗ Legacy |
+| `Aspire.Hosting.Azure.CognitiveServices` | ❌ No | ✅ Yes (preferred) | ❌ No |
+| `Aspire.Hosting.OpenAI` | ✅ Yes (preferred) | ✅ Yes | ❌ No |
+
+:::note[Legend]
+- ✅ **Yes**: The client integration is compatible with the hosting integration.
+- ⚠️ **Partial**: The client integration has limited model, API, or hosting-mode support.
+- ❌ **No**: The client integration does not support the hosting environment.
+- ❗ **Legacy**: The client integration remains available for existing apps but is not recommended for this pairing.
+- **(preferred)**: The recommended client integration for this hosting integration.
+:::
+
+## Recommended pairings
+
+In general, use an Aspire client integration when one supports the resource and its authentication method. Use **Aspire.OpenAI** for OpenAI-compatible resources that provide an API key, including Foundry Local. For cloud-provisioned Microsoft Foundry resources, use the OpenAI SDK directly because they authenticate with managed identity.
+
+### Microsoft Foundry
+
+For Foundry Local resources, use the **Aspire.OpenAI** client integration. It provides dependency injection and telemetry for the OpenAI-compatible endpoint and the API key that Foundry Local exposes. Cloud-provisioned Microsoft Foundry resources use managed identity, which **Aspire.OpenAI** does not support; use the OpenAI SDK directly for those resources.
+
+:::note
+**Aspire.Azure.AI.Inference** wraps the Azure AI Inference SDK, which Microsoft has retired in favor of the OpenAI SDK for calling Azure AI Foundry Models. Retain it only for existing applications that have not migrated. For cloud Foundry resources, see [Connect to Azure AI Foundry](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/#connect-with-the-openai-sdk). See Microsoft's [migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration) for details.
+:::
+
+For more information, see [Microsoft Foundry integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/).
+
+#### Hosting integration
+
+The [Aspire.Hosting.Foundry](https://www.nuget.org/packages/Aspire.Hosting.Foundry) package provides the hosting integration. In your app host project:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry("foundry").runAsFoundryLocal();
+
+const chat = await foundry.addDeployment('chat', {
+  name: 'Phi-4',
+  version: '1',
+  format: 'Microsoft',
+});
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var foundry = builder.AddFoundry("foundry")
+    .RunAsFoundryLocal();
+
+var chat = foundry.AddDeployment("chat", FoundryModel.Local.Phi4);
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(chat);
+```
+{% endtab %}
+{% endtabs %}
+
+#### Client integration
+
+For Foundry Local, the [Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) package provides the recommended client integration. For its configuration sample, see [Connect with Aspire.OpenAI](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/#connect-with-aspireopenai-foundry-local). For cloud-provisioned Foundry resources that authenticate with managed identity, use the OpenAI SDK directly as shown on that page.
+
+### Azure Cognitive Services (Azure OpenAI)
+
+For Azure OpenAI resources, use the **Aspire.Azure.AI.OpenAI** client integration for full Azure-specific features and authentication support. For more information, see [Azure OpenAI integration](/integrations/cloud/azure/azure-openai/azure-openai-get-started/).
+
+#### Hosting integration
+
+The [Aspire.Hosting.Azure.CognitiveServices](https://www.nuget.org/packages/Aspire.Hosting.Azure.CognitiveServices) package provides the hosting integration. In your app host project:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const openai = await builder.addAzureOpenAI("openai");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(openai);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddAzureOpenAI("openai");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(openai);
+```
+{% endtab %}
+{% endtabs %}
+
+#### Client integration
+
+The [Aspire.Azure.AI.OpenAI](https://www.nuget.org/packages/Aspire.Azure.AI.OpenAI) package provides the client integration. In your service project:
+
+```csharp title="Program.cs"
+builder.AddAzureOpenAIClient("openai");
+```
+
+### Direct OpenAI
+
+For direct OpenAI API access, use the **Aspire.OpenAI** client integration. For more information, see [Aspire OpenAI integration (Preview)](/integrations/ai/openai/openai-get-started/).
+
+#### Hosting integration
+
+The [Aspire.Hosting.OpenAI](https://www.nuget.org/packages/Aspire.Hosting.OpenAI) package provides the hosting integration. In your app host project:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const openai = await builder.addOpenAI("openai");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(openai);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddOpenAI("openai");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(openai);
+```
+{% endtab %}
+{% endtabs %}
+
+#### Client integration
+
+The [Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) package provides the client integration. In your service project:
+
+```csharp title="Program.cs"
+builder.AddOpenAIClient("openai");
+```
+
+## Connection string formats
+
+Understanding how hosting and client integrations communicate through connection strings can help you troubleshoot connectivity issues and understand the underlying mechanics.
+
+Each hosting integration generates connection strings in different formats that are consumed by the client integrations.
+
+### Hosting integration connection strings
+
+#### Aspire.Hosting.Foundry
+
+**Azure:**
+
+```
+Endpoint={Endpoint};EndpointAIInference={EndpointAIInference}models
+```
+
+**Foundry Local:**
+
+```
+Endpoint={EmulatorServiceUri};Key={ApiKey}
+```
+
+**Deployment:**
+
+```
+{Parent};Deployment={DeploymentName}
+```
+
+#### Aspire.Hosting.Azure.CognitiveServices
+
+**Deployment:**
+
+```
+{ConnectionString};Deployment={DeploymentName}
+```
+
+#### Aspire.Hosting.OpenAI
+
+```
+Endpoint={Endpoint};Key={Key};Model={Model}
+```
+
+### Client integration connection string requirements
+
+#### Aspire.OpenAI
+
+Expects connection strings in the format:
+
+```
+Endpoint={Endpoint};Key={Key};Deployment={Deployment};Model={Model}
+```
+
+Uses either `Deployment` or `Model` (in that order). `Deployment` is set by `Aspire.Hosting.Azure.CognitiveServices` while `Model` is set by `Aspire.Hosting.OpenAI`.
+
+#### Aspire.Azure.AI.OpenAI
+
+Expects connection strings in the format:
+
+```
+Endpoint={Endpoint};Key={Key};Deployment={Deployment};Model={Model}
+```
+
+Uses either `Deployment` or `Model` (in that order). `Deployment` is set by `Aspire.Hosting.Azure.CognitiveServices` while `Model` is set by `Aspire.Hosting.OpenAI`.
+
+This integration is a superset of `Aspire.OpenAI` and supports `TokenCredential` and Azure-specific features.
+
+#### Aspire.Azure.AI.Inference
+
+Expects connection strings in the format:
+
+```
+Endpoint={Endpoint};EndpointAIInference={EndpointAIInference};Key={Key};Deployment={DeploymentName};Model={ModelName}
+```
+
+Uses either `Deployment` or `Model` (in that order).
+
+Uses `EndpointAIInference` if available, otherwise `Endpoint`.
+
+## See also
+
+- [Azure OpenAI integration](/integrations/cloud/azure/azure-openai/azure-openai-get-started/)
+- [Azure AI Inference integration](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/)
+- [Microsoft Foundry integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/)
+- [Azure AI Search integration](/integrations/cloud/azure/azure-ai-search/azure-ai-search-get-started/)
+- [Microsoft.Extensions.AI documentation](https://learn.microsoft.com/dotnet/ai/ai-extensions)

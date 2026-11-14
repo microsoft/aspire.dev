@@ -1,0 +1,74 @@
+---
+title: Default Azure credential
+description: Learn about the default credential behavior in Aspire Azure client integrations and how to customize it in your Aspire AppHost.
+---
+
+{% image "/assets/images/icons/azure-icon.png", alt: "Azure logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+When an Aspire Azure client integration needs to authenticate with an Azure service, it uses a credential. If no credential is explicitly configured, Aspire uses a default credential that is optimized for both local development and production environments in Azure.
+
+## Default credential behavior
+
+Starting in Aspire 13.2, the default credential behavior was updated to follow [Azure SDK authentication best practices](https://learn.microsoft.com/dotnet/azure/sdk/authentication/credential-chains?tabs=dac#usage-guidance-for-defaultazurecredential) and [use deterministic credentials in production environments](https://learn.microsoft.com/dotnet/azure/sdk/authentication/best-practices#use-deterministic-credentials-in-production-environments). Rather than using the parameterless `DefaultAzureCredential` constructor, Aspire detects the runtime environment and selects the most appropriate credential:
+
+- **`AZURE_TOKEN_CREDENTIALS` is set**: When the `AZURE_TOKEN_CREDENTIALS` environment variable is present, a `DefaultAzureCredential` is created using that environment variable to [customize the credential chain](https://learn.microsoft.com/dotnet/azure/sdk/authentication/credential-chains#how-to-customize-defaultazurecredential). Aspire's Azure hosting integrations set this variable automatically to `ManagedIdentityCredential` when deploying to Azure Container Apps or Azure App Service.
+- **Running in Azure** (without `AZURE_TOKEN_CREDENTIALS`): When Aspire detects that the application is running in Azure by the presence of the `AZURE_CLIENT_ID` environment variable, it uses `ManagedIdentityCredential`. This ensures deterministic, efficient authentication in production.
+- **Local development**: When no Azure environment is detected, a `DefaultAzureCredential` configured for development is used. This credential excludes `EnvironmentCredential`, `WorkloadIdentityCredential`, and `ManagedIdentityCredential`—leaving only credentials applicable to developer machines, such as the Azure CLI, Visual Studio, or Azure Developer CLI credentials.
+
+:::caution[Breaking change in Aspire 13.2]
+This is a breaking change for anyone depending on credentials other than `ManagedIdentityCredential` working in an Azure service. For example, if your application relies on `EnvironmentCredential` or `WorkloadIdentityCredential` in an Azure-hosted environment, you need to explicitly configure the credential.
+:::
+
+## Override the default credential
+
+If you need to use a different credential in your application, you can provide your own by configuring the integration's settings. For example, to use `EnvironmentCredential` with Azure Blob Storage:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+:::note
+Credential overrides apply to .NET client integrations running in consuming apps. TypeScript consuming apps that need a non-default Azure credential should configure authentication directly using the Azure SDK for their language; the `AZURE_TOKEN_CREDENTIALS` environment variable set by the AppHost still governs the default credential chain for all runtimes.
+:::
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="Program.cs"
+builder.AddAzureBlobServiceClient(
+    "blobs",
+    settings =>
+    {
+        settings.Credential = new EnvironmentCredential();
+    });
+```
+
+Each Aspire Azure client integration exposes a `Credential` property in its settings that you can set to any `TokenCredential` instance.
+{% endtab %}
+{% endtabs %}
+
+## Reuse the credential in custom code
+
+Integrations and AppHost code outside of `Aspire.Hosting.Azure`—for example, a pipeline step, lifecycle hook, or custom resource—can resolve the same `TokenCredential` that Aspire's Azure hosting integrations use for provisioning and Azure API calls. Resolve `ITokenCredentialProvider` from dependency injection and read its `TokenCredential` property:
+
+```csharp
+using Aspire.Hosting.Azure;
+using Azure.Core;
+using Azure.ResourceManager;
+using Microsoft.Extensions.DependencyInjection;
+
+// e.g. inside a pipeline step, lifecycle hook, or custom resource:
+var provider = serviceProvider.GetRequiredService<ITokenCredentialProvider>();
+TokenCredential credential = provider.TokenCredential;
+
+// Use the credential with any Azure SDK client.
+var armClient = new ArmClient(credential);
+```
+
+`ITokenCredentialProvider` is registered as a singleton by {% api "Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" %}. Azure resource extension methods invoke `AddAzureProvisioning`, so using those methods registers the provider indirectly. The credential it exposes is configured by the same Azure provisioning options (tenant ID, credential source, and so on) and matched to the current run or publish execution context, as described in [Default credential behavior](#default-credential-behavior).
+
+Treat the returned `TokenCredential` as opaque because its concrete type is an implementation detail that may change between releases; do not rely on casts or type checks.
+
+You can also replace the `ITokenCredentialProvider` registration with your own implementation if you want to plug in a custom credential for all consumers.
+
+## See also
+
+- [How to customize DefaultAzureCredential](https://learn.microsoft.com/dotnet/azure/sdk/authentication/credential-chains#how-to-customize-defaultazurecredential)
+- [Azure SDK credential chains](https://learn.microsoft.com/dotnet/azure/sdk/authentication/credential-chains?tabs=dac#usage-guidance-for-defaultazurecredential)
+- [Azure SDK authentication best practices](https://learn.microsoft.com/dotnet/azure/sdk/authentication/best-practices?tabs=aspdotnet#use-deterministic-credentials-in-production-environments)

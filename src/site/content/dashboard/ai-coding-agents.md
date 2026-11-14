@@ -1,0 +1,195 @@
+---
+title: Debug app failures with AI coding agents
+description: Investigate a local request failure using the same application logs, traces, and resource health in the Aspire dashboard and coding-agent CLI or MCP tools.
+---
+
+Give a coding agent the same application evidence you inspect in the Aspire dashboard: resource status and health, console output, structured logs, and distributed traces. Use it to diagnose local request failures and verify fixes, not to monitor the agent's reasoning or token usage. Start with [Aspire skills](/get-started/aspire-skills/) and the [Aspire CLI](/reference/cli/overview/); the [MCP server](/get-started/aspire-mcp-server/) is optional.
+
+## How agents use dashboard data
+
+When an Aspire app is running, the dashboard receives OpenTelemetry from instrumented applications and resource information from the AppHost. AI coding agents access this data through two channels:
+
+- **Aspire CLI** — Commands like [`aspire logs`](/reference/cli/commands/aspire-logs/), [`aspire otel logs`](/reference/cli/commands/aspire-otel-logs/), [`aspire otel traces`](/reference/cli/commands/aspire-otel-traces/), and [`aspire describe`](/reference/cli/commands/aspire-describe/) retrieve resource status, console logs, and telemetry directly from the terminal. All commands support `--format Json` for structured output that agents can parse.
+- **Aspire MCP server** — The [MCP server](/get-started/aspire-mcp-server/) exposes tools such as `list_resources`, `list_structured_logs`, `list_traces`, and `list_console_logs` that agents call directly through the Model Context Protocol.
+
+Both channels draw from the same underlying dashboard data. Whether an agent reads logs via the CLI or through MCP tools, it sees the same information as the dashboard UI.
+
+### Typical agent workflow
+
+The following workflow is an example — [Aspire skills](/get-started/aspire-skills/) teach agents the best patterns to run and debug Aspire apps automatically. A typical agent-driven debugging session looks like this:
+
+{% steps %}
+1. The agent starts the Aspire app with `aspire start` and waits for resources to become healthy with `aspire wait`.
+1. The agent runs `aspire describe` to check resource status and identify any unhealthy services.
+1. The agent fetches structured logs with `aspire otel logs` or the `list_structured_logs` MCP tool, filtering by resource name to find errors.
+1. The agent retrieves distributed traces with `aspire otel traces` to understand cross-service request flow and identify latency issues.
+1. Using the collected data, the agent makes code changes, restarts the affected resource, and verifies the fix by checking logs and traces again.
+{% endsteps %}
+
+## Investigate one failed request together
+
+This exercise uses the existing [FastAPI weather sample](https://github.com/microsoft/aspire-samples/tree/383d5d025b53ac37cd4dd86f50a036ccf39f76f5/samples/aspire-with-python), pinned to revision `383d5d0`. It runs a Python API named `app`, Redis named `cache`, and a React frontend. The sample uses a C# AppHost; the inspection commands also work with TypeScript AppHosts.
+
+Use a separate local copy of the [pinned sample source](https://github.com/microsoft/aspire-samples/archive/383d5d025b53ac37cd4dd86f50a036ccf39f76f5.zip), not an application someone else is using. Follow the sample's prerequisites: the Aspire CLI, .NET 10 SDK, Python 3.13 or later, Node.js 22.21.1 or later, and a running container runtime. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) for the Python package setup. Keep dashboard authentication enabled and don't share login tokens or runtime credentials with the agent.
+
+{% steps %}
+1. Open a terminal in the sample's `aspire-with-python` directory and start an isolated instance:
+
+   ```bash title="Start only the sample AppHost"
+   aspire start --apphost apphost.cs --isolated
+   aspire wait app --apphost apphost.cs
+   aspire describe app --apphost apphost.cs --format Json
+   ```
+
+   Open the dashboard login URL printed by `aspire start`. Find the `app` endpoint on **Resources**, then visit `/api/weatherforecast` at that endpoint. The baseline request returns HTTP 200 and five synthetic forecasts. If your terminal doesn't resolve the generated `.dev.localhost` hostname, use the `localhost` endpoint alias in `aspire describe`.
+
+1. In the `app` directory's `main.py`, temporarily change `random.randint(-20, 55)` to `random.randint(55, -20)`. This reverses the valid temperature range. Restart only the Python resource:
+
+   ```bash title="Restart the sample API"
+   aspire resource app restart --apphost apphost.cs
+   aspire wait app --apphost apphost.cs
+   ```
+
+   Wait for the sample's five-second forecast cache to expire, then request `/api/weatherforecast` again. It returns HTTP 500 even though `app` is running and its `/health` check passes.
+
+1. Investigate as a human. In **Console**, select `app` and find the `ValueError` stack trace pointing to `random.randint(55, -20)`. In **Traces**, open `GET /api/weatherforecast` at the failure's timestamp. Its server span has error status and HTTP 500; the Redis `GET` span succeeds. Copy the trace ID so the agent can inspect this exact request, rather than an unrelated health-check trace.
+
+   The exception is in Uvicorn's console output. Don't assume every console line is also exported as a structured OpenTelemetry log.
+
+1. Ask the coding agent to investigate the same evidence:
+
+   > In this sample directory, use `apphost.cs` to inspect the failed weather request with trace ID `<trace-id>` and the `app` console logs. Explain why the health check passes, propose the smallest fix, and verify the same request after the fix.
+
+   The agent can query the same resource, console output, and trace:
+
+   ```bash title="Query the evidence shown in the dashboard"
+   aspire describe app --apphost apphost.cs --format Json
+   aspire logs app --apphost apphost.cs --format Json
+   aspire otel traces app --apphost apphost.cs --has-error true --format Json
+   aspire otel traces --apphost apphost.cs --trace-id "<trace-id>" --format Json
+   ```
+
+   Replace `<trace-id>` with the ID from the dashboard. With optional MCP setup, `list_resources`, `list_console_logs`, and `list_traces` provide the corresponding evidence.
+
+1. Restore `random.randint(-20, 55)`, restart `app` with the commands above, and repeat `/api/weatherforecast`. Confirm HTTP 200 and five forecasts. In **Traces**, inspect the new request, or query it:
+
+   ```bash title="Verify the new weather request"
+   aspire otel traces app --apphost apphost.cs --search "name:weatherforecast" --limit 1 --format Json
+   ```
+
+   The new trace has no error. Old failed traces remain in the dashboard; success means the repeated request now works, not that error history disappears. Stop only this sample when you're finished:
+
+   ```bash title="Stop the sample AppHost"
+   aspire stop --apphost apphost.cs
+   ```
+{% endsteps %}
+
+## Get started
+
+The fastest way to set up AI coding agents with Aspire is the `aspire agent init` command. See [Use AI coding agents](/get-started/ai-coding-agents/) for the full setup guide, including skill files, MCP server configuration, and supported AI assistants.
+
+## Standalone mode
+
+The Aspire CLI and MCP server can query telemetry from the [standalone dashboard](/dashboard/standalone/) without an AppHost. This works with applications configured to send OTLP data, including [Python](/dashboard/standalone-for-python/) and [Node.js](/dashboard/standalone-for-nodejs/). Standalone telemetry doesn't provide AppHost process health or lifecycle commands.
+
+### Start the standalone dashboard
+
+Start the dashboard using the Aspire CLI:
+
+```bash title="Aspire CLI"
+aspire dashboard run
+```
+
+The dashboard starts with the following defaults:
+
+- **Frontend UI** at `http://localhost:18888`
+- **OTLP/gRPC** endpoint at `http://localhost:4317`
+- **OTLP/HTTP** endpoint at `http://localhost:4318`
+
+Keep the default browser-token authentication. The CLI prints a login URL; use it locally and don't commit or share its token. See [Dashboard security considerations](/dashboard/security-considerations/).
+
+### Use Aspire CLI with the standalone dashboard
+
+Pass the full login URL through `--dashboard-url` to point CLI commands at the standalone dashboard. The CLI exchanges the browser token for an API key:
+
+```bash title="Aspire CLI"
+aspire otel logs --dashboard-url "http://localhost:18888/login?t=<token>"
+aspire otel traces --dashboard-url "http://localhost:18888/login?t=<token>"
+aspire otel spans --dashboard-url "http://localhost:18888/login?t=<token>"
+```
+
+### Use Aspire MCP with the standalone dashboard
+
+The MCP command doesn't exchange the browser token from a dashboard login URL. To use dashboard-only MCP with authentication, start the dashboard with an explicit telemetry API key:
+
+```bash title="Aspire CLI"
+aspire dashboard run --Dashboard:Api:AuthMode=ApiKey --Dashboard:Api:PrimaryApiKey="<api-key>"
+```
+
+Then start the MCP server in a separate terminal with the dashboard base URL and the same key:
+
+```bash title="Aspire CLI"
+aspire agent mcp --dashboard-url "http://localhost:18888" --api-key "<api-key>"
+```
+
+This exposes the dashboard's telemetry tools to an MCP-compatible AI assistant, not the AppHost's resource-management tools.
+
+Use a high-entropy key and don't commit or share it. Configuration is required in the agent to use the MCP server. For configuration details, see [Aspire MCP server configuration](/get-started/aspire-mcp-server/#configuration). For telemetry API security details, see [Secure the telemetry API endpoint](/dashboard/security-considerations/#telemetry-api-endpoint).
+
+### Sample skill for standalone dashboard
+
+The following is a sample skill file that teaches an AI coding agent how to start the standalone dashboard and query its data. Save it as `.github/skills/aspire-standalone/SKILL.md` (for GitHub Copilot) or `.claude/skills/aspire-standalone/SKILL.md` (for Claude Code):
+
+````markdown title="SKILL.md"
+---
+name: aspire-standalone
+description: Use the Aspire standalone dashboard for observability. Start the dashboard, send telemetry, and query logs and traces with the Aspire CLI.
+---
+
+# Aspire Standalone Dashboard
+
+## Start the dashboard
+
+```bash
+aspire dashboard run
+```
+
+The dashboard UI is at http://localhost:18888.
+Apps should send OpenTelemetry to http://localhost:4317 (gRPC) or http://localhost:4318 (HTTP).
+Keep authentication enabled and use the login URL printed by the CLI.
+
+## Query telemetry
+
+View structured logs:
+
+```bash
+aspire otel logs --dashboard-url "http://localhost:18888/login?t=<token>"
+```
+
+View distributed traces:
+
+```bash
+aspire otel traces --dashboard-url "http://localhost:18888/login?t=<token>"
+```
+
+View trace spans:
+
+```bash
+aspire otel spans --dashboard-url "http://localhost:18888/login?t=<token>"
+```
+
+## Rules
+
+- Check whether the dashboard is already running before starting it.
+- Replace <token> with the local login token; never commit or include it in reports.
+- Use `--format Json` with CLI commands when you need to parse the output.
+- Check `aspire otel logs` for errors after making code changes.
+- Use `aspire otel traces` to investigate cross-service latency.
+````
+
+## See also
+
+- [Use AI coding agents](/get-started/ai-coding-agents/) — full setup guide with `aspire agent init`
+- [Aspire MCP server](/get-started/aspire-mcp-server/) — MCP tools, security, and troubleshooting
+- [Standalone Aspire dashboard](/dashboard/standalone/) — running the dashboard without an AppHost
+- [Aspire CLI reference](/reference/cli/overview/)

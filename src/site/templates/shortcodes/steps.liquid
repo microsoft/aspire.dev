@@ -1,0 +1,19 @@
+---
+# Starlight's <Steps> (user-components/Steps.astro + rehype-steps.ts): {% steps %}1. One\n2. Two{% endsteps %}.
+# The body must be a single ordered list. As rehype-steps does: role="list" and the class sl-steps on the list, and
+# its `start` attribute as `--sl-steps-start: <start - 1>`. Starlight's Steps styles are global (no scope needed);
+# the list also carries cid-sl-steps.
+block: true
+params: []
+---
+{%- assign steps_body = body | strip -%}
+{%- assign steps_parts = steps_body | split: '<ol start="' -%}
+{%- assign steps_style = "" -%}
+{%- if steps_parts.size > 1 -%}
+  {%- unless steps_parts[0] contains "<ol" -%}
+    {%- assign steps_start = steps_parts[1] | split: '"' | first | plus: 0 | minus: 1 -%}
+    {%- capture steps_style %} style="--sl-steps-start: {{ steps_start }}"{% endcapture -%}
+  {%- endunless -%}
+{%- endif -%}
+{%- capture steps_open %}<ol class="sl-steps cid-sl-steps" role="list"{{ steps_style }}{% endcapture -%}
+{{ steps_body | replace_first: "<ol", steps_open }}

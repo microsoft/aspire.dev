@@ -1,0 +1,73 @@
+---
+title: Compiler Warning ASPIREUSERSECRETS001
+seoTitle: "ASPIREUSERSECRETS001: The user secrets manager APIs are"
+description: Learn what causes the Aspire compiler warning ASPIREUSERSECRETS001 — the user secrets manager APIs are experimental and subject to change.
+---
+
+{% badge "Version introduced: 13.1", variant: "note", size: "large", class: "mb-1" %}
+
+> User secrets manager types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental `IUserSecretsManager` interface and related user secrets management APIs. These APIs provide centralized management of user secrets for Aspire applications, enabling secure storage and retrieval of sensitive configuration values.
+
+The `IUserSecretsManager` interface provides user secrets management functionality for Aspire:
+
+- **Secret storage**: Save sensitive values like API keys and passwords outside source control
+- **Secret retrieval**: Read secrets from the user secrets file
+- **Configuration integration**: Automatically populate configuration from secrets
+- **State management**: Support for saving deployment state to user secrets
+
+This API is experimental because the user secrets management strategy is being refined based on security requirements and usage patterns, and the interface may evolve to support additional secret management scenarios.
+
+## Example
+
+The following code generates `ASPIREUSERSECRETS001`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Using IUserSecretsManager
+var userSecretsManager = builder.UserSecretsManager;
+var filePath = userSecretsManager.FilePath;
+bool success = userSecretsManager.TrySetSecret("MySecret", "SecretValue");
+```
+
+### Related types
+
+- **`IUserSecretsManager`**: Interface for managing user secrets
+- **`UserSecretsManager`**: Default implementation managing secrets file operations
+- **`UserSecretsManagerFactory`**: Factory for creating and caching manager instances
+- **`FilePath`**: Gets the path to the user secrets JSON file
+- **{% api "Aspire.Hosting.IUserSecretsManager.TrySetSecret" %}**: Attempts to set a secret value in user secrets
+- **{% api "Aspire.Hosting.IUserSecretsManager.GetOrSetSecret" %}**: Gets a secret from configuration or generates and saves a new value
+- **`SaveStateAsync()`**: Saves deployment state to user secrets asynchronously
+
+## To correct this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREUSERSECRETS001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREUSERSECRETS001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREUSERSECRETS001` directive:
+
+  ```csharp title="Suppressing the warning"
+  #pragma warning disable ASPIREUSERSECRETS001
+  var userSecretsManager = builder.UserSecretsManager;
+  bool success = userSecretsManager.TrySetSecret("MySecret", "SecretValue");
+  #pragma warning restore ASPIREUSERSECRETS001
+  ```

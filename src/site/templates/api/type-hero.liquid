@@ -1,0 +1,66 @@
+{%- comment -%}
+  TypeHero.astro with what csharp/[package]/[type]/index.astro computes for it: kind label, modifier badges,
+  obsolete and experimental asides, the signature (type-signature), the inheritance chain, the implemented
+  interfaces and the source link. Inputs: type, pkg, diagnostics_href (the "Learn more" link of an experimental
+  type, when its diagnostic has a page). Root class: cid-api-reference-type-hero.
+{%- endcomment -%}
+{%- case type.kind -%}
+  {%- when "class" -%}{%- assign th_kind = "Class" -%}
+  {%- when "struct" -%}{%- assign th_kind = "Struct" -%}
+  {%- when "interface" -%}{%- assign th_kind = "Interface" -%}
+  {%- when "enum" -%}{%- assign th_kind = "Enum" -%}
+  {%- when "delegate" -%}{%- assign th_kind = "Delegate" -%}
+  {%- when "record" -%}{%- assign th_kind = "Record" -%}
+  {%- when "record struct" -%}{%- assign th_kind = "Record Struct" -%}
+  {%- else -%}{%- assign th_kind = type.kind -%}
+{%- endcase -%}
+{%- assign th_sealed_kind = true -%}
+{%- if type.kind == "enum" or type.kind == "delegate" or type.kind == "struct" or type.kind == "record struct" -%}{%- assign th_sealed_kind = false -%}{%- endif -%}
+{%- comment -%} api/find-attr, inline: a rendered template cannot include. {%- endcomment -%}
+{%- assign th_obsolete = nil -%}{%- assign th_experimental = nil -%}
+{%- for fa_a in type.attributes -%}{%- assign fa_short = fa_a.name | split: "." | last -%}{%- case fa_short -%}{%- when "Obsolete", "ObsoleteAttribute" -%}{%- unless th_obsolete -%}{%- assign th_obsolete = fa_a -%}{%- endunless -%}{%- when "Experimental", "ExperimentalAttribute" -%}{%- unless th_experimental -%}{%- assign th_experimental = fa_a -%}{%- endunless -%}{%- endcase -%}{%- endfor -%}
+{%- assign th_source = nil -%}
+{%- if pkg.package.sourceRepository and pkg.package.sourceCommit -%}
+  {%- if type.sourceFile -%}{%- assign th_source = pkg.package.sourceRepository | append: "/blob/" | append: pkg.package.sourceCommit | append: "/" | append: type.sourceFile -%}
+  {%- else -%}{%- assign th_source = pkg.package.sourceRepository | append: "/tree/" | append: pkg.package.sourceCommit -%}{%- endif -%}
+{%- endif -%}
+{%- assign th_has_base = false -%}
+{%- if type.baseType and type.baseType != "System.Object" -%}{%- assign th_has_base = true -%}{%- endif -%}
+<div class="api-hero type-hero not-content cid-api-reference-type-hero"><div class="type-hero-top"><div class="type-hero-badges"><span class="api-kind-pill kind-{{ type.kind | replace: ' ', '-' }}">{{ th_kind }}</span>
+{%- if type.isAbstract %}<span class="api-mod-badge">abstract</span>{% endif -%}
+{%- if type.isStatic %}<span class="api-mod-badge">static</span>{% endif -%}
+{%- if type.isSealed and th_sealed_kind %}<span class="api-mod-badge">sealed</span>{% endif -%}
+{%- if type.isReadOnly %}<span class="api-mod-badge">readonly</span>{% endif -%}
+{%- if type.accessibility and type.accessibility != "public" %}<span class="api-mod-badge">{{ type.accessibility }}</span>{% endif -%}
+<span class="type-hero-framework">{{ pkg.package.targetFramework }}</span></div></div><span class="type-hero-pkg">📦 {{ pkg.package.name }} <span class="type-hero-ver">v{{ pkg.package.version }}</span></span>
+{%- if type.docs.summary %}<div class="api-hero-summary type-hero-summary">{% render 'api/doc-content', content: type.docs.summary %}</div>{% endif -%}
+{%- if th_obsolete -%}
+<aside class="api-obsolete-aside"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div><strong>Obsolete</strong>{% if th_obsolete.constructorArguments[0] %}<span> — {{ th_obsolete.constructorArguments[0] }}</span>{% endif %}</div></aside>
+{%- endif -%}
+{%- if th_experimental -%}
+<aside class="api-experimental-aside"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16.5h10"/></svg><div><strong>Experimental</strong>{% if th_experimental.constructorArguments[0] %}<span> — {{ th_experimental.constructorArguments[0] }}</span>{% endif %}{% if diagnostics_href %}<span> · <a href="{{ diagnostics_href }}">Learn more</a></span>{% endif %}</div></aside>
+{%- endif -%}
+{%- render 'api/type-signature', type: type -%}
+<div class="type-hero-footer">
+{%- if th_has_base or type.interfaces.size > 0 -%}
+<div class="type-hero-footer-left">
+{%- if th_has_base -%}
+  {%- capture th_href %}{% render 'api/type-href', t: type.baseType, exact: true %}{% endcapture -%}
+<div class="type-hero-inherit"><span class="api-meta-label type-hero-section-label">Inherits</span><div class="inherit-chain">
+{%- if th_href != "" -%}<a href="{{ th_href }}" class="api-type-link">{% render 'api/short-type', t: type.baseType %}</a>{%- else -%}<span class="chain-current">{% render 'api/short-type', t: type.baseType %}</span>{%- endif -%}
+<span class="chain-arrow">→</span><span class="chain-current">{% render 'api/type-display', t: type %}</span></div></div>
+{%- endif -%}
+{%- if type.interfaces.size > 0 -%}
+<div class="type-hero-implements"><span class="api-meta-label type-hero-section-label">Implements</span><ul class="impl-list">
+{%- for i in type.interfaces -%}
+  {%- capture th_href %}{% render 'api/type-href', t: i, exact: true %}{% endcapture -%}
+<li>{% if th_href != "" %}<a href="{{ th_href }}" class="api-type-link">{% render 'api/short-type', t: i %}</a>{% else %}<span class="muted">{% render 'api/short-type', t: i %}</span>{% endif %}</li>
+{%- endfor -%}
+</ul></div>
+{%- endif -%}
+</div>
+{%- endif -%}
+{%- if th_source -%}
+<a href="{{ th_source }}" target="_blank" rel="noopener noreferrer" class="api-source-link type-hero-source" title="View source on GitHub"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>Source</a>
+{%- endif -%}
+</div></div>

@@ -1,0 +1,16 @@
+---
+# The site's <LoopingImage> (src/components/LoopingImage.astro), an animated image (GIF) with a pause button:
+#   {% looping_image light: "/assets/images/x-light.gif", dark: "/assets/images/x-dark.gif", alt: "..." %}
+#   {% looping_image src: "/assets/images/x.gif", alt: "..." %}
+# Images are copied by the image_url filter (fingerprinted); width and height are the dark (or only) image's. The client
+# script (scripts/client/content/looping-image.ts) loads the themed source, draws the paused frame on the canvas and
+# wires the toggle. The id ties the parts of one instance together (the component used a random UUID).
+# Root class: cid-looping-image.
+display: block
+params: [src, light, dark, alt]
+---
+{%- assign li_main = src | default: dark -%}
+{%- assign li_size = li_main | image_size -%}
+{%- assign li_uid = li_main | append: alt | sha256 | slice: 0, 32 -%}
+<div class="looping-image-wrapper not-content cid-looping-image" data-looping-image-id="{{ li_uid }}"{% if light %} data-themed-animation{% endif %}><img class="looping-image-placeholder" data-looping-image-id="{{ li_uid }}" data-width="{{ li_size.width }}" data-height="{{ li_size.height }}" alt="" aria-hidden="true" width="{{ li_size.width }}" height="{{ li_size.height }}"><img class="looping-image"{% if src %} src="{{ src | image_url }}"{% endif %}{% if light %} data-light-src="{{ light | image_url }}"{% endif %}{% if dark %} data-dark-src="{{ dark | image_url }}"{% endif %} alt="{{ alt | escape }}" data-looping-image-id="{{ li_uid }}" width="{{ li_size.width }}" height="{{ li_size.height }}"><canvas class="looping-image-canvas not-content" data-looping-image-id="{{ li_uid }}" style="display: none;"></canvas><button type="button" class="looping-image-toggle" aria-label="Pause animation" data-state="playing" data-looping-image-id="{{ li_uid }}" style="display: none;"><span class="icon icon-pause" aria-hidden="true">{% include "partials/home/svg/pause", svg_width: "80", svg_height: "80", svg_class: nil, svg_aria_hidden: nil, svg_focusable: nil, svg_viewBox: nil %}</span><span class="icon icon-play" aria-hidden="true">{% include "partials/home/svg/play", svg_width: "80", svg_height: "80", svg_class: nil, svg_aria_hidden: nil, svg_focusable: nil, svg_viewBox: nil %}</span><span class="sr-only">Pause animation</span></button></div>
+{%- if light -%}<noscript><style>.looping-image-wrapper[data-themed-animation] { display: none; }</style><img class="looping-image-fallback cid-looping-image" src="{{ light | image_url }}" alt="{{ alt | escape }}" width="{{ li_size.width }}" height="{{ li_size.height }}"></noscript>{%- endif -%}

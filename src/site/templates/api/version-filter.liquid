@@ -1,0 +1,36 @@
+{%- comment -%}
+  VersionFilter.astro: the version dropdown with a checkbox per version, stable versions first, then by version
+  descending (prereleases of one core version by their suffix ascending, the Astro component sorts them
+  descending; no current data has two). Inputs: id, versions (array), label (default Versions). Root class:
+  cid-api-reference-version-filter.
+{%- endcomment -%}
+{%- assign vf_label = label | default: "Versions" -%}
+{%- assign vf_id = id | append: "-version-filter" -%}
+{%- assign vf_keys = "" -%}
+{%- for v in versions -%}
+  {%- assign vf_core = v | split: "-" | first -%}
+  {%- assign vf_pre_start = vf_core.size | plus: 1 -%}
+  {%- assign vf_pre = v | slice: vf_pre_start, v.size -%}
+  {%- assign vf_parts = vf_core | split: "." -%}
+  {%- if vf_pre != "" -%}{%- assign vf_key = "1" -%}{%- else -%}{%- assign vf_key = "0" -%}{%- endif -%}
+  {%- for i in (0..2) -%}
+    {%- assign vf_num = vf_parts[i] | default: 0 | plus: 0 -%}
+    {%- assign vf_inv = 99999 | minus: vf_num | prepend: "0000" | slice: -5, 5 -%}
+    {%- assign vf_key = vf_key | append: vf_inv -%}
+  {%- endfor -%}
+  {%- assign vf_entry = vf_key | append: vf_pre | append: "§" | append: v -%}
+  {%- if vf_keys == "" -%}{%- assign vf_keys = vf_entry -%}{%- else -%}{%- assign vf_keys = vf_keys | append: "¦" | append: vf_entry -%}{%- endif -%}
+{%- endfor -%}
+{%- assign vf_sorted_keys = vf_keys | split: "¦" | sort -%}
+{%- assign vf_list = "" -%}
+{%- for k in vf_sorted_keys -%}{%- if k != "" -%}{%- assign vf_v = k | split: "§" | last -%}{%- if vf_list == "" -%}{%- assign vf_list = vf_v -%}{%- else -%}{%- assign vf_list = vf_list | append: "¦" | append: vf_v -%}{%- endif -%}{%- endif -%}{%- endfor -%}
+{%- assign vf_sorted = vf_list | split: "¦" -%}
+<div class="version-filter cid-api-reference-version-filter" id="{{ vf_id }}" data-versions="{{ vf_sorted | json | escape }}"><button type="button" class="version-filter-btn" id="{{ vf_id }}-btn" aria-expanded="false" aria-controls="{{ vf_id }}-dropdown" aria-label="{{ vf_label }}: {{ vf_sorted.size }} available"><svg class="version-filter-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg><span class="version-filter-label">{{ vf_label }}</span><span class="version-filter-count" id="{{ vf_id }}-count">{{ vf_sorted.size }}/{{ vf_sorted.size }}</span><svg class="version-filter-chevron" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button><div class="version-filter-dropdown" id="{{ vf_id }}-dropdown" role="group" aria-label="Version selection"><label class="version-filter-item version-filter-all"><input type="checkbox" class="version-filter-cb" data-version="__all__" checked><span class="version-filter-check"></span><span class="version-filter-text">Select all</span></label><div class="version-filter-divider"></div>
+{%- assign vf_prev_stable = false -%}
+{%- for v in vf_sorted -%}
+  {%- if v contains "-" -%}{%- assign vf_is_pre = true -%}{%- else -%}{%- assign vf_is_pre = false -%}{%- endif -%}
+  {%- if vf_is_pre and vf_prev_stable -%}<div class="version-filter-divider"></div>{%- endif -%}
+<label class="version-filter-item" data-version="{{ v }}"><input type="checkbox" class="version-filter-cb" data-version="{{ v }}" checked><span class="version-filter-check"></span><span class="version-filter-text"><code>{{ v }}</code></span>{% if vf_is_pre %}<span class="version-filter-tag">preview</span>{% endif %}</label>
+  {%- if vf_is_pre -%}{%- assign vf_prev_stable = false -%}{%- else -%}{%- assign vf_prev_stable = true -%}{%- endif -%}
+{%- endfor -%}
+</div></div>

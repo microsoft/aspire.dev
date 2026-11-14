@@ -1,0 +1,84 @@
+---
+title: aspire mcp call command
+description: Learn about the aspire mcp call command and its usage. This command calls an MCP tool on a running resource.
+---
+
+## Name
+
+`aspire mcp call` - Call an <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> tool on a running resource.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire mcp call <resource> <tool> [options]
+```
+
+## Description
+
+The `aspire mcp call` command calls an MCP tool exposed by a resource in a running AppHost. Use `aspire mcp tools` first if you need to discover the available resources and tool names.
+
+When executed without the `--apphost` option, the command:
+
+{% steps %}
+1. Scans for all running AppHost processes.
+2. If multiple AppHosts are running within the current directory scope, prompts you to select which one to target.
+3. If only one AppHost is running in scope, connects to it directly.
+4. If no in-scope AppHosts are found but out-of-scope AppHosts exist, displays all running AppHosts for selection.
+{% endsteps %}
+
+## Arguments
+
+- **`<resource>`**
+
+  The name of the resource that exposes the MCP tool.
+
+- **`<tool>`**
+
+  The name of the MCP tool to call.
+
+## Options
+
+The following options are available:
+
+- **`-i, --input <input>`**
+
+  JSON input to pass to the tool.
+
+- {% include_markdown "reference/cli/includes/option-project.md" %}
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Examples
+
+- Call a tool on a running resource:
+
+  ```bash title="Aspire CLI"
+  aspire mcp call myresource mytool
+  ```
+
+- Pass JSON input to the tool call:
+
+  ```bash title="Aspire CLI"
+  aspire mcp call myresource mytool --input '{"message":"hello"}'
+  ```
+
+- Target a specific AppHost project:
+
+  ```bash title="Aspire CLI"
+  aspire mcp call myresource mytool --apphost './src/MyApp.AppHost/MyApp.AppHost.csproj'
+  ```
+
+## See also
+
+- [aspire mcp](../aspire-mcp/)
+- [aspire mcp tools](../aspire-mcp-tools/)

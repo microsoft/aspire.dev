@@ -1,0 +1,739 @@
+---
+title: Set up MongoDB in the AppHost
+seoTitle: "Set up MongoDB in the Aspire AppHost: hosting integration"
+description: Learn how to use the Aspire MongoDB Hosting integration to orchestrate and configure a MongoDB database in an Aspire solution.
+---
+
+{% image "/assets/images/icons/mongodb-icon.png", alt: "MongoDB logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire MongoDB Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model MongoDB server and database resources in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the MongoDB integration, start with the [Get started with MongoDB integrations](/integrations/databases/mongodb/mongodb-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to MongoDB](../mongodb-connect/).
+
+## Installation
+
+To start building an Aspire app that uses MongoDB, install the [📦 Aspire.Hosting.MongoDB](https://www.nuget.org/packages/Aspire.Hosting.MongoDB) NuGet package:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add mongodb
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+This updates your `aspire.config.json` with the MongoDB hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.MongoDB": "%ASPIRE_VERSION%"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add mongodb
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.MongoDB@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.MongoDB" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+## Add MongoDB server resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a MongoDB server resource and then add a database resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withLifetime("Persistent");
+
+const mongodb = await mongo.addDatabase("mongodb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mongodb)
+    .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mongodb)
+    .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/library/mongo` image, it creates a new MongoDB server on your local machine. A reference to your MongoDB resource builder (the `mongo` variable) is used to add a database. The database is named `mongodb` and then referenced in the consuming project.
+
+The MongoDB server resource includes default credentials:
+
+- `MONGO_INITDB_ROOT_USERNAME`: A value of `admin`
+- `MONGO_INITDB_ROOT_PASSWORD`: A randomly generated password stored in the AppHost's secret store under `Parameters:mongo-password`
+
+:::note
+The MongoDB container can be slow to start, so it's best to use a persistent lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+:::
+
+:::tip
+If you'd rather connect to an existing MongoDB server, call {% api "Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" %} instead. For more information, see [Reference existing resources](/get-started/resources/).
+:::
+
+:::note
+When you reference a MongoDB resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, and port numbers. For a complete list of these properties and per-language connection examples, see [Connect to MongoDB](../mongodb-connect/).
+:::
+
+{% container_images package: "Aspire.Hosting.MongoDB", only: "MongoDB" %}
+
+## Automatic TLS and migration from earlier versions
+
+Starting in **Aspire 13.6**, MongoDB participates in Aspire's shared certificate configuration during local runs. This applies to ordinary {% api "Aspire.Hosting.MongoDBBuilderExtensions.AddMongoDB" %} resources, **not just replica sets**. When a certificate is configured and available, normally the ASP.NET Core developer certificate under the default settings, Aspire starts MongoDB with `--tlsMode requireTLS` and adds `tls=true` to its generated connection string. Without an available configured certificate, the standalone server uses plaintext.
+
+Existing clients that connected without TLS can stop working after upgrading. Use the **complete Aspire-generated connection string**, such as the `MONGODB_URI` environment variable for a database resource named `mongodb`, rather than rebuilding a URI from `Host` and `Port`. The generated URI preserves TLS and other connection options, but clients still need to validate the server certificate.
+
+### Certificate trust and hostname validation
+
+A successful TLS connection requires both:
+
+- **Certificate trust**: The client trusts the server certificate or its issuing certificate authority.
+- **Hostname validation**: The hostname used to connect matches a name in the server certificate.
+
+A client running directly on the host can connect through the generated `localhost` endpoint using the developer certificate, provided the client's runtime trusts that certificate. A client running in a container typically reaches MongoDB by its resource name, such as `mongo`. That name isn't covered by the default developer certificate, so trusting the certificate alone doesn't fix the hostname mismatch.
+
+For container-to-container TLS, configure a server certificate whose subject alternative names cover the actual connection hostnames, and configure the client to trust its issuing authority. C# AppHosts can supply a custom certificate with `WithHttpsCertificate`; this API isn't available in TypeScript AppHosts. Alternatively, run the consuming app directly on the host with a trusted localhost certificate, or explicitly choose the local-development opt-out below for a standalone or simple single-member server. Don't use disabled certificate or hostname validation as a general migration solution.
+
+{% learnmore %}
+See [Certificate configuration](/app-host/certificate-configuration/) for
+developer-certificate trust and custom server certificates.
+{% endlearnmore %}
+
+### Opt out for one local MongoDB server
+
+If you need plaintext connections for local development, opt out on the MongoDB resource rather than changing certificate defaults for the whole AppHost:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withoutHttpsCertificate();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIRECERTIFICATES001
+var mongo = builder.AddMongoDB("mongo")
+    .WithoutHttpsCertificate();
+#pragma warning restore ASPIRECERTIFICATES001
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The certificate API is experimental and reports [ASPIRECERTIFICATES001](/diagnostics/aspirecertificates001/) in C#. This opt-out also works when the server uses the [simple single-member replica-set configuration](#enable-transactions-and-change-streams-with-a-single-member-replica-set): configure {% api "Aspire.Hosting.MongoDBBuilderExtensions.WithReplicaSet" %} on the same server. That path doesn't require TLS.
+
+:::caution
+This opt-out disables transport encryption. Use it only as an explicit local-development choice, not as a production security configuration. Don't apply it to members of an advanced `AddMongoDBReplicaSet(...).WithMember(...)` configuration, which requires TLS.
+:::
+
+### Allow plaintext and TLS clients
+
+To accept both plaintext and TLS connections while retaining the server's certificate configuration, select `PreferTls`:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder, MongoDBTlsMode } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withTlsMode({ mode: MongoDBTlsMode.PreferTls });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREMONGODB001
+var mongo = builder.AddMongoDB("mongo")
+    .WithTlsMode(MongoDBTlsMode.PreferTls);
+#pragma warning restore ASPIREMONGODB001
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+This experimental API controls how the server accepts connections **when TLS is active**; it doesn't enable TLS without a certificate. The generated connection string still includes `tls=true`, so consumers using it still need certificate trust and a matching hostname. `PreferTls` isn't equivalent to disabling TLS, and allowing plaintext clients leaves those connections unencrypted.
+
+### Global defaults and replica-set limits
+
+Set `ASPIRE_DEVELOPER_CERTIFICATE_DEFAULT_HTTPS_TERMINATION=false` in the **AppHost's environment** to disable ambient developer-certificate server defaults globally. This affects other resources as well as MongoDB. Prefer the resource-level opt-out when only MongoDB needs different behavior. The global switch doesn't remove explicit certificate configuration.
+
+| MongoDB configuration | Local TLS behavior |
+| --------------------- | ------------------ |
+| Standalone `AddMongoDB` / `addMongoDB` | Uses automatic TLS when a certificate is configured and available; supports the resource-level opt-out. |
+| Simple `WithReplicaSet` / `withReplicaSet` on a server | Preserves the server's automatic TLS behavior; supports the same opt-out without requiring TLS or split-horizon discovery. |
+| Advanced `AddMongoDBReplicaSet(...).WithMember(...)` | Explicitly configures developer certificates unless a member already has certificate configuration. Requires TLS and Server Name Indication (SNI) for split-horizon discovery; don't use the no-TLS workaround. |
+
+The advanced path is for local multi-member experiments. Disabling ambient defaults doesn't disable its explicit certificate configuration, and initialization fails if a member has no TLS. Its certificate requirements aren't a reason to disable validation in application clients.
+
+### Run versus publish
+
+Automatic developer-certificate configuration applies to **local run mode**. Published MongoDB containers don't automatically receive the same certificate configuration; configure production transport security for your deployment separately. Both replica-set paths, keyfile configuration, and explicit MongoDB TLS configuration APIs such as {% api "Aspire.Hosting.MongoDBBuilderExtensions.WithTlsMode" %} reject publish mode because their deployment support hasn't been implemented.
+
+## Add MongoDB server resource with parameters
+
+When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const userName = await builder.addParameter("username");
+const password = await builder.addParameter("password", { secret: true });
+
+const mongo = await builder.addMongoDB("mongo", { userName, password });
+const mongodb = await mongo.addDatabase("mongodb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mongodb)
+    .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var username = builder.AddParameter("username");
+var password = builder.AddParameter("password", secret: true);
+
+var mongo = builder.AddMongoDB("mongo", userName: username, password: password);
+var mongodb = mongo.AddDatabase("mongodb");
+
+var myService = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mongodb)
+    .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The username and password parameters are typically provided as user secrets:
+
+```json title="secrets.json"
+{
+  "Parameters": {
+    "username": "admin",
+    "password": "your-secure-password"
+  }
+}
+```
+
+You can also specify a port:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const mongo = await builder.addMongoDB("mongo", { port: 27017 });
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var mongo = builder.AddMongoDB("mongo", port: 27017);
+```
+{% endtab %}
+{% endtabs %}
+
+For more information, see [External parameters](/get-started/resources/).
+
+## Add MongoDB server resource with data volume
+
+To add a data volume to the MongoDB server resource, call the {% api "Aspire.Hosting.MongoDBBuilderExtensions.WithDataVolume" %} method:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withDataVolume();
+await mongo.withLifetime("Persistent");
+
+const mongodb = await mongo.addDatabase("mongodb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mongodb)
+    .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithDataVolume()
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mongodb)
+    .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The data volume is used to persist the MongoDB server data outside the lifecycle of its container. The data volume is mounted at the `/data/db` path in the MongoDB server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-mongodb-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+:::caution
+The password is stored in the data volume. When using a data volume and if the password changes, it will not work until you delete the volume.
+:::
+
+:::danger
+Some database integrations, including the MongoDB integration, can't successfully use data volumes after deployment to Azure Container Apps (ACA). This is because ACA uses Server Message Block (SMB) to connect containers to data volumes, and some systems can't use this connection. In the Aspire Dashboard, a database affected by this issue has a status of **Activating** or **Activation Failed** but is never listed as **Running**.
+
+You can resolve the problem by deploying to a Kubernetes cluster, such as Azure Kubernetes Services (AKS). For more information, see [Deploy your first Aspire app](/get-started/deploy-first-app/).
+:::
+
+## Add MongoDB server resource with data bind mount
+
+To add a data bind mount to the MongoDB server resource, call the {% api "Aspire.Hosting.MongoDBBuilderExtensions.WithDataBindMount" %} method:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withDataBindMount("./mongodb-data");
+await mongo.withLifetime("Persistent");
+
+const mongodb = await mongo.addDatabase("mongodb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mongodb)
+    .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithDataBindMount(source: @"C:\MongoDB\Data")
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mongodb)
+    .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+
+Data bind mounts rely on the host machine's filesystem to persist the MongoDB server data across container restarts. The data bind mount is mounted at the `C:\MongoDB\Data` on Windows (or `/MongoDB/Data` on Unix) path on the host machine in the MongoDB server container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+:::
+
+## Add MongoDB server resource with init files
+
+Use initialization files to seed the MongoDB server with data or run scripts at startup. Call `WithInitFiles(...)` in a C# AppHost or `withInitFiles(...)` in a TypeScript AppHost to copy the files from the specified directory into the container's initialization folder.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withInitFiles("./mongodb-init");
+await mongo.withLifetime("Persistent");
+
+const mongodb = await mongo.addDatabase("mongodb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mongodb)
+    .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithInitFiles("./mongodb-init")
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mongodb)
+    .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+MongoDB executes any JavaScript or shell scripts found in the init folder when the container first starts. This is useful for pre-populating collections or creating indexes.
+
+## Enable transactions and change streams with a single-member replica set
+
+MongoDB transactions and change streams require replica-set mode, even for a single server. Call `WithReplicaSet` (C#) or `withReplicaSet` (TypeScript) directly on the `MongoDBServerResource` to configure **and initialize** a single-member replica set, without creating a separate logical replica-set resource or configuring split-horizon TLS. Continue using {% api "Aspire.Hosting.MongoDBBuilderExtensions.AddDatabase" %}, {% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %}, and {% api "Aspire.Hosting.ResourceBuilderExtensions.WaitFor" %} as usual — initialization runs during the resource lifecycle, and readiness waits for both initialization and primary election, so consumers can use transactions and change streams as soon as `WaitFor` completes.
+
+:::caution
+`WithReplicaSet` and the other replica-set APIs are experimental and marked `ASPIREMONGODB001`. C# AppHosts must explicitly suppress this diagnostic where these APIs are used, and the APIs may change in a future release.
+:::
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withReplicaSet();
+
+const mongodb = await mongo.addDatabase("mongodb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mongodb)
+    .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREMONGODB001 // Replica set APIs are experimental.
+var mongo = builder.AddMongoDB("mongo").WithReplicaSet();
+#pragma warning restore ASPIREMONGODB001
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mongodb)
+    .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+Omit `WithReplicaSet` / `withReplicaSet` when a standalone server is sufficient. Both configurations use the [automatic TLS behavior introduced in Aspire 13.6](#automatic-tls-and-migration-from-earlier-versions); the simple single-member path doesn't require TLS and supports the same local-development opt-out.
+
+The replica set's name is optional and defaults to the server's Aspire resource name. Pass an explicit name to override it:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const mongo = await builder.addMongoDB("mongo").withReplicaSet({ name: "app-rs" });
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREMONGODB001
+var mongo = builder.AddMongoDB("mongo").WithReplicaSet("app-rs");
+#pragma warning restore ASPIREMONGODB001
+```
+{% endtab %}
+{% endtabs %}
+
+Repeated calls with the same configuration are a no-op, but a conflicting name throws. Consumers use the server's normal endpoint with `directConnection=true` and the driver's default primary read preference — no topology discovery, split-horizon addresses, or fixed host ports are required.
+
+MongoDB requires a keyfile when authentication and replication are both enabled, even with a single member. `WithReplicaSet` generates a secret keyfile automatically when none is configured. To supply your own keyfile content, configure {% api "Aspire.Hosting.MongoDBBuilderExtensions.WithKeyFile" %} with a secret parameter **before** calling `WithReplicaSet`:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const keyfile = await builder.addParameter("mongo-keyfile", { secret: true });
+
+const mongo = await builder.addMongoDB("mongo")
+    .withKeyFile(keyfile)
+    .withReplicaSet();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var keyfile = builder.AddParameter("mongo-keyfile", secret: true);
+
+#pragma warning disable ASPIREMONGODB001
+var mongo = builder.AddMongoDB("mongo")
+    .WithKeyFile(keyfile.Resource)
+    .WithReplicaSet();
+#pragma warning restore ASPIREMONGODB001
+```
+{% endtab %}
+{% endtabs %}
+
+The parameter supplies the keyfile's **contents**, not a host file path. The contents must satisfy [MongoDB's keyfile requirements](https://www.mongodb.com/docs/manual/tutorial/deploy-replica-set-with-keyfile-access-control/#create-a-keyfile). Supplying a different keyfile after `WithReplicaSet` conflicts with the generated keyfile and throws.
+
+When using `WithDataVolume` or `WithDataBindMount` to persist data, keep the configured credentials and replica set identity unchanged when reusing existing data — MongoDB only applies initial credentials to an empty data directory. With the default set name, renaming the Aspire resource also changes the set identity. Existing compatible single-member data is reused without forced reconfiguration, but mismatched set names, member addresses, or multi-member data are rejected.
+
+:::note
+For local multi-member replication experiments, `AddMongoDBReplicaSet(...).WithMember(...)` remains available as a separate experimental API. Both replica-set paths are supported only for local runs and reject publish mode. The advanced API is intended for exploring replication or elections across multiple containers, not for simply enabling transactions or change streams. Don't call `WithReplicaSet` on servers that will be added as members to an {% api "Aspire.Hosting.MongoDBReplicaSetBuilderExtensions.AddMongoDBReplicaSet" %} resource.
+:::
+
+## Add MongoDB Express resource
+
+[MongoDB Express](https://github.com/mongo-express/mongo-express) is a web-based MongoDB admin user interface. To add a MongoDB Express resource that corresponds to the `docker.io/library/mongo-express` container image, call the {% api "Aspire.Hosting.MongoDBBuilderExtensions.WithMongoExpress" %} method on the MongoDB server resource:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withMongoExpress();
+await mongo.withLifetime("Persistent");
+
+const mongodb = await mongo.addDatabase("mongodb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mongodb)
+    .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithMongoExpress()
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+var myService = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mongodb)
+    .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+When you run the Aspire solution, you'll see a MongoDB Express container listed in the resources. Select the resource's endpoint to open the GUI.
+
+The MongoDB Express resource is configured to connect to the MongoDB server resource. The default credentials are:
+
+- `ME_CONFIG_MONGODB_SERVER`: The name assigned to the parent `MongoDBServerResource`
+- `ME_CONFIG_BASICAUTH`: A value of `false`
+- `ME_CONFIG_MONGODB_PORT`: Assigned from the primary endpoint's target port
+- `ME_CONFIG_MONGODB_ADMINUSERNAME`: The same username as configured in the parent
+- `ME_CONFIG_MONGODB_ADMINPASSWORD`: The same password as configured in the parent
+
+{% container_images package: "Aspire.Hosting.MongoDB", only: "Mongo Express" %}
+
+### Configure the Mongo Express host port
+
+To configure the host port for the Mongo Express container, pass a configuration callback:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+await mongo.withMongoExpress({
+    configureContainer: async c => {
+        await c.withHostPort(8081);
+    }
+});
+await mongo.withLifetime("Persistent");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithMongoExpress(c => c.WithHostPort(8081))
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+## Pass custom environment variables
+
+By default, Aspire injects the MongoDB connection information using variable names derived from the resource name (for example, `MONGODB_URI`, `MONGODB_HOST`, `MONGODB_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
+
+:::caution
+The individual properties below aren't a replacement for the complete generated URI. Rebuilding a URI from host and port can omit `tls=true` and other required options. Prefer the generated `MONGODB_URI`; if your client requires separate settings, also configure its TLS and certificate validation to match the server. See [Automatic TLS and migration](#automatic-tls-and-migration-from-earlier-versions).
+:::
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const mongo = await builder.addMongoDB("mongo");
+const mongodb = await mongo.addDatabase("mongodb");
+const mongoEndpoint = await mongo.getEndpoint("tcp");
+const mongoHost = await mongoEndpoint.property(EndpointProperty.Host);
+const mongoPort = await mongoEndpoint.property(EndpointProperty.Port);
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mongodb)
+    .withEnvironment("MONGO_HOST", mongoHost)
+    .withEnvironment("MONGO_PORT", mongoPort)
+    .withEnvironment("MONGO_USERNAME", mongo.userNameParameter)
+    .withEnvironment("MONGO_PASSWORD", mongo.passwordParameter)
+    .withEnvironment("MONGO_DATABASE", "mongodb");
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo");
+var mongodb = mongo.AddDatabase("mongodb");
+
+var app = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
+    .WithReference(mongodb)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["MONGO_HOST"] = mongo.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["MONGO_PORT"] = mongo.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+        context.EnvironmentVariables["MONGO_USERNAME"] = mongo.Resource.UserNameReference;
+        context.EnvironmentVariables["MONGO_PASSWORD"] = mongo.Resource.PasswordParameter;
+        context.EnvironmentVariables["MONGO_DATABASE"] = mongodb.Resource.DatabaseName;
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+<span id="add-mongodb-resource-with-a-repl-command"></span>
+
+## Open an interactive REPL
+
+In Aspire 13.6 or later, add {% api "Aspire.Hosting.MongoDBBuilderExtensions.WithRepl" %} to the MongoDB server resource to enable a **REPL** command that opens `mongosh` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addMongoDB('mongo').withRepl();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddMongoDB("mongo").WithRepl();
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The command is opt-in and available only in run mode while the container is running. It uses the container's bundled client, so no local MongoDB client is needed. The client connects directly to the server inside its container, including replica set members, and authenticates against `admin` with the resource's configured credentials. Credentials are passed through environment variables rather than command-line arguments.
+
+When TLS is enabled, the client uses the configured certificate trust bundle and validates the server certificate for `localhost`. Custom certificates must cover `localhost`, and their issuing CA must be trusted through Aspire's certificate configuration.
+
+Use `exit` before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client uses the resource's configured credentials and can modify or delete data. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
+:::
+
+## Connection properties
+
+For the full reference of MongoDB connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to MongoDB](../mongodb-connect/).
+
+## Hosting integration health checks
+
+The MongoDB hosting integration automatically adds a health check for the MongoDB server resource. The health check verifies that the MongoDB server resource is running and that a connection can be established to it.
+
+The hosting integration relies on the [📦 AspNetCore.HealthChecks.MongoDb](https://www.nuget.org/packages/AspNetCore.HealthChecks.MongoDb) NuGet package.

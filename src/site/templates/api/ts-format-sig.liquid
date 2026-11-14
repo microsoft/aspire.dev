@@ -1,0 +1,52 @@
+{%- comment -%}
+  formatTsSignature of src/frontend/src/utils/ts-modules.ts, as a value: one parameter per line when there are
+  several (the parameter list ends at the first `)` where the depth of ( < ) > is back to zero). Rendered and
+  captured (api/member-card-base cannot include): reads tfs_sig, prints the formatted signature as raw text (for
+  api/code-block). Logic of templates/api/md/ts-signature.liquid.
+{%- endcomment -%}
+{%- capture tfs_nl %}
+{% endcapture -%}
+{%- assign tfs_out = tfs_sig -%}
+{%- if tfs_sig contains "(" and tfs_sig contains "," -%}
+  {%- assign tfs_chars = tfs_sig | split: "" -%}
+  {%- assign tfs_open = -1 -%}{%- assign tfs_close = -1 -%}{%- assign tfs_depth = 0 -%}
+  {%- for tfs_ch in tfs_chars -%}
+    {%- if tfs_open < 0 -%}
+      {%- if tfs_ch == "(" -%}{%- assign tfs_open = forloop.index0 -%}{%- assign tfs_depth = 1 -%}{%- endif -%}
+    {%- else -%}
+      {%- case tfs_ch -%}
+        {%- when "(", "<" -%}{%- assign tfs_depth = tfs_depth | plus: 1 -%}
+        {%- when ">" -%}{%- assign tfs_depth = tfs_depth | minus: 1 -%}
+        {%- when ")" -%}{%- assign tfs_depth = tfs_depth | minus: 1 -%}{%- if tfs_depth == 0 -%}{%- assign tfs_close = forloop.index0 -%}{%- break -%}{%- endif -%}
+      {%- endcase -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if tfs_close > tfs_open -%}
+    {%- assign tfs_start = tfs_open | plus: 1 -%}{%- assign tfs_length = tfs_close | minus: tfs_start -%}
+    {%- assign tfs_pieces = tfs_sig | slice: tfs_start, tfs_length | split: "," -%}
+    {%- assign tfs_fresh = true -%}{%- assign tfs_count = 0 -%}{%- assign tfs_params = "" -%}
+    {%- for tfs_piece in tfs_pieces -%}
+      {%- if tfs_fresh -%}{%- assign tfs_acc = tfs_piece -%}{%- assign tfs_fresh = false -%}{%- else -%}{%- assign tfs_acc = tfs_acc | append: "," | append: tfs_piece -%}{%- endif -%}
+      {%- assign tfs_d1 = tfs_acc | append: "#" | split: "<" | size -%}{%- assign tfs_d2 = tfs_acc | append: "#" | split: "(" | size -%}
+      {%- assign tfs_d3 = tfs_acc | append: "#" | split: ">" | size -%}{%- assign tfs_d4 = tfs_acc | append: "#" | split: ")" | size -%}
+      {%- assign tfs_d = tfs_d1 | plus: tfs_d2 | minus: tfs_d3 | minus: tfs_d4 -%}
+      {%- if tfs_d == 0 and forloop.last == false -%}
+        {%- assign tfs_p = tfs_acc | strip -%}{%- assign tfs_params = tfs_params | append: tfs_p | append: "␟" -%}{%- assign tfs_count = tfs_count | plus: 1 -%}{%- assign tfs_fresh = true -%}
+      {%- elsif forloop.last -%}
+        {%- assign tfs_p = tfs_acc | strip -%}{%- if tfs_p != "" -%}{%- assign tfs_params = tfs_params | append: tfs_p | append: "␟" -%}{%- assign tfs_count = tfs_count | plus: 1 -%}{%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- if tfs_count > 1 -%}
+      {%- assign tfs_list = tfs_params | split: "␟" -%}
+      {%- assign tfs_out = tfs_sig | slice: 0, tfs_start -%}
+      {%- for tfs_i in (1..tfs_count) -%}
+        {%- assign tfs_j = tfs_i | minus: 1 -%}
+        {%- assign tfs_out = tfs_out | append: tfs_nl | append: "    " | append: tfs_list[tfs_j] -%}
+        {%- if tfs_i < tfs_count -%}{%- assign tfs_out = tfs_out | append: "," -%}{%- endif -%}
+      {%- endfor -%}
+      {%- assign tfs_tail = tfs_sig | slice: tfs_close, tfs_sig.size -%}
+      {%- assign tfs_out = tfs_out | append: tfs_tail -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endif -%}
+{{- tfs_out | raw -}}

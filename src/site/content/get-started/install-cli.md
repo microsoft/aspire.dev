@@ -1,0 +1,198 @@
+---
+title: Install Aspire CLI
+seoTitle: Install Aspire CLI with a package manager or script
+description: Install the Aspire CLI with package managers or install scripts, then verify your setup with aspire --version before building distributed apps.
+tableOfContents: true
+---
+
+Aspire provides a command-line interface (CLI) tool to help you create and manage Aspire-based apps. The CLI streamlines your development workflow with an interactive-first experience. This guide shows you how to install the Aspire CLI on your system. Choose the package manager that fits your environment — Homebrew, npm, NuGet, WinGet, mise, or Nix — or use the install script for direct setup.
+
+:::tip[Using VS Code?]
+The [Aspire VS Code extension](/get-started/aspire-vscode-extension/) can install the CLI for you. From the Command Palette, run:
+
+```text title="Command Palette"
+> Aspire: Install Aspire CLI (stable)
+```
+
+:::
+
+{% learnmore %}
+Before installing the Aspire CLI, ensure you have the [required
+prerequisites](/get-started/prerequisites/) set up.
+{% endlearnmore %}
+
+## Install with a package manager
+
+Install the Aspire CLI with a package manager to manage it alongside your other developer tooling. Choose the option that fits your environment:
+
+{% tabs sync: "install-pkg" %}
+{% tab "Homebrew" %}
+Install the Aspire CLI with [Homebrew](https://brew.sh/) on macOS (Apple silicon and Intel).
+
+```bash title="Install with Homebrew"
+brew install --cask microsoft/aspire/aspire
+```
+{% endtab %}
+{% tab "npm" %}
+Install the Aspire CLI from [npm](https://www.npmjs.com/package/@microsoft/aspire-cli) when you manage developer tooling with npm. This option requires [Node.js](/get-started/prerequisites/).
+
+```bash title="Install with npm"
+npm install -g @microsoft/aspire-cli
+```
+
+The same command works on Windows, macOS, and Linux (including musl-based distributions such as Alpine). npm selects the correct native binary for your operating system and architecture automatically.
+
+To update an npm-based install, run:
+
+```bash title="Update with npm"
+npm install -g @microsoft/aspire-cli@latest
+```
+
+:::note
+When you install from npm, the Aspire CLI routes self-updates through npm. Running `aspire update --self` prints the npm update command rather than downloading a new binary directly. For more information, see [`aspire update`](/reference/cli/commands/aspire-update/).
+:::
+{% endtab %}
+{% tab "NuGet" %}
+Install the Aspire CLI as a .NET global tool when you manage developer tooling with the .NET SDK. This option requires the [.NET SDK](/get-started/prerequisites/).
+
+```bash title="Install with the .NET CLI"
+dotnet tool install -g Aspire.Cli
+```
+
+The CLI is published to NuGet.org as the [Aspire.Cli](https://www.nuget.org/packages/Aspire.Cli) global tool and works on Windows, macOS, and Linux.
+{% endtab %}
+{% tab "WinGet" %}
+Install the Aspire CLI with the [Windows Package Manager](https://learn.microsoft.com/windows/package-manager/) (WinGet) on Windows (x64 and Arm64).
+
+```powershell title="Install with WinGet"
+winget install Microsoft.Aspire
+```
+{% endtab %}
+{% tab "mise" %}
+Install the Aspire CLI with [mise](https://mise.jdx.dev/) when you manage developer tooling with a shared tool version manager. The Aspire CLI is available from the mise registry as `aspire`.
+
+```bash title="Install with mise"
+mise use -g aspire
+```
+{% endtab %}
+{% tab "Nix" %}
+Install or run the Aspire CLI from the official Nix flake on Linux and macOS. Nix 2.4 or later with flakes enabled is required.
+
+Run the Aspire CLI directly without installing it:
+
+```bash title="Run with Nix"
+nix run github:microsoft/aspire#aspire-cli
+```
+
+Add the Aspire CLI to your Nix profile for persistent access:
+
+```bash title="Add to Nix profile"
+nix profile add github:microsoft/aspire#aspire-cli
+```
+
+To use the Aspire CLI in a project's `flake.nix`, consume the package output directly:
+
+```nix title="flake.nix — package output"
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/";
+    aspire.url = "github:microsoft/aspire";
+    aspire.inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  outputs =
+    { nixpkgs, aspire, ... }:
+    let
+      systems = [
+        "aarch64-darwin"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "x86_64-linux"
+      ];
+      forAllSystems = nixpkgs.lib.genAttrs systems;
+    in
+    {
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = pkgs.mkShell {
+            packages = [
+              aspire.packages.${system}.aspire-cli
+            ];
+          };
+        }
+      );
+    };
+}
+```
+
+The Aspire CLI version is pinned by the `aspire` flake input revision and the `eng/nix/versions.json` manifest at that commit. Pin a specific CLI version by locking the `aspire` input to a particular Git revision.
+
+:::note
+When installed via Nix, `aspire update --self` prints the Nix update commands to run rather than downloading a new binary, because the Nix store is read-only. See [`aspire update`](/reference/cli/commands/aspire-update/) for details.
+:::
+{% endtab %}
+{% endtabs %}
+
+## Install with the install script
+
+Download and run the installation script in a single command:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash title="Install script (macOS/Linux)"
+curl -sSL https://aspire.dev/install.sh | bash
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell title="Install script (Windows)"
+irm https://aspire.dev/install.ps1 | iex
+```
+{% endtab %}
+{% endos_tabs %}
+
+The script installs the latest stable release of Aspire CLI. During installation, you might be asked `Do you want to continue?`. Reply with `Y` for Yes or `A` for Yes to All to continue downloading and running the install script. See [Validation](#validation) to verify the installation.
+
+:::tip
+At any time, you can reopen the **Install Aspire CLI** command modal from the top navigation (download icon {% icon "download", class: "d-inline", size: "large" %}). The modal shows the download-and-install command for your OS, so you can run the installer again when needed.
+:::
+
+You only need to download the script separately if you want to inspect it or run the installer as separate commands. For more information, see the [aspire-install script reference](/reference/cli/install-script/).
+
+## Validation
+
+To validate that the Aspire CLI is installed, use `aspire --version` to query Aspire CLI for a version number:
+
+```bash title="Check installed version"
+aspire --version
+```
+
+If that command works, you're presented with the version of the Aspire CLI tool:
+
+```bash title="Aspire CLI — Output" data-disable-copy
+%ASPIRE_VERSION%+{commitSHA}
+```
+
+The `+{commitSHA}` suffix indicates the specific commit from which the Aspire CLI was built.
+
+{% learnmore %}
+Learn more by reading the [Aspire CLI reference](/reference/cli/overview/)
+documentation.
+{% endlearnmore %}
+
+:::caution[Troubleshooting]
+If you're not seeing a version number, it's possible that your terminal
+session needs to be restarted to pick up the changes to your PATH environment
+variable. Simply close and reopen your terminal, then try running the `aspire
+--version` command again.
+:::
+
+## See also
+
+- [aspire-install script reference](/reference/cli/install-script/)
+- [`@microsoft/aspire-cli` on npm](https://www.npmjs.com/package/@microsoft/aspire-cli) — run the CLI with `npm` or `npx`
+- [`aspire` command reference](/reference/cli/commands/aspire/)
+- [Aspire VS Code extension](/get-started/aspire-vscode-extension/) — install the CLI and use Aspire commands from within VS Code

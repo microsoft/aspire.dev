@@ -35,118 +35,105 @@ jobs:
     runs-on: ${{ github.repository_owner == 'microsoft' && '8-core-ubuntu-latest' || 'ubuntu-latest' }}
     defaults:
       run:
-        working-directory: src/frontend
+        working-directory: src/site
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
-
-      - name: Ensure full git history for Lunaria
-        env:
-          PULL_NUMBER: ${{ inputs.pull_number }}
-        run: |
-          if [ -n "$PULL_NUMBER" ]; then
-            case "$PULL_NUMBER" in
-              (*[!0-9]*)
-                echo "Invalid pull_number input: '$PULL_NUMBER'" >&2
-                exit 1
-                ;;
-            esac
-
-            pull_ref="+refs/pull/${PULL_NUMBER}/head:refs/remotes/origin/pull/${PULL_NUMBER}/head"
-
-            if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-              git fetch origin "$pull_ref" --unshallow
-            else
-              git fetch origin "$pull_ref"
-            fi
-          elif [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-            git fetch --unshallow
-          fi
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: src/frontend/package.json
 
-      # Bun installs packages and runs the Astro build; Vitest, ESLint,
-      # Playwright, and `astro preview` still run on Node.
+      # Bun installs the packages; Node runs the API data, icon sprite and
+      # client bundle scripts. The Douze build itself runs no Node.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ inputs.node_version }}
 
+      # The SDK installs Douze and runs the Roslyn language server of the
+      # `hover-csharp` step.
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install Douze
+        run: |
+          dotnet tool install -g douze --version 0.5.2
+          douze --version
+
+      # src/frontend still holds the API index script, esbuild and the client
+      # packages (src/site/README.md).
       - name: Install deps
+        working-directory: src/frontend
         run: bun install --frozen-lockfile
 
-      # `incrementalBuild` keeps its state, including a copy of every
-      # prerendered route, under node_modules/.astro and decides for itself
-      # what is stale. The key only partitions by the inputs that invalidate
-      # all of it (lockfile, config, patches), so restore-keys always resolves
-      # to the newest compatible state. Pushes and a PR's first build save a
-      # new entry (below); later PR builds keep restoring it instead of
-      # writing another entry per commit.
-      - name: Restore Astro build state
-        id: astro_cache
+      - name: Generate the API data
+        working-directory: src/frontend
+        run: bunx tsx ../site/scripts/api/build-api-index.ts
+
+      - name: Generate the assets
+        run: |
+          node scripts/icons-sprite.mjs
+          node scripts/build-client.mjs
+          node scripts/write-build-info.mjs
+
+      # src/site/.douze holds the disk cache and the downloaded tools. Douze
+      # decides for itself what is stale, so the key only partitions by the
+      # Douze version and restore-keys always resolves to the newest entry.
+      # Pushes and a PR's first build save a new entry (below); later PR
+      # builds keep restoring it instead of writing another entry per commit.
+      - name: Restore Douze build state
+        id: douze_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: src/frontend/node_modules/.astro
-          key: astro-build-${{ runner.os }}-${{ hashFiles('src/frontend/bun.lock', 'src/frontend/astro.config.mjs', 'src/frontend/patches/*.patch') }}-${{ github.sha }}
+          path: src/site/.douze
+          key: douze-build-${{ runner.os }}-0.5.2-${{ github.sha }}
           restore-keys: |
-            astro-build-${{ runner.os }}-${{ hashFiles('src/frontend/bun.lock', 'src/frontend/astro.config.mjs', 'src/frontend/patches/*.patch') }}-
+            douze-build-${{ runner.os }}-0.5.2-
 
-      # Validation has its own checkout so astro sync cannot dirty Lunaria's tree.
+      - name: Install the Douze tools
+        run: douze tools install -s .
+
       - name: Build frontend
         env:
-          MODE: production
-          ASTRO_TELEMETRY_DISABLED: 1
-          # The complete provisioning API catalog exceeds Node's default 4 GiB heap.
-          NODE_OPTIONS: --max-old-space-size=8192
-          BUILD_TIMING: ${{ inputs.profile_build && '1' || '0' }}
-          BUILD_TIMING_OUT: ${{ runner.temp }}/frontend-performance/timing.jsonl
-          BUILD_TIMING_LABEL: ${{ github.sha }}
           PROFILE_BUILD: ${{ inputs.profile_build }}
         run: |
           set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/frontend-performance"
+          profile=()
           if [[ "$PROFILE_BUILD" == "true" ]]; then
-            mkdir -p "$RUNNER_TEMP/frontend-performance"
-            bun run git-env
-            bun run compute-skill-digests
-            # CPU profiles come from Node's inspector, so profiling runs Astro on Node.
-            /usr/bin/time -v node --cpu-prof \
-              --cpu-prof-dir="$RUNNER_TEMP/frontend-performance" \
-              ./node_modules/astro/bin/astro.mjs build --mode production \
-              2>&1 | tee "$RUNNER_TEMP/frontend-performance/build.log"
-          else
-            bun run build:production
+            profile=(--timeline "$RUNNER_TEMP/frontend-performance/timeline.html")
           fi
+          /usr/bin/time -v douze -s . -o ../statichost/StaticHost/wwwroot "${profile[@]}" \
+            2>&1 | tee "$RUNNER_TEMP/frontend-performance/build.log"
 
-      - name: Save Astro build state
-        if: ${{ success() && (github.event_name == 'push' || steps.astro_cache.outputs.cache-matched-key == '') }}
+      - name: Save Douze build state
+        if: ${{ success() && (github.event_name == 'push' || steps.douze_cache.outputs.cache-matched-key == '') }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: src/frontend/node_modules/.astro
-          key: ${{ steps.astro_cache.outputs.cache-primary-key }}
+          path: src/site/.douze
+          key: ${{ steps.douze_cache.outputs.cache-primary-key }}
 
-      - name: Report Astro build cache
+      - name: Report Douze build
         if: ${{ always() }}
         env:
-          CACHE_HIT: ${{ steps.astro_cache.outputs.cache-hit }}
-          CACHE_MATCHED_KEY: ${{ steps.astro_cache.outputs.cache-matched-key }}
+          CACHE_HIT: ${{ steps.douze_cache.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.douze_cache.outputs.cache-matched-key }}
         run: |
+          log="$RUNNER_TEMP/frontend-performance/build.log"
           {
-            echo '### Astro incremental build cache'
+            echo '### Douze build'
             echo "- Restored key: \`${CACHE_MATCHED_KEY:-none}\`"
             echo "- Exact hit: \`${CACHE_HIT:-false}\`"
-            echo "- Size: \`$(du -sh node_modules/.astro 2>/dev/null | cut -f1)\`"
+            echo "- Cache size: \`$(du -sh .douze 2>/dev/null | cut -f1)\`"
+            echo "- $(grep -E '^Build (succeeded|failed)' "$log" || echo 'No build summary')"
+            echo "- Wall clock: \`$(grep 'Elapsed (wall clock)' "$log" | awk '{print $NF}')\`, peak memory: \`$(grep 'Maximum resident' "$log" | awk '{printf "%.1f GB", $NF/1048576}')\`"
+            echo
+            echo '```'
+            grep -E '^. [a-z]' "$log" || true
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Measure frontend output
-        if: ${{ inputs.profile_build }}
-        env:
-          BUILD_METRICS_DIR: ${{ runner.temp }}/frontend-performance
-          ASTRO_CACHE_HIT: ${{ steps.astro_cache.outputs.cache-matched-key != '' }}
-          PROFILE_BUILD: ${{ inputs.profile_build }}
-        run: node scripts/measure-build-output.mjs
 
       - name: Upload build diagnostics
         if: ${{ always() && inputs.profile_build }}
@@ -157,17 +144,17 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      # Upload before the dist sanity-check so the artifact is always
+      # Upload before the web root sanity-check so the artifact is always
       # available for debugging, even when the check step fails.
       # Note: `uses` actions ignore the job-level working-directory,
-      # so the path is repo-root-relative (src/frontend/dist).
+      # so the path is repo-root-relative.
       - name: Upload build artifact
         id: upload_build_artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: frontend-dist
-          path: src/frontend/dist
+          path: src/statichost/StaticHost/wwwroot
           if-no-files-found: warn
           retention-days: 7
           compression-level: 1
@@ -182,8 +169,8 @@ jobs:
         run: |
           can_comment=true
 
-          if [ ! -f "dist/index.html" ]; then
-            echo "::notice::Skipping frontend artifact PR comment because dist/index.html was not found."
+          if [ ! -f "../statichost/StaticHost/wwwroot/index.html" ]; then
+            echo "::notice::Skipping frontend artifact PR comment because the web root index.html was not found."
             can_comment=false
           fi
 
@@ -263,17 +250,13 @@ jobs:
 
       - name: Check dist
         run: |
-          if [ ! -d "dist" ]; then
-            echo "Frontend build failed - dist directory not found"
-            exit 1
-          fi
-
-          if [ ! -f "dist/index.html" ]; then
+          wwwroot=../statichost/StaticHost/wwwroot
+          if [ ! -f "$wwwroot/index.html" ]; then
             echo "Frontend build incomplete - index.html not found"
             exit 1
           fi
 
-          ls -la dist
+          ls -la "$wwwroot"
 
   validation:
     name: Frontend validation
@@ -293,15 +276,10 @@ jobs:
           node-version: ${{ inputs.node_version }}
       - name: Install deps
         run: bun install --frozen-lockfile
-      - name: Lint
-        env:
-          ASTRO_TELEMETRY_DISABLED: 1
-        run: bun run lint
 
+      # The tests of the site's own scripts (the MDX converter).
       - name: Run unit tests
-        env:
-          ASTRO_TELEMETRY_DISABLED: 1
-        run: bun run test:unit
+        run: bunx tsx --test ../site/tests/unit/*.test.ts
 
   e2e:
     name: E2E (${{ matrix.project }}, shard ${{ matrix.shard }}/2)
@@ -333,6 +311,12 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
 
+      # StaticHost serves the web root as production does
+      # (playwright.douze.config.mjs starts it).
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
       - name: Install deps
         run: bun install --frozen-lockfile
 
@@ -340,10 +324,24 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: frontend-dist
-          path: src/frontend/dist
+          path: src/statichost/StaticHost/wwwroot
+
+      # StaticHost's build lists every file of the web root (MapStaticAssets),
+      # so it starts once the artifact is in place, and runs while Playwright
+      # installs Chromium.
+      - name: Start the StaticHost build
+        run: |
+          ( dotnet build -c Release ../statichost/StaticHost > "$RUNNER_TEMP/statichost-build.log" 2>&1
+            echo $? > "$RUNNER_TEMP/statichost-build.exit" ) &
 
       - name: Install Playwright Chromium
         run: bun run playwright install --with-deps chromium
+
+      - name: Wait for the StaticHost build
+        run: |
+          while [ ! -f "$RUNNER_TEMP/statichost-build.exit" ]; do sleep 1; done
+          tail -n 5 "$RUNNER_TEMP/statichost-build.log"
+          exit "$(cat "$RUNNER_TEMP/statichost-build.exit")"
 
       # Reporters (blob, github, junit, list) are configured in
       # `playwright.config.mjs` so they apply to every shard. Avoid passing
@@ -351,8 +349,8 @@ jobs:
       # GitHub workflow annotations and the JUnit XML artifact.
       - name: Run Playwright (${{ matrix.project }})
         env:
-          ASTRO_TELEMETRY_DISABLED: 1
-        run: bun run playwright test --project=${{ matrix.project }} --shard=${{ matrix.shard }}/2
+          STATICHOST_NO_BUILD: 1
+        run: bun run playwright test --config playwright.douze.config.mjs --project=${{ matrix.project }} --shard=${{ matrix.shard }}/2
 
       # Each shard publishes its blob report under a unique name so the
       # merge job below can stitch them back together into a single HTML
@@ -435,8 +433,7 @@ jobs:
           {
             echo '## Frontend quality reports'
             echo ''
-            echo '- Lint and unit validation run in a separate checkout alongside the build.'
-            echo '- Unit contracts: static analytics delivery and route regressions.'
+            echo '- Unit validation (the tests of the site scripts) runs in a separate checkout alongside the build.'
             echo '- Browser coverage: two shards each for desktop, tablet, and mobile Chromium, starting as soon as the build is ready.'
             echo '- Accessibility gate: WCAG 2.0 A/AA audit, including color-contrast.'
             echo '- Responsive gate: viewport-specific UI behavior is asserted in Playwright.'

@@ -1,0 +1,22 @@
+---
+# The site's <LoopingVideo> (src/components/LoopingVideo.astro), a muted looping video with a pause button:
+#   {% looping_video src: "/x.mp4", type: "video/mp4", source_title: "...", aria_label: "...", controls: true %}
+#   {% looping_video sources: props.x, aria_label: "...", controls: true, title: "..." %}
+# One source with `src`, `type` and `source_title`, or `sources`: a list of { src, type, title?, theme? } (front matter
+# props, as the converter writes object props). The sources without a theme are rendered; the client script (scripts/client/content/looping-video.ts) swaps in the themed ones
+# from data-sources. The id ties the parts of one instance together (the component used a random UUID).
+# Root class: cid-looping-video.
+display: block
+params: [sources, src, type, source_title, title, controls, aria_label]
+---
+{%- if sources -%}
+  {%- assign lv_json = sources | json -%}
+{%- else -%}
+  {%- capture lv_json -%}[{"src":{{ src | json | raw }},"type":{{ type | json | raw }}{% if source_title %},"title":{{ source_title | json | raw }}{% endif %}}]{%- endcapture -%}
+{%- endif -%}
+{%- assign lv_uid = lv_json | append: aria_label | sha256 | slice: 0, 32 -%}
+<div class="looping-video-wrapper cid-looping-video" data-looping-video-id="{{ lv_uid }}"><video class="looping-video" autoplay loop muted playsinline tabindex="0"{% if controls %} controls{% endif %}{% if title %} title="{{ title | escape }}"{% endif %} data-sources="{{ lv_json | escape }}" data-looping-video-id="{{ lv_uid }}"{% if aria_label %} aria-label="{{ aria_label | escape }}"{% endif %}>
+{%- if sources -%}
+{%- for s in sources -%}{%- unless s.theme -%}<source src="{{ s.src }}" type="{{ s.type }}"{% if s.title %} title="{{ s.title | escape }}"{% endif %}>{%- endunless -%}{%- endfor -%}
+{%- else -%}<source src="{{ src }}" type="{{ type }}"{% if source_title %} title="{{ source_title | escape }}"{% endif %}>{%- endif -%}
+</video><button type="button" class="looping-video-toggle" aria-label="Pause video" data-state="playing" data-looping-video-id="{{ lv_uid }}"><span class="icon icon-pause" aria-hidden="true">{% include "partials/home/svg/pause", svg_width: "80", svg_height: "80", svg_class: nil, svg_aria_hidden: nil, svg_focusable: nil, svg_viewBox: nil %}</span><span class="icon icon-play" aria-hidden="true">{% include "partials/home/svg/play", svg_width: "80", svg_height: "80", svg_class: nil, svg_aria_hidden: nil, svg_focusable: nil, svg_viewBox: nil %}</span><span class="sr-only">Pause video</span></button></div>

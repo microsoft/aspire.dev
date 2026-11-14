@@ -1,0 +1,40 @@
+/*
+ * Rules the shortcodes (templates/shortcodes/) need that are not in a component <style> block (those are extracted
+ * into components.css). Imported by site-entry.css after components.css.
+ */
+
+/*
+ * Expressive Code's base and theme styles (the Astro build's _astro/ec.*.css; the code worker renders the blocks
+ * without them, in the `starlight.components` layer set by ec.config.mjs). code.css and its script,
+ * scripts/client/generated/code.js (imported by site.ts), are generated: after a change to ec.config.mjs or the
+ * Expressive Code packages, run from src/site
+ *   node scripts/code-worker.mjs --assets <tmp> && cp <tmp>/assets/code.css assets/css/ && cp <tmp>/assets/code.js scripts/client/generated/
+ */
+@import url('./code.css');
+
+/*
+ * Tabs (tabs.liquid, os_tabs.liquid, install_*.liquid, simple_apphost_code.liquid; contract C4): the panels are
+ * server rendered without ids and the client script builds the tab list, assigns `tab-panel-N` ids and hides the
+ * unselected panels. Until it runs, show only the first panel, as Starlight's server-rendered markup does.
+ */
+starlight-tabs > [role='tabpanel'] ~ [role='tabpanel']:not([id]) {
+  display: none;
+}
+
+/*
+ * TopicHero floating icons (topic_hero.liquid): positioned by the client script (inline `style` from the seeded
+ * layout); hidden until then so they do not pile up in a corner.
+ */
+.topic-hero-floating-icons > .floating-icon:not([style]) {
+  visibility: hidden;
+}
+
+/*
+ * File tree (filetree.liquid, scripts/client/file-tree.ts): icons are sprite <svg>s instead of UnoCSS classes; size
+ * them like the 1em icon classes did (the component's `.tree-icon` rules set the font size and colour).
+ */
+starlight-file-tree svg.tree-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}

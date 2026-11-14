@@ -1,0 +1,273 @@
+---
+title: Building custom deployment pipelines
+seoTitle: Build custom Aspire deployment pipelines for your apps
+description: Build container images from your Aspire resources and create custom deployment pipelines — extend publishing, target new platforms, and integrate with existing CD tools.
+---
+
+Aspire provides powerful APIs for building container images from your resources during publishing and deployment operations. This article covers the key components that enable programmatic container image creation and progress reporting.
+
+During publishing and deployment, the container image manager is available to create images for resources that need them. Aspire uses this manager when a resource requires a container image, such as when publishing with Docker Compose. The process involves two main components:
+
+- `IResourceContainerImageManager`: The service that builds and pushes container images for resources.
+- `IPipelineActivityReporter`: The API that provides structured progress reporting during long-running operations.
+
+These APIs give you fine-grained control over the image building process and provide real-time feedback to users during lengthy build operations.
+
+:::note
+These APIs are designed for advanced scenarios where you need custom control
+over container image building and progress reporting. For more information,
+see [Compiler Error ASPIREPIPELINES001](/diagnostics/aspirepipelines001/) and
+[Compiler Error ASPIREPIPELINES003](/diagnostics/aspirepipelines003/).
+:::
+
+## When to use these APIs
+
+Consider using the container image building and progress reporting APIs in these scenarios:
+
+- **Custom deployment targets**: When you need to deploy to platforms that require specific image formats or build configurations.
+- **Complex build pipelines**: When your publishing process involves multiple steps that users should see.
+- **Enterprise scenarios**: When you need custom progress reporting for integration with CI/CD systems or dashboards.
+- **Custom resource types**: When implementing custom resources that need to participate in the publishing and deployment process.
+
+:::note
+For most standard Aspire applications, the built-in publishing process builds
+container images automatically without requiring these APIs.
+:::
+
+## Resource container image manager API
+
+The `IResourceContainerImageManager` is the core service in the `Aspire.Hosting.Publishing` layer that converts resource definitions into container images. It analyzes each resource in your distributed application model and determines whether to:
+
+- Reuse an existing image.
+- Build from a .NET project using `dotnet publish /t:PublishContainer`.
+- Build from a Dockerfile using the local container runtime.
+
+### Configure container builds
+
+Configure each compute resource with {% api "Aspire.Hosting.ApplicationModel.ResourceExtensions.WithContainerBuildOptions" %}. The callback receives a `ContainerBuildOptionsCallbackContext` that allows you to specify:
+
+- **Destination**: Push the image to a registry or save it as an archive.
+- **Image format**: Docker or Open Container Initiative (OCI) format.
+- **Target platform**: Linux x64, Windows, ARM64, etc.
+- **Output path**: Where to save the built images.
+
+### Container runtime health checks
+
+The manager performs container runtime health checks (Docker/Podman) only when at least one resource requires a Dockerfile build. This change eliminates false-positive errors in projects that publish directly from .NET assemblies. If the container runtime is required but unhealthy, the manager throws an explicit `InvalidOperationException` to surface the problem early.
+
+## Pipeline activity reporter API
+
+The `PipelineActivityReporter` API enables structured progress reporting during `aspire publish` and `aspire deploy` commands. This reduces uncertainty during long-running operations and surfaces failures early.
+
+### API overview and behavior
+
+The progress reporter uses a hierarchical model with guaranteed ordering and thread-safe operations:
+
+| Concept              | Description                                                                 | CLI Rendering                                                                | Behavior                                                                                                                |
+| -------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Step**             | Top-level phase, such as "Build images" or "Deploy workloads".              | Step message with status glyph and elapsed time.                             | Forms a strict tree structure; nested steps are unsupported. Steps are created automatically during pipeline execution. |
+| **Task**             | Discrete unit of work nested under a step.                                  | Task message with indentation.                                               | Belongs to a single step; supports parallel creation with deterministic completion ordering.                            |
+| **Completion state** | Final status: `Completed`, `CompletedWithWarning`, or `CompletedWithError`. | ✅ (Completed)<br/>⚠️ (Completed with warning)<br/>❌ (Completed with error) | Each step/task transitions exactly once to a final state.                                                               |
+
+### API structure and usage
+
+The reporter API provides structured access to progress reporting with the following characteristics:
+
+- **Acquisition**: The pipeline runner creates an `IReportingStep` for each pipeline step and exposes it through `PipelineStepContext.ReportingStep`.
+- **Step creation**: Register steps with {% api "Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineStepFactory" %} or `builder.Pipeline.AddStep`. The pipeline runner creates the corresponding reporting step during execution.
+- **Task creation**: `IReportingStep.CreateTaskAsync(title, ct)` returns an `IReportingTask`.
+- **State transitions**: `SucceedAsync`, `WarnAsync`, `FailAsync` methods accept a summary message.
+- **Completion**: Complete individual tasks in the callback. The runner disposes the reporting step after the callback and completes the overall pipeline operation.
+- **Ordering**: Creation and completion events preserve call order; updates are serialized.
+- **Cancellation**: All APIs accept `CancellationToken` and propagate cancellation to the CLI.
+- **Disposal contract**: Disposing steps automatically completes them if unfinished, preventing orphaned phases.
+
+## Example: Build container images and report progress
+
+To use these APIs, register pipeline steps with `WithPipelineStepFactory` (resource-level) or `builder.Pipeline.AddStep` (application-level). This lets custom resources participate in publish and deploy flows with explicit step dependencies.
+
+As a developer, you can choose to:
+
+- Register a step that is `requiredBy` `WellKnownPipelineSteps.Publish` when your resource needs custom publishing behavior.
+- Register a step that is `requiredBy` `WellKnownPipelineSteps.Deploy` when your resource needs custom deployment behavior.
+- Register both when your resource performs work in both phases and needs ordering between those steps.
+
+For broader pipeline orchestration patterns, see [Deployment pipelines](/deployment/pipelines/). For custom resource authoring basics, see [Create custom resources](/extensibility/custom-resources/).
+
+### Example resource with pipeline steps
+
+For example, consider an extension method that registers two pipeline steps for a custom `ComputeEnvironmentResource`:
+
+```csharp title="ComputeEnvironmentResourceExtensions.cs"
+public static class ComputeEnvironmentResourceExtensions
+{
+    public static IResourceBuilder<ComputeEnvironmentResource> AddComputeEnvironment(
+        this IDistributedApplicationBuilder builder,
+        [ResourceName] string name)
+    {
+        var resource = new ComputeEnvironmentResource(name);
+
+        return builder.AddResource(resource)
+            .WithPipelineStepFactory(
+                stepName: $"{name}-build-images",
+                callback: PublishAsync,
+                requiredBy: [WellKnownPipelineSteps.Publish],
+                description: "Build container images and write deployment artifacts.")
+            .WithPipelineStepFactory(
+                stepName: $"{name}-deploy",
+                callback: DeployAsync,
+                dependsOn: [$"{name}-build-images"],
+                requiredBy: [WellKnownPipelineSteps.Deploy],
+                description: "Deploy generated artifacts to the target environment.");
+    }
+}
+```
+
+In the same class, define `PublishAsync` and `DeployAsync` as private static methods that each accept `PipelineStepContext` (shown in the next sections).
+The explicit `dependsOn` relationship ensures the deploy step waits for this resource's image-build step, even when you add other custom publish or deploy steps to the pipeline.
+
+The preceding code:
+
+- Defines an extension method on the `IDistributedApplicationBuilder`.
+- Accepts a `name` for the compute environment resource, protected by the `ResourceNameAttribute`.
+- Instantiates a `ComputeEnvironmentResource` given the `name`.
+- Registers a publish step and a deploy step with explicit dependencies.
+- Adds both steps through `WithPipelineStepFactory`.
+- Uses the validated resource name as the prefix for stable, unambiguous step names.
+
+### Example AppHost
+
+In your AppHost, configure the project image output and add the `ComputeEnvironmentResource` to the application model:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("redis");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache)
+    .WithContainerBuildOptions(options =>
+    {
+        options.Destination = ContainerImageDestination.Archive;
+        options.ImageFormat = ContainerImageFormat.Oci;
+        options.TargetPlatform = ContainerTargetPlatform.LinuxAmd64;
+        options.OutputPath = Path.Combine(
+            builder.AppHostDirectory,
+            "artifacts",
+            "images");
+    });
+
+builder.AddComputeEnvironment("compute-env");
+
+builder.Build().Run();
+```
+
+:::note
+This example is C#-only because it defines a custom .NET resource type.
+TypeScript AppHosts can register pipeline steps on supported resource builders
+with `withPipelineStepFactory`.
+:::
+
+The preceding code configures the project image as an OCI archive, then uses the `AddComputeEnvironment` extension method to add the `ComputeEnvironmentResource` to the application model.
+
+### Publish pipeline step
+
+The publish step callback can build container images and generate deployment artifacts:
+
+```csharp title="ComputeEnvironmentResourceExtensions.cs"
+private static async Task PublishAsync(PipelineStepContext context)
+{
+    var imageManager = context.Services.GetRequiredService<IResourceContainerImageManager>();
+    var reportingStep = context.ReportingStep;
+
+    var projectResources = context.Model.Resources
+        .OfType<ProjectResource>()
+        .ToList();
+
+    if (projectResources.Count > 0)
+    {
+        var buildTask = await reportingStep.CreateTaskAsync(
+            $"Building {projectResources.Count} container image(s)",
+            context.CancellationToken);
+
+        await imageManager.BuildImagesAsync(projectResources, context.CancellationToken);
+
+        await buildTask.SucceedAsync(
+            $"Built {projectResources.Count} image(s) successfully",
+            context.CancellationToken);
+    }
+    else
+    {
+        var skipTask = await reportingStep.CreateTaskAsync(
+            "No container images to build",
+            context.CancellationToken);
+        await skipTask.SucceedAsync("Skipped - no project resources found", context.CancellationToken);
+    }
+
+    var manifestTask = await reportingStep.CreateTaskAsync(
+        "Generate deployment manifests",
+        context.CancellationToken);
+    // Write deployment files...
+    await manifestTask.SucceedAsync("Manifests ready", context.CancellationToken);
+}
+```
+
+The preceding code:
+
+- Implements a publish step that builds container images and generates deployment manifests.
+- Uses the `IResourceContainerImageManager` API to build container images.
+- Reports progress with `IReportingStep` tasks from `PipelineStepContext.ReportingStep`.
+
+Your publish step might use `IResourceContainerImageManager` to build images, while your deploy step might use those artifacts and push them to a registry or target environment.
+
+### Deploy pipeline step
+
+The deploy step callback can apply deployment artifacts and report task-level progress:
+
+```csharp title="ComputeEnvironmentResourceExtensions.cs"
+private static async Task DeployAsync(PipelineStepContext context)
+{
+    var reportingStep = context.ReportingStep;
+
+    var applyTask = await reportingStep.CreateTaskAsync(
+        "Apply Kubernetes manifests",
+        context.CancellationToken);
+
+    // Simulate deploying to Kubernetes cluster
+    await Task.Delay(1_000, context.CancellationToken);
+
+    await applyTask.SucceedAsync("All workloads deployed", context.CancellationToken);
+}
+```
+
+The preceding code:
+
+- Simulates deploying workloads to a Kubernetes cluster.
+- Uses `PipelineStepContext.ReportingStep` to create and complete deployment tasks.
+- Handles cancellation through the provided `CancellationToken`.
+
+## Best practices
+
+When using these APIs, follow these guidelines:
+
+### Image building
+
+- Configure production resources with `WithContainerBuildOptions`.
+- Consider target platform requirements when building for deployment.
+- Use OCI format for maximum compatibility with container registries.
+- Handle `InvalidOperationException` when container runtime health checks fail.
+
+### Progress reporting
+
+- Encapsulate long-running logical phases in steps rather than emitting raw tasks.
+- Keep titles concise (under 60 characters) as the CLI truncates longer strings.
+- Treat warnings as recoverable and allow subsequent steps to proceed.
+- Treat errors as fatal and fail fast with clear diagnostics.
+- Use asynchronous, cancellation-aware operations to avoid blocking event processing.
+
+### State management
+
+- Each step and task starts in _Running_ state and transitions exactly once to _Completed_, _Warning_, or _Error_.
+- Throw an exception when attempting multiple state transitions.
+- Leverage the reporter to guarantee ordered events and prevent interleaving.
+- Dispose of `IReportingStep` to automatically complete unfinished steps.

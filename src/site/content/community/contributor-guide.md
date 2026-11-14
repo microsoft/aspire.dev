@@ -1,0 +1,881 @@
+---
+title: Contributor guide for aspire.dev
+description: "Learn how to contribute to aspire.dev: clone the repo, run the docs site locally, write Starlight MDX, follow the style guide, and open a pull request."
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 3
+---
+
+Thank you for your interest in contributing to `aspire.dev`! Whether you're fixing typos, adding new content, or improving existing pages, this guide will help you get started and your contributions are greatly appreciated.
+
+## 🚀 About this site
+
+This documentation site is built using [Starlight](https://starlight.astro.build/), a full-featured documentation theme built on top of [Astro](https://astro.build/). Starlight provides a fast, accessible, and SEO-friendly foundation, while Astro's component-based architecture makes it easy to create and maintain content.
+
+## 🤔 Ways to contribute
+
+There are several ways you can contribute to `aspire.dev`:
+
+- **Small fixes** - Correct typos, grammar mistakes, or formatting issues.
+- **Content additions** - Add new documentation pages or sections to cover missing topics.
+- **Content improvements** - Enhance existing documentation with clearer explanations, updated information, or additional examples.
+- **Code contributions** - Improve the site's codebase, fix bugs, or add new features.
+
+There's also different methods for contributing, from selecting the **Edit page** button at the bottom of any documentation page, to using [GitHub Codespaces](/get-started/github-codespaces/) for a fully configured development environment, or setting up a local development environment on your machine.
+
+### Click-edit
+
+Selecting the **Edit page** button at the bottom of any documentation page will take you to the corresponding file in the GitHub repository. From there, you can make changes directly in the GitHub web interface and submit a pull request. This is best suited for small fixes or minor content additions.
+
+:::tip
+If you haven't noticed the **Edit page** button, scroll to the bottom of this page and you should see it there:
+
+{% image dark: "/assets/images/community/edit-page.png", light: "/assets/images/community/edit-page-light.png", alt: "Edit page button at the bottom of a documentation page" %}
+:::
+
+### Codespaces
+
+To avoid local setup, you can use [GitHub Codespaces](/get-started/github-codespaces/) for a fully configured development environment in the cloud. This is ideal for larger contributions or if you prefer not to set up a local environment.
+
+{% codespaces_button "microsoft", "aspire.dev" %}
+
+:::note
+If you choose to use Codespaces, please still refer to the rest of this guide for information on writing style, code quality, and the contribution workflow. Continue reading at the [Writing style section below](#️-writing-style-guide).
+:::
+
+### Local development
+
+If you prefer to work locally, you can set up a development environment on your machine. Follow the instructions below to get started.
+
+## 📋 Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- [Node.js](https://nodejs.org/en/download) (LTS version recommended) - For running the development server
+- [Bun](https://bun.sh/docs/installation) - Fast JavaScript runtime and package manager that installs dependencies, runs scripts, and builds the site
+- [Visual Studio Code](https://code.visualstudio.com/) - Recommended code editor
+- [Git](https://git-scm.com/downloads) - For version control
+
+## ⚙️ Local dev setup
+
+{% steps %}
+1. Clone the `aspire.dev` repository.
+
+    ```bash
+    git clone https://github.com/microsoft/aspire.dev.git
+    ```
+
+1. Navigate to the `aspire.dev` directory.
+
+    ```bash
+    cd aspire.dev
+    ```
+
+1. Install dependencies
+
+    ```bash
+    bun install
+    ```
+
+    :::note
+    This repository uses [Bun](https://bun.sh/docs/installation) to install dependencies and run scripts. Other package managers don't use the repository's `bun.lock` or apply its dependency patches.
+    :::
+
+1. Run the development server
+
+    ```bash
+    bun run dev
+    ```
+
+    This starts the Vite development server for the frontend and provide hot-reload capabilities.
+
+1. View the site locally
+
+    Open your browser to `http://localhost:4321` (or the port shown in your terminal)
+
+    :::tip
+    During local development, the site search functionality is disabled. This is normal behavior as the search index is built during the production build process. To test search functionality, run a production build locally using `bun run build` and then preview it with `bun run preview`.
+    :::
+{% endsteps %}
+
+### Known formatting limitations
+
+We expose `lint` and `format` scripts in the `package.json` to help maintain code quality and consistency. This isn't something that you need to run manually. However, regardless of whether or not you run these scripts, be aware of the following known limitation when working with MDX files.
+
+:::caution
+**Prettier and Steps components**
+
+The Prettier formatter has a known limitation when formatting MDX files containing the `Steps` component. Prettier incorrectly converts all ordered lists (`ol`) as a single line, which causes the steps to render malformed.
+
+**Workaround:** Always ensure there is a blank line between each step item in a `Steps` component. For example:
+
+```md
+<Steps>
+
+1. First step with content
+
+1. Second step with content
+
+1. Third step with content
+
+</Steps>
+```
+
+Without the blank lines between steps, the inner content won't render correctly. If you notice steps appearing malformed after running `bun run format`, manually add the blank lines back before committing.
+:::
+
+## ➡️ Git workflow
+
+{% steps %}
+1. Start from an issue (or a discussion that leads to an issue)
+1. Fork the repository
+
+    As mentioned in the local dev setup section, start by forking the `aspire.dev` repository to your own GitHub account
+ 
+1. Create a new branch for your changes
+
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
+
+1. Make your changes, considering the writing style guide
+1. Commit with descriptive messages
+1. Push to your fork
+1. Create a pull request, and always follow the [Code of Conduct](https://github.com/microsoft/aspire.dev/blob/main/CODE_OF_CONDUCT.md)
+{% endsteps %}
+
+## 🧩 Adding a new framework integration
+
+If you've built a new Community Toolkit hosting integration (e.g. `CommunityToolkit.Aspire.Hosting.<Framework>`) and want to document it on `aspire.dev`, you'll need to touch several files. Here's a summary of the steps, using the Perl integration as an example:
+
+{% steps %}
+1. **Create the documentation page**
+
+    Add a new MDX file at `src/frontend/src/content/docs/integrations/frameworks/<framework>.mdx`. Use an existing framework page (such as `python.mdx` or `java.mdx`) as a template. Include frontmatter with a `title`, any required component imports, and a `Badge` indicating it's a Community Toolkit integration.
+
+1. **Add an icon asset**
+
+    Place an SVG icon for the framework in `src/frontend/src/assets/icons/`. Reference it in your MDX page with an `Image` component import.
+
+1. **Register the sidebar entry**
+
+    In `src/frontend/config/sidebar/integrations.topics.ts`, add a new entry for your framework in the frameworks list (keep alphabetical order):
+
+    ```ts
+    { label: '<Framework>', slug: 'integrations/frameworks/<framework>' },
+    ```
+
+1. **Add the NuGet package name**
+
+    In `src/frontend/src/data/aspire-integration-names.json`, add the full NuGet package name for your integration (keep alphabetical order):
+
+    ```json
+    "CommunityToolkit.Aspire.Hosting.<Framework>",
+    ```
+
+1. **Add license attribution**
+
+    If your integration uses assets or technologies with specific licenses, add entries in `src/frontend/src/data/thanks-license-titles.ts`:
+
+    ```ts
+    '<key>': '<License>: <URL>',
+    ```
+{% endsteps %}
+
+After making these changes, run `bun run dev` (or `aspire start`) locally to verify the page renders correctly, the sidebar navigation works, and the icon displays as expected.
+
+## ✍️ Writing style guide
+
+<span id='-writing-style-guide'></span>
+
+When contributing to `aspire.dev`, follow these writing guidelines to ensure consistency and clarity:
+
+- **Use clear and concise language** - Aim for simplicity. Avoid jargon unless necessary, and explain technical terms when they first appear.
+- **Be consistent** - Follow existing conventions in terminology, formatting, and structure. Refer to other documentation pages for examples.
+- **Use active voice** - Write in active voice to make instructions and explanations more direct and engaging.
+- **Use sentence case** - Capitalize only the first word and proper nouns in headings, sidebars, and table of contents.
+- **Be inclusive** - Use inclusive language that respects all readers. Avoid gendered terms and stereotypes.
+- **Provide examples** - Where applicable, include code snippets or examples to illustrate concepts.
+- **Use proper grammar and spelling** - Proofread your contributions to ensure they are free of errors and typos.
+- **Structure content logically** - Use headings, subheadings, and lists to organize information in a way that is easy to follow.
+- **Link to relevant resources** - When mentioning concepts, tools, or related documentation, provide links to help readers find more information.
+- **Follow formatting conventions** - Use consistent formatting for code snippets, commands, and technical terms. Refer to the examples in this guide for guidance.
+- **Review existing content** - Before adding new content, review existing documentation to avoid duplication and ensure coherence.
+
+### Third-party links
+
+Third-party links are appropriate when they help readers complete a task or understand a topic. Apply these standards to both authored and generated content:
+
+- **Use links sparingly** - Include third-party links only when they're directly relevant. Prefer Aspire documentation when it covers the same information.
+- **Present resources neutrally** - Describe third-party resources factually. Avoid endorsements, marketing claims, promotional comparisons, and calls to purchase or sign up.
+- **Avoid promotion** - Don't add links or surrounding content whose primary purpose is to market a third-party offering or position it as a preferred replacement for Aspire.
+- **Choose substantive destinations** - Link to technical documentation or other substantive resources. Don't link to product, pricing, lead-generation, or sales pages except as described in the following exceptions.
+- **Allow necessary exceptions** - Prerequisite download or account sign-up pages, pricing or billing references needed for cost planning, and project descriptions or links on attribution and acknowledgment pages are allowed. Keep each exception limited to the context that makes it necessary.
+- **Disclose affiliations** - In the **Third-party links and affiliations** section of the pull request description, disclose any material affiliation with a linked organization, such as employment, sponsorship, or ownership. An affiliation doesn't automatically disqualify a link, but the link and surrounding content must meet the same editorial standards as any other contribution.
+- **Review generated content** - Automated updates and generated catalogs aren't exempt. They may reproduce upstream metadata when that's the catalog's explicit purpose, but the reviewing maintainer must apply the same editorial standards to the surrounding content and linked destinations.
+
+### AppHost-specific TypeScript and C# content
+
+When you are documenting AppHost-specific content that changes between TypeScript and C#, use synced `Tabs` and `TabItem` blocks with `syncKey='aspire-lang'`. Put TypeScript first so `apphost.mts` is the default for readers without a saved preference. Each code snippet should have its own TypeScript and C# selector, and the shared sync key keeps the selected language consistent across the page.
+
+Use `Tabs` for other choices such as package managers, deployment targets, IDEs, or CLI variants.
+
+If a feature is only available in the C# AppHost today, show the C# example by itself and add an explanatory note. Do not add a language selector for a single-language example.
+
+For the **On this page** table of contents to pick up a heading reliably, define the heading outside `Pivot` and `Tabs`. Headings inside those components are often missed or can produce incomplete results in the generated table of contents.
+
+## 📝 Write Markdown
+
+Here are some common Markdown formatting examples to help you write documentation:
+
+### Frontmatter
+
+You can customize individual pages in `aspire.dev` by setting values in their frontmatter.
+Frontmatter is set at the top of your files between `---` separators:
+
+```md title="src/content/docs/example.md"
+---
+title: My page title
+---
+
+Page content follows the second `---`.
+```
+
+Every page must include at least a `title`. See the [frontmatter reference](https://starlight.astro.build/reference/frontmatter/) for all available fields and how to add custom fields.
+
+#### Social card metadata (Open Graph)
+
+Aspire automatically generates a per-page Open Graph image at build time. Each card uses the site-wide `og-image.png` as a full-bleed background and overlays a topic pill (with the same icon you see in the topics sidebar), the page `title`, and — if the page has one — its `description`. Long titles and descriptions are truncated with an ellipsis so previews stay readable at small social-card sizes. The generated image lives at `/og/<slug>.png` and is referenced by the page's `og:image` and `twitter:image` meta tags so links shared on Discord, Slack, Twitter/X, LinkedIn, and other platforms render a unique preview.
+
+To customize the social card for a specific page, set one of the following optional frontmatter fields:
+
+```md title="src/content/docs/example.mdx"
+---
+title: My page title
+description: A short summary rendered on the card and shown next to the
+  social-card image on most platforms.
+# Use a custom image instead of the auto-generated one. Accepts an absolute URL
+# or a site-relative path.
+ogImage: /img/custom-card.png
+# Or opt out of dynamic image generation entirely and fall back to the
+# site-wide og-image.png.
+og: false
+---
+```
+
+Pages that intentionally have no description (such as the home page or splash landing pages) fall back to the site-wide marketing description. Translated pages reuse the site-wide `og-image.png` so the same imagery is shown across locales.
+
+### Headings
+
+Use `#` symbols to create headings. More `#` symbols create smaller headings:
+
+```md title="src/content/docs/example.md"
+## Heading 2
+### Heading 3
+#### Heading 4
+```
+
+Headings are automatically created as bookmarks (shareable deep links) for easy navigation.
+
+:::note
+Avoid using Heading 1 (`#`) in your content, as it is reserved for the page title defined in frontmatter.
+:::
+
+:::tip
+To configure which headings appear in the **On this page** sidebar, use the `tableOfContents` frontmatter field. See the [tableOfContents reference](https://starlight.astro.build/reference/frontmatter/#tableofcontents) for more details.
+:::
+
+### Text formatting
+
+**Bold text** is created with double asterisks:
+
+```md title="src/content/docs/example.md"
+**Bold text**
+```
+
+_Italic text_ is created with an `_` (or single asterisks `*`—while valid, for consistency we recommend using `_`):
+
+```md title="src/content/docs/example.md"
+_Italic text_
+```
+
+`Inline code` is created with backticks:
+
+```md title="src/content/docs/example.md"
+`Inline code`
+```
+
+### Links
+
+Links are created with square brackets and parentheses:
+
+```md title="src/content/docs/example.md"
+[David Pine](https://davidpine.net)
+```
+
+Renders as:
+
+[David Pine](https://davidpine.net)
+
+Additionally, when linking to other pages within `aspire.dev`, use site relative paths:
+
+```md title="src/content/docs/example.md"
+[Build your first Aspire app](/get-started/first-app/)
+```
+
+Renders as:
+
+[Build your first Aspire app](/get-started/first-app/)
+
+:::note
+Site relative links should always include a trailing slash `/` at the end to ensure proper navigation.
+{% learnmore %}
+This is configured by default for `aspire.dev`, for more information see [Astro Docs: trailingSlash](https://docs.astro.build/en/reference/configuration-reference/#trailingslash).
+{% endlearnmore %}
+:::
+
+### Lists
+
+Unordered lists use `-` (or `*`—while valid, for consistency we recommend using `-`):
+
+```md title="src/content/docs/example.md"
+- First item
+- Second item
+- Third item
+```
+
+Renders as:
+
+- First item
+- Second item
+- Third item
+
+Ordered lists use numbers:
+
+```md title="src/content/docs/example.md"
+1. First step
+2. Second step
+3. Third step
+```
+
+Renders as:
+
+1. First step
+2. Second step
+3. Third step
+
+### Code blocks
+
+Use triple backticks with a language identifier for syntax highlighting:
+
+````md title="src/content/docs/example.md"
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddProject<Projects.ApiService>("apiservice");
+```
+````
+
+Renders as:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddProject<Projects.ApiService>("apiservice");
+```
+
+To add a title to a code block, use this syntax:
+
+````md title="src/content/docs/example.md"
+```csharp title="Program.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddProject<Projects.ApiService>("apiservice");
+```
+````
+
+Renders as:
+
+```csharp title="Program.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddProject<Projects.ApiService>("apiservice");
+```
+
+### Blockquotes
+
+Use `>` to create blockquotes:
+
+```md title="src/content/docs/example.md"
+> This is a note or important callout.
+```
+
+Renders as:
+
+> This is a note or important callout.
+
+### Tables
+
+Create tables using pipes `|` and hyphens `-`. Keep a blank line before and after the table, include one separator cell for each heading, and use at least three hyphens in each separator cell:
+
+```md title="src/content/docs/example.md"
+| Feature | Description | Status |
+| ------- | ----------- | ------ |
+| Dashboard | Web-based monitoring | Available |
+| Telemetry | OpenTelemetry support | Available |
+| Deployment | Kubernetes deployment | Preview |
+```
+
+Renders as:
+
+| Feature | Description | Status |
+| ------- | ----------- | ------ |
+| Dashboard | Web-based monitoring | Available |
+| Telemetry | OpenTelemetry support | Available |
+| Deployment | Kubernetes deployment | Preview |
+
+:::tip
+You can align columns using colons: `| :--- |` for left, `| :---: |` for center, and `| ---: |` for right alignment.
+:::
+
+### Horizontal rules
+
+Create a horizontal rule with three or more hyphens, asterisks, or underscores:
+
+```md title="src/content/docs/example.md"
+---
+```
+
+Renders as:
+
+---
+
+### Strikethrough
+
+Use double tildes to create strikethrough text:
+
+```md title="src/content/docs/example.md"
+~~This text is crossed out~~
+```
+
+Renders as:
+
+~~This text is crossed out~~
+
+### Task lists
+
+Create interactive task lists in Markdown:
+
+```md
+- [x] Add Aspire to your project
+- [x] Configure service defaults
+- [ ] Deploy to Azure
+- [ ] Set up monitoring
+```
+
+Renders as:
+
+- [x] Add Aspire to your project
+- [x] Configure service defaults
+- [ ] Deploy to Azure
+- [ ] Set up monitoring
+
+### Nested lists
+
+You can nest lists by indenting with two spaces:
+
+```md
+- Aspire components
+  - Databases
+    - PostgreSQL
+    - Redis
+  - Messaging
+    - RabbitMQ
+    - Azure Service Bus
+```
+
+Renders as:
+
+- Aspire components
+  - Databases
+    - PostgreSQL
+    - Redis
+  - Messaging
+    - RabbitMQ
+    - Azure Service Bus
+
+### Escaping characters
+
+Use a backslash `\` to escape special Markdown characters:
+
+```md
+\*This text is not italic\*
+\[This is not a link\]
+```
+
+Renders as:
+
+\*This text is not italic\*
+\[This is not a link\]
+
+### Line breaks
+
+End a line with two or more spaces to create a line break:
+
+```md
+First line with two spaces at the end  
+Second line
+```
+
+Or use an empty line to create a paragraph break.
+
+## ➕ Markdown extensions
+
+The `aspire.dev` site supports several Markdown extensions to enhance your documentation:
+
+### Mermaid diagrams
+
+You can write mermaid diagrams as code blocks:
+
+````md title="src/content/docs/example.md"
+```mermaid
+graph TD
+    A[build-apiservice] --> C[push-apiservice]
+    B[provision-container-registry] --> C
+    C --> D[deploy-apiservice]
+    E[provision-cosmosdb] --> D
+    F[provision-identity] --> D
+```
+````
+
+Renders as:
+
+```mermaid
+graph TD
+    A[build-apiservice] --> C[push-apiservice]
+    B[provision-container-registry] --> C
+    C --> D[deploy-apiservice]
+    E[provision-cosmosdb] --> D
+    F[provision-identity] --> D
+```
+
+### Asides
+
+[Asides](https://starlight.astro.build/components/asides/), "admonitions", "callouts", or "alerts" are special highlighted blocks used to draw attention to important information, tips, warnings, or notes.
+
+The `:::` syntax creates asides given a type of `note`, `tip`, `caution`, or `danger` in both Markdown and [MDX](#write-mdx):
+
+Use the `:::` syntax as the default pattern in `aspire.dev` docs, including `.mdx` pages. Prefer the `Aside` component only when you specifically need a JSX-only composition pattern that fenced callouts cannot express cleanly.
+
+````md title="src/content/docs/example.md"
+:::note
+Some content in an aside.
+:::
+
+:::caution
+Some cautionary content.
+:::
+
+:::tip
+
+Other content is also supported in asides.
+
+```js
+// A code snippet, for example.
+```
+
+:::
+
+:::danger
+Do not give your password to anyone.
+:::
+````
+
+Renders as:
+
+:::note
+Some content in an aside.
+:::
+
+:::caution
+Some cautionary content.
+:::
+
+:::tip
+
+Other content is also supported in asides.
+
+```js
+// A code snippet, for example.
+```
+
+:::
+
+:::danger
+Do not give your password to anyone.
+:::
+
+Additionally, `aspire.dev` supports [GitHub Alerts](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts) syntax with the [community plugin](https://starlight-github-alerts.netlify.app/getting-started/):
+
+For example, you can write:
+
+#### Note
+
+```md title="src/content/docs/example.md"
+> [!NOTE]
+> Useful information that users should know, even when skimming content.
+```
+
+Renders as:
+
+> [!NOTE]
+> Useful information that users should know, even when skimming content.
+
+See the full demo here: [Starlight: GitHub Alerts](https://starlight-github-alerts.netlify.app/demo/).
+
+{% learnmore %}
+If you need a JSX-only fallback, see the [Aside component](#aside-component) section below.
+{% endlearnmore %}
+
+## ☑️ Write MDX
+
+<p id="write-mdx"></p>
+
+MDX files use the `.mdx` extension and combine standard Markdown with the power of JSX. This means you can write content and seamlessly embed interactive components—all in one file.
+
+{% learnmore %}
+[Learn more about MDX](https://mdxjs.com/docs/what-is-mdx/).
+{% endlearnmore %}
+
+With the power of Astro components, you can enhance your documentation with interactive elements, custom layouts, and dynamic content. To use any of the built-in Starlight or custom components available in `aspire.dev`, simply import them at the top of your MDX file and use them like regular JSX components.
+
+### LinkButton component
+
+```mdx title="src/content/docs/example.mdx"
+---
+title: Example MDX Page
+---
+
+import { LinkButton } from '@astrojs/starlight/components';
+
+Here's an example of an MDX page with a custom button:
+
+<LinkButton href="https://aspire.dev" variant="primary">
+  Visit aspire.dev
+</LinkButton>
+```
+
+Renders as:
+
+Here's an example of an MDX page with a custom button:
+
+{% linkbutton "https://aspire.dev", variant: "primary" %}
+Visit aspire.dev
+{% endlinkbutton %}
+
+{% learnmore %}
+For all available components, see: [Starlight: Components](https://starlight.astro.build/components/using-components/).
+{% endlearnmore %}
+
+### FileTree component
+
+Use the `FileTree` component from `starlight-plugin-icons` so file and folder entries render with icons:
+
+````mdx title="src/content/docs/example.mdx"
+---
+title: Example MDX Page
+---
+
+import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
+
+<FileTree>
+- src/
+  - components/
+    - Example.astro
+  - content/
+    - docs/
+      - example.mdx
+</FileTree>
+````
+
+### Aside component
+
+Prefer `:::` callouts for new docs content. The `Aside` component from Starlight is the fallback option when you need JSX composition inside a callout:
+
+````mdx title="src/content/docs/example.mdx"
+---
+title: Example MDX Page
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside>Some content in an aside.</Aside>
+
+<Aside type="caution">Some cautionary content.</Aside>
+
+<Aside type="tip">
+
+  Other content is also supported in asides.
+
+  ```js
+  // A code snippet, for example.
+  ```
+
+</Aside>
+
+<Aside type="danger">Do not give your password to anyone.</Aside>
+````
+
+Renders as:
+
+:::note
+Some content in an aside.
+:::
+
+:::caution
+Some cautionary content.
+:::
+
+:::tip
+Other content is also supported in asides.
+
+```js
+// A code snippet, for example.
+```
+:::
+
+:::danger
+Do not give your password to anyone.
+:::
+
+### Using custom components
+
+To use custom components available in `aspire.dev`, import them at the top of your MDX file. Custom component imports rely on configured aliases—have a look at the `tsconfig.json` file for more information:
+
+```json title="tsconfig.json" {8}
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist"],
+  "compilerOptions": {
+    "paths": {
+      "@assets/*": ["./src/assets/*"],
+      "@components/*": ["./src/components/*"],
+      "@data/*": ["./src/data/*"],
+      "@scripts/*": ["./src/scripts/*"],
+      "@tests/e2e/*": ["./tests/e2e/*"],
+      "@tests/typecheck/*": ["./tests/typecheck/*"],
+      "@tests/unit/*": ["./tests/unit/*"],
+      "@tests/*": ["./tests/*"],
+      "@utils/*": ["./src/utils/*"]
+    }
+  }
+}
+```
+
+By using the `@components` alias, you can easily import any custom component from the `frontend/src/components/` directory. For example, to import the `LearnMore` component used in this guide:
+
+```mdx title="src/content/docs/example.mdx"
+---
+title: Example MDX Page
+---
+
+import LearnMore from '@components/LearnMore.astro';
+
+Here's an example of using the `LearnMore` component:
+
+<LearnMore>
+  Please give our [repository a star on GitHub! ⭐](https://github.com/microsoft/aspire.dev)
+</LearnMore>
+```
+
+### Aspire language selectors
+
+Use synced `Tabs` and `TabItem` blocks for AppHost content that switches between TypeScript and C#. Put TypeScript first so the `apphost.mts` tab appears on the left and is selected by default. Each AppHost code snippet should have its own selector, and every AppHost language selector on the page should share `syncKey='aspire-lang'` so a reader's language choice applies to the whole page.
+
+Keep shared section headings outside the tabs. For example, write `## Add a Redis resource` before the `Tabs` block, then place the language-specific code inside the `csharp` and `typescript` tab items. This helps the **On this page** navigation stay accurate.
+
+````mdx title="src/content/docs/example.mdx"
+---
+title: Example MDX Page
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+````
+
+If the difference is not about AppHost language, keep using regular `Tabs`.
+
+The same TOC rule applies to `Tabs`: if a heading should appear in **On this page**, keep that heading outside the component and only put the variant-specific body content inside.
+
+Renders as:
+
+Here's an example of using the `LearnMore` component:
+
+{% learnmore %}
+Please give our [repository a star on GitHub! ⭐](https://github.com/microsoft/aspire.dev)
+{% endlearnmore %}
+
+## Dev Hub content
+
+[Dev Hub](/hub/) highlights live in `src/data/dev-hub.ts`, relative to `src/frontend`. Reuse existing documentation, sample IDs, and shared data rather than maintaining a separate resource catalog.
+
+Glossary definitions and examples live in `src/content/glossary/`. Follow an existing term as a template, keep filenames (term IDs) stable, and preserve `legacyAnchors` so existing links continue to work.
+
+To refresh the official blog archive used by Browse, run `bun run update:blogs` from `src/frontend`. The Hub's featured posts remain curated separately in `src/data/dev-hub.ts`.
+
+When changing interactive search components, reuse `SearchField` and the shared search styles rather than overriding input heights, typography, colors, or clear icons per page. Keep contextual layouts, but use the same full-size input treatment; compact navigation controls can use the shared small variant.
+
+In-page `.search-empty` panels keep their dashed border, align with the search area's left edge, and cap their width so the copy and decorative Aspire bot stay together without oversized side gutters. Group the content in a `.search-empty-content` wrapper. Use a short heading, put any query in `.search-empty-query`, and keep the guidance, active filters, and single subtly outlined recovery button inside the wrapper. Leave breathing room between the heading, supporting text, and recovery action. Shared styles reserve space for the bot on the right and reduce its size on mobile. The artwork is excluded from screen-reader announcements and compact sidebar filters.
+
+Pagefind's native clear action does not emit an `input` event. Keep the dialog's API shortcut URLs synchronized during result refreshes too.
+
+Empty-state recovery should preserve useful search intent: clear filters when that restores matches for the query, otherwise clear the query when the selected filters still have results. Reset both only when neither change alone restores results. Use the existing matching rules and facet defaults, preserve sorting, and keep unavailable data distinct from zero matches.
+
+Show one recovery action in the empty state, without competing toolbar reset links. When results exist, show one toolbar action: **Clear filters** for filters alone, or **Reset all** for a query combined with filters. A query alone only needs the input's clear icon. Keep individual filter controls editable in every state.
+
+Test hub controls through client navigation as well as direct page loads. Selecting a different resource-results page smoothly scrolls to the breadcrumb after navigation settles, using the site's fixed-header scroll offset while preserving pagination focus. Respect reduced-motion preferences with instant scrolling. Selecting the current page is a no-op; search, filter, and browser-history scroll behavior remain unchanged. Astro removes `noscript` elements from incoming pages, so deferred resource images use inert templates with separate no-JavaScript markup. Preserve router-owned history state and dispose listeners when leaving a page.
+
+## Responsive component design
+
+Use the shared Aspire typography, icon, and control tokens from `src/styles/aspire-brand.css`. Body copy and editable fields use `--aspire-text-body`, secondary labels use `--aspire-text-small`, compact controls use `--aspire-text-control`, and noninteractive metadata uses `--aspire-text-meta`. Navigation glyphs use `--aspire-icon-size`; illustrative artwork can use its own dimensions.
+
+Compact mobile controls use `--aspire-touch-target` (34px at the default text size), matching the visual scale of **On this page**. Primary calls to action can be larger. Keep inline prose links inline, and size code-copy glyphs independently from their buttons. Let long labels grow vertically rather than clipping them. Use `ReadableText` for identifiers that should wrap at camel-case or punctuation boundaries without changing their text, and use the existing Starlight breakpoints at 50em and 72rem.
+
+Keep essential destinations reachable through the shared mobile menu. Breadcrumbs show a wrapping hierarchy trail with underlined ancestor links and the current page as plain text. Keep that navigation distinct from the **On this page** table of contents. When collapsing filters or other controls, remove the hidden controls from the tab order instead of clipping their container.
+
+Check new components at 320px, phone landscape, tablet, and desktop widths, in both themes. Verify keyboard focus, touch interaction, increased text size and spacing, and client-side navigation. Code blocks and two-dimensional tables may scroll within their own labeled regions; the entire page should not scroll horizontally.
+
+## 🆘 Getting help
+
+- **Issues** - Report bugs or request features via [GitHub Issues](https://github.com/microsoft/aspire.dev/issues)
+- **Discussions** - Join conversations in [GitHub Discussions](https://github.com/microsoft/aspire.dev/discussions)
+- **Discord** - Connect with the community on the [Aspire Discord](https://discord.com/invite/raNPcaaSj8)

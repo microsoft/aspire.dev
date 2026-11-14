@@ -1,0 +1,94 @@
+{%- comment -%}
+  formatMemberSignatureMarkdown of src/frontend/src/utils/csharp-api-markdown.ts (cleanMemberSignature,
+  buildClassBodySignature and formatSignature of src/frontend/src/utils/packages.ts): the member signature without its
+  declaring type, methods and constructors inside their type's declaration, one parameter per line, accessors
+  appended to properties and indexers. Inputs: member, type.
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign sig = member.signature -%}
+{%- if sig != nil and sig != "" -%}
+  {%- comment -%} One pass: the parameter list's `(` (depth 0 of <>), the last `.` at depth 0 before it and the last
+  space before that dot, and the last `)`. {%- endcomment -%}
+  {%- assign chars = sig | split: "" -%}
+  {%- assign depth = 0 -%}{%- assign open = -1 -%}{%- assign lastDot = -1 -%}{%- assign lastSpace = -1 -%}{%- assign spaceForDot = -1 -%}{%- assign close = -1 -%}
+  {%- for ch in chars -%}
+    {%- case ch -%}
+      {%- when "<" -%}{%- assign depth = depth | plus: 1 -%}
+      {%- when ">" -%}{%- assign depth = depth | minus: 1 -%}
+      {%- when "(" -%}{%- if depth == 0 and open < 0 -%}{%- assign open = forloop.index0 -%}{%- endif -%}
+      {%- when ")" -%}{%- assign close = forloop.index0 -%}
+      {%- when "." -%}{%- if depth == 0 and open < 0 -%}{%- assign lastDot = forloop.index0 -%}{%- assign spaceForDot = lastSpace -%}{%- endif -%}
+      {%- when " " -%}{%- if open < 0 -%}{%- assign lastSpace = forloop.index0 -%}{%- endif -%}
+    {%- endcase -%}
+  {%- endfor -%}
+  {%- assign cleaned = sig -%}
+  {%- if lastDot >= 0 -%}
+    {%- assign typeStart = spaceForDot | plus: 1 -%}
+    {%- if typeStart < lastDot -%}
+      {%- assign afterDot = lastDot | plus: 1 -%}
+      {%- assign cleaned = sig | slice: 0, typeStart | append: "" -%}
+      {%- assign tail = sig | slice: afterDot, sig.size -%}
+      {%- assign cleaned = cleaned | append: tail -%}
+      {%- assign removed = afterDot | minus: typeStart -%}
+      {%- if open >= 0 -%}{%- assign open = open | minus: removed -%}{%- endif -%}
+      {%- if close >= afterDot -%}{%- assign close = close | minus: removed -%}{%- else -%}{%- assign close = -1 -%}{%- endif -%}
+    {%- endif -%}
+  {%- endif -%}
+  {%- comment -%} splitParams {%- endcomment -%}
+  {%- assign params = "" -%}{%- assign paramCount = 0 -%}
+  {%- if open >= 0 and close > open -%}
+    {%- assign pre = cleaned | slice: 0, open | append: "(" -%}
+    {%- assign suf = cleaned | slice: close, cleaned.size -%}
+    {%- assign start = open | plus: 1 -%}{%- assign length = close | minus: start -%}
+    {%- assign paramStr = cleaned | slice: start, length -%}
+    {%- assign pieces = paramStr | split: "," -%}
+    {%- assign fresh = true -%}
+    {%- capture params -%}
+      {%- for piece in pieces -%}
+        {%- if fresh -%}{%- assign acc = piece -%}{%- assign fresh = false -%}{%- else -%}{%- assign acc = acc | append: "," | append: piece -%}{%- endif -%}
+        {%- assign d1 = acc | append: "#" | split: "<" | size -%}{%- assign d2 = acc | append: "#" | split: "(" | size -%}
+        {%- assign d3 = acc | append: "#" | split: ">" | size -%}{%- assign d4 = acc | append: "#" | split: ")" | size -%}
+        {%- assign d = d1 | plus: d2 | minus: d3 | minus: d4 -%}
+        {%- if d == 0 and forloop.last == false -%}{{ acc | strip }}␟{%- assign paramCount = paramCount | plus: 1 -%}{%- assign fresh = true -%}
+        {%- elsif forloop.last -%}{%- assign last = acc | strip -%}{%- if last != "" -%}{{ last }}␟{%- assign paramCount = paramCount | plus: 1 -%}{%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endcapture -%}
+  {%- endif -%}
+  {%- assign paramList = params | split: "␟" -%}
+  {%- if member.kind == "method" or member.kind == "constructor" -%}
+    {%- capture memberLine -%}
+      {%- if paramCount == 0 -%}{{ "    " }}{{ cleaned }}{%- else -%}
+        {{- "    " }}{{ pre }}
+        {%- for i in (1..paramCount) -%}
+          {%- assign j = i | minus: 1 -%}{{ nl }}        {{ paramList[j] }}{%- if i < paramCount -%},{%- endif -%}
+        {%- endfor -%}
+        {{- suf -}}
+      {%- endif -%}
+    {%- endcapture -%}
+    {%- capture decl -%}
+      {%- if type.accessibility -%}{{ type.accessibility }} {% endif -%}
+      {%- if type.isStatic -%}static {% endif -%}
+      {%- if type.isAbstract and type.kind == "class" -%}abstract {% endif -%}
+      {%- if type.isSealed and type.kind == "class" -%}sealed {% endif -%}
+      {{- type.kind }} {{ type.name -}}
+      {%- if type.isGeneric and type.genericParameters.size > 0 -%}<{{ type.genericParameters | map: "name" | join: ", " }}>{%- endif -%}
+    {%- endcapture -%}
+    {{- decl }}{{ nl }}{{ "{" }}{{ nl }}{{ memberLine }}{{ nl }}    {{ "{" }}{{ nl }}        // ...{{ nl }}    {{ "}" }}{{ nl }}{{ "}" -}}
+  {%- else -%}
+    {%- capture formatted -%}
+      {%- if paramCount == 0 -%}{{ cleaned }}{%- else -%}
+        {{- pre -}}
+        {%- for i in (1..paramCount) -%}
+          {%- assign j = i | minus: 1 -%}{{ nl }}    {{ paramList[j] }}{%- if i < paramCount -%},{%- endif -%}
+        {%- endfor -%}
+        {{- suf -}}
+      {%- endif -%}
+    {%- endcapture -%}
+    {%- if member.kind == "property" or member.kind == "indexer" -%}
+      {%- capture accessors -%}{%- if member.hasGet -%}get{%- endif -%}{%- if member.hasSet -%}{%- if member.hasGet -%}; {% endif -%}{%- if member.isInitOnly -%}init{%- else -%}set{%- endif -%}{%- endif -%}{%- endcapture -%}
+      {%- if accessors != "" -%}{{ formatted | rstrip }} { {{ accessors }}; }{%- else -%}{{ formatted }}{%- endif -%}
+    {%- else -%}{{ formatted }}{%- endif -%}
+  {%- endif -%}
+{%- endif -%}

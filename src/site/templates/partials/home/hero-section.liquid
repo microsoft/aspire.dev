@@ -1,0 +1,47 @@
+{%- comment -%}
+  Ported from src/frontend/src/components/HeroSection.astro. Root class (components.css scope): cid-hero-section.
+  Argument: hs = { title, highlight?, subtitle, logo? (an image path), primary_cta? { label, href },
+  secondary_cta? { label, href }, floating_icons: [{ icon, top, right, size, delay, duration }] }.
+  The Astro component computes floating_icons from the title with buildFloatingIconLayout(title, ['open-book',
+  'puzzle', 'rocket', 'setting', 'seti:config'], { rightRange: 55 }) (src/frontend/src/components/floating-icon-layout.ts);
+  the page carries the computed values in its front matter (Liquid has no seeded random).
+{%- endcomment -%}
+<section class="hero-section not-content cid-hero-section">
+  <div class="hero-grid" aria-hidden="true"></div>
+  {%- if hs.logo %}
+  <div class="hero-logo" aria-hidden="true">
+    <img src="{{ hs.logo }}" alt="Logo" width="120" height="120" loading="lazy" decoding="async">
+  </div>
+  {%- endif %}
+  <div class="hero-content">
+    <p class="hero-title">
+      {{ hs.title }}{% if hs.highlight %} <span class="hero-highlight">{{ hs.highlight }}</span>{% endif %}
+    </p>
+    <p class="hero-subtitle">{{ hs.subtitle }}</p>
+    {%- if hs.primary_cta or hs.secondary_cta %}
+    <div class="hero-actions">
+      {%- if hs.primary_cta %}
+      <a href="{{ hs.primary_cta.href }}" class="hero-btn hero-btn-primary">
+        {{ hs.primary_cta.label }}
+        {% icon "right-arrow", size: "1.25rem" %}
+      </a>
+      {%- endif %}
+      {%- if hs.secondary_cta %}
+      <a href="{{ hs.secondary_cta.href }}" class="hero-btn hero-btn-secondary">
+        {{ hs.secondary_cta.label }}
+      </a>
+      {%- endif %}
+    </div>
+    {%- endif %}
+  </div>
+  <div class="hero-floating-icons" aria-hidden="true">
+    {%- for fi in hs.floating_icons %}
+    <span
+      class="floating-icon"
+      style="top: {{ fi.top }}; right: {{ fi.right }}; font-size: {{ fi.size }}; animation-delay: {{ fi.delay }}; animation-duration: {{ fi.duration }};"
+    >
+      {% icon fi.icon, size: "1em" %}
+    </span>
+    {%- endfor %}
+  </div>
+</section>

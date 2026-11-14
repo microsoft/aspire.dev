@@ -286,7 +286,6 @@ test('sample query, tags and recovery have independent scopes', async ({ page })
 
 test('session recovery preserves clock and timezone preferences on repeated visits', async ({ page }) => {
   await start(page, '/aspireconf/');
-  await page.evaluate(() => Reflect.set(window, '__sessionSearchNavigation', true));
   for (let visit = 0; visit < 2; visit++) {
     const input = page.locator('.session-search');
     const clock = page.locator('.clock-toggle');
@@ -310,11 +309,37 @@ test('session recovery preserves clock and timezone preferences on repeated visi
       document.body.append(link);
       link.click();
     });
-    await expect(page).toHaveURL(/\/reference\/overview\/$/);
+    // Navigation is a full page load: the return visit boots a fresh session grid.
+    await page.waitForURL(/\/reference\/overview\/$/);
     await page.goBack();
+    await page.waitForURL(/\/aspireconf\//);
+    await page.waitForLoadState('load');
     await expect(input).toBeVisible();
-    expect(await page.evaluate(() => Reflect.get(window, '__sessionSearchNavigation'))).toBe(true);
   }
+});
+
+// session-grid.ts keeps the 12/24-hour and timezone choices in sessionStorage, so they last across page loads.
+test('clock and timezone preferences are restored after navigating away and back', async ({ page }) => {
+  await start(page, '/aspireconf/');
+  const clock = page.locator('.clock-toggle');
+  const timezoneToggle = page.locator('.tz-toggle');
+  const defaultClock = await clock.getAttribute('data-active');
+  await clock.click();
+  await expect(clock).not.toHaveAttribute('data-active', defaultClock!);
+  const preference = await clock.getAttribute('data-active');
+  const timezone = await timezoneToggle.getAttribute('data-active');
+  await page.evaluate(() => {
+    const link = document.createElement('a');
+    link.href = '/reference/overview/';
+    document.body.append(link);
+    link.click();
+  });
+  await page.waitForURL(/\/reference\/overview\/$/);
+  await page.goBack();
+  await page.waitForURL(/\/aspireconf\//);
+  await page.waitForLoadState('load');
+  await expect(clock).toHaveAttribute('data-active', preference!);
+  await expect(timezoneToggle).toHaveAttribute('data-active', timezone!);
 });
 
 test('gallery and conference result summaries use regular shared typography', async ({ page }) => {

@@ -1,0 +1,51 @@
+---
+permalink: /llms-small.txt
+layout: false
+liquid: true
+markdown: false
+---
+{%- comment -%}
+  The abridged documentation for language models, in starlight-llms-txt 0.11's format (llms-small.txt.ts and
+  generator.ts with minify: true): llms-full.txt's pages minus the plugin's `exclude` list of astro.config.mjs
+  (written below as urls; the locale globs are covered by the root-locale check).
+
+  Same assumptions as llms-full.txt (`docs.all` over the Markdown twins, `item.content` their Markdown).
+  Simplified: the plugin's minification of the rendered HTML (removing <details>, note and tip asides, and
+  collapsing the whitespace of prose outside code fences) is not reproduced; Liquid cannot do it on Markdown
+  source. A filter or a post-processing command step can add it later.
+
+  Filters: sort_by (planned, Douze plan 3.12), locale_of (planned, 3.6, used when the item has no `locale`); default, strip, replace, slice, split, append (Liquid).
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign separator = nl | append: nl -%}
+{%- comment -%}
+  exclude: includes/**, index, 404, docs, dashboard/index, deployment/index, community/index,
+  integrations/index, integrations/gallery, reference/overview, community/contributors, community/videos,
+  community/thanks, reference/api/**, <locale>/**
+{%- endcomment -%}
+{%- assign excluded = "/,/404/,/docs/,/dashboard/,/deployment/,/community/,/integrations/,/integrations/gallery/,/reference/overview/,/community/contributors/,/community/videos/,/community/thanks/" | split: "," -%}
+{%- assign pages = docs.all | sort_by: "data.url" -%}
+<SYSTEM>This is the abridged developer documentation for {{ site.llms.project_name | default: site.title }}</SYSTEM>
+{%- for item in pages -%}
+  {%- assign data = item.data -%}
+  {%- if data.draft -%}{%- continue -%}{%- endif -%}
+  {%- assign item_locale = item.data.locale -%}
+  {%- unless item_locale -%}{%- assign item_locale = item.data.url | locale_of -%}{%- endunless -%}
+  {%- if item_locale != "default" -%}{%- continue -%}{%- endif -%}
+  {%- comment -%} the page url of a twin: /x.md -> /x/, /index.md -> / {%- endcomment -%}
+  {%- assign page_url = item.data.url | replace: "/index.html", "/" -%}
+  {%- if page_url == "/index.md" -%}
+    {%- assign page_url = "/" -%}
+  {%- else -%}
+    {%- assign page_url = page_url | replace: ".md", "/" -%}
+  {%- endif -%}
+  {%- if excluded contains page_url -%}{%- continue -%}{%- endif -%}
+  {%- if page_url contains "/includes/" -%}{%- continue -%}{%- endif -%}
+  {%- assign head = page_url | slice: 0, 15 -%}
+  {%- if head == "/reference/api/" -%}{%- continue -%}{%- endif -%}
+  {{ separator }}# {{ data.hero.title | default: data.title }}
+  {%- assign summary = data.hero.tagline | default: data.description -%}
+  {%- if summary -%}{{ separator }}> {{ summary }}{%- endif -%}
+  {{ separator }}{{ item.content | strip }}
+{%- endfor -%}

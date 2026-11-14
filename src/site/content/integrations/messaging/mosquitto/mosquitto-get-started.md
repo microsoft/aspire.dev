@@ -1,0 +1,60 @@
+---
+title: Get started with the Mosquitto integration
+description: Add an Eclipse Mosquitto MQTT broker to an Aspire AppHost, reference it from application resources, and persist broker data during development.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+[Eclipse Mosquitto](https://mosquitto.org/) is an MQTT message broker. The Community Toolkit integration runs Mosquitto in a container and exposes its MQTT endpoint to referenced Aspire resources.
+
+## Prerequisites
+
+- An Aspire AppHost project
+- An MQTT client library for each application that connects to the broker
+
+## Add Mosquitto to your AppHost
+
+Install the [📦 CommunityToolkit.Aspire.Hosting.Mosquitto](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Mosquitto) package in the AppHost:
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Mosquitto
+```
+
+Create the broker resource and reference it from your application. See [Set up Mosquitto in the AppHost](../mosquitto-host/) for ports, storage, and broker configuration.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const mqtt = await builder.addMosquitto('mqtt');
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(mqtt);
+await api.waitFor(mqtt);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var mqtt = builder.AddMosquitto("mqtt");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(mqtt)
+    .WaitFor(mqtt);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The resource provides an MQTT connection URI to referencing resources. Its default configuration allows anonymous connections, so use a custom Mosquitto configuration before exposing the broker beyond a trusted development environment.
+
+## See also
+
+- [Set up Mosquitto in the AppHost](../mosquitto-host/)
+- [Mosquitto documentation](https://mosquitto.org/documentation/)
+- [CommunityToolkit.Aspire.Hosting.Mosquitto source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.Mosquitto)

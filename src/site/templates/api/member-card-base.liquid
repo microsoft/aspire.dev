@@ -1,0 +1,40 @@
+{%- comment -%}
+  MemberCardBase.astro: the shared member card (header, description, signature, parameters, return type). Inputs:
+  name, kind_label, kind_class (default kind-method), badges (a string of badges separated by "¦"), description,
+  signature (raw text; formatted with formatTsSignature when lang is typescript), lang (default typescript),
+  return_type, parameters (array of { name, type, isOptional, defaultValue, description }; with callback_types,
+  a parameter whose isCallback is set shows its callbackSignature), show_return_in_header, href, and the slots
+  after_description, after_signature, extra_sections (HTML). Root class: cid-api-reference-member-card-base.
+  ReadableText's <wbr> hints are not emitted.
+{%- endcomment -%}
+{%- assign mcb_lang = lang | default: "typescript" -%}
+{%- assign mcb_has_return = false -%}
+{%- if return_type and return_type != "void" -%}{%- assign mcb_has_return = true -%}{%- capture mcb_ret_color -%}{%- render 'api/ts-color', tc_in: return_type -%}{%- endcapture -%}{%- endif -%}
+<div class="mc mcb not-content cid-api-reference-member-card-base"><div class="mc-header">
+{%- if kind_label %}<span class="api-kind-pill {{ kind_class | default: 'kind-method' }}">{{ kind_label }}</span>{% endif -%}
+{%- if href %}<a href="{{ href }}" class="mc-name-link"><code class="mc-param-name">{{ name }}</code></a>{% else %}<code class="mc-param-name">{{ name }}</code>{% endif -%}
+{%- if show_return_in_header and mcb_has_return %}<span class="mc-param-type mc-param-type-{{ mcb_ret_color }}"><code>{{ return_type }}</code></span>{% endif -%}
+{%- if badges and badges != "" -%}{%- assign mcb_badges = badges | split: "¦" -%}{%- for b in mcb_badges %}<span class="api-mod-badge">{{ b }}</span>{% endfor -%}{%- endif -%}
+</div>
+{%- if description %}<div class="mc-summary">{{ description }}</div>{% endif -%}
+{{- after_description -}}
+{%- if signature -%}
+  {%- if mcb_lang == "typescript" -%}{%- capture mcb_sig -%}{%- render 'api/ts-format-sig', tfs_sig: signature -%}{%- endcapture -%}{%- else -%}{%- assign mcb_sig = signature -%}{%- endif -%}
+<div class="mc-sig">{% render 'api/code-block', code: mcb_sig, lang: mcb_lang %}</div>
+{%- endif -%}
+{{- after_signature -}}
+{%- if parameters.size > 0 -%}
+<div class="mc-section"><p class="api-section-label">Parameters</p><div class="mc-params">
+  {%- for p in parameters -%}
+    {%- assign mcb_type = p.type -%}
+    {%- if callback_types and p.isCallback and p.callbackSignature -%}{%- assign mcb_type = p.callbackSignature -%}{%- endif -%}
+    {%- capture tc_out -%}{%- render 'api/ts-color', tc_in: mcb_type -%}{%- endcapture -%}
+<div class="mc-param"><span class="mc-param-header"><code class="mc-param-name">{{ p.name }}</code><span class="mc-param-type mc-param-type-{{ tc_out }}"><code>{{ mcb_type }}</code></span>{% if p.isOptional %}<span class="api-mod-badge">optional</span>{% endif %}{% if p.defaultValue %}<span class="api-mod-badge">= {{ p.defaultValue }}</span>{% endif %}</span>{% if p.description and description_params %}<span class="mc-param-desc">{{ p.description }}</span>{% endif %}</div>
+  {%- endfor -%}
+</div></div>
+{%- endif -%}
+{%- if mcb_has_return and show_return_in_header != true -%}
+<div class="mc-section"><p class="api-section-label">Returns</p><div class="mc-section-body mc-returns"><span class="mc-param-type mc-param-type-{{ mcb_ret_color }}"><code class="mc-return-inline">{{ return_type }}</code></span></div></div>
+{%- endif -%}
+{{- extra_sections -}}
+</div>

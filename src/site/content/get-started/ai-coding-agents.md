@@ -1,0 +1,145 @@
+---
+title: Use AI coding agents with Aspire observability
+description: Set up Aspire skills so coding agents can inspect application logs, traces, and resource health, diagnose local failures, and verify fixes with runtime evidence.
+---
+
+Give your AI coding agent access to application observability, not just source code. Run `aspire agent init` in your project to install skills that teach your assistant to use the Aspire CLI, inspect local services, and work with TypeScript or C# AppHosts. A runtime MCP server is optional.
+
+## Why Aspire for coding agents
+
+Aspire gives coding agents access to the resource status, health checks, application logs, and distributed traces you inspect in the [Aspire dashboard](/dashboard/overview/). Start with [Aspire skills](/get-started/aspire-skills/) and the [Aspire CLI](/get-started/install-cli/); add the [Aspire MCP server](/get-started/aspire-mcp-server/) if you want runtime tools exposed through MCP. Both paths let an agent investigate the same request evidence as a developer.
+
+The Aspire CLI is built for agent-driven workflows — commands support non-interactive execution to avoid blocking on prompts, and many commands support `--format Json` for structured plain text output. Key commands include `aspire start` (background execution), `aspire start --isolated` (parallel worktrees), `aspire wait` (block until healthy), `aspire describe`, `aspire logs`, and `aspire docs search`.
+
+Aspire workflow skills installed by `aspire agent init` teach agents these patterns automatically.
+
+{% learnmore %}
+For skill installation paths, skill locations, companion tools, and the full
+skill list, see [Aspire skills](/get-started/aspire-skills/).
+{% endlearnmore %}
+
+## Get started
+
+When you create a new Aspire project with `aspire new` or `aspire init`, you're prompted to configure AI agent environments. You can also run `aspire agent init` at any time to set up or update the configuration.
+
+{% steps %}
+1. Open a terminal in your Aspire project directory (the folder containing your AppHost).
+
+1. Run the following command:
+
+   ```bash title="Aspire CLI"
+   aspire agent init
+   ```
+
+1. Select the **skill locations**, **skills and tools**, and optional MCP server configuration for the agent environments you use.
+
+   {% learnmore %}
+For details about skill locations, workflow skills, Playwright CLI, and
+dotnet-inspect, see [Aspire skills](/get-started/aspire-skills/).
+{% endlearnmore %}
+{% endsteps %}
+
+Standalone interactive setup offers MCP as an explicit opt-in. Setup chained from `aspire new` or `aspire init` doesn't offer it. For non-interactive setup, pass `aspire agent init --mcp` if you want MCP configuration; otherwise setup installs skills without enabling an MCP connection.
+
+## What gets configured
+
+The `aspire agent init` command detects your AI development environment, including an installed GitHub Copilot app even when the standalone Copilot CLI isn't available on `PATH`, and creates the configuration files you select:
+
+### Aspire skill files
+
+Aspire skill files teach your AI coding agent how to use Aspire CLI workflows, route tasks to focused skills, and call selected companion tools such as Playwright CLI or dotnet-inspect.
+
+{% learnmore %}
+For the full skill bundle contents and installation details, see [Aspire
+skills](/get-started/aspire-skills/).
+{% endlearnmore %}
+
+### Aspire MCP server
+
+The optional MCP server gives your AI agent direct runtime access to your running Aspire application — resource status, logs, traces, and commands. CLI skills can already query runtime data without MCP. See [Aspire MCP server](/get-started/aspire-mcp-server/) for configuration details, available tools, and the security model.
+
+## Start and stop AppHosts through VS Code
+
+With the [Aspire VS Code extension](/get-started/aspire-vscode-extension/#let-coding-agents-start-and-stop-apphosts), agents can use `#aspireStartAppHost` and `#aspireStopAppHost` to control a discovered AppHost through the editor. Start supports `run` and `debug` modes, and both tools require a trusted workspace and user confirmation.
+
+> Use #aspireStartAppHost to start my AppHost in debug mode, then inspect the resource status.
+
+The start tool can also select a launch profile or request isolated ports and user secrets. When the agent omits the isolation choice, linked Git worktrees start isolated automatically to avoid conflicts with the primary checkout.
+
+The extension checks for an existing AppHost session before launching, so the agent doesn't need to start a second CLI process. These VS Code tools manage the AppHost lifecycle; they are separate from the optional runtime MCP tools that inspect its resources and telemetry.
+
+Use the Aspire CLI workflow when your agent runs outside VS Code or doesn't have access to the extension's tools.
+
+## Migrate from AGENTS.md
+
+If your project has an `AGENTS.md` file from a previous version of Aspire, you can migrate to the new skill file format. Skill files provide better structure and are recognized natively by AI coding agents.
+
+{% steps %}
+1. Run `aspire agent init` and select the Aspire workflow skills you want to install.
+
+2. The skill files are created under each selected skill location, such as `.agents/skills/aspire/SKILL.md` and `.agents/skills/aspire-orchestration/SKILL.md`.
+
+3. Review and delete the old `AGENTS.md` file — the skill files replace it.
+{% endsteps %}
+
+:::tip
+The skill files are more structured than `AGENTS.md` and include complete CLI
+command reference tables, workflow patterns, and rules that the agent follows
+automatically. You can customize them for your project's specific needs.
+:::
+
+## Your first prompts
+
+Once configured, start your preferred AI coding environment. Try asking your agent:
+
+> "Start the Aspire app and show me the resource status."
+
+> "Analyze HTTP request performance for my API."
+
+> "Investigate this failed request using its trace ID and correlated logs. After the fix, repeat the request and verify the response and new trace."
+
+> "Add a Redis cache to my AppHost."
+
+For a worked investigation using the same evidence in the dashboard and CLI, see [Debug application failures with AI coding agents](/dashboard/ai-coding-agents/). Passing resource health checks alone doesn't prove that a failing request is fixed.
+
+{% tabs %}
+{% tab "VS Code", id: "demo-vscode" %}
+{% looping_video src: "/mcp-vscode-list-resources.mp4", type: "video/mp4", source_title: "VS Code demonstrating Aspire MCP integration with GitHub Copilot", aria_label: "VS Code with GitHub Copilot using Aspire MCP to list resources", controls: true %}
+{% endtab %}
+{% tab "Claude Code", id: "demo-claude" %}
+{% asciinema_player src: "/casts/mcp-claudecode-cli.cast", poster: "npt:0:27", auto_play: false, preload: false, loop: false, cols: 256, rows: 28 %}
+{% endtab %}
+{% tab "Copilot CLI", id: "demo-copilot" %}
+{% asciinema_player src: "/casts/mcp-copilot-cli.cast", poster: "npt:0:22", auto_play: false, preload: false, loop: false, cols: 256, rows: 28 %}
+{% endtab %}
+{% tab "OpenCode", id: "demo-opencode" %}
+{% asciinema_player src: "/casts/mcp-opencode-cli.cast", poster: "npt:0:14", auto_play: false, preload: false, loop: false, cols: 256, rows: 28 %}
+{% endtab %}
+{% endtabs %}
+
+## Supported AI assistants
+
+The `aspire agent init` command supports the following AI assistants:
+
+- [VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) with GitHub Copilot
+- [Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli#add-an-mcp-server)
+- [Claude Code](https://docs.claude.com/en/docs/claude-code/mcp)
+- [OpenCode](https://opencode.ai/docs/mcp-servers/)
+
+:::note
+The Aspire MCP server uses the STDIO transport protocol and may work with
+other agentic coding environments that support this MCP communication
+protocol.
+:::
+
+## See also
+
+- [Aspire skills](/get-started/aspire-skills/) — skill installation and contents
+- [Aspire MCP server](/get-started/aspire-mcp-server/) — tools, security, and troubleshooting for the MCP server
+- [Resource MCP servers](/get-started/resource-mcp-servers/) — optional resource-specific tools
+- [aspire agent command](/reference/cli/commands/aspire-agent/)
+- [aspire agent init command](/reference/cli/commands/aspire-agent-init/)
+- [aspire agent mcp command](/reference/cli/commands/aspire-agent-mcp/)
+- [Dashboard security considerations](/dashboard/security-considerations/)
+- [Dashboard and AI coding agents](/dashboard/ai-coding-agents/)
+- [Agentic dev aspirations](https://devblogs.microsoft.com/aspire/agentic-dev-aspirations/) — background on Aspire's agent-friendly development model

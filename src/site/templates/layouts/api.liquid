@@ -1,0 +1,36 @@
+---
+# The API reference layout: the Astro routes render through StarlightPage with `tableOfContents: false`, so the
+# frame is the article chrome of base.liquid (header, the sidebar column, footer) and <main> holds
+# partials/page-content (the title with the `api-page-title` class and the page actions, then the content and the
+# footer). The route templates of content/reference/api/ capture `title` and `description` and render their own
+# breadcrumbs (templates/api/breadcrumb.liquid; partials/breadcrumbs is off on API pages) and the in-page search.
+# `api_page` switches the chrome to the API reference: partials/sidebar renders templates/api/sidebar.liquid with the
+# API collapse/expand buttons, head.liquid uses the default social image.
+# The other values are the StarlightPage frontmatter of the Astro routes (prev/next: false, pagefind: false); Starlight
+# showed no edit link there (a generated page has no source file).
+layout: base.liquid
+has_sidebar: true
+has_toc: false
+api_page: true
+pagefind: false
+prev: false
+next: false
+editUrl: false
+---
+{%- include "partials/page-vars" -%}
+{%- comment -%}
+  The API components' scoped styles (scripts/client/api/extract-styles.mjs); site.css holds api-reference.css.
+  Linked before the content so it applies before the first paint of the panels below.
+{%- endcomment -%}
+<link rel="stylesheet" href="/assets/css/api-components.css">
+{% include "partials/page-content" %}
+{%- comment -%}
+  The API search controllers (scripts/client/api/index.js imports the one of each search root). The page's own
+  controller (`api_search` front matter) is also a module script of the document, after index.js (module scripts run
+  in order, so the version filters are restored first; the dynamic import then resolves to the same module): the
+  load event waits for it, so a chip clicked once the page has loaded is never lost to a controller still loading.
+{%- endcomment %}
+<script type="module" src="/scripts/client/api/index.js"></script>
+{%- if api_search %}
+<script type="module" src="/scripts/client/api/{{ api_search }}.js"></script>
+{%- endif %}

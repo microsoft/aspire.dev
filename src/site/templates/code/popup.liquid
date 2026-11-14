@@ -1,0 +1,25 @@
+{%- comment -%}
+  A twoslash annotation in the markup of Expressive Code's twoslash plugin (the `highlight` step's
+  `templates.popup`), which the site's twoslash-hover script and code.css style. `node` is the annotation (Douze's
+  README, "highlight").
+{%- endcomment -%}
+{%- capture info -%}<code class="twoslash-popup-code"><span class="twoslash-popup-code-type">{{ node.type }}</span></code>
+{%- if node.docs %}<div class="twoslash-popup-docs"><p></p>{{ node.docs }}<p></p></div>{% endif -%}
+{%- if node.tags.size > 0 %}<div class="twoslash-popup-docs twoslash-popup-docs-tags">{% for tag in node.tags %}<p class="twoslash-popup-docs-tagline"><span class="twoslash-popup-docs-tag-name">@{{ tag.name }}</span>{% if tag.html %}{% if tag.dash %} ― {% else %} {% endif %}<span class="twoslash-popup-docs-tag-value">{{ tag.html }}</span>{% endif %}</p>{% endfor %}</div>{% endif -%}
+{%- endcapture -%}
+{%- case node.kind -%}
+{%- when 'hover' -%}
+<span class="twoslash"><span class="twoslash-hover"><div class="twoslash-popup-container not-content">{{ info }}</div>{{ node.content }}</span></span>
+{%- when 'query' -%}
+<span class="twoslash-noline"><div class="twoslash-static" style="margin-left: {{ node.character | times: 8 }}px"><div class="twoslash-static-container not-content">{{ info }}</div></div></span>
+{%- when 'error' -%}
+<span class="twoslash twoerror"><div class="twoslash-error-box twoslash-error-level-{{ node.level }}"><span class="twoslash-error-box-icon"></span><span class="twoslash-error-box-content"><span class="twoslash-error-box-content-title">{{ node.level | capitalize }} {% if node.code %}ts({{ node.code }}) {% endif %} ― </span><span class="twoslash-error-box-content-message">{{ node.text }}</span></span></div></span>
+{%- when 'underline' -%}
+<span class="twoslash twoslash-error-underline">{{ node.content }}</span>
+{%- when 'highlight' -%}
+<span class="twoslash-highlighted">{{ node.content }}</span>
+{%- when 'tag' -%}
+<span class="twoslash twocustom"><div class="twoslash-custom-box twoslash-custom-level-{{ node.name }}"><span class="twoslash-custom-box-content"><span class="twoslash-custom-box-content-title">{{ node.name | capitalize }}:</span><span class="twoslash-custom-box-content-message"> {{ node.text }}</span></span></div>{{ node.content }}</span>
+{%- when 'completion' -%}
+<span class="twoslash-noline"><span class="twoslash-cursor"> </span><div class="twoslash-completion" style="margin-left: {{ node.character | times: 8 }}px"><div class="twoslash-completion-container">{% for item in node.completions %}<div class="twoslash-completion-item"><span class="twoslash-completion-icon {{ item.kind }}"></span><span class="twoslash-completion-name">{{ item.name }}</span></div>{% endfor %}</div></div></span>
+{%- endcase -%}

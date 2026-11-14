@@ -1,0 +1,723 @@
+---
+title: Python integration
+seoTitle: Python integration for Aspire AppHost and apps
+description: Add Python apps, modules, and ASGI services to an Aspire AppHost and orchestrate them alongside your other resources with full service discovery, environment injection, and debugging support.
+---
+
+{% image "/assets/images/icons/python.svg", alt: "Python logo", width: 100, height: 100, fit: "contain", class: "float-inline-left icon", zoomable: false %}
+
+The Aspire Python hosting integration lets you model Python scripts, modules, executables, and ASGI web apps as first-class resources in your [`AppHost`](/get-started/app-host/) project. Aspire manages virtual environment setup, injects connection strings and service URLs into the Python process, and wires up service discovery and observability automatically.
+
+## Hosting integration
+
+{% install_package "Aspire.Hosting.Python" %}
+
+### Migrate from the Community Toolkit package
+
+Remove the deprecated `CommunityToolkit.Aspire.Hosting.Python.Extensions` package reference, then install `Aspire.Hosting.Python`. Replace Toolkit-specific helpers with the official APIs that match the process you run:
+
+- Use {% api "Aspire.Hosting.PythonAppResourceBuilderExtensions.AddUvicornApp" %} for ASGI apps.
+- Replace `AddUvApp` with {% api "Aspire.Hosting.PythonAppResourceBuilderExtensions.AddPythonApp" %} and {% api "Aspire.Hosting.PythonAppResourceBuilderExtensions.WithUv" %}.
+- Use {% api "Aspire.Hosting.PythonAppResourceBuilderExtensions.AddPythonExecutable" %} for an executable installed in the Python environment.
+- Pass application arguments with {% api "Aspire.Hosting.ResourceBuilderExtensions.WithArgs" %} instead of the deprecated `AddPythonApp` overloads that accept script arguments.
+
+The examples in this article use only `Aspire.Hosting.Python`.
+
+## Add Python app
+
+Use `AddPythonApp` to run a Python script directly:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
+
+const example = await builder.addProject(
+  'example',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await example.withReference(python);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddPythonApp(
+        name: "python-api",
+        appDirectory: "../python-app",
+        scriptPath: "main.py")
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+builder.AddProject<Projects.ExampleProject>("example")
+    .WithReference(python);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+`AddPythonApp` / `addPythonApp` requires:
+
+- **name** — the resource name shown in the Aspire dashboard
+- **appDirectory** — path to the directory containing your Python application
+- **scriptPath** — the Python script to run, relative to `appDirectory`
+
+## Add Python module
+
+Use {% api "Aspire.Hosting.PythonAppResourceBuilderExtensions.AddPythonModule" %} to run a Python module (the equivalent of `python -m <module>`):
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addPythonModule(
+  'python-module',
+  '../python-app',
+  'mymodule'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddPythonModule(
+        name: "python-module",
+        appDirectory: "../python-app",
+        moduleName: "mymodule")
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+`AddPythonModule` / `addPythonModule` requires:
+
+- **name** — the resource name shown in the Aspire dashboard
+- **appDirectory** — path to the directory containing your Python application
+- **moduleName** — the Python module to run
+
+## Add Python executable
+
+Use `AddPythonExecutable` to run a CLI tool installed in the virtual environment (for example, `uvicorn` or a custom script):
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// TypeScript: pass additional arguments via withArgs after creation
+const python = await builder.addPythonExecutable(
+  'python-tool',
+  '../python-app',
+  'uvicorn'
+);
+await python.withArgs(['main:app', '--host', '0.0.0.0', '--port', '8000']);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddPythonExecutable(
+        name: "python-tool",
+        appDirectory: "../python-app",
+        executableName: "uvicorn")
+    .WithArgs("main:app", "--host", "0.0.0.0", "--port", "8000");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+In the TypeScript AppHost, `addPythonExecutable` accepts only `name`, `appDirectory`, and `executableName`. Pass additional command-line arguments by chaining `.withArgs(...)` after the resource is created.
+:::
+
+## Add Uvicorn app
+
+For ASGI web frameworks like FastAPI, Starlette, and Quart, use `AddUvicornApp` which pre-configures Uvicorn as the ASGI server:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
+
+const example = await builder.addProject(
+  'example',
+  '../ExampleProject/ExampleProject.csproj'
+);
+await example.withReference(python);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvicornApp(
+        name: "python-api",
+        appDirectory: "../python-app",
+        app: "main:app")
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+builder.AddProject<Projects.ExampleProject>("example")
+    .WithReference(python);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+`AddUvicornApp` / `addUvicornApp` requires:
+
+- **name** — the resource name shown in the Aspire dashboard
+- **appDirectory** — path to the directory containing your Python application
+- **app** — the ASGI application in `module:variable` format (for example, `main:app` for an `app` variable in `main.py`)
+
+### Uvicorn configuration
+
+Configure Uvicorn worker count and log level through environment variables:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
+await python.withEnvironment('UVICORN_WORKERS', '4');
+await python.withEnvironment('UVICORN_LOG_LEVEL', 'info');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
+    .WithHttpEndpoint(port: 8000, env: "PORT")
+    .WithEnvironment("UVICORN_WORKERS", "4")
+    .WithEnvironment("UVICORN_LOG_LEVEL", "info");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+Common Uvicorn environment variables:
+
+- **UVICORN_PORT** — port to listen on
+- **UVICORN_HOST** — host to bind to (default: `127.0.0.1`)
+- **UVICORN_WORKERS** — number of worker processes
+- **UVICORN_LOG_LEVEL** — logging level (`debug`, `info`, `warning`, `error`)
+
+## Virtual environment management
+
+The Python hosting integration automatically detects and uses a virtual environment in the project directory. By default, if a `requirements.txt` or `pyproject.toml` is found, Aspire creates and activates a virtual environment before starting the app.
+
+The official integration doesn't expose a C# or TypeScript API to disable virtual environment management. Use the default `.venv` location or specify a different path.
+
+### Custom virtual environment
+
+To specify a custom virtual environment path, use {% api "Aspire.Hosting.PythonAppResourceBuilderExtensions.WithVirtualEnvironment" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
+await python.withVirtualEnvironment('../python-app/.venv');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
+    .WithVirtualEnvironment("../python-app/.venv");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Package management
+
+### uv package manager
+
+Use `WithUv` to opt into the [uv](https://docs.astral.sh/uv/) package manager, which installs dependencies significantly faster than pip:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withUv();
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
+    .WithUv()
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### pip package manager
+
+Use {% api "Aspire.Hosting.PythonAppResourceBuilderExtensions.WithPip" %} to explicitly select pip:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
+await python.withPip();
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
+    .WithPip()
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+:::tip
+If neither `WithUv` nor `WithPip` is specified, Aspire automatically selects the package manager based on project files (`pyproject.toml` → uv, `requirements.txt` → pip).
+:::
+
+## Configure endpoints
+
+Python apps typically read the port from an environment variable. Use {% api "Aspire.Hosting.ResourceBuilderExtensions.WithHttpEndpoint" %} to declare the port and inject the variable name:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### Multiple endpoints
+
+A Python app can expose more than one endpoint:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'HTTP_PORT', name: 'http' });
+await python.withHttpEndpoint({ port: 8443, env: 'HTTPS_PORT', name: 'https' });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
+    .WithHttpEndpoint(port: 8000, env: "HTTP_PORT", name: "http")
+    .WithHttpEndpoint(port: 8443, env: "HTTPS_PORT", name: "https");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Health checks
+
+Declare an HTTP health-check endpoint so Aspire knows when the app is ready:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
+await python.withHttpHealthCheck('/health');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
+    .WithHttpEndpoint(port: 8000, env: "PORT")
+    .WithHttpHealthCheck("/health");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Environment variables
+
+Inject arbitrary environment variables with {% api "Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
+await python.withEnvironment('DEBUG', 'true');
+await python.withEnvironment('LOG_LEVEL', 'debug');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
+    .WithEnvironment("DEBUG", "true")
+    .WithEnvironment("LOG_LEVEL", "debug");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Service discovery
+
+Reference other Aspire resources from a Python app using {% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %}. Aspire injects the connection string as the `ConnectionStrings__<resourcename>` environment variable in the Python process:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const db = await postgres.addDatabase('mydb');
+
+const python = await builder.addPythonApp(
+  'python-api',
+  '../python-app',
+  'main.py'
+);
+await python.withReference(db);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres")
+    .AddDatabase("mydb");
+
+var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
+    .WithReference(db);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+Read the connection string in Python using the `ConnectionStrings__mydb` environment variable (double-underscore separator for Python/shell environments):
+
+```python title="main.py"
+import os
+
+connection_string = os.environ.get("ConnectionStrings__mydb")
+```
+
+For details about how resource names map to environment variable names, see [Environment variables](/fundamentals/environment-variables/).
+
+## HTTPS configuration
+
+By default, Python apps run over HTTP in local development. To enable HTTPS, use {% api "Aspire.Hosting.ResourceBuilderExtensions.WithHttpsEndpoint" %} together with {% api "Aspire.Hosting.ResourceBuilderExtensions.WithHttpsDeveloperCertificate" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const python = await builder.addUvicornApp(
+  'python-api',
+  '../python-app',
+  'main:app'
+);
+await python.withHttpsEndpoint({ port: 8443, env: 'PORT' });
+await python.withHttpsDeveloperCertificate();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
+    .WithHttpsEndpoint(port: 8443, env: "PORT")
+    .WithHttpsDeveloperCertificate();
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+`WithHttpsDeveloperCertificate` exports the ASP.NET Core development certificate and injects it into the Python process as environment variables. Read those variables in your Uvicorn startup:
+
+```python title="main.py"
+import os
+import uvicorn
+
+if __name__ == "__main__":
+    ssl_keyfile = os.environ.get("ASPNETCORE_Kestrel__Certificates__Default__KeyPath")
+    ssl_certfile = os.environ.get("ASPNETCORE_Kestrel__Certificates__Default__Path")
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8443)),
+        ssl_keyfile=ssl_keyfile,
+        ssl_certfile=ssl_certfile,
+    )
+```
+
+:::note
+HTTPS is needed primarily when your Python service is exposed externally. For internal service-to-service communication within an Aspire app, HTTP is sufficient.
+:::
+
+## Internal versus external service exposure
+
+By default, Aspire services are only accessible within the distributed application. Use {% api "Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" %} to expose a service to external traffic:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const internalApi = await builder.addUvicornApp(
+  'internal-api',
+  '../internal-api',
+  'main:app'
+);
+await internalApi.withHttpEndpoint({ port: 8001, env: 'PORT' });
+// internalApi is NOT exposed publicly — only reachable by other Aspire resources
+
+const publicApi = await builder.addUvicornApp(
+  'public-api',
+  '../public-api',
+  'main:app'
+);
+await publicApi.withHttpEndpoint({ port: 8000, env: 'PORT' });
+await publicApi.withExternalHttpEndpoints();
+// publicApi IS exposed publicly
+
+const frontend = await builder.addProject(
+  'frontend',
+  '../WebFrontend/WebFrontend.csproj'
+);
+await frontend.withReference(internalApi);
+await frontend.withReference(publicApi);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var internalApi = builder.AddUvicornApp("internal-api", "../internal-api", "main:app")
+    .WithHttpEndpoint(port: 8001, env: "PORT");
+// internalApi is NOT exposed publicly — only reachable by other Aspire resources
+
+var publicApi = builder.AddUvicornApp("public-api", "../public-api", "main:app")
+    .WithHttpEndpoint(port: 8000, env: "PORT")
+    .WithExternalHttpEndpoints();
+// publicApi IS exposed publicly
+
+builder.AddProject<Projects.WebFrontend>("frontend")
+    .WithReference(internalApi)
+    .WithReference(publicApi);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+:::tip
+Keep backend Python services (databases, AI inference, internal APIs) unexposed. Only expose services that browsers or external clients need to reach directly.
+:::
+
+## Debugging
+
+The Python hosting integration provides full debugging support in Visual Studio Code:
+
+1. Install the [Aspire VS Code extension](/get-started/aspire-vscode-extension/)
+2. Set breakpoints in your Python code
+3. Run the Aspire app host
+4. The debugger automatically attaches to your Python application
+
+:::tip
+The Aspire VS Code extension automatically generates launch configurations for Python applications in your Aspire solution, enabling zero-configuration debugging.
+:::
+
+## Deployment
+
+When deploying your Aspire application, the Python hosting integration automatically generates production-ready Dockerfiles for your Python services:
+
+```dockerfile
+# Auto-generated Dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+CMD ["python", "main.py"]
+```
+
+:::note
+The generated Dockerfile is tailored to your detected Python version and dependency configuration.
+:::
+
+## See also
+
+- [Environment variables](/fundamentals/environment-variables/) - How Aspire generates environment variable names from resources
+- [📦 Aspire.Hosting.Python NuGet package](https://www.nuget.org/packages/Aspire.Hosting.Python)
+- [Python language reference](https://docs.python.org/3/)
+- [Uvicorn documentation](https://www.uvicorn.org/)
+- [uv package manager documentation](https://docs.astral.sh/uv/)
+- [FastAPI documentation](https://fastapi.tiangolo.com/)
+- [Aspire integrations overview](/integrations/overview/)
+- [Build your first Aspire app](/get-started/first-app/)
+- [Deploy your first Aspire app](/get-started/deploy-first-app/)
+- [Aspire GitHub repository](https://github.com/microsoft/aspire)

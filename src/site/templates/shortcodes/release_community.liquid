@@ -1,0 +1,24 @@
+---
+# The site's <ReleaseCommunity> (src/components/ReleaseCommunity.astro): {% release_community "13.5" %}.
+# Reads the site data `core-team` (data/core-team.json: [{ handle, name, social?: { platform, url } }], converted
+# from src/frontend/src/data/core-team.ts) and `release-contributors` (data/release-contributors.json: version ->
+# GitHub handles). Root class: cid-release-community.
+display: block
+args: [version]
+params: []
+---
+{%- assign rc_contributors = release-contributors[version] -%}
+<section class="release-community not-content cid-release-community" aria-label="Community"><h3 class="rc-heading">The Aspire core team is</h3><ul class="rc-team" role="list">
+{%- for member in core-team -%}
+<li class="rc-team-item"><a href="{% if member.social.url %}{{ member.social.url }}{% else %}https://github.com/{{ member.handle }}{% endif %}" class="rc-team-link"><img class="rc-avatar" src="https://github.com/{{ member.handle }}.png?size=96" alt="{{ member.name | escape }}" width="48" height="48" loading="lazy" decoding="async"><span class="rc-name">{{ member.name | escape }}</span></a></li>
+{%- endfor -%}
+</ul>
+{%- if rc_contributors and rc_contributors.size > 0 -%}
+<p class="rc-thanks">Special thanks to everyone whose pull requests shipped in Aspire {{ version }}, including:</p><p class="rc-contributors">
+{%- assign rc_count = rc_contributors.size -%}
+{%- for handle in rc_contributors -%}<a class="rc-contributor" href="https://github.com/{{ handle }}">@{{ handle }}</a>
+{%- unless forloop.last -%}{%- if forloop.rindex == 2 -%}{%- if rc_count == 2 %} and {% else %}, and {% endif -%}{%- else %}, {% endif -%}{%- endunless -%}
+{%- endfor -%}
+</p>
+{%- endif -%}
+<p class="rc-outro">We're always excited to <a href="/community/contributors/">see community contributions</a>! If you'd like to get involved, check out our <a href="/community/contributor-guide/">contributing guide</a>.</p></section>

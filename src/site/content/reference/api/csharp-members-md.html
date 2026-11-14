@@ -1,0 +1,24 @@
+---
+# The Markdown twin of a C# member kind page (constructors, properties, methods...): renderCSharpMemberKindMarkdown of
+# src/frontend/src/utils/csharp-api-markdown.ts.
+layout: false
+pagination: { data: api.routes.csharp-members, size: 1, alias: route }
+permalink: "{{ route.md }}"
+---
+{%- assign pkg = api.pkgs[route.file] -%}{%- assign type = pkg.types[route.type] -%}
+{%- assign tstart = api.routes["csharp-types"] | find_index: "file", route.file -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- capture displayName -%}{%- render 'api/md/type-display', t: type -%}{%- endcapture -%}
+{%- case route.memberKind -%}{%- when "constructor" -%}{%- assign label = "Constructors" -%}{%- when "property" -%}{%- assign label = "Properties" -%}{%- when "method" -%}{%- assign label = "Methods" -%}{%- when "field" -%}{%- assign label = "Fields" -%}{%- when "event" -%}{%- assign label = "Events" -%}{%- when "indexer" -%}{%- assign label = "Indexers" -%}{%- else -%}{%- assign label = route.memberKind -%}{%- endcase -%}
+{%- capture text -%}
+# {{ displayName }} {{ label }}
+␞- Package: [{{ pkg.package.name }}](/reference/api/csharp/{{ route.packageSlug }}.md){{ nl }}- Type: [{{ displayName }}](/reference/api/csharp/{{ route.packageSlug }}/{{ route.typeSlug }}.md){{ nl }}- Kind: `{{ label }}`{{ nl }}- Members: `{{ route.members.size }}`
+␞{%- render 'api/md/doc', content: type.docs.summary, pkg: pkg, tstart: tstart -%}
+{%- for entry in route.members -%}
+  {%- assign member = type.members[entry.index] -%}
+␞{%- for alias in entry.aliases -%}<a id="{{ alias }}"></a>{{ nl }}{%- endfor -%}<a id="{{ entry.anchor }}"></a>{{ nl }}{{ nl }}## {% render 'api/md/member-display', m: member, ctor: type.name %}{{ nl }}{{ nl }}
+  {%- render 'api/md/csharp-member', member: member, type: type, pkg: pkg, tstart: tstart -%}
+{%- endfor -%}
+{%- endcapture -%}
+{%- render 'api/md/finalize', text: text -%}

@@ -1,0 +1,88 @@
+{%- comment -%}
+  The API reference sidebar tree: the <ul class="top-level"> of Starlight's SidebarSublist markup, for the sidebar
+  column of layouts/api.liquid (and partials/sidebar.liquid of the chrome, which includes this file). Included, so it
+  reads the page's `url` and `route`. The trees are the ones of src/frontend/src/utils/api-sidebar.ts and
+  ts-api-sidebar.ts:
+  - C# package, type and member pages: data/api/sidebar/csharp/<package>.json (the package's tree);
+  - C# landing: "Search APIs" and every package's tree collapsed, by name (the per-package trees, since
+    data/api/sidebar/csharp.json cannot be loaded next to the folder of the same name);
+  - TypeScript landing: "Search TypeScript APIs" and a link per module, by name;
+  - TypeScript module, item and member pages: the module's entry, with the item and member nested in it and the
+    page's section links (route.headings), built here per page as getTsApiReferenceSidebar does.
+  `nav_active` marks the current link and opens its groups.
+{%- endcomment -%}
+{%- assign asb_index = 0 -%}
+{%- if url contains "/reference/api/typescript/" -%}
+  {%- assign asb_search = "Search TypeScript APIs" -%}{%- assign asb_search_url = "/reference/api/typescript/" -%}
+{%- else -%}
+  {%- assign asb_search = "Search APIs" -%}{%- assign asb_search_url = "/reference/api/csharp/" -%}
+{%- endif -%}
+{%- assign asb_url = url | replace: "index.html", "" -%}
+{%- assign asb_package = route.packageSlug -%}
+{%- if route.typeCount -%}{%- assign asb_package = route.slug -%}{%- endif -%}
+{%- assign asb_module = route.moduleSlug -%}
+{%- if route.counts -%}{%- assign asb_module = route.slug -%}{%- endif -%}
+{%- assign asb_depth = 0 -%}
+{%- if asb_package -%}
+  {%- comment -%} C# package, type and member pages {%- endcomment -%}
+  {%- assign asb_list = api.sidebar.csharp[asb_package] | nav_active: url -%}
+  {%- include 'api/sidebar-list' -%}
+{%- elsif asb_module -%}
+  {%- comment -%} TypeScript module, item and member pages {%- endcomment -%}
+  {%- assign asb_module_url = "/reference/api/typescript/" | append: asb_module | append: "/" -%}
+  {%- assign asb_module_name = route.module -%}
+<ul class="top-level cid-sl-sidebar-sublist">
+<li><a href="{{ asb_search_url }}" class="large"><span>{{ asb_search }}</span></a></li>
+<li><details open><summary><span class="group-label"><span class="large">{{ asb_module_name }}</span></span>{% render 'api/caret' %}</summary><sl-sidebar-restore data-index="0"></sl-sidebar-restore>
+<ul class="cid-sl-sidebar-sublist">
+<li><a href="{{ asb_module_url }}"{% if asb_url == asb_module_url %} aria-current="page"{% endif %}><span>Overview</span></a></li>
+{%- if route.itemSlug -%}
+  {%- assign asb_item_url = asb_module_url | append: route.itemSlug | append: "/" -%}
+<li><details open><summary><span class="group-label"><span class="large">{{ route.itemName }}</span></span>{% render 'api/caret' %}</summary><sl-sidebar-restore data-index="1"></sl-sidebar-restore>
+<ul class="cid-sl-sidebar-sublist">
+<li><a href="{{ asb_item_url }}"><span>Overview</span></a></li>
+<li><details open><summary><span class="group-label"><span class="large">{{ route.name }}</span></span>{% render 'api/caret' %}</summary><sl-sidebar-restore data-index="2"></sl-sidebar-restore>
+<ul class="cid-sl-sidebar-sublist">
+<li><a href="{{ route.url }}" aria-current="page"><span>Overview</span></a></li>
+{%- for h in route.headings %}
+<li><a href="{{ route.url }}#{{ h.slug }}"><span>{{ h.text }}</span></a></li>
+{%- endfor %}
+</ul></details></li>
+</ul></details></li>
+{%- elsif route.itemKind -%}
+<li><details open><summary><span class="group-label"><span class="large">{{ route.name }}</span></span>{% render 'api/caret' %}</summary><sl-sidebar-restore data-index="1"></sl-sidebar-restore>
+<ul class="cid-sl-sidebar-sublist">
+<li><a href="{{ route.url }}" aria-current="page"><span>Overview</span></a></li>
+{%- for h in route.headings %}
+<li><a href="{{ route.url }}#{{ h.slug }}"><span>{{ h.text }}</span></a></li>
+{%- endfor %}
+</ul></details></li>
+{%- else -%}
+{%- for h in route.headings %}
+<li><a href="{{ asb_module_url }}#{{ h.slug }}"><span>{{ h.text }}</span></a></li>
+{%- endfor %}
+{%- endif %}
+</ul></details></li>
+</ul>
+{%- elsif route.language == "typescript" -%}
+<ul class="top-level cid-sl-sidebar-sublist">
+<li><a href="{{ asb_search_url }}" aria-current="page" class="large"><span>{{ asb_search }}</span></a></li>
+{%- assign asb_modules = api.routes["typescript-modules"] | sort_natural: "module" -%}
+{%- for m in asb_modules %}
+<li><a href="{{ m.url }}" class="large"><span>{{ m.module }}</span></a></li>
+{%- endfor %}
+</ul>
+{%- else -%}
+  {%- comment -%} C# landing: the package trees, collapsed {%- endcomment -%}
+<ul class="top-level cid-sl-sidebar-sublist">
+<li><a href="{{ asb_search_url }}" aria-current="page" class="large"><span>{{ asb_search }}</span></a></li>
+{%- assign asb_packages = api.routes["csharp-packages"] | sort_natural: "package" -%}
+{%- for p in asb_packages %}
+  {%- assign asb_group = api.sidebar.csharp[p.slug][1] %}
+<li><details><summary><span class="group-label"><span class="large">{{ asb_group.label }}</span></span>{% render 'api/caret' %}</summary><sl-sidebar-restore data-index="{{ asb_index }}"></sl-sidebar-restore>
+  {%- assign asb_index = asb_index | plus: 1 -%}{%- assign asb_list = asb_group.items -%}{%- assign asb_depth = 1 -%}
+  {%- include 'api/sidebar-list' %}
+</details></li>
+{%- endfor %}
+</ul>
+{%- endif -%}

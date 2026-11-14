@@ -1,0 +1,68 @@
+---
+title: Get started with the PostgreSQL integrations
+description: Understand how the Aspire PostgreSQL integrations fit together — model a database resource in your AppHost, then connect to it from any consuming app.
+---
+
+{% image "/assets/images/icons/postgresql-icon.png", alt: "PostgreSQL logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+[PostgreSQL](https://www.postgresql.org/) is a mature, open-source object-relational database with a strong reputation for reliability, feature richness, and performance. The Aspire PostgreSQL integration lets you model a PostgreSQL server and its databases as first-class resources in your AppHost, then hand the connection information to any consuming app — regardless of language.
+
+## Why use PostgreSQL with Aspire
+
+Adding PostgreSQL through Aspire — rather than wiring up containers and connection strings by hand — gives you:
+
+- **Zero-config local development.** Aspire runs PostgreSQL from the [`docker.io/library/postgres`](https://hub.docker.com/_/postgres) container image with credentials generated automatically for you.
+- **Consistent connection info across languages.** Once you reference the database from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the dashboard and your orchestrator can tell when the server is ready.
+- **Dashboard observability.** The database resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **A first-class C# client integration.** C# apps can use the `Aspire.Npgsql` package for dependency injection, health checks, and OpenTelemetry, all wired up from the same resource name.
+- **An upgrade path to managed Azure.** The same AppHost model extends to [Azure Database for PostgreSQL](/integrations/cloud/azure/azure-postgresql/azure-postgresql-get-started/) when you're ready to deploy.
+
+## How the pieces fit together
+
+The PostgreSQL integration has two sides: a **hosting integration** that you use in your AppHost to model the database resource, and a **connection story** for consuming apps that reference it.
+
+```mermaid
+architecture-beta
+
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
+
+  service hosting(server)[Hosting integration] in apphost
+  service postgres(logos:postgresql)[PostgreSQL server] in apphost
+  service db(database)[postgresdb] in apphost
+
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
+
+  hosting:R --> L:postgres
+  postgres:R --> L:db
+  db:R --> L:client
+  client:R --> L:app
+```
+
+The **hosting integration** lives in your AppHost project and models the PostgreSQL server and databases as resources. The **client integration** lives in each consuming app and uses the connection information Aspire injects to talk to the database.
+
+Getting there is a two-step process: model the PostgreSQL resources in your AppHost, then connect to the database from each app that needs it.
+
+{% steps %}
+1. ### Model PostgreSQL in your AppHost
+
+    Add the PostgreSQL hosting integration to your AppHost, then declare a PostgreSQL server, one or more databases, and reference them from the apps that need to talk to the database. The [PostgreSQL Hosting integration](/integrations/databases/postgres/postgres-host/) reference walks through every capability — adding databases, pgAdmin, pgWeb, data volumes, init scripts, custom parameters, and more — with side-by-side C# and TypeScript examples.
+
+    {% linkbutton "/integrations/databases/postgres/postgres-host/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Set up PostgreSQL in the AppHost
+{% endlinkbutton %}
+
+2. ### Connect from your consuming app
+
+    When you reference a PostgreSQL database from a consuming app, Aspire injects its connection information as environment variables. See [Connect to PostgreSQL](/integrations/databases/postgres/postgres-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration.
+
+    {% linkbutton "/integrations/databases/postgres/postgres-connect/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Connect to PostgreSQL
+{% endlinkbutton %}
+{% endsteps %}
+
+## See also
+
+- [PostgreSQL community extensions](/integrations/databases/postgres/postgresql-extensions/)

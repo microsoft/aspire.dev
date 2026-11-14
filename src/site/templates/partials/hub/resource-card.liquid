@@ -1,0 +1,129 @@
+{%- comment -%}
+  A resource of the catalog (src/frontend/src/utils/dev-center/resource-card-html.ts resourceCardHtml, with
+  resource-presentation.ts and resource-search.ts resourceSearchEntry), written as one row of the catalog:
+  "<sort key><ca_key_end><li ...>...</li><ca_row_end>", the sort key being the lowercased title, its punctuation
+  mapped to ca_punctuation_keys and its symbols to ca_symbol_key, then the title with its capitals as ca_upper_key
+  (lowercase first), then the id (the catalog is sorted by title, then id). Inputs: rc_id, rc_title, rc_desc
+  (Markdown allowed: summarized here), rc_href, rc_type, rc_topics, rc_tags, rc_languages, rc_providers (arrays), rc_platform (youtube, twitch or nil),
+  rc_light, rc_dark (image paths or urls, nil without image; local images become 640px WebP variants), rc_logo (the
+  image is a logo: shown as artwork), rc_date (YYYY-MM-DD or nil). Also reads dev_hub.resource_types, ca_key_end,
+  ca_row_end, and adds the type, topics and languages to ca_facets ("|type:x|topic:y|language:z|").
+  Each card's styles are global (resource-card.css), as the Astro component set its HTML.
+{%- endcomment -%}
+{%- assign rc_topics = rc_topics | uniq | sort -%}
+{%- comment -%} uniqueValues sorts with localeCompare: case-insensitive (sort_natural), not ordinal. {%- endcomment -%}
+{%- assign rc_tags = rc_tags | uniq | sort_natural -%}
+{%- assign rc_languages = rc_languages | uniq | sort -%}
+{%- assign rc_providers = rc_providers | uniq | sort -%}
+{%- comment -%} summary(): the description as text, at most 280 characters. {%- endcomment -%}
+{%- assign rc_text = rc_desc | default: "" | replace: "![", "[" | strip_markdown | strip -%}
+{%- comment -%} sampleDescriptionText strips the Markdown without SmartyPants: the typographic quotes and dashes that
+strip_markdown made are ASCII again, unless the description has such characters itself. {%- endcomment -%}
+{%- unless rc_desc contains "’" or rc_desc contains "‘" -%}{%- assign rc_text = rc_text | replace: "’", "'" | replace: "‘", "'" -%}{%- endunless -%}
+{%- unless rc_desc contains "“" or rc_desc contains "”" -%}{%- assign rc_text = rc_text | replace: "“", '"' | replace: "”", '"' -%}{%- endunless -%}
+{%- unless rc_desc contains "–" -%}{%- assign rc_text = rc_text | replace: "–", "--" -%}{%- endunless -%}
+{%- if rc_text.size > 280 -%}{%- assign rc_text = rc_text | slice: 0, 277 | rstrip | append: "…" -%}{%- endif -%}
+{%- comment -%} The type and its presentation (label, icon, variant, identifier). {%- endcomment -%}
+{%- assign rc_kind = dev_hub.resource_types | where: "id", rc_type | first -%}
+{%- assign rc_label = rc_kind.label -%}{%- assign rc_icon = rc_kind.icon -%}{%- assign rc_variant = "default" -%}{%- assign rc_identifier = nil -%}
+{%- assign rc_path = rc_href | split: "?" | first | split: "#" | first -%}
+{%- if rc_href contains "://" -%}{%- assign rc_external = true -%}{%- assign rc_path = rc_path | split: "://" | last -%}{%- assign rc_host = rc_path | split: "/" | first -%}{%- assign rc_path = rc_path | remove_first: rc_host -%}{%- else -%}{%- assign rc_external = false -%}{%- endif -%}
+{%- assign rc_path_end = rc_path | append: "~" | replace: "/~", "" | remove: "~" -%}
+{%- assign rc_last = rc_path_end | split: "/" | last | default: "" -%}
+{%- if rc_type == "reference" and rc_path_end contains "/reference/cli/commands/" -%}
+  {%- assign rc_label = "CLI command" -%}{%- assign rc_icon = "i-mdi:console-line" -%}{%- assign rc_variant = "command" -%}{%- assign rc_identifier = rc_last | replace: "-", " " -%}
+{%- elsif rc_type == "reference" and rc_path_end contains "/reference/cli/" -%}
+  {%- assign rc_label = "CLI reference" -%}{%- assign rc_icon = "i-mdi:console-line" -%}
+{%- elsif rc_type == "diagnostic" -%}
+  {%- assign rc_variant = "diagnostic" -%}
+  {%- assign rc_lower = rc_last | downcase -%}{%- assign rc_digits = rc_lower | remove: "aspire" | split: "" | where_exp: "rc_c", "'0123456789' contains rc_c" -%}
+  {%- if rc_lower contains "aspire" and rc_digits.size > 0 -%}{%- assign rc_identifier = rc_last | upcase -%}{%- endif -%}
+{%- elsif rc_type == "release-notes" -%}
+  {%- assign rc_variant = "release" -%}
+  {%- if rc_last contains "aspire-" -%}{%- assign rc_identifier = rc_last | remove_first: "aspire-" | replace: "-", "." -%}{%- endif -%}
+{%- elsif rc_type == "reference" and rc_path_end == "/reference/container-images" -%}
+  {%- assign rc_label = "Container images" -%}{%- assign rc_icon = "i-mdi:docker" -%}
+{%- elsif rc_platform == "twitch" -%}
+  {%- assign rc_label = "Twitch" -%}{%- assign rc_icon = "i-mdi:twitch" -%}
+{%- elsif rc_platform == "youtube" -%}
+  {%- assign rc_label = "YouTube" -%}{%- assign rc_icon = "i-mdi:youtube" -%}
+{%- endif -%}
+{%- comment -%} The accent is the first topic's color; the grain position comes from an FNV-1a hash of the id. {%- endcomment -%}
+{%- assign tp_id = rc_topics | first -%}{%- include "partials/hub/topic" -%}{%- assign rc_accent = tp_color | default: "var(--sl-color-purple)" -%}
+{%- assign rc_seed = 2166136261 -%}
+{%- assign rc_chars = rc_id | split: "" -%}
+{%- for rc_char in rc_chars -%}
+  {%- assign rc_code = ca_ascii | split: rc_char | first | size | plus: 32 -%}
+  {%- assign rc_low = rc_seed | modulo: 256 -%}{%- assign rc_xor = 0 -%}
+  {%- for rc_bit in ca_bits -%}
+    {%- assign rc_a = rc_low | divided_by: rc_bit | modulo: 2 -%}{%- assign rc_b = rc_code | divided_by: rc_bit | modulo: 2 -%}
+    {%- if rc_a != rc_b -%}{%- assign rc_xor = rc_xor | plus: rc_bit -%}{%- endif -%}
+  {%- endfor -%}
+  {%- assign rc_seed = rc_seed | minus: rc_low | plus: rc_xor | times: 16777619 | modulo: 4294967296 -%}
+{%- endfor -%}
+{%- assign rc_edge = rc_seed | modulo: 4 -%}
+{%- case rc_edge -%}
+  {%- when 0 -%}{%- assign rc_gx = 0 -%}{%- assign rc_gy = rc_seed | divided_by: 512 | modulo: 101 -%}
+  {%- when 1 -%}{%- assign rc_gx = 100 -%}{%- assign rc_gy = rc_seed | divided_by: 512 | modulo: 101 -%}
+  {%- when 2 -%}{%- assign rc_gx = rc_seed | divided_by: 4 | modulo: 101 -%}{%- assign rc_gy = 0 -%}
+  {%- else -%}{%- assign rc_gx = rc_seed | divided_by: 4 | modulo: 101 -%}{%- assign rc_gy = 100 -%}
+{%- endcase -%}
+{%- comment -%} The search entry, then the labels of the languages and providers. {%- endcomment -%}
+{%- assign rc_facet_labels = "" -%}
+{%- for tl_tag in rc_languages -%}{%- assign tl_facet = true -%}{%- include "partials/hub/tag-label" -%}{%- assign rc_facet_labels = rc_facet_labels | append: " " | append: tl_label -%}{%- endfor -%}
+{%- assign rc_language_labels = rc_facet_labels | strip -%}
+{%- for tl_tag in rc_providers -%}{%- assign tl_facet = true -%}{%- include "partials/hub/tag-label" -%}{%- assign rc_facet_labels = rc_facet_labels | append: " " | append: tl_label -%}{%- endfor -%}
+{%- assign tl_facet = false -%}
+{%- assign rc_topic_titles = "" -%}
+{%- for tp_id in rc_topics -%}{%- include "partials/hub/topic" -%}{%- assign rc_topic_titles = rc_topic_titles | append: " " | append: tp_title -%}{%- endfor -%}
+{%- assign rc_joined = rc_tags | join: " " -%}
+{%- assign rc_search = rc_title | append: " " | append: rc_text -%}{%- if rc_joined != "" -%}{%- assign rc_search = rc_search | append: " " | append: rc_joined -%}{%- endif -%}
+{%- assign rc_joined = rc_languages | join: " " -%}{%- if rc_joined != "" -%}{%- assign rc_search = rc_search | append: " " | append: rc_joined -%}{%- endif -%}
+{%- assign rc_search = rc_search | append: " " | append: rc_platform | append: rc_facet_labels -%}
+{%- assign rc_joined = rc_providers | join: " " -%}{%- if rc_joined != "" -%}{%- assign rc_search = rc_search | append: " " | append: rc_joined -%}{%- endif -%}
+{%- comment -%} normalizeGlossaryText: NFKD without combining marks (the data has no accented letters; the ellipsis
+is the compatibility character in use), lowercased. {%- endcomment -%}
+{%- assign rc_search = rc_search | append: rc_topic_titles | replace: "…", "..." | downcase | strip -%}
+{%- if rc_platform -%}{%- assign rc_platforms = rc_platform | split: "~" -%}{%- else -%}{%- assign rc_platforms = "" | split: "~" -%}{%- endif -%}
+{%- capture rc_entry -%}{"id":{{ rc_id | json | raw }},"title":{{ rc_title | json | raw }},"text":{{ rc_search | json | raw }},"type":{{ rc_type | json | raw }},"topic":{{ rc_topics | json | raw }},"language":{{ rc_languages | json | raw }},"platform":{{ rc_platforms | json | raw }},"date":{{ rc_date | default: "" | json | raw }}}{%- endcapture -%}
+{%- assign ca_facets = ca_facets | append: "type:" | append: rc_type | append: "|" -%}
+{%- for rc_item in rc_topics -%}{%- assign ca_facets = ca_facets | append: "topic:" | append: rc_item | append: "|" -%}{%- endfor -%}
+{%- for rc_item in rc_languages -%}{%- assign ca_facets = ca_facets | append: "language:" | append: rc_item | append: "|" -%}{%- endfor -%}
+{%- comment -%} The images: local ones as WebP variants, 640px wide, as getImage made them. {%- endcomment -%}
+{%- if rc_light -%}
+  {%- if rc_light contains "://" or rc_light contains ".svg" -%}{%- assign rc_light_url = rc_light -%}{%- else -%}{%- assign rc_light_url = rc_light | image_url: width: 640, format: "webp" -%}{%- endif -%}
+  {%- if rc_dark == rc_light -%}{%- assign rc_dark_url = rc_light_url -%}{%- elsif rc_dark contains "://" or rc_dark contains ".svg" -%}{%- assign rc_dark_url = rc_dark -%}{%- else -%}{%- assign rc_dark_url = rc_dark | image_url: width: 640, format: "webp" -%}{%- endif -%}
+{%- endif -%}
+{%- if rc_light == nil or rc_logo -%}{%- assign rc_artwork = true -%}{%- else -%}{%- assign rc_artwork = false -%}{%- endif -%}
+{%- assign rc_title_id = rc_id | url_encode | prepend: "resource-" -%}
+{%- assign rc_key = rc_title | downcase -%}
+{%- for rc_mark in ca_punctuation -%}{%- assign rc_key = rc_key | replace: rc_mark, ca_punctuation_keys[forloop.index0] -%}{%- endfor -%}
+{%- for rc_mark in ca_symbols -%}{%- assign rc_key = rc_key | replace: rc_mark, ca_symbol_key -%}{%- endfor -%}
+{%- assign rc_case = rc_title | replace: "’", "'" -%}
+{%- for rc_mark in ca_upper -%}{%- assign rc_case = rc_case | replace: rc_mark, ca_upper_key -%}{%- endfor -%}
+{{- rc_key | raw }}{{ ca_tie | raw }}{{ rc_case | raw }}{{ ca_tie | raw }}{{ rc_id | raw }}{{ ca_key_end | raw -}}
+<li class="browse-result" data-resource-entry="{{ rc_entry | escape }}" data-resource-type="{{ rc_type }}" style="--resource-accent: {{ rc_accent }}; --grain-x: {{ rc_gx }}%; --grain-y: {{ rc_gy }}%"><a class="browse-card{% if rc_external %} external-link{% endif %}" data-underline-trigger href="{{ rc_href }}" aria-labelledby="{{ rc_title_id }}"{% if rc_languages.size > 0 %} aria-describedby="{{ rc_title_id }}-languages"{% endif %}><div class="browse-card-preview{% if rc_artwork %} browse-card-artwork{% endif %}" data-artwork="{{ rc_variant }}">
+{%- if rc_light and rc_artwork == false -%}
+  {%- assign ri_light = rc_light_url -%}{%- assign ri_dark = rc_dark_url -%}{%- assign ri_width = 640 -%}{%- assign ri_height = 360 -%}{%- assign ri_class = nil -%}{%- include "partials/hub/resource-image" -%}
+{%- elsif rc_light == nil and rc_identifier -%}
+  <div class="browse-artwork-detail" aria-hidden="true">{% if rc_variant == "release" %}{% assign ri_light = "/assets/images/aspire-logo-32.svg" %}{% assign ri_dark = ri_light %}{% assign ri_width = 32 %}{% assign ri_height = 32 %}{% assign ri_class = "resource-artwork-detail-image" %}{% include "partials/hub/resource-image" %}{% else %}<span class="resource-artwork-detail-icon {{ rc_icon }}" aria-hidden="true"></span>{% endif %}<code data-search-highlight>{{ rc_identifier }}</code></div>
+{%- else -%}
+  <div class="browse-artwork-symbol" aria-hidden="true">{% if rc_light %}{% assign ri_light = rc_light_url %}{% assign ri_dark = rc_dark_url %}{% assign ri_width = 80 %}{% assign ri_height = 80 %}{% assign ri_class = nil %}{% include "partials/hub/resource-image" %}{% else %}<span class="resource-artwork-icon {{ rc_icon }}" aria-hidden="true"></span>{% endif %}</div>
+{%- endif -%}
+<div class="browse-card-badges"><span class="browse-card-kind"><span class="resource-kind-icon {{ rc_icon }}" aria-hidden="true"></span><span>{{ rc_label }}</span></span>
+{%- if rc_languages.size > 0 -%}
+<span class="browse-card-languages"><span class="sr-only" id="{{ rc_title_id }}-languages">Languages: {{ rc_language_labels | split: " " | join: ", " }}</span>
+{%- for rc_language in rc_languages -%}
+{%- assign tl_tag = rc_language -%}{%- include "partials/hub/tag-label" -%}
+<span class="browse-language" data-resource-language="{{ rc_language }}" title="{{ tl_label }}" aria-hidden="true">
+{%- case rc_language -%}
+{%- when "csharp", "typescript", "javascript", "python", "go", "java", "rust" -%}{%- assign ri_light = "/assets/images/icons/" | append: rc_language | append: ".svg" -%}{%- assign ri_dark = ri_light -%}{%- assign ri_width = 18 -%}{%- assign ri_height = 18 -%}{%- assign ri_class = "browse-language-image" -%}{%- include "partials/hub/resource-image" -%}
+{%- else -%}<span>{{ tl_label }}</span>
+{%- endcase -%}
+</span>
+{%- endfor -%}
+</span>
+{%- endif -%}
+</div></div><div class="browse-card-copy"><h3 id="{{ rc_title_id }}"><span data-link-underline data-search-highlight>{{ rc_title }}</span></h3><p data-search-highlight>{{ rc_text }}</p>
+{%- if rc_date or rc_external -%}<div class="browse-card-meta">{% if rc_date %}<time datetime="{{ rc_date }}">{{ rc_date | date: "%b %-d, %Y" }}</time>{% endif %}{% if rc_external %}<span class="resource-external-icon i-mdi:open-in-new" aria-hidden="true"></span>{% endif %}</div>{%- endif -%}
+</div></a></li>{{ ca_row_end | raw -}}

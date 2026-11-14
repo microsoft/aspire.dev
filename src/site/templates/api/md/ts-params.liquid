@@ -1,0 +1,17 @@
+{%- comment -%}renderTypeScriptParametersMarkdown and renderTypeScriptReturnMarkdown of src/frontend/src/utils/typescript-api-markdown.ts as `## Parameters` and `## Returns` blocks (␞ separated). Inputs: callable, items, moduleSlug.{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- if callable.parameters.size > 0 -%}
+␞## Parameters{{ nl }}{{ nl }}
+  {%- for parameter in callable.parameters -%}
+    {%- unless forloop.first -%}{{ nl }}{%- endunless -%}
+    - `{{ parameter.name }}` ({% if parameter.isCallback and parameter.callbackSignature %}`{{ parameter.callbackSignature }}`{% else %}{% render 'api/md/ts-type-ref', typeRef: parameter.type, items: items, moduleSlug: moduleSlug %}{% endif %})
+    {%- if parameter.isOptional %} `optional`{% endif -%}
+    {%- if parameter.defaultValue != nil and parameter.defaultValue != "" %} `= {{ parameter.defaultValue }}`{% endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- if callable.returnType == nil or callable.returnType == "" or callable.returnType == "void" -%}
+  {%- if callable.returnsBuilder -%}␞## Returns{{ nl }}{{ nl }}Returns `builder`.{%- endif -%}
+{%- else -%}
+␞## Returns{{ nl }}{{ nl }}{% render 'api/md/ts-type-ref', typeRef: callable.returnType, items: items, moduleSlug: moduleSlug %}{% if callable.returnsBuilder %} `builder`{% endif %}
+{%- endif -%}

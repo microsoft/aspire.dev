@@ -1,0 +1,170 @@
+---
+# The site's <SimpleAppHostCode> (src/components/SimpleAppHostCode.astro + SimpleAppHostCode.shared.ts):
+#   {% simple_app_host_code lang: "python", mark: props.x, collapse: props.y %}
+#   {% slot "csharp-content" %}Text shown under the C# code.{% endslot %}
+#   {% slot "typescript-content" %}Text shown under the TypeScript code.{% endslot %}
+#   Text shown after the tabs (the default slot).
+#   {% endsimple_app_host_code %}
+# lang: csharp (default) | python | nodejs | go | java. For csharp, python and nodejs: synced tabs (`aspire-lang`)
+# TypeScript (apphost.mts) then C# (AppHost.cs); for go and java: the C# code alone, then the default slot (the
+# named slots are not rendered, as in the component). mark/collapse: a line range ("3-4"), a line number or a list
+# of them (arrays come from the page's front matter `props:`, Fluid tags take no array literals); a marker object
+# `{ range }` is read as its range (its label is not supported). The TypeScript code shifts them by 2 lines
+# (typescriptLineOffset). The component's named slots come from Douze's `slot` tag, which renders
+# `<div data-slot="name">...</div>` in the body: the slot's content is the text up to the last `</div>` before the
+# next slot (or the end), what follows that `</div>` is the default slot. Code blocks in Douze's fence markup
+# for the `code` worker step. No wrapper element (the component has none and no styles); the tabs carry
+# cid-simple-app-host-code.
+block: true
+params: [lang, mark, collapse]
+---
+{%- assign sac_lang = lang | default: "csharp" -%}
+{%- unless sac_lang == "python" or sac_lang == "nodejs" or sac_lang == "go" or sac_lang == "java" -%}{%- assign sac_lang = "csharp" -%}{%- endunless -%}
+{%- capture sac_nl %}
+{% endcapture -%}
+{%- comment -%} The C# code per language (SimpleAppHostCode.shared.ts), then the TypeScript AppHost when there is one. {%- endcomment -%}
+{%- capture sac_head %}
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database resource
+var postgres = builder.AddPostgres("db")
+    .AddDatabase("appdata")
+    .WithDataVolume();
+
+// Add API service and reference the database
+{% endcapture -%}
+{%- capture sac_tail %}
+// Add frontend service and reference the API
+builder.AddViteApp("frontend", "../frontend")
+    .WithHttpEndpoint(env: "PORT")
+    .WithReference(api);
+
+builder.Build().Run();
+{% endcapture -%}
+{%- case sac_lang -%}
+{%- when "python" -%}
+{%- capture sac_api %}var api = builder.AddUvicornApp("api", "../api", "main:app")
+    .WithUv()
+    .WithReference(postgres)
+    .WaitFor(postgres);
+{% endcapture -%}
+{%- when "nodejs" -%}
+{%- capture sac_api %}var api = builder.AddNodeApp("api", "../api", "server.js")
+    .WithNpm()
+    .WithReference(postgres)
+    .WaitFor(postgres);
+{% endcapture -%}
+{%- when "go" -%}
+{%- capture sac_api %}var api = builder.AddGolangApp("api", "../api")
+    .WithHttpEndpoint(env: "PORT")
+    .WithReference(postgres)
+    .WaitFor(postgres);
+{% endcapture -%}
+{%- when "java" -%}
+{%- capture sac_api %}var api = builder.AddSpringBootApp("api", "../api")
+    .WithReference(postgres)
+    .WaitFor(postgres);
+{% endcapture -%}
+{%- else -%}
+{%- capture sac_api %}var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(postgres)
+    .WaitFor(postgres);
+{% endcapture -%}
+{%- endcase -%}
+{%- assign sac_csharp = sac_head | append: sac_api | append: sac_tail -%}
+{%- assign sac_typescript = nil -%}
+{%- if sac_lang == "csharp" or sac_lang == "python" or sac_lang == "nodejs" -%}
+{%- capture sac_ts_head %}
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Add database resource
+const postgres = await builder.addPostgres("db")
+    .addDatabase("appdata")
+    .withDataVolume();
+
+// Add API service and reference the database
+{% endcapture -%}
+{%- capture sac_ts_tail %}
+// Add frontend service and reference the API
+await builder.addViteApp("frontend", "../frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(api);
+
+await builder.build().run();
+{% endcapture -%}
+{%- case sac_lang -%}
+{%- when "python" -%}
+{%- capture sac_ts_api %}const api = await builder.addUvicornApp("api", "../api", "main:app")
+    .withUv()
+    .withReference(postgres)
+    .waitFor(postgres);
+{% endcapture -%}
+{%- when "nodejs" -%}
+{%- capture sac_ts_api %}const api = await builder.addNodeApp("api", "../api", "server.js")
+    .withNpm()
+    .withReference(postgres)
+    .waitFor(postgres);
+{% endcapture -%}
+{%- else -%}
+{%- capture sac_ts_api %}const api = await builder.addProject("api", "../api/Api.csproj", "https")
+    .withReference(postgres)
+    .waitFor(postgres);
+{% endcapture -%}
+{%- endcase -%}
+{%- assign sac_typescript = sac_ts_head | append: sac_ts_api | append: sac_ts_tail -%}
+{%- endif -%}
+{%- comment -%} Fence meta: marks as `{a-b, c}`, collapse as `collapse={a-b}`, shifted by 2 lines for TypeScript. {%- endcomment -%}
+{%- assign sac_mark_cs = "" -%}{%- assign sac_mark_ts = "" -%}
+{%- if mark.range -%}{%- assign sac_marks = mark.range | split: "," -%}{%- else -%}{%- assign sac_marks = mark -%}{%- endif -%}
+{%- for m in sac_marks -%}
+  {%- assign m_text = m | append: "" -%}
+  {%- assign m_parts = m_text | split: "-" -%}
+  {%- assign m_start = m_parts[0] | plus: 2 -%}
+  {%- if m_parts.size > 1 -%}{%- assign m_end = m_parts[1] | plus: 2 -%}{%- assign m_shifted = m_start | append: "-" | append: m_end -%}{%- else -%}{%- assign m_shifted = m_start | append: "" -%}{%- endif -%}
+  {%- unless forloop.first -%}{%- assign sac_mark_cs = sac_mark_cs | append: ", " -%}{%- assign sac_mark_ts = sac_mark_ts | append: ", " -%}{%- endunless -%}
+  {%- assign sac_mark_cs = sac_mark_cs | append: m_text -%}{%- assign sac_mark_ts = sac_mark_ts | append: m_shifted -%}
+{%- endfor -%}
+{%- assign sac_collapse_cs = "" -%}{%- assign sac_collapse_ts = "" -%}
+{%- for c in collapse -%}
+  {%- assign c_text = c | append: "" -%}
+  {%- assign c_parts = c_text | split: "-" -%}
+  {%- assign c_start = c_parts[0] | plus: 2 -%}
+  {%- if c_parts.size > 1 -%}{%- assign c_end = c_parts[1] | plus: 2 -%}{%- assign c_shifted = c_start | append: "-" | append: c_end -%}{%- else -%}{%- assign c_shifted = c_start | append: "" -%}{%- endif -%}
+  {%- unless forloop.first -%}{%- assign sac_collapse_cs = sac_collapse_cs | append: ", " -%}{%- assign sac_collapse_ts = sac_collapse_ts | append: ", " -%}{%- endunless -%}
+  {%- assign sac_collapse_cs = sac_collapse_cs | append: c_text -%}{%- assign sac_collapse_ts = sac_collapse_ts | append: c_shifted -%}
+{%- endfor -%}
+{%- assign sac_meta_cs = 'title="AppHost.cs"' -%}
+{%- assign sac_meta_ts = 'title="apphost.mts"' -%}
+{%- if sac_mark_cs != "" -%}{%- assign sac_meta_cs = sac_meta_cs | append: " {" | append: sac_mark_cs | append: "}" -%}{%- assign sac_meta_ts = sac_meta_ts | append: " {" | append: sac_mark_ts | append: "}" -%}{%- endif -%}
+{%- if sac_collapse_cs != "" -%}{%- assign sac_meta_cs = sac_meta_cs | append: " collapse={" | append: sac_collapse_cs | append: "}" -%}{%- assign sac_meta_ts = sac_meta_ts | append: " collapse={" | append: sac_collapse_ts | append: "}" -%}{%- endif -%}
+{%- assign sac_meta_cs = sac_meta_cs | append: " collapseStyle=collapsible-auto" -%}
+{%- assign sac_meta_ts = sac_meta_ts | append: " collapseStyle=collapsible-auto" -%}
+{%- comment -%} Named slots: `<div data-slot="name">...</div>` sections of the body; the rest is the default slot. {%- endcomment -%}
+{%- assign sac_default = body -%}
+{%- assign sac_slot_cs = "" -%}{%- assign sac_slot_ts = "" -%}
+{%- assign sac_parts = body | split: '<div data-slot="csharp-content">' -%}
+{%- if sac_parts.size > 1 -%}
+  {%- assign sac_segment = sac_parts[1] | split: '<div data-slot=' | first | append: "@@SLOT_END@@" -%}
+  {%- assign sac_trailing = sac_segment | split: "</div>" | last -%}
+  {%- assign sac_slot_cs = sac_segment | split: sac_trailing | first | append: "@@E" | replace: "</div>@@E", "" | remove: "@@E" -%}
+  {%- assign sac_section = '<div data-slot="csharp-content">' | append: sac_slot_cs | append: "</div>" -%}
+  {%- assign sac_default = sac_default | remove: sac_section -%}
+{%- endif -%}
+{%- assign sac_parts = body | split: '<div data-slot="typescript-content">' -%}
+{%- if sac_parts.size > 1 -%}
+  {%- assign sac_segment = sac_parts[1] | split: '<div data-slot=' | first | append: "@@SLOT_END@@" -%}
+  {%- assign sac_trailing = sac_segment | split: "</div>" | last -%}
+  {%- assign sac_slot_ts = sac_segment | split: sac_trailing | first | append: "@@E" | replace: "</div>@@E", "" | remove: "@@E" -%}
+  {%- assign sac_section = '<div data-slot="typescript-content">' | append: sac_slot_ts | append: "</div>" -%}
+  {%- assign sac_default = sac_default | remove: sac_section -%}
+{%- endif -%}
+{%- assign sac_default = sac_default | strip -%}
+{%- assign sac_cs_code = sac_csharp | remove_first: sac_nl -%}
+{%- if sac_typescript -%}
+{%- assign sac_ts_code = sac_typescript | remove_first: sac_nl -%}
+{%- capture sc_tabs_body -%}<div role="tabpanel" data-label="TypeScript"><pre data-lang="ts" data-meta="{{ sac_meta_ts | escape }}"><code class="language-ts">{{ sac_ts_code | escape }}</code></pre>{{ sac_slot_ts | strip | raw }}</div><div role="tabpanel" data-label="C#"><pre data-lang="cs" data-meta="{{ sac_meta_cs | escape }}"><code class="language-cs">{{ sac_cs_code | escape }}</code></pre>{{ sac_slot_cs | strip | raw }}</div>{%- endcapture -%}{% include "partials/tabs-markup", body: sc_tabs_body, sync: "aspire-lang", tabs_class: "cid-simple-app-host-code", tabs_attrs: nil %}{{ sac_default | strip | raw }}
+{%- else -%}
+<pre data-lang="cs" data-meta="{{ sac_meta_cs | escape }}"><code class="language-cs">{{ sac_cs_code | escape }}</code></pre>{{ sac_default | strip | raw }}
+{%- endif -%}

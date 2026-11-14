@@ -1,0 +1,14 @@
+{%- comment -%}
+  A count as Number.prototype.toLocaleString() writes it in en-US (1,234; up to 999,999,999). An include used as a
+  function: reads tn_in, sets tn_out.
+{%- endcomment -%}
+{%- assign tn_n = tn_in | default: 0 | plus: 0 -%}
+{%- if tn_n >= 1000000 -%}
+  {%- assign tn_m = tn_n | divided_by: 1000000 | floor -%}{%- assign tn_k = tn_n | divided_by: 1000 | floor | modulo: 1000 | prepend: "00" | slice: -3, 3 -%}{%- assign tn_u = tn_n | modulo: 1000 | prepend: "00" | slice: -3, 3 -%}
+  {%- assign tn_out = tn_m | append: "," | append: tn_k | append: "," | append: tn_u -%}
+{%- elsif tn_n >= 1000 -%}
+  {%- assign tn_k = tn_n | divided_by: 1000 | floor -%}{%- assign tn_u = tn_n | modulo: 1000 | prepend: "00" | slice: -3, 3 -%}
+  {%- assign tn_out = tn_k | append: "," | append: tn_u -%}
+{%- else -%}
+  {%- assign tn_out = tn_n | append: "" -%}
+{%- endif -%}

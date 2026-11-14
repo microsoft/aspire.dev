@@ -1,0 +1,260 @@
+---
+title: Custom HTTP commands
+seoTitle: Custom HTTP commands in your Aspire AppHost dashboard
+description: Create custom HTTP commands in Aspire to invoke service endpoints from the dashboard and CLI — refresh caches, run admin actions, and integrate with internal tools.
+---
+
+In Aspire, you can add custom HTTP commands to resources using the {% api "Aspire.Hosting.ResourceBuilderExtensions.WithHttpCommand" %} API. This API extends existing functionality, where you provide [custom commands on resources](/fundamentals/custom-resource-commands/). This feature enables a command on a resource that sends an HTTP request to a specified endpoint and path. This is useful for scenarios such as triggering database migrations, clearing caches, or performing custom actions on resources through HTTP requests.
+
+To implement custom HTTP commands, you define a command on a resource and a corresponding HTTP endpoint that handles the request. This article provides an overview of how to create and configure custom HTTP commands in Aspire.
+
+## HTTP command APIs
+
+The available APIs provide extensive capabilities with numerous parameters to customize the HTTP command. To add an HTTP command to a resource, use the `WithHttpCommand` extension method on the resource builder. There are two overloads available:
+
+The `WithHttpCommand` API provides two overloads to add custom HTTP commands to resources in Aspire. These APIs are designed to offer flexibility and cater to different use cases when defining HTTP commands.
+
+1. **Overload with `endpointName`:**
+
+   This version is ideal when you have a predefined endpoint name that the HTTP command should target. It simplifies the configuration by directly associating the command with a specific endpoint. This is useful in scenarios where the endpoint is static and well-known during development.
+
+1. **Overload with `endpointSelector`:**
+
+   This version provides more dynamic behavior by allowing you to specify a callback (`endpointSelector`) to determine the endpoint at runtime. This is useful when the endpoint might vary based on the resource's state or other contextual factors. It offers greater flexibility for advanced scenarios where the endpoint can't be hardcoded.
+
+Both overloads allow you to customize the HTTP command extensively, providing an `HttpCommandOptions` subclass of the `CommandOptions` type, including specifying the HTTP method, configure the request, handling the response, and define UI-related properties like display name, description, and icons. The choice between the two depends on whether the endpoint is static or dynamic in your use case.
+
+These APIs are designed to integrate seamlessly with the Aspire ecosystem, enabling developers to extend resource functionality with minimal effort while maintaining control over the behavior and presentation of the commands.
+
+## Considerations when registering HTTP commands
+
+Since HTTP commands are exposed via HTTP endpoints, consider potential security risks. Limit these endpoints to development or staging environments when possible. Always validate incoming requests to ensure they originate from trusted sources. For more information, see [ASP.NET Core security](https://learn.microsoft.com/aspnet/core/security).
+
+Use the `HttpCommandOptions.PrepareRequest` callback to enhance security by adding authentication headers or other measures. A common approach is to use a shared secret, [external parameter](/fundamentals/external-parameters/), or token known only to the AppHost and resource. This shared value can be used to validate requests and prevent unauthorized access.
+
+## HTTP command timeouts
+
+HTTP commands are user-cancelable from the dashboard, so by default the request the command sends has no timeout: the unnamed `HttpClient` used to send the request has its `HttpClient.Timeout` set to `Timeout.InfiniteTimeSpan`. This allows long-running commands, such as ones that trigger database migrations or other admin actions, to run for as long as needed without failing due to `HttpClient`'s default 100-second timeout. Canceling the command from the dashboard cancels this client-side HTTP request through the command's cancellation token; it doesn't guarantee that server-side work already started, such as a migration, also stops.
+
+If you want a command to time out after a specific duration, specify `HttpCommandOptions.HttpClientName` with the name of an `HttpClient` you configure with `IHttpClientFactory`, and set its `Timeout` accordingly:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.Services.AddHttpClient("commands-with-timeout", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+builder.AddProject<Projects.Api>("api")
+    .WithHttpCommand(
+        path: "/admin/sync",
+        displayName: "Sync now",
+        commandOptions: new HttpCommandOptions
+        {
+            HttpClientName = "commands-with-timeout"
+        });
+
+builder.Build().Run();
+```
+
+When `HttpCommandOptions.HttpClientName` is specified, the named `HttpClient` is used as configured, including its `Timeout`.
+
+## Add a custom HTTP command
+
+In your _AppHost.cs_ file, you add a custom HTTP command using the `WithHttpCommand` API on an `IResourceBuilder<T>` where `T` is an `IResourceWithEndpoints`. Here's an example of how to do this:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+var apiCacheInvalidationKey = builder.AddParameter("ApiCacheInvalidationKey", secret: true);
+
+var api = builder.AddProject<Projects.AspireApp_Api>("api")
+    .WithReference(cache)
+    .WaitFor(cache)
+    .WithEnvironment("ApiCacheInvalidationKey", apiCacheInvalidationKey)
+    .WithHttpCommand(
+        path: "/cache/invalidate",
+        displayName: "Invalidate cache",
+        commandOptions: new HttpCommandOptions()
+        {
+            Description = """
+                Invalidates the API cache. All cached values are cleared!
+                """,
+            PrepareRequest = (context) =>
+            {
+                var key = apiCacheInvalidationKey.Resource.GetValueAsync(context.CancellationToken);
+                context.Request.Headers.Add("X-CacheInvalidation-Key", $"Key: {key}");
+                return Task.CompletedTask;
+            },
+            IconName = "DocumentLightning",
+            IsHighlighted = true
+        });
+
+builder.Build().Run();
+```
+
+The preceding code:
+
+- Creates a new distributed application builder.
+- Adds a Redis cache named `cache` to the application.
+- Adds a parameter named `ApiCacheInvalidationKey` to the application. This parameter is marked as a secret, meaning its value is treated securely.
+- Adds a project named `AspireApp_Api` to the application.
+- Adds a reference to the Redis cache and waits for it to be ready before proceeding.
+- Configures an HTTP command for the project with the following:
+  - `path`: Specifies the URL path for the HTTP command (`/cache/invalidate`).
+  - `displayName`: Sets the name of the command as it appears in the UI (`Invalidate cache`).
+  - `commandOptions`: An optional instance of `HttpCommandOptions` that configures the command's behavior and appearance in the UI:
+    - `Description`: Provides a description of the command that's shown in the UI.
+    - `PrepareRequest`: A callback function that configures the HTTP request before sending it. In this case, it adds a custom (`X-CacheInvalidation-Key`) header with the value of the `ApiCacheInvalidationKey` parameter.
+    - `ResultMode`: Specifies whether the response body should be returned as command result data. For more information, see [Return the HTTP response body](#return-the-http-response-body).
+    - `IconName`: Specifies the icon to be used for the command in the UI (`DocumentLightning`).
+    - `IsHighlighted`: Indicates whether the command should be highlighted in the UI.
+- Finally, the application is built and run.
+
+{% learnmore %}
+To search for your own icons, browse the [Fluent UI: Icons
+catalog](https://microsoft.github.io/fluentui-system-icons/?path=/docs/icons-catalog--docs).
+{% endlearnmore %}
+
+The HTTP endpoint is responsible for invalidating the cache. When the command is executed, it sends an HTTP request to the specified path (`/cache/invalidate`) with the configured parameters. Since there's an added security measure, the request includes the `X-CacheInvalidation-Key` header with the value of the `ApiCacheInvalidationKey` parameter. This ensures that only authorized requests can trigger the cache invalidation process.
+
+### Example HTTP endpoint
+
+The preceding AppHost code snippet defined a custom HTTP command that sends a request to the `/cache/invalidate` endpoint. The ASP.NET Core minimal API project defines an HTTP endpoint that handles the cache invalidation request. Consider the following code snippet from the project's _Program.cs_ file:
+
+```csharp title="Program.cs"
+app.MapPost("/cache/invalidate", static async (
+    [FromHeader(Name = "X-CacheInvalidation-Key")] string? header,
+    ICacheService registry,
+    IConfiguration config) =>
+{
+    var hasValidHeader = config.GetValue<string>("ApiCacheInvalidationKey") is { } key
+        && header == $"Key: {key}";
+
+    if (hasValidHeader is false)
+    {
+        return Results.Unauthorized();
+    }
+
+    await registry.ClearAllAsync();
+
+    return Results.Ok();
+});
+```
+
+The preceding code:
+
+- Assumes that the `app` variable is an instance of `IApplicationBuilder` and is set up to handle HTTP requests.
+- Maps an HTTP POST endpoint at the path `/cache/invalidate`.
+- The endpoint expects a header named `X-CacheInvalidation-Key` to be present in the request.
+- It retrieves the value of the `ApiCacheInvalidationKey` parameter from the configuration.
+- If the header value doesn't match the expected key, it returns an unauthorized response.
+- If the header is valid, it calls the `ClearAllAsync` method on the `ICacheService` to clear all cached items.
+- Finally, it returns an HTTP OK response.
+
+## Return the HTTP response body
+
+By default, an HTTP command uses the HTTP status code to determine whether the command succeeded, and it doesn't return the response body as command result data. Set `HttpCommandOptions.ResultMode` to opt in to returning a non-empty response body from the endpoint. The body is surfaced as the command's structured output, just like [structured output from custom resource commands](/fundamentals/custom-resource-commands/#return-a-result-from-a-command).
+
+The following example configures an HTTP command that returns a JSON response body:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder, HttpCommandResultMode } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder
+  .addNodeApp('api', './api', 'src/index.ts')
+  .withHttpCommand('/admin/sync', 'Sync now', {
+    methodName: 'POST',
+    resultMode: HttpCommandResultMode.Auto,
+  });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.Api>("api")
+    .WithHttpCommand(
+        path: "/admin/sync",
+        displayName: "Sync now",
+        commandOptions: new HttpCommandOptions
+        {
+            Method = HttpMethod.Post,
+            ResultMode = HttpCommandResultMode.Auto
+        });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The endpoint can return the payload that should be shown to the command caller. For example, a C# minimal API endpoint can use `MapPost`:
+
+```csharp title="Program.cs"
+app.MapPost("/admin/sync", () =>
+{
+    return Results.Json(new
+    {
+        status = "Completed",
+        itemsProcessed = 42
+    });
+});
+```
+
+The Node.js app registered by the TypeScript AppHost sample can return the same payload from an Express endpoint:
+
+```typescript title="src/index.ts"
+import express from 'express';
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.post('/admin/sync', (_req, res) => {
+  res.json({
+    status: 'Completed',
+    itemsProcessed: 42,
+  });
+});
+
+app.listen(port, () => {
+  console.log(`API listening on port ${port}`);
+});
+```
+
+`HttpCommandResultMode` controls how the default HTTP command result handler interprets the response body:
+
+| Result mode | Behavior                                                                                                                                                                                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `None`      | The default. The response body isn't captured as command result data.                                                                                                                                                                                                                                         |
+| `Auto`      | Infers the result format from the response `Content-Type`. JSON content types, such as `application/json` and `application/*+json`, are returned as JSON. Text-like content types, such as `text/*`, XML, and `application/x-www-form-urlencoded`, are returned as text. Other content types aren't captured. |
+| `Json`      | Returns the response body as JSON command result data, regardless of the response `Content-Type`.                                                                                                                                                                                                             |
+| `Text`      | Returns the response body as plain text command result data, regardless of the response `Content-Type`.                                                                                                                                                                                                       |
+
+If the endpoint returns a non-success status code, the command fails. When `ResultMode` captures a response body, that body is attached to the failure result so callers can inspect the error details. `ResultMode` is used only when `HttpCommandOptions.GetCommandResult` isn't set; if you provide `GetCommandResult`, that callback controls the command's success, message, and result data.
+
+### Example dashboard experiences
+
+The sample AppHost and corresponding ASP.NET Core minimal API projects demonstrate both sides of the HTTP command implementation. When you run the AppHost, the dashboard's **Resources** page displays the custom HTTP command as a button. When you specify that the command should be highlighted (`isHighlighted: true`), the button appears on the **Actions** column of the **Resources** page. This allows users to easily trigger the command from the dashboard, as shown in the following screenshot:
+
+{% image dark: "/assets/images/fundamentals/custom-http-command-highlighted.png", light: "/assets/images/fundamentals/custom-http-command-highlighted-light.png", alt: "Aspire dashboard: Resources page showing a highlighted custom HTTP command." %}
+
+If you're to omit the `isHighlighted` parameter, or set it to `false`, the command appears nested under the horizontal ellipsis menu (three dots) in the **Actions** column of the **Resources** page. This allows users to access the command without cluttering the UI with too many buttons. The following screenshot shows the same command appearing in the ellipsis menu:
+
+{% image dark: "/assets/images/fundamentals/custom-http-command.png", light: "/assets/images/fundamentals/custom-http-command-light.png", alt: "Aspire dashboard: Resources page showing a custom HTTP command in the ellipsis menu." %}
+
+When the user selects the button, the command is executed, and the HTTP request is sent to the specified endpoint. The dashboard provides feedback on the command's execution status, allowing users to monitor the results. When it's starting, a toast notification appears:
+
+{% image dark: "/assets/images/fundamentals/custom-http-command-starting.png", light: "/assets/images/fundamentals/custom-http-command-starting-light.png", alt: "Aspire dashboard: Toast notification showing the custom HTTP command is starting." %}
+
+When the command completes, the dashboard updates the status and provides feedback on whether it was successful or failed. The following screenshot shows a successful execution of the command:
+
+{% image dark: "/assets/images/fundamentals/custom-http-command-succeeded.png", light: "/assets/images/fundamentals/custom-http-command-succeeded-light.png", alt: "Aspire dashboard: Toast notification showing the custom HTTP command succeeded." %}

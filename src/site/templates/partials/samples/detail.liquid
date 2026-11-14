@@ -1,0 +1,52 @@
+{%- comment -%}
+  SampleDetail.astro (src/frontend/src/components/): the hero (AppHost kind, summary, tags, actions), the AppHost
+  code (rendered by the code step: a fence-shaped <pre data-lang>), the README (partials/samples/readme) and the
+  screenshot gallery. Inputs: sample, sd_summary (the first line of the description as text). Root class:
+  cid-sample-detail.
+{%- endcomment -%}
+{%- include "partials/samples/readme" -%}
+{%- comment -%} hashString(sample.name) % 5: the node of the hero mesh that pulses. {%- endcomment -%}
+{%- assign sd_hash = 0 -%}
+{%- assign sd_chars = sample.name | split: "" -%}
+{%- for sd_char in sd_chars -%}
+  {%- assign sd_code = ca_ascii | split: sd_char | first | size | plus: 32 -%}
+  {%- comment -%} hash = (hash << 5) - hash + code, as a signed 32-bit integer. {%- endcomment -%}
+  {%- assign sd_hash = sd_hash | times: 31 | plus: sd_code | modulo: 4294967296 -%}
+{%- endfor -%}
+{%- if sd_hash >= 2147483648 -%}{%- assign sd_hash = 4294967296 | minus: sd_hash -%}{%- endif -%}
+{%- assign sd_primary = sd_hash | modulo: 5 -%}
+{%- assign sd_kind = sample.appHost -%}
+{%- case sd_kind -%}
+  {%- when "typescript" -%}{%- assign sd_kind_label = "TypeScript AppHost" -%}{%- assign sd_kind_icon = "seti:typescript" -%}
+  {%- when "csproj" -%}{%- assign sd_kind_label = "C# AppHost" -%}{%- assign sd_kind_icon = nil -%}
+  {%- when "file-based" -%}{%- assign sd_kind_label = "File-based AppHost" -%}{%- assign sd_kind_icon = "seti:c-sharp" -%}
+  {%- else -%}{%- assign sd_kind = nil -%}
+{%- endcase -%}
+<article class="sample-detail cid-sample-detail"><div class="sample-hero not-content"><div class="sample-hero-glow" aria-hidden="true"></div><svg class="sample-hero-mesh" aria-hidden="true" viewBox="0 0 480 260" preserveAspectRatio="xMaxYMid slice"><path class="mesh-edge" d="M 60 80 Q 150 60 230 110"></path><path class="mesh-edge mesh-edge-strong" d="M 230 110 Q 320 70 410 130"></path><path class="mesh-edge" d="M 60 80 Q 110 160 200 200"></path><path class="mesh-edge" d="M 200 200 Q 290 180 410 130"></path><path class="mesh-edge mesh-edge-soft" d="M 230 110 Q 220 160 200 200"></path><path class="mesh-edge mesh-edge-soft" d="M 410 130 Q 440 200 380 230"></path><circle class="mesh-node {% if sd_primary == 0 %}is-primary{% endif %}" cx="60" cy="80" r="9"></circle><circle class="mesh-node {% if sd_primary == 1 %}is-primary{% endif %}" cx="230" cy="110" r="13"></circle><circle class="mesh-node {% if sd_primary == 2 %}is-primary{% endif %}" cx="410" cy="130" r="10"></circle><circle class="mesh-node {% if sd_primary == 3 %}is-primary{% endif %}" cx="200" cy="200" r="11"></circle><circle class="mesh-node mesh-node-small {% if sd_primary == 4 %}is-primary{% endif %}" cx="380" cy="230" r="6"></circle></svg><div class="sample-hero-copy"><div class="sample-hero-tags"><div class="sample-hero-tag">{% icon "rocket", size: "0.95rem", class: nil, label: nil, color: nil %}<span>Aspire sample</span></div>
+{%- if sd_kind -%}<div class="sample-hero-tag sample-hero-apphost" data-apphost="{{ sd_kind }}">{% if sd_kind_icon %}{% icon sd_kind_icon, size: "0.95rem", class: nil, label: nil, color: nil %}{% else %}<svg class="apphost-glyph" aria-hidden="true" viewBox="0 0 16 16" width="14" height="14"><path d="M5.6 4.2 2.2 7.6c-.22.22-.22.58 0 .8L5.6 11.8c.22.22.58.22.8 0a.566.566 0 0 0 0-.8L3.42 8l3-3a.566.566 0 0 0 0-.8.566.566 0 0 0-.82 0Zm4.8 0a.566.566 0 0 0-.8.8l3 3-3 3a.566.566 0 0 0 0 .8c.22.22.58.22.8 0l3.4-3.4a.566.566 0 0 0 0-.8l-3.4-3.4Z" fill="currentColor"/></svg>{% endif %}<span>{{ sd_kind_label }}</span></div>{%- endif -%}
+</div><h2 class="sample-hero-title">Clone, run, and explore this sample</h2>{% if sd_summary != blank %}<p class="sample-summary">{{ sd_summary }}</p>{% endif %}
+{%- if sample.tags.size > 0 -%}<div class="sample-tags" aria-label="Sample tags">{% for tl_tag in sample.tags %}{% include "partials/hub/tag-label" %}{% badge tl_label, size: "small", variant: nil, class: nil %}{% endfor %}</div>{%- endif -%}
+<div class="sample-actions"><a class="sample-action primary" href="{{ sample.href }}" target="_blank" rel="noopener noreferrer">{% icon "github", size: "1rem", class: nil, label: nil, color: nil %}View on GitHub</a><a class="sample-action secondary" href="/reference/samples/">Browse all samples</a></div></div></div>
+{%- if sample.appHostCode and sample.appHostPath -%}
+{%- assign sd_file = sample.appHostPath | split: "/" | last -%}
+{%- assign sd_lower = sample.appHostPath | downcase -%}
+{%- assign sd_ext = sd_lower | split: "." | last -%}
+{%- case sd_ext -%}{%- when "ts", "mts" -%}{%- assign sd_lang = "typescript" -%}{%- when "cs" -%}{%- assign sd_lang = "csharp" -%}{%- when "csproj" -%}{%- assign sd_lang = "xml" -%}{%- else -%}{%- assign sd_lang = "text" -%}{%- endcase -%}
+{%- assign sd_source = sample.href | replace: "/tree/", "/blob/" | append: "/" | append: sample.appHostPath -%}
+<section class="sample-apphost not-content" aria-labelledby="sample-apphost-kicker"><header class="sample-apphost-header"><div class="sample-apphost-heading"><div id="sample-apphost-kicker" class="sample-kicker">AppHost</div><p class="sample-apphost-blurb">The entry point that composes every resource and dependency in this sample's distributed application.</p></div><a class="sample-apphost-source" href="{{ sd_source }}" target="_blank" rel="noopener noreferrer" aria-label="View {{ sd_file }} on GitHub">{% icon "github", size: "0.9rem", class: nil, label: nil, color: nil %}View on GitHub</a></header>
+<pre data-lang="{{ sd_lang }}" data-meta="title=&quot;{{ sd_file }}&quot;"><code class="language-{{ sd_lang }}">{{ sample.appHostCode }}</code></pre>
+</section>
+{%- endif -%}
+<section class="sample-readme" aria-label="{{ sample.title }} README">{{ sr_html }}</section>
+{%- if sr_images.size > 0 -%}
+<section class="sample-media not-content" aria-labelledby="sample-media-heading"><div class="sample-media-header"><div><div class="sample-kicker">Preview</div><h2 id="sample-media-heading">Sample screenshots</h2></div><p>{% if sr_images.size == 1 %}Select the image to zoom in.{% else %}Select an image to zoom in.{% endif %}</p></div><div class="sample-media-grid">
+{%- for sd_image in sr_images -%}
+{%- assign sd_parts = sd_image | split: "~" -%}
+{%- assign sd_light = sd_parts[0] -%}{%- assign sd_dark = sd_parts[1] -%}{%- assign sd_alt = sd_parts[2] -%}
+{%- if sd_dark == "" or sd_dark == nil -%}{%- assign sd_dark = sd_light -%}{%- endif -%}
+{%- assign sd_size = sd_dark | image_size -%}
+<figure class="sample-readme-image">{% include "partials/home/theme-image", ti_light: sd_light, ti_dark: sd_dark, ti_alt: sd_alt, ti_label: sd_alt, ti_class: nil, ti_width: sd_size.width, ti_height: sd_size.height, ti_zoomable: true, ti_href: nil %}{% if sd_alt != blank %}<figcaption>{{ sd_alt }}</figcaption>{% endif %}</figure>
+{%- endfor -%}
+</div></section>
+{%- endif -%}
+</article>

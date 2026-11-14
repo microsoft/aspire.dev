@@ -1,0 +1,18 @@
+{%- comment -%}
+  The What's New release badge of the site's MarkdownContent override: "Released <date>" from `publishDate`, and for
+  a versioned release notes page (whats-new/aspire-N[-M]) the GitHub release link (utils/whats-new.ts). The date is
+  formatted in English ("%B %e, %Y"); the Astro build used the locale's long date format (these pages are English
+  only). Root class: cid-starlight-markdown-content (the override's scope).
+{%- endcomment -%}
+{%- if publishDate -%}
+{%- assign rm_date = publishDate | date: "%B %e, %Y" | replace: "  ", " " -%}
+{%- assign rm_text = "Released " | append: rm_date -%}
+{%- assign rm_version = nil -%}
+{%- if sl_locale_url contains "/whats-new/aspire-" -%}
+  {%- assign rm_slug = sl_locale_url | remove_first: "/whats-new/aspire-" | remove: "/" -%}
+  {%- assign rm_parts = rm_slug | split: "-" -%}
+  {%- assign rm_major = rm_parts[0] | plus: 0 | append: "" -%}
+  {%- if rm_major == rm_parts[0] and rm_parts.size <= 2 -%}{%- assign rm_minor = rm_parts[1] | default: "0" -%}{%- assign rm_version = rm_major | append: "." | append: rm_minor -%}{%- endif -%}
+{%- endif -%}
+<div class="release-meta cid-starlight-markdown-content">{% badge rm_text, variant: "note", size: "large", class: "release-badge" %}{% if rm_version %}<a class="release-notes-link" href="https://github.com/microsoft/aspire/releases/tag/v{{ rm_version }}.0">{% icon "github", class: "d-inline", label: nil, size: nil, color: nil %} Aspire {{ rm_version }} release notes on GitHub</a>{% endif %}</div>
+{%- endif -%}

@@ -1,0 +1,185 @@
+{%- comment -%}
+  The README of a sample page (SampleDetail.astro and SampleReadmeBlocks.astro), from sample.readme: without its
+  "# Title" line, its leading paragraph when it repeats the summary, and its standalone screenshots (a paragraph of
+  one image, or of a light and a dark image: they go to the screenshot gallery, with the short label paragraph that
+  announced them), rendered with markdownify, its typographic quotes, dashes and ellipses turned back into ASCII (the
+  Astro site rendered READMEs without SmartyPants; the READMEs have none of these characters themselves). Headings
+  get sentence case, ids and anchors (partials/samples/heading), top-level ordered lists are Steps, `shell` fences are `bash`, relative links point into the sample on GitHub,
+  external links open in a new tab, and ~/assets images are the site's /assets/images.
+  Inputs: sample, sd_summary (the hero summary). Sets sr_html (the README HTML) and sr_images (the gallery: an array
+  of "light~dark~alt", dark empty for a single image).
+  Approximations: blocks are found line by line (blank lines outside fences), not with a Markdown parser, and lists
+  are rendered by Markdig (tight lists have no <p>).
+{%- endcomment -%}
+{%- assign sr_sep = "@@SR@@" -%}
+{%- assign sr_text = sample.readme | default: "" -%}
+{%- assign sr_link_base = "](" | append: sample.href | append: "/" -%}{%- assign sr_link_parent = sr_link_base | append: "../" -%}
+{%- assign sr_lines = sr_text | split: "
+" -%}
+{%- comment -%} 1. Blocks: runs of lines separated by blank lines outside fences; the title line is left out. {%- endcomment -%}
+{%- assign sr_in_fence = false -%}{%- assign sr_title_done = false -%}
+{%- capture sr_blocks -%}
+{%- for sr_line in sr_lines -%}
+  {%- assign sr_stripped = sr_line | strip -%}
+  {%- assign sr_head = sr_stripped | slice: 0, 3 -%}
+  {%- if sr_title_done == false and sr_stripped != "" -%}
+    {%- assign sr_title_done = true -%}
+    {%- assign sr_head2 = sr_line | slice: 0, 2 -%}
+    {%- if sr_head2 == "# " -%}{%- continue -%}{%- endif -%}
+  {%- endif -%}
+  {%- if sr_head == "```" or sr_head == "~~~" -%}{%- if sr_in_fence -%}{%- assign sr_in_fence = false -%}{%- else -%}{%- assign sr_in_fence = true -%}{%- endif -%}{%- endif -%}
+  {%- if sr_stripped == "" and sr_in_fence == false -%}{{ sr_sep }}{%- else -%}{{ sr_line | raw }}
+{% endif -%}
+{%- endfor -%}
+{%- endcapture -%}
+{%- assign sr_blocks = sr_blocks | split: sr_sep | where_exp: "sr_b", "sr_b != ''" -%}
+{%- assign sr_summary_head = sd_summary | default: "" | downcase | split: " " | join: " " | slice: 0, 80 -%}
+{%- assign sr_md = "" -%}{%- assign sr_ol = "" -%}{%- assign sh_seen = "|" -%}{%- assign sr_first = true -%}
+{%- assign sr_gallery = "" -%}{%- assign sr_skip_next = false -%}
+{%- capture sr_html -%}
+{%- for sr_item in sr_blocks -%}
+  {%- comment -%} (A loop variable cannot be reassigned: the block is sr_block.) {%- endcomment -%}
+  {%- assign sr_block = sr_item | rstrip -%}
+  {%- assign sr_block_lines = sr_block | split: "
+" -%}
+  {%- assign sr_first_line = sr_block_lines | first -%}
+  {%- assign sr_c = sr_first_line | slice: 0 -%}
+  {%- comment -%} The image lines of the block: "light~dark~alt" when every line holds only images. {%- endcomment -%}
+  {%- assign sr_image_count = 0 -%}{%- assign sr_only_images = true -%}{%- assign sr_found = "" -%}
+  {%- for sr_line in sr_block_lines -%}
+    {%- assign sr_l = sr_line | strip -%}
+    {%- assign sr_parts = sr_l | split: "![" -%}
+    {%- if sr_parts.size < 2 -%}{%- assign sr_only_images = false -%}{%- break -%}{%- endif -%}
+    {%- comment -%} Each image "![alt](url)" (alts can hold parentheses) is removed from the line: an image-only line is left
+    empty, or with "[](link)" for linked images. {%- endcomment -%}
+    {%- assign sr_rest = sr_l -%}
+    {%- for sr_part in sr_parts offset: 1 -%}
+      {%- assign sr_bits = sr_part | split: "](" -%}
+      {%- if sr_bits.size < 2 -%}{%- assign sr_only_images = false -%}{%- break -%}{%- endif -%}
+      {%- assign sr_alt = sr_bits[0] -%}{%- assign sr_target = sr_bits[1] | split: ")" | first -%}{%- assign sr_url = sr_target | split: " " | first -%}
+      {%- assign sr_image = "![" | append: sr_alt | append: "](" | append: sr_target | append: ")" -%}
+      {%- assign sr_rest = sr_rest | remove_first: sr_image -%}
+      {%- assign sr_image_count = sr_image_count | plus: 1 -%}
+      {%- assign sr_found = sr_found | append: sr_url | append: "~~" | append: sr_alt | append: "@@" -%}
+    {%- endfor -%}
+    {%- assign sr_rest = sr_rest | strip -%}
+    {%- assign sr_rest_start = sr_rest | slice: 0, 3 -%}{%- assign sr_rest_end = sr_rest | slice: -1 -%}
+    {%- if sr_rest_start == "[](" and sr_rest_end == ")" -%}{%- assign sr_rest = "" -%}{%- endif -%}
+    {%- if sr_rest != "" -%}{%- assign sr_only_images = false -%}{%- endif -%}
+  {%- endfor -%}
+  {%- assign sr_standalone = false -%}
+  {%- if sr_only_images and sr_image_count > 0 -%}
+    {%- assign sr_found = sr_found | split: "@@" -%}
+    {%- if sr_image_count == 1 -%}
+      {%- assign sr_standalone = true -%}
+      {%- assign sr_url = sr_found[0] | split: "~~" | first -%}{%- assign sr_alt = sr_found[0] | split: "~~" | last -%}
+      {%- if sr_alt == sr_url or sr_alt == "" -%}{%- assign sr_alt = "Screenshot of the " | append: sample.title | append: " sample" -%}{%- endif -%}
+      {%- assign sr_path = sr_url | split: "#" | first | split: "?" | first -%}
+      {%- if sr_path contains "~/assets/" -%}{%- assign sr_path = sr_path | replace_first: "~/assets/", "/assets/images/" -%}{%- assign sr_gallery = sr_gallery | append: sr_path | append: "~~" | append: sr_alt | append: "@@" -%}{%- endif -%}
+    {%- elsif sr_image_count == 2 -%}
+      {%- assign sr_url1 = sr_found[0] | split: "~~" | first -%}{%- assign sr_url2 = sr_found[1] | split: "~~" | first -%}
+      {%- if sr_url1 contains "#gh-light-mode-only" and sr_url2 contains "#gh-dark-mode-only" -%}{%- assign sr_light = sr_found[0] -%}{%- assign sr_dark = sr_found[1] -%}{%- assign sr_standalone = true -%}
+      {%- elsif sr_url1 contains "#gh-dark-mode-only" and sr_url2 contains "#gh-light-mode-only" -%}{%- assign sr_light = sr_found[1] -%}{%- assign sr_dark = sr_found[0] -%}{%- assign sr_standalone = true -%}{%- endif -%}
+      {%- if sr_standalone -%}
+        {%- assign sr_light_path = sr_light | split: "~~" | first | split: "#" | first | split: "?" | first -%}{%- assign sr_dark_path = sr_dark | split: "~~" | first | split: "#" | first | split: "?" | first -%}
+        {%- assign sr_alt = sr_light | split: "~~" | last -%}{%- if sr_alt == "" -%}{%- assign sr_alt = sr_dark | split: "~~" | last -%}{%- endif -%}
+        {%- if sr_alt == "" or sr_alt contains "~/" or sr_alt contains "://" -%}{%- assign sr_alt = "Screenshot of the " | append: sample.title | append: " sample" -%}{%- endif -%}
+        {%- comment -%} normalizeThemeImageAlt {%- endcomment -%}
+        {%- assign sr_alt = sr_alt | append: "~" | replace: " (light)~", "" | replace: " (dark)~", "" | replace: " (light mode)~", "" | replace: " (dark mode)~", "" | replace: " in light mode~", "" | replace: " in dark mode~", "" | remove: "~" | strip -%}
+        {%- assign sr_light_site = sr_light_path | replace_first: "~/assets/", "/assets/images/" -%}{%- assign sr_dark_site = sr_dark_path | replace_first: "~/assets/", "/assets/images/" -%}
+        {%- if sr_light_path contains "~/assets/" and sr_dark_path contains "~/assets/" -%}{%- assign sr_gallery = sr_gallery | append: sr_light_site | append: "~" | append: sr_dark_site | append: "~" | append: sr_alt | append: "@@" -%}
+        {%- elsif sr_light_path contains "~/assets/" -%}{%- assign sr_gallery = sr_gallery | append: sr_light_site | append: "~~" | append: sr_alt | append: "@@" -%}
+        {%- elsif sr_dark_path contains "~/assets/" -%}{%- assign sr_gallery = sr_gallery | append: sr_dark_site | append: "~~" | append: sr_alt | append: "@@" -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endif -%}
+  {%- if sr_standalone -%}{%- assign sr_first = false -%}{%- continue -%}{%- endif -%}
+  {%- comment -%} An ordered list at the top level, and the indented blocks and items that continue it, are Steps. {%- endcomment -%}
+  {%- assign sr_number = sr_first_line | split: ". " | first -%}
+  {%- assign sr_number_check = sr_number | plus: 0 | append: "" -%}
+  {%- if sr_number_check == sr_number and sr_first_line contains ". " -%}{%- assign sr_is_ol = true -%}{%- else -%}{%- assign sr_is_ol = false -%}{%- endif -%}
+  {%- if sr_c == " " or sr_c == "	" -%}{%- assign sr_indented = true -%}{%- else -%}{%- assign sr_indented = false -%}{%- endif -%}
+  {%- if sr_ol != "" and sr_is_ol == false and sr_indented == false -%}
+    {%- assign sr_rendered = sr_ol | replace: "](./", sr_link_base | replace: "](../", sr_link_parent | replace: "](~/assets/", "](/assets/images/" | replace: "```shell", "```bash" | markdownify | replace: "’", "'" | replace: "‘", "'" | replace: "“", "&quot;" | replace: "”", "&quot;" | replace: "–", "--" | replace: "…", "..." | replace: '<a href="http', '<a target="_blank" rel="noopener noreferrer" href="http' -%}
+    {{- sr_rendered | replace_first: "<ol", '<ol class="sl-steps cid-sl-steps" role="list"' -}}
+    {%- assign sr_ol = "" -%}
+  {%- endif -%}
+  {%- if sr_is_ol or sr_ol != "" and sr_indented -%}
+    {%- if sr_md != "" -%}{{ sr_md | replace: "](./", sr_link_base | replace: "](../", sr_link_parent | replace: "](~/assets/", "](/assets/images/" | replace: "```shell", "```bash" | markdownify | replace: "’", "'" | replace: "‘", "'" | replace: "“", "&quot;" | replace: "”", "&quot;" | replace: "–", "--" | replace: "…", "..." | replace: '<a href="http', '<a target="_blank" rel="noopener noreferrer" href="http' }}{%- assign sr_md = "" -%}{%- endif -%}
+    {%- assign sr_ol = sr_ol | append: sr_block | append: "
+
+" -%}
+    {%- assign sr_first = false -%}{%- continue -%}
+  {%- endif -%}
+  {%- comment -%} Headings (a heading line, and the text that follows it in the block). {%- endcomment -%}
+  {%- if sr_c == "#" -%}
+    {%- assign sr_hashes = sr_first_line | split: " " | first -%}
+    {%- assign sr_marks = sr_hashes | remove: "#" -%}
+    {%- if sr_marks == "" and sr_hashes.size <= 6 -%}
+      {%- assign sh_depth = sr_hashes.size -%}{%- assign sh_text = sr_first_line | remove_first: sr_hashes | strip -%}
+      {%- capture sr_heading %}{% include "partials/samples/heading" %}{% endcapture -%}
+      {%- assign sr_rest = sr_block | remove_first: sr_first_line | strip -%}
+      {%- assign sr_md = sr_md | append: sr_heading | append: "
+
+" | append: sr_rest | append: "
+
+" -%}
+      {%- assign sr_first = false -%}{%- continue -%}
+    {%- endif -%}
+  {%- endif -%}
+  {%- comment -%} The leading paragraph that repeats the hero summary, and a short label just before a standalone screenshot. {%- endcomment -%}
+  {%- assign sr_drop = false -%}
+  {%- assign sr_c2 = sr_first_line | slice: 0, 2 -%}
+  {%- if sr_c2 == "- " or sr_c2 == "* " or sr_c2 == "+ " -%}{%- assign sr_list = true -%}{%- else -%}{%- assign sr_list = false -%}{%- endif -%}
+  {%- if sr_list == false and sr_c != ">" and sr_c != "|" and sr_c != "`" and sr_c != "<" -%}
+    {%- assign sr_plain = sr_block | strip_markdown | downcase | strip -%}
+    {%- assign sr_plain = sr_plain | split: " " | join: " " -%}
+    {%- if sr_first and sr_summary_head.size >= 20 -%}
+      {%- assign sr_plain_head = sr_plain | slice: 0, sr_summary_head.size -%}
+      {%- if sr_plain_head == sr_summary_head -%}{%- assign sr_drop = true -%}{%- endif -%}
+    {%- endif -%}
+    {%- assign sr_next_index = forloop.index0 | plus: 1 -%}
+    {%- assign sr_next = sr_blocks[sr_next_index] | default: "" | strip -%}
+    {%- assign sr_next_c = sr_next | slice: 0, 2 -%}{%- assign sr_next_c3 = sr_next | slice: 0, 3 -%}
+    {%- if sr_block_lines.size == 1 and sr_next_c == "![" or sr_block_lines.size == 1 and sr_next_c3 == "[![" -%}
+      {%- unless sr_block contains "](" or sr_plain.size > 60 or sr_plain.size == 0 -%}
+        {%- assign sr_last_char = sr_block | strip | slice: -1 -%}
+        {%- if ".!?:" contains sr_last_char -%}{%- assign sr_sentence = true -%}{%- else -%}{%- assign sr_sentence = false -%}{%- endif -%}
+        {%- if sr_block contains "*" or sr_block contains "_" or sr_block contains "`" or sr_sentence == false -%}{%- assign sr_drop = true -%}{%- endif -%}
+      {%- endunless -%}
+    {%- endif -%}
+  {%- endif -%}
+  {%- assign sr_first = false -%}
+  {%- if sr_drop -%}{%- continue -%}{%- endif -%}
+  {%- comment -%} Inside lists and quotes, lines that hold only a screenshot go to the gallery too. {%- endcomment -%}
+  {%- if sr_list or sr_c == ">" -%}
+    {%- capture sr_kept -%}
+    {%- for sr_line in sr_block_lines -%}
+      {%- assign sr_l = sr_line | strip | remove_first: "- " | remove_first: "* " | remove_first: "> " | strip -%}
+      {%- assign sr_l2 = sr_l | slice: 0, 2 -%}{%- assign sr_last = sr_l | slice: -1 -%}
+      {%- if sr_l2 == "![" and sr_last == ")" and sr_l contains "~/assets/" -%}
+        {%- assign sr_alt = sr_l | remove_first: "![" | split: "](" | first -%}{%- assign sr_path = sr_l | split: "](" | last | split: ")" | first | split: "#" | first | split: " " | first -%}
+        {%- if sr_alt == "" -%}{%- assign sr_alt = "Screenshot of the " | append: sample.title | append: " sample" -%}{%- endif -%}
+        {%- assign sr_path = sr_path | replace_first: "~/assets/", "/assets/images/" -%}{%- assign sr_gallery = sr_gallery | append: sr_path | append: "~~" | append: sr_alt | append: "@@" -%}
+        {{ sr_line | split: "![" | first | raw }}
+{% else %}{{ sr_line | raw }}
+{% endif -%}
+    {%- endfor -%}
+    {%- endcapture -%}
+    {%- assign sr_md = sr_md | append: sr_kept | append: "
+
+" -%}
+    {%- continue -%}
+  {%- endif -%}
+  {%- assign sr_md = sr_md | append: sr_block | append: "
+
+" -%}
+{%- endfor -%}
+{%- if sr_ol != "" -%}
+  {%- assign sr_rendered = sr_ol | replace: "](./", sr_link_base | replace: "](../", sr_link_parent | replace: "](~/assets/", "](/assets/images/" | replace: "```shell", "```bash" | markdownify | replace: "’", "'" | replace: "‘", "'" | replace: "“", "&quot;" | replace: "”", "&quot;" | replace: "–", "--" | replace: "…", "..." | replace: '<a href="http', '<a target="_blank" rel="noopener noreferrer" href="http' -%}
+  {{- sr_rendered | replace_first: "<ol", '<ol class="sl-steps cid-sl-steps" role="list"' -}}
+{%- endif -%}
+{%- if sr_md != "" -%}{{ sr_md | replace: "](./", sr_link_base | replace: "](../", sr_link_parent | replace: "](~/assets/", "](/assets/images/" | replace: "```shell", "```bash" | markdownify | replace: "’", "'" | replace: "‘", "'" | replace: "“", "&quot;" | replace: "”", "&quot;" | replace: "–", "--" | replace: "…", "..." | replace: '<a href="http', '<a target="_blank" rel="noopener noreferrer" href="http' }}{%- endif -%}
+{%- endcapture -%}
+{%- assign sr_images = sr_gallery | split: "@@" | where_exp: "sr_i", "sr_i != ''" -%}

@@ -1,0 +1,498 @@
+---
+title: Set up Azure Database for PostgreSQL in the AppHost
+description: Learn how to use the Aspire Azure PostgreSQL Hosting integration to orchestrate and configure an Azure Database for PostgreSQL flexible server in an Aspire solution.
+---
+
+{% image "/assets/images/icons/azure-postgresql-icon.png", alt: "Azure Database for PostgreSQL logo", width: 80, height: 80, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire Azure PostgreSQL Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Azure Database for PostgreSQL flexible server and database resources in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Azure PostgreSQL integration, start with the [Get started with Azure Database for PostgreSQL integrations](/integrations/cloud/azure/azure-postgresql/azure-postgresql-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure PostgreSQL](../azure-postgresql-connect/). For the PostgreSQL Entity Framework Core (EF Core) client integration, see [Get started with the PostgreSQL Entity Framework Core integrations](/integrations/databases/efcore/postgres/postgresql-get-started/).
+
+## Installation
+
+To start building an Aspire app that uses Azure Database for PostgreSQL, install the [📦 Aspire.Hosting.Azure.PostgreSQL](https://www.nuget.org/packages/Aspire.Hosting.Azure.PostgreSQL) NuGet package:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add azure-postgres
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+command reference.
+{% endlearnmore %}
+
+This updates your `aspire.config.json` with the Azure PostgreSQL hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.PostgreSQL": "%ASPIRE_VERSION%"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add azure-postgres
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+command reference.
+{% endlearnmore %}
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Azure.PostgreSQL@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.PostgreSQL" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+## Add an Azure Database for PostgreSQL resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a PostgreSQL flexible server resource and then add a database resource:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addAzurePostgresFlexibleServer("postgres");
+const postgresdb = await postgres.addDatabase("postgresdb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .waitFor(postgresdb)
+    .withReference(postgresdb);
+
+// After adding all resources, run the app...
+````
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres");
+var postgresdb = postgres.AddDatabase("postgresdb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+.WaitFor(postgresdb)
+.WithReference(postgresdb);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+
+````
+{% endtab %}
+{% endtabs %}
+
+The preceding code adds an Azure PostgreSQL flexible server resource named `postgres` with a database named `postgresdb`. The {% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %} call injects the connection information into the consuming project.
+
+:::caution
+When you call {% api "Aspire.Hosting.AzurePostgresExtensions.AddAzurePostgresFlexibleServer" %} /
+`addAzurePostgresFlexibleServer`, it implicitly calls
+{% api "Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" %}—which adds support for generating Azure resources
+dynamically during app startup. The app must configure the appropriate
+subscription and location. For more information, see [Local provisioning:
+Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+:::
+
+:::note
+When you reference an Azure PostgreSQL resource from the AppHost, Aspire makes
+several properties available to the consuming project, such as connection
+URIs, hostnames, and port numbers. For a complete list of these properties and
+per-language connection examples, see [Connect to Azure
+PostgreSQL](../azure-postgresql-connect/).
+:::
+
+## Add a database to an existing server
+
+You can add multiple named databases to the same flexible server resource:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addAzurePostgresFlexibleServer("postgres");
+const catalogDb = await postgres.addDatabase("catalogdb");
+const ordersDb = await postgres.addDatabase("ordersdb");
+
+await builder.addNodeApp("catalog", "./catalog", "index.js")
+    .withReference(catalogDb)
+    .waitFor(catalogDb);
+
+await builder.addNodeApp("orders", "./orders", "index.js")
+    .withReference(ordersDb)
+    .waitFor(ordersDb);
+
+// After adding all resources, run the app...
+````
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres");
+var catalogDb = postgres.AddDatabase("catalogdb");
+var ordersDb = postgres.AddDatabase("ordersdb");
+
+builder.AddProject<Projects.CatalogService>("catalog")
+.WithReference(catalogDb)
+.WaitFor(catalogDb);
+
+builder.AddProject<Projects.OrdersService>("orders")
+.WithReference(ordersDb)
+.WaitFor(ordersDb);
+
+// After adding all resources, run the app...
+
+````
+{% endtab %}
+{% endtabs %}
+
+You can also customize the underlying database name (as distinct from the Aspire resource name) by passing `databaseName` in the options:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const postgresdb = await postgres.addDatabase("postgresdb", { databaseName: "app_catalog" });
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var postgresdb = postgres.AddDatabase("postgresdb", databaseName: "app_catalog");
+```
+{% endtab %}
+{% endtabs %}
+
+## Run as a local container during development
+
+The Azure PostgreSQL hosting integration supports running the PostgreSQL server as a local Docker container. This is beneficial for local development and testing — you get a real PostgreSQL server without needing an Azure subscription or connection to an existing Azure PostgreSQL instance.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addAzurePostgresFlexibleServer("postgres");
+await postgres.runAsContainer();
+
+const postgresdb = await postgres.addDatabase("postgresdb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(postgresdb)
+    .waitFor(postgresdb);
+
+// After adding all resources, run the app...
+````
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
+.RunAsContainer();
+
+var postgresdb = postgres.AddDatabase("postgresdb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+.WithReference(postgresdb)
+.WaitFor(postgresdb);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+
+````
+{% endtab %}
+{% endtabs %}
+
+When {% api "Aspire.Hosting.AzurePostgresExtensions.RunAsContainer" %} is called, Aspire uses the [`docker.io/library/postgres`](https://hub.docker.com/_/postgres) container image and generates credentials automatically. The same consuming app code and environment variable names work in both local-container and Azure modes.
+
+:::tip
+The `RunAsContainer` / `runAsContainer` API exposes an optional delegate
+(`configureContainer` in TypeScript) that lets you customize the underlying
+`PostgresServerResource`. For example, you can add **pgAdmin** or **pgWeb**,
+attach a data volume, add an init bind mount, and more. For the full list of
+options, see [PostgreSQL Hosting
+integration](/integrations/databases/postgres/postgres-host/#add-postgresql-server-resource).
+:::
+
+### Cross-reference: local-container vs Azure PostgreSQL
+
+If you are developing against a local container and want to switch to Azure PostgreSQL for staging or production, change {% api "Aspire.Hosting.PostgresBuilderExtensions.AddPostgres" %} to `AddAzurePostgresFlexibleServer` in the AppHost. The connection information injected into consuming apps uses the same environment variable names, so no application code changes are required.
+
+For a comparison of the two hosting integrations, see [PostgreSQL Hosting integration](/integrations/databases/postgres/postgres-host/).
+
+## Connect to an existing Azure PostgreSQL flexible server
+
+If you have an existing Azure Database for PostgreSQL Flexible Server that you want to connect to rather than provisioning a new one, use {% api "Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingPostgresName = await builder.addParameter("existingPostgresName");
+const existingPostgresResourceGroup = await builder.addParameter("existingPostgresResourceGroup");
+
+const postgres = await builder.addAzurePostgresFlexibleServer("postgres");
+await postgres.asExisting(existingPostgresName, existingPostgresResourceGroup);
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(postgres);
+
+// After adding all resources, run the app...
+````
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingPostgresName = builder.AddParameter("existingPostgresName");
+var existingPostgresResourceGroup = builder.AddParameter("existingPostgresResourceGroup");
+
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
+.AsExisting(existingPostgresName, existingPostgresResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+.WithReference(postgres);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+
+````
+{% endtab %}
+{% endtabs %}
+
+For more information on treating Azure resources as existing, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+## Configure password authentication
+
+By default, the Azure PostgreSQL flexible server is configured to use [Microsoft Entra ID](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-azure-ad-authentication) authentication — no username or password is stored in your app configuration. If you need password authentication (for example, to connect with a legacy client that doesn't support Entra tokens), call {% api "Aspire.Hosting.AzurePostgresExtensions.WithPasswordAuthentication" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const username = await builder.addParameter("username", { secret: true });
+const password = await builder.addParameter("password", { secret: true });
+
+const postgres = await builder.addAzurePostgresFlexibleServer("postgres");
+await postgres.withPasswordAuthentication({ userName: username, password });
+
+const postgresdb = await postgres.addDatabase("postgresdb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(postgresdb)
+    .waitFor(postgresdb);
+
+// After adding all resources, run the app...
+````
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var username = builder.AddParameter("username", secret: true);
+var password = builder.AddParameter("password", secret: true);
+
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
+.WithPasswordAuthentication(username, password);
+
+var postgresdb = postgres.AddDatabase("postgresdb");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+.WithReference(postgresdb)
+.WaitFor(postgresdb);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+
+````
+{% endtab %}
+{% endtabs %}
+
+When password authentication is enabled, the `Username` and `Password` connection properties are also injected into consuming apps. See [Connect to Azure PostgreSQL](../azure-postgresql-connect/#connection-properties) for the full property reference.
+
+:::note
+Prefer Entra ID (the default) over password authentication wherever possible.
+Entra ID eliminates secret rotation overhead and is the recommended security
+model for Azure Database for PostgreSQL.
+:::
+
+## Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by hand — the provisioning APIs generate it for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure PostgreSQL resource, the following Bicep is generated:
+
+```bicep title="Generated Bicep — postgres.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource postgres_flexible 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
+  name: take('postgresflexible-${uniqueString(resourceGroup().id)}', 63)
+  location: location
+  properties: {
+    authConfig: {
+      activeDirectoryAuth: 'Enabled'
+      passwordAuth: 'Disabled'
+    }
+    availabilityZone: '1'
+    backup: {
+      backupRetentionDays: 7
+      geoRedundantBackup: 'Disabled'
+    }
+    highAvailability: {
+      mode: 'Disabled'
+    }
+    storage: {
+      storageSizeGB: 32
+    }
+    version: '16'
+  }
+  sku: {
+    name: 'Standard_B1ms'
+    tier: 'Burstable'
+  }
+  tags: {
+    'aspire-resource-name': 'postgres-flexible'
+  }
+}
+
+resource postgreSqlFirewallRule_AllowAllAzureIps 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024-08-01' = {
+  name: 'AllowAllAzureIps'
+  properties: {
+    endIpAddress: '0.0.0.0'
+    startIpAddress: '0.0.0.0'
+  }
+  parent: postgres_flexible
+}
+
+output connectionString string = 'Host=${postgres_flexible.properties.fullyQualifiedDomainName}'
+
+output name string = postgres_flexible.name
+```
+
+Additionally, role assignments are created for the Azure resource in a separate module:
+
+```bicep title="Generated Bicep — postgres-flexible-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param postgres_flexible_outputs_name string
+
+param principalType string
+
+param principalId string
+
+param principalName string
+
+resource postgres_flexible 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' existing = {
+  name: postgres_flexible_outputs_name
+}
+
+resource postgres_flexible_admin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2024-08-01' = {
+  name: principalId
+  properties: {
+    principalName: principalName
+    principalType: principalType
+  }
+  parent: postgres_flexible
+}
+```
+
+The roles Bicep creates an administrator record on the flexible server, granting the deploying principal role-based access. This is the mechanism that underpins Entra ID (managed identity) authentication — no password is required because the principal's identity is used to obtain short-lived tokens at runtime.
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+## Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the {% api "Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" %} API:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzurePostgresFlexibleServer("postgres")
+  .ConfigureInfrastructure(infra =>
+  {
+      var flexibleServer = infra.GetProvisionableResources()
+                                .OfType<PostgreSqlFlexibleServer>()
+                                .Single();
+
+      flexibleServer.Sku = new PostgreSqlFlexibleServerSku
+      {
+          Tier = PostgreSqlFlexibleServerSkuTier.Burstable,
+      };
+      flexibleServer.HighAvailability = new PostgreSqlFlexibleServerHighAvailability
+      {
+          Mode = PostgreSqlFlexibleServerHighAvailabilityMode.ZoneRedundant,
+          StandbyAvailabilityZone = "2",
+      };
+      flexibleServer.Tags.Add("ExampleKey", "Example value");
+  });
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+```
+
+:::note
+TypeScript AppHosts can use curated provisioning helper APIs when an
+integration exposes them. This example directly customizes Azure.Provisioning
+objects through `ConfigureInfrastructure`, which is currently C#-only unless
+the integration wraps the scenario in a [polyglot](/get-started/glossary/#polyglot)-friendly helper.
+:::
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `PostgreSqlFlexibleServer` is retrieved.
+  - The `sku` is set with `PostgreSqlFlexibleServerSkuTier.Burstable`.
+  - The high availability properties are set with `PostgreSqlFlexibleServerHighAvailabilityMode.ZoneRedundant` in standby availability zone `"2"`.
+  - A tag is added to the flexible server with a key of `ExampleKey` and a value of `Example value`.
+
+There are many more configuration options available to customize the PostgreSQL resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+
+## Database creation after initial deployment
+
+When you call {% api "Aspire.Hosting.AzurePostgresExtensions.AddDatabase" %} on an Azure PostgreSQL resource, Aspire provisions the database during the **first** deployment. On subsequent deployments with `azd up`, only the server-level Bicep is redeployed — databases that already exist are not recreated or deleted.
+
+:::note
+If a database does not appear after redeployment, verify that the
+`AddDatabase` / `addDatabase` call is still present in your AppHost and that
+the Bicep output in the `infra/` folder is up to date. Run `azd provision`
+(instead of `azd up`) to force Aspire to re-evaluate the provisioning output.
+:::
+
+If you need to add a new database to an existing server, redeploy your application with the updated AppHost code or manually create the database by using the Azure portal or the PostgreSQL CLI:
+
+```bash title="Create database manually"
+az postgres flexible-server db create \
+  --resource-group <resource-group> \
+  --server-name <server-name> \
+  --database-name <new-database-name>
+```

@@ -64,9 +64,7 @@ for (const videoId of ['DtdP0JBawPI', null]) {
     expect(embedUrl.searchParams.get('mute')).toBe('1');
     await expect(liveButton()).toHaveAttribute('data-pip-open', 'true');
 
-    await page.locator('header a[href="/docs/"]:visible').click();
-    await expect(page).toHaveURL(/\/docs\/$/);
-    await expect(liveButton()).toHaveAttribute('data-pip-open', 'true');
+    // Asking for the open source again reuses its player.
     expect(pip.isClosed()).toBe(false);
     await liveButton().click();
     await youtube.click();
@@ -88,14 +86,28 @@ for (const videoId of ['DtdP0JBawPI', null]) {
     await pip.close();
     await expect(liveButton()).toHaveAttribute('data-pip-open', 'false');
     await expect(liveButton()).toHaveAttribute('data-live', 'true');
-    await expect(page).toHaveURL(/\/docs\/$/);
+
+    // Navigation is a full page load, which closes the opener's PiP window; the next page can
+    // open a new one, and its embed still sends the referrer.
+    await liveButton().click();
+    const beforeNavigation = context.waitForEvent('page');
+    await youtube.click();
+    const navigatedPip = await beforeNavigation;
+    await expect.poll(() => embeds.length).toBe(4);
+    const closedByNavigation = navigatedPip.waitForEvent('close');
+    await page.locator('header a[href="/docs/"]:visible').click();
+    await page.waitForURL(/\/docs\/$/);
+    await page.waitForLoadState('load');
+    await closedByNavigation;
+    await expect(liveButton()).not.toHaveAttribute('data-pip-open', 'true');
 
     await liveButton().click();
     const reopened = context.waitForEvent('page');
     await youtube.click();
     const nextPip = await reopened;
-    await expect.poll(() => embeds.length).toBe(4);
-    expect(await embeds[3].headerValue('referer')).toBe(expectedReferrer);
+    await expect.poll(() => embeds.length).toBe(5);
+    expect(await embeds[4].headerValue('referer')).toBe(new URL(page.url()).origin + '/');
+    await expect(liveButton()).toHaveAttribute('data-pip-open', 'true');
     await nextPip.close();
     await expect(liveButton()).toHaveAttribute('data-pip-open', 'false');
   });

@@ -1,0 +1,393 @@
+---
+title: Set up Valkey in the AppHost
+seoTitle: "Set up Valkey in the Aspire AppHost: hosting integration"
+description: Learn how to use the Aspire Valkey Hosting integration to orchestrate and configure a Valkey resource in an Aspire solution.
+---
+
+{% image "/assets/images/icons/valkey-icon.png", alt: "Valkey logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire Valkey Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a Valkey resource in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Valkey integration, start with the [Get started with Valkey integrations](/integrations/caching/valkey/valkey-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Valkey](../valkey-connect/).
+
+## Installation
+
+To start building an Aspire app that uses Valkey, install the [📦 Aspire.Hosting.Valkey](https://www.nuget.org/packages/Aspire.Hosting.Valkey) NuGet package:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add valkey
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+This updates your `aspire.config.json` with the Valkey hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Valkey": "%ASPIRE_VERSION%"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add valkey
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Valkey@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Valkey" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+## Add Valkey resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a Valkey resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addValkey("cache");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddValkey("cache");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+{% steps %}
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/valkey/valkey` image, it creates a new Valkey instance on your local machine.
+
+1. The Valkey resource is configured with a randomly generated password by default. To set an explicit password, see [Add Valkey resource with parameters](#add-valkey-resource-with-parameters).
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced Valkey resource, such as `cache` in the preceding example.
+{% endsteps %}
+
+:::note
+When you reference a Valkey resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, port numbers, and the password. For a complete list of these properties and per-language connection examples, see [Connect to Valkey](../valkey-connect/).
+:::
+
+{% container_images package: "Aspire.Hosting.Valkey" %}
+
+## Add Valkey resource with data volume
+
+Add a data volume to the Valkey resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addValkey("cache");
+await cache.withDataVolume({ isReadOnly: false });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddValkey("cache")
+    .WithDataVolume(isReadOnly: false);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The data volume is used to persist Valkey data outside the lifecycle of its container. The data volume is mounted at the `/data` path in the Valkey container, and when a `name` parameter isn't provided, the name is generated at random. Calling {% api "Aspire.Hosting.ValkeyBuilderExtensions.WithDataVolume" %} also enables Valkey persistence so the in-memory state survives container restarts. For more information on data volumes and details on why they're preferred over [bind mounts](#add-valkey-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+## Add Valkey resource with data bind mount
+
+Add a data bind mount to the Valkey resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addValkey("cache");
+await cache.withDataBindMount("/Valkey/Data", { isReadOnly: false });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddValkey("cache")
+    .WithDataBindMount(
+        source: "/Valkey/Data",
+        isReadOnly: false);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+:::
+
+Data bind mounts rely on the host machine's filesystem to persist Valkey data across container restarts. The data bind mount is mounted at the `C:\Valkey\Data` on Windows (or `/Valkey/Data` on Unix) path on the host machine in the Valkey container. As with `WithDataVolume`, this call also enables persistence. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+
+## Add Valkey resource with persistence
+
+To configure Valkey snapshot persistence explicitly, call {% api "Aspire.Hosting.ValkeyBuilderExtensions.WithPersistence" %} alongside a data volume or bind mount:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addValkey("cache");
+await cache.withDataVolume();
+await cache.withPersistence({
+    interval: 5 * 60 * 1000,
+    keysChangedThreshold: 100,
+});
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddValkey("cache")
+    .WithDataVolume()
+    .WithPersistence(
+        interval: TimeSpan.FromMinutes(5),
+        keysChangedThreshold: 100);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code adds explicit persistence to the Valkey resource by snapshotting data at the configured interval whenever the configured number of keys changes. The C# AppHost accepts a `TimeSpan` for `interval`; the TypeScript AppHost accepts the same value as milliseconds.
+
+## Add Valkey resource with parameters
+
+When you want to explicitly provide the port and password used by the Valkey container, you can pass them as parameters:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const password = await builder.addParameter("password", { secret: true });
+
+const cache = await builder.addValkey("cache", { port: 6379, password });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var password = builder.AddParameter("password", secret: true);
+
+var cache = builder.AddValkey("cache", port: 6379, password: password);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method.
+
+## Pass custom environment variables
+
+By default, Aspire injects the Valkey connection information using variable names derived from the resource name (for example, `CACHE_URI`, `CACHE_HOST`, `CACHE_PORT`, `CACHE_PASSWORD`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addValkey("cache");
+const cacheEndpoint = await cache.getEndpoint("tcp");
+const cacheHost = await cacheEndpoint.property(EndpointProperty.Host);
+const cachePort = await cacheEndpoint.property(EndpointProperty.Port);
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(cache)
+    .withEnvironment("VALKEY_HOST", cacheHost)
+    .withEnvironment("VALKEY_PORT", cachePort)
+    .withEnvironment("VALKEY_PASSWORD", await cache.passwordParameter());
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddValkey("cache");
+
+var app = builder.AddExecutable("my-app", "node", "app.js", ".")
+    .WithReference(cache)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["VALKEY_HOST"] = cache.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["VALKEY_PORT"] = cache.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+        context.EnvironmentVariables["VALKEY_PASSWORD"] = cache.Resource.PasswordParameter;
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Connect to an existing Valkey instance
+
+To reference an externally managed Valkey instance instead of running one as a container, use {% api "Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cache = await builder.addConnectionString("cache");
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddConnectionString("cache");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+With `AddConnectionString` and `addConnectionString`, Aspire resolves `cache` from `ConnectionStrings:cache` (or environment variable `ConnectionStrings__cache`) in the AppHost configuration. Consuming apps receive that value as a single connection string, not deconstructed Valkey resource-specific connection-property variables such as `CACHE_HOST`, `CACHE_PORT`, or `CACHE_URI`.
+
+<span id="add-valkey-resource-with-a-repl-command"></span>
+
+## Open an interactive REPL
+
+In Aspire 13.6 or later, add {% api "Aspire.Hosting.ValkeyBuilderExtensions.WithRepl" %} to the Valkey resource to enable a **REPL** command that opens `valkey-cli` in the [terminal dock](/dashboard/terminals/#use-the-terminal-dock).
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+await builder.addValkey('cache').withRepl();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddValkey("cache").WithRepl();
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The command is opt-in and available only in run mode while the container is running. It uses the container's bundled client through Docker or Podman, so no local Valkey client is needed. Credentials are passed through environment variables rather than command-line arguments.
+
+Use `quit` before closing the terminal tab. Closing the tab alone can leave the client running inside the container; stopping the container ends any remaining processes.
+
+:::caution
+The client uses the resource's configured credentials and can modify or delete data. Enable it only for trusted dashboard users, including anyone accessing the dashboard through a tunnel or remote development session.
+:::
+
+## Connection properties
+
+For the full reference of Valkey resource connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Valkey](../valkey-connect/).
+
+## Hosting integration health checks
+
+The Valkey hosting integration automatically adds a health check for the Valkey resource. The health check verifies that the Valkey instance is running and that a connection can be established to it.
+
+The hosting integration relies on the [📦 AspNetCore.HealthChecks.Redis](https://www.nuget.org/packages/AspNetCore.HealthChecks.Redis) NuGet package, which works for Valkey because it speaks the Redis serialization protocol.

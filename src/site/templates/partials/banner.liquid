@@ -1,0 +1,23 @@
+{%- comment -%}
+  The site's Banner override (src/frontend/src/components/starlight/Banner.astro): `banner.content` (HTML) with a
+  dismiss button. The dismissal keys hash the content with SHA-256 (first 12 hex characters) like the Astro build,
+  so dismissals carry over. Expiry stays in the browser: `bannerExpiresOn` (ms since the epoch) and
+  `bannerAutoDismissAfterDays` are data attributes that the pre-paint script (right after the element) and the
+  controller (scripts/client/banner.ts) read; the Astro build also dropped a banner already expired at build time,
+  which is left to the browser here.
+  The pre-paint script is inline, like Banner.astro's is:inline one, and not a classic external script: the banner is
+  rendered visible so that the first paint includes its height, and only this script hides it (dismissed, past its
+  sunset, auto-dismiss window elapsed) before that paint. An external script costs a request before it runs, and when
+  it fails (blocked, offline) a dismissed banner shows again (banner.spec.ts runs with every script request aborted).
+  It mirrors `resolveBannerVisibility` (utils/banner-expiry, which banner.ts applies): keep the two in step.
+  Root class: cid-starlight-banner (and Starlight's own .sl-banner).
+{%- endcomment -%}
+{%- if banner.content -%}
+{%- assign bn_hash = banner.content | sha256 | slice: 0, 12 -%}
+{%- assign bn_id = "sl-banner-" | append: bn_hash -%}
+{%- assign bn_content = banner.content | replace: "</strong> — <a", "</strong> <a" | replace: "</strong> – <a", "</strong> <a" -%}
+{%- if bannerExpiresOn -%}{%- assign bn_expires = bannerExpiresOn | date: "%s" | append: "000" -%}{%- else -%}{%- assign bn_expires = "" -%}{%- endif -%}
+{%- if bannerAutoDismissAfterDays > 0 -%}{%- assign bn_days = bannerAutoDismissAfterDays -%}{%- else -%}{%- assign bn_days = "" -%}{%- endif -%}
+<div id="{{ bn_id }}" class="sl-banner sl-banner--dismissable cid-starlight-banner" data-aspire-banner data-dismiss-key="aspire.dev.banner.dismissed.{{ bn_hash }}" data-first-seen-key="aspire.dev.banner.firstSeen.{{ bn_hash }}" data-expires-on="{{ bn_expires }}" data-auto-dismiss-days="{{ bn_days }}" data-banner-state="open" data-pagefind-ignore><div class="sl-banner__content">{{ bn_content | raw }}</div><button type="button" class="sl-banner__dismiss" data-dismiss-banner aria-label="Dismiss announcement banner" aria-controls="{{ bn_id }}">{% icon "close", size: "0.875rem", class: nil, label: nil, color: nil %}<span class="sl-banner__dismiss-label">Dismiss announcement banner</span></button></div>
+<script data-banner-prepaint>(function(){var b=document.querySelector('[data-aspire-banner]');if(!b)return;var d=b.dataset,n=Date.now(),h=d.expiresOn?n>=Number(d.expiresOn):false;try{if(!h)h=localStorage.getItem(d.dismissKey)==='true';if(!h&&d.autoDismissDays){var r=localStorage.getItem(d.firstSeenKey),f=r!==null&&/^\d+$/.test(r.trim())?Number(r):0;h=f>0&&f<=n&&n>=f+Number(d.autoDismissDays)*86400000;}}catch(e){}if(h){b.hidden=true;d.bannerState='closed';}})();</script>
+{%- endif -%}

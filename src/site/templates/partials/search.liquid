@@ -1,0 +1,16 @@
+{%- comment -%}
+  The site's Search override (src/frontend/src/components/starlight/Search.astro) around Starlight's Search.astro:
+  the <site-search> button and dialog (hidden on the API reference, which has its own search), the API notice and
+  keyboard footer templates the client enhancements clone into Pagefind's results (scripts/client/search-dialog.ts,
+  search-enhancements.ts). Pagefind UI loads from /pagefind/pagefind-ui.js when the dialog opens.
+  The Pagefind translations are the placeholder only (Starlight also forwarded its `pagefind.*` strings, which the
+  site's dictionaries do not define). The shortcut label script (Ctrl/⌘) is in search-dialog.ts.
+  Root classes: cid-starlight-search (the templates), cid-sl-search (<site-search>).
+{%- endcomment -%}
+{%- assign se_label = "search.label" | t -%}
+{%- assign se_translations = se_label | json | prepend: '{"placeholder":' | append: '}' -%}
+{% unless api_page %}
+<site-search class="cid-sl-search" data-translations="{{ se_translations }}"><button data-open-modal disabled aria-label="{{ se_label }}" aria-keyshortcuts="Control+K">{% icon "magnifier" %}<span class="sl-hidden md:sl-block" aria-hidden="true">{{ se_label }}</span><kbd class="sl-hidden md:sl-flex" style="display: none;"><kbd>{{ "search.ctrlKey" | t }}</kbd><kbd>K</kbd></kbd></button><dialog style="padding:0" aria-label="{{ se_label }}"><div class="dialog-frame sl-flex"><button data-close-modal class="sl-flex md:sl-hidden">{{ "search.cancelLabel" | t }}</button><div class="search-container"><div id="starlight__search"></div></div></div></dialog></site-search>
+{%- endunless %}
+<template id="api-search-notice-tpl" class="cid-starlight-search" data-clear-search="{{ 'catalogSearch.clearSearch' | t }}"><div class="api-search-notice"><p class="api-search-notice-text">API references are intentionally omitted from this search. To find API references, please search these dedicated API pages instead:</p><div class="api-search-notice-buttons"><a href="/reference/api/csharp/" class="api-search-btn" data-api-search-link data-api-lang="csharp" data-api-base-href="/reference/api/csharp/"><img src="/assets/images/icons/csharp.svg" alt="" width="50" height="50"><span>C# API Reference</span></a><a href="/reference/api/typescript/" class="api-search-btn" data-api-search-link data-api-lang="typescript" data-api-base-href="/reference/api/typescript/"><img src="/assets/images/icons/typescript.svg" alt="" width="50" height="50"><span>TypeScript API Reference</span></a></div></div></template>
+<template id="search-keyboard-footer-tpl" class="cid-starlight-search"><div class="search-keyboard-footer" data-testid="search-keyboard-footer" aria-hidden="true"><span class="search-kb-hint"><kbd class="search-kb-key">↑</kbd><kbd class="search-kb-key">↓</kbd><span class="search-kb-label">Navigate</span></span><span class="search-kb-hint"><kbd class="search-kb-key">↵</kbd><span class="search-kb-label">Open</span></span><span class="search-kb-hint"><kbd class="search-kb-key">Esc</kbd><span class="search-kb-label">Close</span></span></div></template>

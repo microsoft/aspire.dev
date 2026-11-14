@@ -1,0 +1,185 @@
+---
+title: Set up Deno apps in the AppHost
+description: Configure Deno script and task resources, permissions, endpoints, health checks, package installation, and publishing behavior in Aspire.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+{% image light: "/assets/images/icons/deno-light-icon.png", dark: "/assets/images/icons/deno-icon.png", alt: "Deno logo", width: 100, height: 100, zoomable: false, class: "float-inline-left icon" %}
+
+This reference covers the Deno AppHost API from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). For an introduction, see [Get started with the Deno integration](/integrations/frameworks/deno/deno-get-started/).
+
+## Installation
+
+Install the hosting package in your AppHost:
+
+{% install_package "CommunityToolkit.Aspire.Hosting.Deno" %}
+
+The Deno executable must be available on `PATH` when Aspire runs the resource.
+
+## Add a Deno script
+
+{% api "Aspire.Hosting.DenoAppHostingExtensions.AddDenoApp" %} creates an executable resource that runs `deno run`, followed by permission flags, the script path, and application arguments.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addDenoApp(
+  'deno-api',
+  'main.ts',
+  '../deno-api',
+  ['--allow-env', '--allow-net'],
+  ['--verbose']
+);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddDenoApp(
+    name: "deno-api",
+    scriptPath: "main.ts",
+    workingDirectory: "../deno-api",
+    permissionFlags: ["--allow-env", "--allow-net"],
+    args: ["--verbose"]);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+`name` identifies the dashboard resource. `scriptPath` is passed to `deno run`. `workingDirectory` is resolved from the AppHost directory; when omitted, it defaults to `../<name>`. `permissionFlags` and `args` are optional arrays. Use Deno permission flags appropriate to the application, such as `--allow-net` for network access and `--allow-env` when it reads environment variables.
+
+Script resources set `DENO_ENV` to `development` in the development environment and `production` otherwise. They also configure the OTLP exporter.
+
+## Add a Deno task
+
+{% api "Aspire.Hosting.DenoAppHostingExtensions.AddDenoTask" %} runs `deno task <taskName>`, using the task configuration in the resource's working directory.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const web = await builder.addDenoTask('web', '../web', 'dev', [
+  '--host',
+  '0.0.0.0',
+]);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var web = builder.AddDenoTask(
+    name: "web",
+    workingDirectory: "../web",
+    taskName: "dev",
+    args: ["--host", "0.0.0.0"]);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+`taskName` defaults to `start`; the working-directory default is also `../<name>`. Task resources run the `deno` command with `task`, the task name, and the supplied arguments.
+
+## Install Deno packages before startup
+
+{% api "Aspire.Hosting.DenoAppHostingExtensions.WithDenoPackageInstallation" %} adds a `deno install` setup resource named `<resource-name>-deno-install`. The application waits for that setup resource to complete.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder
+  .addDenoApp('deno-api', 'main.ts')
+  .withDenoPackageInstallation();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddDenoApp("deno-api", "main.ts")
+    .WithDenoPackageInstallation();
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+In C#, an overload also accepts a callback that configures the installer resource. It is marked `[AspireExportIgnore]` because `Action<IResourceBuilder<DenoInstallerResource>>` is not ATS-compatible; TypeScript uses the exported overload without `configureInstaller`.
+
+## Configure endpoints, environment, and health checks
+
+Deno resources are executable resources with endpoint, environment, argument, wait, and service-discovery support. Use the standard AppHost APIs to pass a listening port, configure additional environment variables, and define a probe:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder
+  .addDenoApp('deno-api', 'main.ts', undefined, ['--allow-env', '--allow-net'])
+  .withHttpEndpoint({ port: 8000, env: 'PORT' })
+  .withEnvironment('LOG_LEVEL', 'debug')
+  .withHttpHealthCheck({ path: '/health' });
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddDenoApp(
+    "deno-api",
+    "main.ts",
+    permissionFlags: ["--allow-env", "--allow-net"])
+    .WithHttpEndpoint(port: 8000, env: "PORT")
+    .WithEnvironment("LOG_LEVEL", "debug")
+    .WithHttpHealthCheck("/health");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The application must read the `PORT` variable and listen on that port. It must also have the Deno permissions required to read its environment and serve network traffic. {% api "Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" %} makes Aspire poll the specified HTTP path. Add {% api "Aspire.Hosting.ResourceBuilderExtensions.WithEndpoint" %} when you need an additional endpoint definition, as in the Toolkit Deno samples.
+
+## Resource actions and references
+
+The dashboard exposes the normal executable-resource lifecycle controls for Deno resources. Other AppHost resources can use {% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %} and dependency APIs with a Deno resource because it supports service discovery. Add explicit endpoints before consumers need an address.
+
+## Publishing behavior
+
+`WithDenoPackageInstallation` only creates its installer resource in run mode. The installer is excluded from the application manifest and is not created during publishing. The integration does not implement a Deno-specific container build or publish artifact; provide deployment packaging appropriate for your Deno application.
+
+{% learnmore %}
+For deployment guidance, see the [Aspire deployment overview](/deployment/).
+{% endlearnmore %}
+
+## See also
+
+- [Deno documentation](https://docs.deno.com/)
+- [📦 CommunityToolkit.Aspire.Hosting.Deno](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Deno)
+- [Get started with the Deno integration](/integrations/frameworks/deno/deno-get-started/)

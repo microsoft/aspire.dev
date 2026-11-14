@@ -1,0 +1,526 @@
+---
+title: YARP integration
+seoTitle: YARP integration for Aspire AppHost and apps
+description: Learn how to use the YARP (Yet Another Reverse Proxy) integration for reverse proxy functionality.
+---
+
+{% image "/assets/images/icons/yarp-icon.svg", alt: "YARP logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire YARP Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a [YARP (Yet Another Reverse Proxy)](https://microsoft.github.io/reverse-proxy/) resource in your [`AppHost`](/get-started/app-host/) project.
+
+## Hosting integration
+
+The YARP hosting integration models a YARP resource as the `YarpResource` type. To access this type and APIs, install the [📦 Aspire.Hosting.Yarp](https://www.nuget.org/packages/Aspire.Hosting.Yarp) NuGet package in your AppHost project:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add yarp
+```
+
+This updates your `aspire.config.json` with the YARP hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Yarp": "*"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add yarp
+```
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Yarp@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Yarp" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+### Add YARP resource
+
+In your AppHost, add a YARP resource and configure routes programmatically:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalogService = await builder.addProject(
+  'catalogservice',
+  '../CatalogService/CatalogService.csproj'
+);
+const basketService = await builder.addProject(
+  'basketservice',
+  '../BasketService/BasketService.csproj'
+);
+
+const gateway = await builder.addYarp('gateway');
+await gateway.withConfiguration(async (yarp) => {
+  await yarp.addCatchAllRoute(catalogService);
+  await yarp.addRoute('/api/{**catch-all}', basketService);
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalogService = builder.AddProject<Projects.CatalogService>("catalogservice");
+var basketService = builder.AddProject<Projects.BasketService>("basketservice");
+
+var gateway = builder.AddYarp("gateway")
+    .WithConfiguration(yarp =>
+    {
+        yarp.AddRoute(catalogService);
+        yarp.AddRoute("/api/{**catch-all}", basketService);
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+When Aspire adds a YARP resource to the AppHost, it creates a new containerized YARP instance using the [mcr.microsoft.com/dotnet/nightly/yarp](https://mcr.microsoft.com/product/dotnet/nightly/yarp/about) container image.
+
+:::caution
+Starting with Aspire 9.4, the {% api "Aspire.Hosting.FlociHostingExtension.WithConfigFile" %} method has been removed. YARP
+configuration is now done exclusively through code-based configuration using
+the {% api "Aspire.Hosting.YarpResourceExtensions.WithConfiguration" %} method. This provides better IntelliSense support,
+type safety, and works seamlessly with deployment scenarios.
+:::
+
+{% container_images package: "Aspire.Hosting.Yarp" %}
+
+### Programmatic configuration
+
+The YARP integration provides a fluent API for configuring routes, clusters, and transforms programmatically:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalogService = await builder.addProject(
+  'catalogservice',
+  '../CatalogService/CatalogService.csproj'
+);
+const basketService = await builder.addProject(
+  'basketservice',
+  '../BasketService/BasketService.csproj'
+);
+
+const gateway = await builder.addYarp('gateway');
+await gateway.withConfiguration(async (yarp) => {
+  // Add catch-all route for frontend service
+  await yarp.addCatchAllRoute(catalogService);
+
+  // Add specific path route with transforms
+  (
+    await yarp.addRoute('/api/{**catch-all}', basketService)
+  ).withTransformPathRemovePrefix('/api');
+
+  // Configure route matching
+  (await yarp.addRoute('/catalog/api/{**catch-all}', catalogService))
+    .withMatch({
+      path: '/catalog/api/{**catch-all}',
+      methods: ['GET', 'POST'],
+    })
+    .withTransformPathRemovePrefix('/catalog');
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalogService = builder.AddProject<Projects.CatalogService>("catalogservice");
+var basketService = builder.AddProject<Projects.BasketService>("basketservice");
+
+var gateway = builder.AddYarp("gateway")
+    .WithConfiguration(yarp =>
+    {
+        // Add catch-all route for frontend service
+        yarp.AddRoute(catalogService);
+
+        // Add specific path route with transforms
+        yarp.AddRoute("/api/{**catch-all}", basketService)
+            .WithTransformPathRemovePrefix("/api");
+
+        // Configure route matching
+        yarp.AddRoute("/catalog/api/{**catch-all}", catalogService)
+            .WithMatchMethods("GET", "POST")
+            .WithTransformPathRemovePrefix("/catalog");
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+#### Route configuration
+
+Routes define how incoming requests are matched and forwarded to backend services.
+
+| Scenario                       | C#                                | TypeScript                        |
+| ------------------------------ | --------------------------------- | --------------------------------- |
+| Catch-all route for a resource | `AddRoute(resource)`              | `addCatchAllRoute(resource)`      |
+| Route for a resource           | `AddRoute(path, resource)`        | `addRoute(path, resource)`        |
+| Route for an external service  | `AddRoute(path, externalService)` | `addRoute(path, externalService)` |
+| Route for an endpoint          | `AddRoute(path, cluster)`         | `addRoute(path, cluster)`        |
+| Route for a URL destination    | `AddRoute(path, destination)`     | `addRoute(path, destination)`     |
+
+TypeScript AppHosts use unified route helpers. Pass any supported target to `addRoute(path, target)` or `addCatchAllRoute(target)`: a YARP cluster, endpoint, service-discovery resource, external service, or URL string.
+
+```typescript title="apphost.mts"
+await gateway.withConfiguration(async (yarp) => {
+  const httpEndpoint = await catalogService.getEndpoint('http');
+  const externalApi = await builder.addExternalService(
+    'external-api',
+    'https://api.example.com'
+  );
+  const endpointCluster = await yarp.addClusterFromEndpoint(httpEndpoint);
+
+  await yarp.addRoute('/from-cluster/{**catch-all}', endpointCluster);
+  await yarp.addRoute('/from-endpoint/{**catch-all}', httpEndpoint);
+  await yarp.addRoute('/from-resource/{**catch-all}', catalogService);
+  await yarp.addRoute('/from-external/{**catch-all}', externalApi);
+  await yarp.addRoute('/from-url/{**catch-all}', 'https://api.example.net');
+  await yarp.addCatchAllRoute(catalogService);
+});
+```
+
+#### Transforms
+
+Transforms modify requests and responses as they pass through the proxy:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+(await yarp.addRoute('/api/{**catch-all}', basketService))
+  .withTransformPathRemovePrefix('/api')
+  .withTransformPathPrefix('/v1')
+  .withTransformRequestHeader('X-Forwarded-Host', 'gateway.example.com')
+  .withTransformResponseHeader('X-Powered-By', 'YARP');
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+yarp.AddRoute("/api/{**catch-all}", basketService)
+    .WithTransformPathRemovePrefix("/api")
+    .WithTransformPathPrefix("/v1")
+    .WithTransformRequestHeader("X-Forwarded-Host", "gateway.example.com")
+    .WithTransformResponseHeader("X-Powered-By", "YARP");
+```
+{% endtab %}
+{% endtabs %}
+
+Common transform methods include:
+
+- **Path transforms**: `WithTransformPathRemovePrefix`, `WithTransformPathPrefix`, `WithTransformPathSet`; TypeScript uses `withTransformPathRemovePrefix`, `withTransformPathPrefix`, and `withTransformPathSet`.
+- **Header transforms**: `WithTransformRequestHeader`, `WithTransformResponseHeader`; TypeScript uses `withTransformRequestHeader` and `withTransformResponseHeader`.
+- **Query transforms**: `WithTransformQueryParameter`, `WithTransformQueryRemoveParameter`; TypeScript uses `withTransformQueryValue`, `withTransformQueryRouteValue`, and `withTransformQueryRemoveKey`.
+- **Custom transforms**: {% api "Aspire.Hosting.Yarp.YarpRouteExtensions.WithTransform" %} for custom transformation logic.
+
+### Customize host port
+
+To configure the host port that the YARP resource is exposed on, use the host port API:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const gateway = await builder.addYarp('gateway').withHostPort({ port: 8080 });
+
+await gateway.withConfiguration(async (yarp) => {
+  // Configure routes...
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var gateway = builder.AddYarp("gateway")
+    .WithHostPort(8080)
+    .WithConfiguration(yarp =>
+    {
+        // Configure routes...
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### Service discovery integration
+
+The YARP integration automatically works with service discovery when targeting resources:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const catalogService = await builder.addProject(
+  'catalogservice',
+  '../CatalogService/CatalogService.csproj'
+);
+
+const gateway = await builder.addYarp('gateway');
+await gateway.withConfiguration(async (yarp) => {
+  // Service discovery automatically resolves catalogservice endpoints
+  await yarp.addRoute('/catalog/{**catch-all}', catalogService);
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalogService = builder.AddProject<Projects.CatalogService>("catalogservice");
+
+var gateway = builder.AddYarp("gateway")
+    .WithConfiguration(yarp =>
+    {
+        // Service discovery automatically resolves catalogservice endpoints
+        yarp.AddRoute("/catalog/{**catch-all}", catalogService);
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+For external services, use {% api "Aspire.Hosting.ExternalServiceBuilderExtensions.AddExternalService" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const externalApi = await builder.addExternalService(
+  'external-api',
+  'https://api.example.com'
+);
+
+const gateway = await builder.addYarp('gateway');
+await gateway.withConfiguration(async (yarp) => {
+  await yarp.addRoute('/external/{**catch-all}', externalApi);
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var externalApi = builder.AddExternalService("external-api")
+    .WithHttpsEndpoint("https://api.example.com");
+
+var gateway = builder.AddYarp("gateway")
+    .WithConfiguration(yarp =>
+    {
+        yarp.AddRoute("/external/{**catch-all}", externalApi);
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+### Static file serving
+
+YARP can serve static files alongside proxied routes. Use the static files API to enable static file serving:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const staticServer = await builder.addYarp('static').withStaticFiles();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var staticServer = builder.AddYarp("static")
+    .WithStaticFiles("../static");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+For building frontend applications, you can use a Docker multi-stage build:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const frontend = await builder
+  .addYarp('frontend')
+  .withDockerfile('../npmapp')
+  .withStaticFiles();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var frontend = builder.AddYarp("frontend")
+    .WithStaticFiles()
+    .WithDockerfile("../npmapp");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+#### Combining static files with routing
+
+You can combine static file serving with dynamic routing:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const apiService = await builder.addProject(
+  'api',
+  '../ApiService/ApiService.csproj'
+);
+
+const gateway = await builder.addYarp('gateway').withStaticFiles();
+
+await gateway.withConfiguration(async (yarp) => {
+  // API routes take precedence over static files
+  await yarp.addRoute('/api/{**catch-all}', apiService);
+  // Static files are served for all other routes
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiService = builder.AddProject<Projects.ApiService>("api");
+
+var gateway = builder.AddYarp("gateway")
+    .WithStaticFiles("../webapp/dist")
+    .WithConfiguration(yarp =>
+    {
+        // API routes take precedence over static files
+        yarp.AddRoute("/api/{**catch-all}", apiService);
+        // Static files are served for all other routes
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## HTTPS endpoints
+
+When both the YARP gateway and backend services use HTTPS, configure HTTPS endpoints using {% api "Aspire.Hosting.ResourceBuilderExtensions.WithHttpsEndpoint" %} and the developer certificate. YARP can proxy HTTPS-to-HTTPS when the backend service exposes an HTTPS endpoint:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Backend service with HTTPS
+const razorPages = await builder
+  .addProject('razorpages', '../RazorPagesApp/RazorPagesApp.csproj')
+  .withHttpsEndpoint();
+
+// YARP gateway proxying to the HTTPS backend
+const gateway = await builder
+  .addYarp('gateway')
+  .withHttpsEndpoint()
+  .withHttpsDeveloperCertificate();
+
+await gateway.withConfiguration(async (yarp) => {
+  await yarp.addRoute('/{**catch-all}', razorPages);
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Backend service with HTTPS
+var razorPages = builder.AddProject<Projects.RazorPagesApp>("razorpages")
+    .WithHttpsEndpoint();
+
+// YARP gateway proxying to the HTTPS backend
+var gateway = builder.AddYarp("gateway")
+    .WithHttpsEndpoint()
+    .WithHttpsDeveloperCertificate()
+    .WithConfiguration(yarp =>
+    {
+        yarp.AddRoute("/{**catch-all}", razorPages);
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+When using HTTPS with YARP, ensure that the developer certificate is trusted
+on your machine. Run `dotnet dev-certs https --trust` if you see certificate
+validation errors.
+:::
+
+## See also
+
+- [YARP documentation](https://microsoft.github.io/reverse-proxy/)
+- [Aspire integrations overview](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)

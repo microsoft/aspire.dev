@@ -1,0 +1,20 @@
+{%- comment -%}
+  InpageSearch.astro (src/frontend/src/components/api-reference/) for the hub: the search field, the topic chips, the
+  stats line and the results container that the hub's client scripts drive. templates/api/inpage-search.liquid is
+  the API reference's copy; this one takes topic ids, whose titles and colors are the chips. Inputs: is_id (the id
+  prefix), is_placeholder, is_label (optional visible label), is_topics (array of topic ids; chips when more than
+  one), is_stats (the initial stats text). Root class: cid-api-reference-inpage-search.
+{%- endcomment -%}
+{%- if is_topics.size > 1 -%}{%- assign is_filters = true -%}{%- else -%}{%- assign is_filters = false -%}{%- endif -%}
+{%- assign is_input = is_id | append: "-search-input" -%}{%- assign is_status = is_id | append: "-search-status" -%}{%- assign is_clear = is_id | append: "-search-clear" -%}
+{%- if is_label -%}{%- assign is_label_class = "inpage-search-label" -%}{%- assign is_text_label = is_label -%}{%- else -%}{%- assign is_label_class = "sr-only" -%}{%- assign is_text_label = is_placeholder -%}{%- endif -%}
+<div class="inpage-search cid-api-reference-inpage-search" data-size="lg" data-has-kind-filters="{{ is_filters }}">
+{%- render 'api/search-field', id: is_input, label: is_text_label, visible_label: is_label, placeholder: is_placeholder, clear_id: is_clear, described_by: is_status, size: "lg", input_class: "inpage-search-input", clear_class: "inpage-search-clear", container_class: "inpage-search-bar", label_class: is_label_class, wrap_class: "inpage-search-input-wrap", icon_class: "inpage-search-icon" -%}
+<div class="inpage-kind-filters" id="{{ is_id }}-kind-filters">
+{%- if is_filters -%}
+{%- for tp_id in is_topics -%}
+{%- include "partials/hub/topic" -%}
+<button class="api-filter-chip search-filter-chip" data-kind="{{ tp_title }}" type="button" aria-pressed="false" data-colored style="--filter-color: {{ tp_color }}"><span class="api-filter-dot kind-{{ tp_title | replace: ' ', '-' }}"></span>{{ tp_title }}</button>
+{%- endfor -%}
+{%- endif -%}
+</div><div id="{{ is_status }}" class="sr-only" aria-live="polite"></div><div class="inpage-search-stats"><span id="{{ is_id }}-search-count" class="search-results-summary">{{ is_stats }}</span><div class="inpage-search-actions"><button class="inpage-clear-filters search-action" id="{{ is_id }}-clear-filters" type="button" style="display: none;">Clear filters</button><button class="search-action" id="{{ is_id }}-reset-all" type="button" style="display: none;">Reset all</button></div></div><div id="{{ is_id }}-search-results" class="api-list" style="display: none;"></div></div>

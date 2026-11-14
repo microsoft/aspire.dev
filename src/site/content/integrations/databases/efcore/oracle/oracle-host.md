@@ -1,0 +1,161 @@
+---
+title: Set up Oracle in the AppHost
+seoTitle: "Set up Oracle in the Aspire AppHost: hosting integration"
+description: Learn how to use the Aspire Oracle Hosting integration to orchestrate and configure an Oracle database in an Aspire solution.
+---
+
+{% image "/assets/images/icons/oracle-icon.svg", alt: "Oracle Database logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire Oracle Hosting integration. It enumerates the AppHost APIs — with C# examples — that you use to model Oracle server and database resources in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Oracle EF Core integration, start with the [Get started with Oracle EF Core integrations](/integrations/databases/efcore/oracle/oracle-get-started/) guide. For how consuming C# apps connect to the database this page exposes, see [Connect to Oracle with EF Core](../oracle-connect/).
+
+:::note
+TypeScript AppHost support for the Oracle EF Core hosting integration is not yet available.
+:::
+
+## Installation
+
+The Aspire Oracle hosting integration models Oracle resources as the following types:
+
+- `OracleDatabaseServerResource`
+- `OracleDatabaseResource`
+
+To access these types and APIs for expressing them as resources in your AppHost project, install the [📦 Aspire.Hosting.Oracle](https://www.nuget.org/packages/Aspire.Hosting.Oracle) NuGet package:
+
+```bash title="Terminal"
+aspire add oracle
+```
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Oracle@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Oracle" Version="*" />
+```
+
+## Add Oracle server and database resources
+
+In the AppHost project, call {% api "Aspire.Hosting.OracleDatabaseBuilderExtensions.AddOracle" %} to add and return an Oracle server resource builder. Chain a call to {% api "Aspire.Hosting.OracleDatabaseBuilderExtensions.AddDatabase" %} on the returned resource builder to add an Oracle database to the server resource:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var oracle = builder.AddOracle("oracle")
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var oracledb = oracle.AddDatabase("oracledb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(oracledb)
+       .WaitFor(oracledb);
+
+// After adding all resources, run the app...
+```
+
+{% steps %}
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `container-registry.oracle.com/database/free` image, it creates a new Oracle server instance on your local machine.
+
+1. The Oracle database container can be slow to start, so it's best to use a persistent lifetime with `ContainerLifetime.Persistent` to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+
+1. The Oracle server resource includes default credentials with a randomly generated `password` using the `CreateDefaultPasswordParameter` method.
+
+1. The {% api "Aspire.Hosting.ResourceBuilderExtensions.WithReference" %} call configures a connection in the consuming project named after the referenced database resource — `"oracledb"` in the preceding example.
+{% endsteps %}
+
+:::note
+When you reference an Oracle resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, and port numbers. For a complete list of these properties, see [Connection properties](../oracle-connect/#connection-properties).
+:::
+
+{% container_images package: "Aspire.Hosting.Oracle" %}
+
+## Add Oracle resource with password parameter
+
+The Oracle resource includes default credentials with a random password. Oracle supports configuration-based default passwords using the `ORACLE_PWD` environment variable. When you want to provide a password explicitly, pass it as a parameter:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var password = builder.AddParameter("password", secret: true);
+
+var oracle = builder.AddOracle("oracle", password)
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var oracledb = oracle.AddDatabase("oracledb");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(oracledb)
+                       .WaitFor(oracledb);
+```
+
+The preceding code gets a parameter to pass to the `AddOracle` API, and internally assigns the parameter to the `ORACLE_PWD` environment variable of the Oracle container. The `password` parameter is usually specified as a user secret:
+
+```json title="secrets.json"
+{
+  "Parameters": {
+    "password": "Non-default-P@ssw0rd"
+  }
+}
+```
+
+For more information, see [External parameters](/get-started/resources/).
+
+## Add Oracle resource with data volume
+
+To add a data volume to the Oracle resource, call the {% api "Aspire.Hosting.OracleDatabaseBuilderExtensions.WithDataVolume" %} method:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var oracle = builder.AddOracle("oracle")
+                    .WithDataVolume()
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var oracledb = oracle.AddDatabase("oracledb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(oracledb)
+       .WaitFor(oracledb);
+
+// After adding all resources, run the app...
+```
+
+The data volume is used to persist the Oracle data outside the lifecycle of its container. The data volume is mounted at the `/opt/oracle/oradata` path in the Oracle container and, when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-oracle-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+:::danger
+The password is stored in the data volume. When using a data volume and if the password changes, it will not work until you delete the volume.
+:::
+
+## Add Oracle resource with data bind mount
+
+To add a data bind mount to the Oracle resource, call the {% api "Aspire.Hosting.OracleDatabaseBuilderExtensions.WithDataBindMount" %} method:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var oracle = builder.AddOracle("oracle")
+                    .WithDataBindMount(source: @"C:\Oracle\Data");
+
+var oracledb = oracle.AddDatabase("oracledb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(oracledb)
+       .WaitFor(oracledb);
+
+// After adding all resources, run the app...
+```
+
+:::note
+Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+
+Data bind mounts rely on the host machine's filesystem to persist Oracle data across container restarts. The bind mount path is `C:\Oracle\Data` on Windows (or `/Oracle/Data` on Unix). For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+:::
+
+## Hosting integration health checks
+
+The Oracle hosting integration automatically adds a health check for the Oracle resource. The health check verifies that the Oracle server is running and that a connection can be established to it.
+
+The hosting integration relies on the [📦 AspNetCore.HealthChecks.Oracle](https://www.nuget.org/packages/AspNetCore.HealthChecks.Oracle) NuGet package.

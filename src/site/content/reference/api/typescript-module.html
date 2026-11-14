@@ -1,0 +1,139 @@
+---
+# /reference/api/typescript/<module>/: src/frontend/src/pages/reference/api/typescript/[module]/index.astro.
+# The listings are driven by the module's item routes (api.routes["typescript-items"] of the module's file), which
+# hold the item slugs; the data comes from api["ts-modules"][route.file]. Names sort with sort_natural
+# (case-insensitive ordinal) where the Astro page used localeCompare.
+layout: api.liquid
+# The search controller (scripts/client/api/typescript-module.js), loaded by the layout as a module script of the document.
+api_search: typescript-module
+pagination: { data: api.routes.typescript-modules, size: 1, alias: route }
+permalink: "{{ route.url }}"
+---
+{%- assign doc = api["ts-modules"][route.file] -%}
+{%- assign pkg_name = doc.package.name -%}
+{%- capture title %}{{ pkg_name | raw }}{% endcapture -%}
+{%- capture description %}TypeScript API reference for {{ pkg_name | raw }}{% endcapture -%}
+{%- assign file_items = api.routes["typescript-items"] | where: "file", route.file -%}
+{%- assign handle_routes = file_items | where: "collection", "handleTypes" | index_by: "index" -%}
+{%- assign type_routes = file_items | where: "itemKind", "handle" -%}
+{%- assign dto_routes = file_items | where: "itemKind", "dto" -%}
+{%- assign type_routes = type_routes | concat: dto_routes | sort_natural: "name" -%}
+{%- assign enum_routes = file_items | where: "itemKind", "enum" | sort_natural: "name" -%}
+{%- assign function_routes = file_items | where: "itemKind", "function" -%}
+{%- assign sorted_functions = function_routes | sort_natural: "name" -%}
+{%- assign total_function_count = function_routes.size -%}
+{%- assign total_type_count = type_routes.size | plus: enum_routes.size -%}
+{%- assign functions_by_id = doc.functions | index_by: "capabilityId" -%}
+{%- assign module_prefix = pkg_name | slice: 0, 7 -%}
+{%- comment -%} Members of the search index: every capability of a handle but the methods that are standalone functions {%- endcomment -%}
+{%- assign member_count = 0 -%}
+{%- assign kinds_list = "" -%}
+{%- capture pkg_index -%}
+[
+{%- assign first_entry = true -%}
+{%- for h in doc.handleTypes -%}
+  {%- assign h_index = forloop.index0 | append: "" -%}
+  {%- assign h_route = handle_routes[h_index] -%}
+  {%- assign h_href = h_route.url | default: "" -%}
+  {%- if h_href == "" -%}{%- assign h_href = route.url | append: "/" -%}{%- endif -%}
+  {%- assign h_full = h.fullName | default: h.name -%}
+  {%- assign h_ns_parts = h_full | split: "." -%}
+  {%- if h_ns_parts.size > 1 -%}{%- assign h_ns_n = h_ns_parts.size | minus: 1 -%}{%- assign h_ns = h_ns_parts | slice: 0, h_ns_n | join: "." -%}{%- else -%}{%- assign h_ns = h_full -%}{%- endif -%}
+  {%- if h.isInterface -%}{%- assign h_kind = "interface" -%}{%- else -%}{%- assign h_kind = "handle" -%}{%- endif -%}
+  {%- assign kinds_list = kinds_list | append: "¦" | append: h_kind -%}
+  {%- unless first_entry %},{% endunless -%}{%- assign first_entry = false -%}
+  {"n":{{ h.name | json | raw }},"f":{{ h_full | json | raw }},"ns":{{ h_ns | json | raw }},"k":{{ h_kind | json | raw }},"s":{{ h.description | default: "" | slice: 0, 160 | json | raw }},"h":{{ h_href | json | raw }}}
+  {%- for cap in h.capabilities -%}
+    {%- assign cap_method = false -%}
+    {%- if cap.kind == "Method" or cap.kind == "InstanceMethod" -%}{%- assign cap_method = true -%}{%- endif -%}
+    {%- if cap_method -%}
+      {%- assign cap_fn = functions_by_id[cap.capabilityId] -%}
+      {%- if cap_fn and cap_fn.qualifiedName contains "." -%}{%- assign cap_fn = nil -%}{%- endif -%}
+      {%- if cap_fn -%}{%- continue -%}{%- endif -%}
+    {%- endif -%}
+    {%- assign member_count = member_count | plus: 1 -%}
+    {%- assign cap_name = cap.name | default: "" -%}
+    {%- if cap_name == "" -%}{%- assign cap_name = cap.capabilityId | split: "/" | last | default: "" -%}{%- endif -%}
+    {%- case cap.kind -%}
+      {%- when "PropertyGetter", "PropertySetter" -%}{%- assign cap_kind = "property" -%}
+      {%- when "Method", "InstanceMethod" -%}{%- assign cap_kind = "method" -%}
+      {%- else -%}{%- assign cap_kind = cap.kind | default: "method" | downcase -%}
+    {%- endcase -%}
+    {%- assign kinds_list = kinds_list | append: "¦" | append: cap_kind -%}
+    {%- if cap_method -%}{%- assign cap_href = h_href | append: cap_name | downcase | append: "/" -%}{%- else -%}{%- assign cap_href = h_href -%}{%- endif -%}
+    {%- assign cap_full = h_full | append: "." | append: cap_name -%}
+    ,{"n":{{ cap_name | json | raw }},"f":{{ cap_full | json | raw }},"ns":{{ h_ns | json | raw }},"k":{{ cap_kind | json | raw }},"s":{{ cap.description | default: "" | slice: 0, 160 | json | raw }},"t":{{ h.name | json | raw }},"h":{{ cap_href | json | raw }}}
+  {%- endfor -%}
+{%- endfor -%}
+{%- assign dto_index = file_items | where: "collection", "dtoTypes" | index_by: "index" -%}
+{%- for d in doc.dtoTypes -%}
+  {%- assign d_index = forloop.index0 | append: "" -%}{%- assign d_href = dto_index[d_index].url -%}
+  {%- assign d_full = d.fullName | default: d.name -%}{%- assign d_ns_parts = d_full | split: "." -%}
+  {%- if d_ns_parts.size > 1 -%}{%- assign d_ns_n = d_ns_parts.size | minus: 1 -%}{%- assign d_ns = d_ns_parts | slice: 0, d_ns_n | join: "." -%}{%- else -%}{%- assign d_ns = d_full -%}{%- endif -%}
+  {%- assign kinds_list = kinds_list | append: "¦type" -%}
+  {%- unless first_entry %},{% endunless -%}{%- assign first_entry = false -%}
+  {"n":{{ d.name | json | raw }},"f":{{ d_full | json | raw }},"ns":{{ d_ns | json | raw }},"k":"type","s":{{ d.description | default: "" | slice: 0, 160 | json | raw }},"h":{{ d_href | json | raw }}}
+{%- endfor -%}
+{%- assign enum_index = file_items | where: "collection", "enumTypes" | index_by: "index" -%}
+{%- for e in doc.enumTypes -%}
+  {%- assign e_index = forloop.index0 | append: "" -%}{%- assign e_href = enum_index[e_index].url -%}
+  {%- assign e_full = e.fullName | default: e.name -%}{%- assign e_ns_parts = e_full | split: "." -%}
+  {%- if e_ns_parts.size > 1 -%}{%- assign e_ns_n = e_ns_parts.size | minus: 1 -%}{%- assign e_ns = e_ns_parts | slice: 0, e_ns_n | join: "." -%}{%- else -%}{%- assign e_ns = e_full -%}{%- endif -%}
+  {%- assign kinds_list = kinds_list | append: "¦enum" -%}
+  {%- unless first_entry %},{% endunless -%}{%- assign first_entry = false -%}
+  {"n":{{ e.name | json | raw }},"f":{{ e_full | json | raw }},"ns":{{ e_ns | json | raw }},"k":"enum","s":{{ e.description | default: "" | slice: 0, 160 | json | raw }},"h":{{ e_href | json | raw }}}
+{%- endfor -%}
+{%- for r in function_routes -%}
+  {%- assign f = doc.functions[r.index] -%}
+  {%- if f.expandedTargetTypes.size > 0 -%}{%- assign f_kind = "method" -%}{%- else -%}{%- assign f_kind = "function" -%}{%- endif -%}
+  {%- assign kinds_list = kinds_list | append: "¦" | append: f_kind -%}
+  {%- assign f_ns = f.capabilityId | default: f.name | split: "/" | first -%}
+  {%- unless first_entry %},{% endunless -%}{%- assign first_entry = false -%}
+  {"n":{{ f.name | json | raw }},"f":{{ f.qualifiedName | default: f.name | json | raw }},"ns":{{ f_ns | json | raw }},"k":{{ f_kind | json | raw }},"s":{{ f.description | default: "" | slice: 0, 160 | json | raw }},"h":{{ r.url | json | raw }}}
+{%- endfor -%}
+]
+{%- endcapture -%}
+{%- assign all_kinds = kinds_list | remove_first: "¦" | split: "¦" | uniq | sort -%}
+<div class="cid-api-page-typescript-module">
+{%- assign crumbs = "Docs§/docs/§docs¦Reference§/reference/overview/¦Search TypeScript APIs§/reference/api/typescript/¦" | append: pkg_name %}
+{% render 'api/breadcrumb', crumbs: crumbs %}
+<div class="api-hero pkg-hero not-content">
+{%- if module_prefix == "Aspire." -%}
+<div class="pkg-official-badge"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.521 2.624a2 2 0 0 1 2.958 0l1.02 1.12a2 2 0 0 0 1.572.651l1.513-.07a2 2 0 0 1 2.092 2.09l-.071 1.514a2 2 0 0 0 .651 1.572l1.12 1.02a2 2 0 0 1 0 2.958l-1.12 1.02a2 2 0 0 0-.651 1.572l.07 1.513a2 2 0 0 1-2.09 2.092l-1.514-.071a2 2 0 0 0-1.572.651l-1.02 1.12a2 2 0 0 1-2.958 0l-1.02-1.12a2 2 0 0 0-1.572-.651l-1.513.07a2 2 0 0 1-2.092-2.09l.071-1.514a2 2 0 0 0-.651-1.572l-1.12-1.02a2 2 0 0 1 0-2.958l1.12-1.02a2 2 0 0 0 .651-1.572l-.07-1.513a2 2 0 0 1 2.09-2.092l1.514.071a2 2 0 0 0 1.572-.651z"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 12l2 2l4-4"/></svg>Official</div>
+{%- endif -%}
+<div class="pkg-hero-top"><div class="pkg-hero-badges"><code class="pkg-name">📦 {{ pkg_name }}</code>{% if doc.package.version %}<code class="pkg-version">v{{ doc.package.version }}</code>{% endif %}</div></div><div class="pkg-hero-bottom"><div class="pkg-hero-stats"><div class="pkg-stat"><span class="pkg-stat-value">{{ total_function_count }}</span><span class="pkg-stat-label">Functions</span></div><div class="pkg-stat"><span class="pkg-stat-value">{{ total_type_count }}</span><span class="pkg-stat-label">Types</span></div></div></div></div>
+<div class="pkg-search-section not-content" data-api-search-language="typescript" data-api-search-kind="module" data-base="" data-package-name="{{ pkg_name }}" data-type-count="{{ total_type_count }}" data-member-count="{{ member_count }}"><script type="application/json" data-api-search-index>{{ pkg_index }}</script>
+{%- assign placeholder = "Search types, functions, members in " | append: pkg_name | append: "..." -%}
+{%- assign tn_in = total_type_count -%}{%- include 'api/ts-thousands' -%}{%- assign stats = tn_out | append: " types and " -%}
+{%- assign tn_in = member_count -%}{%- include 'api/ts-thousands' -%}{%- assign stats = stats | append: tn_out | append: " members" -%}
+{% render 'api/inpage-search', id: "pkg", placeholder: placeholder, kinds: all_kinds, default_stats: stats, size: "lg" %}
+</div>
+<div id="pkg-namespace-list" class="pkg-ns-list">
+{%- if type_routes.size > 0 -%}
+<section><h2 id="types">Types</h2><div class="api-list not-content">
+{%- for r in type_routes -%}
+  {%- assign t = doc[r.collection][r.index] -%}
+  {%- if t.isInterface -%}{%- assign pill = "kind-interface" -%}{%- assign pill_text = "interface" -%}{%- elsif r.itemKind == "dto" -%}{%- assign pill = "kind-struct" -%}{%- assign pill_text = "type" -%}{%- else -%}{%- assign pill = "kind-handle" -%}{%- assign pill_text = "handle" -%}{%- endif -%}
+<a href="{{ r.url }}" class="api-list-item"><div class="api-list-header"><span class="api-kind-pill {{ pill }}">{{ pill_text }}</span><code class="api-type-link">{{ t.name }}</code>{% if r.itemKind == "handle" and t.capabilities.size > 0 %}<span class="api-mini-badge">{{ t.capabilities.size }} members</span>{% endif %}{% if r.itemKind == "dto" %}<span class="api-mini-badge">{{ t.fields.size | default: 0 }} fields</span>{% endif %}</div></a>
+{%- endfor -%}
+</div></section>
+{%- endif -%}
+{%- if sorted_functions.size > 0 -%}
+<section><h2 id="functions">Functions</h2><div class="api-list not-content">
+{%- for r in sorted_functions -%}
+  {%- assign f = doc.functions[r.index] -%}
+  {%- if f.expandedTargetTypes.size > 0 -%}{%- assign f_label = "method" -%}{%- else -%}{%- assign f_label = "function" -%}{%- endif -%}
+<a href="{{ r.url }}" class="api-list-item"><div class="api-list-header"><span class="api-kind-pill kind-method">{{ f_label }}</span><code class="api-type-link">{{ f.name }}</code>{% if f.returnsBuilder %}<span class="api-mini-badge">builder</span>{% endif %}</div>{% if f.description %}<div class="api-list-desc">{{ f.description }}</div>{% endif %}{% if f.signature %}<div class="api-fn-signature"><code>{{ f.signature }}</code></div>{% endif %}</a>
+{%- endfor -%}
+</div></section>
+{%- endif -%}
+{%- if enum_routes.size > 0 -%}
+<section><h2 id="enums">Enums</h2><div class="api-list not-content">
+{%- for r in enum_routes -%}
+  {%- assign e = doc.enumTypes[r.index] -%}
+<a href="{{ r.url }}" class="api-list-item"><div class="api-list-header"><span class="api-kind-pill kind-enum">enum</span><code class="api-type-link">{{ e.name }}</code><span class="api-mini-badge">{{ e.members.size | default: 0 }} values</span></div></a>
+{%- endfor -%}
+</div></section>
+{%- endif -%}
+</div>
+</div>

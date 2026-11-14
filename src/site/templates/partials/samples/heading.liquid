@@ -1,0 +1,55 @@
+{%- comment -%}
+  A README heading of a sample page (SampleReadmeBlocks.astro headingHtml, utils/sample-readme-headings.ts): its text
+  in sentence case (words that look like identifiers or acronyms are kept: camelCase, digits, all caps, or one of
+  . # / + _ -) and an id slugged from its text as SampleReadmeBlocks did (deduplicated with -1, -2... through
+  sh_seen, "|slug|slug|"); the headings step adds the Starlight wrapper and anchor. Inputs: sh_depth (2 to 6),
+  sh_text (the heading's Markdown), sh_seen. Outputs the heading and updates sh_seen.
+{%- endcomment -%}
+{%- assign sh_alnum = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" -%}
+{%- assign sh_words = sh_text | strip | split: " " -%}
+{%- assign sh_first_seen = false -%}
+{%- capture sh_cased -%}
+{%- for sh_word in sh_words -%}
+  {%- unless forloop.first -%}{{ " " }}{%- endunless -%}
+  {%- comment -%} The word without its leading and trailing punctuation. {%- endcomment -%}
+  {%- assign sh_chars = sh_word | split: "" -%}
+  {%- assign sh_start = -1 -%}{%- assign sh_end = -1 -%}
+  {%- for sh_c in sh_chars -%}{%- if sh_alnum contains sh_c or sh_c.size > 1 -%}{%- if sh_start < 0 -%}{%- assign sh_start = forloop.index0 -%}{%- endif -%}{%- assign sh_end = forloop.index0 -%}{%- endif -%}{%- endfor -%}
+  {%- if sh_start < 0 -%}{%- assign sh_trimmed = "" -%}{%- else -%}{%- assign sh_length = sh_end | minus: sh_start | plus: 1 -%}{%- assign sh_trimmed = sh_word | slice: sh_start, sh_length -%}{%- endif -%}
+  {%- assign sh_keep = false -%}
+  {%- if sh_trimmed == "" -%}{%- assign sh_keep = true -%}{%- endif -%}
+  {%- assign sh_upper = sh_trimmed | upcase -%}{%- assign sh_lower = sh_trimmed | downcase -%}
+  {%- if sh_trimmed.size >= 2 and sh_trimmed == sh_upper and sh_trimmed != sh_lower -%}{%- assign sh_keep = true -%}{%- endif -%}
+  {%- assign sh_tchars = sh_trimmed | split: "" -%}
+  {%- assign sh_previous_lower = false -%}
+  {%- for sh_c in sh_tchars -%}
+    {%- if "0123456789.#/+_-" contains sh_c -%}{%- assign sh_keep = true -%}{%- endif -%}
+    {%- assign sh_cu = sh_c | upcase -%}{%- assign sh_cl = sh_c | downcase -%}
+    {%- if sh_previous_lower and sh_c == sh_cu and sh_c != sh_cl -%}{%- assign sh_keep = true -%}{%- endif -%}
+    {%- if sh_c == sh_cl and sh_c != sh_cu -%}{%- assign sh_previous_lower = true -%}{%- else -%}{%- assign sh_previous_lower = false -%}{%- endif -%}
+  {%- endfor -%}
+  {%- if sh_keep -%}{{ sh_word | raw }}{%- assign sh_first_seen = true -%}
+  {%- elsif sh_first_seen == false -%}{{ sh_word | slice: 0 | upcase | raw }}{{ sh_word | slice: 1, 1000 | downcase | raw }}{%- assign sh_first_seen = true -%}
+  {%- else -%}{{ sh_word | downcase | raw }}
+  {%- endif -%}
+{%- endfor -%}
+{%- endcapture -%}
+{%- comment -%} slugifyHeading: lowercase, letters, numbers, spaces and hyphens only, spaces to hyphens. {%- endcomment -%}
+{%- comment -%} The plain text: a link's text, without emphasis and code marks (strip_markdown would drop "1." as a list marker). {%- endcomment -%}
+{%- if sh_text contains "](" -%}{%- assign sh_plain = sh_text | strip_markdown -%}{%- else -%}{%- assign sh_plain = sh_text | remove: "**" | remove: "__" | remove: "`" -%}{%- endif -%}
+{%- assign sh_slug = sh_plain | downcase -%}
+{%- comment -%} Captured, since a Liquid string has no escapes and can't hold both quotes. {%- endcomment -%}
+{%- capture sh_marks -%}.,:;!?()[]{}'"’‘“”*&/\+=<>|~^%$#@`_{%- endcapture -%}
+{%- assign sh_marks = sh_marks | split: "" -%}
+{%- for sh_mark in sh_marks -%}{%- assign sh_slug = sh_slug | remove: sh_mark -%}{%- endfor -%}
+{%- assign sh_slug = sh_slug | strip | split: " " | join: "-" -%}
+{%- for sh_i in (1..4) -%}{%- assign sh_slug = sh_slug | replace: "--", "-" -%}{%- endfor -%}
+{%- assign sh_slug = sh_slug | prepend: "~" | replace: "~-", "" | remove: "~" | append: "~" | replace: "-~", "" | remove: "~" | default: "section" -%}
+{%- assign sh_key = "|" | append: sh_slug | append: "|" -%}
+{%- assign sh_count = sh_seen | split: sh_key | size | minus: 1 -%}
+{%- assign sh_seen = sh_seen | append: sh_slug | append: "|" -%}
+{%- if sh_count > 0 -%}{%- assign sh_id = sh_slug | append: "-" | append: sh_count -%}{%- else -%}{%- assign sh_id = sh_slug -%}{%- endif -%}
+{%- comment -%} "1. Web UI" would be a list: its marker is escaped for markdownify. {%- endcomment -%}
+{%- assign sh_md = sh_cased -%}{%- assign sh_first = sh_cased | split: " " | first -%}{%- assign sh_number = sh_first | remove: "." -%}{%- assign sh_number_check = sh_number | plus: 0 | append: "" -%}
+{%- if sh_number_check == sh_number and sh_first contains "." -%}{%- assign sh_escaped = sh_number | append: "\." -%}{%- assign sh_md = sh_cased | replace_first: sh_first, sh_escaped -%}{%- endif -%}
+<h{{ sh_depth }} id="{{ sh_id }}">{{ sh_md | markdownify: inline: true | replace: "’", "'" | replace: "‘", "'" | replace: "“", "&quot;" | replace: "”", "&quot;" | replace: "–", "--" | replace: "…", "..." | strip }}</h{{ sh_depth }}>

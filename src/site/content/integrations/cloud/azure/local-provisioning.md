@@ -1,0 +1,348 @@
+---
+title: Local Azure provisioning
+description: Learn how to automatically provision Azure resources during local development with Aspire in your Aspire AppHost.
+---
+
+{% image "/assets/images/icons/azure-icon.png", alt: "Azure logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article describes how to enable local Azure provisioning in your Aspire [`AppHost`](/get-started/app-host/) project. Local Azure provisioning lets Aspire automatically create and configure Azure resources in your Azure subscription during local development — no manual portal or CLI setup required.
+
+## How it works
+
+When you add an Azure resource using methods like {% api "Aspire.Hosting.AzureStorageExtensions.AddAzureStorage" %} or {% api "Aspire.Hosting.AzureServiceBusExtensions.AddAzureServiceBus" %}, Aspire:
+
+{% steps %}
+1. Detects that the resource doesn't exist locally
+2. Generates Bicep infrastructure-as-code
+3. Uses the configured Azure credential and Azure APIs to deploy resources
+4. Configures connection information automatically
+5. Injects configuration into your application
+{% endsteps %}
+
+## Prerequisites
+
+Before using local provisioning, ensure you have:
+
+- **Azure subscription**: An active Azure subscription
+- **Azure credentials**: A supported local credential source such as Azure CLI (`az login`), Visual Studio, Visual Studio Code, or Azure Developer CLI
+- **Appropriate permissions**: Contributor access to create resources
+- **Aspire 9.0+**: Local provisioning requires Aspire 9.0 or later
+
+## Configuration
+
+Local provisioning requires configuring your Azure subscription and location. You can do this in multiple ways:
+
+### User secrets
+
+The recommended approach for development is using the Aspire CLI:
+
+```bash
+aspire secret set "Azure:SubscriptionId" "your-subscription-id"
+aspire secret set "Azure:Location" "eastus"
+```
+
+### appsettings.json
+
+Alternatively, configure in `appsettings.Development.json`:
+
+```json
+{
+  "Azure": {
+    "SubscriptionId": "your-subscription-id",
+    "Location": "eastus"
+  }
+}
+```
+
+:::caution
+Don't commit subscription IDs to source control in appsettings.json. Use user
+secrets or environment variables instead.
+:::
+
+### Environment variables
+
+You can also use environment variables:
+
+{% tabs %}
+{% tab "Linux/macOS" %}
+```bash
+export Azure__SubscriptionId="your-subscription-id"
+export Azure__Location="eastus"
+```
+{% endtab %}
+{% tab "Windows" %}
+```powershell
+$env:Azure__SubscriptionId = "your-subscription-id"
+$env:Azure__Location = "eastus"
+```
+{% endtab %}
+{% endtabs %}
+
+## Configuration options
+
+The following configuration options are available:
+
+| Setting | Description | Default |
+| --- | --- | --- |
+| `Azure:SubscriptionId` | Your Azure subscription ID | (required) |
+| `Azure:Location` | Azure region for resources | (required) |
+| `Azure:TenantId` | Azure tenant to use when selecting subscriptions and credentials | Current credential tenant |
+| `Azure:ResourceGroup` | Specific resource group to create or reuse | Auto-generated |
+| `Azure:ResourceGroupPrefix` | Prefix used when Aspire generates a resource group name | `rg-aspire` |
+| `Azure:CredentialSource` | Authentication method for local provisioning | `Default` |
+| `Azure:AllowResourceGroupCreation` | Allow creating resource groups | `true` |
+| `Azure:CredentialProcessTimeoutSeconds` | Timeout in seconds for credential subprocess operations (must be between 5 and 600) | Azure SDK default |
+
+## Resource group management
+
+By default, Aspire creates a resource group for your provisioned resources named `rg-aspire-{apphost-name}-{random-suffix}`. If you set `Azure:ResourceGroupPrefix`, Aspire uses that prefix instead of `rg-aspire`.
+
+### Use an existing resource group
+
+To use an existing resource group:
+
+```json
+{
+  "Azure": {
+    "SubscriptionId": "your-subscription-id",
+    "Location": "eastus",
+    "ResourceGroup": "my-existing-rg"
+  }
+}
+```
+
+### Disable resource group creation
+
+To prevent Aspire from creating resource groups:
+
+```json
+{
+  "Azure": {
+    "SubscriptionId": "your-subscription-id",
+    "Location": "eastus",
+    "AllowResourceGroupCreation": false,
+    "ResourceGroup": "my-existing-rg"
+  }
+}
+```
+
+## Add Azure resources to your AppHost
+
+Add Azure resources to your AppHost using the relevant `Add*` APIs, then reference them from your consuming projects:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage("storage");
+const blobs = await storage.addBlobs("blobs");
+
+await builder.addNodeApp("webapp", "./webapp", "index.js")
+    .withReference(blobs);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage");
+var blobs = storage.AddBlobs("blobs");
+
+builder.AddProject<Projects.WebApp>("webapp")
+       .WithReference(blobs);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+Once your AppHost is configured, run the application and Aspire automatically provisions the referenced Azure resources:
+
+{% steps %}
+1. **Configure your Azure subscription** (if not already done)
+
+   ```bash
+   aspire secret set "Azure:SubscriptionId" "your-sub-id"
+   aspire secret set "Azure:Location" "eastus"
+   ```
+
+2. **Run your application**
+
+   ```bash
+   aspire run
+   ```
+
+3. **Automatic provisioning**
+
+   Aspire detects the Azure resources and provisions them automatically. You'll see output like:
+
+   ```txt data-disable-copy
+   [Azure Provisioning] Creating resource group: rg-myapp
+   [Azure Provisioning] Deploying storage account: stmyapp
+   [Azure Provisioning] Deployment complete
+   ```
+{% endsteps %}
+
+## Authentication
+
+When `Azure:CredentialSource` isn't set, local provisioning uses a development-focused `DefaultAzureCredential` chain. That default supports local credentials such as Azure CLI, Visual Studio, Visual Studio Code, and Azure Developer CLI, while excluding Azure-hosted credentials such as managed identity and workload identity.
+
+If you want to force a specific local credential, set `Azure:CredentialSource` to one of the supported values:
+
+| Value | Uses |
+| --- | --- |
+| `Default` | Development credential chain for local provisioning |
+| `AzureCli` | Azure CLI sign-in (`az login`) |
+| `AzureDeveloperCli` | Azure Developer CLI sign-in (`azd auth login`) |
+| `VisualStudio` | Visual Studio Azure account |
+| `VisualStudioCode` | Visual Studio Code Azure account |
+| `AzurePowerShell` | Azure PowerShell sign-in |
+| `InteractiveBrowser` | Browser-based sign-in prompt |
+
+### Credential process timeout
+
+Most local credential sources (Azure CLI, Azure PowerShell, Visual Studio, and Azure Developer CLI) acquire tokens by invoking a subprocess. On machines where these tools are slow to respond — for example, due to antivirus scanning or network latency — credential validation can time out before authentication completes.
+
+Use `Azure:CredentialProcessTimeoutSeconds` to override the credential subprocess timeout. The value must be between **5** and **600** seconds. When unset, the Azure SDK's default timeout is used.
+
+```json title="appsettings.Development.json"
+{
+  "Azure": {
+    "CredentialProcessTimeoutSeconds": 120
+  }
+}
+```
+
+This setting applies to the `AzureCli`, `AzurePowerShell`, `VisualStudio`, and `AzureDeveloperCli` credential sources, and to the development credential chain used when `CredentialSource` isn't explicitly set. It has no effect on `InteractiveBrowser` or `ManagedIdentity` credentials, which don't shell out to a subprocess.
+
+## Provisioned resource naming
+
+Aspire generates unique resource names following Azure naming conventions:
+
+- **Storage accounts**: `st{appname}{hash}` (lowercase, no hyphens)
+- **Key Vaults**: `kv-{appname}-{hash}` (hyphens allowed)
+- **Service Bus**: `sb-{appname}-{hash}`
+- **Cosmos DB**: `cosmos-{appname}-{hash}`
+
+The hash ensures uniqueness across subscriptions.
+
+## Generated infrastructure
+
+When you use local provisioning, Aspire generates Bicep files in the `./infra` directory of your AppHost project. These files:
+
+- Define all Azure resources
+- Include configurations and connections
+- Can be customized using {% api "Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" %}
+- Are used for both local provisioning and production deployment
+
+Example generated structure:
+
+```
+AppHost/
+└── infra/               # Bicep files
+    ├── main.bicep
+    ├── storage.bicep
+    └── servicebus.bicep
+Program.cs
+```
+
+## Change a resource's Azure location
+
+Locally provisioned Azure resources expose a `change-location` dev-time resource command that lets you move an existing resource to a different Azure region without manually deleting it first.
+
+Some Azure resource types are location-immutable — moving them to a new region requires Aspire to delete the existing live resource and recreate it in the new location. Deleting the resource this way can permanently destroy any data it holds, so Aspire requires an explicit acknowledgement before it deletes a live Azure resource as part of a location change:
+
+- **Dashboard**: The change-location dialog shows an **Allow deletion and possible permanent data loss** checkbox. You must select it before Aspire deletes and recreates the resource.
+- **Aspire CLI**: Pass `--confirm-delete` to the `change-location` resource command:
+
+  ```bash title="Aspire CLI"
+  aspire resource my-storage change-location --location westus2 --confirm-delete true
+  ```
+
+- **MCP**: Set `arguments.confirmDelete` to `true` when invoking the `change-location` command.
+
+If the acknowledgement is missing, Aspire fails the command before deleting the resource, persisting any location override, resetting provisioning state, or reprovisioning.
+
+:::note
+Aspire doesn't require this acknowledgement when the resource's current location already matches the requested location, when the resource has no cached Azure resource ID (nothing to delete), or when the cached resource is already absent from Azure.
+:::
+
+## Limitations
+
+Local provisioning has some limitations:
+
+- **First-run delays**: Initial provisioning takes several minutes
+- **Subscription limits**: Subject to Azure subscription quotas
+- **Network requirements**: Requires internet connectivity
+- **Cost considerations**: Provisioned resources incur Azure charges
+
+:::tip
+Use emulators (like Azurite for Storage) during development to avoid
+provisioning costs. Switch to local provisioning when you need to test with
+real Azure services.
+:::
+
+## Troubleshooting
+
+### Authentication failures
+
+If you see authentication errors:
+
+```bash
+az login
+az account set --subscription "your-subscription-id"
+```
+
+### Insufficient permissions
+
+Ensure your account has Contributor role:
+
+```bash
+az role assignment list --assignee your-email@domain.com
+```
+
+### Resource naming conflicts
+
+If resource names conflict, delete the existing resources or change your app name:
+
+```bash
+az group delete --name rg-myapp
+```
+
+### View provisioning logs
+
+Enable detailed logging:
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Aspire.Hosting.Azure": "%ASPIRE_VERSION%"
+    }
+  }
+}
+```
+
+## Comparison with manual provisioning
+
+| Aspect                     | Local Provisioning                 | Manual Provisioning           |
+| -------------------------- | ---------------------------------- | ----------------------------- |
+| **Setup time**             | Automatic                          | Manual Azure Portal/CLI       |
+| **Configuration**          | Automatic                          | Manual connection strings     |
+| **Infrastructure as Code** | Auto-generated Bicep               | Manual Bicep/ARM              |
+| **Development speed**      | Fast                               | Slower                        |
+| **Learning curve**         | Lower                              | Higher                        |
+| **Control**                | Good (via ConfigureInfrastructure) | Full                          |
+| **Cost**                   | Pay for provisioned resources      | Pay for provisioned resources |
+
+## See also
+
+- [Azure integrations overview](/integrations/cloud/azure/overview/)
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
+- [Deploy to Azure Container Apps](/get-started/deploy-first-app/)
+- [`aspire resource` command reference](/reference/cli/commands/aspire-resource/)
