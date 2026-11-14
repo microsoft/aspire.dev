@@ -267,6 +267,8 @@ jobs:
           fi
 
           ls -la "$wwwroot"
+          echo "Output: $(find "$wwwroot" -type f | wc -l) files, $(du -sh "$wwwroot" | cut -f1); cache: $(du -sh .douze | cut -f1)"
+          df -h / /dev/shm "$wwwroot" .douze
 
   validation:
     name: Frontend validation
@@ -356,7 +358,8 @@ jobs:
         run: |
           while [ ! -f "$RUNNER_TEMP/statichost-build.exit" ]; do sleep 1; done
           tail -n 5 "$RUNNER_TEMP/statichost-build.log"
-          echo "- StaticHost build: \`$(cat "$RUNNER_TEMP/statichost-build.time") s\`, fast disk: \`$FAST_DISK\`" >> "$GITHUB_STEP_SUMMARY"
+          free -h; df -h / ../statichost/StaticHost/wwwroot
+          echo "- StaticHost build: \`$(cat "$RUNNER_TEMP/statichost-build.time") s\`, fast disk: \`$FAST_DISK\`" | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$(cat "$RUNNER_TEMP/statichost-build.exit")"
 
       # Reporters (blob, github, junit, list) are configured in
