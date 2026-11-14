@@ -12,6 +12,14 @@ OUT=${OUT:-"$PWD/cdp-results"}
 TOOLS=${RUNNER_TEMP:-/tmp}/cdp-tools
 LIGHTPANDA_VERSION=1.0.4
 JINT_COMMIT=9468698ffa683bf71bdfe3002bd434d5cdc4bc9e
+# SUBSET=1: the 34 tests that tests/E2E.Jint ports to xUnit on Jint.Browser's in-process API.
+SUBSET_GREP='only displayed resource artwork|Dev Hub leads to the complete|tutorials and quickstarts keep|article language filters include|every ingested official blog post|empty results preserve useful|multi-type filters and sorting|legacy provider links|analytics|metadata|og:type|og:image|site description|site-wide image|content languages'
+grep_args=()
+if [ -n "${SUBSET:-}" ]; then
+  SLICE='/(analytics-scripts|dev-browse|og-metadata)\.spec\.ts'
+  grep_args=(--grep "$SUBSET_GREP" --grep-invert 'video platforms')
+fi
+LABEL="$ENGINE${SUBSET:+-subset}"
 mkdir -p "$OUT" "$TOOLS"
 
 now() { date +%s.%N; }
@@ -62,17 +70,17 @@ endpoint=http://127.0.0.1:9222
 case "$ENGINE" in playwright | playwright-no-recording) endpoint= ;; esac
 
 tests_start=$(now)
-CDP_ENDPOINT=$endpoint PLAYWRIGHT_JSON_OUTPUT_NAME="$OUT/$ENGINE.json" \
-  bun run playwright test --config "$config" --project=desktop-chromium --retries=0 --reporter=dot,json "$SLICE"
+CDP_ENDPOINT=$endpoint PLAYWRIGHT_JSON_OUTPUT_NAME="$OUT/$LABEL.json" \
+  bun run playwright test --config "$config" --project=desktop-chromium --retries=0 --reporter=dot,json "${grep_args[@]}" "$SLICE"
 status=$?
 tests_end=$(now)
 
 {
-  node tests/cdp/summarize.mjs "$OUT/$ENGINE.json" "$ENGINE"
-  printf 'Browser provisioning: %.1f s. Playwright command: %.1f s. Exit code: %s.\n\n' \
+  node tests/cdp/summarize.mjs "$OUT/$LABEL.json" "$LABEL"
+  printf 'Browser provisioning (download and install included): %.1f s. Playwright command: %.1f s. Exit code: %s.\n\n' \
     "$(echo "$setup_end - $setup_start" | bc)" "$(echo "$tests_end - $tests_start" | bc)" "$status"
 } | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
-printf '{"engine":"%s","setupS":%.1f,"testsS":%.1f,"exit":%s}\n' "$ENGINE" \
-  "$(echo "$setup_end - $setup_start" | bc)" "$(echo "$tests_end - $tests_start" | bc)" "$status" > "$OUT/$ENGINE.timing.json"
+printf '{"engine":"%s","setupS":%.1f,"testsS":%.1f,"exit":%s}\n' "$LABEL" \
+  "$(echo "$setup_end - $setup_start" | bc)" "$(echo "$tests_end - $tests_start" | bc)" "$status" > "$OUT/$LABEL.timing.json"
 # The prototype reports; it does not gate the PR.
 exit 0
