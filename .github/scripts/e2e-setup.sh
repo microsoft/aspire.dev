@@ -25,7 +25,8 @@ case "${1:-}" in
       "$@" > "$dir/$name.log" 2>&1
       code=$?
       record "$name" "$start" "$(now)"
-      echo "$code" > "$dir/$name.exit"
+      # Renamed into place, so the marker never exists without its code.
+      echo "$code" > "$dir/$name.exit.tmp" && mv "$dir/$name.exit.tmp" "$dir/$name.exit"
     ) < /dev/null > /dev/null 2>&1 &
     ;;
   wait)
@@ -65,7 +66,7 @@ case "${1:-}" in
     } | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
     ;;
   *)
-    echo "usage: $0 start|wait|time|report ..." >&2
+    echo "usage: $0 start|wait|time|mark|report ..." >&2
     exit 2
     ;;
 esac
