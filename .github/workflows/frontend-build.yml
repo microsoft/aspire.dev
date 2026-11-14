@@ -33,6 +33,10 @@ jobs:
     # The heaviest job uses the larger runner. Forks cannot use that label, so
     # they fall back to the standard runner.
     runs-on: ${{ github.repository_owner == 'microsoft' && '8-core-ubuntu-latest' || 'ubuntu-latest' }}
+    outputs:
+      # Set even when a later step fails, so the browsable artifact can still
+      # be produced for debugging a failed build.
+      site_archive_uploaded: ${{ steps.upload_site.outputs.artifact-id != '' }}
     defaults:
       run:
         working-directory: src/frontend
@@ -177,6 +181,7 @@ jobs:
           ls -lh "$RUNNER_TEMP/site.tar.zst"
 
       - name: Upload site archive
+        id: upload_site
         if: ${{ always() && steps.pack_site.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -232,9 +237,12 @@ jobs:
   # The browsable many-file `frontend-dist` artifact (for GitHub Artifacts
   # Explorer and the PR comment) is unpacked from the site archive in its own
   # job, so its slow upload runs alongside the E2E shards instead of before them.
+  # Like the old in-build upload, it also runs when the build job failed after
+  # packing the site, so the HTML stays browsable for debugging.
   browsable-artifact:
     name: Frontend HTML artifact
     needs: build
+    if: ${{ !cancelled() && needs.build.outputs.site_archive_uploaded == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Download site archive

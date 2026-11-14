@@ -74,6 +74,8 @@ test('frontend workflow keeps validation parallel and every shard required', asy
   expect(job('e2e')).toContain('name: frontend-site');
   expect(job('e2e')).not.toContain('frontend-dist');
   expect(job('browsable-artifact')).toMatch(/needs: build/);
+  // Still runs after a failed build that packed the site, for debugging.
+  expect(job('browsable-artifact')).toContain("if: ${{ !cancelled() && needs.build.outputs.site_archive_uploaded == 'true' }}");
   expect(job('browsable-artifact')).toContain('name: frontend-dist');
   expect(job('browsable-artifact')).toContain('Upsert PR artifact comment');
   expect(job('build')).toContain('./node_modules/astro/bin/astro.mjs build --mode production');
