@@ -1,0 +1,249 @@
+// Ported from src/frontend/src/components/LoopingImage.astro (<script>), M3 of docs/douze-migration-plan.md.
+// Astro view transition events removed: every page load is a full document load.
+// @ts-nocheck -- Client-side DOM manipulation with runtime casts; suppress to avoid implicit any noise.
+let themeObserver;
+const themeUpdates = new WeakMap<Element, () => void>();
+
+function getCurrentTheme() {
+  const html = document.documentElement;
+  return html.getAttribute('data-theme') || 'light';
+}
+
+function getPlaceholderUrl(width, height, theme) {
+  // Theme-specific colors
+  const colors = {
+    light: {
+      bg: 'edf2f7',
+      text: '1a202c',
+    },
+    dark: {
+      bg: '1e2024',
+      text: 'e4e7eb',
+    },
+  };
+
+  const themeColors = colors[theme] || colors.light;
+  return `https://placehold.co/${width}x${height}/${themeColors.bg}/${themeColors.text}.png?text=Loading...%20please%20wait.&font=Poppins`;
+}
+
+function updatePlaceholderForTheme(placeholder) {
+  if (!(placeholder instanceof HTMLImageElement)) return;
+  const width = placeholder.getAttribute('data-width');
+  const height = placeholder.getAttribute('data-height');
+  if (!width || !height) return;
+
+  const theme = getCurrentTheme();
+  placeholder.src = getPlaceholderUrl(width, height, theme);
+}
+
+function initButtons() {
+  const prefersNoHover = window.matchMedia && window.matchMedia('(hover: none)').matches;
+
+  document.querySelectorAll('.looping-image-wrapper').forEach((wrapper) => {
+    if (wrapper.dataset.loopingImageInitialized === 'true') return;
+
+    const img = wrapper.querySelector('img.looping-image');
+    const placeholder = wrapper.querySelector('.looping-image-placeholder');
+    const canvas = wrapper.querySelector('canvas.looping-image-canvas');
+    const btn = wrapper.querySelector('.looping-image-toggle');
+
+    if (
+      !(img instanceof HTMLImageElement) ||
+      !(placeholder instanceof HTMLElement) ||
+      !(canvas instanceof HTMLCanvasElement) ||
+      !(btn instanceof HTMLButtonElement)
+    )
+      return;
+
+    wrapper.dataset.loopingImageInitialized = 'true';
+
+    // Set initial placeholder URL based on current theme
+    updatePlaceholderForTheme(placeholder);
+
+    const srOnly = btn.querySelector('.sr-only');
+    let isPlaying = true;
+    let staticImageData = null;
+    let isLoaded = false;
+    let placeholderTimer = null;
+    let resumeTimer = null;
+
+    function updateImageForTheme() {
+      const source = getCurrentTheme() === 'dark' ? img.dataset.darkSrc : img.dataset.lightSrc;
+      if (!source || img.getAttribute('src') === source) return;
+
+      if (placeholderTimer) clearTimeout(placeholderTimer);
+      if (resumeTimer) clearTimeout(resumeTimer);
+      staticImageData = null;
+      isLoaded = false;
+      canvas.style.display = 'none';
+      img.style.opacity = '0';
+      placeholder.style.display = 'block';
+      btn.style.display = 'none';
+      img.src = source;
+    }
+
+    themeUpdates.set(wrapper, updateImageForTheme);
+
+    // Handle image load
+    function onImageLoad() {
+      if (isLoaded) return;
+      isLoaded = true;
+
+      if (isPlaying) {
+        img.style.opacity = '1';
+      } else {
+        captureStaticFrame();
+        if (staticImageData) {
+          canvas.getContext('2d')?.putImageData(staticImageData, 0, 0);
+          canvas.style.display = 'block';
+          canvas.style.opacity = '1';
+        }
+      }
+      btn.style.display = 'flex';
+
+      // After fade completes, hide placeholder
+      placeholderTimer = setTimeout(() => {
+        placeholder.style.display = 'none';
+      }, 300);
+    }
+
+    // Capture a static frame from the GIF for the paused state
+    function captureStaticFrame() {
+      if (staticImageData) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Set canvas size to match image
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+
+      // Draw current frame
+      ctx.drawImage(img, 0, 0);
+      staticImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }
+
+    function syncButton() {
+      btn.dataset.state = isPlaying ? 'playing' : 'paused';
+      btn.setAttribute('aria-label', isPlaying ? 'Pause animation' : 'Play animation');
+      if (srOnly) srOnly.textContent = isPlaying ? 'Pause animation' : 'Play animation';
+    }
+
+    let hideTimer = null;
+    function showButtonTransient() {
+      if (!isLoaded) return; // Don't show button until loaded
+
+      // Show (or keep) button visible briefly after interaction on all devices
+      btn.classList.add('force-visible');
+      if (hideTimer) clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        btn.classList.remove('force-visible');
+        // Blur to prevent lingering focus style for mouse users
+        if (!prefersNoHover && document.activeElement === btn) {
+          btn.blur();
+        }
+      }, 1500);
+    }
+
+    function togglePlayback() {
+      if (!isLoaded) return; // Don't allow toggle until loaded
+
+      if (isPlaying) {
+        // Pause: capture current frame and show it on canvas
+        captureStaticFrame();
+        if (staticImageData) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.putImageData(staticImageData, 0, 0);
+            img.style.opacity = '0';
+            canvas.style.display = 'block';
+            canvas.style.opacity = '1';
+          }
+        }
+        isPlaying = false;
+      } else {
+        // Play: fade out canvas first, then restart GIF
+        canvas.style.opacity = '0';
+        staticImageData = null;
+
+        resumeTimer = setTimeout(() => {
+          canvas.style.display = 'none';
+          img.style.opacity = '1';
+          // Force browser to restart the GIF animation
+          const src = img.src;
+          img.src = '';
+          img.src = src;
+        }, 150); // Wait for canvas fade out
+
+        isPlaying = true;
+      }
+      syncButton();
+      showButtonTransient();
+    }
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePlayback();
+    });
+
+    if (prefersNoHover) {
+      // Tap anywhere on image to toggle on mobile-like devices
+      wrapper.addEventListener('click', (e) => {
+        if (e.target === btn || btn.contains(e.target)) return;
+        togglePlayback();
+      });
+    }
+
+    img.addEventListener('load', onImageLoad);
+    img.addEventListener('error', () => {
+      console.error('Failed to load image:', img.src);
+      placeholder.style.display = 'none';
+    });
+
+    // Choose one themed source before starting its request.
+    updateImageForTheme();
+    if (img.complete && img.naturalWidth > 0) {
+      onImageLoad();
+    }
+
+    syncButton();
+  });
+}
+
+function initLoopingImages() {
+  try {
+    themeObserver?.disconnect();
+    themeObserver = undefined;
+    if (!document.querySelector('.looping-image-wrapper')) return;
+
+    initButtons();
+
+    // Watch for theme changes
+    themeObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (
+          mutation.type === 'attributes' &&
+          mutation.attributeName === 'data-theme' &&
+          mutation.target === document.documentElement
+        ) {
+          // Update all placeholders when theme changes
+          document
+            .querySelectorAll('.looping-image-placeholder')
+            .forEach((placeholder) => updatePlaceholderForTheme(placeholder));
+          document
+            .querySelectorAll('.looping-image-wrapper')
+            .forEach((wrapper) => themeUpdates.get(wrapper)?.());
+        }
+      }
+    });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+  } catch (error) {
+    console.error('Failed to initialize looping images:', error);
+  }
+}
+
+if (document.readyState !== 'loading') initLoopingImages();
+export {};

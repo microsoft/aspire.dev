@@ -1,0 +1,91 @@
+# Throwaway: maps the disks of the runners the Douze jobs use (fast-disk experiment).
+name: Disk probe
+
+on:
+  push:
+    branches: [ sebros/ci-fast-disk-62f1e4 ]
+    paths: [ .github/disk-probe/**, .github/workflows/disk-probe.yml ]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe (${{ matrix.runner }}, ${{ matrix.round }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ ubuntu-latest, 8-core-ubuntu-latest, windows-latest, macos-latest ]
+        round: [ a, b ]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Describe the disks (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          nproc; free -h; df -hT
+          lsblk -o NAME,SIZE,ROTA,TYPE,FSTYPE,MOUNTPOINT,MODEL
+          mount | grep -E ' on (/|/mnt|/tmp|/dev/shm|/home[^ ]*) ' || true
+          echo "workspace=$GITHUB_WORKSPACE temp=$RUNNER_TEMP tool_cache=$RUNNER_TOOL_CACHE"
+          for q in /sys/block/*/queue/rotational; do echo "$q $(cat $q)"; done
+
+      - name: Describe the disks (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_ComputerSystem | Select-Object NumberOfLogicalProcessors, TotalPhysicalMemory
+          Get-Volume | Format-Table DriveLetter, FileSystem, Size, SizeRemaining, DriveType
+          Get-PhysicalDisk | Format-Table FriendlyName, MediaType, BusType, Size
+          "workspace=$env:GITHUB_WORKSPACE temp=$env:RUNNER_TEMP TEMP=$env:TEMP"
+          Get-MpPreference | Select-Object DisableRealtimeMonitoring, ExclusionPath
+
+      - name: Describe the disks (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          sysctl -n hw.ncpu hw.memsize; df -h; diskutil list
+          echo "workspace=$GITHUB_WORKSPACE temp=$RUNNER_TEMP TMPDIR=$TMPDIR"
+
+      - name: Table header
+        shell: bash
+        run: |
+          {
+            echo "### ${{ matrix.runner }} (${{ matrix.round }})"
+            echo
+            echo '| Mount | Path | Write 60k × 20 kB (s) | sync (s) | stat walk, cold (s) | read, cold (s) | delete (s) | seq write MB/s | seq read MB/s |'
+            echo '|---|---|---:|---:|---:|---:|---:|---:|---:|'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Probe (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo mkdir -p /mnt/probe && sudo chown "$USER" /mnt/probe
+          python3 .github/disk-probe/probe.py workspace "$GITHUB_WORKSPACE"
+          python3 .github/disk-probe/probe.py runner-temp "$RUNNER_TEMP"
+          python3 .github/disk-probe/probe.py /tmp /tmp
+          python3 .github/disk-probe/probe.py /mnt /mnt/probe
+          python3 .github/disk-probe/probe.py /dev/shm /dev/shm
+
+      - name: Probe (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force C:\probe | Out-Null
+          python .github/disk-probe/probe.py workspace "$env:GITHUB_WORKSPACE"
+          python .github/disk-probe/probe.py runner-temp "$env:RUNNER_TEMP"
+          python .github/disk-probe/probe.py C: C:\probe
+          python .github/disk-probe/probe.py TEMP "$env:TEMP"
+          Add-MpPreference -ExclusionPath "$env:GITHUB_WORKSPACE"
+          python .github/disk-probe/probe.py workspace-no-defender "$env:GITHUB_WORKSPACE"
+
+      - name: Probe (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          python3 .github/disk-probe/probe.py workspace "$GITHUB_WORKSPACE"
+          python3 .github/disk-probe/probe.py runner-temp "$RUNNER_TEMP"
+          python3 .github/disk-probe/probe.py /tmp /private/tmp
+          dev=$(hdiutil attach -nomount ram://8388608 | awk '{print $1}')
+          diskutil erasevolume APFS ramdisk "$dev" >/dev/null
+          python3 .github/disk-probe/probe.py ramdisk /Volumes/ramdisk

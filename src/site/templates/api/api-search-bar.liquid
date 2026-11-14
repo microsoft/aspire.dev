@@ -1,0 +1,14 @@
+{%- comment -%}
+  ApiSearchBar.astro: the landing pages' search bar (input, version dropdown, kind chips, stats line, results).
+  Inputs: id, placeholder, label (default: placeholder), kinds (array), versions (array), default_stats, size.
+  Root class: cid-api-reference-api-search-bar.
+{%- endcomment -%}
+{%- assign asb_size = size | default: "lg" -%}
+{%- assign asb_input = id | append: "-search-input" -%}{%- assign asb_status = id | append: "-search-status" -%}{%- assign asb_clear = id | append: "-search-clear" -%}
+<div class="api-search-bar-unified inpage-search cid-api-reference-api-search-bar" data-size="{{ asb_size }}"><div class="asb-top-row">
+{%- assign asb_text_label = label | default: placeholder -%}
+{%- render 'api/search-field', id: asb_input, label: asb_text_label, placeholder: placeholder, clear_id: asb_clear, described_by: asb_status, size: asb_size, input_class: "asb-search-input", clear_class: "asb-search-clear", container_class: "asb-input-wrap", icon_class: "asb-search-icon" -%}
+{%- if versions.size > 0 -%}<div class="asb-version-slot">{% render 'api/version-filter', id: id, versions: versions %}</div>{%- endif -%}
+</div><div class="inpage-kind-filters" id="{{ id }}-kind-filters">
+{%- for kind in kinds -%}<button class="api-filter-chip search-filter-chip" data-kind="{{ kind }}" type="button" aria-pressed="false"><span class="api-filter-dot kind-{{ kind | replace: ' ', '-' }}"></span>{{ kind }}</button>{%- endfor -%}
+</div><div id="{{ asb_status }}" class="sr-only" aria-live="polite"></div><div class="inpage-search-stats"><span id="{{ id }}-search-count" class="search-results-summary">{{ default_stats }}</span><div class="inpage-search-actions"><button class="inpage-clear-filters search-action" id="{{ id }}-clear-filters" type="button" style="display: none;">Clear filters</button><button class="search-action" id="{{ id }}-reset-all" type="button" style="display: none;">Reset all</button></div></div><div id="{{ id }}-search-results" class="api-list" style="display: none;"></div></div>

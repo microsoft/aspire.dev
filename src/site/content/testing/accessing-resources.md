@@ -1,0 +1,77 @@
+---
+title: Access resources in tests
+seoTitle: Access Aspire resources from integration tests using xUnit
+description: Resolve and inspect Aspire AppHost resources from your tests — connection strings, endpoints, HTTP clients, and service discovery URIs for integration scenarios.
+---
+
+In this article, you learn how to access the resources from the Aspire AppHost in your tests. The AppHost represents the full application environment and contains all the resources that are available to the application. When writing functional or integration tests with Aspire, you might need to access these resources to verify the behavior of your application.
+
+## Access HTTP resources
+
+To access an HTTP resource, use the `HttpClient` to request and receive responses. The `DistributedApplication` and the `DistributedApplicationFactory` both provide a `CreateHttpClient` method that's used to create an `HttpClient` instance for a specific resource, based on the resource name from the AppHost. This method also takes an optional `endpointName` parameter, so if the resource has multiple endpoints, you can specify which one to use.
+
+## Access other resources
+
+In a test, you might want to access other resources by the connection information they provide, for example, querying a database to verify the state of the data. For this, you use the `GetConnectionString` method to retrieve the connection string for a resource, and then provide that to a client library within the test to interact with the resource.
+
+## Ensure resources are available
+
+Starting with Aspire 9, there's support for waiting on dependent resources to be available (via the [health check](/fundamentals/health-checks/) mechanism). This is useful in tests that ensure a resource is available before attempting to access it. The `ResourceNotificationService` class provides a `WaitForResourceAsync` method that's used to wait for a named resource to be available. This method takes the resource name and the desired state of the resource as parameters and returns a `Task` that yields back when the resource is available. You can access the `ResourceNotificationService` via `app.ResourceNotifications`, as in the following example.
+
+:::note
+It's recommended to provide a time-out when waiting for resources, to prevent
+the test from hanging indefinitely in situations where a resource never
+becomes available.
+:::
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+await app.ResourceNotifications.WaitForResourceAsync(
+    "webfrontend",
+    KnownResourceStates.Running,
+    cts.Token);
+```
+
+A resource enters the `KnownResourceStates.Running` state as soon as it starts executing, but this doesn't mean that it's ready to serve requests. If you want to wait for the resource to be ready to serve requests, and your resource has health checks, you can wait for the resource to become healthy by using the `WaitForResourceHealthyAsync` method.
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+await app.ResourceNotifications.WaitForResourceHealthyAsync(
+    "webfrontend",
+    cts.Token);
+```
+
+This resource-notification pattern ensures that the resources are available before running the tests, avoiding potential issues with the tests failing due to the resources not being ready.
+
+:::tip
+If a resource fails during startup (for example, a container exits
+immediately or an executable can't be found), Aspire flushes any captured
+resource logs before it publishes the terminal (`Exited` or `FailedToStart`)
+state notification. That means test code awaiting `WaitForResourceAsync`
+with a terminal state can rely on the resource's stdout/stderr output being
+present in the captured host logs at the point the wait completes, which
+makes fast-failing resources easier to diagnose.
+:::
+
+## Start & Stop
+
+In some cases, you may want to manually start a resource when it is not initially started, for when the resource was created {% api "Aspire.Hosting.ResourceBuilderExtensions.WithExplicitStart" %} for example.
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+await app.ResourceCommands.ExecuteCommandAsync(
+    "webfrontend",
+    KnownResourceCommands.StartCommand,
+    cts.Token);
+```
+
+You could also want to stop a resource manually to see if your application is resilient when a particular resource shuts down.
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+await app.ResourceCommands.ExecuteCommandAsync(
+    "webfrontend",
+    KnownResourceCommands.StopCommand,
+    cts.Token);
+```

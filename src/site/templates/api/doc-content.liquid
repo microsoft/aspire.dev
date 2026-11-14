@@ -1,0 +1,83 @@
+{%- comment -%}
+  DocContent.astro: renders the rich documentation nodes of the API data (text, code, codeblock, cref, href,
+  langword, paramref, typeparamref, para, note, list), recursively. Inputs: content (a node array, or a legacy
+  string), tag (the wrapper element, default span). Root class: cid-api-reference-doc-content.
+  Differences with the Astro component, by design:
+  - crefs resolve through api.xref (doc id -> page), so they link to types and members of every package, and a
+    member links to its member page anchor (the Astro component linked same-package declaring types only); a member
+    cref missing from xref falls back to its declaring type's page; the label of a generic type drops its `N arity;
+  - code blocks are <pre data-language> with escaped text, dedented, without the C# line reformatting (the
+    generators will provide highlighted HTML, plan section 5.4);
+  - ReadableText's <wbr> break hints are not emitted.
+{%- endcomment -%}
+{%- if content -%}
+{%- assign dc_tag = tag | default: "span" -%}
+{%- assign dc_first = content | first -%}
+{%- if dc_first.kind == nil -%}
+<{{ dc_tag }}>{{ content }}</{{ dc_tag }}>
+{%- else -%}
+<{{ dc_tag }} class="doc-content cid-api-reference-doc-content">
+{%- assign dc_prev = nil -%}
+{%- for node in content -%}
+  {%- comment -%} needsSpaceBefore {%- endcomment -%}
+  {%- assign sp = false -%}
+  {%- unless forloop.first -%}
+    {%- assign sp = true -%}
+    {%- case node.kind -%}
+      {%- when "para", "list", "note", "codeblock" -%}{%- assign sp = false -%}
+      {%- when "text" -%}
+        {%- assign dc_c = node.text | slice: 0 -%}
+        {%- if dc_c != "" -%}
+          {%- assign dc_cs = dc_c | strip -%}
+          {%- if dc_cs == "" -%}{%- assign sp = false -%}{%- elsif ",.:;!?)}]" contains dc_c -%}{%- assign sp = false -%}{%- endif -%}
+        {%- endif -%}
+    {%- endcase -%}
+    {%- if sp and dc_prev.kind == "text" -%}
+      {%- assign sp = false -%}
+      {%- if dc_prev.text -%}
+        {%- assign dc_l = dc_prev.text | slice: -1 | strip -%}
+        {%- if dc_l != "" -%}{%- assign sp = true -%}{%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endunless -%}
+  {%- assign dc_prev = node -%}
+  {%- case node.kind -%}
+    {%- when "text" -%}{% if sp %}{{ " " }}{% endif %}{{ node.text }}
+    {%- when "code" -%}{% if sp %}{{ " " }}{% endif %}<code class="doc-inline-code">{{ node.text }}</code>
+    {%- when "codeblock" -%}<div class="doc-codeblock-wrap">{% render 'api/code-block', code: node.text, lang: node.language %}</div>
+    {%- when "cref" -%}{% if sp %}{{ " " }}{% endif %}{% render 'api/cref', cref: node.value %}
+    {%- when "href" -%}<a href="{{ node.value }}" class="doc-href" target="_blank" rel="noopener noreferrer">{{ node.text | default: node.value }}</a>
+    {%- when "langword" -%}{% if sp %}{{ " " }}{% endif %}<code class="doc-langword">{{ node.value }}</code>
+    {%- when "paramref" -%}{% if sp %}{{ " " }}{% endif %}<code class="doc-paramref">{{ node.value }}</code>
+    {%- when "typeparamref" -%}{% if sp %}{{ " " }}{% endif %}<code class="doc-typeparamref">{{ node.value }}</code>
+    {%- when "para" -%}<p class="doc-para">{% if node.children %}{% render 'api/doc-content', content: node.children, tag: "span" %}{% endif %}</p>
+    {%- when "note" -%}
+      {%- assign dc_note = node.value | default: "note" -%}
+      {%- case dc_note -%}
+        {%- when "note" -%}{%- assign dc_label = "Note" -%}
+        {%- when "tip" -%}{%- assign dc_label = "Tip" -%}
+        {%- when "caution" -%}{%- assign dc_label = "Caution" -%}
+        {%- when "warning" -%}{%- assign dc_label = "Warning" -%}
+        {%- when "important" -%}{%- assign dc_label = "Important" -%}
+        {%- else -%}{%- assign dc_label = dc_note -%}
+      {%- endcase -%}
+      <aside class="doc-note doc-note-{{ dc_note }}"><strong class="doc-note-label">{{ dc_label }}</strong>{% if node.children %}{% render 'api/doc-content', content: node.children, tag: "div" %}{% endif %}</aside>
+    {%- when "list" -%}
+      {%- if node.style == "table" -%}
+        <table class="doc-table">
+        {%- if node.header -%}<thead><tr><th>{% if node.header.term %}{% render 'api/doc-content', content: node.header.term, tag: "span" %}{% endif %}</th><th>{% render 'api/doc-content', content: node.header.description, tag: "span" %}</th></tr></thead>{%- endif -%}
+        <tbody>
+        {%- for item in node.items -%}<tr><td>{% if item.term %}{% render 'api/doc-content', content: item.term, tag: "span" %}{% endif %}</td><td>{% render 'api/doc-content', content: item.description, tag: "span" %}</td></tr>{%- endfor -%}
+        </tbody></table>
+      {%- else -%}
+        {%- if node.style == "number" -%}{%- assign dc_list = "ol" -%}{%- else -%}{%- assign dc_list = "ul" -%}{%- endif -%}
+        <{{ dc_list }} class="doc-list">
+        {%- for item in node.items -%}<li>{% if item.term %}<strong>{% render 'api/doc-content', content: item.term, tag: "span" %}</strong> — {% endif %}{% render 'api/doc-content', content: item.description, tag: "span" %}</li>{%- endfor -%}
+        </{{ dc_list }}>
+      {%- endif -%}
+    {%- else -%}{{ node.text | default: node.value }}
+  {%- endcase -%}
+{%- endfor -%}
+</{{ dc_tag }}>
+{%- endif -%}
+{%- endif -%}

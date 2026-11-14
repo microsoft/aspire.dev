@@ -1,0 +1,19 @@
+{%- comment -%}
+  The site's CustomSelect.astro (scripts/client/custom-select.ts): a native <select> mirrored by a listbox button.
+  Include arguments: cs_id, cs_label, cs_options (array of { value, label, description?, detector?, disabled?,
+  selected? }), cs_class?, cs_menu_width (trigger | content), cs_placement (auto | up | down), cs_icon_html? (the
+  `icon` slot, HTML). Root class: cid-custom-select.
+{%- endcomment -%}
+{%- assign cs_selected = nil -%}
+{%- for option in cs_options -%}{%- if option.selected and option.disabled != true and cs_selected == nil -%}{%- assign cs_selected = option -%}{%- endif -%}{%- endfor -%}
+{%- if cs_selected == nil -%}{%- assign cs_selected = cs_options | first -%}{%- endif -%}
+{%- assign cs_listbox = cs_id | append: "-listbox" -%}
+<div class="custom-select{% if cs_class %} {{ cs_class }}{% endif %} cid-custom-select" data-custom-select data-has-icon="{% if cs_icon_html %}true{% else %}false{% endif %}" data-menu-width="{{ cs_menu_width | default: 'trigger' }}" data-placement="{{ cs_placement | default: 'auto' }}">
+<select id="{{ cs_id }}" class="custom-select-native" aria-hidden="true" tabindex="-1" data-custom-select-native>
+{%- for option in cs_options %}<option value="{{ option.value }}"{% if option.value == cs_selected.value %} selected{% endif %}{% if option.disabled %} disabled{% endif %}{% if option.description %} title="{{ option.description }}"{% endif %}{% if option.detector %} data-detector="{{ option.detector }}"{% endif %}>{{ option.label }}</option>{% endfor -%}
+</select>
+<button type="button" class="custom-select-trigger" role="combobox" aria-label="{{ cs_label }}" aria-controls="{{ cs_listbox }}" aria-expanded="false" aria-haspopup="listbox" aria-autocomplete="none" data-custom-select-trigger>{% if cs_icon_html %}<span class="custom-select-leading" aria-hidden="true">{{ cs_icon_html }}</span>{% endif %}<span class="custom-select-value" data-custom-select-value>{{ cs_selected.label }}</span>{% icon "down-caret", class: "custom-select-caret" %}</button>
+<div id="{{ cs_listbox }}" class="custom-select-listbox" role="listbox" aria-label="{{ cs_label }}" data-custom-select-listbox popover="manual" hidden>
+{%- for option in cs_options %}<button type="button" id="{{ cs_listbox }}-option-{{ forloop.index0 }}" class="custom-select-option" role="option" tabindex="-1" aria-selected="{% if option.value == cs_selected.value %}true{% else %}false{% endif %}"{% if option.disabled %} aria-disabled="true" disabled{% endif %} data-custom-select-option data-value="{{ option.value }}"{% if option.detector %} data-detector="{{ option.detector }}"{% endif %}><span class="custom-select-option-label">{{ option.label }}</span>{% if option.description %}<span class="custom-select-option-description">{{ option.description }}</span>{% endif %}</button>{% endfor -%}
+</div>
+</div>

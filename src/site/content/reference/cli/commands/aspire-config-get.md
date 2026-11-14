@@ -1,0 +1,51 @@
+---
+title: aspire config get command
+description: Learn about the aspire config get command and its usage. This command gets an Aspire CLI config value by key name.
+---
+
+## Name
+
+`aspire config get` - Get a configuration value.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire config get <key> [options]
+```
+
+## Description
+
+The `aspire config get` command retrieves a config value by key name.
+
+{% include_markdown "reference/cli/includes/config-file-description.md" %}
+
+If the config value doesn't exist in a local settings file, the config file is retrieved from the global settings file.
+
+The command returns the following exit codes:
+
+- `0`&mdash;The command succeeded.
+- `10`&mdash;The supplied key doesn't exist in the config file, or the config file is missing.
+
+## Arguments
+
+The following arguments are available:
+
+- **`key`**
+
+  The configuration key to retrieve.
+
+## Options
+
+The following options are available:
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}

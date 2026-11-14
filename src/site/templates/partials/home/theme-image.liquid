@@ -1,0 +1,23 @@
+{%- comment -%}
+  Ported from src/frontend/src/components/ThemeImage.astro, for the partials of this folder (articles use the
+  `image` tag with light/dark). Root class (components.css scope): cid-theme-image (added to the <img>, with the
+  wrapper's when there is one).
+  Arguments: ti_light, ti_dark (image paths), ti_alt, ti_label?, ti_width, ti_height (the dark image's size when the
+  caller has nothing else), ti_class?, ti_zoomable (default true), ti_href?.
+  The dark image is the initial src; scripts/client/home/theme-images.ts swaps src from data-light/data-dark when
+  <html data-theme> changes. Astro converted both to WebP at the same size; here they are served as they are until the
+  images step (Douze 3.8) can do it. The zoom button references #starlight-image-zoom-icon-zoom, the symbol the image
+  zoom plugin's markup defines once per page.
+{%- endcomment -%}
+{%- if ti_class -%}{%- assign ti_img_class = ti_class | append: " theme-image cid-theme-image" -%}{%- else -%}{%- assign ti_img_class = "theme-image cid-theme-image" -%}{%- endif -%}
+{%- capture ti_img -%}
+<img src="{{ ti_dark }}" alt="{{ ti_alt }}" data-light="{{ ti_light }}" data-dark="{{ ti_dark }}" data-light-srcset="" data-dark-srcset="" width="{{ ti_width }}" height="{{ ti_height }}" decoding="async" loading="lazy" class="{{ ti_img_class }}">
+{%- endcapture -%}
+{%- if ti_href -%}
+<a href="{{ ti_href }}" title="{{ ti_href }}" class="theme-image-link cid-theme-image">{{ ti_img }}</a>
+{%- elsif ti_zoomable == false -%}
+{{ ti_img }}
+{%- else -%}
+{%- assign ti_zoom_label = ti_label | default: ti_alt -%}
+<starlight-image-zoom-zoomable class="cid-image-zoom-zoom">{{ ti_img }}<button aria-label="Zoom image{% if ti_zoom_label != blank %}: {{ ti_zoom_label }}{% endif %}" class="starlight-image-zoom-control"><svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><use href="#starlight-image-zoom-icon-zoom"></use></svg></button></starlight-image-zoom-zoomable>
+{%- endif -%}

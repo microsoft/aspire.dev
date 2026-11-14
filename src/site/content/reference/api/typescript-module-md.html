@@ -1,0 +1,48 @@
+---
+# The Markdown twin of a TypeScript module page: renderTypeScriptModuleMarkdown of
+# src/frontend/src/utils/typescript-api-markdown.ts. The items come from the module's route entries (their slugs).
+# Difference: names are sorted with sort_natural (case-insensitive ordinal) instead of localeCompare.
+layout: false
+pagination: { data: api.routes.typescript-modules, size: 1, alias: route }
+permalink: "{{ route.md }}"
+---
+{%- assign doc = api["ts-modules"][route.file] -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign allItems = api.routes["typescript-items"] -%}
+{%- assign istart = allItems | find_index: "module", route.module -%}
+{%- assign items = allItems | slice: istart, route.counts.total | where: "module", route.module -%}
+{%- assign types = items | where: "itemKind", "handle" -%}{%- assign dtos = items | where: "itemKind", "dto" -%}
+{%- assign types = types | concat: dtos | sort_natural: "name" -%}
+{%- assign functions = items | where: "itemKind", "function" | sort_natural: "name" -%}
+{%- assign enums = items | where: "itemKind", "enum" | sort_natural: "name" -%}
+{%- assign typeCount = doc.handleTypes.size | plus: doc.dtoTypes.size | plus: doc.enumTypes.size -%}
+{%- capture text -%}
+# {{ route.module }}
+␞- Module: `{{ route.module }}`
+{%- if doc.package.version -%}{{ nl }}- Version: `{{ doc.package.version }}`{%- endif -%}
+{%- if doc.package.sourceRepository -%}{{ nl }}- Source: [GitHub]({{ doc.package.sourceRepository }}{% if doc.package.sourceCommit %}/tree/{{ doc.package.sourceCommit }}{% endif %}){%- endif -%}
+{{ nl }}- Functions: `{{ functions.size }}`{{ nl }}- Types: `{{ typeCount }}`
+{%- if types.size > 0 -%}
+␞## Types{{ nl }}
+  {%- for entry in types -%}
+    {%- assign item = doc[entry.collection][entry.index] -%}
+    {{- nl }}- [{{ item.name }}](/reference/api/typescript/{{ route.slug }}/{{ entry.slug }}.md) — {% if entry.itemKind == "dto" %}`type` · {{ item.fields.size | default: 0 }} fields{% else %}`{% if item.isInterface %}interface{% else %}handle{% endif %}` · {{ item.capabilities.size | default: 0 }} members{% endif %}{% if item.description %} — {{ item.description }}{% endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- if functions.size > 0 -%}
+␞## Functions{{ nl }}
+  {%- for entry in functions -%}
+    {%- assign item = doc[entry.collection][entry.index] -%}
+    {{- nl }}- [{{ item.name }}](/reference/api/typescript/{{ route.slug }}/{{ entry.slug }}.md) — `{% if item.expandedTargetTypes.size > 0 %}method{% else %}function{% endif %}`{% if item.description %} — {{ item.description }}{% endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- if enums.size > 0 -%}
+␞## Enums{{ nl }}
+  {%- for entry in enums -%}
+    {%- assign item = doc[entry.collection][entry.index] -%}
+    {{- nl }}- [{{ item.name }}](/reference/api/typescript/{{ route.slug }}/{{ entry.slug }}.md) — `enum` · {{ item.members.size | default: 0 }} values{% if item.description %} — {{ item.description }}{% endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- endcapture -%}
+{%- render 'api/md/finalize', text: text -%}

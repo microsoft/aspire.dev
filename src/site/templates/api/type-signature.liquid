@@ -1,0 +1,54 @@
+{%- comment -%}
+  TypeSignature.astro: the C# declaration of a type (namespace, modifiers, kind, name and type parameters, bases,
+  constraints, body), the type parameters with their constraints, and the base type chips. Input: type. Root
+  class: cid-api-reference-type-signature. Type links: api.xref by exact name (the Astro component linked
+  same-package types only).
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign tsg_generic = "" -%}
+{%- if type.isGeneric and type.genericParameters.size > 0 -%}{%- assign tsg_generic = type.genericParameters | map: "name" | join: ", " -%}{%- endif -%}
+{%- assign tsg_bases = "" -%}
+{%- if type.baseType -%}{%- assign tsg_bases = type.baseType -%}{%- endif -%}
+{%- for i in type.interfaces -%}{%- if tsg_bases == "" -%}{%- assign tsg_bases = i -%}{%- else -%}{%- assign tsg_bases = tsg_bases | append: "¦" | append: i -%}{%- endif -%}{%- endfor -%}
+{%- assign tsg_base_list = tsg_bases | split: "¦" -%}
+{%- if tsg_bases == "" -%}{%- assign tsg_base_count = 0 -%}{%- else -%}{%- assign tsg_base_count = tsg_base_list.size -%}{%- endif -%}
+{%- capture tsg_sig -%}
+{%- if type.namespace -%}namespace {{ type.namespace }};{{ nl }}{{ nl }}{%- endif -%}
+{{- type.accessibility | default: "public" -}}
+{%- if type.isStatic %} static{% endif -%}{%- if type.isAbstract %} abstract{% endif -%}{%- if type.isSealed %} sealed{% endif -%}{%- if type.isReadOnly %} readonly{% endif -%}
+{%- if type.kind == "delegate" -%}
+{{ " " }}delegate {{ type.delegateReturnType | default: "void" }} {{ type.name }}{% if tsg_generic != "" %}&lt;{{ tsg_generic }}&gt;{% endif -%}
+{%- if type.delegateParameters.size > 0 -%}({%- for p in type.delegateParameters -%}{{ nl }}    {{ p.type }} {{ p.name }}{% unless forloop.last %},{% endunless %}{%- endfor -%}){%- else -%}(){%- endif -%}
+{%- else -%}
+{{ " " }}{{ type.kind }} {{ type.name }}{% if tsg_generic != "" %}&lt;{{ tsg_generic }}&gt;{% endif -%}
+{%- if tsg_base_count > 0 -%}{{ nl }}    : {% for b in tsg_base_list %}{% unless forloop.first %},{{ nl }}      {% endunless %}{{ b }}{% endfor %}{%- endif -%}
+{%- endif -%}
+{%- for gp in type.genericParameters -%}
+  {%- if gp.constraints.size > 0 -%}{{ nl }}    where {{ gp.name }} : {% for c in gp.constraints %}{% unless forloop.first %}, {% endunless %}{% render 'api/short-type', t: c %}{% endfor %}{%- endif -%}
+{%- endfor -%}
+{%- if type.kind != "delegate" and type.kind != "enum" -%}{{ nl }}{{ "{" }}{{ nl }}    // ...{{ nl }}{{ "}" }}{%- endif -%}
+{%- endcapture -%}
+<div class="ts not-content cid-api-reference-type-signature"><div class="ts-code">{% render 'api/code-block', html: tsg_sig, lang: "csharp" %}</div>
+{%- if type.genericParameters.size > 0 -%}
+<div class="ts-generics">
+{%- for gp in type.genericParameters -%}
+<div class="ts-gp"><code class="ts-gp-name">{{ gp.name }}</code>
+{%- if gp.constraints.size > 0 %}<span class="ts-gp-constraint">: {% for c in gp.constraints -%}
+  {%- unless forloop.first %}, {% endunless -%}
+  {%- capture tsg_href %}{% render 'api/type-href', t: c, exact: true %}{% endcapture -%}
+  {%- if tsg_href != "" -%}<a href="{{ tsg_href }}" class="ts-constraint-link">{% render 'api/short-type', t: c %}</a>{%- else -%}<span>{% render 'api/short-type', t: c %}</span>{%- endif -%}
+{%- endfor %}</span>{% endif -%}
+</div>
+{%- endfor -%}
+</div>
+{%- endif -%}
+{%- if tsg_base_count > 0 -%}
+<div class="ts-bases">
+{%- for b in tsg_base_list -%}
+  {%- capture tsg_href %}{% render 'api/type-href', t: b, exact: true %}{% endcapture -%}
+  {%- if tsg_href != "" -%}<a href="{{ tsg_href }}" class="api-chip">{% render 'api/short-type', t: b %}</a>{%- else -%}<span class="api-chip muted">{% render 'api/short-type', t: b %}</span>{%- endif -%}
+{%- endfor -%}
+</div>
+{%- endif -%}
+</div>

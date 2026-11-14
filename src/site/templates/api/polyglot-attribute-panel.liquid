@@ -1,0 +1,50 @@
+{%- comment -%}
+  PolyglotAttributePanel.astro: the ATS (Aspire Type System) notes of a type, member or parameter. Inputs:
+  attributes, context (type, member or parameter), entity_name, package_name. Root class:
+  cid-api-reference-polyglot-attribute-panel.
+{%- endcomment -%}
+{%- if attributes.size > 0 -%}
+{%- comment -%} api/find-attr, inline: a rendered template cannot include. {%- endcomment -%}
+{%- assign pp_export = nil -%}{%- assign pp_dto = nil -%}{%- assign pp_ignore = nil -%}{%- assign pp_union = nil -%}
+{%- for fa_a in attributes -%}{%- assign fa_short = fa_a.name | split: "." | last -%}{%- case fa_short -%}{%- when "AspireExport", "AspireExportAttribute" -%}{%- unless pp_export -%}{%- assign pp_export = fa_a -%}{%- endunless -%}{%- when "AspireDto", "AspireDtoAttribute" -%}{%- unless pp_dto -%}{%- assign pp_dto = fa_a -%}{%- endunless -%}{%- when "AspireExportIgnore", "AspireExportIgnoreAttribute" -%}{%- unless pp_ignore -%}{%- assign pp_ignore = fa_a -%}{%- endunless -%}{%- when "AspireUnion", "AspireUnionAttribute" -%}{%- unless pp_union -%}{%- assign pp_union = fa_a -%}{%- endunless -%}{%- endcase -%}{%- endfor -%}
+{%- if pp_export or pp_dto or pp_ignore or pp_union -%}
+<div class="polyglot-panel not-content cid-api-reference-polyglot-attribute-panel">
+{%- if pp_export -%}
+  {%- assign pp_id = pp_export.constructorArguments[0] -%}
+  {%- assign pp_type = pp_export.arguments.Type -%}
+  {%- assign pp_type_row = false -%}
+  {%- if context == "type" and entity_name != blank and package_name != blank -%}{%- assign pp_type_row = true -%}{%- endif -%}
+<aside class="polyglot-note export" role="note"><div class="polyglot-title">ATS export</div><div class="polyglot-body">
+{%- if context == "member" and pp_id -%}<div class="polyglot-row"><span class="polyglot-label">Capability ID: </span><code>{% if package_name != blank %}{{ package_name }}/{% endif %}{{ pp_id }}</code></div>{%- endif -%}
+{%- if pp_type_row and pp_type == nil -%}<div class="polyglot-row"><span class="polyglot-label">Type ID: </span><code>{{ package_name }}/{{ entity_name }}</code></div>{%- endif -%}
+{%- if pp_type -%}<div class="polyglot-row"><span class="polyglot-label">Export target: </span><code>{% render 'api/short-type', t: pp_type %}</code></div>{%- endif -%}
+{%- if pp_id == nil and pp_type == nil and pp_type_row == false -%}<div class="polyglot-row">Available to Polyglot AppHosts through the Aspire Type System.</div>{%- endif -%}
+{%- if pp_export.arguments.MethodName -%}<div class="polyglot-row"><span class="polyglot-label">Generated method name override: </span><code>{{ pp_export.arguments.MethodName }}</code></div>{%- endif -%}
+{%- if pp_export.arguments.ExposeProperties == "True" -%}<div class="polyglot-row">Public instance properties are exported as ATS capabilities.</div>{%- endif -%}
+{%- if pp_export.arguments.ExposeMethods == "True" -%}<div class="polyglot-row">Public instance methods are exported as ATS capabilities.</div>{%- endif -%}
+{%- if pp_export.arguments.RunSyncOnBackgroundThread == "True" -%}<div class="polyglot-row">Synchronous exports run on a background thread.</div>{%- endif -%}
+</div></aside>
+{%- endif -%}
+{%- if pp_dto -%}
+<aside class="polyglot-note dto" role="note"><div class="polyglot-title">ATS DTO</div><div class="polyglot-body">
+{%- if pp_dto.arguments.DtoTypeId -%}<div class="polyglot-row"><span class="polyglot-label">Serialized type identifier: </span><code>{{ pp_dto.arguments.DtoTypeId }}</code></div>
+{%- else -%}<div class="polyglot-row">Serialized as a plain JSON object without a <code>$type</code> discriminator.</div>{%- endif -%}
+</div></aside>
+{%- endif -%}
+{%- if pp_ignore -%}
+<aside class="polyglot-note ignore" role="note"><div class="polyglot-title">Ignored by ATS</div><div class="polyglot-body"><div class="polyglot-row">
+{%- if pp_ignore.arguments.Reason -%}<span class="polyglot-label">Reason: </span><span>{{ pp_ignore.arguments.Reason }}</span>{%- else -%}Excluded from automatic Polyglot export.{%- endif -%}
+</div></div></aside>
+{%- endif -%}
+{%- if pp_union and pp_union.constructorArguments.size > 0 -%}
+<aside class="polyglot-note union" role="note"><div class="polyglot-title">ATS union</div><div class="polyglot-body"><div class="polyglot-row"><span class="polyglot-label">Accepted types: </span><span class="polyglot-type-list">
+{%- for pp_t in pp_union.constructorArguments -%}
+  {%- unless forloop.first %}<span class="polyglot-separator"> | </span>{% endunless -%}
+  {%- capture pp_href %}{% render 'api/type-href', t: pp_t %}{% endcapture -%}
+  {%- if pp_href != "" -%}<a href="{{ pp_href }}" class="polyglot-type-link">{% render 'api/short-type', t: pp_t %}</a>{%- else -%}<code>{% render 'api/short-type', t: pp_t %}</code>{%- endif -%}
+{%- endfor -%}
+</span></div></div></aside>
+{%- endif -%}
+</div>
+{%- endif -%}
+{%- endif -%}

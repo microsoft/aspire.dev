@@ -91,6 +91,25 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: ./src/frontend/scripts/update-integration-data.ps1
 
+      # The site builds with Douze from src/site, which keeps its own copies
+      # of the generated data the site reads: mirror them, so the PR updates
+      # both. The API data (pkgs, ts-modules) needs no copy: the build's API
+      # index script reads it from src/frontend.
+      - name: Copy the data to the Douze site
+        if: ${{ steps.update.outputs.changed == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          from=src/frontend/src/data
+          to=src/site/data
+          for f in aspire-integrations.json integration-docs.json github-stats.json \
+                   github-contributors.json samples.json aspire-blog-posts.json; do
+            cp "$from/$f" "$to/$f"
+          done
+          cp "$from/twoslash/aspire.d.ts" "$to/twoslash/aspire.d.ts"
+          rsync -a --delete "$from/schemas/" "$to/schemas/"
+          rsync -a --delete src/frontend/src/assets/samples/ src/site/assets/images/samples/
+
       - name: Commit and refresh automation branch
         if: ${{ steps.update.outputs.changed == 'true' }}
         id: push
@@ -121,7 +140,16 @@ jobs:
             src/frontend/src/assets/samples \
             src/frontend/src/data/pkgs \
             src/frontend/src/data/ts-modules \
-            src/frontend/src/data/twoslash/aspire.d.ts
+            src/frontend/src/data/twoslash/aspire.d.ts \
+            src/site/data/aspire-integrations.json \
+            src/site/data/integration-docs.json \
+            src/site/data/github-stats.json \
+            src/site/data/github-contributors.json \
+            src/site/data/samples.json \
+            src/site/data/aspire-blog-posts.json \
+            src/site/data/schemas \
+            src/site/assets/images/samples \
+            src/site/data/twoslash/aspire.d.ts
 
           if git diff --cached --quiet; then
             echo "No staged changes after filtering to allowed paths; skipping PR."

@@ -1,0 +1,111 @@
+---
+title: Prerequisites
+seoTitle: Aspire prerequisites and required tooling for your setup
+description: Install the prerequisites for Aspire development — .NET SDK, container runtime, IDE extensions, and the Aspire CLI, with platform-specific guidance for every target.
+giscus: false
+tableOfContents:
+  minHeadingLevel: 1
+  maxHeadingLevel: 4
+props:
+  container_runtime_choices:
+    - id: "docker"
+      title: "Docker Desktop"
+      href: "https://www.docker.com/products/docker-desktop"
+      linkLabel: "Install Docker Desktop"
+      statusLabel: "Recommended default"
+      description: "A familiar and widely supported environment for building and running containers."
+    - id: "podman"
+      title: "Podman"
+      href: "https://podman.io/"
+      linkLabel: "Install Podman"
+      statusLabel: "Supported alternative"
+      description: "An open-source, daemonless runtime for building and running Open Container Initiative (OCI) containers."
+    - id: "rancher"
+      title: "Rancher Desktop"
+      href: "https://rancherdesktop.io/"
+      linkLabel: "Learn about Rancher Desktop"
+      statusLabel: "Community reported"
+      description: "Reported by users as a successful alternative, especially when configured to use the Docker CLI. Rancher Desktop is not an officially supported or regularly tested Aspire scenario."
+  container_runtime_podman_setup:
+    heading: "Use Podman with Aspire"
+    body: "After installing Podman, set ASPIRE_CONTAINER_RUNTIME to podman."
+    bashTitle: "Set Podman runtime"
+    powershellTitle: "Set Podman runtime"
+---
+
+Ready to dive into Aspire? Before you begin, make sure your development environment is set up with a few essential tools. This guide walks you through everything you need to start building and running Aspire solutions with confidence.
+
+{% steps %}
+1. ## Install your language runtime
+
+    {% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+Aspire's TypeScript AppHost requires a supported [Node.js](https://nodejs.org/) release: **Node.js 20.19+, 22.13+, or 24+**. When you run `aspire init`, the CLI writes this engine range into the scaffolded `package.json`:
+
+```json title="package.json"
+{
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  }
+}
+```
+
+It also requires a [supported AppHost-root package manager](/app-host/typescript-apphost/#package-managers): **npm** (default, included with Node.js), **pnpm**, **Yarn 4+** (Berry), or **Bun**. **Yarn Classic (v1) is not supported.** The Aspire CLI auto-detects the active toolchain from your `package.json` `packageManager` field or from lockfiles in your project directory or parent directories.
+
+Follow the [Node.js installation instructions](https://nodejs.org/) for your operating system (Windows, macOS, or Linux) to complete the setup. If you use an alternative package manager, install it separately:
+
+- [pnpm](https://pnpm.io/installation)
+- [Yarn](https://yarnpkg.com/getting-started/install)
+- [Bun](https://bun.sh/docs/installation)
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+For a C# AppHost, install the [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), a free, open-source, cross-platform framework for building modern apps and cloud services. No prior C# experience is required.
+
+:::caution[Important]
+The .NET 10.0 SDK is required for C# AppHosts. However, Aspire can run applications targeting .NET 8.0 or later.
+:::
+
+Follow the [installation instructions](https://dotnet.microsoft.com/download/dotnet/10.0) for your operating system (Windows, macOS, or Linux) to complete the setup.
+{% endtab %}
+{% endtabs %}
+
+1. ## Install an OCI-compliant container runtime
+
+    {% container_runtime_choices aria_label: "Container runtime choices", intro: "Choose one runtime for local container support. Docker Desktop is the recommended default for most Aspire developers.", choices: props.container_runtime_choices, podman_setup: props.container_runtime_podman_setup %}
+
+    :::tip[Choose one runtime]{icon='approve-check-circle'}
+    Install one option from the tabs above. For most users, choose **Docker Desktop**; don't install Podman or Rancher Desktop unless you specifically want to use one of them instead.
+    :::
+
+1. ## Install an integrated development environment (IDE)
+
+    Aspire supports multiple IDEs and code editors. You can choose the one that best fits your workflow:
+
+    :::note[Visual Studio Code]{icon="vscode"}
+    We recommend [Visual Studio Code](https://code.visualstudio.com/) for the best experience—a lightweight, cross-platform code editor with excellent Aspire support. Install the following extensions to get started:
+
+    [Aspire extension](/get-started/aspire-vscode-extension/) for Aspire-specific commands and features.
+    :::
+
+    {% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+Visual Studio Code with the Aspire extension is the recommended environment for TypeScript AppHosts.
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+Additionally, install the [C# extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) for C# language support.
+
+Aspire also works well with:
+
+- [Visual Studio](https://visualstudio.microsoft.com/vs/): A full-featured IDE for C# development with debugging, IntelliSense, and Git support.
+- [JetBrains Rider](https://plugins.jetbrains.com/plugin/23289--net-aspire): A powerful, cross-platform C# IDE with advanced features like code analysis, refactoring, and debugging.
+{% endtab %}
+{% endtabs %}
+{% endsteps %}
+
+## Consider alternatives to local installation (Optional)
+
+If you prefer not to install the prerequisites on your local machine, you can develop Aspire solutions using cloud-based options like [GitHub Codespaces](/get-started/github-codespaces/) or [Dev Containers](/get-started/dev-containers/). These options allow you to work in a cloud-based environment, eliminating the need for local installations, but may not provide the same performance as local installations.
+
+The Aspire team maintains a GitHub Codespaces (with preconfigured Dev Container) configuration to help you get started quickly:
+
+{% codespaces_button "microsoft", "aspire-devcontainer" %}

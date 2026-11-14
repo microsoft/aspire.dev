@@ -1,0 +1,70 @@
+---
+title: EF Core Azure Cosmos DB integrations overview
+description: "Use the Aspire Entity Framework Core Azure Cosmos DB integrations to model your DbContext, provision a Cosmos DB account, and connect from C# apps with health checks."
+---
+
+{% image "/assets/images/icons/azure-cosmosdb-icon.png", alt: "Azure Cosmos DB logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+[Azure Cosmos DB](https://learn.microsoft.com/azure/cosmos-db/) is a fully managed, globally distributed NoSQL database built for modern app development. The Aspire EF Core Azure Cosmos DB integration lets you model a Cosmos DB account, its databases, and containers as first-class resources in your AppHost, then use Entity Framework Core to interact with Cosmos DB from your C# consuming apps.
+
+## Why use EF Core Azure Cosmos DB with Aspire
+
+Adding Azure Cosmos DB through Aspire — rather than wiring up endpoints and connection strings by hand — and accessing it via Entity Framework Core gives you:
+
+- **Zero-config local development.** Aspire runs the [Azure Cosmos DB Emulator](https://learn.microsoft.com/azure/cosmos-db/local-emulator) from the `mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator` container image with no configuration required.
+- **Familiar EF Core patterns.** Use `DbContext` and LINQ queries against Cosmos DB, just as you would with a relational database provider.
+- **Automatic dependency injection.** `AddCosmosDbContext` registers your `DbContext` in the DI container and wires up the connection from the Aspire resource name.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the dashboard and your orchestrator can tell when the account is ready.
+- **Dashboard observability.** The Cosmos DB resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **An upgrade path to managed Azure.** The same AppHost model generates Bicep automatically and provisions a real Azure Cosmos DB account when you deploy.
+
+## How the pieces fit together
+
+The EF Core Azure Cosmos DB integration has two sides: a **hosting integration** (shared with the standard Azure Cosmos DB integration) that models the Cosmos DB resources in your AppHost, and an **EF Core client integration** for C# consuming apps.
+
+```mermaid
+architecture-beta
+
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
+
+  service hosting(server)[Hosting integration] in apphost
+  service cosmos(database)[Cosmos DB account] in apphost
+  service db(database)[cosmosdb] in apphost
+
+  service client(iconoir:server-connection)[EF Core client integration] in consumer
+  service app(server)[App] in consumer
+
+  hosting:R --> L:cosmos
+  cosmos:R --> L:db
+  db:R --> L:client
+  client:R --> L:app
+```
+
+The **hosting integration** lives in your AppHost project and models the Cosmos DB account, databases, and containers as resources. The **EF Core client integration** lives in each C# consuming app and uses the connection information Aspire injects to register a `DbContext`.
+
+Getting there is a two-step process: model the Cosmos DB resources in your AppHost, then register an EF Core `DbContext` in each app that needs it.
+
+{% steps %}
+1. ### Model Azure Cosmos DB in your AppHost
+
+    Add the Azure Cosmos DB hosting integration to your AppHost, then declare a Cosmos DB account, add databases and containers, and reference them from the apps that need them. The [EF Core Azure Cosmos DB Hosting integration](/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-host/) article walks through every capability — running the emulator, adding databases and containers, partition keys, and infrastructure customization.
+
+    {% linkbutton "/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-host/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Set up Azure Cosmos DB in the AppHost
+{% endlinkbutton %}
+
+2. ### Connect from your C# consuming app
+
+    When you reference a Cosmos DB resource from a C# consuming app, Aspire injects its connection information as environment variables. The EF Core client integration reads those variables automatically when you call `AddCosmosDbContext`. See [Connect to Azure Cosmos DB with EF Core](/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-connect/) for the full client integration reference — `DbContext` registration, configuration options, keyed contexts, health checks, and telemetry.
+
+    {% linkbutton "/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-connect/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Connect to Azure Cosmos DB with EF Core
+{% endlinkbutton %}
+{% endsteps %}
+
+## See also
+
+- [Azure Cosmos DB integration (direct CosmosClient)](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started/)
+- [Azure Cosmos DB for NoSQL documentation](https://learn.microsoft.com/azure/cosmos-db/nosql/)
+- [Entity Framework Core Cosmos DB provider](https://learn.microsoft.com/ef/core/providers/cosmos/)

@@ -1,0 +1,233 @@
+---
+title: Set up Seq in the AppHost
+seoTitle: "Set up Seq in the Aspire AppHost: hosting integration"
+description: Learn how to use the Aspire Seq hosting integration to orchestrate and configure a Seq resource in an Aspire solution.
+---
+
+{% image "/assets/images/icons/seq-icon.png", alt: "Seq logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire Seq hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a Seq server resource in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Seq integration, start with the [Get started with Seq integrations](/integrations/observability/seq/seq-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Seq](../seq-connect/).
+
+## Installation
+
+To start building an Aspire app that uses Seq, install the [📦 Aspire.Hosting.Seq](https://www.nuget.org/packages/Aspire.Hosting.Seq) NuGet package:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add seq
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+This updates your `aspire.config.json` with the Seq hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Seq": "%ASPIRE_VERSION%"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add seq
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Seq@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Seq" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+## Add Seq resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a Seq resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const adminPassword = await builder.addParameter("seq-admin-password", { secret: true });
+const seq = await builder.addSeq("seq", adminPassword);
+await seq.withLifetime(ContainerLifetime.Persistent);
+await seq.withEnvironment("ACCEPT_EULA", "Y");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(seq)
+    .waitFor(seq);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var seq = builder.AddSeq("seq")
+    .ExcludeFromManifest()
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithEnvironment("ACCEPT_EULA", "Y");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(seq)
+    .WaitFor(seq);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+{% steps %}
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/datalust/seq` image, it creates a new Seq instance on your local machine.
+
+1. The Seq container may be slow to start, so it's best to use a persistent lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced Seq resource, such as `seq` in the preceding example.
+{% endsteps %}
+
+:::note
+When you reference a Seq resource from the AppHost, Aspire makes connection properties available to the consuming project, such as the URI, hostname, and port. For a complete list of these properties and per-language connection examples, see [Connect to Seq](../seq-connect/).
+:::
+
+### Accept the Seq End User License Agreement (EULA)
+
+You must accept the [Seq EULA](https://datalust.co/doc/eula-current.pdf) for Seq to start. Pass the `ACCEPT_EULA` environment variable with a value of `Y` to the Seq container to accept the agreement in code, as shown in the examples above.
+
+### Seq in the Aspire manifest
+
+Seq is an observability tool intended for local development and internal environments. Call `ExcludeFromManifest` (C#) to prevent the Seq resource from appearing in the Aspire deployment manifest. Set up a secure, production-grade Seq server outside of Aspire for your production environment.
+
+{% container_images package: "Aspire.Hosting.Seq" %}
+
+## Add Seq resource with data volume
+
+Add a data volume to the Seq resource to persist log data across container restarts:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { ContainerLifetime, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const adminPassword = await builder.addParameter("seq-admin-password", { secret: true });
+const seq = await builder.addSeq("seq", adminPassword);
+await seq.withDataVolume();
+await seq.excludeFromManifest();
+await seq.withLifetime(ContainerLifetime.Persistent);
+await seq.withEnvironment("ACCEPT_EULA", "Y");
+
+const myService = await builder.addProject("example", "../ExampleProject/ExampleProject.csproj");
+await myService
+    .withReference(seq)
+    .waitFor(seq);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var seq = builder.AddSeq("seq")
+    .WithDataVolume()
+    .ExcludeFromManifest()
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithEnvironment("ACCEPT_EULA", "Y");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(seq)
+    .WaitFor(seq);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The data volume is used to persist the Seq data outside the lifecycle of its container. The data volume is mounted at `/data` in the Seq container, and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-seq-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+## Add Seq resource with data bind mount
+
+Add a data bind mount to the Seq resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder, ContainerLifetime } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const adminPassword = await builder.addParameter("seq-admin-password", { secret: true });
+const seq = await builder.addSeq("seq", adminPassword);
+await seq.withBindMount("/Seq/Data", "/data", { isReadOnly: false });
+await seq.withLifetime(ContainerLifetime.Persistent);
+await seq.withEnvironment("ACCEPT_EULA", "Y");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(seq)
+    .waitFor(seq);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var seq = builder.AddSeq("seq")
+    .WithDataBindMount(source: "/Seq/Data", isReadOnly: false)
+    .ExcludeFromManifest()
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithEnvironment("ACCEPT_EULA", "Y");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(seq)
+    .WaitFor(seq);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+:::
+
+Data bind mounts rely on the host machine's filesystem to persist Seq data across container restarts. The bind mount is mounted at `/data` in the Seq container, and maps to `C:\Seq\Data` on Windows (or `/Seq/Data` on Unix) on the host machine. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+
+## Seq endpoints
+
+The Seq container exposes two endpoints:
+
+| Endpoint | Default port | Description |
+| -------- | ------------ | ----------- |
+| `http`   | `5341`       | The primary ingestion and query endpoint used by consuming apps and the Seq web UI |
+
+When you call `.WithReference(seq)`, Aspire injects the `http` endpoint URI into the consuming app as the `SEQ_URI` environment variable (or `{RESOURCE}_URI` for other resource names).
+
+## Connection properties
+
+For the full reference of Seq connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Seq](../seq-connect/).
+
+## Hosting integration health checks
+
+The Seq hosting integration does not automatically register a health check. Seq availability is typically verified by the consuming app's client integration or by using `.WaitFor(seq)` in the AppHost to delay dependent resources until the Seq container is ready.

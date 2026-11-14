@@ -1,0 +1,377 @@
+---
+title: Set up Apache Kafka in the AppHost
+description: Learn how to use the Aspire Apache Kafka Hosting integration to orchestrate and configure a Kafka resource in an Aspire solution.
+---
+
+{% image "/assets/images/icons/apache-kafka-icon.svg", alt: "Apache Kafka logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire Apache Kafka Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a Kafka resource in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Apache Kafka integration, start with the [Get started with Apache Kafka integrations](/integrations/messaging/apache-kafka/apache-kafka-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Apache Kafka](../apache-kafka-connect/).
+
+## Installation
+
+To start building an Aspire app that uses Apache Kafka, install the [📦 Aspire.Hosting.Kafka](https://www.nuget.org/packages/Aspire.Hosting.Kafka) NuGet package:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add kafka
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+This updates your `aspire.config.json` with the Kafka hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Kafka": "%ASPIRE_VERSION%"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add kafka
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Kafka@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Kafka" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+## Add Kafka server resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a Kafka server resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const kafka = await builder.addKafka("kafka");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddKafka("kafka");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+{% steps %}
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `confluentinc/confluent-local` image, it creates a new Kafka server instance on your local machine.
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced Kafka resource, such as `kafka` in the preceding example.
+{% endsteps %}
+
+:::note
+When you reference a Kafka resource from the AppHost, Aspire makes several properties available to the consuming project, such as the bootstrap server host and port. For a complete list of these properties and per-language connection examples, see [Connect to Apache Kafka](../apache-kafka-connect/).
+:::
+
+{% container_images package: "Aspire.Hosting.Kafka", only: "Kafka" %}
+
+## Add Kafka UI
+
+Add the [Kafka UI](https://hub.docker.com/r/kafbat/kafka-ui) sub-resource to the Kafka server resource to get a web interface for monitoring and managing your Kafka cluster during development:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const kafka = await builder.addKafka("kafka");
+await kafka.withKafkaUI();
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddKafka("kafka")
+    .WithKafkaUI();
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The Kafka UI is a free, open-source web UI to monitor and manage Apache Kafka clusters. It's automatically linked to your Kafka server and appears as a separate resource in the Aspire dashboard.
+
+{% container_images package: "Aspire.Hosting.Kafka", only: "Kafka UI" %}
+
+## Change the Kafka UI host port
+
+To change the host port the Kafka UI listens on, chain a call to {% api "Aspire.Hosting.KafkaBuilderExtensions.WithHostPort" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const kafka = await builder.addKafka("kafka");
+await kafka.withKafkaUI({
+    configureContainer: async (kafkaUI) => {
+        await kafkaUI.withHostPort({ port: 9100 });
+    },
+});
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddKafka("kafka")
+    .WithKafkaUI(kafkaUI => kafkaUI.WithHostPort(9100));
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+## Add Kafka resource with data volume
+
+Add a data volume to the Kafka server resource to persist data outside the lifecycle of its container:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const kafka = await builder.addKafka("kafka");
+await kafka.withDataVolume({ isReadOnly: false });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddKafka("kafka")
+    .WithDataVolume(isReadOnly: false);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The data volume is used to persist Kafka broker data outside the lifecycle of its container. For more information on data volumes and details on why they're preferred over [bind mounts](#add-kafka-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+## Add Kafka resource with data bind mount
+
+Add a data bind mount to the Kafka server resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const kafka = await builder.addKafka("kafka");
+await kafka.withDataBindMount("/Kafka/Data", { isReadOnly: false });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddKafka("kafka")
+    .WithDataBindMount(
+        source: "/Kafka/Data",
+        isReadOnly: false);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+:::
+
+## Work with larger Kafka clusters
+
+The Aspire Kafka integration deploys a container from the `confluentinc/confluent-local` image, which provides a simple Apache Kafka cluster running in KRaft mode with no further configuration required. It's ideal for local development and testing, but this image is for local experimentation only and isn't supported by Confluent in production.
+
+To use a full broker topology in non-development environments, switch to an externally managed Kafka cluster via a connection string:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+// Use a local container for development; use an external connection string otherwise.
+// The TypeScript AppHost doesn't expose an execution-context check; use an environment
+// variable or configuration to select between the two at startup.
+const kafka = await builder.addKafka("kafka");
+await kafka.withKafkaUI();
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(kafka);
+
+// After adding all resources, run the app...
+```
+
+:::note
+The TypeScript AppHost doesn't currently expose an `ExecutionContext.IsRunMode` equivalent. To conditionally connect to an existing broker from a TypeScript AppHost, use [`builder.addConnectionString(...)`](/get-started/app-host/) with a parameter and reference that connection string from your consuming apps instead.
+:::
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var kafka = builder.ExecutionContext.IsRunMode
+    ? builder.AddKafka("kafka").WithKafkaUI()
+    : builder.AddConnectionString("kafka");
+```
+{% endtab %}
+{% endtabs %}
+
+## Pass custom environment variables
+
+By default, Aspire injects the Kafka connection information using variable names derived from the resource name (for example, `KAFKA_HOST`, `KAFKA_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const kafka = await builder.addKafka("kafka");
+const kafkaHost = await kafka.host();
+const kafkaPort = await kafka.port();
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(kafka)
+    .withEnvironment("BOOTSTRAP_SERVERS_HOST", kafkaHost)
+    .withEnvironment("BOOTSTRAP_SERVERS_PORT", kafkaPort);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddKafka("kafka");
+
+var app = builder.AddExecutable("my-app", "node", "app.js", ".")
+    .WithReference(kafka)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["BOOTSTRAP_SERVERS_HOST"] = kafka.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["BOOTSTRAP_SERVERS_PORT"] = kafka.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Connect to an existing Kafka instance
+
+To reference an externally managed Kafka instance rather than spinning up a local container:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const kafka = await builder.addConnectionString("kafka");
+
+const exampleProject = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+await exampleProject.withReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddConnectionString("kafka");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(kafka);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+## Connection properties
+
+For the full reference of Kafka connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Apache Kafka](../apache-kafka-connect/).
+
+## Hosting integration health checks
+
+The Kafka hosting integration automatically adds a health check for the Kafka server resource. The health check verifies that a Kafka producer with the specified connection name can connect and persist a topic to the Kafka server.

@@ -1,0 +1,54 @@
+{%- comment -%}
+  MemberOverviewList.astro: the type page's member summary, one table per member kind, each row linking to the
+  member on its member-kind page. Inputs: type, route (the csharp-types route entry: memberKinds and the exact
+  anchor of every member in `anchors`). Root class: cid-api-reference-member-overview-list. The row click handler
+  is scripts/client/api/member-overview-list.js.
+{%- endcomment -%}
+{%- if route.memberKinds.size > 0 -%}
+{%- assign mol_type_url = route.url -%}
+<div class="mol cid-api-reference-member-overview-list">
+{%- for mk in route.memberKinds -%}
+  {%- case mk.kind -%}
+    {%- when "constructor" -%}{%- assign mol_label = "Constructors" -%}
+    {%- when "property" -%}{%- assign mol_label = "Properties" -%}
+    {%- when "method" -%}{%- assign mol_label = "Methods" -%}
+    {%- when "field" -%}{%- assign mol_label = "Fields" -%}
+    {%- when "event" -%}{%- assign mol_label = "Events" -%}
+    {%- when "indexer" -%}{%- assign mol_label = "Indexers" -%}
+    {%- else -%}{%- assign mol_label = mk.kind -%}
+  {%- endcase -%}
+  {%- assign mol_count = type.members | where: "kind", mk.kind | size -%}
+  {%- assign mol_kind_href = mol_type_url | append: mk.slug | append: "/" -%}
+  {%- assign mol_heading_id = "members-" | append: mk.kind -%}
+<section class="mol-group">{% render 'api/anchor-heading', id: mol_heading_id, text: mol_label, count: mol_count %}<div class="mol-table not-content" role="table" aria-label="{{ mol_label }} for {{ type.name }}">
+  {%- for m in type.members -%}
+    {%- unless m.kind == mk.kind -%}{%- continue -%}{%- endunless -%}
+    {%- assign mol_anchor = route.anchors[forloop.index0].exact -%}
+    {%- assign mol_href = mol_kind_href | append: "#" | append: mol_anchor -%}
+    {%- comment -%} api/find-attr, inline: a rendered template cannot include. {%- endcomment -%}
+    {%- assign mol_obsolete = nil -%}{%- assign mol_experimental = nil -%}{%- assign mol_export = nil -%}{%- assign mol_ignored = nil -%}
+    {%- for fa_a in m.attributes -%}{%- assign fa_short = fa_a.name | split: "." | last -%}{%- case fa_short -%}{%- when "Obsolete", "ObsoleteAttribute" -%}{%- unless mol_obsolete -%}{%- assign mol_obsolete = fa_a -%}{%- endunless -%}{%- when "Experimental", "ExperimentalAttribute" -%}{%- unless mol_experimental -%}{%- assign mol_experimental = fa_a -%}{%- endunless -%}{%- when "AspireExport", "AspireExportAttribute" -%}{%- unless mol_export -%}{%- assign mol_export = fa_a -%}{%- endunless -%}{%- when "AspireExportIgnore", "AspireExportIgnoreAttribute" -%}{%- unless mol_ignored -%}{%- assign mol_ignored = fa_a -%}{%- endunless -%}{%- endcase -%}{%- endfor -%}
+<div data-member-href="{{ mol_href }}" class="mol-row{% if mol_obsolete %} mol-obsolete{% endif %} mol-row-link" role="row" id="{{ mol_anchor }}"><div class="mol-name-col" role="cell"><a href="{{ mol_href }}" class="mol-name-link"><code class="mol-name">{% render 'api/member-display', m: m, ctor: type.name %}</code></a>
+    {%- if m.isStatic and m.isExtension != true %}<span class="api-mod-badge mol-badge">static</span>{% endif -%}
+    {%- if m.isExtension %}<span class="api-mod-badge mol-badge api-ext-badge">extension</span>{% endif -%}
+    {%- if m.isAbstract %}<span class="api-mod-badge mol-badge">abstract</span>{% endif -%}
+    {%- if m.isVirtual %}<span class="api-mod-badge mol-badge">virtual</span>{% endif -%}
+    {%- if m.kind == "property" or m.kind == "indexer" -%}{%- if m.hasGet or m.hasSet -%}
+<span class="api-mod-badge mol-badge">{% if m.hasGet %}get{% endif %}{% if m.hasGet and m.hasSet %}; {% endif %}{% if m.hasSet %}{% if m.isInitOnly %}init{% else %}set{% endif %}{% endif %}</span>
+    {%- endif -%}{%- endif -%}
+    {%- if mol_obsolete %}<span class="api-mod-badge mol-badge mol-badge-obsolete">obsolete</span>{% endif -%}
+    {%- if mol_experimental %}<span class="api-mod-badge mol-badge mol-badge-experimental">experimental</span>{% endif -%}
+    {%- if mol_export %}<span class="api-mod-badge mol-badge">ats export</span>{% endif -%}
+    {%- if mol_ignored %}<span class="api-mod-badge mol-badge">ats ignored</span>{% endif -%}
+</div>
+    {%- if m.returnType and m.returnType != "void" -%}
+      {%- capture mol_return_href %}{% render 'api/type-href', t: m.returnType %}{% endcapture -%}
+<div class="mol-type-col" role="cell">{% if mol_return_href != "" %}<a href="{{ mol_return_href }}" class="mol-type-link">{% render 'api/short-type', t: m.returnType %}</a>{% else %}<code class="mol-type">{% render 'api/short-type', t: m.returnType %}</code>{% endif %}</div>
+    {%- endif -%}
+    {%- if m.docs.summary %}<div class="mol-desc-col" role="cell">{% render 'api/doc-content', content: m.docs.summary, tag: "span" %}</div>{% endif -%}
+</div>
+  {%- endfor -%}
+</div><a href="{{ mol_kind_href }}" class="mol-view-all">View all {{ mol_label | downcase }}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg></a></section>
+{%- endfor -%}
+</div>
+{%- endif -%}

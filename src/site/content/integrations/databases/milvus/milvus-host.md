@@ -1,0 +1,405 @@
+---
+title: Set up Milvus in the AppHost
+seoTitle: "Set up Milvus in the Aspire AppHost: hosting integration"
+description: Learn how to use the Aspire Milvus Hosting integration to orchestrate and configure Milvus vector databases in an Aspire solution.
+---
+
+{% image "/assets/images/icons/milvus-icon.png", alt: "Milvus logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire Milvus Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Milvus server and database resources in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Milvus integration, start with the [Get started with Milvus integrations](/integrations/databases/milvus/milvus-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Milvus](../milvus-connect/).
+
+## Installation
+
+To start building an Aspire app that uses Milvus, install the [📦 Aspire.Hosting.Milvus](https://www.nuget.org/packages/Aspire.Hosting.Milvus) NuGet package:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add milvus
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+This updates your `aspire.config.json` with the Milvus hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Milvus": "%ASPIRE_VERSION%"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add milvus
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Milvus@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Milvus" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+## Add Milvus server and database resources
+
+Once you've installed the hosting integration in your AppHost project, you can add a Milvus server resource and then add a database resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const milvus = await builder.addMilvus("milvus");
+await milvus.withLifetime("Persistent");
+
+const milvusdb = await milvus.addDatabase("milvusdb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(milvusdb)
+    .waitFor(milvusdb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var milvus = builder.AddMilvus("milvus")
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var milvusdb = milvus.AddDatabase("milvusdb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(milvusdb)
+    .WaitFor(milvusdb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+{% steps %}
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `milvusdb/milvus` image, it creates a new Milvus server on your local machine. A reference to the Milvus server resource builder (the `milvus` variable) is used to add a database resource.
+
+1. The Milvus resource includes default credentials with a `username` of `root` and the password `Milvus`. To change the default API key, see [Add Milvus resource with API key parameter](#add-milvus-resource-with-api-key-parameter).
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced database resource, such as `milvusdb` in the preceding example.
+{% endsteps %}
+
+:::note
+The Milvus container can be slow to start, so it's best to use a persistent lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+:::
+
+:::note
+When you reference a Milvus resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, port numbers, and the authentication token. For a complete list of these properties and per-language connection examples, see [Connect to Milvus](../milvus-connect/).
+:::
+
+:::tip
+If you'd rather connect to an existing Milvus server, call {% api "Aspire.Hosting.ParameterResourceBuilderExtensions.AddConnectionString" %} instead. For more information, see [Reference existing resources](/get-started/resources/).
+:::
+
+{% container_images package: "Aspire.Hosting.Milvus", only: "Milvus" %}
+
+## Add Milvus resource with API key parameter
+
+To change the default API key used by the Milvus container, pass an `apiKey` parameter:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const apiKey = await builder.addParameter("apiKey", { secret: true });
+
+const milvus = await builder.addMilvus("milvus", { apiKey });
+await milvus.withLifetime("Persistent");
+
+const milvusdb = await milvus.addDatabase("milvusdb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(milvusdb)
+    .waitFor(milvusdb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiKey = builder.AddParameter("apiKey", secret: true);
+
+var milvus = builder.AddMilvus("milvus", apiKey)
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var milvusdb = milvus.AddDatabase("milvusdb");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(milvusdb)
+    .WaitFor(milvusdb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The `apiKey` parameter is usually specified as a user secret:
+
+```json title="secrets.json"
+{
+  "Parameters": {
+    "apiKey": "your-secure-password"
+  }
+}
+```
+
+For more information, see [External parameters](/get-started/resources/).
+
+## Add Milvus resource with data volume
+
+Add a data volume to the Milvus resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const milvus = await builder.addMilvus("milvus");
+await milvus.withDataVolume();
+await milvus.withLifetime("Persistent");
+
+const milvusdb = await milvus.addDatabase("milvusdb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(milvusdb)
+    .waitFor(milvusdb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var milvus = builder.AddMilvus("milvus")
+    .WithDataVolume()
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var milvusdb = milvus.AddDatabase("milvusdb");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(milvusdb)
+    .WaitFor(milvusdb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The data volume is used to persist the Milvus data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/milvus` path in the Milvus container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-milvus-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+## Add Milvus resource with data bind mount
+
+Add a data bind mount to the Milvus resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const milvus = await builder.addMilvus("milvus");
+await milvus.withDataBindMount("/Milvus/Data");
+await milvus.withLifetime("Persistent");
+
+const milvusdb = await milvus.addDatabase("milvusdb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(milvusdb)
+    .waitFor(milvusdb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var milvus = builder.AddMilvus("milvus")
+    .WithDataBindMount(source: "/Milvus/Data")
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var milvusdb = milvus.AddDatabase("milvusdb");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(milvusdb)
+    .WaitFor(milvusdb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+:::
+
+Data bind mounts rely on the host machine's filesystem to persist the Milvus data across container restarts. The data bind mount is mounted at the `C:\Milvus\Data` on Windows (or `/Milvus/Data` on Unix) path on the host machine in the Milvus container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+
+## Add Attu resource
+
+[Attu](https://zilliz.com/attu) is a graphical user interface (GUI) and management tool for Milvus. To add an Attu container alongside your Milvus server, call {% api "Aspire.Hosting.MilvusBuilderExtensions.WithAttu" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const milvus = await builder.addMilvus("milvus");
+await milvus.withAttu();
+await milvus.withLifetime("Persistent");
+
+const milvusdb = await milvus.addDatabase("milvusdb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(milvusdb)
+    .waitFor(milvusdb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var milvus = builder.AddMilvus("milvus")
+    .WithAttu()
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var milvusdb = milvus.AddDatabase("milvusdb");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(milvusdb)
+    .WaitFor(milvusdb);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+When you run the Aspire solution, an Attu container is listed in the dashboard resources. Select the resource's endpoint to open the GUI and manage your Milvus databases.
+
+{% container_images package: "Aspire.Hosting.Milvus", only: "Attu" %}
+
+To configure the Attu container name or container further, pass a callback:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const milvus = await builder.addMilvus("milvus");
+await milvus.withAttu({
+    configureContainer: async attu => {
+        await attu.withHostPort(8080);
+    }
+});
+await milvus.withLifetime("Persistent");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var milvus = builder.AddMilvus("milvus")
+    .WithAttu(attu => attu.WithHostPort(8080))
+    .WithLifetime(ContainerLifetime.Persistent);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+## Pass custom environment variables
+
+By default, Aspire injects the Milvus connection information using variable names derived from the resource name (for example, `MILVUSDB_HOST`, `MILVUSDB_PORT`, `MILVUSDB_TOKEN`, `MILVUSDB_URI`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder, EndpointProperty } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const milvus = await builder.addMilvus("milvus");
+const milvusdb = await milvus.addDatabase("milvusdb");
+const milvusEndpoint = await milvus.getEndpoint("grpc");
+const milvusHost = await milvusEndpoint.property(EndpointProperty.Host);
+const milvusPort = await milvusEndpoint.property(EndpointProperty.Port);
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(milvusdb)
+    .withEnvironment("MILVUS_HOST", milvusHost)
+    .withEnvironment("MILVUS_PORT", milvusPort)
+    .withEnvironment("MILVUS_TOKEN", await milvus.apiKeyParameter());
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var milvus = builder.AddMilvus("milvus");
+var milvusdb = milvus.AddDatabase("milvusdb");
+
+var app = builder.AddExecutable("my-app", "node", "app.js", ".")
+    .WithReference(milvusdb)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["MILVUS_HOST"] = milvus.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["MILVUS_PORT"] = milvus.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+        context.EnvironmentVariables["MILVUS_TOKEN"] = milvus.Resource.ApiKeyParameter;
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Connection properties
+
+For the full reference of Milvus connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Milvus](../milvus-connect/).
+
+## Hosting integration health checks
+
+The Milvus hosting integration automatically adds a health check for the Milvus server resource. The health check verifies that the Milvus instance is running and that a connection can be established to it.

@@ -1,0 +1,35 @@
+---
+args: [name]
+params: [package, parameter_types]
+---
+{%- comment -%}
+  An API reference link ({% api "Aspire.Hosting.X.Y" %}): the C# member name resolved through data/api/xref-names.json,
+  built by scripts/api/build-api-index.ts with the former ApiReference component's resolver, so the links are the same.
+  One link per language; the stylesheet shows the one matching html[data-apphost-lang]. A target without a link renders
+  a span whose title is the diagnostic. A name the index does not know fails the build.
+{%- endcomment -%}
+{%- assign entry = api["xref-names"][name] -%}
+{%- if entry == nil -%}{% error "ApiReference: unknown API name '" | append: name | append: "'" %}{%- endif -%}
+{%- assign cs = entry.csharp -%}
+{%- assign ts = entry.typescript -%}
+{%- if parameter_types -%}
+  {%- for overload in entry.overloads -%}
+    {%- if overload.parameterTypes == parameter_types -%}{%- assign cs = overload.csharp -%}{%- assign ts = overload.typescript -%}{%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- if package and entry.packages -%}
+  {%- assign scoped = entry.packages[package] -%}
+  {%- if scoped -%}{%- assign cs = scoped.csharp -%}{%- assign ts = scoped.typescript -%}{%- endif -%}
+{%- endif -%}
+<span class="api-reference not-content cid-api-reference" data-status="{{ entry.status }}">
+{%- if cs.path -%}
+<a class="ar-lang" data-lang="csharp" href="{{ cs.path }}" aria-label="{{ cs.label }} — C# API reference" title="{{ cs.title | default: cs.label | append: ' — C# API reference' | truncate: 160 }}" data-tooltip-placement="top" data-tippy-allowhtml="false"><code><span class="ar-icon i-material-icon-theme:csharp" aria-hidden="true"></span><span>{{ cs.label }}</span></code></a>
+{%- else -%}
+<span class="ar-lang" data-lang="csharp" title="{{ cs.title | truncate: 160 }}" data-tooltip-placement="top" data-tippy-allowhtml="false"><code>{{ cs.label | default: name }}</code></span>
+{%- endif -%}
+{%- if ts.path -%}
+<a class="ar-lang" data-lang="typescript" href="{{ ts.path }}" aria-label="{{ ts.label }} — TypeScript API reference" title="{{ ts.title | default: ts.label | append: ' — TypeScript API reference' | truncate: 160 }}" data-tooltip-placement="top" data-tippy-allowhtml="false"><code><span class="ar-icon i-material-icon-theme:typescript" aria-hidden="true"></span><span>{{ ts.label }}</span></code></a>
+{%- else -%}
+<span class="ar-lang" data-lang="typescript" title="{{ ts.title | truncate: 160 }}" data-tooltip-placement="top" data-tippy-allowhtml="false"><code>{{ ts.label | default: cs.label | default: name }}</code></span>
+{%- endif -%}
+</span>

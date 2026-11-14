@@ -1,0 +1,35 @@
+{%- comment -%}
+  finalizeMarkdown of src/frontend/src/utils/api-markdown-shared.ts for a whole document: the blocks of `text`
+  (separated by ␞) trimmed and joined by a blank line, runs of 3+ newlines collapsed, then normalizeMarkdownText
+  (non-breaking spaces, · • — – and … as ASCII, eating the spaces and tabs around the dashes), and a final newline.
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- capture tab %}	{% endcapture -%}
+{%- capture md -%}{%- render 'api/md/join', text: text -%}{%- endcapture -%}
+{%- if md != "" -%}
+  {%- assign nl3 = nl | append: nl | append: nl -%}{%- assign nl2 = nl | append: nl -%}
+  {%- for i in (1..8) -%}{%- if md contains nl3 -%}{%- assign md = md | replace: nl3, nl2 -%}{%- else -%}{%- break -%}{%- endif -%}{%- endfor -%}
+  {%- assign md = md | replace: " ", " " | replace: "…", "..." -%}
+  {%- assign marks = "·|•|—|–" | split: "|" -%}
+  {%- for mark in marks -%}
+    {%- if md contains mark -%}
+      {%- if mark == "—" -%}{%- assign replacement = " -- " -%}{%- else -%}{%- assign replacement = " - " -%}{%- endif -%}
+      {%- assign parts = md | split: mark -%}
+      {%- capture md -%}
+        {%- for part in parts -%}
+          {%- assign piece = part -%}
+          {%- unless forloop.first -%}
+            {{- replacement -}}
+            {%- for k in (1..16) -%}{%- assign c = piece | slice: 0 -%}{%- if c == " " or c == tab -%}{%- assign piece = piece | slice: 1, piece.size -%}{%- else -%}{%- break -%}{%- endif -%}{%- endfor -%}
+          {%- endunless -%}
+          {%- unless forloop.last -%}
+            {%- for k in (1..16) -%}{%- assign c = piece | slice: -1 -%}{%- if c == " " or c == tab -%}{%- assign n = piece.size | minus: 1 -%}{%- assign piece = piece | slice: 0, n -%}{%- else -%}{%- break -%}{%- endif -%}{%- endfor -%}
+          {%- endunless -%}
+          {{- piece -}}
+        {%- endfor -%}
+      {%- endcapture -%}
+    {%- endif -%}
+  {%- endfor -%}
+{{ md }}{{ nl }}
+{%- endif -%}

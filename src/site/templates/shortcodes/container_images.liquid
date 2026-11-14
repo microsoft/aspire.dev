@@ -1,0 +1,77 @@
+---
+# The site's <ContainerImages> (src/components/ContainerImages.astro + src/utils/container-images.ts):
+#   {% container_images package: "Aspire.Hosting.PostgreSQL", only: "pgAdmin", title: "...", api: "WithPgAdmin" %}
+# Reads the site data `container-images` (data/container-images.json). `only`: an image name or a list of names
+# (case insensitive). `api` overrides each image's `api`; the label shows the C# (PascalCase) and TypeScript
+# (camelCase) forms, swapped by CSS from <html data-aspire-lang>, which the client script maintains from the
+# `aspire-lang` synced tabs (the component's inline script, ported to scripts/client). The image tag is a code block
+# in Douze's fence markup (`text`, meta = the quoted tag) for the `code` worker step. Nothing is rendered when no
+# image matches (the component also warns at build time; Douze has no warning tag yet).
+# Root class: cid-container-images.
+display: block
+params: [package, only, title, api]
+---
+{%- assign ci_only = "" -%}
+{%- for name in only -%}{%- assign ci_only = ci_only | append: "|" | append: name | downcase -%}{%- endfor -%}
+{%- if ci_only != "" -%}{%- assign ci_only = ci_only | append: "|" -%}{%- endif -%}
+{%- assign ci_count = 0 -%}
+{%- capture ci_items -%}
+{%- for img in container-images -%}
+  {%- if img.aspirePackage != package -%}{%- continue -%}{%- endif -%}
+  {%- if ci_only != "" -%}
+    {%- assign ci_key = "|" | append: img.name | downcase | append: "|" -%}
+    {%- unless ci_only contains ci_key -%}{%- continue -%}{%- endunless -%}
+  {%- endif -%}
+  {%- assign ci_count = ci_count | plus: 1 -%}
+  {%- assign ci_url = nil -%}{%- assign ci_glyph = nil -%}{%- assign ci_label = img.registry -%}
+  {%- case img.registry -%}
+    {%- when "docker.io" -%}
+      {%- assign ci_label = "Docker Hub" -%}{%- assign ci_glyph = "docker" -%}
+      {%- assign ci_head = img.image | slice: 0, 8 -%}
+      {%- if ci_head == "library/" -%}{%- assign ci_url = "https://hub.docker.com/_/" | append: img.image | remove_first: "library/" -%}{%- else -%}{%- assign ci_url = "https://hub.docker.com/r/" | append: img.image -%}{%- endif -%}
+    {%- when "mcr.microsoft.com" -%}
+      {%- assign ci_label = "Microsoft Artifact Registry" -%}{%- assign ci_glyph = "microsoft" -%}
+      {%- assign ci_url = "https://mcr.microsoft.com/en-us/product/" | append: img.image | append: "/about" -%}
+    {%- when "ghcr.io" -%}
+      {%- assign ci_label = "GitHub Container Registry" -%}{%- assign ci_glyph = "github" -%}
+      {%- assign ci_segments = img.image | split: "/" -%}
+      {%- assign ci_url = "https://github.com/" | append: ci_segments.first | append: "/" | append: ci_segments.last | append: "/pkgs/container/" | append: ci_segments.last -%}
+    {%- when "quay.io" -%}
+      {%- assign ci_label = "Quay.io" -%}{%- assign ci_url = "https://quay.io/repository/" | append: img.image -%}
+    {%- when "container-registry.oracle.com" -%}
+      {%- assign ci_label = "Oracle Container Registry" -%}{%- assign ci_url = "https://container-registry.oracle.com/ords/ocr/ba/" | append: img.image -%}
+  {%- endcase -%}
+  {%- assign ci_api = api | default: img.api -%}
+  {%- assign ci_api_cs = nil -%}
+  {%- if ci_api and ci_api != "" -%}
+    {%- assign ci_last = ci_api | slice: -1, 1 -%}
+    {%- if ci_last == ")" -%}{%- assign ci_api_cs = ci_api -%}{%- else -%}{%- assign ci_api_cs = ci_api | append: "()" -%}{%- endif -%}
+    {%- assign ci_first = ci_api_cs | slice: 0, 1 | downcase -%}
+    {%- assign ci_rest_len = ci_api_cs.size | minus: 1 -%}
+    {%- assign ci_api_ts = ci_api_cs | slice: 1, ci_rest_len | prepend: ci_first -%}
+  {%- endif -%}
+  {%- assign ci_meta = '"' | append: img.tag | append: '"' -%}
+<li class="ci-card{% if img.isCompanion %} is-companion{% endif %}"><div class="ci-head"><span class="ci-name"><strong>{{ img.name | escape }}</strong> container image</span>
+{%- if img.isCompanion and img.companionOf %}<span class="ci-companion" title="Companion image for {{ img.companionOf | escape }}">Companion · {{ img.companionOf | escape }}</span>{% endif -%}
+<span class="ci-links">
+{%- if ci_url -%}<a class="ci-link ci-link-registry" href="{{ ci_url }}" target="_blank" rel="noopener noreferrer" aria-label="View the {{ img.name | escape }} image on {{ ci_label }}">
+{%- if ci_glyph -%}<span class="ci-glyph" aria-hidden="true">
+{%- case ci_glyph -%}
+{%- when "docker" -%}<img src="/assets/images/icons/docker.svg" alt="" width="18" height="18" loading="lazy" decoding="async">
+{%- when "microsoft" -%}<span class="ci-glyph-svg"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g> <g> <path fill="none" d="M0 0h24v24H0z"></path> <path d="M11.5 3v8.5H3V3h8.5zm0 18H3v-8.5h8.5V21zm1-18H21v8.5h-8.5V3zm8.5 9.5V21h-8.5v-8.5H21z"></path> </g> </g></svg></span>
+{%- else -%}{% icon "github", size: "0.95rem" %}
+{%- endcase -%}
+</span>{%- endif -%}
+{{ ci_label }}{% icon "external", size: "0.7rem" %}</a>
+{%- endif -%}
+</span></div><div class="ci-code"><pre data-lang="text" data-meta="{{ ci_meta | escape }}"><code class="language-text">{{ img.fullImage | escape }}</code></pre></div><div class="ci-meta">
+{%- if ci_api_cs -%}<p class="ci-caption">Added by <code class="ci-api"><span data-lang="csharp">{{ ci_api_cs | escape }}</span><span data-lang="typescript">{{ ci_api_ts | escape }}</span></code>.</p>{%- endif -%}
+<a class="ci-link ci-link-source" href="{{ img.sourceUrl }}" target="_blank" rel="noopener noreferrer" aria-label="View the {{ img.name | escape }} container image tag definition on GitHub">{% icon "github", size: "0.85rem" %}Source{% icon "external", size: "0.7rem" %}</a></div>
+{%- if img.alternateTags.size > 0 -%}<div class="ci-foot"><span class="ci-alt"><span class="ci-alt-label">Also available:</span>{% for t in img.alternateTags %}<code class="ci-alt-tag">{{ t | escape }}</code>{% endfor %}</span></div>{%- endif -%}
+</li>
+{%- endfor -%}
+{%- endcapture -%}
+{%- if ci_count > 0 -%}
+{%- if title -%}{%- assign ci_display = title -%}{%- elsif ci_count == 1 -%}{%- assign ci_display = "Container image" -%}{%- else -%}{%- assign ci_display = "Container images" -%}{%- endif -%}
+<div class="container-images not-content cid-container-images" role="group" aria-label="{{ ci_display | escape }} for {{ package | escape }}">{% if title %}<p class="ci-title">{{ title | escape }}</p>{% endif %}<ul class="ci-list">{{ ci_items }}</ul><p class="ci-provenance">{% icon "information", size: "0.85rem" %}<span>Tags reflect the latest defaults on the microsoft/aspire <strong>main</strong> branch, and may be newer than the version pinned by the package you install.</span></p></div>
+{%- endif -%}

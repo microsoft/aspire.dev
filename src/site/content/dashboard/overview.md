@@ -1,0 +1,55 @@
+---
+title: Aspire dashboard for local OpenTelemetry
+description: View application logs, distributed traces, and metrics in the Aspire dashboard. Inspect local resource health with an AppHost or receive OTLP data standalone.
+---
+
+The Aspire dashboard is a local OpenTelemetry viewer for application logs, distributed traces, and metrics. Use it to follow requests across instrumented services, find errors, and inspect timing without leaving your development environment.
+
+With an [Aspire AppHost](/get-started/app-host/), the dashboard also shows resource state, health checks, console output, and configuration. You can use the [standalone dashboard](#standalone-mode) to receive telemetry without adopting Aspire orchestration.
+
+Key features of the dashboard include:
+
+- [View structured logs, traces, and metrics](/dashboard/explore/#monitoring-pages) from apps configured to export OpenTelemetry.
+- Follow a distributed trace across local services and correlate its logs.
+- Inspect resource health and [stop, start, or restart resources](/dashboard/explore/#resource-actions) when connected to an AppHost.
+- Persists resources and telemetry so you can inspect and compare completed application runs.
+- Use [interactive terminals](/dashboard/terminals/) for resource apps, AppHost shells, authentication dialogs, and automation.
+- Share application observability data with [AI coding agents](/dashboard/ai-coding-agents/) through the Aspire CLI or optional MCP server.
+
+## Use the dashboard with Aspire projects
+
+The dashboard is integrated with [TypeScript and C# AppHosts](/get-started/app-host/). During development, starting your AppHost launches the dashboard and configures its connection to your resources. Applications still need instrumentation and an OpenTelemetry exporter to send telemetry.
+
+{% image dark: "/assets/images/dashboard/explore/projects-dark.png", light: "/assets/images/dashboard/explore/projects-light.png", alt: "A screenshot of the Aspire dashboard Resources page." %}
+
+For more information about using the dashboard during Aspire development, see [Explore dashboard features](/dashboard/explore/).
+
+## Standalone mode
+
+The standalone dashboard is an OTLP viewer for any application configured to send OpenTelemetry data, including [Python](/dashboard/standalone-for-python/) and [JavaScript on Node.js](/dashboard/standalone-for-nodejs/). Start it with the Aspire CLI or a container image. Standalone mode doesn't provide AppHost resource lifecycle controls; see [Standalone Aspire dashboard](/dashboard/standalone/) for setup and limitations.
+
+## Configuration
+
+The dashboard is configured when it starts up. Configuration includes frontend and <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> addresses, the resource service endpoint, authentication, telemetry limits and more.
+
+For more information, see [Aspire dashboard configuration](/dashboard/configuration/).
+
+## Architecture
+
+The dashboard user experience is built with a variety of technologies. The frontend communicates with the resource server over gRPC using the [Grpc.AspNetCore](https://www.nuget.org/packages/Grpc.AspNetCore) NuGet package. Consider the following diagram that illustrates the architecture of the Aspire dashboard:
+
+{% image light: "/assets/images/dashboard/architecture-diagram-light.svg", dark: "/assets/images/dashboard/architecture-diagram-dark.svg", alt: "A diagram showing the architecture of the Aspire dashboard." %}
+
+## Security
+
+The Aspire dashboard offers powerful insights to your apps. The UI displays information about resources, including their configuration, console logs and in-depth telemetry.
+
+Data displayed in the dashboard can be sensitive. For example, configuration can include secrets in environment variables, and telemetry can include sensitive runtime data. Care should be taken to secure access to the dashboard.
+
+For more information, see [Aspire dashboard security considerations](/dashboard/security-considerations/).
+
+## Next steps
+
+- [Explore the Aspire dashboard](/dashboard/explore/)
+- [Understand OpenTelemetry and distributed tracing](/fundamentals/telemetry/)
+- [Investigate application failures with a coding agent](/dashboard/ai-coding-agents/)

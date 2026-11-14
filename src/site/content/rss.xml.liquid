@@ -1,0 +1,38 @@
+---
+permalink: /rss.xml
+layout: false
+liquid: true
+markdown: false
+---
+{%- comment -%}
+  The docs feed, as src/frontend/src/pages/rss.xml.ts wrote it with @astrojs/rss 4 (trailingSlash: false,
+  stylesheet /rss.xsl, which stays a static file copied from src/frontend/public/rss.xsl).
+
+  Items: the root-locale articles that have a description, are not drafts and are not the 404 page, ordered by
+  url (today: the content collection's order, which is the file path order). pubDate: the front matter
+  lastUpdated, date, published or created, else the build time (as today; git dates are not used).
+
+  Assumes `collections.all` holds the articles (the `collections` step over content/docs/**) and that a
+  collection item exposes `data` (its metadata: front matter and `url`, /x/index.html). Glossary items are skipped by
+  their `topics`/`termType` front matter.
+
+  Filters: absolute_url, xml_escape, date_to_rfc822, sort_by, locale_of (planned, Douze plan 3.6 and 3.12); date,
+  default, replace, slice (Liquid).
+{%- endcomment -%}
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="/rss.xsl" type="text/xsl"?><rss version="2.0"><channel><title>Aspire Docs</title><description>Latest updates to the documentation</description><link>{{ site.url }}</link>
+{%- assign items = collections.all | sort_by: "data.url" -%}
+{%- for item in items -%}
+  {%- assign data = item.data -%}
+  {%- if data.draft or data.description == blank or data.title == "404" -%}{%- continue -%}{%- endif -%}
+  {%- if data.termType or data.topics -%}{%- continue -%}{%- endif -%}
+  {%- assign item_locale = item.data.url | locale_of -%}
+  {%- if item_locale != "en" -%}{%- continue -%}{%- endif -%}
+  {%- comment -%} trailingSlash: false: /x/ -> https://aspire.dev/x {%- endcomment -%}
+  {%- assign link = item.data.url | replace: "/index.html", "/" | absolute_url -%}
+  {%- assign last = link.size | minus: 1 -%}
+  {%- assign last_char = link | slice: last -%}
+  {%- if last_char == "/" -%}{%- assign link = link | slice: 0, last -%}{%- endif -%}
+  {%- assign published = data.lastUpdated | default: data.date | default: data.published | default: data.created | default: "now" -%}
+  <item><title>{{ data.title | xml_escape }}</title><link>{{ link }}</link><guid isPermaLink="true">{{ link }}</guid><description>{{ data.description | xml_escape }}</description><pubDate>{{ published | date_to_rfc822 }}</pubDate></item>
+{%- endfor -%}
+</channel></rss>

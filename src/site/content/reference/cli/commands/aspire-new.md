@@ -1,0 +1,236 @@
+---
+title: aspire new command
+seoTitle: aspire new command reference for the Aspire CLI
+description: Learn about the aspire new command and its usage. This command creates new Aspire projects or solutions.
+---
+
+## Name
+
+`aspire new` - Create a new Aspire project or solution.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire new [command] [options]
+```
+
+## Description
+
+The `aspire new` command is the driver for creating Aspire projects, apps, or solutions, based on the Aspire templates. Each command specifies the template to use, and the options for the driver specify the options for the template.
+
+This command defaults to **interactive** mode. When executed without any options, the command prompts you for the project template and version, name, and output folder. When the `--name`, `--output`, and `--version` options are provided, the command runs **non-interactive** and generates files based on the command template.
+
+### Default output directory
+
+When you don't provide `--output`, the default output directory is derived from the **template name**. For example, running `aspire new aspire-starter` without `--output` creates a directory named `./aspire-starter` in the current working directory.
+
+If that directory already exists and is non-empty, the command automatically appends a numeric suffix to find a unique name (for example, `./aspire-starter-2`, `./aspire-starter-3`, and so on).
+
+### Output path validation
+
+The `--output` option validates the provided path before creating the project:
+
+- Paths that contain **invalid characters** (such as null bytes) are rejected with an error.
+- Paths that point to an **existing non-empty directory** are rejected with a clear error message. Use a different output path or an empty directory.
+
+:::note
+The `aspire new` command currently requires an interactive terminal even when
+all options are provided. The `--non-interactive` flag is not fully supported.
+In CI/CD pipelines or other non-interactive environments, use `dotnet new`
+with Aspire templates as an alternative for project creation.
+:::
+
+## Interactive prompts
+
+When running `aspire new` in interactive mode, the command asks one or more questions before generating the project. The available prompts depend on the template and options you provide.
+
+### Use \*.dev.localhost URLs?
+
+During project creation, you may be prompted:
+
+> **Use \*.dev.localhost URLs?**
+
+This prompt determines whether the generated launch profile configures your Aspire services to be accessible via `*.dev.localhost` wildcard subdomain URLs (for example, `https://myservice.dev.localhost`) instead of standard `http://localhost` with port numbers.
+
+#### What are \*.dev.localhost URLs?
+
+`*.dev.localhost` is a wildcard subdomain pattern that resolves to your local machine (`127.0.0.1` or `::1`) in most modern browsers without additional DNS configuration. This resolution is a browser feature — non-browser HTTP clients (for example, `curl`, `HttpClient`, or other command-line tools) don't automatically resolve `*.dev.localhost` subdomains and may require **hosts** file entries to reach them.
+
+The Aspire developer certificate trusts `*.dev.localhost` subdomains, so browsers accept HTTPS connections to any subdomain when the certificate is trusted.
+
+#### Yes — use \*.dev.localhost URLs
+
+Choosing **Yes** configures the generated project so that each service gets a unique subdomain URL such as `https://myservice.dev.localhost`. This option:
+
+- Enables HTTPS for all services from the start, leveraging the Aspire developer certificate.
+- Gives each service its own origin, which prevents cookie and authentication token collisions between services running on the same machine.
+- More closely mirrors a production setup where services are hosted on separate domains or subdomains.
+
+**Prerequisite:** The Aspire developer certificate must be trusted on your machine. If you haven't already done so, run:
+
+```bash title="Aspire CLI"
+aspire certs trust
+```
+
+{% learnmore %}
+[Command reference: `aspire certs trust`](../aspire-certs-trust/)
+{% endlearnmore %}
+
+:::note
+Safari on macOS does not resolve `*.dev.localhost` subdomains to `127.0.0.1`
+by default. If you use Safari, choose **No** or add entries to your **hosts**
+file (for example, `127.0.0.1 myservice.dev.localhost`).
+:::
+
+#### No — use standard localhost URLs (default)
+
+Choosing **No** (the default) configures services with standard `http://localhost:<port>` addresses. This option requires no certificate setup and works in all browsers and tools without additional configuration.
+
+## Options
+
+The following options are available:
+
+- **`-n, --name`**
+
+  The name of the project to create.
+
+- **`-o, --output`**
+
+  The output path for the project.
+
+- **`-s, --source`**
+
+  The NuGet source to use for the project templates.
+
+- **`-v, --version`**
+
+  The version of the project templates to use.
+
+- **`--channel`**
+
+  Channel to use for templates (`stable`, `staging`, `daily`). If you don't specify `--version`, `aspire new` selects a template package from the channel and prefers the version that matches the currently installed CLI/SDK. For explicit pre-release channels, such as `staging` and `daily`, it pins templates to the installed CLI/SDK version when the feed would otherwise select a newer pre-release package. For example, a `13.4` CLI using `--channel daily` won't pull `13.5` preview templates even if the daily feed contains them. If you specify `--version`, that template version is used with the selected channel.
+
+  When `--channel` is not specified, `aspire new` automatically uses the running CLI's _identity channel_ — the channel that matches the CLI build you have installed (for example, `daily` for a nightly build, `staging` for a release-candidate build, or a `pr-<N>` channel for a pull-request build). This ensures that the correct package feed is used to resolve `Aspire.ProjectTemplates` without requiring an explicit flag.
+
+  If the CLI's identity does not match any registered explicit channel (for example, on a stable release or a locally-built CLI), `aspire new` falls back to ambient NuGet configuration (the implicit nuget.org channel).
+
+  Requesting `--channel staging` explicitly only resolves on `stable` or `staging` Aspire CLI builds. Daily, local, and per-PR builds don't have a deterministic staging feed, so they refuse the request with an error naming the running CLI's identity and pointing at the recovery options: install a staging or stable Aspire CLI, or set [`overrideStagingFeed`](/reference/cli/configuration/#settings-surfaced-by-aspire-config) to point at the staging feed you want to use.
+
+- **`--suppress-agent-init`**
+
+  Suppress the prompt to initialize MCP server configuration for agent environments after project creation.
+
+- **`--skill-locations <skill-locations>`**
+
+  Comma-separated list of skill locations to configure. Use `all` to configure all supported locations or `none` to skip skill location configuration. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available locations, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+
+- **`--skills <skills>`**
+
+  Comma-separated list of skills to install. Use `all` to install all available skills or `none` to skip skill installation. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available skills, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Commands
+
+Each command represents a template. Pass the `--help` parameter to the template command to print the options available to the template.
+
+| Command                | Template                          |
+| ---------------------- | --------------------------------- |
+| `aspire-starter`       | Starter App (ASP.NET Core/Blazor) |
+| `aspire-ts-cs-starter` | Starter App (ASP.NET Core/React)  |
+| `aspire-py-starter`    | Starter App (FastAPI/React)       |
+| `aspire-ts-starter`    | Starter App (Express/React)       |
+| `aspire-empty`         | Empty (C# AppHost)                |
+| `aspire-ts-empty`      | Empty (TypeScript AppHost)        |
+
+### aspire-py-starter options
+
+The `aspire-py-starter` template accepts the following additional options:
+
+- **`--use-redis-cache`**
+
+  Scaffold the template with an optional Redis cache resource in the TypeScript AppHost. Accepts `true` or `false`. Defaults to prompting interactively.
+
+  ```bash title="Aspire CLI"
+  aspire new aspire-py-starter --use-redis-cache true
+  ```
+
+## Examples
+
+- Create an Aspire solution from the template. Because the template was selected (`aspire-starter`), you're prompted for the name, output folder, and template version.
+
+  ```bash title="Aspire CLI"
+  aspire new aspire-starter
+  ```
+
+- Create an AppHost project named `aspireapp` from the **%ASPIRE_VERSION%** templates and place the output in a folder named `dev`.
+
+  ```bash title="Aspire CLI"
+  aspire new aspire-empty --version %ASPIRE_VERSION% --name aspireapp --output ./dev
+  ```
+
+- Create an Aspire starter app using templates from the `daily` channel to get the latest pre-release templates.
+
+  ```bash title="Aspire CLI"
+  aspire new aspire-starter --channel daily
+  ```
+
+- Create a new project non-interactively without installing any agent skills:
+
+  ```bash title="Aspire CLI"
+  aspire new aspire-starter --name myapp --skills none --non-interactive
+  ```
+
+- Create a new project non-interactively and install all skills in all supported locations:
+
+  ```bash title="Aspire CLI"
+  aspire new aspire-starter --name myapp --skill-locations all --skills all --non-interactive
+  ```
+
+## Troubleshooting
+
+### Language support not found
+
+When `aspire new` runs a template that requires code generation (for example, a TypeScript or Python AppHost template), it uses language support and code generator assemblies loaded by the apphost server. If those assemblies cannot load their types, the command may fail with an error such as:
+
+```
+No language support found for: typescript/nodejs. Available languages: go, java, python, rust.
+```
+
+Or, when no language support implementations are discovered at all:
+
+```
+No language support found for: typescript/nodejs. No language support implementations were discovered in any loaded assembly.
+This usually indicates a binary mismatch between the bundled apphost server and the integration assemblies on disk;
+check the apphost server log for 'LoaderExceptions' Warnings.
+```
+
+These errors mean the integration assemblies on disk are not compatible with the bundled apphost server. This typically happens after a partial NuGet cache update, a version skew between the CLI and the integration packages, or an interrupted restore.
+
+**To resolve:**
+
+1. Clear the Aspire CLI cache to remove stale cached assemblies:
+
+   ```bash title="Aspire CLI"
+   aspire cache clear
+   ```
+
+2. Re-run `aspire new` to trigger a fresh restore of the integration packages.
+
+If the error persists, check the apphost server log for `Warning` entries that include `LoaderExceptions` or mention a shared assembly version mismatch (for example, `Aspire.TypeSystem` bundled version vs. the version on disk). These log entries name the offending assembly and describe the mismatch, making it easier to identify which package version is out of sync.
+
+:::tip
+Run `aspire new` with `--log-level Debug` (or `--log-level Trace`) to write a
+detailed log file. Open the log and search for `LoaderExceptions` or
+`version mismatch` to identify the conflicting assembly.
+:::

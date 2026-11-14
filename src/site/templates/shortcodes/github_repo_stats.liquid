@@ -1,0 +1,35 @@
+---
+# The site's <GitHubRepoStats> (src/components/GitHubRepoStats.astro):
+#   {% github_repo_stats repo_name: "microsoft/aspire" %}      reads the site data `github-stats`
+#   {% github_repo_stats stats: some_object_or_list, repo_name: "..." %}
+# A fluid grid (<FluidGrid minColumnWidth="20rem">) of three icon link cards: repository, stars, license. The cards
+# are written here (not with {% icon_link_card %}: a block shortcode called from a shortcode template would be
+# wrapped as a raw region). Stars are formatted with thousands separators (en, as toLocaleString() at build).
+# Root class: cid-git-hub-repo-stats (plus cid-fluid-grid; the cards carry cid-icon-link-card).
+display: block
+params: [stats, repo_name]
+---
+{%- assign grs_stats = stats | default: github-stats -%}
+{%- if grs_stats.first -%}
+  {%- assign grs = grs_stats.first -%}
+  {%- if repo_name -%}{%- for s in grs_stats -%}{%- if s.name == repo_name -%}{%- assign grs = s -%}{%- break -%}{%- endif -%}{%- endfor -%}{%- endif -%}
+{%- else -%}
+  {%- assign grs = grs_stats -%}
+{%- endif -%}
+{%- comment -%} Thousands separators. {%- endcomment -%}
+{%- assign grs_digits = grs.stars | append: "" | split: "" | reverse -%}
+{%- assign grs_stars = "" -%}
+{%- for d in grs_digits -%}
+  {%- assign grs_mod = forloop.index0 | modulo: 3 -%}
+  {%- if grs_mod == 0 and forloop.index0 > 0 -%}{%- assign grs_stars = "," | append: grs_stars -%}{%- endif -%}
+  {%- assign grs_stars = d | append: grs_stars -%}
+{%- endfor -%}
+{%- assign grs_placeholder = "{{stars}}" -%}
+{%- assign grs_stars_title = "github.stars" | t | replace: grs_placeholder, grs_stars -%}
+{%- assign grs_repo_title = grs.name | default: "" -%}
+{%- if grs_repo_title == "" -%}{%- assign grs_repo_title = "github.repo" | t -%}{%- endif -%}
+<div class="fluid-grid cid-fluid-grid cid-git-hub-repo-stats" style="--minColumnWidth: 20rem">
+<div class="sl-link-card cid-icon-link-card"><span class="sl-flex stack"><a target="_blank" href="{{ grs.repo }}"><span class="title">{% icon "github", class: "icon" %}{{ grs_repo_title | escape }}</span></a></span>{% icon "right-arrow", class: "icon rtl:flip" %}</div>
+<div class="sl-link-card cid-icon-link-card"><span class="sl-flex stack"><a target="_blank" href="{{ grs.repo }}"><span class="title">{% icon "star", class: "icon" %}{{ grs_stars_title | escape }}</span></a></span>{% icon "right-arrow", class: "icon rtl:flip" %}</div>
+<div class="sl-link-card cid-icon-link-card"><span class="sl-flex stack"><a target="_blank" href="{{ grs.license }}"><span class="title">{% icon "seti:license", class: "icon" %}{{ grs.licenseName | escape }}</span></a></span>{% icon "right-arrow", class: "icon rtl:flip" %}</div>
+</div>
