@@ -17,7 +17,6 @@ declare global {
   interface Window {
     __emitLiveEmbedState?: (snapshot: LiveSnapshot) => void;
     __youtubeEmbedWrites?: number;
-    __liveEmbedNavigationMarker?: boolean;
   }
 }
 
@@ -148,7 +147,7 @@ test('hidden YouTube switches sources without autoplay and stays offline when se
   await expectYouTube(page, null, false);
 });
 
-test('Twitch uses the current hostname on its first request and after client navigation', async ({
+test('Twitch uses the current hostname on its first request and after navigation', async ({
   page,
 }) => {
   const requestedParents: string[][] = [];
@@ -171,19 +170,17 @@ test('Twitch uses the current hostname on its first request and after client nav
     )
     .toEqual([hostname]);
 
-  await page.evaluate(() => {
-    window.__liveEmbedNavigationMarker = true;
-  });
+  // Navigation is a full page load: the videos page binds its embeds again from scratch.
   await page.locator('.header .site-title').click();
-  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/);
-  await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
+  await page.waitForURL(/^https?:\/\/[^/]+\/$/);
+  await page.waitForLoadState('load');
   await revealMobileSiteMenu(page);
   await page.locator('.live-btn:visible').first().click();
-  await expect(page).toHaveURL(/\/community\/videos\/$/);
+  await page.waitForURL(/\/community\/videos\/$/);
+  await page.waitForLoadState('load');
   await expect(page.locator('#aspire-live-tabs')).toHaveAttribute('data-bound', '1');
   await page.getByRole('tab', { name: 'Twitch', exact: true }).click();
   await expect.poll(() => requestedParents.length).toBeGreaterThan(1);
-  expect(await page.evaluate(() => window.__liveEmbedNavigationMarker)).toBe(true);
   expect(requestedParents.every((parents) => parents.length === 1 && parents[0] === hostname)).toBe(
     true
   );

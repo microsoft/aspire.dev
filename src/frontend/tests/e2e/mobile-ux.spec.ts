@@ -152,17 +152,20 @@ test('shared menus announce state, keep filters usable and restore focus after n
     await expect(menu).toBeFocused();
     await expect(page.locator('.main-frame')).not.toHaveAttribute('inert', '');
   }
-  await page.evaluate(() => Reflect.set(window, '__mobileUxNavigation', true));
   await page.locator('starlight-menu-button button').click();
   await page.locator('.mobile-site-links a[href="/docs/"]').click();
-  await expect(page).toHaveURL(/\/docs\/$/);
+  // Navigation is a full page load: the incoming page starts with the menu closed and usable.
+  await page.waitForURL(/\/docs\/$/);
+  await page.waitForLoadState('load');
   await waitForAccessibilityEnhancements(page);
-  expect(await page.evaluate(() => Reflect.get(window, '__mobileUxNavigation'))).toBe(true);
+  await expect(page.locator('starlight-menu-button button')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.main-frame')).not.toHaveAttribute('inert', '');
   const returnedMenu = page.locator('starlight-menu-button button');
   await returnedMenu.click();
   await expect(returnedMenu).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('Escape');
   await expect(returnedMenu).toHaveAttribute('aria-expanded', 'false');
+  await expect(returnedMenu).toBeFocused();
 });
 
 test('environment badges remain visible on desktop and hide only in compact headers', async ({
@@ -340,7 +343,7 @@ test('page actions have unique panels, keyboard dismissal and bounded positionin
   }
 });
 
-test('Markdown copying binds once after repeated client navigation and reports failed requests', async ({ page }) => {
+test('Markdown copying binds once after repeated navigation and reports failed requests', async ({ page }) => {
   const copies: string[] = [];
   await page.exposeFunction('__captureMobileMarkdown', (text: string) => copies.push(text));
   await page.addInitScript(() => {
@@ -400,7 +403,7 @@ test('sample disclosure removes hidden tags from keyboard navigation without los
   await expectTouchTarget(hiddenTag);
 });
 
-test('API identifiers and the translation table reflow without clipping content', async ({
+test('API identifiers reflow without clipping content', async ({
   page,
 }) => {
   for (const path of [
@@ -426,16 +429,8 @@ test('API identifiers and the translation table reflow without clipping content'
       expect(clipped, path).toEqual([]);
     }
   }
-  await page.setViewportSize({ width: 320, height: 844 });
-  await open(page, '/i18n/');
-  await expectReflow(page);
-  const region = page.getByRole('region', { name: 'Translation status by file' });
-  await region.focus();
-  await expect(region).toBeFocused();
-  await expect(region.locator('table')).toBeVisible();
-  expect(await region.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
-  await region.press('ArrowRight');
-  await expect.poll(() => region.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+  // The translation status table (/i18n/) is not part of the Douze site by decision, so its
+  // reflow check is not run here.
 });
 
 test('mobile controls and content remain accessible in both settled themes', async ({ page }) => {

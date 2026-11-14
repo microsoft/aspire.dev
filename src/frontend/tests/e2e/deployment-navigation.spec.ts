@@ -4,52 +4,33 @@ import { dismissCookieConsentIfVisible, getSiteNavigationLink } from '@tests/e2e
 // This suite exercises native Document PiP, which needs the full browser rather than headless shell.
 test.use({ channel: 'chromium' });
 
-test.beforeEach(async ({ page, isMobile }) => {
-  if (isMobile) {
-    await page.addInitScript(() => {
-      Object.defineProperty(document, 'startViewTransition', {
-        value: undefined,
-        configurable: true,
-      });
-    });
-  }
-});
-
-async function navigateClient(page: Page, action: () => Promise<unknown>) {
-  await page.evaluate(() => {
-    Reflect.set(window, '__deploymentPageLoaded', false);
-    document.addEventListener(
-      'astro:page-load',
-      () => {
-        Reflect.set(window, '__deploymentPageLoaded', true);
-      },
-      { once: true }
-    );
-  });
+// Douze navigates with full page loads: every link and history step loads a new document.
+async function navigateNative(page: Page, action: () => Promise<unknown>, path: RegExp | string) {
+  const loaded = page.waitForEvent('load');
   await action();
-  await expect
-    .poll(() => page.evaluate(() => Reflect.get(window, '__deploymentPageLoaded')))
-    .toBe(true);
-  await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
+  await loaded;
+  if (typeof path === 'string') await page.waitForURL((url) => url.pathname === path);
+  else await page.waitForURL(path);
 }
 
-test('same-deployment navigation and history preserve the running document', async ({ page }) => {
+test('same-deployment navigation and history load each page as a document', async ({ page }) => {
   const errors: string[] = [];
+  const documents: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('request', (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      documents.push(new URL(request.url()).pathname);
+    }
+  });
   await page.goto('/');
   await dismissCookieConsentIfVisible(page);
-  await page.evaluate(() => Reflect.set(window, '__deploymentSession', true));
-  await navigateClient(page, async () => (await getSiteNavigationLink(page, '/docs/')).click());
-  await expect(page).toHaveURL(/\/docs\/$/);
-  await expect
-    .poll(() => page.evaluate(() => Reflect.get(window, '__deploymentSession')))
-    .toBe(true);
-  await navigateClient(page, () => page.goBack());
-  await expect(page).toHaveURL((url) => url.pathname === '/');
-  expect(await page.evaluate(() => Reflect.get(window, '__deploymentSession'))).toBe(true);
-  await navigateClient(page, () => page.goForward());
-  await expect(page).toHaveURL(/\/docs\/$/);
-  expect(await page.evaluate(() => Reflect.get(window, '__deploymentSession'))).toBe(true);
+  await navigateNative(page, async () => (await getSiteNavigationLink(page, '/docs/')).click(), /\/docs\/$/);
+  await expect(page.locator('main h1').first()).toBeVisible();
+  await navigateNative(page, () => page.goBack(), '/');
+  await expect(page.locator('header [data-open-install-modal]').first()).toBeAttached();
+  await navigateNative(page, () => page.goForward(), /\/docs\/$/);
+  await expect(page.locator('main h1').first()).toBeVisible();
+  expect(documents.slice(0, 2)).toEqual(['/', '/docs/']);
   expect(errors).toEqual([]);
 });
 
@@ -103,11 +84,13 @@ for (const identity of ['changed', 'missing'] as const) {
   });
 }
 
-test('native Document PiP survives same-build navigation and closes on a deployment reload', async ({
+test('native Document PiP closes on navigation and the next page starts clean', async ({
   page,
   isMobile,
 }) => {
   test.skip(isMobile, 'Native Document Picture-in-Picture requires a desktop browser.');
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
   await dismissCookieConsentIfVisible(page);
   const supported = await page.evaluate(() => 'documentPictureInPicture' in window);
@@ -127,7 +110,6 @@ test('native Document PiP survives same-build navigation and closes on a deploym
       if (!api) throw new Error('Native Document Picture-in-Picture is unavailable.');
       void api.requestWindow().then((pip) => {
         pip.document.body.textContent = 'Native PiP navigation test';
-        Reflect.set(window, '__nativePipTest', pip);
       });
     });
     document.body.append(button);
@@ -135,32 +117,18 @@ test('native Document PiP survives same-build navigation and closes on a deploym
   const opened = page.context().waitForEvent('page');
   await page.locator('#native-pip-test').click();
   const pipPage = await opened;
-  await expect
-    .poll(() => page.evaluate(() => Boolean(Reflect.get(window, '__nativePipTest'))))
-    .toBe(true);
-  await navigateClient(page, async () => (await getSiteNavigationLink(page, '/docs/')).click());
-  await expect(page).toHaveURL(/\/docs\/$/);
-  expect(pipPage.isClosed()).toBe(false);
   await expect(pipPage.locator('body')).toHaveText('Native PiP navigation test');
 
-  await page.route(new URL('/', page.url()).href, async (route) => {
-    if (route.request().isNavigationRequest()) {
-      await route.continue();
-      return;
-    }
-    const response = await route.fetch();
-    const body = (await response.text()).replace(
-      /<meta name="git-commit-id" content="[^"]*"[^>]*>/,
-      '<meta name="git-commit-id" content="another-deployment">'
-    );
-    await route.fulfill({ response, body });
-  });
+  // A full page load unloads the opener, which closes its Document PiP window.
   const closed = pipPage.waitForEvent('close');
-  await page.locator('header a[href="/"]:visible').click();
-  await expect(page).toHaveURL((url) => url.pathname === '/');
+  await navigateNative(page, async () => (await getSiteNavigationLink(page, '/docs/')).click(), /\/docs\/$/);
   await closed;
-  await expect
-    .poll(() => page.evaluate(() => Boolean(Reflect.get(window, '__nativePipTest'))))
-    .toBe(false);
   expect(pipPage.isClosed()).toBe(true);
+  expect(
+    await page.evaluate(
+      () => (window as Window & { documentPictureInPicture?: { window?: Window | null } }).documentPictureInPicture?.window ?? null
+    )
+  ).toBeNull();
+  await expect(page.locator('#aspire-live-source-menu:visible')).toHaveCount(0);
+  expect(errors).toEqual([]);
 });

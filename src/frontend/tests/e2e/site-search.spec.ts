@@ -10,19 +10,6 @@ const pagefindRequire = createRequire(require.resolve('@astrojs/starlight'));
 // term. Exact-phrase syntax makes these tests exercise a genuinely empty search.
 const missingSearchQuery = '"zzzznonexistentcatalogquery"';
 
-// Exercise native transitions on desktop and the supported swap fallback on
-// touch projects, matching the other client-navigation regression suites.
-test.beforeEach(async ({ page, isMobile }) => {
-  if (isMobile) {
-    await page.addInitScript(() => {
-      Object.defineProperty(document, 'startViewTransition', {
-        configurable: true,
-        value: undefined,
-      });
-    });
-  }
-});
-
 /**
  * Opens the Pagefind/Starlight search dialog and waits for either the
  * Pagefind input or the dev-mode warning to appear.
@@ -70,19 +57,28 @@ async function expectOpenSearchDialogAccessible(page: Page, state: string): Prom
   expect(violations, `${state}: ${JSON.stringify(violations, null, 2)}`).toEqual([]);
 }
 
-async function navigateClient(page: Page, navigate: () => Promise<unknown>): Promise<void> {
-  await page.evaluate(() => {
-    Reflect.set(window, '__siteSearchPageLoaded', false);
-    document.addEventListener('astro:page-load', () => {
-      Reflect.set(window, '__siteSearchPageLoaded', true);
-    }, { once: true });
-  });
+// The Douze site navigates with full page loads: run the navigation, then wait for the destination
+// document to finish loading.
+async function navigateTo(
+  page: Page,
+  pathname: string,
+  navigate: () => Promise<unknown>
+): Promise<void> {
   await navigate();
-  await expect.poll(
-    () => page.evaluate(() => Reflect.get(window, '__siteSearchPageLoaded')),
-    { timeout: 30_000 }
-  ).toBe(true);
-  await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
+  await page.waitForURL((url) => url.pathname === pathname, { timeout: 30_000 });
+  await page.waitForLoadState('load');
+}
+
+// Pagefind fills result placeholders one by one, and a re-render hands the highlight back to the first
+// result: wait until every result has rendered before navigating with the keyboard.
+async function waitForRenderedResults(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page
+        .locator('site-search dialog[open] .pagefind-ui__result')
+        .evaluateAll((items) => items.every((item) => item.querySelector('.pagefind-ui__result-link')))
+    )
+    .toBe(true);
 }
 
 test.describe('site search dialog', () => {
@@ -340,14 +336,13 @@ test.describe('site search dialog', () => {
   });
 
   for (const openWith of ['button', 'shortcut'] as const) {
-    test(`docs search survives client navigation and history when opened by ${openWith}`, async ({
+    test(`docs search works after navigation and history when opened by ${openWith}`, async ({
       page,
     }) => {
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await page.goto('/');
       await dismissCookieConsentIfVisible(page);
-      await page.evaluate(() => Reflect.set(window, '__siteSearchSession', true));
 
       const assertSearch = async () => {
         if (openWith === 'shortcut') {
@@ -379,20 +374,14 @@ test.describe('site search dialog', () => {
       };
 
       await assertSearch();
-      // Use the real links, not page.goto: a hard reload hides the regression.
+      // Follow the real site links, then history, as a reader would.
       for (const path of ['/docs/', '/get-started/first-app/']) {
-        await navigateClient(page, async () => (await getSiteNavigationLink(page, path)).click());
-        await expect(page).toHaveURL((url) => url.pathname === path);
-        expect(await page.evaluate(() => Reflect.get(window, '__siteSearchSession'))).toBe(true);
+        await navigateTo(page, path, async () => (await getSiteNavigationLink(page, path)).click());
         await assertSearch();
       }
-      await navigateClient(page, () => page.goBack());
-      await expect(page).toHaveURL(/\/docs\/$/);
-      expect(await page.evaluate(() => Reflect.get(window, '__siteSearchSession'))).toBe(true);
+      await navigateTo(page, '/docs/', () => page.goBack());
       await assertSearch();
-      await navigateClient(page, () => page.goForward());
-      await expect(page).toHaveURL((url) => url.pathname === '/get-started/first-app/');
-      expect(await page.evaluate(() => Reflect.get(window, '__siteSearchSession'))).toBe(true);
+      await navigateTo(page, '/get-started/first-app/', () => page.goForward());
       await assertSearch();
     });
   }
@@ -405,20 +394,18 @@ test.describe('site search dialog', () => {
     await page.goto('/reference/api/csharp/');
     await dismissCookieConsentIfVisible(page);
     await expect(page.locator('site-search')).toHaveCount(0);
-    await page.evaluate(() => Reflect.set(window, '__siteSearchSession', true));
 
     for (let visit = 0; visit < 2; visit++) {
-      await navigateClient(page, () => page.locator('header a[href="/"]:visible').click());
-      await expect(page).toHaveURL((url) => url.pathname === '/');
-      expect(await page.evaluate(() => Reflect.get(window, '__siteSearchSession'))).toBe(true);
+      await navigateTo(page, '/', () => page.locator('header a[href="/"]:visible').click());
       const ready = await openSearchDialog(page);
       if (ready) {
         await typeSearchQuery(page, 'redis');
         await expect(page.locator('.pagefind-ui__result-link').first()).toBeVisible();
         await typeSearchQuery(page, '');
       }
-      await page.locator('site-search a[data-api-lang="csharp"]').click();
-      await expect(page).toHaveURL(/\/reference\/api\/csharp\/$/);
+      await navigateTo(page, '/reference/api/csharp/', () =>
+        page.locator('site-search a[data-api-lang="csharp"]').click()
+      );
       await expect(page.locator('site-search')).toHaveCount(0);
       await page.keyboard.press('Control+k');
       await expect(page.locator('body')).not.toHaveAttribute('data-search-modal-open');
@@ -448,10 +435,9 @@ test.describe('site search dialog', () => {
       document.body.append(result);
     });
 
-    await navigateClient(page, () =>
+    await navigateTo(page, '/', () =>
       page.locator('.pagefind-ui__result-link', { hasText: 'Home' }).click()
     );
-    await expect(page).toHaveURL((url) => url.pathname === '/');
     await expect(hero).not.toHaveClass(/api-page-title/);
     await expect.poll(() => hero.evaluate((element) => getComputedStyle(element).fontSize)).toBe(
       expectedFontSize
@@ -468,7 +454,8 @@ test.describe('site search dialog', () => {
     const importGate = new Promise<void>((resolve) => { releaseImport = resolve; });
     let markRequested!: () => void;
     const importRequested = new Promise<void>((resolve) => { markRequested = resolve; });
-    await page.route('**/_astro/ui-core.*.js', async (route) => {
+    // Hold the lazily loaded Pagefind UI bundle on the first page, so the reader leaves it mid-load.
+    await page.route('**/pagefind/pagefind-ui.js', async (route) => {
       markRequested();
       await importGate;
       await route.continue();
@@ -477,8 +464,7 @@ test.describe('site search dialog', () => {
       await page.goto('/');
       await dismissCookieConsentIfVisible(page);
       await importRequested;
-      await navigateClient(page, async () => (await getSiteNavigationLink(page, '/docs/')).click());
-      await expect(page).toHaveURL(/\/docs\/$/);
+      await navigateTo(page, '/docs/', async () => (await getSiteNavigationLink(page, '/docs/')).click());
       await page.keyboard.press('Control+k');
       releaseImport();
       const input = page.locator('site-search dialog input.pagefind-ui__search-input');
@@ -555,6 +541,7 @@ test.describe('site search dialog', () => {
     const input = page.locator('site-search dialog input.pagefind-ui__search-input');
     await expect(results.first()).toBeVisible({ timeout: 15000 });
     await expect.poll(() => results.count()).toBeGreaterThanOrEqual(3);
+    await waitForRenderedResults(page);
 
     // First result should auto-highlight as soon as Pagefind renders.
     await expect(results.nth(0)).toHaveAttribute('data-search-active', 'true');
@@ -780,7 +767,8 @@ test.describe('site search dialog', () => {
     await expectOpenSearchDialogAccessible(page, 'after a query change');
 
     await input.press('Enter');
-    await expect(page).toHaveURL(new URL(pages.newFirst, page.url()).href);
+    // The destination's AppHost pivot adds ?aspire-lang= to its own URL on load: compare the page.
+    await expect(page).toHaveURL((url) => url.pathname === pages.newFirst);
   });
 
   test('arrow nav also cycles through the C#/TypeScript API buttons', async ({ page }) => {
@@ -799,6 +787,7 @@ test.describe('site search dialog', () => {
 
     await expect(results.first()).toBeVisible({ timeout: 15000 });
     await expect(csharpBtn).toBeVisible();
+    await waitForRenderedResults(page);
 
     // Press End to jump to the last keyboard target — that should be the
     // TypeScript API button (last item in DOM order: results → load-more

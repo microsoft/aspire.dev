@@ -155,6 +155,8 @@ test('topic selection keeps the search input and filter buttons stationary', asy
     await page.setViewportSize({ width, height: 1000 });
     for (const theme of ['light', 'dark']) {
       await page.goto('/hub/glossary/');
+      // The glossary browser loads on demand and reveals its controls once it runs, possibly after the load event.
+      await expect(page.getByRole('search', { name: 'Search the glossary' })).toBeVisible();
       await page.locator('html').evaluate((html, value) => html.dataset.theme = value, theme);
       await page.evaluate(() => document.fonts.ready);
       const controls = page.locator('.glossary-controls input, .glossary-controls [data-kind]');
