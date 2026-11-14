@@ -313,7 +313,8 @@ function scopedVariants(selector, flags) {
  * Adds 0-0-1 of specificity to the subject compound (`:not(cid-never)`): rules outside @scope (`:global()`
  * selectors, `<style is:global>` blocks) would otherwise lose every tie with a scoped rule (@scope's proximity),
  * where in the Astro bundle the later rule won; the overriding rules (an override's `:global(.plugin-class)`) come
- * after the rules they override, so a tie now goes to them as it did.
+ * after the rules they override, so a tie now goes to them as it did. A subject made only of :where() is left as
+ * it is: its zero specificity says it is a default to override.
  */
 function bumpSelector(selector) {
   return selectorParser((root) => {
@@ -323,6 +324,9 @@ function bumpSelector(selector) {
       while (start > 0 && nodes[start - 1].type !== 'combinator') start--;
       const compound = nodes.slice(start);
       if (!compound.length) return;
+      // A subject written as :where() only is meant to lose every tie (`.dev-center :where(button)`, a default that
+      // the component and global rules override): bumping it would make it beat the global stylesheets' rules.
+      if (compound.every((n) => n.type === 'pseudo' && n.value === ':where')) return;
       const bump = selectorParser.pseudo({ value: ':not', nodes: [] });
       bump.nodes = selectorParser().astSync('cid-never').nodes;
       const pseudoElement = compound.find((n) => n.type === 'pseudo' && (n.value.startsWith('::') || pseudoElementsLegacy.has(n.value)));
