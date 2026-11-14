@@ -4,7 +4,7 @@ seoTitle: 'Set up .NET / C# apps in the Aspire AppHost: hosting integration'
 description: Learn how to use the Aspire Dotnet hosting integration to add C# projects and file-based C# apps by path in an Aspire solution.
 ---
 
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import csharpIcon from '@assets/icons/csharp.svg';
@@ -247,17 +247,13 @@ These properties have the same behavior as the corresponding `LaunchProfileName`
 
 Visual Studio builds the AppHost and its MSBuild dependencies, but path-based project resources aren't `ProjectReference` items, so Visual Studio doesn't build them. Before launching, Aspire builds SDK-style project resources itself and surfaces any compiler diagnostics. A compile failure prevents the dependent IDE launch request instead of producing a missing-executable `500 Internal Server Error`. This lets a new app launch on its first Visual Studio F5 without running `aspire run` or building each service manually.
 
-How Aspire coordinates the launch depends on the IDE's capabilities:
+IDEs with external build support, such as Visual Studio Code, coordinate the build with Aspire. Aspire builds each resource once, and the IDE launches the resulting output without building it again. You can customize the build of SDK-style projects by calling `WithBuildEnvironment` in the AppHost, and file-based apps are fully supported: their builds are coordinated and serialized just like when you use `aspire run`.
 
-- IDEs that advertise `project-with-external-build.v1` launch with the coordinated build output, and the IDE build is suppressed.
-- Project-capable IDEs that don't advertise `project-with-external-build.v1` receive the legacy `project` launch request after Aspire completes the build. The IDE build isn't suppressed.
-- IDEs without project launch support run the coordinated process directly.
+IDEs without external build support still launch project resources after Aspire builds them, but with these limitations:
 
-<Aside type="caution">
-`WithBuildEnvironment` requires an IDE that advertises `project-with-external-build.v1`. Aspire rejects legacy project-only IDE sessions because those launchers can't reliably locate customized build output.
-</Aside>
-
-In legacy project-only IDE sessions, file-based apps keep the existing `dotnet run` launch path. They wait for the project prebuild, but separate file-based apps aren't serialized and can race when they share `#:project` outputs. `WaitForStart` only waits for the `dotnet run` process to start, not for its implicit build to finish. To avoid races, run with `aspire run`, use an external-build-capable IDE, or add a health check to the preceding app that passes only after it finishes building and use `WaitFor` on the next app.
+- The IDE might build projects again before launching them, because Aspire can't suppress the IDE build.
+- `WithBuildEnvironment` isn't supported. Aspire fails to start the application and reports an error instead of launching output that the IDE can't reliably locate. Run the application with `aspire run`, use an IDE with external build support, or remove the build customization.
+- File-based apps build themselves when they launch. They wait for Aspire to finish building project resources, but they aren't serialized with each other, so separate file-based apps can race when they share `#:project` outputs. In Visual Studio, `WaitForStart` only waits for the file-based app process to start, not for its build to finish. To avoid races, run with `aspire run`, use an IDE with external build support, or add a health check to the preceding app that passes only after it finishes building and call `WaitFor` on the next app.
 
 ## Publishing
 
