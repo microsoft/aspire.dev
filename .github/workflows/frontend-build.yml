@@ -507,7 +507,9 @@ jobs:
       matrix:
         # scope-polyfill: the harness flattens CSS @scope (run-engine.sh default for kitesurf).
         # at-scope-pref: Kitesurf built with Stylo's layout.css.at-scope.enabled on, without the @scope polyfill.
-        variant: [scope-polyfill, at-scope-pref]
+        # harness-only: the setContent and addStyleTag workarounds without @scope. With @scope applied (either
+        # variant above), Blitz panics in layout ("invalid SlotMap key used") and the engine stops answering.
+        variant: [harness-only]
     defaults:
       run:
         working-directory: src/frontend
@@ -557,7 +559,7 @@ jobs:
       - name: Run the slice (kitesurf)
         env:
           ENGINE: kitesurf
-          WORKAROUNDS: ${{ matrix.variant == 'at-scope-pref' && 'set-content-route,style-tag-no-load' || '' }}
+          WORKAROUNDS: ${{ matrix.variant != 'scope-polyfill' && 'set-content-route,style-tag-no-load' || '' }}
           LABEL_SUFFIX: -${{ matrix.variant }}
           STATICHOST_NO_BUILD: 1
         run: tests/cdp/run-engine.sh
