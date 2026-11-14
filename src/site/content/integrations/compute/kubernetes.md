@@ -1,0 +1,467 @@
+---
+title: Kubernetes integration
+seoTitle: "Kubernetes integration for Aspire: hosting and client wiring"
+description: Learn how to add Kubernetes deployment support to your Aspire application using the Aspire.Hosting.Kubernetes hosting integration.
+---
+
+{% image "/assets/images/icons/kubernetes.svg", alt: "Kubernetes logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire Kubernetes hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Kubernetes environment resources in your [`AppHost`](/get-started/app-host/) project. The integration enables you to publish and deploy your Aspire application to any Kubernetes cluster, generating Helm charts from your application model or deploying directly to a cluster using your current `kubectl` context.
+
+## Installation
+
+:::note[Prerequisite: Helm v4.2.0 or later]
+Aspire's Kubernetes deployment pipeline shells out to `helm upgrade --install` and validates the installed Helm version before executing. **[Helm](https://helm.sh/docs/intro/install/) v4.2.0 or later** must be on your `PATH`. If Helm is missing or too old, Aspire reports a clear, actionable error instead of cryptic flag failures.
+:::
+
+To start building an Aspire app with Kubernetes deployment support, install the [📦 Aspire.Hosting.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Kubernetes) NuGet package:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+This updates your `aspire.config.json` with the Kubernetes hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Kubernetes": "*"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Kubernetes@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Kubernetes" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+## Add Kubernetes environment
+
+After installing the package, add a Kubernetes environment to your AppHost:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const api = await builder
+    .addNodeApp('api', './api', 'src/index.ts')
+    .withHttpEndpoint({ env: 'PORT' })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+:::tip
+With the `k8s` variable assigned, you can pass it to the compute environment API to
+disambiguate compute resources for solutions that define more than one. Otherwise, the `k8s`
+variable isn't required. This API is named `WithComputeEnvironment` in C# AppHosts and
+{% api "Aspire.Hosting.ResourceBuilderExtensions.WithComputeEnvironment" %} in TypeScript AppHosts.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const api = await builder.addNodeApp('api', './api', 'src/index.ts');
+await api.withComputeEnvironment(k8s);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+builder.AddProject<Projects.MyApi>("api")
+    .WithComputeEnvironment(k8s);
+```
+{% endtab %}
+{% endtabs %}
+:::
+
+## Configure Helm chart options
+
+You can configure the generated Helm chart using the {% api "Aspire.Hosting.KubernetesEnvironmentExtensions.WithHelm" %} method, which provides a fluent `HelmChartOptions` builder:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const k8s = await builder.addKubernetesEnvironment('k8s');
+await k8s.withHelm(async (helm) => {
+  await helm.withNamespace('my-namespace');
+  await helm.withReleaseName('my-release');
+  await helm.withChartName('my-aspire-app');
+  await helm.withChartVersion('1.0.0');
+  await helm.withChartDescription('My Aspire application deployed to Kubernetes');
+});
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+builder.AddKubernetesEnvironment("k8s")
+    .WithHelm(helm =>
+    {
+        helm.WithChartName("my-aspire-app")
+            .WithChartVersion("1.0.0")
+            .WithChartDescription("My Aspire application deployed to Kubernetes")
+            .WithReleaseName("my-release")
+            .WithNamespace("my-namespace");
+    });
+```
+{% endtab %}
+{% endtabs %}
+
+Helm is the default deployment engine. Call `WithHelm` only when you need to customize the defaults.
+
+The `WithHelm` method is the single configuration entry point for Helm chart settings. The available options are:
+
+| Method | Description |
+|---|---|
+| `WithChartName(string)` | Sets the Helm chart name (defaults to the application name). |
+| `WithChartVersion(string)` | Sets the Helm chart version. Accepts a literal string or an Aspire parameter. |
+| `WithChartDescription(string)` | Sets the description written into `Chart.yaml`. |
+| `WithReleaseName(string)` | Sets the Helm release name used during deployment. |
+| `WithNamespace(string)` | Sets the Kubernetes namespace for the deployment. |
+
+## Configure a container registry
+
+A vanilla Kubernetes cluster doesn't know which container registry to use for your application images. Use {% api "Aspire.Hosting.ContainerRegistryResourceBuilderExtensions.AddContainerRegistry" %} and {% api "Aspire.Hosting.ContainerRegistryResourceBuilderExtensions.WithContainerRegistry" %} to specify a registry that is accessible from both your local machine and from the cluster:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const registry = await builder.addContainerRegistry('registry', 'myregistry.example.com:5000');
+const k8s = await builder.addKubernetesEnvironment('k8s');
+await k8s.withContainerRegistry(registry);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var registry = builder.AddContainerRegistry("registry", "myregistry.example.com:5000");
+builder.AddKubernetesEnvironment("k8s").WithContainerRegistry(registry);
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+The container registry APIs are currently in preview. In C#, suppress the `ASPIRECOMPUTE003` diagnostic to use them.
+:::
+
+## Persistent volumes
+
+To create durable storage in a Kubernetes cluster, model it as a first-class `KubernetesPersistentVolumeResource` with {% api "Aspire.Hosting.KubernetesPersistentVolumeExtensions.AddPersistentVolume" %}. Then configure its storage class, capacity, and access modes, and bind it to workloads. At publish time, the volume renders as a `v1.PersistentVolumeClaim`, and any workload bound to it is promoted to a `StatefulSet`.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const pgData = await k8s.addPersistentVolume('pg-data');
+await pgData.withStorageClass('managed-csi');
+await pgData.withCapacity('20Gi');
+
+const pg = await builder.addPostgres('pg');
+await pg.withDataVolume({ name: 'pg-data' });
+await pg.withKubernetesPersistentVolume(pgData);
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes;
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var pgData = k8s.AddPersistentVolume("pg-data")
+    .WithStorageClass("managed-csi")
+    .WithCapacity("20Gi");
+
+builder.AddPostgres("pg")
+    .WithDataVolume("pg-data")
+    .WithPersistentVolume(pgData);
+```
+{% endtab %}
+{% endtabs %}
+
+{% learnmore %}
+For the full configuration surface, binding overloads, access modes, and generated output, see [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/).
+{% endlearnmore %}
+
+## Inline ephemeral CSI volumes
+
+Use `CsiVolumeSourceV1` and the `VolumeV1.Csi` property to model inline CSI volumes in C#. Unlike a persistent volume claim, an inline CSI volume is declared directly in a pod and has that pod's lifetime. Drivers can use it to project external secrets, certificates, or storage at mount time.
+
+Install the CSI driver in the cluster first and create any driver-specific configuration. For the Secrets Store CSI driver, the following example assumes a `SecretProviderClass` named `app-secrets` exists in the workload namespace:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddKubernetesEnvironment("k8s");
+
+builder.AddContainer("web", "nginx")
+    .PublishAsKubernetesService(resource =>
+    {
+        if (resource.Workload is Deployment deployment)
+        {
+            var pod = deployment.Spec.Template.Spec;
+            pod.Volumes.Add(new VolumeV1
+            {
+                Name = "secrets-store",
+                Csi = new CsiVolumeSourceV1
+                {
+                    Driver = "secrets-store.csi.k8s.io",
+                    ReadOnly = true,
+                    VolumeAttributes = { ["secretProviderClass"] = "app-secrets" }
+                }
+            });
+            pod.Containers.Single().VolumeMounts.Add(new VolumeMountV1
+            {
+                Name = "secrets-store",
+                MountPath = "/mnt/secrets",
+                ReadOnly = true
+            });
+        }
+    });
+
+builder.Build().Run();
+```
+
+`Driver` identifies the installed driver. `VolumeAttributes` carries driver-specific values, `FsType` selects a filesystem when the driver supports it, and `NodePublishSecretRef` can reference mount credentials in a Kubernetes Secret in the same namespace. `ReadOnly` defaults to Kubernetes' read/write behavior when omitted; set it explicitly for secret projections.
+
+This C# resource-model type isn't exported as a typed TypeScript AppHost API. For custom manifests from either language, see [Add custom Kubernetes manifests](#add-custom-kubernetes-manifests). Declaring the volume doesn't install a driver, create a `SecretProviderClass`, or grant the workload permission to read an external secret store.
+
+## Customize individual resources
+
+Use {% api "Aspire.Hosting.KubernetesServiceExtensions.PublishAsKubernetesService" %} to modify the generated Kubernetes resources for individual services:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const service = await builder.addContainer('service', 'nginx');
+await service.publishAsKubernetesService(async (resource) => {
+  // Scale to 3 replicas
+  await resource.workload.spec.replicas.set(3);
+});
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+
+builder.AddContainer("service", "nginx")
+    .PublishAsKubernetesService(resource =>
+    {
+        // Scale to 3 replicas
+        if (resource.Workload is Deployment deployment)
+        {
+            deployment.Spec.Replicas = 3;
+        }
+    });
+```
+{% endtab %}
+{% endtabs %}
+
+### Configure CPU and memory requests and limits
+
+Use the `PublishAsKubernetesService` callback to set CPU and memory requirements on the generated pod container:
+
+- **Requests**: Reserve capacity for scheduling. Kubernetes uses requests to choose a node with enough available capacity. A container can use more than its request when resources are available.
+- **Limits**: Constrain resource use at runtime. CPU limits cause throttling; exceeding a memory limit can cause the container to be terminated with an out-of-memory error.
+
+The following C# AppHost example requests a quarter of a CPU and 256 MiB of memory, with limits of one CPU and 512 MiB:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddKubernetesEnvironment("k8s");
+
+builder.AddProject<Projects.Api>("api")
+    .PublishAsKubernetesService(resource =>
+    {
+        var container = resource.Workload!.PodTemplate.Spec.Containers[0];
+        container.Resources ??= new();
+
+        container.Resources.Requests["cpu"] = "250m";
+        container.Resources.Requests["memory"] = "256Mi";
+        container.Resources.Limits["cpu"] = "1";
+        container.Resources.Limits["memory"] = "512Mi";
+    });
+
+builder.Build().Run();
+```
+
+`Workload.PodTemplate` accesses the pod template for either a Deployment or a StatefulSet. The example configures the first generated container, not every container in the pod. For an [AKS environment](/integrations/cloud/azure/aks/), replace `AddKubernetesEnvironment("k8s")` with `AddAzureKubernetesEnvironment("aks")`. Both targets use the Kubernetes publishing path, so the callback applies to both. It changes the published workload, not local `aspire run` resource limits.
+
+Values use Kubernetes quantity syntax and are stored as strings:
+
+| Quantity | Meaning |
+| -------- | ------- |
+| `250m` CPU | 250 millicpu, equivalent to `0.25` CPU |
+| `1` CPU | One physical or virtual CPU core |
+| `256Mi` memory | 256 mebibytes |
+| `512Mi` memory | 512 mebibytes |
+
+Memory suffixes are case-sensitive: `Mi` denotes mebibytes, while `M` denotes decimal megabytes. Don't use `m` for memory, which denotes millibytes.
+
+CPU and memory requests and limits are optional. Set only the dictionary entries you need; Aspire doesn't add default CPU or memory requests or limits. Kubernetes admission policies, such as a namespace's `LimitRange`, can supply defaults or enforce constraints. If you set a limit without a request for the same resource and no admission-time default applies, Kubernetes uses the limit as the request.
+
+:::note
+This example uses the C# workload resource model. The same typed CPU and memory customization isn't currently exposed to TypeScript AppHosts.
+:::
+
+{% learnmore %}
+For quantity syntax and enforcement details, see [Resource management for pods and containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
+{% endlearnmore %}
+
+## Add custom Kubernetes manifests
+
+Within a `PublishAsKubernetesService` callback, you can attach arbitrary Kubernetes manifests — such as [cert-manager](https://cert-manager.io/) `Certificate` definitions, additional `ConfigMap` objects, or any other Kubernetes resource — to the generated Helm chart alongside your service.
+
+The API surface differs by language:
+
+- **C#**: add subclasses of `BaseKubernetesResource` directly to the `AdditionalResources` collection. Several built-in types (such as `ConfigMap`) are available in the `Aspire.Hosting.Kubernetes.Resources` namespace, and you can subclass `BaseKubernetesResource` to model any custom resource definition (CRD).
+- **TypeScript**: call `addManifest` on the resource. It takes the manifest's `apiVersion`, `kind`, and `metadata.name`, and returns a handle for setting labels, annotations, a namespace, and arbitrary field values using dot-notation paths.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const service = await builder.addContainer('service', 'nginx');
+await service.publishAsKubernetesService(async (resource) => {
+    await resource.addManifest('cert-manager.io/v1', 'Certificate', 'service-tls', {
+        configure: async (manifest) => {
+            await manifest.withLabel('example.com/managed-by', 'aspire');
+            await manifest.withField('spec.secretName', 'service-tls');
+            await manifest.withField('spec.dnsNames', ['service.example.com']);
+            await manifest.withField('spec.issuerRef.name', 'letsencrypt-prod');
+            await manifest.withField('spec.issuerRef.kind', 'ClusterIssuer');
+        },
+    });
+});
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+Define a class for the custom resource by deriving from `BaseKubernetesResource`, then add an instance to `AdditionalResources`. The example below models a cert-manager `Certificate` CRD:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+using YamlDotNet.Serialization;
+
+builder.AddContainer("service", "nginx")
+    .PublishAsKubernetesService(resource =>
+    {
+        var certificate = new Certificate
+        {
+            Metadata = { Name = "service-tls" },
+            Spec =
+            {
+                SecretName = "service-tls",
+                DnsNames = { "service.example.com" },
+                IssuerRef = { Name = "letsencrypt-prod", Kind = "ClusterIssuer" },
+            },
+        };
+        certificate.Metadata.Labels["example.com/managed-by"] = "aspire";
+        resource.AdditionalResources.Add(certificate);
+    });
+
+public sealed class Certificate() : BaseKubernetesResource("cert-manager.io/v1", "Certificate")
+{
+    [YamlMember(Alias = "spec")]
+    public CertificateSpec Spec { get; set; } = new();
+}
+
+public sealed class CertificateSpec
+{
+    [YamlMember(Alias = "secretName")]
+    public string SecretName { get; set; } = "";
+
+    [YamlMember(Alias = "dnsNames")]
+    public List<string> DnsNames { get; } = [];
+
+    [YamlMember(Alias = "issuerRef")]
+    public IssuerRef IssuerRef { get; set; } = new();
+}
+
+public sealed class IssuerRef
+{
+    [YamlMember(Alias = "name")]
+    public string Name { get; set; } = "";
+
+    [YamlMember(Alias = "kind")]
+    public string Kind { get; set; } = "Issuer";
+}
+```
+
+For simple cases that map to a built-in type, instantiate the type directly — for example, `new ConfigMap { Metadata = { Name = "extra-config" }, Data = { ["key"] = "value" } }` — and add it to `AdditionalResources`.
+{% endtab %}
+{% endtabs %}
+
+The manifest handle returned by {% api "Aspire.Hosting.KindManifestResourceBuilderExtensions.AddManifest" %} supports the following configuration methods:
+
+| Method | Description |
+|---|---|
+| `withNamespace` | Sets the Kubernetes namespace for the manifest. |
+| `withLabel` | Adds a metadata label to the manifest. |
+| `withAnnotation` | Adds a metadata annotation to the manifest. |
+| `withField` | Sets an arbitrary field using a dot-notation path (for example, `spec.maxReplicaCount`). |
+
+Each manifest is emitted as a separate template file inside the generated Helm chart.
+
+:::note
+`addManifest` is the recommended way to attach custom Kubernetes resources from TypeScript AppHosts, where there is no strongly-typed model for arbitrary CRDs. C# AppHosts have direct access to the resource model, so they add `BaseKubernetesResource` instances to `AdditionalResources` instead.
+:::
+
+## Publishing and deployment
+
+The Kubernetes integration supports both [`aspire publish`](/reference/cli/commands/aspire-publish/) (generate Helm chart artifacts) and [`aspire deploy`](/reference/cli/commands/aspire-deploy/) (deploy directly to your current cluster context).
+
+For complete walkthroughs, see [Deploy to Kubernetes clusters](/deployment/kubernetes/clusters/).
+
+## See also
+
+- [Deploy to Kubernetes](/deployment/kubernetes/)
+- [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/)
+- [Expose services with Ingress and Gateway API](/deployment/kubernetes-ingress/)
+- [Configure Ingress on AKS](/deployment/kubernetes-ingress-aks/)
+- [Configure Gateway API on AKS](/deployment/kubernetes-gateway-aks/)
+- [Deploy to AKS](/deployment/kubernetes/aks/)
+- [AKS integration](/integrations/cloud/azure/aks/)
+- [Kubernetes documentation](https://kubernetes.io/docs/)
+- [Helm documentation](https://helm.sh/docs/)

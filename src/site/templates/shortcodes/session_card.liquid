@@ -1,0 +1,30 @@
+---
+# The site's <SessionCard> (src/components/SessionCard.astro), used by aspireconf_sessions:
+#   {% session_card session, index: 3 %}
+# `session`: { title, speakers: [{ name, headshot?, jobTitle?, company? }], abstract, timeslot?, duration?, keynote? }.
+# Headshots are 80px WebP variants of the images (image_url); a speaker without one gets initials on a color from the
+# golden angle, as the component did. Root class: cid-session-card.
+display: block
+args: [session]
+params: [index]
+---
+{%- assign sc_index = index | default: 0 -%}
+{%- assign sc_speakers = session.speakers | map: "name" | join: "," | downcase -%}
+<li class="session-card not-content{% if session.keynote %} keynote{% endif %} cid-session-card" style="--card-index: {{ sc_index }}" data-title="{{ session.title | downcase | escape }}" data-speakers="{{ sc_speakers | escape }}" data-abstract="{{ session.abstract | downcase | escape }}" data-keynote="{% if session.keynote %}true{% else %}false{% endif %}"><div class="accent-bar" aria-hidden="true"></div><div class="card-inner">
+{%- if session.timeslot -%}<div class="time-badge"><svg class="time-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span class="time-text" data-original-time="{{ session.timeslot | escape }}">{{ session.timeslot | escape }}</span>{% if session.duration %}<span class="time-duration">{{ session.duration | escape }}</span>{% endif %}</div>{%- endif -%}
+<div class="content"><h3 class="title">{{ session.title | escape }}</h3><p class="abstract">{{ session.abstract | escape }}</p></div><div class="speakers">
+{%- for speaker in session.speakers -%}
+<div class="speaker"><div class="headshot-ring">
+{%- if speaker.headshot -%}
+<img src="{{ speaker.headshot | image_url: width: 80, format: "webp" }}" alt="{{ speaker.name | escape }}" loading="lazy" decoding="async" width="80" height="80" class="headshot">
+{%- else -%}
+{%- assign sc_parts = speaker.name | split: " " -%}
+{%- if sc_parts.size == 1 -%}{%- assign sc_initials = sc_parts.first | slice: 0, 2 | upcase -%}{%- else -%}{%- assign sc_first = sc_parts.first | slice: 0 -%}{%- assign sc_last = sc_parts.last | slice: 0 -%}{%- assign sc_initials = sc_first | append: sc_last | upcase -%}{%- endif -%}
+{%- assign sc_color_index = sc_index | times: 10 | plus: forloop.index0 -%}
+{%- assign sc_hue = sc_color_index | times: 137.508 | modulo: 360 -%}
+{%- assign sc_light = 28 -%}{%- if sc_hue > 40 and sc_hue < 85 -%}{%- assign sc_light = 22 -%}{%- elsif sc_hue >= 85 and sc_hue < 140 -%}{%- assign sc_light = 24 -%}{%- endif -%}
+<div class="headshot-initials" style="background-color: hsl({{ sc_hue | round }} 55% {{ sc_light }}%); color: #ffffff;">{{ sc_initials | default: "?" }}</div>
+{%- endif -%}
+</div><div class="speaker-info"><span class="speaker-name">{{ speaker.name | escape }}</span>{% if speaker.jobTitle %}<span class="speaker-role">{{ speaker.jobTitle | escape }}{% if speaker.company %} &middot; {{ speaker.company | escape }}{% endif %}</span>{% endif %}</div></div>
+{%- endfor -%}
+</div></div></li>

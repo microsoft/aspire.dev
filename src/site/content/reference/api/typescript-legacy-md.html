@@ -1,0 +1,25 @@
+---
+# The previously published base-name `.md` urls of TypeScript items and members whose canonical slug changed (the
+# legacy paths of src/frontend/src/pages/reference/api/typescript/[module]/[item].md.ts and [item]/[member].md.ts):
+# each renders the twin of the page it points to.
+layout: false
+pagination: { data: api.legacy-md, size: 1, alias: route }
+permalink: "{{ route.md }}"
+---
+{%- assign doc = api["ts-modules"][route.file] -%}
+{%- if route.kind == "item" -%}
+  {%- case route.collection -%}
+    {%- when "handleTypes" -%}{%- assign itemKind = "handle" -%}
+    {%- when "dtoTypes" -%}{%- assign itemKind = "dto" -%}
+    {%- when "enumTypes" -%}{%- assign itemKind = "enum" -%}
+    {%- else -%}{%- assign itemKind = "function" -%}
+  {%- endcase -%}
+  {%- assign item = doc[route.collection][route.index] -%}
+  {%- capture text -%}{%- render 'api/md/ts-item', doc: doc, item: item, itemKind: itemKind, index: route.index -%}{%- endcapture -%}
+{%- else -%}
+  {%- assign parent = doc.handleTypes[route.item] -%}
+  {%- assign method = parent.capabilities[route.capability] -%}
+  {%- assign parentSlug = route.url | split: "/" -%}
+  {%- capture text -%}{%- render 'api/md/ts-member', doc: doc, parent: parent, method: method, parentSlug: parentSlug[5] -%}{%- endcapture -%}
+{%- endif -%}
+{%- render 'api/md/finalize', text: text -%}

@@ -1,0 +1,31 @@
+---
+title: Aspire
+giscus: false
+head:
+  - tag: title
+    content: Aspire — आपका स्टैक, सरल
+description: अपने स्टैक में Aspire जोड़ें और कोड-प्रथम नियंत्रण, मॉड्युलैरिटी और ऑब्ज़र्वेबिलिटी के साथ विकास वर्कफ़्लो को सुव्यवस्थित करें।
+layout: splash
+editUrl: false
+prev: false
+next: false
+banner:
+  content: |
+    <strong>✨ Aspire 13.6 रिलीज़ हो गया है!</strong> — <a href="/hi/whats-new/aspire-13-6/">Aspire 13.6 में नया क्या है देखें।</a>
+bannerAutoDismissAfterDays: 14
+hero:
+  tagline: आपका स्टैक, सरल। <p>फ्रंटएंड, API, कंटेनर और डेटाबेस को आसानी से ऑर्केस्ट्रेट करें—बिना रीराइट, बिना सीमा। किसी भी प्रोजेक्ट को शक्ति देने के लिए Aspire को विस्तारित करें।</p>
+  image:
+    alt: Aspire लोगो
+    file: /assets/images/aspire-hero.png
+  actions:
+    - text: Aspire प्राप्त करें
+      link: /hi/get-started/install-cli/
+    - text: दस्तावेज़ देखें
+      link: /hi/docs/
+      variant: secondary
+# The locale home page: the partials of the root index.html, in the locale's strings (i18n home.*). The body is one
+# raw region (home-page-region.liquid) that the Markdown pass keeps as it is.
+home: true
+---
+{% include "partials/home/home-page-region.liquid" %}

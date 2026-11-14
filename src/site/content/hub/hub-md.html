@@ -1,0 +1,66 @@
+---
+# The Markdown twin of the hub landing page, /hub.md (src/frontend/src/pages/hub.md.ts), from dev_hub. A one-page
+# pagination keeps the template out of the collections: collect runs before pagination, while the template keeps
+# its default path (hub/hub-md/, not Markdown); the page gets its .md path from its permalink. Not localized (no
+# locale copies), not rendered as Markdown, no layout.
+pagination: { data: hub_md_pages, size: 1, alias: hub_md_page }
+hub_md_pages: [hub]
+permalink: hub.md
+localize: false
+layout: false
+markdown: false
+twin: true
+---
+{%- assign hm_site = "https://aspire.dev" -%}
+# {{ dev_hub.title | raw }}
+
+{{ dev_hub.description | raw }}
+
+[Browse all resources](https://aspire.dev/hub/browse/): Search and filter by resource type, topic, and language.
+
+## New to Aspire?
+{% for hm_item in dev_hub.resources %}
+- [{{ hm_item.title | raw }}]({{ hm_site }}{{ hm_item.href | raw }}) ({{ hm_item.format | raw }}): {{ hm_item.description | raw }}
+{% endfor %}
+## Browse by topic
+{% for hm_item in dev_hub.topics %}
+- [{{ hm_item.title | raw }}]({{ hm_site }}{{ hm_item.href | raw }}): {{ hm_item.description | raw }}
+{% endfor %}
+## Start with your language
+{% for hm_item in dev_hub.languages %}
+- [{{ hm_item.title | raw }}]({{ hm_site }}{{ hm_item.href | raw }}): {{ hm_item.description | raw }}
+{% endfor %}
+## Browse by cloud and deployment target
+{% for hm_item in dev_hub.cloud_links %}{% assign hm_c = hm_item.href | slice: 0 %}
+- [{{ hm_item.title | raw }}]({% if hm_c == "/" %}{{ hm_site }}{% endif %}{{ hm_item.href | raw }}): {{ hm_item.description | raw }}
+{% endfor %}
+## Samples to build on
+
+[All samples](https://aspire.dev/hub/browse/?type=sample): Filter by language, including the sample services and AppHost.
+{% for hm_item in dev_hub.featured_samples %}{% assign sl_sample = samples | where: "name", hm_item.id | first %}{% include "partials/hub/sample-languages" %}{% capture hm_labels %}{% for tl_tag in sl_languages %}{% include "partials/hub/tag-label" %}{% unless forloop.first %}, {% endunless %}{{ tl_label | raw }}{% endfor %}{% endcapture %}
+- [{{ hm_item.title | raw }}]({{ hm_site }}/reference/samples/{{ sl_sample.name | slug }}/) ({{ hm_labels }}): {{ hm_item.description | raw }}
+{% endfor %}
+## Reference
+
+[All reference docs](https://aspire.dev/reference/overview/)
+{% for hm_item in dev_hub.reference_links %}
+- [{{ hm_item.title | raw }}]({{ hm_site }}{{ hm_item.href | raw }}): {{ hm_item.description | raw }}
+{% endfor %}
+## Dashboard
+
+[Explore the dashboard](https://aspire.dev/dashboard/)
+{% for hm_item in dev_hub.dashboard_links %}
+- [{{ hm_item.title | raw }}]({{ hm_site }}{{ hm_item.href | raw }})
+{% endfor %}
+## Latest from Aspire on YouTube
+
+[All videos](https://aspire.dev/community/videos/)
+{% for hm_item in dev_hub.videos %}
+- [{{ hm_item.title | raw }}](https://www.youtube.com/watch?v={{ hm_item.id | raw }})
+{% endfor %}
+## From the blog
+
+[All blog posts](https://devblogs.microsoft.com/aspire/)
+{% for hm_item in dev_hub.blog_highlights %}
+- [{{ hm_item.title | raw }}]({{ hm_item.href | raw }}) ({{ hm_item.date | raw }}): {{ hm_item.description | raw }}
+{% endfor %}

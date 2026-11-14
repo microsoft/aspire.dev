@@ -1,0 +1,26 @@
+---
+# The site's <ReadableText> (src/components/ReadableText.astro): {% readable_text "Aspire.Hosting.PostgreSQL" %}.
+# The text, escaped, with a <wbr> at the component's break points: between a lowercase letter or digit and an
+# uppercase letter, before the last uppercase letter of an uppercase run followed by a lowercase letter, after
+# `.`, `/` or `:` following a letter, after `_` or `-`, before `<` or `(`, and after `>`, `,`, `)` or `]`.
+args: [text]
+---
+{%- assign rt_lower = "abcdefghijklmnopqrstuvwxyz" -%}{%- assign rt_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" -%}{%- assign rt_digits = "0123456789" -%}
+{%- assign rt_text = text | append: "" -%}{%- assign rt_last = rt_text.size | minus: 1 -%}
+{%- assign rt_prev = "" -%}{%- assign rt_prev2 = "" -%}
+{%- for rt_i in (0..rt_last) -%}
+{%- assign rt_c = rt_text | slice: rt_i, 1 -%}
+{%- if rt_i > 0 -%}
+  {%- assign rt_break = false -%}
+  {%- assign rt_next_i = rt_i | plus: 1 -%}{%- assign rt_next = rt_text | slice: rt_next_i, 1 -%}
+  {%- if rt_upper contains rt_c -%}
+    {%- if rt_lower contains rt_prev or rt_digits contains rt_prev -%}{%- assign rt_break = true -%}{%- endif -%}
+    {%- if rt_upper contains rt_prev and rt_next != "" and rt_lower contains rt_next -%}{%- assign rt_break = true -%}{%- endif -%}
+  {%- endif -%}
+  {%- if "./:" contains rt_prev and rt_prev2 != "" -%}{%- if rt_lower contains rt_prev2 or rt_upper contains rt_prev2 -%}{%- assign rt_break = true -%}{%- endif -%}{%- endif -%}
+  {%- if "_-" contains rt_prev or ">,)]" contains rt_prev or "<(" contains rt_c -%}{%- assign rt_break = true -%}{%- endif -%}
+  {%- if rt_break -%}<wbr>{%- endif -%}
+{%- endif -%}
+{{- rt_c | escape -}}
+{%- assign rt_prev2 = rt_prev -%}{%- assign rt_prev = rt_c -%}
+{%- endfor -%}

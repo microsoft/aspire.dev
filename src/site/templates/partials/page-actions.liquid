@@ -1,0 +1,53 @@
+{%- comment -%}
+  starlight-page-actions 0.7 (patched: accessible dropdowns) PageActions.astro, position "page-title", with the
+  site's options (share: true; actions: chatgpt, claude, githubCopilot): copy Markdown (fetches the page's .md twin,
+  `data-path` + ".md"), the "Open" dropdown and the "Share" dropdown. Scripts: scripts/client/page-actions.ts,
+  page-actions-dropdown.ts. Off with `pageActions: false`. Encoding uses `url_encode` (spaces as '+', where
+  encodeURIComponent wrote %20). Reads base.liquid's sl_url. Root class: cid-page-actions-page-actions.
+{%- endcomment -%}
+{%- unless pageActions == false -%}
+{%- comment -%} The Markdown is that of the shown content: on a fallback copy, the default locale's page (as edit-link.liquid). {%- endcomment -%}
+{%- if fallback -%}{%- assign pa_md_url = sl_locale_url -%}{%- else -%}{%- assign pa_md_url = sl_url -%}{%- endif -%}
+{%- assign pa_len = pa_md_url.size | minus: 1 -%}
+{%- if pa_len > 0 -%}{%- assign pa_path = pa_md_url | slice: 0, pa_len -%}{%- else -%}{%- assign pa_path = "" -%}{%- endif -%}
+{%- assign pa_current = sl_url | absolute_url -%}
+{%- assign pa_prompt_template = "pageActions.prompt.default" | t -%}
+{%- if pa_prompt_template contains "{url}" -%}{%- assign pa_prompt = pa_prompt_template | replace: "{url}", pa_current -%}{%- else -%}{%- assign pa_prompt = pa_prompt_template | append: " " | append: pa_current -%}{%- endif -%}
+{%- assign pa_q = pa_prompt | url_encode -%}
+{%- assign pa_u = pa_current | url_encode -%}
+{%- assign pa_t = title | url_encode -%}
+{%- assign pa_open_label = "pageActions.open.label" | t -%}
+{%- assign pa_share_label = "pageActions.share.label" | t -%}
+<div class="actions-container cid-page-actions-page-actions" data-tour-target="page-actions" data-tour-step="page-actions">
+<button class="action-button cid-page-actions-button" data-path="{{ pa_path }}" data-page-action="copy-markdown">{% include "partials/page-actions/icon-markdown", pa_icon_class: "icon-default copy-markdown-icon", pa_icon_id: nil %}{% icon "approve-check", size: "1rem", class: "icon-success", label: nil, color: nil %}{% icon "error", size: "1rem", class: "icon-error", label: nil, color: nil %}<span>{{ "pageActions.copy.markdown" | t }}</span></button>
+<div class="dropdown-container">
+<div class="dropdown cid-page-actions-dropdown" id="dropdown-0" data-page-action-dropdown><button class="action-button cid-page-actions-button" id="dropdown-0-toggle" aria-expanded="false" aria-controls="dropdown-0-menu"><span>{{ pa_open_label }}</span>{% icon "down-caret", size: "1rem", class: nil, label: nil, color: nil %}</button>
+<div id="dropdown-0-menu" class="dropdown-menu" role="group" aria-label="{{ pa_open_label }}" hidden>
+<a href="https://chatgpt.com/?q={{ pa_q }}" class="dropdown-item" target="_blank">{% include "partials/page-actions/icon-chatgpt", pa_icon_class: "action-icon", pa_icon_id: "chatgpt" %}<span>{{ "pageActions.open.chatgpt" | t }}</span>{% icon "external", size: "1rem", class: "external-icon", label: nil, color: nil %}</a><a href="https://claude.ai/new?q={{ pa_q }}" class="dropdown-item" target="_blank">{% include "partials/page-actions/icon-claude", pa_icon_class: "action-icon", pa_icon_id: "claude" %}<span>{{ "pageActions.open.claude" | t }}</span>{% icon "external", size: "1rem", class: "external-icon", label: nil, color: nil %}</a><a href="https://github.com/copilot/?prompt={{ pa_q }}" class="dropdown-item" target="_blank">{% include "partials/page-actions/icon-github-copilot", pa_icon_class: "action-icon", pa_icon_id: "githubCopilot" %}<span>{{ "pageActions.open.githubCopilot" | t }}</span>{% icon "external", size: "1rem", class: "external-icon", label: nil, color: nil %}</a><a href="{{ pa_path }}.md" class="dropdown-item" target="_blank">{% include "partials/page-actions/icon-markdown", pa_icon_class: "action-icon", pa_icon_id: "markdown" %}<span>{{ "pageActions.open.markdown" | t }}</span></a>
+</div></div>
+<div class="dropdown cid-page-actions-dropdown" id="dropdown-1" data-page-action-dropdown><button class="action-button cid-page-actions-button" id="dropdown-1-toggle" aria-expanded="false" aria-controls="dropdown-1-menu"><span>{{ pa_share_label }}</span>{% icon "down-caret", size: "1rem", class: nil, label: nil, color: nil %}</button>
+<div id="dropdown-1-menu" class="dropdown-menu" role="group" aria-label="{{ pa_share_label }}" hidden>
+{%- capture pa_share -%}
+linkedin|https://www.linkedin.com/sharing/share-offsite/?url={{ pa_u | raw }}
+x|https://x.com/intent/tweet?url={{ pa_u | raw }}&text={{ pa_t | raw }}
+threads|https://threads.net/intent/post?url={{ pa_u | raw }}&text={{ pa_t | raw }}
+bluesky|https://bsky.app/intent/compose?text={{ pa_t | raw }}%20{{ pa_u | raw }}
+facebook|https://www.facebook.com/sharer/sharer.php?u={{ pa_u | raw }}
+reddit|https://reddit.com/submit?url={{ pa_u | raw }}&title={{ pa_t | raw }}
+hackernews|https://news.ycombinator.com/submitlink?u={{ pa_u | raw }}&t={{ pa_t | raw }}
+email|mailto:?subject={{ pa_t | raw }}&body={{ pa_u | raw }}
+whatsapp|https://wa.me/?text={{ pa_t | raw }}%20{{ pa_u | raw }}
+telegram|https://t.me/share/url?url={{ pa_u | raw }}&text={{ pa_t | raw }}
+{%- endcapture -%}
+{%- assign pa_lines = pa_share | strip | split: "
+" -%}
+{%- for pa_line in pa_lines -%}
+{%- assign pa_id = pa_line | split: "|" | first | strip -%}
+{%- assign pa_href = pa_line | remove_first: pa_id | remove_first: "|" -%}
+{%- assign pa_key = "pageActions.share." | append: pa_id -%}
+{%- assign pa_icon = "partials/page-actions/icon-" | append: pa_id -%}<a href="{{ pa_href }}" class="dropdown-item" target="_blank">{% include pa_icon, pa_icon_class: "action-icon", pa_icon_id: pa_id %}<span>{{ pa_key | t }}</span>{% icon "external", size: "1rem", class: "external-icon", label: nil, color: nil %}</a>
+{%- endfor %}
+</div></div>
+</div>
+</div>
+{%- endunless -%}

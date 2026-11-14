@@ -1,0 +1,164 @@
+---
+title: aspire update command
+description: Learn about the aspire update command and its usage. This command helps you keep your Aspire projects current by automatically detecting and updating outdated packages and templates.
+sidebar:
+  badge: Preview
+---
+
+## Name
+
+`aspire update` - Update Aspire packages and templates in your project.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire update [options]
+```
+
+## Description
+
+The `aspire update` command helps you keep your Aspire projects current by automatically detecting and updating outdated packages, templates, and repository CLI references. It finds outdated Aspire NuGet packages while respecting channel configurations and intelligently handles complex dependency graphs.
+
+{% include_markdown "reference/cli/includes/project-search-logic-description.md" %}
+
+The command performs the following:
+
+- Detects outdated Aspire NuGet packages in your project
+- Respects your configured Aspire channel (preview, stable, etc.)
+- Resolves diamond dependencies to avoid duplicate updates
+- Applies all package version edits before running a single final `dotnet restore`, so channel switches that add NuGet source mappings don't cause restore failures mid-update
+- Provides colorized output with detailed summary of changes
+
+### Non-interactive usage
+
+When you use `--non-interactive`, also pass `--yes` to explicitly confirm the update operation. Omitting `--yes` when using `--non-interactive` is an error:
+
+```bash title="Aspire CLI"
+aspire update --yes --non-interactive
+```
+
+If you specify `--non-interactive` without `--yes`, the command exits with an error:
+
+```text title="Output"
+The update command requires --yes when the --non-interactive option is specified.
+```
+
+### Updating repository Aspire CLI references
+
+A repository can pin the Aspire CLI independently of the executable you're currently running, using an `Aspire.Cli` entry in `.config/dotnet-tools.json` or `dotnet-tools.json`, or an `@microsoft/aspire-cli` entry in `package.json` (`dependencies`, `devDependencies`, or `optionalDependencies`). `aspire update` updates these existing pins alongside AppHost integrations, or without an AppHost.
+
+Discovery starts in the selected AppHost's directory, or the current directory without an AppHost, and searches ancestor directories for the nearest CLI references. At each level, it checks `.config/dotnet-tools.json` before `dotnet-tools.json`. The .NET search stops after finding an Aspire entry or checking a manifest marked `isRoot: true`; npm independently searches for the nearest `package.json` with a CLI reference.
+
+Updates preserve unrelated manifest entries and npm version-specifier forms: exact versions or full-version `^`/`~` ranges. Unsupported specifiers, such as file, workspace, or alias references and compound ranges, are skipped with a warning.
+
+.NET pins resolve through the selected package channel, the same as project package updates. npm uses the `latest` dist-tag for the stable/default channel; requesting an explicit non-stable channel (for example, `daily`) requires that exact CLI version to already be published on npm.
+
+Updating repository CLI references changes only the manifests; this step does not install the updated CLI, replace the running executable, or refresh lockfiles. Guest AppHost dependency installation can still change lockfiles during a project update. Follow the printed restore or install instructions afterward: run `dotnet tool restore` with the selected channel's NuGet feed available, or your package manager's install command, such as `npm install`.
+
+### Updating guest AppHost projects
+
+When updating a guest AppHost project, such as a TypeScript AppHost, `aspire update` checks the selected Aspire SDK version before modifying files. If the selected SDK is newer than the running Aspire CLI:
+
+- **With repository CLI references**: The command offers to update the pins instead of replacing the running executable. After updating the pins, or if they're already current, it skips the project update and asks you to restore or install the CLI, then re-run `aspire update`.
+- **Without repository CLI references**: The command offers to update the CLI itself. If you confirm, it skips the project update and follows the [installation-specific update behavior](#updating-the-cli-based-on-how-it-was-installed), either downloading the binary or printing package-manager commands to run manually.
+
+After updating the CLI, re-run `aspire update` to complete the project update. This check helps prevent a guest AppHost project from being left in a broken state when the CLI's bundled code generator doesn't support the selected SDK version.
+
+:::tip
+If your repository doesn't pin the CLI, you can run `aspire update --self` before updating a guest AppHost project. Follow any package-manager instructions it prints to complete the CLI update. For repositories with CLI pins, use plain `aspire update` and follow the restore or install guidance instead; `--self` doesn't update those pins.
+:::
+
+### Updating the CLI based on how it was installed
+
+`aspire update --self` (and the update notice shown when a newer version is available) adapts to how the CLI was installed so it doesn't overwrite files owned by a package manager:
+
+- When the CLI was installed from **npm** (the `@microsoft/aspire-cli` package), the command prints the npm update command to run instead of downloading a new binary:
+
+  ```text title="Output"
+  To update the Aspire CLI when installed from npm, run:
+    npm install -g @microsoft/aspire-cli@latest
+  ```
+
+- When the CLI was installed with the **install script** or another **binary install**, `aspire update --self` downloads and installs the latest CLI binary directly.
+- When the CLI was installed as a **.NET tool**, the command prints the `dotnet tool update` command to run.
+- When the CLI was installed via **Nix** (profile or flake), the command prints the Nix update commands to run instead of downloading a new binary. Because the Nix store is read-only, in-place binary updates are not possible:
+
+  ```text title="Output"
+  To update the Aspire CLI when installed from Nix, update the profile package or flake input:
+    nix profile upgrade aspire-cli
+    nix flake update <input-name>
+  ```
+
+  Run `nix profile upgrade aspire-cli` for a profile install, or `nix flake update <input-name>` for a project flake.
+
+## Options
+
+The following options are available:
+
+- {% include_markdown "reference/cli/includes/option-project.md" %}
+
+- **`--self`**
+
+  Update the Aspire CLI itself to the latest version. The CLI adapts to how it was installed: npm and .NET tool installs print the matching package-manager command to run, while install-script and other binary installs download the latest binary directly. See [Updating the CLI based on how it was installed](#updating-the-cli-based-on-how-it-was-installed).
+
+- **`--channel`**
+
+  Channel to update to (`stable`, `staging`, `daily`). When switching channels, `aspire update` applies all package version edits to your project first and then runs a single `dotnet restore`, ensuring that NuGet source mappings added for the target channel are in place before any restore is attempted.
+
+  For non-stable channels (`staging`, `daily`), `aspire update` creates or updates a project-level `nuget.config` with the source mappings needed to resolve packages from that channel's feed. For the `stable` channel, no `nuget.config` is created because nuget.org is already the default NuGet source. If an existing `nuget.config` is present and the project has package or channel updates to apply when switching to or using `stable`, those changes are applied as part of that update to remove any stale channel-specific feed entries. If the project is already up to date, `aspire update` reports this and exits before touching `nuget.config`, so a stale channel-specific feed entry from a previous `staging` or `daily` switch can remain until the next update that actually applies changes.
+
+  When you switch to a persistable channel, such as `daily`, `aspire update` also rewrites the top-level `channel` key in `aspire.config.json` when the file already exists. Only channels registered as _explicit_ channels are persisted, with one exception: the `stable` channel is treated as the portable default and is intentionally not pinned. The persisted channel keeps subsequent `aspire add` and `aspire update` runs resolving packages against the channel you just switched to.
+
+  The `staging` channel can only be resolved from a `stable` or `staging` Aspire CLI build. Daily, local, and per-PR CLI builds don't have a deterministic staging feed, so requesting `--channel staging` from one of them fails with an error naming the running CLI's identity and pointing at the recovery options: install a staging or stable Aspire CLI, or set the `overrideStagingFeed` configuration value (for example, `aspire config set -g overrideStagingFeed <feed-url>`) to point at the staging feed you want to use. See [`overrideStagingFeed`](/reference/cli/configuration/#settings-surfaced-by-aspire-config) in the CLI configuration reference.
+
+- **`-y, --yes`**
+
+  Automatically confirm all prompts without user input. Use this option in CI/CD pipelines or other non-interactive environments to skip confirmation dialogs.
+
+- **`--nuget-config-dir`**
+
+  Path to the directory containing the `NuGet.Config` file to use when searching for packages. When not specified, the command searches for a `NuGet.Config` file in the current directory and its parents.
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Examples
+
+- Analyze and update out-of-date Aspire packages and templates:
+
+  ```bash title="Aspire CLI"
+  aspire update
+  ```
+
+- Update a specific AppHost project:
+
+  ```bash title="Aspire CLI"
+  aspire update --apphost './projects/apphost/orchestration.AppHost.csproj'
+  ```
+
+- Update packages in a CI/CD pipeline without interactive prompts:
+
+  ```bash title="Aspire CLI"
+  aspire update --yes --non-interactive
+  ```
+
+- Update packages using a specific NuGet configuration file:
+
+  ```bash title="Aspire CLI"
+  aspire update --nuget-config-dir './config'
+  ```
+
+- Update packages to the daily preview channel:
+
+  ```bash title="Aspire CLI"
+  aspire update --channel daily
+  ```

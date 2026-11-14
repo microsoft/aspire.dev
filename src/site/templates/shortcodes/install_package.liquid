@@ -1,0 +1,34 @@
+---
+# The site's <InstallPackage> (src/components/InstallPackage.astro):
+#   {% install_package "Aspire.Hosting.Redis", short_name: "redis", omit_package_reference: true, cli_only: true %}
+# short_name defaults to the package name without `Aspire.Hosting.`, dots to dashes, lowercase (generateFriendlyName).
+# Synced tabs (`aspire-install`): Aspire CLI (command, prompt sample, note), apphost.cs, PackageReference. Strings
+# from the locale (`package.*`, whose `{{packageName}}` placeholder is replaced here). Code blocks in Douze's fence
+# markup for the `code` worker step (see install_dotnet_package.liquid).
+# Root class: cid-install-package (plus cid-sl-tabs).
+display: block
+args: [package]
+params: [short_name, omit_package_reference, cli_only]
+---
+{%- assign ip_short = short_name -%}
+{%- unless ip_short -%}{%- assign ip_short = package | remove: "Aspire.Hosting." | remove: "aspire.hosting." | replace: ".", "-" | downcase -%}{%- endunless -%}
+{%- assign ip_placeholder = "{{packageName}}" -%}
+{%- assign ip_cli_title = "package.cliCommandTitle" | t | replace: ip_placeholder, package -%}
+{%- assign ip_ref_title = "package.packageReferenceTitle" | t | replace: ip_placeholder, package -%}
+{%- comment -%} Built with append, not capture: a capture HTML-encodes its values, and `escape` would encode them twice. {%- endcomment -%}
+{%- assign ip_cli_meta = 'frame="terminal" title="' | append: ip_cli_title | append: '"' -%}
+{%- assign ip_prompt_title = "package.exampleCliOutput" | t -%}
+{%- assign ip_prompt_meta = 'frame="terminal" title="' | append: ip_prompt_title | append: '"' -%}
+{%- assign ip_ref_meta = 'title="' | append: ip_ref_title | append: '"' -%}
+{%- capture ip_newline %}
+{% endcapture -%}
+{%- assign ip_prompt_code = "Select an integration to add:" | append: ip_newline | append: ip_newline | append: "> " | append: ip_short | append: " (" | append: package | append: ")" | append: ip_newline | append: "> Other results listed as selectable options..." -%}
+{%- assign ip_ref_code = '<PackageReference Include="' | append: package | append: '" Version="*" />' -%}
+{%- assign ip_note = "aside.note" | t -%}
+{%- capture sc_tabs_body -%}<div role="tabpanel" data-label="Aspire CLI"><pre data-lang="bash" data-meta="{{ ip_cli_meta | escape }}"><code class="language-bash">aspire add {{ ip_short | escape }}</code></pre>
+<p>{{ "package.interactiveCli" | t }}</p>
+<pre data-lang="bash" data-meta="{{ ip_prompt_meta | escape }}"><code class="language-bash">{{ ip_prompt_code | escape }}</code></pre>
+<aside aria-label="{{ ip_note | escape }}" class="starlight-aside starlight-aside--note cid-sl-aside"><p class="starlight-aside__title" aria-hidden="true">{% icon "information", class: "starlight-aside__icon" %}{{ ip_note | escape }}</p><div class="starlight-aside__content">{{ "package.autoCliSelection" | t }}</div></aside></div>
+{%- unless cli_only -%}<div role="tabpanel" data-label="apphost.cs (C# file-based app)"><pre data-lang="csharp" data-meta="title=&quot;C# — AppHost.cs&quot;"><code class="language-csharp">#:package {{ package | escape }}@*</code></pre></div>{%- endunless -%}
+{%- unless cli_only or omit_package_reference -%}<div role="tabpanel" data-label="PackageReference (*.csproj)"><pre data-lang="xml" data-meta="{{ ip_ref_meta | escape }}"><code class="language-xml">{{ ip_ref_code | escape }}</code></pre></div>{%- endunless -%}
+{%- endcapture -%}{% include "partials/tabs-markup", body: sc_tabs_body, sync: "aspire-install", tabs_class: "cid-install-package", tabs_attrs: nil %}

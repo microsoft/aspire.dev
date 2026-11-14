@@ -3,45 +3,14 @@ import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 test.setTimeout(120_000);
 
-test.beforeEach(async ({ page, isMobile }) => {
-  if (isMobile) {
-    await page.addInitScript(() => {
-      Object.defineProperty(document, 'startViewTransition', {
-        configurable: true,
-        value: undefined,
-      });
-    });
-  }
-});
-
 async function start(page: Page, path: string) {
   await page.goto(path);
   await dismissCookieConsentIfVisible(page);
-  await page.evaluate(() => Reflect.set(window, '__filterNavigationSession', true));
 }
 
-async function prepareNavigation(page: Page) {
-  await page.evaluate(() => {
-    Reflect.set(window, '__filterNavigationLoaded', false);
-    document.addEventListener('astro:page-load', () => {
-      Reflect.set(window, '__filterNavigationLoaded', true);
-    }, { once: true });
-  });
-}
-
-async function expectClientNavigation(page: Page) {
-  await expect.poll(() => page.evaluate(() => Reflect.get(window, '__filterNavigationLoaded')), {
-    timeout: 30_000,
-  }).toBe(true);
-  await expect(page.locator('html[data-astro-transition]')).toHaveCount(0, { timeout: 30_000 });
-  expect(await page.evaluate(() => Reflect.get(window, '__filterNavigationSession'))).toBe(true);
-}
-
-async function navigate(page: Page, path: string) {
-  await prepareNavigation(page);
-  // Some filter pages have no direct links to each other. Click a real anchor
-  // so Astro handles navigation, rather than reloading with page.goto().
-  await page.evaluate((href) => {
+function addLink(page: Page, href: string) {
+  // Some filter pages have no direct links to each other: add a real anchor and click it.
+  return page.evaluate((href) => {
     document.getElementById('filter-navigation-link')?.remove();
     const link = document.createElement('a');
     link.id = 'filter-navigation-link';
@@ -49,16 +18,25 @@ async function navigate(page: Page, path: string) {
     link.textContent = 'Navigate to filter test destination';
     link.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;background:white;color:black';
     document.body.append(link);
-    link.click();
-  }, path);
-  await expect(page).toHaveURL(new URL(path, page.url()).href, { timeout: 30_000 });
-  await expectClientNavigation(page);
+  }, href);
+}
+
+// The site navigates with full page loads: wait for the destination document to load. Filter state that
+// must survive (search text, selected filters) is restored on the new page from the URL or storage.
+async function waitForPage(page: Page, path: string) {
+  await page.waitForURL(new URL(path, page.url()).href, { timeout: 30_000 });
+  await page.waitForLoadState('load');
+}
+
+async function navigate(page: Page, path: string) {
+  await addLink(page, path);
+  await page.locator('#filter-navigation-link').click();
+  await waitForPage(page, path);
 }
 
 async function back(page: Page) {
-  await prepareNavigation(page);
   await page.goBack();
-  await expectClientNavigation(page);
+  await page.waitForLoadState('load');
 }
 
 test('version dropdowns rebind across API languages and repeated visits', async ({ page }) => {
@@ -118,14 +96,16 @@ test('integration filters restore on Back and cancel input when leaving', async 
     await expect(official).toHaveClass(/active/);
   }
 
+  // Type and leave in the same task, so the search debounce is still pending when the page unloads:
+  // the departed page's input must not leak into the destination.
+  await addLink(page, '/reference/overview/?keep=1');
   await page.evaluate(() => {
     const input = document.querySelector<HTMLInputElement>('.search-box')!;
-    document.addEventListener('astro:before-swap', () => {
-      input.value = 'stale-query-from-gallery';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }, { capture: true, once: true });
+    input.value = 'stale-query-from-gallery';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('filter-navigation-link')!.click();
   });
-  await navigate(page, '/reference/overview/?keep=1');
+  await waitForPage(page, '/reference/overview/?keep=1');
   await page.waitForTimeout(650);
   await expect(page).toHaveURL(/\/reference\/overview\/\?keep=1$/);
 });

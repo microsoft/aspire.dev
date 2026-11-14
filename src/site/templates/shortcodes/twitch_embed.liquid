@@ -1,0 +1,23 @@
+---
+# The site's <TwitchEmbed> (src/components/TwitchEmbed.astro):
+#   {% twitch_embed "aspiredotdev", title: "Aspire on Twitch" %}   {% twitch_embed video: "1234567890" %}
+# One of channel or video is required. Without `parent`, the iframe has no src: the client script
+# (scripts/client/content/twitch-embed.ts) sets it from data-twitch-src with the page's hostname as `parent`.
+# `title: nil` gives the default label, as the component's `title={null}` did. Root class: cid-twitch-embed.
+display: block
+args: [channel]
+params: [video, title, aspect_ratio, parent, max_width, autoplay]
+---
+{%- unless channel or video -%}{% error "twitch_embed requires either a channel or a video" %}{%- endunless -%}
+{%- if autoplay -%}{%- assign tw_auto = "true" -%}{%- else -%}{%- assign tw_auto = "false" -%}{%- endif -%}
+{%- assign tw_query = "autoplay=" | append: tw_auto | append: "&muted=" | append: tw_auto -%}
+{%- if parent -%}{%- assign tw_query = tw_query | append: "&parent=" | append: parent -%}{%- endif -%}
+{%- if video -%}
+  {%- assign tw_src = "https://player.twitch.tv/?video=" | append: video | append: "&" | append: tw_query -%}
+  {%- assign tw_watch = "https://www.twitch.tv/videos/" | append: video -%}
+{%- else -%}
+  {%- assign tw_src = "https://player.twitch.tv/?channel=" | append: channel | append: "&" | append: tw_query -%}
+  {%- assign tw_watch = "https://www.twitch.tv/" | append: channel -%}
+{%- endif -%}
+{%- assign tw_title = title | default: "" | strip -%}
+<div class="twitch-embed not-content cid-twitch-embed" style="--aspect-ratio: {{ aspect_ratio | default: '16 / 9' }}; --max-width: {{ max_width | default: '100%' }};"><iframe {% if parent %}src{% else %}data-twitch-src{% endif %}="{{ tw_src | escape }}" aria-label="{% if tw_title != '' %}{{ tw_title | escape }}{% else %}Twitch stream player{% endif %}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy" data-stream-provider="twitch" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation"></iframe><noscript><a href="{{ tw_watch }}">Watch on Twitch</a></noscript></div>

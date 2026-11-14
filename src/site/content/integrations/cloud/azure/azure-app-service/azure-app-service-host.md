@@ -1,0 +1,501 @@
+---
+title: Set up Azure App Service in the AppHost
+description: Learn how to use the Aspire Azure App Service Hosting integration to provision an App Service environment and deploy compute resources from your AppHost.
+---
+
+{% image "/assets/images/icons/azure-app-services.svg", alt: "Azure App Service logo", height: 100, width: 100, class: "float-inline-left icon", zoomable: false %}
+
+{% badge "🧪 Preview", variant: "note", size: "large" %}
+
+This article is the reference for the Aspire Azure App Service Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure App Service environment in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Azure App Service integration, start with the [Get started with the Azure App Service integration](/integrations/cloud/azure/azure-app-service/azure-app-service-get-started/) guide. For how deployed apps consume the runtime configuration this integration injects, see [Azure App Service runtime configuration](../azure-app-service-connect/).
+
+## Installation
+
+To start building an Aspire app that targets Azure App Service, install the [📦 Aspire.Hosting.Azure.AppService](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppService) NuGet package:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add Aspire.Hosting.Azure.AppService
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+command reference.
+{% endlearnmore %}
+
+This updates your `aspire.config.json` with the hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.AppService": "%ASPIRE_VERSION%"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add Aspire.Hosting.Azure.AppService
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+command reference.
+{% endlearnmore %}
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Azure.AppService@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.AppService" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+## Add Azure App Service environment
+
+To deploy compute resources to Azure App Service, first add an App Service environment to your AppHost. The environment represents the hosting infrastructure (App Service Plan) into which Aspire deploys your project and container resources.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const appServiceEnv =
+  await builder.addAzureAppServiceEnvironment('app-service-env');
+
+await builder.addProject('api', '../WebApi/WebApi.csproj');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var appServiceEnv = builder.AddAzureAppServiceEnvironment("app-service-env");
+
+builder.AddProject<Projects.WebApi>("api");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+{% steps %}
+1. When you call {% api "Aspire.Hosting.AzureAppServiceEnvironmentExtensions.AddAzureAppServiceEnvironment" %}, Aspire implicitly enables Azure provisioning for the application.
+
+2. All project resources and Dockerfile-backed containers in the AppHost are **automatically targeted** to the App Service environment when it's present — no explicit wiring is required.
+
+3. During local development the projects run locally as usual. When you publish, each eligible resource is deployed as an Azure App Service website within the provisioned environment.
+{% endsteps %}
+
+:::caution
+Calling `AddAzureAppServiceEnvironment` (or `addAzureAppServiceEnvironment` in
+TypeScript) implicitly calls {% api "Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" %}, which adds support for
+generating Azure resources dynamically during app startup. The app must
+configure an Azure subscription and location. For more information, see [Local
+provisioning:
+Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+:::
+
+:::note
+Backing services such as databases, caches, and message brokers should use
+their own managed Azure services rather than App Service websites. Only
+web-facing compute resources — project resources and Dockerfile-backed
+containers — are deployed as App Service websites.
+:::
+
+When the App Service environment is provisioned in Azure, the following resources are created:
+
+- **App Service Plan** — A Premium P0V3 Linux-based hosting plan.
+- **Azure Container Registry** — A Basic SKU registry for storing container images.
+- **User-assigned Managed Identity** — For secure access between App Service and the Container Registry.
+- **Role Assignments** — ACR Pull role assigned to the managed identity.
+
+## Connect to an existing App Service plan
+
+If you already have an App Service plan in Azure, annotate your environment resource as existing to use it instead of provisioning a new one:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingAppServicePlanName = await builder.addParameter(
+  'existingAppServicePlanName'
+);
+const existingResourceGroup = await builder.addParameter(
+  'existingResourceGroup'
+);
+
+const appServiceEnv =
+  await builder.addAzureAppServiceEnvironment('app-service-env');
+await appServiceEnv.asExisting(
+  existingAppServicePlanName,
+  existingResourceGroup
+);
+
+await builder.addProject('api', '../WebApi/WebApi.csproj');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingAppServicePlanName = builder.AddParameter("existingAppServicePlanName");
+var existingResourceGroup = builder.AddParameter("existingResourceGroup");
+
+var appServiceEnv = builder.AddAzureAppServiceEnvironment("app-service-env")
+    .AsExisting(existingAppServicePlanName, existingResourceGroup);
+
+builder.AddProject<Projects.WebApi>("api");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+For more information on treating Azure resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+## Customize App Service websites
+
+By default, Aspire generates an App Service website for each eligible resource without additional configuration. Use {% api "Aspire.Hosting.AzureAppServiceComputeResourceExtensions.PublishAsAzureAppServiceWebsite" %} when you need to customize the generated website — for example to add application settings or tags:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addAzureAppServiceEnvironment('app-service-env');
+
+const api = await builder.addProject('api', '../WebApi/WebApi.csproj');
+await api.publishAsAzureAppServiceWebsite({
+  configure: async (infra, website) => {
+    // Customize infrastructure here using Azure Provisioning APIs
+  },
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("app-service-env");
+
+builder.AddProject<Projects.WebApi>("api")
+    .PublishAsAzureAppServiceWebsite((infra, website) =>
+    {
+        website.AppSettings.Add("ASPNETCORE_ENVIRONMENT", new AppServiceConfigurationSetting
+        {
+            Name = "ASPNETCORE_ENVIRONMENT",
+            Value = "Production"
+        });
+
+        website.Tags.Add("Environment", "Production");
+        website.Tags.Add("Team", "Engineering");
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code:
+
+- Adds an App Service environment.
+- Chains a call to `PublishAsAzureAppServiceWebsite` (or `publishAsAzureAppServiceWebsite`) with a customization callback.
+- In C#, adds an application setting for `ASPNETCORE_ENVIRONMENT` and metadata tags.
+
+:::note
+When App Service deployment configures a managed identity for a resource,
+Aspire automatically sets the `AZURE_TOKEN_CREDENTIALS` environment variable
+to `ManagedIdentityCredential`. This ensures that `DefaultAzureCredential`
+uses only `ManagedIdentityCredential` for authentication, following [Azure SDK
+best
+practices](https://learn.microsoft.com/dotnet/azure/sdk/authentication/best-practices?tabs=aspdotnet#use-deterministic-credentials-in-production-environments).
+If you need a different credential type, remove this app setting by
+customizing the generated website with `PublishAsAzureAppServiceWebsite`.
+:::
+
+## Deployment slots
+
+[Deployment slots](https://learn.microsoft.com/azure/app-service/deploy-staging-slots) let you deploy your app to a staging environment for testing before swapping it into production. The {% api "Aspire.Hosting.AzureAppServiceEnvironmentExtensions.WithDeploymentSlot" %} extension method (or `withDeploymentSlot` in TypeScript) configures a deployment slot for the App Service environment:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await (
+  await builder.addAzureAppServiceEnvironment('appservice')
+).withDeploymentSlot('staging');
+
+const apiService = await builder.addProject(
+  'apiservice',
+  '../ApiService/ApiService.csproj'
+);
+
+await builder
+  .addProject('webfrontend', '../Web/Web.csproj')
+  .withReference(apiService)
+  .waitFor(apiService);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("appservice")
+    .WithDeploymentSlot("staging");
+
+var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+    .WithHttpHealthCheck("/health")
+    .WithExternalHttpEndpoints();
+
+builder.AddProject<Projects.Web>("webfrontend")
+    .WithExternalHttpEndpoints()
+    .WithHttpHealthCheck("/health")
+    .WithReference(apiService)
+    .WaitFor(apiService);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code configures all App Service websites to be deployed to a `staging` slot.
+
+### Deployment slot behavior
+
+When you deploy to a slot, the deployment behavior depends on whether the production App Service already exists:
+
+- **New App Service**: If the production App Service doesn't exist at the time of deployment, Aspire deploys to both the production App Service and the specified deployment slot.
+- **Existing App Service**: If the production App Service already exists, Aspire deploys only to the specified deployment slot.
+
+### Using parameters for deployment slots
+
+Specify the deployment slot name as a parameter so that it can be provided at deployment time:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const slotName = await builder.addParameter('deploymentSlot');
+
+await (
+  await builder.addAzureAppServiceEnvironment('appservice')
+).withDeploymentSlot(slotName);
+
+// Add your projects and other resources...
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var slotName = builder.AddParameter("deploymentSlot");
+
+builder.AddAzureAppServiceEnvironment("appservice")
+    .WithDeploymentSlot(slotName);
+
+// Add your projects and other resources...
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+With this configuration, provide a value for the `deploymentSlot` parameter when running [`aspire deploy`](/reference/cli/commands/aspire-deploy/).
+
+### Applying customizations to slots
+
+:::caution
+Customizations applied to the production App Service are not automatically
+applied to deployment slots. You must explicitly apply customizations to the
+slot when needed.
+:::
+
+When you customize App Service resources using `PublishAsAzureAppServiceWebsite` (or `publishAsAzureAppServiceWebsite`) or {% api "Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" %}, those customizations apply to the production slot by default. Apply them separately to each slot when needed using the `configureSlot` option:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+const api = await builder.addProject('api', '../WebApi/WebApi.csproj');
+await api.publishAsAzureAppServiceWebsite({
+  configure: async (infra, website) => {
+    // Production website customizations
+  },
+  configureSlot: async (infra, slot) => {
+    // Deployment slot customizations
+  },
+});
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.WebApi>("api")
+    .PublishAsAzureAppServiceWebsite((infra, website) =>
+    {
+        website.Tags.Add("Slot", "production");
+    });
+```
+{% endtab %}
+{% endtabs %}
+
+## Regional virtual network integration
+
+To configure [regional virtual network integration](https://learn.microsoft.com/azure/app-service/overview-vnet-integration) for the websites in an App Service environment, add the [📦 Aspire.Hosting.Azure.Network](https://www.nuget.org/packages/Aspire.Hosting.Azure.Network) integration and delegate a subnet to the environment with {% api "Aspire.Hosting.AzureVirtualNetworkExtensions.WithDelegatedSubnet" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const vnet = await builder.addAzureVirtualNetwork('vnet');
+const subnet = await vnet.addSubnet('app-service-subnet', '10.0.0.0/24');
+
+const appServiceEnv = await builder
+  .addAzureAppServiceEnvironment('app-service-env')
+  .withDelegatedSubnet(subnet);
+
+await builder.addProject('api', '../WebApi/WebApi.csproj');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003 // Azure Virtual Network APIs are experimental.
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var subnet = vnet.AddSubnet("app-service-subnet", "10.0.0.0/24");
+
+var appServiceEnv = builder.AddAzureAppServiceEnvironment("app-service-env")
+    .WithDelegatedSubnet(subnet);
+
+#pragma warning restore ASPIREAZURE003
+
+builder.AddProject<Projects.WebApi>("api");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+`WithDelegatedSubnet` delegates the subnet to `Microsoft.Web/serverFarms` and configures every generated website, deployment slot, and the default Aspire Dashboard to use it for regional virtual network integration. The subnet must meet the [Azure App Service regional virtual network integration requirements](https://learn.microsoft.com/azure/app-service/overview-vnet-integration).
+
+:::note
+Regional virtual network integration affects outbound traffic only. It
+doesn't make website or dashboard ingress private, and it doesn't enable
+Route All. Configure private endpoints or access restrictions, and Route
+All, separately when those behaviors are required.
+:::
+
+For more information on configuring virtual networks and subnets, see [Azure Virtual Network](/integrations/cloud/azure/azure-virtual-network/).
+
+## Customize provisioning infrastructure
+
+All Aspire Azure resources expose a `ConfigureInfrastructure` API (or `configureInfrastructure` in TypeScript) that lets you customize the generated Bicep through the [Azure.Provisioning](https://learn.microsoft.com/dotnet/api/azure.provisioning) APIs. For example, you can change the App Service Plan SKU:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await (
+  await builder.addAzureAppServiceEnvironment('app-service-env')
+).configureInfrastructure(async (infra) => {
+  // Customize Azure Provisioning resources here
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var appServiceEnv = builder.AddAzureAppServiceEnvironment("app-service-env")
+    .ConfigureInfrastructure(infra =>
+    {
+        var resources = infra.GetProvisionableResources();
+        var plan = resources.OfType<AppServicePlan>().Single();
+
+        plan.Sku = new AppServiceSkuDescription
+        {
+            Name = "P1V3",
+            Tier = "Premium"
+        };
+
+        plan.Tags.Add("Environment", "Production");
+        plan.Tags.Add("CostCenter", "Engineering");
+    });
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API.
+- Retrieves the provisionable resources and locates the single `AppServicePlan`.
+- Changes the SKU to a P1V3 Premium tier.
+- Adds tags for metadata and cost management.
+
+For more information, see `Azure.Provisioning.AppService` and [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+
+## Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by hand — the provisioning APIs generate it for you. When you publish your app, the generated Bicep is output alongside the manifest file.
+
+When you add an Azure App Service environment, the following key resources are provisioned:
+
+- **App Service Plan** — A Premium P0V3 Linux-based hosting plan.
+- **Azure Container Registry** — A Basic SKU registry for storing container images.
+- **User-assigned Managed Identity** — For secure access between App Service and Container Registry.
+- **Role Assignments** — ACR Pull role assigned to the managed identity.
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in your AppHost. Customize the Bicep through the C# or TypeScript provisioning APIs — direct edits to generated Bicep files are overwritten on the next publish.
+
+## See also
+
+- [Azure App Service runtime configuration](../azure-app-service-connect/)
+- [Azure Virtual Network](/integrations/cloud/azure/azure-virtual-network/)
+- [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)
+- [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources)
+- [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/)

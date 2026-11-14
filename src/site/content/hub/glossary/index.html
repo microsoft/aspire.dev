@@ -1,0 +1,54 @@
+---
+# The glossary index (src/frontend/src/pages/hub/glossary/index.astro with GlossaryBrowser.astro): every term of
+# collections.glossary (the *.md files of this folder) by first letter, with the search, topic and letter filters
+# that scripts/client/glossary-browser.ts drives. The folder data (glossary.yml) gives the terms their layout and
+# tag: this page sets its own.
+layout: hub
+localize: false   # English only, as on the Astro site (no locale copies)
+tags: []
+title: Aspire glossary
+description: Search for a term, or filter by topic and first letter.
+show_description: false
+pageActions: false
+pagefind: false
+---
+{%- comment -%} InpageSearch's scoped styles (the search field, chips and stats) are in the API components' stylesheet,
+which only the API layout links. {%- endcomment -%}
+<link rel="stylesheet" href="/assets/css/api-components.css">
+{%- include "partials/hub/glossary-terms" -%}
+{%- comment -%} The letters and topics that have terms, and the first term of each legacy group (its anchor). {%- endcomment -%}
+{%- capture gb_letters -%}{%- for gb_url in gt_urls -%}{% unless forloop.first %},{% endunless %}{{ collections.urls[gb_url].data.title | slice: 0 | upcase }}{%- endfor -%}{%- endcapture -%}
+{%- assign gb_letters = gb_letters | split: "," | uniq -%}
+{%- capture gb_topics -%}{%- for gb_topic in dev_hub.topics -%}{%- for gb_url in gt_urls -%}{%- if collections.urls[gb_url].data.topics contains gb_topic.id -%}{{ gb_topic.id }},{%- break -%}{%- endif -%}{%- endfor -%}{%- endfor -%}{%- endcapture -%}
+{%- assign gb_topics = gb_topics | split: "," | where_exp: "gb_item", "gb_item != ''" -%}
+<glossary-browser class="not-content cid-dev-center-glossary-browser" data-filter-path="/hub/glossary/"><div class="glossary-filter-panel hub-grain"><form class="glossary-controls" role="search" aria-label="Search the glossary" hidden>
+{%- assign is_id = "glossary" -%}{%- assign is_label = "Find a term" -%}{%- assign is_placeholder = "Search glossary" -%}{%- assign is_topics = gb_topics -%}{%- capture is_stats %}{{ gt_urls.size }} terms{% endcapture -%}
+{%- include "partials/hub/inpage-search" -%}
+</form><nav class="glossary-alphabet" aria-label="Glossary letters"><a href="#glossary-results" data-letter-filter="" aria-current="true" title="Show all glossary terms">All</a>
+{%- assign gb_alphabet = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z" | split: "," -%}
+{%- for gb_letter in gb_alphabet -%}
+{%- if gb_letters contains gb_letter -%}<a href="#glossary-{{ gb_letter }}" data-letter-filter="{{ gb_letter }}" title="Show glossary terms beginning with {{ gb_letter }}">{{ gb_letter }}</a>{%- else -%}<span aria-label="No terms beginning with {{ gb_letter }}" aria-disabled="true">{{ gb_letter }}</span>{%- endif -%}
+{%- endfor -%}
+</nav></div><noscript><p>Search and filters require JavaScript. All terms and their practical examples are available below; use the letters to jump to a section.</p></noscript><div id="glossary-results"></div><div class="search-empty" data-glossary-empty hidden><div class="search-empty-content"><h2 class="search-empty-title">{% if gt_urls.size > 0 %}No matching terms{% else %}No terms available{% endif %}</h2><p class="search-empty-query" hidden></p><p class="search-empty-hint">{% if gt_urls.size > 0 %}Try a different search or reset your filters.{% else %}Glossary terms will appear here when they are available.{% endif %}</p><button type="button" class="search-action" data-clear-glossary{% if gt_urls.size == 0 %} hidden{% endif %}>Reset all</button></div></div>
+{%- assign gb_groups = "|" -%}
+{%- for gb_letter in gb_letters -%}
+<section class="glossary-group" data-glossary-group aria-labelledby="glossary-{{ gb_letter }}"><h2 id="glossary-{{ gb_letter }}">{{ gb_letter }}</h2><div class="glossary-grid">
+{%- for gb_url in gt_urls -%}
+{%- assign gc_term = collections.urls[gb_url].data -%}
+{%- assign gb_first = gc_term.title | slice: 0 | upcase -%}
+{%- if gb_first == gb_letter -%}
+{%- assign gc_id = gb_url | remove_first: "/hub/glossary/" | remove: "/" -%}
+{%- assign gc_group_anchor = nil -%}
+{%- if gc_term.legacyGroup -%}{%- assign gb_group_key = "|" | append: gc_term.legacyGroup | append: "|" -%}{%- unless gb_groups contains gb_group_key -%}{%- assign gc_group_anchor = gc_term.legacyGroup -%}{%- assign gb_groups = gb_groups | append: gc_term.legacyGroup | append: "|" -%}{%- endunless -%}{%- endif -%}
+{%- comment -%} glossarySearchText: title, aliases, type, pronunciation, description, context and the body (its text). {%- endcomment -%}
+{%- assign gb_path = gb_url | remove_first: "/" | append: "~" | replace: "/~", ".md" -%}
+{%- capture gb_body %}{% include_markdown gb_path %}{% endcapture -%}
+{%- assign gb_aliases = gc_term.aliases | join: " " -%}
+{%- assign gb_text = gb_body | strip_html | strip -%}
+{%- assign gc_search = gc_term.title | append: " " | append: gb_aliases | append: " " | append: gc_term.termType | append: " " | append: gc_term.pronunciation | append: " " | append: gc_term.description | append: " " | append: gc_term.context | append: " " | append: gb_text | downcase | strip -%}
+{%- include "partials/hub/glossary-card" -%}
+{%- endif -%}
+{%- endfor -%}
+</div></section>
+{%- endfor -%}
+<p id="see-also">Explore related guides and samples in <a href="/hub/browse/">Resources</a>.</p></glossary-browser>

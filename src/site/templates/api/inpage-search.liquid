@@ -1,0 +1,21 @@
+{%- comment -%}
+  InpageSearch.astro: the in-page search bar (kind filter chips, stats line, results container) of the package,
+  module, type and item pages; the page's controller script (scripts/client/api/) drives it. Inputs: id (the id
+  prefix), placeholder, label (optional visible label), kinds (array), kind_colors (optional object kind -> color),
+  default_stats, size (lg or sm). Root class: cid-api-reference-inpage-search.
+{%- endcomment -%}
+{%- assign is_size = size | default: "lg" -%}
+{%- if kinds.size > 1 -%}{%- assign is_filters = true -%}{%- else -%}{%- assign is_filters = false -%}{%- endif -%}
+{%- assign is_input = id | append: "-search-input" -%}{%- assign is_status = id | append: "-search-status" -%}{%- assign is_clear = id | append: "-search-clear" -%}
+{%- if label -%}{%- assign is_label_class = "inpage-search-label" -%}{%- else -%}{%- assign is_label_class = "sr-only" -%}{%- endif -%}
+<div class="inpage-search cid-api-reference-inpage-search" data-size="{{ is_size }}" data-has-kind-filters="{{ is_filters }}">
+{%- assign is_text_label = label | default: placeholder -%}
+{%- render 'api/search-field', id: is_input, label: is_text_label, visible_label: label, placeholder: placeholder, clear_id: is_clear, described_by: is_status, size: is_size, input_class: "inpage-search-input", clear_class: "inpage-search-clear", container_class: "inpage-search-bar", label_class: is_label_class, wrap_class: "inpage-search-input-wrap", icon_class: "inpage-search-icon" -%}
+<div class="inpage-kind-filters" id="{{ id }}-kind-filters">
+{%- if is_filters -%}
+{%- for kind in kinds -%}
+{%- assign is_color = kind_colors[kind] -%}
+<button class="api-filter-chip search-filter-chip" data-kind="{{ kind }}" type="button" aria-pressed="false"{% if is_color %} data-colored="" style="--filter-color: {{ is_color }}"{% endif %}><span class="api-filter-dot kind-{{ kind | replace: ' ', '-' }}"></span>{{ kind }}</button>
+{%- endfor -%}
+{%- endif -%}
+</div><div id="{{ is_status }}" class="sr-only" aria-live="polite"></div><div class="inpage-search-stats"><span id="{{ id }}-search-count" class="search-results-summary">{{ default_stats }}</span><div class="inpage-search-actions"><button class="inpage-clear-filters search-action" id="{{ id }}-clear-filters" type="button" style="display: none;">Clear filters</button><button class="search-action" id="{{ id }}-reset-all" type="button" style="display: none;">Reset all</button></div></div><div id="{{ id }}-search-results" class="api-list" style="display: none;"></div></div>

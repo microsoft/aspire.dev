@@ -1,0 +1,165 @@
+---
+# A C# type page: src/frontend/src/pages/reference/api/csharp/[package]/[type]/index.astro, one page per entry of
+# data/api/routes/csharp-types.json (route.file is the data file key, route.type the index of the type in it).
+layout: api.liquid
+# The search controller (scripts/client/api/csharp-type.js), loaded by the layout as a module script of the document.
+api_search: csharp-type
+pagination: { data: api.routes.csharp-types, size: 1, alias: route }
+permalink: "{{ route.url }}"
+---
+{%- assign pkg = api.pkgs[route.file] -%}{%- assign type = pkg.types[route.type] -%}
+{%- capture display %}{% render 'api/type-display', t: type %}{% endcapture -%}
+{%- capture title %}{{ type.name | raw }}{% if type.isGeneric and type.genericParameters.size > 0 %}<{{ type.genericParameters | map: "name" | join: ", " | raw }}>{% endif %}{% endcapture -%}
+{%- comment -%} flattenToText of the summary, for the meta description {%- endcomment -%}
+{%- capture description -%}
+  {%- for n in type.docs.summary -%}
+    {%- case n.kind -%}
+      {%- when "text", "code", "codeblock" -%}{{ n.text | raw }}
+      {%- when "langword", "paramref", "typeparamref" -%}{{ n.value | raw }}
+      {%- when "href" -%}{{ n.text | default: n.value | raw }}
+      {%- when "cref" -%}{%- assign tn = n.value | split: ":" | last -%}{%- capture ts %}{% render 'api/md/short-type', t: tn %}{% endcapture %}{{ ts }}
+      {%- when "para" -%}{%- for c in n.children -%}{{ c.text | default: c.value | raw }}{%- endfor -%}
+    {%- endcase -%}
+  {%- endfor -%}
+{%- endcapture -%}
+{%- if description == "" -%}{%- capture description %}{{ type.kind | raw }} {{ type.name | raw }}{% endcapture -%}{%- endif -%}
+{%- assign is_enum = false -%}{%- if type.kind == "enum" -%}{%- assign is_enum = true -%}{%- endif -%}
+{%- assign fa_attrs = type.attributes -%}
+{%- assign fa_name = "Flags" -%}{%- include 'api/find-attr' -%}{%- assign has_flags = fa_out -%}
+{%- assign fa_name = "Experimental" -%}{%- include 'api/find-attr' -%}
+{%- assign diagnostics_href = nil -%}
+{%- if fa_out and fa_out.constructorArguments[0] -%}
+  {%- comment -%} resolveDiagnosticSlug: a link when the diagnostic has a page (diagnostic_pages, the `diagnostics`
+  step of douze.yml) {%- endcomment -%}
+  {%- assign diag = fa_out.constructorArguments[0] | downcase -%}
+  {%- assign diag_url = "/diagnostics/" | append: diag | append: "/" -%}
+  {%- if diagnostic_pages.urls[diag_url] -%}{%- assign diagnostics_href = diag_url -%}
+  {%- elsif diag == "aspiredotnettool" and diagnostic_pages.urls["/diagnostics/aspiredotnettool001/"] -%}{%- assign diagnostics_href = "/diagnostics/aspiredotnettool001/" -%}{%- endif -%}
+{%- endif -%}
+{%- assign pkg_url = "/reference/api/csharp/" | append: route.packageSlug | append: "/" -%}
+{%- assign crumbs = "Docs§/docs/§docs¦Reference§/reference/overview/¦Search C# APIs§/reference/api/csharp/¦" | append: pkg.package.name | append: "§" | append: pkg_url | append: "¦" | append: type.name -%}
+<div class="type-page kind-tint-{{ type.kind | replace: ' ', '-' }} cid-api-page-csharp-type">
+{% render 'api/breadcrumb', crumbs: crumbs %}
+{% render 'api/type-hero', type: type, pkg: pkg, diagnostics_href: diagnostics_href %}
+{% render 'api/polyglot-attribute-panel', attributes: type.attributes, context: "type", entity_name: type.name, package_name: pkg.package.name %}
+{%- comment -%} The type-scoped search: its index ({ n, k, s, r }) and kinds {%- endcomment -%}
+{%- assign member_count = type.members.size | plus: type.enumMembers.size -%}
+{%- if is_enum == false and member_count >= 5 -%}
+  {%- assign kinds = type.members | map: "kind" | uniq -%}
+  {%- if type.enumMembers.size > 0 -%}{%- assign kinds = kinds | join: "¦" | append: "¦enum member" | split: "¦" -%}{%- endif -%}
+  {%- assign kinds = kinds | sort -%}
+  {%- assign tn_in = member_count -%}{%- include 'api/ts-thousands' -%}
+  {%- if member_count == 1 -%}{%- assign stats = tn_out | append: " member" -%}{%- else -%}{%- assign stats = tn_out | append: " members" -%}{%- endif -%}
+  {%- assign placeholder = "Search members of " | append: type.name | append: "..." -%}
+<div class="type-search-section not-content" data-api-search-language="csharp" data-api-search-kind="type" data-member-count="{{ member_count }}"><script type="application/json" data-api-search-index>[
+{%- for m in type.members -%}
+  {%- unless forloop.first %},{% endunless -%}
+  {%- if m.name == ".ctor" -%}{%- assign n = type.name | append: " (constructor)" -%}{%- else -%}{%- assign n = m.name -%}{%- endif -%}
+  {%- assign es_in = m.docs.summary -%}{%- include 'api/extract-summary' -%}
+  {"n":{{ n | json | raw }},"k":{{ m.kind | default: "method" | json | raw }},"s":{{ es_out | json | raw }}
+  {%- if m.returnType -%}{%- capture r %}{% render 'api/md/short-type', t: m.returnType %}{% endcapture %},"r":{{ r | json | raw }}{%- endif -%}}
+{%- endfor -%}
+{%- for em in type.enumMembers -%}
+  {%- if forloop.first == false or type.members.size > 0 %},{% endif -%}
+  {%- assign es_in = em.docs.summary -%}{%- include 'api/extract-summary' -%}
+  {"n":{{ em.name | json | raw }},"k":"enum member","s":{{ es_out | json | raw }}}
+{%- endfor -%}
+]</script>{% render 'api/inpage-search', id: "type", placeholder: placeholder, kinds: kinds, default_stats: stats, size: "lg" %}</div>
+{%- endif %}
+<div id="type-content-sections">
+{%- if type.kind == "delegate" and type.delegateParameters.size > 0 -%}
+{% render 'api/anchor-heading', id: "delegate-parameters", text: "Delegate Parameters" %}<div class="api-kv-grid not-content">
+{%- for p in type.delegateParameters -%}
+  {%- capture p_href %}{% render 'api/type-href', t: p.type %}{% endcapture -%}
+<div class="api-kv-item"><div class="dp-header"><code class="dp-name">{{ p.name }}</code><span class="dp-type">{% if p_href != "" %}<a href="{{ p_href }}" class="api-type-link">{% render 'api/short-type', t: p.type %}</a>{% else %}<code>{% render 'api/short-type', t: p.type %}</code>{% endif %}</span>{% if p.isNullable %}<span class="api-mod-badge">nullable</span>{% endif %}{% if p.isOptional %}<span class="api-mod-badge">optional</span>{% endif %}</div>
+  {%- assign p_doc = type.docs.parameters[p.name] -%}
+  {%- if p_doc %}<div class="dp-desc">{% render 'api/doc-content', content: p_doc, tag: "span" %}</div>{% endif -%}
+  {%- render 'api/polyglot-attribute-panel', attributes: p.attributes, context: "parameter", entity_name: p.name, package_name: pkg.package.name -%}
+</div>
+{%- endfor -%}
+{%- if type.delegateReturnType and type.delegateReturnType != "void" %}<div class="dp-returns"><span class="api-meta-label">Returns</span><code>{% render 'api/short-type', t: type.delegateReturnType %}</code></div>{% endif -%}
+</div>
+{%- endif -%}
+{%- if type.docs.typeParameters.size > 0 -%}
+{% render 'api/anchor-heading', id: "type-parameters", text: "Type Parameters" %}<div class="api-kv-grid not-content">
+{%- for tp in type.docs.typeParameters -%}<div class="api-kv-item"><code class="tp-name">{{ tp[0] }}</code><div class="tp-desc">{% render 'api/doc-content', content: tp[1] %}</div></div>{%- endfor -%}
+</div>
+{%- endif -%}
+{%- if type.docs.remarks.size > 0 -%}
+{% render 'api/anchor-heading', id: "remarks", text: "Remarks" %}<div class="api-remarks">{% render 'api/doc-content', content: type.docs.remarks, tag: "div" %}</div>
+{%- endif -%}
+{%- if type.docs.value.size > 0 -%}
+{% render 'api/anchor-heading', id: "value", text: "Value" %}<div class="api-prose">{% render 'api/doc-content', content: type.docs.value %}</div>
+{%- endif -%}
+{%- if type.enumMembers.size > 0 -%}
+{% render 'api/anchor-heading', id: "enum-members", text: "Enum Members" %}{% render 'api/enum-table', enum_members: type.enumMembers, has_flags: has_flags %}
+{%- endif -%}
+{%- if type.members.size > 0 -%}
+{% render 'api/member-overview-list', type: type, route: route %}
+{%- endif -%}
+{%- assign nested_count = 0 -%}
+{%- for nested_name in type.nestedTypes -%}{%- assign nested = pkg.types | where: "fullName", nested_name | first -%}{%- if nested -%}{%- assign nested_count = nested_count | plus: 1 -%}{%- endif -%}{%- endfor -%}
+{%- if nested_count > 0 -%}
+{% render 'api/anchor-heading', id: "nested-types", text: "Nested Types", count: nested_count %}<div class="api-list not-content">
+{%- for nested_name in type.nestedTypes -%}
+  {%- assign nested = pkg.types | where: "fullName", nested_name | first -%}
+  {%- unless nested -%}{%- continue -%}{%- endunless -%}
+  {%- assign nested_key = "T:" | append: nested_name -%}
+  {%- capture nested_href %}{% render 'api/type-href', t: nested_name, exact: true %}{% endcapture -%}
+  {%- capture nested_display %}{% render 'api/type-display', t: nested %}{% endcapture -%}
+  {%- assign fa_attrs = nested.attributes -%}
+  {%- assign fa_name = "Obsolete" -%}{%- include 'api/find-attr' -%}{%- assign nested_obsolete = fa_out -%}
+  {%- assign fa_name = "Experimental" -%}{%- include 'api/find-attr' -%}{%- assign nested_experimental = fa_out -%}
+<a href="{{ nested_href }}" class="api-list-item"><div class="api-list-header"><span class="api-kind-pill kind-{{ nested.kind | replace: ' ', '-' }}">{{ nested.kind }}</span><code class="api-type-link" title="{{ nested_display }}">{{ nested_display }}</code>
+  {%- if nested.isAbstract %}<span class="api-mini-badge">abstract</span>{% endif -%}
+  {%- if nested.isStatic %}<span class="api-mini-badge">static</span>{% endif -%}
+  {%- if nested.isSealed and nested.kind != "enum" and nested.kind != "delegate" and nested.kind != "struct" and nested.kind != "record struct" %}<span class="api-mini-badge">sealed</span>{% endif -%}
+  {%- if nested.isReadOnly %}<span class="api-mini-badge">readonly</span>{% endif -%}
+  {%- if nested_obsolete %}<span class="api-mini-badge obsolete">obsolete</span>{% endif -%}
+  {%- if nested_experimental %}<span class="api-mini-badge">experimental</span>{% endif -%}
+</div>{% if nested.docs.summary %}<div class="api-list-desc">{% render 'api/doc-content', content: nested.docs.summary, tag: "span" %}</div>{% endif %}</a>
+{%- endfor -%}
+</div>
+{%- endif -%}
+{%- if type.docs.examples.size > 0 -%}
+{% render 'api/anchor-heading', id: "examples", text: "Examples" %}{% render 'api/examples', examples: type.docs.examples %}
+{%- endif -%}
+{%- if type.docs.permissions.size > 0 -%}
+{% render 'api/anchor-heading', id: "permissions", text: "Permissions" %}<div class="api-kv-grid not-content">
+{%- for perm in type.docs.permissions -%}<div class="api-kv-item"><code class="perm-type">{{ perm.type }}</code><div class="perm-desc">{% render 'api/doc-content', content: perm.description %}</div></div>{%- endfor -%}
+</div>
+{%- endif -%}
+{%- if type.docs.seeAlso.size > 0 -%}
+{% render 'api/anchor-heading', id: "see-also", text: "See Also" %}<div class="see-also-grid not-content">
+{%- for ref in type.docs.seeAlso -%}
+  {%- assign ref_head = ref | slice: 0, 8 -%}
+  {%- if ref_head == "https://" or ref_head contains "http://" -%}
+<a href="{{ ref }}" class="api-chip" target="_blank" rel="noopener noreferrer">{{ ref }}<span class="ext-icon">↗</span></a>
+  {%- else -%}
+    {%- comment -%} parseSeeAlso, then a type of the package by full name, else a member's declaring type {%- endcomment -%}
+    {%- assign sa_prefix = "" -%}{%- assign sa_full = ref -%}
+    {%- assign sa_colon = ref | split: ":" -%}
+    {%- if sa_colon.size > 1 and sa_colon[0] != "" -%}{%- assign sa_prefix = sa_colon[0] -%}{%- assign sa_start = sa_prefix.size | plus: 1 -%}{%- assign sa_full = ref | slice: sa_start, ref.size -%}{%- endif -%}
+    {%- assign sa_member = false -%}
+    {%- if sa_prefix == "P" or sa_prefix == "M" or sa_prefix == "F" or sa_prefix == "E" -%}{%- assign sa_member = true -%}{%- endif -%}
+    {%- assign sa_target = pkg.types | where: "fullName", sa_full | first -%}
+    {%- assign sa_anchor = "" -%}
+    {%- if sa_target == nil and sa_member -%}
+      {%- assign sa_segments = sa_full | split: "." -%}
+      {%- assign sa_n = sa_segments.size | minus: 1 -%}
+      {%- assign sa_owner = sa_segments | slice: 0, sa_n | join: "." -%}
+      {%- assign sa_target = pkg.types | where: "fullName", sa_owner | first -%}
+      {%- if sa_target -%}{%- assign sa_anchor = sa_segments | last | downcase | prepend: "#" -%}{%- endif -%}
+    {%- endif -%}
+    {%- if sa_target -%}
+      {%- capture sa_href %}{% render 'api/type-href', t: sa_target.fullName, exact: true %}{% endcapture -%}
+<a href="{{ sa_href }}{{ sa_anchor }}" class="api-chip">{% if sa_member and sa_anchor != "" %}{% render 'api/short-type', t: sa_full %}{% else %}{{ sa_target.name }}{% endif %}</a>
+    {%- else -%}
+<span class="api-chip muted"><code>{% assign sa_simple = sa_full | split: "`" | first %}{% render 'api/short-type', t: sa_simple %}</code></span>
+    {%- endif -%}
+  {%- endif -%}
+{%- endfor -%}
+</div>
+{%- endif %}
+</div>
+</div>

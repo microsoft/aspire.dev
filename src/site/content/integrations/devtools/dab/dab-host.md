@@ -1,0 +1,235 @@
+---
+title: Set up Data API Builder in the AppHost
+description: Install the Data API Builder hosting integration, mount configuration files, reference databases, customize the image, and inspect health.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+{% image "/assets/images/icons/data-api-builder-icon.png", alt: "Data API Builder logo", width: 100, height: 100, fit: "contain", class: "float-inline-left icon", zoomable: false %}
+
+This article is the AppHost API reference for the [📦 CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder) package. Start with [Get started with Data API Builder](../dab-get-started/) for the integration workflow, or see [Connect Aspire apps to Data API Builder](../dab-connect/) for consuming-app examples.
+
+## Installation
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder
+```
+
+This adds the package to `aspire.config.json`. After `aspire restore`, `.aspire/modules/aspire.mjs` includes {% api "Aspire.Hosting.DataApiBuilderHostingExtension.AddDataAPIBuilder" %} and the exported resource properties.
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder
+```
+
+Or add the package manually:
+
+```csharp title="AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) and
+[`aspire restore`](/reference/cli/commands/aspire-restore/).
+{% endlearnmore %}
+
+## Add a Data API Builder resource
+
+The integration uses `dab-config.json` by default. The file must exist when the AppHost builds the application model.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const sql = await builder.addSqlServer('sql');
+const database = await sql.addDatabase('catalog');
+
+const dab = await builder.addDataAPIBuilder('dab').withReference(database);
+
+await builder.addNodeApp('web', './web', 'index.js').withReference(dab);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var database = builder.AddSqlServer("sql")
+    .AddDatabase("catalog");
+
+var dab = builder.AddDataAPIBuilder("dab")
+    .WithReference(database);
+
+builder.AddProject<Projects.Web>("web")
+    .WithReference(dab);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The integration runs `mcr.microsoft.com/azure-databases/data-api-builder:1.6.77`, maps the container's port `5000` to an Aspire-managed HTTP endpoint, enables OTLP export, and checks `/health`.
+
+:::note
+Data API Builder exposes HTTP only through this integration. The source
+defines HTTPS constants but does not register an HTTPS endpoint.
+:::
+
+## Configure database connections
+
+Reference each database resource from DAB, then read the Aspire-injected connection string in `dab-config.json`. For a database resource named `catalog`, use `ConnectionStrings__catalog`:
+
+```json title="dab-config.json"
+{
+  "$schema": "https://github.com/Azure/data-api-builder/releases/download/v1.6.77/dab.draft.schema.json",
+  "data-source": {
+    "database-type": "mssql",
+    "connection-string": "@env('ConnectionStrings__catalog')"
+  },
+  "runtime": {
+    "rest": {
+      "enabled": true,
+      "path": "/api"
+    },
+    "graphql": {
+      "enabled": true,
+      "path": "/graphql"
+    }
+  },
+  "entities": {
+    "Product": {
+      "source": "dbo.Products",
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": ["read"]
+        }
+      ]
+    }
+  }
+}
+```
+
+The REST route for this entity is `/api/Product`; GraphQL requests use `/graphql`.
+
+## Mount multiple configuration files
+
+Pass every configuration path to `AddDataAPIBuilder` or `addDataAPIBuilder`. Each file is mounted read-only under `/App` in the container.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const dab = await builder.addDataAPIBuilder('dab', {
+  configFilePaths: ['./dab-config.json', './dab-config.admin.json'],
+});
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var dab = builder.AddDataAPIBuilder(
+    "dab",
+    ["dab-config.json", "dab-config.admin.json"]);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Customize the container image
+
+The DAB resource is a standard container resource, so you can replace the registry, image, or tag:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const dab = await builder.addDataAPIBuilder('dab');
+await dab.withImageRegistry('myregistry.azurecr.io');
+await dab.withImage('custom-dab');
+await dab.withImageTag('1.0.0');
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var dab = builder.AddDataAPIBuilder("dab")
+    .WithImageRegistry("myregistry.azurecr.io")
+    .WithImage("custom-dab")
+    .WithImageTag("1.0.0");
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Use endpoint properties
+
+The resource exports its primary endpoint, host, port, and URI expression for use in custom AppHost expressions:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const dab = await builder.addDataAPIBuilder('dab');
+const primaryEndpoint = await dab.primaryEndpoint();
+const host = await dab.host();
+const port = await dab.port();
+const uri = await dab.uriExpression();
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var dab = builder.AddDataAPIBuilder("dab");
+var primaryEndpoint = dab.Resource.PrimaryEndpoint;
+var host = dab.Resource.Host;
+var port = dab.Resource.Port;
+var uri = dab.Resource.UriExpression;
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+## Hosting integration health checks
+
+The hosting integration automatically adds an HTTP health check for `/health`. Aspire uses it to report when the DAB resource is ready.
+
+## See also
+
+- [Connect Aspire apps to Data API Builder](../dab-connect/)
+- [Data API Builder configuration](https://learn.microsoft.com/azure/data-api-builder/configuration/)
+- [REST API in Data API Builder](https://learn.microsoft.com/azure/data-api-builder/concept/rest/overview)
+- [GraphQL in Data API Builder](https://learn.microsoft.com/azure/data-api-builder/concept/graphql/overview)

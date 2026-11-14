@@ -1,0 +1,88 @@
+---
+title: Get started with the PowerShell integration
+category: quickstart
+description: Use the Community Toolkit PowerShell integration to run managed scripts, model dependencies, and monitor their lifecycle in Aspire.
+---
+
+{% image "/assets/images/icons/powershell-icon.png", alt: "PowerShell logo", width: 100, height: 100, fit: "contain", class: "float-inline-left icon", zoomable: false %}
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+The Community Toolkit PowerShell hosting integration runs PowerShell scripts in an in-process runspace pool that Aspire manages. Model setup, provisioning, and administrative scripts alongside your application resources, view their logs and states in the dashboard, and make later scripts wait for earlier ones to finish.
+
+## How the pieces fit together
+
+The integration is a hosting integration installed in your AppHost. A PowerShell runspace pool resource hosts one or more script resources. Aspire starts the pool, starts each script after its dependencies are ready, and reports the pool and script lifecycle in the dashboard.
+
+```mermaid
+architecture-beta
+
+  group apphost(server)[AppHost]
+  group scripts(server)[PowerShell resources]
+
+  service hosting(server)[PowerShell hosting integration] in apphost
+  service pool(server)[Runspace pool] in scripts
+  service script(server)[Script resource] in scripts
+
+  hosting:R --> L:pool
+  pool:R --> L:script
+```
+
+## Prerequisites
+
+- Create an [Aspire AppHost](/get-started/app-host/) in C# or TypeScript.
+- Optionally install [PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) to develop and test scripts outside the AppHost. The integration runs scripts in-process through the PowerShell SDK, so it doesn't invoke `pwsh`.
+
+{% steps %}
+1. ### Install the hosting package
+
+   Add `CommunityToolkit.Aspire.Hosting.PowerShell` to your AppHost. You can use `aspire add communitytoolkit-powershell` or install the NuGet package directly.
+
+2. ### Add a pool and a script
+
+   Add a named PowerShell pool, then add a script to it. The following script appears as a resource in the dashboard.
+
+   {% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const scripts = await builder.addPowerShell('scripts');
+await scripts.addScript(
+  'setup',
+  'Write-Information "Preparing the application"'
+);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var scripts = builder.AddPowerShell("scripts");
+scripts.AddScript("setup", """
+    Write-Information "Preparing the application"
+    """);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+3. ### Configure scripts in the AppHost
+
+   Configure arguments, dependencies, connection-string variables, and lifecycle behavior in the [PowerShell AppHost reference](/integrations/frameworks/powershell/powershell-host/).
+
+   {% linkbutton "/integrations/frameworks/powershell/powershell-host/", variant: "secondary", icon_placement: "end", icon: "right-arrow" %}
+Configure PowerShell resources
+{% endlinkbutton %}
+{% endsteps %}
+
+## See also
+
+- [PowerShell documentation](https://learn.microsoft.com/powershell/)
+- [PowerShell AppHost reference](/integrations/frameworks/powershell/powershell-host/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)

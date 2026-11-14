@@ -1,0 +1,30 @@
+{%- comment -%}
+  shortTypeName of src/frontend/src/utils/api-member-anchors.ts, as HTML text: `System.IEquatable<SampleApi.Error>` ->
+  `IEquatable&lt;Error&gt;`. Input: t. (templates/api/md/short-type.liquid is the Markdown twin, unescaped.)
+{%- endcomment -%}
+{%- if t contains "<" -%}
+  {%- assign st_head = t | split: "<" | first -%}
+  {%- assign st_start = st_head.size | plus: 1 -%}
+  {%- assign st_tail = t | slice: st_start, t.size -%}
+  {%- assign st_parts = st_tail | append: "#" | split: ">" -%}
+  {%- assign st_n = st_parts.size | minus: 1 -%}
+  {%- assign st_pieces = st_parts | slice: 0, st_n | join: ">" | split: "," -%}
+  {{- st_head | split: "." | last }}&lt;
+  {%- assign st_acc = "" -%}{%- assign st_fresh = true -%}{%- assign st_first = true -%}
+  {%- for st_piece in st_pieces -%}
+    {%- if st_fresh -%}{%- assign st_acc = st_piece -%}{%- assign st_fresh = false -%}{%- else -%}{%- assign st_acc = st_acc | append: "," | append: st_piece -%}{%- endif -%}
+    {%- assign st_opens = st_acc | append: "#" | split: "<" | size -%}
+    {%- assign st_closes = st_acc | append: "#" | split: ">" | size -%}
+    {%- if st_opens == st_closes or forloop.last -%}
+      {%- assign st_arg = st_acc | strip -%}
+      {%- if st_arg != "" or forloop.last == false -%}
+        {%- unless st_first -%}, {% endunless -%}
+        {%- render 'api/short-type', t: st_arg -%}
+        {%- assign st_first = false -%}
+      {%- endif -%}
+      {%- assign st_fresh = true -%}
+    {%- endif -%}
+  {%- endfor -%}&gt;
+{%- else -%}
+  {{- t | split: "." | last -}}
+{%- endif -%}

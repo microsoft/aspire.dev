@@ -1,0 +1,73 @@
+{%- comment -%}
+  Ported from src/frontend/src/components/home/HomeTestimonials.astro. Root class (components.css scope):
+  cid-home-home-testimonials. Data: `home_testimonials` (data/home_testimonials.yml); avatars are resized to 56 px WebP,
+  as Astro's <Image> did. Needs `lp` (locale-prefix.liquid).
+{%- endcomment -%}
+<section class="home-section home-testimonials cid-home-home-testimonials" aria-labelledby="home-testimonials-title">
+  <div class="home-shell">
+    <header class="testimonial-heading" data-home-reveal>
+      <p class="section-index"><span>07</span> {{ "home.testimonials.index" | t }}</p>
+      <div>
+        <h2 id="home-testimonials-title">{{ "home.testimonials.title" | t }}</h2>
+        <p>{{ "home.testimonials.body" | t }}</p>
+      </div>
+    </header>
+
+    <div class="testimonial-ledger" data-home-reveal data-home-reveal-distance="major">
+      {%- for testimonial in home_testimonials %}
+      {%- assign attribution = "" -%}
+      {%- if testimonial.role and testimonial.company -%}
+        {%- assign attribution = testimonial.role | append: ", " | append: testimonial.company -%}
+      {%- elsif testimonial.role -%}
+        {%- assign attribution = testimonial.role -%}
+      {%- elsif testimonial.company -%}
+        {%- assign attribution = testimonial.company -%}
+      {%- endif %}
+      <figure
+        class="testimonial{% if forloop.first %} featured{% endif %}{% if forloop.last %} testimonial-closing{% endif %}"
+        data-testimonial-name="{{ testimonial.name }}"
+      >
+        <span class="quote-mark" aria-hidden="true">
+          “
+        </span>
+        <blockquote>
+          <p>{{ testimonial.text }}</p>
+        </blockquote>
+        <figcaption>
+          <img src="{{ testimonial.avatar | image_url: width: 56, format: "webp" }}" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <span>
+            <strong>
+              {%- if testimonial.link %}
+              <a
+                href="{{ testimonial.link }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-home-link
+              >
+                {{ testimonial.name }}
+              </a>
+              {%- else %}
+              {{ testimonial.name }}
+              {%- endif %}
+            </strong>
+            {%- if attribution != "" %}
+            <small>{{ attribution }}</small>
+            {%- endif %}
+          </span>
+        </figcaption>
+      </figure>
+      {%- endfor %}
+    </div>
+
+    <a
+      class="community-link"
+      href="{{ lp }}/community/"
+      data-home-link
+      data-home-link-icon
+      data-home-reveal
+    >
+      {{ "home.testimonials.communityLink" | t }}
+      <span aria-hidden="true">→</span>
+    </a>
+  </div>
+</section>

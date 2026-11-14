@@ -1,0 +1,15 @@
+---
+title: Compiler Warning ASPIRE002
+seoTitle: "ASPIRE002: Project is an Aspire AppHost project but"
+description: Learn what causes the Aspire compiler warning ASPIRE002 and how to fix it so your AppHost builds cleanly. Resolve or suppress it to keep your Aspire build.
+---
+
+{% badge "Version introduced: 8.0.0", variant: "note", size: "large", class: "mb-1" %}
+
+> 'Project' is an Aspire AppHost project but necessary dependencies aren't present. Are you missing an Aspire.Hosting.AppHost PackageReference?
+
+This diagnostic warning is reported when your project is missing reference to the Aspire AppHost.
+
+## Suppress the warning
+
+Add reference to the [📦 Aspire.Hosting.AppHost](https://www.nuget.org/packages/Aspire.Hosting.AppHost) NuGet package. For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).

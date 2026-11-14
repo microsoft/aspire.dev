@@ -1,0 +1,303 @@
+---
+title: Stable Diffusion.cpp hosting integration
+description: Configure stable-diffusion.cpp container images, Hugging Face models, GPU support, and model storage in your Aspire AppHost.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+This page documents the AppHost APIs in the Stable Diffusion.cpp hosting integration. For an introduction, see [Get started with Stable Diffusion.cpp](/integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-get-started/). For the endpoint properties available to consuming applications, see [Connect to Stable Diffusion.cpp](/integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-connect/).
+
+## Install the hosting package
+
+Install the package in your AppHost project:
+
+{% install_package "CommunityToolkit.Aspire.Hosting.StableDiffusionCpp" %}
+
+## Add a Stable Diffusion.cpp resource
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const stableDiffusion = await builder.addStableDiffusionCpp('stable-diffusion');
+await stableDiffusion.withGPUSupport();
+await stableDiffusion.withVaeTiling();
+
+await stableDiffusion.addHuggingFaceModel(
+  'stabilityai/stable-diffusion-xl-base-1.0',
+  'sd_xl_base_1.0.safetensors'
+);
+
+await builder
+  .addNodeApp('image-api', './image-api', 'index.js')
+  .withReference(stableDiffusion);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var stableDiffusion = builder.AddStableDiffusionCpp("stable-diffusion")
+    .WithGPUSupport()
+    .WithVaeTiling();
+
+stableDiffusion.AddHuggingFaceModel(
+    "stabilityai/stable-diffusion-xl-base-1.0",
+    "sd_xl_base_1.0.safetensors");
+
+builder.AddProject<Projects.ImageApi>("image-api")
+    .WithReference(stableDiffusion);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+`AddStableDiffusionCpp` uses the official `ghcr.io/leejet/stable-diffusion.cpp` image. It creates an `http` endpoint targeting port `1234`, adds a health check for `/`, and displays the endpoint as **Web UI** in the dashboard. Aspire assigns a host port unless you specify one.
+
+## Configure the server
+
+### Select an image variant and enable GPU support
+
+The image variant defaults to `StableDiffusionCppImageVariant.Cuda`. Select a different variant when adding the resource:
+
+| Variant     | Backend                             |
+| ----------- | ----------------------------------- |
+| `Cuda`      | NVIDIA CUDA                         |
+| `CudaSpark` | NVIDIA CUDA optimized for DGX Spark |
+| `Vulkan`    | Vulkan                              |
+| `Sycl`      | Intel SYCL                          |
+| `Musa`      | Moore Threads MUSA                  |
+
+Call `WithGPUSupport` to add the container runtime arguments for the selected backend. CUDA variants use `--gpus all` with Docker and `--device nvidia.com/gpu=all` with Podman. Vulkan and SYCL variants pass `/dev/dri` to the container. The MUSA variant does not add container runtime arguments.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import {
+  createBuilder,
+  StableDiffusionCppImageVariant,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const stableDiffusion = await builder.addStableDiffusionCpp(
+  'stable-diffusion',
+  {
+    imageVariant: StableDiffusionCppImageVariant.Vulkan,
+  }
+);
+await stableDiffusion.withGPUSupport();
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var stableDiffusion = builder.AddStableDiffusionCpp(
+        "stable-diffusion",
+        StableDiffusionCppImageVariant.Vulkan)
+    .WithGPUSupport();
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+### Configure the port and models directory
+
+Pass `port` to reserve a host port for the server. Pass `modelsDirectory` to change the host directory used for model files. Relative paths are resolved from the AppHost directory.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const stableDiffusion = await builder.addStableDiffusionCpp(
+  'stable-diffusion',
+  {
+    port: 5678,
+    modelsDirectory: './models',
+  }
+);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var stableDiffusion = builder.AddStableDiffusionCpp(
+    "stable-diffusion",
+    port: 5678,
+    modelsDirectory: "./models");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+By default, the integration bind-mounts `.stable-diffusion-cpp/{resource-name}/models` to `/models` and `.stable-diffusion-cpp/{resource-name}/output` to `/output` in the container. The models directory stores the model file, LoRA files, and upscalers outside the container lifecycle.
+
+### Enable VAE tiling
+
+Call `WithVaeTiling` to pass the `--vae-tiling` option to stable-diffusion.cpp. This processes VAE images in tiles to reduce peak memory use during image decoding.
+
+### Add a Hugging Face model
+
+Call `AddHuggingFaceModel` with a repository identifier and the model file path within that repository. The optional `revision` argument defaults to `main`.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const stableDiffusion = await builder.addStableDiffusionCpp('stable-diffusion');
+await stableDiffusion.addHuggingFaceModel(
+  'stabilityai/stable-diffusion-xl-base-1.0',
+  'sd_xl_base_1.0.safetensors',
+  { revision: 'main' }
+);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var stableDiffusion = builder.AddStableDiffusionCpp("stable-diffusion");
+var model = stableDiffusion.AddHuggingFaceModel(
+    "stabilityai/stable-diffusion-xl-base-1.0",
+    "sd_xl_base_1.0.safetensors",
+    revision: "main");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The model download runs before the server starts. An interrupted download resumes from its `.part` file, and a completed non-empty model file is reused. Each server resource supports one active model.
+
+The overload with an explicit resource name is useful when you want to control the model resource name:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const stableDiffusion = await builder.addStableDiffusionCpp('stable-diffusion');
+await stableDiffusion.addNamedHuggingFaceModel(
+  'sd-xl',
+  'stabilityai/stable-diffusion-xl-base-1.0',
+  'sd_xl_base_1.0.safetensors'
+);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var stableDiffusion = builder.AddStableDiffusionCpp("stable-diffusion");
+var model = stableDiffusion.AddHuggingFaceModel(
+    name: "sd-xl",
+    repository: "stabilityai/stable-diffusion-xl-base-1.0",
+    fileName: "sd_xl_base_1.0.safetensors");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+### Use a gated or private Hugging Face repository
+
+Create a secret parameter and pass it to `WithHuggingFaceToken`. The downloader sends the token as a Bearer authorization header when it fetches the model.
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const token = await builder.addParameter('hugging-face-token', {
+  secret: true,
+});
+const stableDiffusion = await builder.addStableDiffusionCpp('stable-diffusion');
+await stableDiffusion.withHuggingFaceToken(token);
+await stableDiffusion.addHuggingFaceModel(
+  'organization/model',
+  'model.safetensors'
+);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var token = builder.AddParameter("hugging-face-token", secret: true);
+var stableDiffusion = builder.AddStableDiffusionCpp("stable-diffusion")
+    .WithHuggingFaceToken(token);
+
+stableDiffusion.AddHuggingFaceModel(
+    "organization/model",
+    "model.safetensors");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+:::note
+The token is used for model downloads. The integration does not configure the
+server to require this token for requests to its HTTP endpoint.
+:::
+
+### Add LoRA and upscaler files
+
+Place compatible LoRA files in `.stable-diffusion-cpp/{resource-name}/models/loras` and high-resolution upscaler models in `.stable-diffusion-cpp/{resource-name}/models/upscalers`. The integration creates these directories before it starts the server.
+
+## Hosting integration health checks
+
+The integration adds an HTTP health check for `/` on the server's `http` endpoint. Aspire uses the response from this endpoint to report server health.
+
+## Connection properties
+
+The server resource exposes a `Uri` property containing the HTTP endpoint. Referencing the server with `WithReference` makes that property available to the consuming application. The resource connection string is `Endpoint={Uri}`. See [Connect to Stable Diffusion.cpp](/integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-connect/) for property names and consuming-app examples.
+
+## AppHost API reference
+
+The generated API export includes these methods and types:
+
+- `AddStableDiffusionCpp(name, imageVariant = Cuda, port = null, modelsDirectory = null)` creates a server resource. Supported image variants are `Cuda`, `CudaSpark`, `Vulkan`, `Sycl`, and `Musa`.
+- `WithGPUSupport()` adds runtime arguments for the selected image variant.
+- `WithVaeTiling()` enables VAE tiling.
+- `WithHuggingFaceToken(token)` configures a parameter resource for authenticated model downloads.
+- `AddHuggingFaceModel(repository, fileName, revision = "main")` adds a model resource whose name is derived from the model file name.
+- `AddHuggingFaceModel(name, repository, fileName, revision = "main")` adds a model resource with an explicit name. Its TypeScript export is `addNamedHuggingFaceModel`.
+
+`StableDiffusionCppResource` exposes its `ImageVariant`, `Model`, `PrimaryEndpoint`, and `UriExpression` properties. `StableDiffusionCppModelResource` exposes its `Parent`, `Repository`, `FileName`, and `Revision` properties.
+
+## See also
+
+- [Get started with Stable Diffusion.cpp](/integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-get-started/)
+- [Connect to Stable Diffusion.cpp](/integrations/ai/stable-diffusion-cpp/stable-diffusion-cpp-connect/)
+- [stable-diffusion.cpp server](https://github.com/leejet/stable-diffusion.cpp)

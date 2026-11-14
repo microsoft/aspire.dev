@@ -1,0 +1,29 @@
+---
+# The site's <ContainerRuntimeChoices> (src/components/ContainerRuntimeChoices.astro):
+#   {% container_runtime_choices aria_label: "...", intro: "...", choices: props.runtime_choices, podman_setup: props.podman_setup %}
+# `choices`: a list of { id, title, href, linkLabel, statusLabel, description }; `podman_setup`: { heading, body,
+# bashTitle, powershellTitle } (front matter props). A tab per choice (the docker tab has the Docker icon and the
+# default badge); the podman tab adds the setup commands in OS aware tabs, as code blocks for the `code` worker step.
+# The panels are inside starlight-tabs (another component root), so they carry the root class too.
+# Root class: cid-container-runtime-choices.
+display: block
+params: [heading, intro, aria_label, choices, podman_setup]
+---
+{%- capture crc_panels -%}
+{%- for choice in choices -%}
+<div role="tabpanel" data-label="{{ choice.title | escape }}"{% if choice.id == "docker" %} data-icon="seti:docker"{% endif %}><div class="runtime-panel runtime-{{ choice.id }} cid-container-runtime-choices"><div class="runtime-panel-actions">{% if choice.id == "docker" %}{% badge choice.statusLabel, variant: "default", size: "large", class: nil %}{% else %}{% badge choice.statusLabel, variant: "note", size: "large", class: nil %}{% endif %}<a class="runtime-link" href="{{ choice.href }}" target="_blank" rel="noopener noreferrer">{{ choice.linkLabel | escape }}</a></div><p class="runtime-description">{{ choice.description | escape }}</p>
+{%- if choice.id == "podman" -%}
+{%- assign crc_body = podman_setup.body | escape | replace: "ASPIRE_CONTAINER_RUNTIME", "<code>ASPIRE_CONTAINER_RUNTIME</code>" -%}
+{%- assign crc_bash_meta = 'title="' | append: podman_setup.bashTitle | append: '"' -%}
+{%- assign crc_ps_meta = 'title="' | append: podman_setup.powershellTitle | append: '"' -%}
+{%- capture crc_os_panels -%}<div role="tabpanel" data-label="Bash" data-icon="seti:shell"><pre data-lang="bash" data-meta="{{ crc_bash_meta | escape }}"><code class="language-bash">export ASPIRE_CONTAINER_RUNTIME=podman</code></pre></div><div role="tabpanel" data-label="PowerShell" data-icon="seti:powershell"><pre data-lang="powershell" data-meta="{{ crc_ps_meta | escape }}"><code class="language-powershell">[System.Environment]::SetEnvironmentVariable(
+    &quot;ASPIRE_CONTAINER_RUNTIME&quot;,
+    &quot;podman&quot;,
+    &quot;User&quot;
+)</code></pre></div>{%- endcapture -%}
+<div class="podman-setup"><div class="podman-setup-copy"><h5>{{ podman_setup.heading | escape }}</h5><p class="podman-copy">{{ crc_body | raw }}</p></div>{% include "partials/tabs-markup", body: crc_os_panels, sync: "terminal", tabs_class: "cid-os-aware-tabs", tabs_attrs: " data-os-aware" %}</div>
+{%- endif -%}
+</div></div>
+{%- endfor -%}
+{%- endcapture -%}
+<section class="runtime-choices cid-container-runtime-choices" aria-label="{{ aria_label | escape }}">{% if heading %}<h3 class="runtime-heading">{{ heading | escape }}</h3>{% endif %}<p class="runtime-intro">{{ intro | escape }}</p><div class="runtime-tabs">{% include "partials/tabs-markup", body: crc_panels, sync: nil, tabs_class: nil, tabs_attrs: nil %}</div></section>

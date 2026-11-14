@@ -1,0 +1,18 @@
+{%- comment -%}
+  The glossary terms in glossary order (src/frontend/src/utils/dev-center/glossary.ts sortGlossary: by title,
+  ignoring case), as their urls: gt_urls (array of "/hub/glossary/<id>/"); a term is collections.urls[url]. Douze's
+  sort_by compares ordinally ("Aspire Type System" before "Aspire dashboard"), so the lowercased titles are sorted
+  (titles are unique), then each is matched back to its term.
+{%- endcomment -%}
+{%- capture gt_keys -%}{%- for gt_item in collections.glossary -%}{% unless forloop.first %}~#~{% endunless %}{{ gt_item.data.title | downcase | raw }}{%- endfor -%}{%- endcapture -%}
+{%- assign gt_keys = gt_keys | split: "~#~" | sort -%}
+{%- assign gt_started = false -%}
+{%- capture gt_urls -%}
+{%- for gt_key in gt_keys -%}
+{%- for gt_item in collections.glossary -%}
+{%- assign gt_lower = gt_item.data.title | downcase -%}
+{%- if gt_lower == gt_key -%}{% if gt_started %}~#~{% endif %}{% assign gt_started = true %}{{ gt_item.data.url | replace: "index.html", "" }}{%- break -%}{%- endif -%}
+{%- endfor -%}
+{%- endfor -%}
+{%- endcapture -%}
+{%- assign gt_urls = gt_urls | split: "~#~" -%}

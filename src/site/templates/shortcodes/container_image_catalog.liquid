@@ -1,0 +1,101 @@
+---
+# The site's <ContainerImageCatalog> (src/components/ContainerImageCatalog.astro + src/utils/container-images.ts):
+#   {% container_image_catalog %}
+# Every image of the site data `container-images` (data/container-images.json), grouped in categories derived from
+# the docs href of its package (site data `integration-docs`): /integrations/<key>/..., `cloud` deepened to its
+# provider (cloud/azure -> azure); a package without docs is `other`. Categories follow the curated order, then the
+# others alphabetically with a title-cased label. Images keep the data file's order inside a category.
+# Root class: cid-container-image-catalog.
+display: block
+---
+{%- assign cic_order = "databases,caching,messaging,observability,security,reverse-proxies,azure" | split: "," -%}
+{%- capture cic_keys_csv -%}
+{%- for img in container-images -%}
+  {%- assign cic_doc = integration-docs | where: "match", img.aspirePackage | first -%}
+  {%- assign cic_key = "other" -%}
+  {%- if cic_doc -%}
+    {%- assign cic_segments = cic_doc.href | split: "/" | compact -%}
+    {%- assign cic_after = false -%}{%- assign cic_found = nil -%}{%- assign cic_next = nil -%}
+    {%- for seg in cic_segments -%}
+      {%- if seg == "" -%}{%- continue -%}{%- endif -%}
+      {%- if cic_found and cic_next == nil -%}{%- assign cic_next = seg -%}{%- break -%}{%- endif -%}
+      {%- if cic_after and cic_found == nil -%}{%- assign cic_found = seg -%}{%- if seg != "cloud" -%}{%- break -%}{%- endif -%}{%- endif -%}
+      {%- if seg == "integrations" -%}{%- assign cic_after = true -%}{%- endif -%}
+    {%- endfor -%}
+    {%- if cic_found -%}{%- assign cic_key = cic_found -%}{%- endif -%}
+    {%- if cic_found == "cloud" and cic_next -%}{%- assign cic_key = cic_next -%}{%- endif -%}
+  {%- endif -%}
+  {%- unless forloop.first -%},{%- endunless -%}{{ cic_key }}
+{%- endfor -%}
+{%- endcapture -%}
+{%- assign cic_keys = cic_keys_csv | split: "," -%}
+{%- assign cic_present = cic_keys | uniq -%}
+{%- assign cic_extra = "" | split: "" -%}
+{%- capture cic_extra_csv -%}{%- for k in cic_present -%}{%- unless cic_order contains k -%}{{ k }},{%- endunless -%}{%- endfor -%}{%- endcapture -%}
+{%- assign cic_extra = cic_extra_csv | split: "," | sort -%}
+{%- assign cic_categories = cic_order | concat: cic_extra -%}
+{%- assign cic_packages = container-images | map: "aspirePackage" | uniq -%}
+{%- assign cic_registries = container-images | map: "registry" | uniq -%}
+<div class="ci-catalog not-content cid-container-image-catalog"><p class="cic-summary"><strong>{{ container-images.size }}</strong> container images across <strong>{{ cic_packages.size }}</strong> hosting integrations and <strong>{{ cic_registries.size }}</strong> registries.</p>
+{%- for cat in cic_categories -%}
+  {%- unless cic_present contains cat -%}{%- continue -%}{%- endunless -%}
+  {%- assign cic_count = 0 -%}{%- for k in cic_keys -%}{%- if k == cat -%}{%- assign cic_count = cic_count | plus: 1 -%}{%- endif -%}{%- endfor -%}
+  {%- case cat -%}
+    {%- when "databases" -%}{%- assign cic_label = "Databases" -%}
+    {%- when "caching" -%}{%- assign cic_label = "Caching" -%}
+    {%- when "messaging" -%}{%- assign cic_label = "Messaging" -%}
+    {%- when "observability" -%}{%- assign cic_label = "Observability" -%}
+    {%- when "security" -%}{%- assign cic_label = "Security" -%}
+    {%- when "reverse-proxies" -%}{%- assign cic_label = "Reverse proxies" -%}
+    {%- when "azure" -%}{%- assign cic_label = "Azure emulators" -%}
+    {%- else -%}{%- capture cic_label -%}{%- assign cic_words = cat | split: "-" -%}{%- for w in cic_words -%}{%- unless forloop.first %} {% endunless -%}{{ w | capitalize }}{%- endfor -%}{%- endcapture -%}
+  {%- endcase -%}
+<section class="cic-section" aria-labelledby="cat-{{ cat }}"><h2 id="cat-{{ cat }}" class="cic-heading">{{ cic_label }}<span class="cic-count">{{ cic_count }}</span></h2><ul class="cic-grid">
+  {%- for img in container-images -%}
+    {%- if cic_keys[forloop.index0] != cat -%}{%- continue -%}{%- endif -%}
+    {%- assign cic_url = nil -%}{%- assign cic_glyph = nil -%}{%- assign cic_reg_label = img.registry -%}
+    {%- case img.registry -%}
+      {%- when "docker.io" -%}
+        {%- assign cic_reg_label = "Docker Hub" -%}{%- assign cic_glyph = "docker" -%}
+        {%- assign cic_head = img.image | slice: 0, 8 -%}
+        {%- if cic_head == "library/" -%}{%- assign cic_url = "https://hub.docker.com/_/" | append: img.image | remove_first: "library/" -%}{%- else -%}{%- assign cic_url = "https://hub.docker.com/r/" | append: img.image -%}{%- endif -%}
+      {%- when "mcr.microsoft.com" -%}
+        {%- assign cic_reg_label = "Microsoft Artifact Registry" -%}{%- assign cic_glyph = "microsoft" -%}
+        {%- assign cic_url = "https://mcr.microsoft.com/en-us/product/" | append: img.image | append: "/about" -%}
+      {%- when "ghcr.io" -%}
+        {%- assign cic_reg_label = "GitHub Container Registry" -%}{%- assign cic_glyph = "github" -%}
+        {%- assign cic_parts = img.image | split: "/" -%}
+        {%- assign cic_url = "https://github.com/" | append: cic_parts.first | append: "/" | append: cic_parts.last | append: "/pkgs/container/" | append: cic_parts.last -%}
+      {%- when "quay.io" -%}
+        {%- assign cic_reg_label = "Quay.io" -%}{%- assign cic_url = "https://quay.io/repository/" | append: img.image -%}
+      {%- when "container-registry.oracle.com" -%}
+        {%- assign cic_reg_label = "Oracle Container Registry" -%}{%- assign cic_url = "https://container-registry.oracle.com/ords/ocr/ba/" | append: img.image -%}
+    {%- endcase -%}
+    {%- assign cic_ref_parts = img.fullImage | split: ":" -%}
+    {%- if cic_ref_parts.size > 1 -%}{%- assign cic_tag = cic_ref_parts.last -%}{%- else -%}{%- assign cic_tag = "" -%}{%- endif -%}
+    {%- assign cic_repo_len = img.fullImage.size | minus: cic_tag.size -%}
+    {%- assign cic_repo = img.fullImage | slice: 0, cic_repo_len -%}
+    {%- assign cic_repo_segments = cic_repo | split: "/" -%}
+    {%- assign cic_doc = integration-docs | where: "match", img.aspirePackage | first -%}
+<li class="cic-card{% if img.isCompanion %} is-companion{% endif %}"><div class="cic-card-head"><span class="cic-name">{{ img.name | escape }}</span>{% if img.isCompanion and img.companionOf %}<span class="cic-companion" title="Companion image for {{ img.companionOf | escape }}">Companion · {{ img.companionOf | escape }}</span>{% endif %}</div><code class="cic-code">
+    {%- for seg in cic_repo_segments -%}<span class="cic-seg">{{ seg | escape }}{% unless forloop.last %}/{% endunless %}</span><wbr>{%- endfor -%}
+    {%- if cic_tag != "" -%}<span class="cic-tag">{{ cic_tag | escape | replace: ".", ".<wbr>" | replace: "_", "_<wbr>" | replace: "-", "-<wbr>" | raw }}<wbr></span>{%- endif -%}
+</code><div class="cic-card-meta">
+    {%- if cic_url -%}<a class="cic-reg-link" href="{{ cic_url }}" target="_blank" rel="noopener noreferrer" aria-label="View the {{ img.name | escape }} image on {{ cic_reg_label }}">
+      {%- if cic_glyph -%}<span class="cic-glyph" aria-hidden="true">
+        {%- case cic_glyph -%}
+        {%- when "docker" -%}<img src="/assets/images/icons/docker.svg" alt="" loading="lazy" decoding="async" width="16" height="16">
+        {%- when "microsoft" -%}<span class="cic-glyph-svg"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g> <g> <path fill="none" d="M0 0h24v24H0z"></path> <path d="M11.5 3v8.5H3V3h8.5zm0 18H3v-8.5h8.5V21zm1-18H21v8.5h-8.5V3zm8.5 9.5V21h-8.5v-8.5H21z"></path> </g> </g></svg></span>
+        {%- else -%}{% icon "github", size: "0.9rem", label: nil, color: nil, class: nil %}
+        {%- endcase -%}
+      </span>{%- endif -%}
+      {{ cic_reg_label }}{% icon "external", size: "0.7rem", label: nil, color: nil, class: nil %}</a>
+    {%- else -%}<span class="cic-reg-plain">{{ cic_reg_label }}</span>{%- endif -%}
+<a class="cic-src" href="{{ img.sourceUrl }}" target="_blank" rel="noopener noreferrer" aria-label="View the {{ img.name | escape }} container image tag definition on GitHub">{% icon "github", size: "0.85rem", label: nil, color: nil, class: nil %}Source{% icon "external", size: "0.7rem", label: nil, color: nil, class: nil %}</a></div>
+    {%- if img.alternateTags.size > 0 -%}<div class="cic-alt"><span class="cic-alt-label">Also:</span>{% for t in img.alternateTags %}<code class="cic-alt-tag">{{ t | escape }}</code>{% endfor %}</div>{%- endif -%}
+    {%- if cic_doc -%}<div class="cic-foot"><a class="cic-docs" href="{{ cic_doc.href }}" aria-label="Learn more about the {{ img.aspirePackage | remove_first: 'Aspire.Hosting.' | escape }} integration">{% icon "open-book", size: "0.9rem", label: nil, color: nil, class: nil %}Integration docs</a></div>{%- endif -%}
+</li>
+  {%- endfor -%}
+</ul></section>
+{%- endfor -%}
+<p class="ci-provenance">{% icon "information", size: "0.85rem", label: nil, color: nil, class: nil %}<span>Tags reflect the latest defaults on the microsoft/aspire <strong>main</strong> branch, and may be newer than the version pinned by the package you install. Companion images (management UIs, emulator dependencies) are listed under the integration that ships them.</span></p></div>

@@ -1,0 +1,47 @@
+{%- comment -%}
+  resolveTypeLink of src/frontend/src/utils/packages.ts: the url of a type of the reference named by a CLR type
+  string, after stripping a nullable `?`, a Task<> wrapper and a System.Collections.Generic.X<> wrapper; nothing
+  when the type is not documented. Inputs: t, exact (true: no stripping, the `t.fullName === name` lookups of
+  TypeSignature and TypeHero). The lookup is api.xref (doc ids, `Ns.Type`1` for generic types) rather
+  than the types of the page's package, so a type of another package links too (the Astro pages linked same-package
+  types only).
+{%- endcomment -%}
+{%- assign th_t = t | default: "" -%}
+{%- unless exact -%}
+{%- assign th_last = th_t | slice: -1 -%}
+{%- if th_last == "?" -%}{%- assign th_n = th_t.size | minus: 1 -%}{%- assign th_t = th_t | slice: 0, th_n -%}{%- endif -%}
+{%- assign th_last = th_t | slice: -1 -%}
+{%- if th_last == ">" -%}
+  {%- assign th_head = th_t | split: "<" | first -%}
+  {%- assign th_wrapper = false -%}
+  {%- if th_head == "System.Threading.Tasks.Task" -%}{%- assign th_wrapper = true -%}
+  {%- elsif th_head contains "System.Collections.Generic." -%}
+    {%- assign th_rest = th_head | remove_first: "System.Collections.Generic." -%}
+    {%- unless th_rest contains "." -%}{%- assign th_wrapper = true -%}{%- endunless -%}
+  {%- endif -%}
+  {%- if th_wrapper -%}
+    {%- assign th_start = th_head.size | plus: 1 -%}
+    {%- assign th_len = th_t.size | minus: th_start | minus: 1 -%}
+    {%- assign th_t = th_t | slice: th_start, th_len -%}
+  {%- endif -%}
+{%- endif -%}
+{%- endunless -%}
+{%- if th_t contains "<" -%}
+  {%- comment -%} `Ns.Foo<A, B<C, D>>` -> `Ns.Foo`2`: one plus the commas outside nested brackets {%- endcomment -%}
+  {%- assign th_head = th_t | split: "<" | first -%}
+  {%- assign th_start = th_head.size | plus: 1 -%}
+  {%- assign th_args = th_t | slice: th_start, th_t.size -%}
+  {%- assign th_arity = 0 -%}{%- assign th_acc = "" -%}{%- assign th_fresh = true -%}
+  {%- assign th_pieces = th_args | split: "," -%}
+  {%- for th_piece in th_pieces -%}
+    {%- if th_fresh -%}{%- assign th_acc = th_piece -%}{%- assign th_fresh = false -%}{%- else -%}{%- assign th_acc = th_acc | append: "," | append: th_piece -%}{%- endif -%}
+    {%- assign th_opens = th_acc | append: "#" | split: "<" | size -%}
+    {%- assign th_closes = th_acc | append: "#" | split: ">" | size -%}
+    {%- if th_opens == th_closes or forloop.last -%}{%- assign th_arity = th_arity | plus: 1 -%}{%- assign th_fresh = true -%}{%- endif -%}
+  {%- endfor -%}
+  {%- assign th_key = "T:" | append: th_head | append: "`" | append: th_arity -%}
+{%- else -%}
+  {%- assign th_key = "T:" | append: th_t -%}
+{%- endif -%}
+{%- assign th_x = api.xref[th_key] -%}
+{%- if th_x -%}{{ th_x.url }}{%- elsif t != th_t -%}{%- assign th_key = "T:" | append: t -%}{%- assign th_x = api.xref[th_key] -%}{%- if th_x -%}{{ th_x.url }}{%- endif -%}{%- endif -%}

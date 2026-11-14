@@ -1,0 +1,686 @@
+---
+title: Set up Azure Cosmos DB in the AppHost
+description: Learn how to use the Aspire Azure Cosmos DB hosting integration to orchestrate and configure a Cosmos DB account, databases, and containers in an Aspire solution.
+---
+
+{% image "/assets/images/icons/azure-cosmosdb-icon.png", alt: "Azure Cosmos DB logo", width: 100, height: 100, class: "float-inline-left icon", zoomable: false %}
+
+This article is the reference for the Aspire Azure Cosmos DB hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a Cosmos DB account, databases, and containers in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Azure Cosmos DB integration, start with the [Get started with Azure Cosmos DB integrations](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Cosmos DB](../azure-cosmos-db-connect/).
+
+## Installation
+
+To start building an Aspire app that uses Azure Cosmos DB, install the [📦 Aspire.Hosting.Azure.CosmosDB](https://www.nuget.org/packages/Aspire.Hosting.Azure.CosmosDB) NuGet package:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```bash title="Terminal"
+aspire add azure-cosmosdb
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+This updates your `aspire.config.json` with the Azure Cosmos DB hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.CosmosDB": "%ASPIRE_VERSION%"
+  }
+}
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```bash title="Terminal"
+aspire add azure-cosmosdb
+```
+
+{% learnmore %}
+Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+{% endlearnmore %}
+
+Or, choose a manual installation approach:
+
+```csharp title="AppHost.cs"
+#:package Aspire.Hosting.Azure.CosmosDB@*
+```
+
+```xml title="AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.CosmosDB" Version="*" />
+```
+{% endtab %}
+{% endtabs %}
+
+## Add Azure Cosmos DB resource
+
+Once you've installed the hosting integration in your AppHost project, you can add an Azure Cosmos DB resource as shown in the following examples:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cosmos);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(cosmos);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+:::caution
+When you call {% api "Aspire.Hosting.AzureCosmosExtensions.AddAzureCosmosDB" %}, it implicitly calls {% api "Aspire.Hosting.AzureProvisionerExtensions.AddAzureProvisioning" %} — which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+:::
+
+:::note
+When you reference an Azure Cosmos DB resource from the AppHost, Aspire makes several properties available to the consuming project, such as the endpoint URI, account key, and connection string. For a complete list of these properties and per-language connection examples, see [Connect to Azure Cosmos DB](../azure-cosmos-db-connect/).
+:::
+
+## Run as emulator
+
+For local development, use the Azure Cosmos DB Emulator instead of a live Azure account. Chain {% api "Aspire.Hosting.AzureCosmosExtensions.RunAsEmulator" %} on the resource builder:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+await cosmos.runAsEmulator();
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+    .RunAsEmulator();
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+When you call `RunAsEmulator`, it configures the Cosmos DB resource to run locally using the [Azure Cosmos DB Linux-based (vNext) emulator](https://learn.microsoft.com/azure/cosmos-db/emulator-linux). The emulator is accessible to Aspire as a container image (`mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator`) using the `vnext-latest` tag. Aspire creates and starts the container when the AppHost starts.
+
+:::caution
+`RunAsEmulator` now defaults to the Linux-based (vNext) emulator (`vnext-latest` image tag) instead of the classic emulator (`stable` image tag). This is a **breaking change**. If your app relies on the classic emulator's behavior, call [`RunAsClassicEmulator`](#run-as-classic-emulator) instead.
+:::
+
+{% container_images package: "Aspire.Hosting.Azure.CosmosDB" %}
+
+### Configure emulator gateway port
+
+The vNext emulator automatically exports its own traces and metrics to the Aspire dashboard. Aspire configures its OTLP endpoint and enables the emulator's built-in exporter with `ENABLE_OTLP_EXPORTER=true`. This is emulator telemetry, not a replacement for instrumenting your consuming application, and it doesn't apply to the classic emulator.
+
+By default, the Cosmos DB emulator container exposes the following endpoint:
+
+| Endpoint | Container port | Host port |
+| -------- | -------------- | --------- |
+| `https`  | 8081           | dynamic   |
+
+To configure a fixed host port, call {% api "Aspire.Hosting.AzureCosmosExtensions.WithGatewayPort" %} inside the emulator callback:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+await cosmos.runAsEmulator({
+    configureContainer: async emulator => {
+        await emulator.withGatewayPort({ port: 7777 });
+    }
+});
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithGatewayPort(7777);
+    });
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The Cosmos DB emulator container's port is mapped to the host port as shown in the following table:
+
+| Endpoint name | Port mapping (`container:host`) |
+| ------------: | ------------------------------- |
+|       `https` | `8081:7777`                     |
+
+### Configure classic emulator partition count
+
+To configure the partition count for the classic Cosmos DB emulator container, call {% api "Aspire.Hosting.AzureCosmosExtensions.WithPartitionCount" %} inside the classic emulator callback. The default Linux-based (vNext) emulator doesn't support partition counts and throws a <code>NotSupportedException</code> if you call this API with `RunAsEmulator` (or `runAsEmulator`).
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+await cosmos.runAsClassicEmulator({
+    configureContainer: async emulator => {
+        await emulator.withPartitionCount(100); // Defaults to 25
+    }
+});
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+    .RunAsClassicEmulator(emulator =>
+    {
+        emulator.WithPartitionCount(100); // Defaults to 25
+    });
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+For the classic emulator, this is a shorthand for setting the `AZURE_COSMOS_EMULATOR_PARTITION_COUNT` environment variable.
+
+### Configure emulator data volume
+
+To persist the emulator data across container restarts, attach a named volume:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+await cosmos.runAsEmulator({
+    configureContainer: async emulator => {
+        await emulator.withDataVolume();
+    }
+});
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithDataVolume();
+    });
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The data volume is mounted at `/tmp/cosmos/appdata` in the emulator container. When a `name` parameter isn't provided, the name is generated. The `AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE` environment variable is automatically set to `true`. For more information on data volumes, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+### Configure emulator with persistent lifetime
+
+To configure the Cosmos DB emulator container with a persistent lifetime, call the {% api "Aspire.Hosting.ContainerResourceBuilderExtensions.WithLifetime" %} method with `ContainerLifetime.Persistent`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithLifetime(ContainerLifetime.Persistent);
+    });
+
+// After adding all resources, run the app...
+```
+
+:::note
+The TypeScript AppHost doesn't currently expose a `withLifetime` API for the Cosmos DB emulator container.
+:::
+
+## Run as classic emulator
+
+Use the classic (Windows-based) Azure Cosmos DB emulator instead of the default Linux-based (vNext) emulator by calling {% api "Aspire.Hosting.AzureCosmosExtensions.RunAsClassicEmulator" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+await cosmos.runAsClassicEmulator();
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+    .RunAsClassicEmulator();
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+`RunAsClassicEmulator` configures the Cosmos DB resource to use the `stable` tag of the [Azure Cosmos DB Emulator](https://learn.microsoft.com/azure/cosmos-db/emulator#authentication) container image. Unlike the default vNext emulator, the classic emulator requires a TLS/SSL certificate. For more information, see [Export the emulator's TLS/SSL certificate](https://learn.microsoft.com/azure/cosmos-db/how-to-develop-emulator?tabs=docker-linux#export-the-emulators-tlsssl-certificate).
+
+:::note
+{% api "Aspire.Hosting.AzureCosmosExtensions.RunAsPreviewEmulator" %} is still available but is now obsolete. It forwards to `RunAsEmulator` (the vNext emulator) so existing code keeps working, but new code should call `RunAsEmulator` directly.
+:::
+
+## Configure the Data Explorer
+
+The Linux-based (vNext) emulator used by `RunAsEmulator` includes a built-in **Data Explorer** web UI. Call {% api "Aspire.Hosting.AzureCosmosExtensions.WithDataExplorer" %} inside the emulator callback to expose it:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+await cosmos.runAsEmulator({
+    configureContainer: async emulator => {
+        await emulator.withDataExplorer();
+    }
+});
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithDataExplorer();
+    });
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+`WithDataExplorer` exposes a separate `data-explorer` endpoint that lets you view and manage data stored in the emulator via a browser-based UI. The Data Explorer is only available with the vNext emulator (`RunAsEmulator`) — calling it after `RunAsClassicEmulator` throws a <code>NotSupportedException</code>.
+
+## Connect to an existing Azure Cosmos DB account
+
+You might have an existing Azure Cosmos DB account you want to connect to. Chain a call to {% api "Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" %} on the resource builder:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const existingCosmosName = await builder.addParameter("existingCosmosName");
+const existingCosmosRG = await builder.addParameter("existingCosmosResourceGroup");
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+await cosmos.asExisting(existingCosmosName, { resourceGroup: existingCosmosRG });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cosmos);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingCosmosName = builder.AddParameter("existingCosmosName");
+var existingCosmosResourceGroup = builder.AddParameter("existingCosmosResourceGroup");
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+    .AsExisting(existingCosmosName, existingCosmosResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cosmos);
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+For more information on treating Azure Cosmos DB resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+:::note
+Alternatively, instead of representing an Azure Cosmos DB account resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
+:::
+
+## Add Azure Cosmos DB database and container resources
+
+Aspire models parent-child relationships between Azure Cosmos DB resources. An Azure Cosmos DB account (`AzureCosmosDBResource`) can have multiple databases (`AzureCosmosDBDatabaseResource`), and each database can have multiple containers (`AzureCosmosDBContainerResource`).
+
+### Add a database
+
+To add an Azure Cosmos DB database resource, call {% api "Aspire.Hosting.AzureCosmosExtensions.AddCosmosDatabase" %} on the Cosmos DB account resource builder:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+const db = await cosmos.addCosmosDatabase("db");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db");
+var db = cosmos.AddCosmosDatabase("db");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The `AddCosmosDatabase` call adds a logical database named `db` to your Cosmos DB account. The database is a logical container for collections and users.
+
+### Add a container
+
+An Azure Cosmos DB container is where data is stored. When you create a container, you must supply a partition key path. To add an Azure Cosmos DB container resource, call {% api "Aspire.Hosting.AzureCosmosExtensions.AddContainer" %} on the database resource builder:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+const db = await cosmos.addCosmosDatabase("db");
+const container = await db.addContainer("entries", "/id");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db");
+var db = cosmos.AddCosmosDatabase("db");
+var container = db.AddContainer("entries", "/id");
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+The second argument to `AddContainer` (or `addContainer`) is the partition key path (for example, `"/id"`). In the TypeScript AppHost, you can also pass an array of paths for composite partition keys. For more information, see [Databases, containers, and items in Azure Cosmos DB](https://learn.microsoft.com/azure/cosmos-db/resource-model).
+
+### Parent-child resource relationship example
+
+The following example demonstrates a full parent-child hierarchy — a single Cosmos DB account with two databases, each containing multiple containers:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos");
+
+const customers = await cosmos.addCosmosDatabase("customers");
+const profiles = await customers.addContainer("profiles", "/id");
+
+const orders = await cosmos.addCosmosDatabase("orders");
+const details = await orders.addContainer("details", "/id");
+const history = await orders.addContainer("history", "/id");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(profiles)
+    .withReference(details)
+    .withReference(history);
+
+await builder.build().run();
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos");
+
+var customers = cosmos.AddCosmosDatabase("customers");
+var profiles = customers.AddContainer("profiles", "/id");
+
+var orders = cosmos.AddCosmosDatabase("orders");
+var details = orders.AddContainer("details", "/id");
+var history = orders.AddContainer("history", "/id");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(profiles)
+    .WithReference(details)
+    .WithReference(history);
+
+builder.Build().Run();
+```
+{% endtab %}
+{% endtabs %}
+
+The preceding code adds a Cosmos DB account named `cosmos` with two databases: `customers` and `orders`. The `customers` database has a single container named `profiles`, while the `orders` database has two containers: `details` and `history`. The partition key for each container is `/id`.
+
+The following diagram illustrates the parent-child relationship between the Azure Cosmos DB resources:
+
+{% image dark: "/assets/images/integrations/cloud/azure/cosmos-db/cosmos-resource-relationships.svg", light: "/assets/images/integrations/cloud/azure/cosmos-db/cosmos-resource-relationships-light.svg", label: "Azure Cosmos DB resource relationships", alt: "A diagram depicting Azure Cosmos DB resource parent child relationships." %}
+
+When your AppHost code expresses parent-child relationships, consuming apps can deep-link to these resources by name. For example, the `customers` database can be referenced by name in the client project, registering a `Microsoft.Azure.Cosmos.Database` instance that connects to the `customers` database. The same applies to named containers.
+
+## Enable access key authentication
+
+By default, the Azure Cosmos DB hosting integration uses Microsoft Entra ID (role-based access). To enable access key authentication instead, call {% api "Aspire.Hosting.AzureCosmosExtensions.WithAccessKeyAuthentication" %}:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+await cosmos.withAccessKeyAuthentication();
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+    .WithAccessKeyAuthentication();
+
+// After adding all resources, run the app...
+```
+{% endtab %}
+{% endtabs %}
+
+When access key authentication is enabled, Aspire injects additional `AccountKey` and `ConnectionString` connection properties into consuming apps. For a complete list of connection properties by authentication mode, see [Connect to Azure Cosmos DB](../azure-cosmos-db-connect/#connection-properties).
+
+## Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by hand — the provisioning APIs generate it for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Cosmos DB resource, the following Bicep is generated:
+
+```bicep title="Generated Bicep — cosmos.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-08-15' = {
+  name: take('cosmos-${uniqueString(resourceGroup().id)}', 44)
+  location: location
+  properties: {
+    locations: [
+      {
+        locationName: location
+        failoverPriority: 0
+      }
+    ]
+    capabilities: [
+      {
+        name: 'EnableServerless'
+      }
+    ]
+    consistencyPolicy: {
+      defaultConsistencyLevel: 'Session'
+    }
+    databaseAccountOfferType: 'Standard'
+    disableLocalAuth: true
+  }
+  kind: 'GlobalDocumentDB'
+  tags: {
+    'aspire-resource-name': 'cosmos'
+  }
+}
+
+output connectionString string = cosmos.properties.documentEndpoint
+
+output name string = cosmos.name
+```
+
+The preceding Bicep provisions an Azure Cosmos DB account resource. Additionally, role assignments are created for the Azure resource in a separate module:
+
+```bicep title="Generated Bicep — cosmos-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param cosmos_outputs_name string
+
+param principalId string
+
+resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-08-15' existing = {
+  name: cosmos_outputs_name
+}
+
+resource cosmos_roleDefinition 'Microsoft.DocumentDB/databaseAccounts/sqlRoleDefinitions@2024-08-15' existing = {
+  name: '00000000-0000-0000-0000-000000000002'
+  parent: cosmos
+}
+
+resource cosmos_roleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-08-15' = {
+  name: guid(principalId, cosmos_roleDefinition.id, cosmos.id)
+  properties: {
+    principalId: principalId
+    roleDefinitionId: cosmos_roleDefinition.id
+    scope: cosmos.id
+  }
+  parent: cosmos
+}
+```
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+## Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables fluent customization of the generated Bicep using the {% api "Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" %} API. For example, you can configure the `kind`, `consistencyPolicy`, `locations`, and more:
+
+{% tabs sync: "aspire-lang" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
+await cosmos.configureInfrastructure(async infra => {
+    const resources = await infra.getProvisionableResources();
+    const account = resources.find(r => r.resourceType === 'Microsoft.DocumentDB/databaseAccounts');
+    if (account) {
+        account.tags = { ...account.tags, ExampleKey: 'Example value' };
+    }
+});
+```
+
+:::note
+The TypeScript `configureInfrastructure` API provides access to raw Bicep resource objects. Strongly-typed resource properties (such as `CosmosDBAccountKind`) are only available in the C# provisioning SDK.
+:::
+{% endtab %}
+{% tab "C#", id: "csharp" %}
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureCosmosDB("cosmos-db")
+    .ConfigureInfrastructure(infra =>
+    {
+        var cosmosDbAccount = infra.GetProvisionableResources()
+                                    .OfType<CosmosDBAccount>()
+                                    .Single();
+
+        cosmosDbAccount.Kind = CosmosDBAccountKind.MongoDB;
+        cosmosDbAccount.ConsistencyPolicy = new()
+        {
+            DefaultConsistencyLevel = DefaultConsistencyLevel.Strong,
+        };
+        cosmosDbAccount.Tags.Add("ExampleKey", "Example value");
+    });
+```
+{% endtab %}
+{% endtabs %}
+
+## Hosting integration health checks
+
+The Azure Cosmos DB hosting integration automatically adds a health check for the Cosmos DB resource. The health check verifies that the Cosmos DB is running and that a connection can be established to it.
+
+The hosting integration relies on the [📦 AspNetCore.HealthChecks.CosmosDb](https://www.nuget.org/packages/AspNetCore.HealthChecks.CosmosDb) NuGet package.
+
+## Connection properties
+
+For the full reference of Azure Cosmos DB connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Azure Cosmos DB](../azure-cosmos-db-connect/).

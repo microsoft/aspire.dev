@@ -1,0 +1,91 @@
+---
+title: aspire add command
+seoTitle: aspire add command reference for the Aspire CLI
+description: Learn about the aspire add command and its usage. This command adds an integration package to an Aspire AppHost project.
+---
+
+## Name
+
+`aspire add` - Add an integration to the Aspire project.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire add [<integration>] [options]
+```
+
+## Description
+
+The `aspire add` command searches for an integration package and adds it to the Aspire AppHost. The persisted change depends on the AppHost style:
+
+- Project-based C# AppHosts receive a package reference.
+- File-based C# AppHosts receive a `#:package` directive.
+- TypeScript AppHosts receive an entry in the `packages` section of `aspire.config.json`, then the generated `.aspire/modules/` TypeScript SDK is regenerated.
+
+{% include_markdown "reference/cli/includes/project-search-logic-description.md" %}
+
+:::note[Integration discovery on prerelease CLI builds]
+When you're running a `staging` or `dev` quality CLI (see [`-Quality|--quality`](/reference/cli/install-script/#options)), `aspire add` discovers both stable and prerelease integration packages, because some integrations — such as `Aspire.Hosting.Azure.Kubernetes` — intentionally ship as prerelease even during a stable-shaped staging build. A `release` quality CLI continues to search stable packages only, but can still add a specific prerelease integration version with the `--version` option.
+:::
+
+## Arguments
+
+The following arguments are available:
+
+- **`integration`**
+
+  The name of the integration to add (for example: redis, postgres).
+
+  If a partial name or invalid name is provided, the CLI searches NuGet for approximate matches and prints them in the terminal for the user to select. If no results are found, all packages are listed.
+
+## Options
+
+The following options are available:
+
+- {% include_markdown "reference/cli/includes/option-project.md" %}
+
+- **`-v, --version`**
+
+  The version of the integration to add.
+
+- **`-s, --source`**
+
+  The NuGet source to use for the integration.
+
+- {% include_markdown "reference/cli/includes/option-help.md" %}
+
+- {% include_markdown "reference/cli/includes/option-log-level.md" %}
+
+- {% include_markdown "reference/cli/includes/option-non-interactive.md" %}
+
+- {% include_markdown "reference/cli/includes/option-nologo.md" %}
+
+- {% include_markdown "reference/cli/includes/option-banner.md" %}
+
+- {% include_markdown "reference/cli/includes/option-wait.md" %}
+
+## Examples
+
+- Finds an AppHost project and lists all Aspire integration packages from NuGet:
+
+  ```bash title="Aspire CLI"
+  aspire add
+  ```
+
+- Finds an AppHost project and adds the **kafka** (Aspire.Hosting.Kafka) integration package:
+
+  ```bash title="Aspire CLI"
+  aspire add kafka --version %ASPIRE_VERSION%
+  ```
+
+- Add the **redis** integration to a TypeScript AppHost and regenerate `.aspire/modules/`:
+
+  ```bash title="Aspire CLI"
+  aspire add redis --apphost './apphost.mts'
+  ```
+
+- Add the **azure-kubernetes** integration from a stable-shaped `staging` quality CLI, where the integration remains prerelease even though most other packages are stable:
+
+  ```bash title="Aspire CLI"
+  aspire add azure-kubernetes
+  ```

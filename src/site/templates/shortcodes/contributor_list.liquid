@@ -1,0 +1,17 @@
+---
+# The site's <ContributorList> (src/components/ContributorList.astro):
+#   {% contributor_list "microsoft/aspire", ignore: ["dependabot[bot]"], focus_color: "var(--sl-color-accent)" %}
+# Reads the site data `github-contributors` (data/github-contributors.json: lowercase repo -> [{ id, login }]).
+# Root class: cid-contributor-list.
+display: block
+args: [github_repo]
+params: [ignore, focus_color]
+---
+{%- assign cl_key = github_repo | strip | downcase -%}
+{%- assign cl_all = github-contributors[cl_key] -%}
+<div class="cid-contributor-list"{% if focus_color %} style="--avatar-focus-color: {{ focus_color }}"{% endif %}><ul class="avatar-list">
+{%- for c in cl_all -%}
+{%- if ignore contains c.login -%}{%- continue -%}{%- endif -%}
+<li><a href="https://github.com/{{ c.login }}"><img alt="{{ c.login | escape }}" title="{{ c.login | escape }}" width="48" height="48" src="https://avatars.githubusercontent.com/u/{{ c.id }}?s=64" loading="lazy"></a></li>
+{%- endfor -%}
+</ul></div>
