@@ -13,8 +13,8 @@ A Go AppHost is a Go program that defines the resources in your application and 
 
 - [Go](https://go.dev/dl/) 1.26 or later, with `go` on your `PATH`
 - The [Aspire CLI](/get-started/install-cli/)
-- [Node.js](https://nodejs.org/) to build the React frontend in the starter template
-- A container runtime if you add the optional Redis cache in the starter template. See [Aspire prerequisites](/get-started/prerequisites/) for the supported options.
+- [Node.js](https://nodejs.org/) for the starter template's React frontend
+- A container runtime if you include the optional Redis cache in the starter template. See [Aspire prerequisites](/get-started/prerequisites/) for the supported options.
 
 ## Create a Go AppHost
 
@@ -24,7 +24,7 @@ Create a new app from the Go starter template:
 aspire new aspire-go-starter -n aspire-app -o aspire-app
 ```
 
-The template creates a Go AppHost, a Go API, a React (Vite) frontend, and the generated SDK. The CLI also asks whether to add a Redis cache that the API uses for the weather forecast. The frontend is bundled into the API's container image, so the app deploys as one image that serves both the API and the user interface. To choose from the templates that support Go, run `aspire new --language go` instead.
+The template creates a Go AppHost (`apphost.go`), a Go API (`api/`), a Vite and React frontend (`frontend/`), and the generated SDK. The frontend waits for the API and proxies `/api` requests to it, and it loads `/api/weatherforecast` on startup. When you publish, the frontend build output is copied into the Go API container and served from `./static`, so the deployed app uses one origin. Redis is optional: `aspire new` prompts for it interactively (default yes), and non-interactive runs omit it unless you pass `--use-redis-cache true`. To choose from the templates that support Go, run `aspire new --language go` instead.
 
 <LearnMore>
   See the [`aspire new` command reference](/reference/cli/commands/aspire-new/) for all options.
@@ -46,10 +46,14 @@ The project has the following structure:
     - go.mod
     - main.go
     - telemetry.go
-  - frontend/  React (Vite) frontend that is bundled into the API image
-    - package.json
-    - vite.config.ts
+  - frontend/  Vite and React frontend
+    - public/
     - src/
+    - index.html
+    - package.json
+    - package-lock.json
+    - vite.config.ts
+    - ...
   - .gitignore  Keeps the generated .aspire/ directory out of source control
   - apphost.go  Your AppHost entry point
   - aspire.config.json  Aspire configuration
@@ -65,7 +69,7 @@ From the project directory, start the AppHost with the Aspire CLI:
 aspire run
 ```
 
-The CLI regenerates the SDK when the `packages` list has changed, starts the AppHost with `go run .`, and prints the dashboard URL. Open the dashboard to see the `app` and `frontend` resources, plus `cache` if you added Redis, with their logs, traces, and metrics.
+The CLI regenerates the SDK when the `packages` list has changed, starts the AppHost with `go run .`, and prints the dashboard URL. Open the dashboard to see the `app` Go API and `frontend` resources with their logs, traces, and metrics. If you included Redis, the dashboard also shows the `cache` resource. Open the `frontend` endpoint to use the React app.
 
 :::note
 Always start the AppHost with `aspire run`. The CLI sets the environment variables that the SDK uses to connect to the AppHost server, so running `go run .` on its own fails with `REMOTE_APP_HOST_SOCKET_PATH environment variable not set`.
@@ -73,7 +77,7 @@ Always start the AppHost with `aspire run`. The CLI sets the environment variabl
 
 ## apphost.go
 
-The AppHost is a `package main` Go program. The starter template defines a Go API and a Vite frontend, and bundles the frontend into the API:
+The AppHost is a `package main` Go program. The following example shows the starter with Redis enabled. It defines a Go API, a Vite frontend that references and waits for the API, and a Redis cache:
 
 ```go title="apphost.go"
 package main
@@ -90,21 +94,26 @@ func main() {
 		log.Fatal(aspire.FormatError(err))
 	}
 
+	// A Redis cache the API will use for read-through caching.
+	cache := builder.AddRedis("cache")
+
 	// Keep Go modules current and send traces, metrics, and logs to the dashboard.
-	app := builder.AddGoApp("app", "./api").
+	api := builder.AddGoApp("app", "./api").
 		WithModTidy().
+		WithReference(cache).
+		WaitFor(cache).
 		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
 		WithHttpHealthCheck(aspire.HttpHealthCheckPath("/health")).
 		WithExternalHttpEndpoints().
 		WithOtlpExporter()
 
 	// Reference the app for Vite proxying and wait until it is healthy.
-	frontend := builder.AddViteApp("frontend", "./frontend", nil).
-		WithReference(app).
-		WaitFor(app)
+	frontend := builder.AddViteApp("frontend", "./frontend").
+		WithReference(api).
+		WaitFor(api)
 
 	// Bundle the frontend into the app container for same-origin production serving.
-	app.PublishWithContainerFiles(frontend, "./static")
+	api.PublishWithContainerFiles(frontend, "./static")
 
 	application, err := builder.Build()
 	if err != nil {
@@ -116,15 +125,21 @@ func main() {
 }
 ```
 
+`PublishWithContainerFiles` copies the frontend build output into the Go API container at `./static` when you publish. The API serves those files from the same origin as its API endpoints.
+
+If you omit Redis, the generated AppHost has no `AddRedis` call, `WithReference(cache)`, or `WaitFor(cache)`. The frontend and publish configuration stay the same.
+
 The program has three parts:
 
 1. `aspire.CreateBuilder()` connects to the AppHost server that the CLI starts and returns the builder.
-2. `AddGoApp` and `AddViteApp` add resources. Each call returns a handle, so `WithReference`, `WaitFor`, and the other configuration methods chain onto it. `PublishWithContainerFiles` copies the built frontend into the `app` image at `./static`, where the Go API serves it. If you chose the Redis cache, the template also calls `AddRedis` and references the cache from `app`. See [Deploy Go apps](/deployment/go-apps/).
-3. `builder.Build()` creates the application, and `app.Run()` blocks until the AppHost stops. Both return an error. You don't check each resource: errors from the `Add` and `With` calls are collected and reported together when you call `Build`. See [Go AppHost API conventions](/app-host/go-apphost-conventions/#errors) for how errors are reported and formatted.
+2. `AddGoApp`, `AddViteApp`, and the optional `AddRedis` add resources. Each call returns a handle, so `WithReference`, `WaitFor`, and the other configuration methods chain onto it.
+3. `builder.Build()` creates the application, and `application.Run()` blocks until the AppHost stops. Both return an error. You don't check each resource: errors from the `Add` and `With` calls are collected and reported together when you call `Build`. See [Go AppHost API conventions](/app-host/go-apphost-conventions/#errors) for how errors are reported and formatted.
+
+See [Deploy Go apps](/deployment/go-apps/) for publishing and deployment options.
 
 ## aspire.config.json
 
-The `aspire.config.json` file is the central configuration for your AppHost:
+The `aspire.config.json` file is the central configuration for your AppHost. This example includes the optional Redis integration:
 
 ```json title="aspire.config.json"
 {
@@ -134,7 +149,8 @@ The `aspire.config.json` file is the central configuration for your AppHost:
   },
   "packages": {
     "Aspire.Hosting.Go": "%ASPIRE_VERSION%",
-    "Aspire.Hosting.JavaScript": "%ASPIRE_VERSION%"
+    "Aspire.Hosting.JavaScript": "%ASPIRE_VERSION%",
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
   },
   "profiles": {
     "https": {
@@ -155,6 +171,8 @@ The `aspire.config.json` file is the central configuration for your AppHost:
   }
 }
 ```
+
+If you omit Redis, the `packages` section contains only `Aspire.Hosting.Go` and `Aspire.Hosting.JavaScript`.
 
 ### Key sections
 
@@ -197,6 +215,10 @@ The SDK regenerates when:
 The starter's `.gitignore` already lists `.aspire/`. The directory holds generated files that the CLI recreates from `aspire.config.json`, so keep it out of source control.
 :::
 
+### Documentation in the SDK
+
+The generated `aspire.go` includes godoc comments, so `go doc` and editor hover (gopls) show each API's summary, parameters, and return value. Obsolete APIs carry a `Deprecated:` notice that gopls and staticcheck flag, and experimental APIs are marked with an **Experimental** heading.
+
 ### Restore the SDK
 
 Run `aspire restore` to regenerate the SDK without starting the AppHost:
@@ -217,17 +239,18 @@ aspire add postgresql
 
 The `packages` section now lists the PostgreSQL integration:
 
-```json title="aspire.config.json" ins={5}
+```json title="aspire.config.json" ins={6}
 {
   "packages": {
     "Aspire.Hosting.Go": "%ASPIRE_VERSION%",
+    "Aspire.Hosting.JavaScript": "%ASPIRE_VERSION%",
     "Aspire.Hosting.Redis": "%ASPIRE_VERSION%",
     "Aspire.Hosting.PostgreSQL": "%ASPIRE_VERSION%"
   }
 }
 ```
 
-The regenerated SDK has an `AddPostgres` method. This AppHost adds a PostgreSQL server with one database and gives the API access to it:
+The regenerated SDK has an `AddPostgres` method. This AppHost adds a PostgreSQL server with one database and gives the API access to it, retaining the starter's frontend and publish configuration. As in the previous example, omit the Redis package and cache configuration if you didn't include Redis:
 
 ```go title="apphost.go"
 package main
@@ -247,7 +270,7 @@ func main() {
 	cache := builder.AddRedis("cache")
 	db := builder.AddPostgres("postgres").AddDatabase("postgresdb")
 
-	builder.AddGoApp("api", "./api").
+	api := builder.AddGoApp("app", "./api").
 		WithModTidy().
 		WithReference(cache).
 		WithReference(db).
@@ -256,6 +279,12 @@ func main() {
 		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
 		WithExternalHttpEndpoints().
 		WithOtlpExporter()
+
+	frontend := builder.AddViteApp("frontend", "./frontend").
+		WithReference(api).
+		WaitFor(api)
+
+	api.PublishWithContainerFiles(frontend, "./static")
 
 	app, err := builder.Build()
 	if err != nil {

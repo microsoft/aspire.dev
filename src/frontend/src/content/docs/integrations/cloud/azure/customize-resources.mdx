@@ -521,6 +521,30 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
+#### Assign a deployment-time expression to an enum-valued property
+
+In a TypeScript AppHost, an enum-valued property such as `sku.name` normally takes a member of its generated enum, for example `StorageSkuName.StandardGrs`. To choose the value at deployment time instead, assign a Bicep expression, such as a parameter from `infrastructure.bicep()`:
+
+```typescript title="apphost.mts" "await bicep.parameter(storageSku)"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const storageSku = await builder.addParameter('storageSku');
+const storage = await builder.addAzureStorage('storage');
+
+await storage.configureInfrastructure(async (infrastructure) => {
+  const bicep = await infrastructure.bicep();
+  const account = await infrastructure.getStorageAccount();
+  const sku = await infrastructure.createStorageSku();
+  await sku.name.set(await bicep.parameter(storageSku));
+  await account.sku.set(sku);
+});
+
+await builder.build().run();
+```
+
+Literal values must use the generated enum member, such as `StorageSkuName.StandardGrs`; a plain string literal such as `'Standard_GRS'` is rejected. C# AppHosts can assign a `ProvisioningParameter` to these properties directly.
+
 ### Configure networking
 
 This example restricts public access to an IP range while allowing trusted Azure services. Replace the documentation-only range with your application's approved network range before deploying.
