@@ -59,7 +59,9 @@ case "$ENGINE" in
       --configfile ../../tests/E2E.Jint/NuGet.config > "$OUT/jint-install.log" 2>&1 \
       || { cat "$OUT/jint-install.log"; exit 1; }
     "$TOOLS/jint-browser/jint-browser" version
-    "$TOOLS/jint-browser/jint-browser" serve --port 9222 > "$OUT/browser.log" 2>&1 &
+    # --max-task-duration: one turn of a page may run 5 s by default; the resource browser's first render and
+    # axe-core take longer under the interpreter on a CI runner, and the page is then torn down mid-test.
+    "$TOOLS/jint-browser/jint-browser" serve --port 9222 --max-task-duration 120s > "$OUT/browser.log" 2>&1 &
     wait_for http://127.0.0.1:9222/json/version 60 || { cat "$OUT/browser.log"; exit 1; }
     ;;
   kitesurf)
