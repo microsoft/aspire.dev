@@ -163,6 +163,8 @@ for (const theme of ['light', 'dark']) {
           await expect
             .poll(() => appearance(page), {
               message: `${route} must match its fresh ${theme} rendering after navigating to it`,
+              // The API landing page takes more than the default 5 s to settle on CI runners.
+              timeout: 15_000,
             })
             .toEqual(baseline.get(route));
         } catch (error) {
