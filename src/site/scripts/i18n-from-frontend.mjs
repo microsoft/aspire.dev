@@ -67,6 +67,7 @@ function nest(flat, prefix = '') {
 
 function deepMerge(target, source, path = '') {
   for (const [k, v] of Object.entries(source)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
     const t = target[k];
     if (v && typeof v === 'object' && !Array.isArray(v)) {
       if (t !== undefined && (typeof t !== 'object' || t === null)) {

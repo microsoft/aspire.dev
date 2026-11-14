@@ -227,7 +227,7 @@ if (!flag('--no-report') && !option('--in') && !only && !check) {
   for (const r of manual) {
     md.push(`### ${r.path}`, '');
     const shown = r.problems.slice(0, 15);
-    for (const p of shown) md.push(`- line ${p.line}, \`${p.kind}\`: ${p.message.replace(/\|/g, '\\|')}`);
+    for (const p of shown) md.push(`- line ${p.line}, \`${p.kind}\`: ${p.message.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')}`);
     if (r.problems.length > shown.length) md.push(`- ... ${r.problems.length - shown.length} more (report.json)`);
     md.push('');
   }

@@ -14,6 +14,16 @@ function getThemeSources(sources, theme) {
   return sources.filter((s) => !s.theme);
 }
 
+// data-sources comes from the page; only accept http(s) URLs.
+function safeMediaUrl(value) {
+  try {
+    const url = new URL(String(value), document.baseURI);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function updateVideoSource(video) {
   if (!(video instanceof HTMLVideoElement)) return;
   const sourcesAttr = video.getAttribute('data-sources');
@@ -34,8 +44,10 @@ function updateVideoSource(video) {
   const themeSources = getThemeSources(sources, theme);
   while (video.firstChild) video.removeChild(video.firstChild);
   themeSources.forEach(({ src, type, title }) => {
+    const safeSrc = safeMediaUrl(src);
+    if (!safeSrc) return;
     const source = document.createElement('source');
-    source.src = src;
+    source.src = safeSrc;
     source.type = type;
     if (title) source.title = title;
     video.appendChild(source);

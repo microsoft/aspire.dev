@@ -682,7 +682,7 @@ The Python hosting integration provides full debugging support in Visual Studio 
 
 1. Install the [Aspire VS Code extension](/get-started/aspire-vscode-extension/)
 2. Set breakpoints in your Python code
-3. Run the Aspire app host
+3. Run the Aspire AppHost
 4. The debugger automatically attaches to your Python application
 
 :::tip

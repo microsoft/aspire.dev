@@ -718,7 +718,7 @@ builder.AddProject<Projects.Api>("api")
 await builder.Build().RunAsync();
 ```
 
-Single-file app host support includes:
+Single-file AppHost support includes:
 
 - The `aspire-apphost-singlefile` template, available through `aspire new`.
 - Integration with `aspire run`, `aspire deploy`, `aspire publish`, `aspire add`, and `aspire update`.
@@ -745,7 +745,7 @@ aspire run
 
 # Installing .NET SDK 10.0.100...
 # ✅ SDK installation complete
-# Running app host...
+# Running AppHost...
 ```
 
 The automatic SDK installation feature provides:

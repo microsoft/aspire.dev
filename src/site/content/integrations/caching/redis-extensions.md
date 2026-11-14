@@ -17,7 +17,7 @@ This package provides the following features:
 
 ## Hosting integration
 
-To get started with the Aspire Community Toolkit Redis hosting extensions, install the [CommunityToolkit.Aspire.Hosting.Redis.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Redis.Extensions) NuGet package in the app host project.
+To get started with the Aspire Community Toolkit Redis hosting extensions, install the [CommunityToolkit.Aspire.Hosting.Redis.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Redis.Extensions) NuGet package in the AppHost project.
 
 {% tabs sync: "aspire-lang" %}
 {% tab "TypeScript", id: "typescript" %}
@@ -80,7 +80,7 @@ builder.Build().Run();
 {% endtab %}
 {% endtabs %}
 
-This adds a new DbGate resource to the app host which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your Redis databases.
+This adds a new DbGate resource to the AppHost which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your Redis databases.
 
 ### dbx management UI
 

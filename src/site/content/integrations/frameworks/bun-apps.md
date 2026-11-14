@@ -1,12 +1,12 @@
 ---
 title: Bun integration
 seoTitle: Bun integration for Aspire AppHost
-description: Learn how to use the Aspire.Hosting.JavaScript Bun hosting APIs to orchestrate Bun applications alongside other resources in the Aspire app host.
+description: Learn how to use the Aspire.Hosting.JavaScript Bun hosting APIs to orchestrate Bun applications alongside other resources in the Aspire AppHost.
 ---
 
 {% image "/assets/images/icons/bun-icon.png", alt: "Bun logo", width: 100, height: 100, fit: "contain", class: "float-inline-left icon", zoomable: false %}
 
-The Aspire Bun hosting integration enables you to run [Bun](https://bun.sh/) applications alongside your other Aspire resources in the app host. Bun apps participate in the same service discovery, health checks, OpenTelemetry export, and Aspire dashboard support as the rest of your solution.
+The Aspire Bun hosting integration enables you to run [Bun](https://bun.sh/) applications alongside your other Aspire resources in the AppHost. Bun apps participate in the same service discovery, health checks, OpenTelemetry export, and Aspire dashboard support as the rest of your solution.
 
 :::caution[Community Toolkit package deprecated]
 The [📦 CommunityToolkit.Aspire.Hosting.Bun](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Bun) package is deprecated. Bun support has graduated to the official `Aspire.Hosting.JavaScript` package.

@@ -41,7 +41,7 @@ For more information, see [Microsoft Foundry integration](/integrations/cloud/az
 
 #### Hosting integration
 
-The [Aspire.Hosting.Foundry](https://www.nuget.org/packages/Aspire.Hosting.Foundry) package provides the hosting integration. In your app host project:
+The [Aspire.Hosting.Foundry](https://www.nuget.org/packages/Aspire.Hosting.Foundry) package provides the hosting integration. In your AppHost project:
 
 {% tabs sync: "aspire-lang" %}
 {% tab "TypeScript", id: "typescript" %}
@@ -87,7 +87,7 @@ For Azure OpenAI resources, use the **Aspire.Azure.AI.OpenAI** client integratio
 
 #### Hosting integration
 
-The [Aspire.Hosting.Azure.CognitiveServices](https://www.nuget.org/packages/Aspire.Hosting.Azure.CognitiveServices) package provides the hosting integration. In your app host project:
+The [Aspire.Hosting.Azure.CognitiveServices](https://www.nuget.org/packages/Aspire.Hosting.Azure.CognitiveServices) package provides the hosting integration. In your AppHost project:
 
 {% tabs sync: "aspire-lang" %}
 {% tab "TypeScript", id: "typescript" %}
@@ -128,7 +128,7 @@ For direct OpenAI API access, use the **Aspire.OpenAI** client integration. For 
 
 #### Hosting integration
 
-The [Aspire.Hosting.OpenAI](https://www.nuget.org/packages/Aspire.Hosting.OpenAI) package provides the hosting integration. In your app host project:
+The [Aspire.Hosting.OpenAI](https://www.nuget.org/packages/Aspire.Hosting.OpenAI) package provides the hosting integration. In your AppHost project:
 
 {% tabs sync: "aspire-lang" %}
 {% tab "TypeScript", id: "typescript" %}

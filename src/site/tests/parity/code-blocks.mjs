@@ -34,7 +34,7 @@ function blocks(html) {
 }
 function parse(html) {
   const root = { tag: '#root', attrs: {}, children: [] }; const stack = [root];
-  const re = /<(\/?)([a-zA-Z][\w-]*)((?:\s+[^\s=>\/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(\/?)>|([^<]+)|(<)/g; let m;
+  const re = /<(\/?)([a-zA-Z][\w-]*)((?:\s+[^\s=>\/"']+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"']+))?)*)\s*(\/?)>|([^<]+)|(<)/g; let m;
   while ((m = re.exec(html))) {
     const top = stack[stack.length - 1];
     if (m[5] !== undefined || m[6]) { top.children.push({ text: dec(m[5] ?? '<') }); continue; }

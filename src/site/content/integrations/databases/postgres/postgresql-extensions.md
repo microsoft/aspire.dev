@@ -18,7 +18,7 @@ This package provides the following features:
 
 ## Hosting integration
 
-To get started with the Aspire Community Toolkit PostgreSQL hosting extensions, install the [CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions) NuGet package in the app host project.
+To get started with the Aspire Community Toolkit PostgreSQL hosting extensions, install the [CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions) NuGet package in the AppHost project.
 
 {% install_package "CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions" %}
 
@@ -72,7 +72,7 @@ builder.AddProject<Projects.ExampleProject>()
 {% endtab %}
 {% endtabs %}
 
-This adds a new DbGate resource to the app host which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your PostgreSQL databases.
+This adds a new DbGate resource to the AppHost which is available from the Aspire dashboard. DbGate is a comprehensive database management tool that provides a web-based interface for managing your PostgreSQL databases.
 
 ### Adminer management UI
 
@@ -112,7 +112,7 @@ builder.AddProject<Projects.ExampleProject>()
 {% endtab %}
 {% endtabs %}
 
-This adds a new Adminer resource to the app host which is available from the Aspire dashboard. Adminer is a lightweight database management tool that provides a simple web interface for database operations.
+This adds a new Adminer resource to the AppHost which is available from the Aspire dashboard. Adminer is a lightweight database management tool that provides a simple web interface for database operations.
 
 ### Using both management UIs
 

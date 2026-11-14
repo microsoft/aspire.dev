@@ -28,9 +28,9 @@ function getPlaceholderUrl(width, height, theme) {
 
 function updatePlaceholderForTheme(placeholder) {
   if (!(placeholder instanceof HTMLImageElement)) return;
-  const width = placeholder.getAttribute('data-width');
-  const height = placeholder.getAttribute('data-height');
-  if (!width || !height) return;
+  const width = Number.parseInt(placeholder.getAttribute('data-width') ?? '', 10);
+  const height = Number.parseInt(placeholder.getAttribute('data-height') ?? '', 10);
+  if (!(width > 0) || !(height > 0)) return;
 
   const theme = getCurrentTheme();
   placeholder.src = getPlaceholderUrl(width, height, theme);

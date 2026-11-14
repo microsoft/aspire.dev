@@ -96,9 +96,20 @@ function list() {
   return out;
 }
 
+// Removes every match, repeating until nothing is left, so removals can't join into a new match.
+function stripAll(text, re, replace = '') {
+  let prev;
+  do {
+    prev = text;
+    text = text.replace(re, replace);
+  } while (text !== prev);
+  return text;
+}
+
 function rootElement(source) {
   let text = source.replace(/^---[\s\S]*?\n---/, '');
-  text = text.replace(/<(script|style)\b[\s\S]*?<\/\1>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  text = stripAll(text, /<(script|style)\b[\s\S]*?<\/\1\b[^>]*>/gi);
+  text = stripAll(text, /<!--[\s\S]*?--!?>/g);
   const m = text.match(/<([a-z][a-z0-9-]*)\b((?:[^>{]|\{[^}]*\})*)>/);
   if (!m) return '';
   const cls = (m[2].match(/\bclass(?::list)?=("[^"]*"|'[^']*'|\{[^}]*\})/) || [])[1];
@@ -107,8 +118,8 @@ function rootElement(source) {
 
 function styleBlocks(source) {
   let text = source.replace(/^---[\s\S]*?\n---/, (m) => ' '.repeat(m.length));
-  text = text.replace(/<script\b[\s\S]*?<\/script>/g, (m) => ' '.repeat(m.length));
-  text = text.replace(/<!--[\s\S]*?-->/g, (m) => ' '.repeat(m.length));
+  text = text.replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, (m) => ' '.repeat(m.length));
+  text = text.replace(/<!--[\s\S]*?--!?>/g, (m) => ' '.repeat(m.length));
   const blocks = [];
   const re = /<style\b([^>]*)>([\s\S]*?)<\/style>/g;
   let m;

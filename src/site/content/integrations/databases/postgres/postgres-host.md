@@ -91,7 +91,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 {% endtabs %}
 
 {% steps %}
-1. When Aspire adds a container image to the app host, as shown in the preceding example with the `docker.io/library/postgres` image, it creates a new PostgreSQL server instance on your local machine. A reference to the `postgresdb` database resource is then used to add a dependency to the consuming project.
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/library/postgres` image, it creates a new PostgreSQL server instance on your local machine. A reference to the `postgresdb` database resource is then used to add a dependency to the consuming project.
 
 1. When adding a database resource to the app model, the database is created if it doesn't already exist. The creation of the database relies on the AppHost eventing APIs, specifically `ResourceReadyEvent`. In other words, when the `postgres` resource is _ready_, the event is raised and the database resource is created.
 

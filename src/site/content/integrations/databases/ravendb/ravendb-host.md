@@ -95,7 +95,7 @@ builder.Build().Run();
 {% endtabs %}
 
 {% steps %}
-1. When Aspire adds a container image to the app host, as shown in the preceding example with the `docker.io/ravendb/ravendb` image, it creates a new RavenDB instance on your local machine.
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/ravendb/ravendb` image, it creates a new RavenDB instance on your local machine.
 
 1. The {% api "Aspire.Hosting.RavenDBBuilderExtensions.AddDatabase" %} call registers a database sub-resource named `ravendb` on the server. By default, the database name matches the resource name. You can pass a different database name as the second argument: `ravenServer.AddDatabase("ravendb", databaseName: "mydb")`.
 
