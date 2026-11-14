@@ -85,7 +85,27 @@ function initSessionGrid() {
   const cards = document.querySelectorAll<HTMLElement>('.session-card');
 
   let searchQuery = '';
-  let showLocalTime = true;
+
+  // The clock and timezone choices last for the tab's session: each page load runs this script again, so they are
+  // kept in sessionStorage (the Astro build kept them in memory across its client-side navigations).
+  const prefKeys = { localTime: 'aspireconf-show-local-time', hour12: 'aspireconf-hour12' } as const;
+  function readPref(key: string): boolean | undefined {
+    try {
+      const value = sessionStorage.getItem(key);
+      return value === null ? undefined : value === 'true';
+    } catch {
+      return undefined;
+    }
+  }
+  function writePref(key: string, value: boolean) {
+    try {
+      sessionStorage.setItem(key, String(value));
+    } catch {
+      // Storage unavailable (private mode, blocked): the choice lasts for this page only.
+    }
+  }
+
+  let showLocalTime = readPref(prefKeys.localTime) ?? true;
 
   // Detect browser's preferred hour cycle
   function detectBrowserHour12(): boolean {
@@ -93,7 +113,7 @@ function initSessionGrid() {
     const resolved = testFormatter.resolvedOptions();
     return resolved.hour12 ?? !resolved.hourCycle?.startsWith('h2');
   }
-  let useHour12 = detectBrowserHour12();
+  let useHour12 = readPref(prefKeys.hour12) ?? detectBrowserHour12();
 
   // ── Timezone conversion ──
   function parsePTTime(ptStr: string): Date | null {
@@ -290,6 +310,7 @@ function initSessionGrid() {
 
   tzBtn?.addEventListener('click', () => {
     showLocalTime = !showLocalTime;
+    writePref(prefKeys.localTime, showLocalTime);
     tzBtn.setAttribute('data-active', String(showLocalTime));
 
     if (tzLabel) {
@@ -317,6 +338,7 @@ function initSessionGrid() {
 
   clockBtn?.addEventListener('click', () => {
     useHour12 = !useHour12;
+    writePref(prefKeys.hour12, useHour12);
     clockBtn.setAttribute('data-active', String(!useHour12));
     if (clockLabel) {
       clockLabel.textContent = useHour12 ? '24h' : '12h';

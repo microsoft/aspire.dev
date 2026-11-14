@@ -229,9 +229,9 @@ steps:
         "%ASPIRE_VERSION_MAJOR_MINOR%": "{{ site.versions.majorMinor }}"
         "%ASPIRE_VERSION_PREVIEW%": "{{ site.versions.preview }}"
   # Markdown twins at StaticHost's paths: /get-started/x/ -> /get-started/x.md, / -> /index.md, /ja/ -> /ja.md.
-  # Twins of the root locale's pages, of the translated ja pages and of every locale's home page, as before (no twins of
-  # the fallback copies). The Dev Hub and the samples write their own twins (`hub-md.html`, `sample-md.html`); the
-  # glossary terms get theirs below.
+  # Twins of the root locale's pages and of the translated ja pages, as before (no twins of the fallback copies). The
+  # Dev Hub and the samples write their own twins (`hub-md.html`, `sample-md.html`); the glossary terms and the locale
+  # homes get theirs below.
   twins:
     needs: versions
     uses: fork
@@ -254,7 +254,7 @@ steps:
       - "!tr/**"
       - "!uk/**"
       - "!zh-cn/**"
-      - "{da,de,es,fr,hi,id,it,ko,pt-br,ru,tr,uk,zh-cn}/index.md"
+      - "!{da,de,es,fr,hi,id,it,ja,ko,pt-br,ru,tr,uk,zh-cn}/index.md"   # the locale homes: home-twin
     with:
       skip: fallback
       permalink: "{% if url == '/index.html' %}/index.md{% else %}{{ url | replace: '/index.html', '.md' }}{% endif %}"
@@ -274,13 +274,15 @@ steps:
         layout: false
         twin: true
       content: "{% include 'partials/hub/glossary-term-md' %}"
-  # The home twin is a Markdown rendering of the landing sections; the 404 twin is Astro's, with the component's name.
+  # The home twins are a Markdown rendering of the landing sections, for the root and every locale home (/index.md,
+  # /ja.md, ...); the 404 twin is Astro's, with the component's name.
   home-twin:
     needs: glossary-twins
     uses: fork
-    match: ["index.html"]
+    match: ["index.html", "{da,de,es,fr,hi,id,it,ja,ko,pt-br,ru,tr,uk,zh-cn}/index.md"]
     with:
-      permalink: /index.md
+      skip: fallback
+      permalink: "{% if url == '/index.html' %}/index.md{% else %}{{ url | replace: '/index.html', '.md' }}{% endif %}"
       data:
         markdown: false
         layout: false
