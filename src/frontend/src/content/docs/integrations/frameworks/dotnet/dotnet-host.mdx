@@ -316,6 +316,18 @@ builder.AddDotnetProject("inventoryservice", "../InventoryService.cs", &aspire.A
 
 These properties have the same behavior as the corresponding `LaunchProfileName`, `ExcludeLaunchProfile`, and `ExcludeKestrelEndpoints` properties on the C# `ProjectResourceOptions` type. The options are polyglot-specific to `addDotnetProject`; they don't change the shared `ProjectResourceOptions` handle used by the legacy `addProject` / <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddCSharpApp" /> exports.
 
+## Launch from an IDE
+
+Visual Studio builds the AppHost and its MSBuild dependencies, but path-based project resources aren't `ProjectReference` items, so Visual Studio doesn't build them. Before launching, Aspire builds SDK-style project resources itself and surfaces any compiler diagnostics. A compile failure prevents the dependent IDE launch request instead of producing a missing-executable `500 Internal Server Error`. This lets a new app launch on its first Visual Studio F5 without running `aspire run` or building each service manually.
+
+IDEs with external build support, such as Visual Studio Code, coordinate the build with Aspire. Aspire builds each resource once, and the IDE launches the resulting output without building it again. You can customize the build of SDK-style projects by calling `WithBuildEnvironment` in the AppHost, and file-based apps are fully supported: their builds are coordinated and serialized just like when you use `aspire run`.
+
+IDEs without external build support still launch project resources after Aspire builds them, but with these limitations:
+
+- The IDE might build projects again before launching them, because Aspire can't suppress the IDE build.
+- `WithBuildEnvironment` isn't supported. Aspire fails to start the application and reports an error instead of launching output that the IDE can't reliably locate. Run the application with `aspire run`, use an IDE with external build support, or remove the build customization.
+- File-based apps build themselves when they launch. They wait for Aspire to finish building project resources, but they aren't serialized with each other, so separate file-based apps can race when they share `#:project` outputs. In Visual Studio, `WaitForStart` only waits for the file-based app process to start, not for its build to finish. To avoid races, run with `aspire run`, use an IDE with external build support, or add a health check to the preceding app that passes only after it finishes building and call `WaitFor` on the next app.
+
 ## Publishing
 
 Automatic project publishing for `DotnetProjectResource` isn't currently supported. A plain
