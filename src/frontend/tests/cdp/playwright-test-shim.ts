@@ -39,7 +39,21 @@ function allowExtraContexts(browser: Browser, extra: Browser[]) {
   };
 }
 
+const polyfilled = new WeakSet<BrowserContext>();
+
+// Also for the contexts that a test creates itself (browser.newContext), such as the no-JavaScript one.
+function polyfillScopeInNewContexts(browser: Browser) {
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (options) => {
+    const context = await newContext(options);
+    await polyfillScope(context);
+    return context;
+  };
+}
+
 async function polyfillScope(context: BrowserContext) {
+  if (polyfilled.has(context)) return;
+  polyfilled.add(context);
   // Node's fetch, not route.fetch(): Playwright's request context first reads the browser's cookies over CDP, which
   // Lightpanda never answers (route.fetch times out). The site's stylesheets don't depend on cookies.
   await context.route(/\.css(?:\?|$)/, async (route) => {
@@ -82,6 +96,7 @@ export const test = !endpoint ? base : base.extend<{}, {}>({
       const browser = await connect();
       const extra: Browser[] = [];
       if (workarounds.has('extra-connection')) allowExtraContexts(browser, extra);
+      if (workarounds.has('scope-polyfill')) polyfillScopeInNewContexts(browser);
       await use(browser);
       for (const other of extra) await other.close().catch(() => {});
       await browser.close().catch(() => {});
