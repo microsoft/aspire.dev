@@ -1,0 +1,112 @@
+name: Douze Build
+
+# Builds the site with Douze (src/site), on the runner the Astro build uses, to compare their CI times.
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      clean:
+        description: Build without restoring the Douze cache
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Douze Build
+    runs-on: ${{ github.repository_owner == 'microsoft' && '8-core-ubuntu-latest' || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: src/frontend/package.json
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.x
+
+      # The SDK runs the Roslyn language server of the `hover-csharp` step and installs Douze.
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install Douze
+        run: |
+          dotnet tool install -g douze --version 0.5.1
+          douze --version
+
+      # The Astro folder still holds the API index script, esbuild and the client packages.
+      - name: Install deps
+        working-directory: src/frontend
+        run: bun install --frozen-lockfile
+
+      - name: Generate the API data
+        working-directory: src/frontend
+        run: bunx tsx ../site/scripts/api/build-api-index.ts
+
+      - name: Generate the assets
+        working-directory: src/site
+        run: |
+          node scripts/icons-sprite.mjs
+          node scripts/build-client.mjs
+          node scripts/write-build-info.mjs
+
+      # src/site/.douze holds the disk cache and the downloaded tools. Douze decides what is stale, so the key only
+      # partitions by the Douze version and restore-keys resolves to the newest entry.
+      - name: Restore Douze cache
+        id: douze_cache
+        if: ${{ !inputs.clean }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: src/site/.douze
+          key: douze-${{ runner.os }}-0.5.1-${{ github.sha }}
+          restore-keys: |
+            douze-${{ runner.os }}-0.5.1-
+
+      - name: Install the tools
+        run: douze tools install -s src/site
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          /usr/bin/time -v douze -s src/site -o src/statichost/StaticHost/wwwroot 2>&1 | tee "$RUNNER_TEMP/douze-build.log"
+
+      - name: Save Douze cache
+        if: ${{ success() && !inputs.clean && steps.douze_cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: src/site/.douze
+          key: ${{ steps.douze_cache.outputs.cache-primary-key }}
+
+      - name: Report the build
+        if: ${{ always() }}
+        env:
+          CACHE_MATCHED_KEY: ${{ steps.douze_cache.outputs.cache-matched-key }}
+        run: |
+          log="$RUNNER_TEMP/douze-build.log"
+          {
+            echo '### Douze build'
+            echo "- Restored cache: \`${CACHE_MATCHED_KEY:-none}\`"
+            echo "- Cache size: \`$(du -sh src/site/.douze 2>/dev/null | cut -f1)\`"
+            echo "- $(grep -E '^Build (succeeded|failed)' "$log" || echo 'No build summary')"
+            echo "- Wall clock: \`$(grep 'Elapsed (wall clock)' "$log" | awk '{print $NF}')\`, peak memory: \`$(grep 'Maximum resident' "$log" | awk '{printf "%.1f GB", $NF/1048576}')\`"
+            echo
+            echo '```'
+            grep -E '^. [a-z]' "$log" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check the output
+        run: test -f src/statichost/StaticHost/wwwroot/index.html
