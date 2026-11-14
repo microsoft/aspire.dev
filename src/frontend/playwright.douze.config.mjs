@@ -17,8 +17,10 @@ export default defineConfig({
     use: { ...project.use, ...(executablePath ? { launchOptions: { executablePath } } : {}) },
   })),
   webServer: {
-    command: `dotnet run -c Release --project ../statichost/StaticHost --urls http://127.0.0.1:${e2ePort}`,
-    env: { ...process.env, ASPNETCORE_ENVIRONMENT: 'Development', DOTNET_NOLOGO: '1', ConnectionStrings__cache: 'localhost:6379,abortConnect=false' },
+    // STATICHOST_NO_BUILD: StaticHost is already built (the CI builds it while Playwright installs Chromium).
+    command: `dotnet run -c Release ${process.env.STATICHOST_NO_BUILD ? '--no-build ' : ''}--project ../statichost/StaticHost --urls http://127.0.0.1:${e2ePort}`,
+    // No Redis runs with the tests: the short connect timeout keeps StaticHost from waiting 5 s per attempt at startup.
+    env: { ...process.env, ASPNETCORE_ENVIRONMENT: 'Development', DOTNET_NOLOGO: '1', ConnectionStrings__cache: 'localhost:6379,abortConnect=false,connectTimeout=500' },
     url: `http://127.0.0.1:${e2ePort}/`,
     reuseExistingServer: true,
     timeout: 180_000,

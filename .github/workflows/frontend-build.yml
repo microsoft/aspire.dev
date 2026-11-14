@@ -326,14 +326,30 @@ jobs:
           name: frontend-dist
           path: src/statichost/StaticHost/wwwroot
 
+      # StaticHost's build lists every file of the web root (MapStaticAssets),
+      # so it starts once the artifact is in place, and runs while Playwright
+      # installs Chromium.
+      - name: Start the StaticHost build
+        run: |
+          ( dotnet build -c Release ../statichost/StaticHost > "$RUNNER_TEMP/statichost-build.log" 2>&1
+            echo $? > "$RUNNER_TEMP/statichost-build.exit" ) &
+
       - name: Install Playwright Chromium
         run: bun run playwright install --with-deps chromium
+
+      - name: Wait for the StaticHost build
+        run: |
+          while [ ! -f "$RUNNER_TEMP/statichost-build.exit" ]; do sleep 1; done
+          tail -n 5 "$RUNNER_TEMP/statichost-build.log"
+          exit "$(cat "$RUNNER_TEMP/statichost-build.exit")"
 
       # Reporters (blob, github, junit, list) are configured in
       # `playwright.config.mjs` so they apply to every shard. Avoid passing
       # `--reporter=` here: that would override the config and silently drop
       # GitHub workflow annotations and the JUnit XML artifact.
       - name: Run Playwright (${{ matrix.project }})
+        env:
+          STATICHOST_NO_BUILD: 1
         run: bun run playwright test --config playwright.douze.config.mjs --project=${{ matrix.project }} --shard=${{ matrix.shard }}/2
 
       # Each shard publishes its blob report under a unique name so the
