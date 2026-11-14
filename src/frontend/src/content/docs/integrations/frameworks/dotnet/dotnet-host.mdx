@@ -25,7 +25,7 @@ This article is the reference for the Aspire Dotnet hosting integration. It enum
 If you're new to the Dotnet integration, start with the [Get started with the .NET / C# app integration](/integrations/frameworks/dotnet/dotnet-get-started/) guide.
 
 :::note
-`Aspire.Hosting.Dotnet` is a prerelease package. Its APIs remain unstable and may change in future releases.
+Starting with Aspire 17.0, `Aspire.Hosting.Dotnet` is a stable package that follows Aspire's normal stable versioning. Existing experimental integration-authoring APIs still require you to suppress [`ASPIREPROJECTS001`](/diagnostics/aspireprojects001/), and other experimental features, such as watch support, remain experimental.
 
 Starting with Aspire 13.6, <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" />, `DotnetProjectResource`, and the related <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.WithBuildEnvironment" /> overloads no longer require suppressing [`ASPIREDOTNETPROJECT001`](/diagnostics/aspiredotnetproject001/). You can remove existing suppressions for these APIs after upgrading.
 :::
@@ -94,6 +94,28 @@ This updates your `aspire.config.json` with the Dotnet hosting integration packa
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add Aspire.Hosting.Dotnet
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Dotnet hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Dotnet": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add a C# project or file-based app by path
@@ -126,6 +148,28 @@ await api.withHttpEndpoint({ port: 8080 });
 await api.withExternalHttpEndpoints();
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+api := builder.AddDotnetProject("api", "../api/api.csproj")
+api.WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(8080)})
+api.WithExternalHttpEndpoints()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -162,6 +206,13 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService.cs")
+```
+
+</TabItem>
 </Tabs>
 
 ## Configure options
@@ -192,6 +243,15 @@ await builder.addDotnetProject('inventoryservice', '../InventoryService.cs', {
 });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService.cs", &aspire.AddDotnetProjectOptions{
+	Options: &aspire.DotnetProjectOptions{LaunchProfileName: aspire.StringPtr("https")},
+})
 ```
 
 </TabItem>
@@ -232,6 +292,19 @@ await builder.addDotnetProject('inventoryservice', '../InventoryService.cs', {
 });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService.cs", &aspire.AddDotnetProjectOptions{
+	Options: &aspire.DotnetProjectOptions{
+		LaunchProfileName:       aspire.StringPtr("https"),
+		ExcludeLaunchProfile:    aspire.BoolPtr(false),
+		ExcludeKestrelEndpoints: aspire.BoolPtr(false),
+	},
+})
 ```
 
 </TabItem>

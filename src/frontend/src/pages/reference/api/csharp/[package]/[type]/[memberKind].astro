@@ -7,6 +7,7 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
+import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import MemberCard from '@components/api-reference/MemberCard.astro';
 import DocContent from '@components/api-reference/DocContent.astro';
@@ -39,6 +40,7 @@ export async function getStaticPaths() {
   const paths: Array<{ params: { package: string; type: string; memberKind: string }; props: Props }> = [];
 
   for (const pkg of packages) {
+    const cacheKey = apiDocumentCacheKey(pkg.data);
     for (const [typeIndex, t] of pkg.data.types.entries()) {
       const typeSlug = slugify(t.name, genericArity(t));
       if (!typeSlug) continue;
@@ -51,6 +53,7 @@ export async function getStaticPaths() {
         if (!members.some((m: any) => m.kind === kind)) continue;
 
         paths.push({
+          cacheKey,
           params: {
             package: packageSlug(pkg.data.package.name),
             type: typeSlug,

@@ -64,6 +64,39 @@ builder.Build().Run();
 ````
 
 </TabItem>
+
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	existingBusName := builder.AddParameter("existingServiceBusName")
+	existingBusResourceGroup := builder.AddParameter("existingServiceBusResourceGroup")
+
+	serviceBus := builder.AddAzureServiceBus("messaging")
+	serviceBus.PublishAsExisting(existingBusName, aspire.PublishAsExistingResourceGroup(existingBusResourceGroup))
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+</TabItem>
 </Tabs>
 
 Use `RunAsExisting` when only local run mode should use the existing resource, `PublishAsExisting` when only deployed Azure environments should use it, and `AsExisting` when both modes should point at the same Azure resource.
@@ -102,6 +135,36 @@ builder.AddAzureServiceBus("messaging")
 builder.Build().Run();
 ````
 
+</TabItem>
+
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	serviceBus := builder.AddAzureServiceBus("messaging")
+	serviceBus.ClearDefaultRoleAssignments()
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
 </TabItem>
 </Tabs>
 
@@ -145,6 +208,39 @@ builder.Build().Run();
 ````
 
 </TabItem>
+
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	identity := builder.AddAzureUserAssignedIdentity("identity")
+	clientId := identity.GetOutput("clientId")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+	api.WithEnvironment("IDENTITY_CLIENT_ID", clientId)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+</TabItem>
 </Tabs>
 
 Use <ApiReference name="Aspire.Hosting.AzureResourceExtensions.GetBicepIdentifier" /> inside <ApiReference name="Aspire.Hosting.AzureProvisioningResourceExtensions.ConfigureInfrastructure" /> or infrastructure resolvers when you need a stable identifier for a provisioned Azure construct. Use output references such as `ClientId`, `NameOutputReference`, or `getOutput("...")` when you need Azure-assigned values like a client ID, endpoint, or resource name.
@@ -182,8 +278,11 @@ The **Selected SDK models** column lists representative models, not every model 
 | Azure Storage                 | `Aspire.Hosting.Azure.Provisioning.Storage`          | `StorageAccount`                                                                                                         |
 | Azure Service Bus             | `Aspire.Hosting.Azure.Provisioning.ServiceBus`       | `ServiceBusNamespace`                                                                                                    |
 | Azure Key Vault               | `Aspire.Hosting.Azure.Provisioning.KeyVault`         | `KeyVaultService`                                                                                                        |
+| Microsoft Entra ID            | `Aspire.Hosting.Azure.Provisioning.EntraId`          | `MicrosoftGraphApplication`, `MicrosoftGraphServicePrincipal`, `MicrosoftGraphFederatedIdentityCredential`               |
 
 Package names follow the Azure Provisioning SDK, which can differ from the hosting integration name: Front Door uses `Cdn`, Kubernetes uses `ContainerService`, and PostgreSQL uses the SDK spelling `PostgreSql`. Network and PrivateDns are separate opt-ins, as are Redis and RedisEnterprise. To customize supporting resources such as a container registry or Log Analytics workspace, also add the corresponding provisioning package; a transitive hosting dependency doesn't enable its SDK proxies.
+
+The Microsoft Entra ID package is the exception. It generates proxies for the Microsoft Graph models that the Entra ID hosting integration defines, not for an Azure SDK. For examples, see [Customize Entra ID infrastructure](/integrations/security/microsoft-entra-id/customize-infrastructure/).
 
 Each provisioning package references its hosting integration and the shared `Aspire.Hosting.Azure.Provisioning` runtime. Install only the SDK proxies your AppHost uses. Existing C# customization through `Azure.Provisioning.*` doesn't require these proxy packages.
 
@@ -421,6 +520,30 @@ builder.Build().Run();
 
 </TabItem>
 </Tabs>
+
+#### Assign a deployment-time expression to an enum-valued property
+
+In a TypeScript AppHost, an enum-valued property such as `sku.name` normally takes a member of its generated enum, for example `StorageSkuName.StandardGrs`. To choose the value at deployment time instead, assign a Bicep expression, such as a parameter from `infrastructure.bicep()`:
+
+```typescript title="apphost.mts" "await bicep.parameter(storageSku)"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const storageSku = await builder.addParameter('storageSku');
+const storage = await builder.addAzureStorage('storage');
+
+await storage.configureInfrastructure(async (infrastructure) => {
+  const bicep = await infrastructure.bicep();
+  const account = await infrastructure.getStorageAccount();
+  const sku = await infrastructure.createStorageSku();
+  await sku.name.set(await bicep.parameter(storageSku));
+  await account.sku.set(sku);
+});
+
+await builder.build().run();
+```
+
+Literal values must use the generated enum member, such as `StorageSkuName.StandardGrs`; a plain string literal such as `'Standard_GRS'` is rejected. C# AppHosts can assign a `ProvisioningParameter` to these properties directly.
 
 ### Configure networking
 
@@ -670,6 +793,43 @@ builder.Build().Run();
 ```
 
 </TabItem>
+
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	vnet := builder.AddAzureVirtualNetwork("vnet")
+	peSubnet := vnet.AddSubnet("pe-subnet", "10.0.1.0/24")
+
+	storage := builder.AddAzureStorage("storage")
+	blobs := storage.AddBlobs("blobs")
+
+	peSubnet.AddPrivateEndpoint(blobs)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 When no Aspire-native resource builder exists for what you need, fall back to `ConfigureInfrastructure` to add an `Azure.Provisioning` construct directly. See the [Azure.Provisioning API reference](https://learn.microsoft.com/dotnet/api/overview/azure/provisioning) for the available construct types and their properties.
@@ -809,6 +969,43 @@ builder.Build().Run();
 ```
 
 </TabItem>
+
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddBicepTemplate("storage", "./custom-storage.bicep")
+	storage.WithParameter("storageAccountName", aspire.ParameterValue("mystorageaccount"))
+
+	storageAccountName := storage.GetOutput("storageAccountName")
+
+	webapp := builder.AddDotnetProject("webapp", "../WebApp/WebApp.csproj")
+	webapp.WithEnvironment("STORAGE_ACCOUNT_NAME", storageAccountName)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="tip">
@@ -889,6 +1086,46 @@ builder.AddProject<Projects.Api>("api")
        .WithEnvironment("SQL_SERVER_NAME", sql.GetOutput("sqlServerName"));
 
 builder.Build().Run();
+```
+
+</TabItem>
+
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	secret := true
+	adminPassword := builder.AddParameter("adminPassword", &aspire.AddParameterOptions{Secret: &secret})
+
+	sql := builder.AddBicepTemplate("sql", "./custom-sql.bicep")
+	sql.WithParameter("administratorLoginPassword", aspire.ParameterValue(adminPassword))
+
+	sqlServerName := sql.GetOutput("sqlServerName")
+
+	api := builder.AddDotnetProject("api", "../Api/Api.csproj")
+	api.WithEnvironment("SQL_SERVER_NAME", sqlServerName)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>

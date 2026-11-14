@@ -20,7 +20,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire MongoDB Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model MongoDB server and database resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire MongoDB Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model MongoDB server and database resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the MongoDB integration, start with the [Get started with MongoDB integrations](/integrations/databases/mongodb/mongodb-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to MongoDB](../mongodb-connect/).
 
@@ -51,6 +51,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add mongodb
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the MongoDB hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.MongoDB": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add mongodb
@@ -108,6 +129,25 @@ const mongodb = await mongo.addDatabase("mongodb");
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(mongodb)
     .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongo := builder.AddMongoDB("mongo").
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+mongodb := mongo.AddDatabase("mongodb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb).
+	WaitFor(mongodb)
 
 // After adding all resources, run the app...
 ```
@@ -176,6 +216,27 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddMongoDB("mongo").
+	WithoutHttpsCertificate()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
@@ -214,6 +275,28 @@ const mongo = await builder.addMongoDB("mongo");
 await mongo.withTlsMode({ mode: MongoDBTlsMode.PreferTls });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mode := aspire.MongoDBTlsModePreferTls
+builder.AddMongoDB("mongo").
+	WithTlsMode(&aspire.WithTlsModeOptions{Mode: &mode})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -292,6 +375,29 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+userName := builder.AddParameter("username")
+password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+mongo := builder.AddMongoDB("mongo", &aspire.AddMongoDBOptions{
+	UserName: &userName,
+	Password: &password,
+})
+mongodb := mongo.AddDatabase("mongodb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb).
+	WaitFor(mongodb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The username and password parameters are typically provided as user secrets:
@@ -316,6 +422,11 @@ var mongo = builder.AddMongoDB("mongo", port: 27017);
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="apphost.mts"
 const mongo = await builder.addMongoDB("mongo", { port: 27017 });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+mongo := builder.AddMongoDB("mongo", &aspire.AddMongoDBOptions{Port: aspire.IntPtr(27017)})
 ```
 </TabItem>
 </Tabs>
@@ -359,6 +470,26 @@ const mongodb = await mongo.addDatabase("mongodb");
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(mongodb)
     .waitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongo := builder.AddMongoDB("mongo").
+	WithDataVolume().
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+mongodb := mongo.AddDatabase("mongodb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb).
+	WaitFor(mongodb)
 
 // After adding all resources, run the app...
 ```
@@ -418,6 +549,26 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongo := builder.AddMongoDB("mongo").
+	WithDataBindMount("./mongodb-data").
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+mongodb := mongo.AddDatabase("mongodb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb).
+	WaitFor(mongodb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 <Aside>
@@ -428,7 +579,7 @@ Data bind mounts rely on the host machine's filesystem to persist the MongoDB se
 
 ## Add MongoDB server resource with init files
 
-Use initialization files to seed the MongoDB server with data or run scripts at startup. The C# AppHost exposes `WithInitBindMount(...)`, while the TypeScript AppHost exposes `withInitFiles(...)`.
+Use initialization files to seed the MongoDB server with data or run scripts at startup. Call `WithInitFiles(...)` in a C# AppHost or `withInitFiles(...)` in a TypeScript AppHost to copy the files from the specified directory into the container's initialization folder.
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -436,7 +587,7 @@ Use initialization files to seed the MongoDB server with data or run scripts at 
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mongo = builder.AddMongoDB("mongo")
-                   .WithInitBindMount(source: @"C:\MongoDB\Init")
+                   .WithInitFiles("./mongodb-init")
                    .WithLifetime(ContainerLifetime.Persistent);
 
 var mongodb = mongo.AddDatabase("mongodb");
@@ -467,11 +618,27 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 
-:::note
-The TypeScript AppHost exposes `withInitFiles(source)` instead of `withInitBindMount(source)`. The <ApiReference name="Aspire.Hosting.MongoDBBuilderExtensions.WithInitFiles" /> method copies the specified files into the container's init folder, whereas the C# `WithInitBindMount` performs a host bind mount. The functional outcome — running initialization scripts at container startup — is the same.
-:::
 </TabItem>
-</Tabs>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongo := builder.AddMongoDB("mongo").
+	WithInitFiles("./mongodb-init").
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+mongodb := mongo.AddDatabase("mongodb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb).
+	WaitFor(mongodb)
+
+// After adding all resources, run the app...
+```
+</TabItem></Tabs>
 
 MongoDB executes any JavaScript or shell scripts found in the init folder when the container first starts. This is useful for pre-populating collections or creating indexes.
 
@@ -519,6 +686,24 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongo := builder.AddMongoDB("mongo").WithReplicaSet()
+
+mongodb := mongo.AddDatabase("mongodb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb).
+	WaitFor(mongodb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 Omit `WithReplicaSet` / `withReplicaSet` when a standalone server is sufficient. Both configurations use the [automatic TLS behavior introduced in Aspire 13.6](#automatic-tls-and-migration-from-earlier-versions); the simple single-member path doesn't require TLS and supports the same local-development opt-out.
@@ -536,6 +721,12 @@ var mongo = builder.AddMongoDB("mongo").WithReplicaSet("app-rs");
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="apphost.mts"
 const mongo = await builder.addMongoDB("mongo").withReplicaSet({ name: "app-rs" });
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+mongo := builder.AddMongoDB("mongo").
+	WithReplicaSet(&aspire.WithReplicaSetOptions{Name: aspire.StringPtr("app-rs")})
 ```
 </TabItem>
 </Tabs>
@@ -563,6 +754,15 @@ const keyfile = await builder.addParameter("mongo-keyfile", { secret: true });
 const mongo = await builder.addMongoDB("mongo")
     .withKeyFile(keyfile)
     .withReplicaSet();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+keyfile := builder.AddParameter("mongo-keyfile", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+mongo := builder.AddMongoDB("mongo").
+	WithKeyFile(keyfile).
+	WithReplicaSet()
 ```
 </TabItem>
 </Tabs>
@@ -616,17 +816,41 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongo := builder.AddMongoDB("mongo").
+	WithMongoExpress().
+	WithLifetime(aspire.ContainerLifetimePersistent)
+
+mongodb := mongo.AddDatabase("mongodb")
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb).
+	WaitFor(mongodb)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 When you run the Aspire solution, you'll see a MongoDB Express container listed in the resources. Select the resource's endpoint to open the GUI.
 
-The MongoDB Express resource is configured to connect to the MongoDB server resource. The default credentials are:
+The MongoDB Express resource waits for the MongoDB server to report healthy before starting, and is configured to connect to the MongoDB server resource. The default credentials are:
 
 - `ME_CONFIG_MONGODB_SERVER`: The name assigned to the parent `MongoDBServerResource`
 - `ME_CONFIG_BASICAUTH`: A value of `false`
 - `ME_CONFIG_MONGODB_PORT`: Assigned from the primary endpoint's target port
 - `ME_CONFIG_MONGODB_ADMINUSERNAME`: The same username as configured in the parent
 - `ME_CONFIG_MONGODB_ADMINPASSWORD`: The same password as configured in the parent
+
+<Aside type="note">
+When the server uses the [single-member replica set](#enable-transactions-and-change-streams-with-a-single-member-replica-set) (`WithReplicaSet()`), Mongo Express instead receives the server's full connection string in `ME_CONFIG_MONGODB_URL`, and the `ME_CONFIG_MONGODB_SERVER`, `ME_CONFIG_MONGODB_PORT`, `ME_CONFIG_MONGODB_ADMINUSERNAME`, and `ME_CONFIG_MONGODB_ADMINPASSWORD` variables aren't set. Servers added to an `AddMongoDBReplicaSet(...)` resource with `WithMember(...)` keep the variables listed above.
+</Aside>
 
 <ContainerImages package="Aspire.Hosting.MongoDB" only="Mongo Express" />
 
@@ -659,6 +883,24 @@ await mongo.withMongoExpress({
     }
 });
 await mongo.withLifetime("Persistent");
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongo := builder.AddMongoDB("mongo").
+	WithMongoExpress(&aspire.WithMongoExpressOptions{
+		ConfigureContainer: func(c aspire.MongoExpressContainerResource) {
+			c.WithHostPort(aspire.IntPtr(8081))
+		},
+	}).
+	WithLifetime(aspire.ContainerLifetimePersistent)
 
 // After adding all resources, run the app...
 ```
@@ -718,6 +960,34 @@ await builder.addNodeApp("api", "./api", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongo := builder.AddMongoDB("mongo")
+mongodb := mongo.AddDatabase("mongodb")
+mongoEndpoint := mongo.GetEndpoint("tcp")
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb).
+	WithEnvironment("MONGO_HOST", mongoEndpoint.Property(aspire.EndpointPropertyHost)).
+	WithEnvironment("MONGO_PORT", mongoEndpoint.Property(aspire.EndpointPropertyPort)).
+	WithEnvironment("MONGO_USERNAME", mongo.UserNameParameter()).
+	WithEnvironment("MONGO_PASSWORD", mongo.PasswordParameter()).
+	WithEnvironment("MONGO_DATABASE", "mongodb")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 <span id="add-mongodb-resource-with-a-repl-command"></span>
@@ -736,6 +1006,26 @@ const builder = await createBuilder();
 await builder.addMongoDB('mongo').withRepl();
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddMongoDB("mongo").WithRepl()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

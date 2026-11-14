@@ -23,7 +23,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure AI Foundry hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a Foundry account, model deployments, Foundry projects, hosted agents, and prompt agents in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure AI Foundry hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model a Foundry account, model deployments, Foundry projects, hosted agents, and prompt agents in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure AI Foundry integration, start with the [Get started with Azure AI Foundry integrations](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure AI Foundry](../azure-ai-foundry-connect/).
 
@@ -88,6 +88,28 @@ This updates your `aspire.config.json` with the Azure AI Foundry hosting integra
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-ai-foundry
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure AI Foundry hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Foundry": "%ASPIRE_VERSION_PREVIEW%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 For an introduction to working with the Azure AI Foundry hosting integration, see [Get started with Azure AI Foundry integrations](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/).
@@ -125,6 +147,30 @@ await builder
   .withReference(foundry);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+foundry := builder.AddFoundry("foundry")
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(foundry)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -186,6 +232,36 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+foundry := builder.AddFoundry("foundry")
+
+chat := foundry.AddDeployment("chat", &aspire.FoundryModel{
+	Name:    "gpt-5-mini",
+	Version: "2025-06-01",
+	Format:  "OpenAI",
+})
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(chat).
+	WaitFor(chat)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code:
@@ -193,7 +269,7 @@ The preceding code:
 - Adds an Azure AI Foundry resource named `foundry`.
 - Adds a Foundry deployment resource named `chat` using the generated `FoundryModel.OpenAI.Gpt5Mini` descriptor.
 
-If you need a different generated model descriptor, use the corresponding nested type. The `FoundryModel` class organizes models by provider family: `FoundryModel.Microsoft`, `FoundryModel.OpenAI`, `FoundryModel.Cohere`, `FoundryModel.MistralAI`, and others. For example, to use `FoundryModel.Microsoft.Phi4Reasoning`:
+If you need a different generated model descriptor, use the corresponding nested type. The `FoundryModel` class organizes models by provider family: `FoundryModel.Microsoft`, `FoundryModel.OpenAI`, `FoundryModel.Cohere`, `FoundryModel.MistralAI`, `FoundryModel.Nvidia`, and others. For example, to use `FoundryModel.Microsoft.Phi4Reasoning`:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -234,6 +310,36 @@ await builder
   .waitFor(chat);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+foundry := builder.AddFoundry("foundry")
+
+chat := foundry.AddDeployment("chat", &aspire.FoundryModel{
+	Name:    "Phi-4-reasoning",
+	Version: "1",
+	Format:  "Microsoft",
+})
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(chat).
+	WaitFor(chat)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -304,6 +410,38 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+foundry := builder.AddFoundry("foundry")
+project := foundry.AddProject("my-project")
+
+chat := project.AddModelDeployment("chat", &aspire.FoundryModel{
+	Name:    "gpt-5-mini",
+	Version: "2025-06-01",
+	Format:  "OpenAI",
+})
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(project).
+	WithReference(chat).
+	WaitFor(chat)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code creates a Foundry project and adds a deployment through <ApiReference name="Aspire.Hosting.AzureCognitiveServicesProjectExtensions.AddModelDeployment" />. When you call `WithReference(project)`, Aspire injects the standard connection string and project-specific connection properties such as the project endpoint and Application Insights connection string into the consuming resource.
@@ -347,6 +485,27 @@ await foundry
   .withAppInsights(appInsights)
   .withKeyVault(keyVault)
   .withContainerRegistry(registry);
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+foundry := builder.AddFoundry("foundry")
+appInsights := builder.AddAzureApplicationInsights("appinsights")
+keyVault := builder.AddAzureKeyVault("keyvault")
+registry := builder.AddAzureContainerRegistry("agents")
+
+project := foundry.AddProject("my-project").
+	WithAppInsights(appInsights).
+	WithKeyVault(keyVault).
+	WithContainerRegistry(registry)
+
 ```
 
 </TabItem>
@@ -426,6 +585,47 @@ builder.AddProject<Projects.Api>("api")
     .WaitFor(toolbox);
 
 builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+foundry := builder.AddFoundry("foundry")
+project := foundry.AddProject("project")
+search := builder.AddAzureSearch("search")
+approvalMode := aspire.FoundryToolboxMcpGlobalApprovalModeAlways
+
+toolbox := project.AddToolbox("field-tools").
+	WithDescription("Tools for field technicians.").
+	WithWebSearchTool(&aspire.WithWebSearchToolOptions{
+		Name:        aspire.StringPtr("web-search"),
+		Description: aspire.StringPtr("Search the public web."),
+	}).
+	WithMcpTool("inventory", "https://inventory.example.com/mcp", aspire.McpToolOptions(&aspire.FoundryToolboxMcpToolOptions{
+		ServerDescription: aspire.StringPtr("Inventory MCP server."),
+		ApprovalPolicy: &aspire.FoundryToolboxMcpApprovalPolicy{
+			Global: &approvalMode,
+		},
+	})).
+	WithAISearchTool("knowledge-base", search, "docs")
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(toolbox).
+	WaitFor(toolbox)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -528,6 +728,43 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+foundry := builder.AddFoundry("foundry")
+project := foundry.AddProject("my-project")
+chat := project.AddModelDeployment("chat", &aspire.FoundryModel{
+	Name:    "gpt-5-mini",
+	Version: "2025-06-01",
+	Format:  "OpenAI",
+})
+
+agentPython := builder.AddPythonApp("agent-python", "../agent", "main:app").
+	WithReference(project).
+	WithReference(chat)
+agentPython.AsHostedAgent(project)
+
+agentDotnet := builder.AddDotnetProject("agent-dotnet", "../Agent/Agent.csproj").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(9000)}).
+	WithReference(project).
+	WithReference(chat)
+agentDotnet.AsHostedAgent(project)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 In run mode, `AsHostedAgent(...)` configures a local `http` endpoint for the agent. Aspire first checks whether the resource already has an endpoint named `http`. If that endpoint has a target port, Aspire preserves it. If there is no existing `http` target port, Aspire defaults to `8088`.
@@ -572,6 +809,20 @@ await dotnetWeatherAgent.asHostedAgent(project);
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go
+dotnetWeatherAgent := builder.AddDotnetProject("weather-agent-dotnet", "../WeatherAgent.Dotnet/WeatherAgent.Dotnet.csproj").
+	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(9000)}).
+	WithReference(project).
+	WaitFor(project).
+	WithReference(chat).
+	WaitFor(chat)
+
+dotnetWeatherAgent.AsHostedAgent(project)
+```
+
+</TabItem>
 </Tabs>
 
 In run mode, Aspire also opens the agent's dashboard URL at the selected protocol path, defaults that path to `/responses`, adds a dashboard command for sending a message to the selected path, and enables OpenTelemetry environment variables for agent instrumentation.
@@ -605,6 +856,16 @@ await builder
   .withReference(project)
   .withReference(chat)
   .asHostedAgentWithProtocol(project, HostedAgentProtocol.Invocations, '1.0.0');
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go
+builder.AddPythonApp("agent-python", "../agent", "main:app").
+	WithReference(project).
+	WithReference(chat).
+	AsHostedAgentWithProtocol(project, aspire.HostedAgentProtocolInvocations, "1.0.0")
 ```
 
 </TabItem>
@@ -669,6 +930,41 @@ await project
   .withTool(webSearch);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+foundry := builder.AddFoundry("foundry")
+project := foundry.AddProject("my-project")
+chat := project.AddModelDeployment("chat", "gpt-5-mini", &aspire.AddModelDeploymentOptions{
+	ModelVersion: aspire.StringPtr("2025-06-01"),
+	Format:       aspire.StringPtr("OpenAI"),
+})
+
+webSearch := project.AddWebSearchTool("web-search")
+
+project.AddPromptAgent("web-researcher", chat, &aspire.AddPromptAgentOptions{
+	Instructions: aspire.StringPtr(`
+You are the Web Researcher. Use web search for current information,
+cite sources, summarize tradeoffs, and keep answers concise and practical.
+`),
+}).
+	WithTool(webSearch)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -750,6 +1046,33 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingFoundryName := builder.AddParameter("existingFoundryName")
+existingFoundryResourceGroup := builder.AddParameter("existingFoundryResourceGroup")
+
+foundry := builder.AddFoundry("foundry").
+	AsExisting(existingFoundryName, &aspire.AsExistingOptions{ResourceGroup: existingFoundryResourceGroup})
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(foundry)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="caution">
@@ -811,6 +1134,37 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+foundry := builder.AddFoundry("foundry").
+	RunAsFoundryLocal()
+
+chat := foundry.AddDeployment("chat", &aspire.FoundryModel{
+	Name:    "Phi-4",
+	Version: "1",
+	Format:  "Microsoft",
+})
+
+api := builder.AddGoApp("api", "./api").
+	WithReference(chat).
+	WaitFor(chat)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 When the AppHost starts, Aspire automatically starts the Foundry Local service using the `foundry` CLI (supporting both the legacy `foundry service` and the current `foundry server` command generations). It then discovers the service endpoint, loads any cached models before downloading new ones, and stops the service when the AppHost shuts down or is disposed. You do not need to pre-start Foundry Local manually.
@@ -861,6 +1215,20 @@ const chat = await foundry
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+foundry := builder.AddFoundry("foundry").
+	RunAsFoundryLocal(&aspire.RunAsFoundryLocalOptions{Endpoint: aspire.StringPtr("http://windows-host:5273")})
+
+chat := foundry.AddDeployment("chat", "Phi-3.5-mini-instruct", &aspire.AddDeploymentOptions{
+	ModelVersion: aspire.StringPtr("1"),
+	Format:       aspire.StringPtr("Microsoft"),
+}).
+	SetLocalModelId(aspire.StringPtr("Phi-3.5-mini-instruct-generic-gpu:1"))
+```
+
+</TabItem>
 </Tabs>
 
 When you pass an endpoint, Aspire treats the service as unmanaged: it observes
@@ -908,6 +1276,30 @@ await builder
   .withReference(foundry);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+foundry := builder.AddFoundry("chat")
+
+api := builder.AddGoApp("api", "./api").
+	WithFoundryRoleAssignments(foundry, []aspire.FoundryRole{aspire.FoundryRoleCognitiveServicesUser}).
+	WithReference(foundry)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

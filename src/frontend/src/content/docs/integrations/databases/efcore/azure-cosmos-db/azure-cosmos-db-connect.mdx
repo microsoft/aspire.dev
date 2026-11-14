@@ -65,21 +65,21 @@ public class ExampleService(MyDbContext context)
 
 For more information on using Entity Framework Core with Azure Cosmos DB, see the [EF Core Azure Cosmos DB provider documentation](https://learn.microsoft.com/ef/core/providers/cosmos/?tabs=dotnet-core-cli).
 
-### Add keyed Cosmos DB contexts
+### Add multiple Cosmos DB contexts
 
-To register multiple `DbContext` instances with different connection names, use `AddKeyedCosmosDbContext`:
+To register multiple `DbContext` types with different connection names, call `AddCosmosDbContext` once for each context type. The EF Core client integration doesn't provide keyed `DbContext` registrations, so each context is registered by its type:
 
 ```csharp title="Program.cs"
-builder.AddKeyedCosmosDbContext<CatalogDbContext>(name: "catalog", databaseName: "catalogdb");
-builder.AddKeyedCosmosDbContext<OrdersDbContext>(name: "orders", databaseName: "ordersdb");
+builder.AddCosmosDbContext<CatalogDbContext>(connectionName: "catalog", databaseName: "catalogdb");
+builder.AddCosmosDbContext<OrdersDbContext>(connectionName: "orders", databaseName: "ordersdb");
 ```
 
-Then resolve each instance by key:
+Then inject each context by its type:
 
 ```csharp title="ExampleService.cs"
 public class ExampleService(
-    [FromKeyedServices("catalog")] CatalogDbContext catalogContext,
-    [FromKeyedServices("orders")] OrdersDbContext ordersContext)
+    CatalogDbContext catalogContext,
+    OrdersDbContext ordersContext)
 {
     // Use contexts...
 }

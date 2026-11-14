@@ -16,7 +16,7 @@ export function deferAppHostExamples(html) {
     '[data-apphost-builder] [data-code-lang="typescript"] [data-variant="frontend"]',
     tree
   );
-  if (!builder || groups.length !== 2 || !initial) {
+  if (!builder || groups.length !== 3 || !initial) {
     throw new Error('Cannot defer AppHost examples: missing builder or default example.');
   }
 

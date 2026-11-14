@@ -19,7 +19,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire OpenAI hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an OpenAI parent resource and model resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire OpenAI hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an OpenAI parent resource and model resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the OpenAI integration, start with the [Get started with OpenAI integrations](/integrations/ai/openai/openai-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to OpenAI](../openai-connect/).
 
@@ -50,6 +50,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add openai
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the OpenAI hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.OpenAI": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add openai
@@ -107,6 +128,33 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	openai := builder.AddOpenAI("openai")
+
+	chat := openai.AddModel("chat", "gpt-4o-mini")
+
+	api := builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(chat)
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 <Steps>
@@ -160,6 +208,35 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(embeddings);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	openai := builder.AddOpenAI("openai")
+
+	chat := openai.AddModel("chat", "gpt-4o-mini")
+	embeddings := openai.AddModel("embeddings", "text-embedding-3-small")
+
+	api := builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(chat).
+		WithReference(embeddings)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -220,6 +297,36 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	apiKey := builder.AddParameter("my-api-key", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+
+	openai := builder.AddOpenAI("openai").
+		WithApiKey(apiKey)
+
+	chat := openai.AddModel("chat", "gpt-4o-mini")
+
+	api := builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(chat)
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 <Aside type="note">Parameters marked <code>secret: true</code> are stored in the user secrets store and never appear in plain text in logs or the dashboard.</Aside>
@@ -259,6 +366,34 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(chat);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	openai := builder.AddOpenAI("openai").
+		WithEndpoint("https://my-gateway.example.com/v1")
+
+	chat := openai.AddModel("chat", "gpt-4o-mini")
+
+	api := builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(chat)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -302,12 +437,40 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	openai := builder.AddOpenAI("openai")
+
+	chat := openai.AddModel("chat", "gpt-4o-mini").
+		WithHealthCheck()
+
+	api := builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(chat)
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 The model health check validates endpoint reachability, API key validity (401), and model existence (404). It executes only once per application instance to limit rate-limit implications.
 
 <Aside type="note">
-In C#, each OpenAI parent resource also automatically registers a status-page health check against `https://status.openai.com/api/v2/status.json`. This status-page check is not currently exposed in the TypeScript AppHost.
+In C#, each OpenAI parent resource also automatically registers a status-page health check against `https://status.openai.com/api/v2/status.json`. This status-page check is not currently exposed in the TypeScript or Go AppHosts.
 </Aside>
 
 ## Available models
