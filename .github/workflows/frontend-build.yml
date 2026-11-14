@@ -382,7 +382,7 @@ jobs:
   # recording, and Playwright connected over CDP to Chromium, Lightpanda or Jint.Browser.
   # tests/cdp/run-engine.sh provisions each browser and writes the comparison to the job summary.
   e2e-alternatives:
-    name: E2E alternative (${{ matrix.engine }}${{ matrix.subset && ', xUnit subset' || '' }})
+    name: E2E alternative (${{ matrix.engine }}${{ matrix.subset && ', xUnit subset' || '' }}${{ matrix.workarounds && format(', {0}', matrix.workarounds) || '' }})
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -392,14 +392,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        engine: [playwright, playwright-no-recording, chromium-cdp, lightpanda, jint-browser]
+        # Investigation (browser gap): each engine with its harness workarounds (run-engine.sh defaults), and
+        # Chromium with the @scope polyfill alone, to check that the polyfill does not change what Chromium passes.
+        engine: [chromium-cdp, lightpanda, jint-browser]
         subset: ['']
-        # The 34 tests that tests/E2E.Jint ports to xUnit, for the comparison with the e2e-jint-xunit job.
+        workarounds: ['']
         include:
-          - engine: playwright
-            subset: '1'
-          - engine: playwright-no-recording
-            subset: '1'
+          - engine: chromium-cdp
+            subset: ''
+            workarounds: scope-polyfill
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -426,13 +427,15 @@ jobs:
         env:
           ENGINE: ${{ matrix.engine }}
           SUBSET: ${{ matrix.subset }}
+          WORKAROUNDS: ${{ matrix.workarounds }}
+          LABEL_SUFFIX: ${{ matrix.workarounds && format('-{0}', matrix.workarounds) || '' }}
           STATICHOST_NO_BUILD: 1
         run: tests/cdp/run-engine.sh
       - name: Upload results
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-alternative-${{ matrix.engine }}${{ matrix.subset && '-subset' || '' }}
+          name: e2e-alternative-${{ matrix.engine }}${{ matrix.subset && '-subset' || '' }}${{ matrix.workarounds && format('-{0}', matrix.workarounds) || '' }}
           path: src/frontend/cdp-results
           if-no-files-found: warn
           retention-days: 7
@@ -441,6 +444,8 @@ jobs:
   # Jint.Browser's .NET API (tests/E2E.Jint): in process, no CDP, no browser to download.
   e2e-jint-xunit:
     name: E2E alternative (Jint.Browser in-process xUnit)
+    # Not part of the browser-gap investigation.
+    if: false
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -493,10 +498,16 @@ jobs:
   # Prototype, not a gate: Kitesurf (cloudflare/kitesurf) has no release binary; it is built with Bazel and runs
   # under `wrangler dev` (workerd), which serves its CDP endpoint.
   e2e-alternative-kitesurf:
-    name: E2E alternative (kitesurf)
+    name: E2E alternative (kitesurf, ${{ matrix.variant }})
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        # scope-polyfill: the harness flattens CSS @scope (run-engine.sh default for kitesurf).
+        # at-scope-pref: Kitesurf built with Stylo's layout.css.at-scope.enabled on, no harness workaround.
+        variant: [scope-polyfill, at-scope-pref]
     defaults:
       run:
         working-directory: src/frontend
@@ -524,6 +535,11 @@ jobs:
           npm install --global pnpm@9.15.4 @bazel/bazelisk > /dev/null
           pnpm install --frozen-lockfile > /dev/null
           # Pages are untrusted by default and may not reach loopback; the site under test is on 127.0.0.1.
+          if [ "${{ matrix.variant }}" = at-scope-pref ]; then
+            # Stylo 0.22 parses @scope only behind this pref, which Kitesurf does not set (init_style_prefs).
+            sed -i 's|set_pref!("layout.variable_fonts.enabled", true);|&\n    stylo_static_prefs::set_pref!("layout.css.at-scope.enabled", true);|' packages/core/src/style/cssom.rs
+            grep -n 'at-scope' packages/core/src/style/cssom.rs
+          fi
           printf 'KITESURF_ALLOW_PRIVATE_NETWORK=1\n' > packages/engine/.dev.vars
           (KITESURF_PORT=9222 WRANGLER_SEND_METRICS=false pnpm run dev > "$RUNNER_TEMP/kitesurf.log" 2>&1 &)
           for _ in $(seq 1 6000); do curl -sf -o /dev/null http://127.0.0.1:9222/health && break; sleep 1; done
@@ -541,13 +557,15 @@ jobs:
       - name: Run the slice (kitesurf)
         env:
           ENGINE: kitesurf
+          WORKAROUNDS: ${{ matrix.variant == 'at-scope-pref' && 'none' || '' }}
+          LABEL_SUFFIX: -${{ matrix.variant }}
           STATICHOST_NO_BUILD: 1
         run: tests/cdp/run-engine.sh
       - name: Upload results
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-alternative-kitesurf
+          name: e2e-alternative-kitesurf-${{ matrix.variant }}
           path: |
             src/frontend/cdp-results
             ${{ runner.temp }}/kitesurf.log

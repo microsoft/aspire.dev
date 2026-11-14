@@ -19,7 +19,7 @@ if [ -n "${SUBSET:-}" ]; then
   SLICE='/(analytics-scripts|dev-browse|og-metadata)\.spec\.ts'
   grep_args=(--grep "$SUBSET_GREP" --grep-invert 'video platforms')
 fi
-LABEL="$ENGINE${SUBSET:+-subset}"
+LABEL="$ENGINE${SUBSET:+-subset}${LABEL_SUFFIX:-}"
 mkdir -p "$OUT" "$TOOLS"
 
 now() { date +%s.%N; }
@@ -45,8 +45,11 @@ case "$ENGINE" in
     chmod +x "$TOOLS/lightpanda"
     "$TOOLS/lightpanda" version || true
     # Stylesheets and images are off by default in `serve`; the specs read styles and wait for images.
+    # --cdp-max-message-size: the default (1 MB) is smaller than the axe-core source that AxeBuilder injects
+    # (1.3 MB); Lightpanda then drops the connection and the next test cannot create its browser context.
     "$TOOLS/lightpanda" serve --host 127.0.0.1 --port 9222 --load-resources stylesheet,image --disable-metrics \
-      --cdp-max-connections 64 > "$OUT/browser.log" 2>&1 &
+      --cdp-max-connections 64 \
+      --cdp-max-message-size 16777216 > "$OUT/browser.log" 2>&1 &
     wait_for http://127.0.0.1:9222/json/version 30 || { cat "$OUT/browser.log"; exit 1; }
     ;;
   jint-browser)
@@ -68,10 +71,21 @@ setup_end=$(now)
 curl -s http://127.0.0.1:9222/json/version 2>/dev/null | head -c 300 && echo
 
 endpoint=http://127.0.0.1:9222
+# Harness workarounds for each engine (tests/cdp/playwright-test-shim.ts). WORKAROUNDS=none runs without them;
+# WORKAROUNDS=<list> replaces the default. scope-polyfill flattens CSS @scope, which none of the three implement.
+case "$ENGINE" in
+  lightpanda) default_workarounds=scope-polyfill,extra-connection ;;
+  jint-browser) default_workarounds=scope-polyfill,set-content-route,style-tag-no-load ;;
+  kitesurf) default_workarounds=scope-polyfill ;;
+  *) default_workarounds= ;;
+esac
+workarounds=${WORKAROUNDS:-$default_workarounds}
+[ "$workarounds" = none ] && workarounds=
+echo "CDP_WORKAROUNDS=$workarounds"
 case "$ENGINE" in playwright | playwright-no-recording) endpoint= ;; esac
 
 tests_start=$(now)
-CDP_ENDPOINT=$endpoint PLAYWRIGHT_JSON_OUTPUT_NAME="$OUT/$LABEL.json" \
+CDP_ENDPOINT=$endpoint CDP_WORKAROUNDS=$workarounds PLAYWRIGHT_JSON_OUTPUT_NAME="$OUT/$LABEL.json" \
   bun run playwright test --config "$config" --project=desktop-chromium --retries=0 --reporter=dot,json "${grep_args[@]}" "$SLICE"
 status=$?
 tests_end=$(now)
