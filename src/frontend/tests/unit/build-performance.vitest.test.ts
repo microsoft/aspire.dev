@@ -61,13 +61,21 @@ test('frontend workflow keeps validation parallel and every shard required', asy
   expect(job('e2e')).toContain('--shard=${{ matrix.shard }}/2');
   expect(job('e2e')).toContain('frontend-blob-report-${{ matrix.project }}-${{ matrix.shard }}');
   expect(job('e2e')).toContain('frontend-test-results-${{ matrix.project }}-${{ matrix.shard }}');
-  expect(job('frontend-gate')).toContain('needs: [build, validation, e2e, report]');
-  expect(job('frontend-gate')).toContain('for result in "$BUILD" "$VALIDATION" "$E2E" "$REPORT"');
+  expect(job('frontend-gate')).toContain('needs: [build, browsable-artifact, validation, e2e, report]');
+  expect(job('frontend-gate')).toContain('for result in "$BUILD" "$BROWSABLE_ARTIFACT" "$VALIDATION" "$E2E" "$REPORT"');
   expect(job('frontend-gate')).toContain('if [[ "$result" != "success" ]]');
   expect(job('frontend-gate')).toContain('exit 1');
   expect(job('report')).toContain('pattern: frontend-blob-report-*');
-  expect(job('build')).toContain('name: frontend-dist');
-  expect(job('build')).toContain('path: src/frontend/dist');
+  // The shards get the site as one zstd tar; the browsable many-file
+  // artifact is uploaded alongside them, not before them.
+  expect(job('build')).toContain('zstd -3 -T0');
+  expect(job('build')).toContain('name: frontend-site');
+  expect(job('build')).not.toContain('name: frontend-dist');
+  expect(job('e2e')).toContain('name: frontend-site');
+  expect(job('e2e')).not.toContain('frontend-dist');
+  expect(job('browsable-artifact')).toMatch(/needs: build/);
+  expect(job('browsable-artifact')).toContain('name: frontend-dist');
+  expect(job('browsable-artifact')).toContain('Upsert PR artifact comment');
   expect(job('build')).toContain('./node_modules/astro/bin/astro.mjs build --mode production');
 });
 
