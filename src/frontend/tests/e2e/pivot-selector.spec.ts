@@ -1,6 +1,50 @@
 import { expect, test } from '@playwright/test';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
+test('deployment pivots share one output heading and Go reuses the React verification images', async ({
+  page,
+}) => {
+  await page.goto('/get-started/deploy-first-app/?aspire-lang=typescript');
+  await dismissCookieConsentIfVisible(page);
+  const selector = page.locator('#pivot-selector-aspire-lang');
+  const verification = (language: string) =>
+    page.locator(`[data-pivot-block="${language}"]`).filter({
+      has: page.locator('img[alt^="Deployed"]'),
+    });
+
+  const typescriptImages = await verification('typescript')
+    .locator('img')
+    .evaluateAll((images) => images.map((image) => image.getAttribute('src')));
+  expect(typescriptImages.length).toBeGreaterThan(0);
+
+  for (const language of ['go', 'csharp', 'typescript', 'go']) {
+    await selector.locator(`[data-pivot-option="${language}"]`).click();
+    await expect(
+      page.getByRole('heading', { name: 'Post deployment output', exact: true })
+    ).toHaveCount(1);
+    for (const toc of await page.locator('starlight-toc, mobile-starlight-toc').all()) {
+      await expect(toc.locator('a[href="#post-deployment-output"]')).toHaveCount(1);
+      await expect(toc.locator('a[href^="#post-deployment-output-"]')).toHaveCount(0);
+    }
+  }
+
+  const goVerification = verification('go');
+  expect(
+    await goVerification
+      .locator('img')
+      .evaluateAll((images) => images.map((image) => image.getAttribute('src')))
+  ).toEqual(typescriptImages);
+
+  for (const target of ['Docker Compose', 'Azure']) {
+    await goVerification.getByRole('tab', { name: target, exact: true }).click();
+    const panel = goVerification.getByRole('tabpanel', { name: target, exact: true });
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('print-app-summary');
+    await expect(panel).toContainText('weather forecast');
+    await expect(panel.locator('img:visible')).toHaveCount(1);
+  }
+});
+
 test('Dev Hub TypeScript quickstart overrides a saved C# preference', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('aspire-lang', 'csharp');

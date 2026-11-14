@@ -397,11 +397,9 @@ if err != nil {
 }
 
 builder.AddAzureAppConfiguration("config").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
-			emulator.WithHostPort(aspire.IntPtr(28000))
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureEmulator(func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+		emulator.WithHostPort(aspire.IntPtr(28000))
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -458,11 +456,9 @@ if err != nil {
 }
 
 builder.AddAzureAppConfiguration("config").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
-			emulator.WithLifetime(aspire.ContainerLifetimePersistent)
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureEmulator(func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+		emulator.WithLifetime(aspire.ContainerLifetimePersistent)
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -517,11 +513,9 @@ if err != nil {
 }
 
 builder.AddAzureAppConfiguration("config").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
-			emulator.WithDataVolume()
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureEmulator(func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+		emulator.WithDataVolume()
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -578,13 +572,9 @@ if err != nil {
 }
 
 builder.AddAzureAppConfiguration("config").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
-			emulator.WithDataBindMount(&aspire.WithDataBindMountOptions{
-				Path: aspire.StringPtr("../Emulator/Data"),
-			})
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureEmulator(func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+		emulator.WithDataBindMount(aspire.DataBindMountPath("../Emulator/Data"))
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -651,7 +641,7 @@ configName := builder.AddParameter("configName")
 configResourceGroupName := builder.AddParameter("configResourceGroupName")
 
 builder.AddAzureAppConfiguration("config").
-	AsExisting(configName, &aspire.AsExistingOptions{ResourceGroup: configResourceGroupName})
+	AsExisting(configName, aspire.AsExistingResourceGroup(configResourceGroupName))
 
 // After adding all resources, run the app...
 app, err := builder.Build()

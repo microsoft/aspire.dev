@@ -257,18 +257,16 @@ const cluster = await builder
 <TabItem id="go" label="Go">
 
 ```go title="apphost.go"
-cluster := builder.AddK3sCluster("k8s", &aspire.AddK3sClusterOptions{
-	ApiServerPort: aspire.IntPtr(16443),
-	AgentCount:    aspire.IntPtr(2),
-}).
+cluster := builder.AddK3sCluster("k8s", aspire.AddK3sClusterApiServerPort(16443),
+	aspire.AddK3sClusterAgentCount(2)).
 	WithK3sVersion("v1.32.3-k3s1").
 	WithPodSubnet("10.42.0.0/16").
 	WithServiceSubnet("10.43.0.0/16").
 	WithDisabledComponent("traefik").
 	WithExtraArg("--write-kubeconfig-mode=644").
-	WithDataVolume(&aspire.WithDataVolumeOptions{Name: aspire.StringPtr("k8s-data")}).
-	WithHelmImage(&aspire.WithHelmImageOptions{Tag: aspire.StringPtr("3.18.0")}).
-	WithKubectlImage(&aspire.WithKubectlImageOptions{Tag: aspire.StringPtr("1.37.0")}).
+	WithDataVolume(aspire.DataVolumeName("k8s-data")).
+	WithHelmImage(aspire.HelmImageTag("3.18.0")).
+	WithKubectlImage(aspire.KubectlImageTag("1.37.0")).
 	WithLifetime(aspire.ContainerLifetimePersistent)
 ```
 
@@ -316,7 +314,7 @@ const cluster = await builder.addK3sCluster('k8s')
 
 ```go title="apphost.go"
 cluster := builder.AddK3sCluster("k8s").
-	WithDataVolume(&aspire.WithDataVolumeOptions{Name: aspire.StringPtr("k8s-data")}).
+	WithDataVolume(aspire.DataVolumeName("k8s-data")).
 	WithLifetime(aspire.ContainerLifetimePersistent)
 ```
 
@@ -372,11 +370,9 @@ await operator.withReference(cluster);
 <TabItem id="go" label="Go">
 
 ```go title="apphost.go"
-podinfo := cluster.AddHelmRelease("podinfo", "podinfo", &aspire.AddHelmReleaseOptions{
-	Repo:      aspire.StringPtr("https://stefanprodan.github.io/podinfo"),
-	Version:   aspire.StringPtr("6.7.1"),
-	Namespace: aspire.StringPtr("podinfo"),
-}).
+podinfo := cluster.AddHelmRelease("podinfo", "podinfo", aspire.AddHelmReleaseRepo("https://stefanprodan.github.io/podinfo"),
+	aspire.AddHelmReleaseVersion("6.7.1"),
+	aspire.AddHelmReleaseNamespace("podinfo")).
 	WithHelmValue("replicaCount", "2").
 	WithHelmValuesFile("./deploy/podinfo-values.yaml")
 
@@ -499,9 +495,7 @@ await builder
 <TabItem id="go" label="Go">
 
 ```go title="apphost.go"
-podinfoWeb := cluster.AddServiceEndpoint("podinfo-web", "podinfo", 9898, &aspire.AddServiceEndpointOptions{
-	Namespace: aspire.StringPtr("podinfo"),
-})
+podinfoWeb := cluster.AddServiceEndpoint("podinfo-web", "podinfo", 9898, aspire.AddServiceEndpointNamespace("podinfo"))
 podinfoWeb.WaitForCompletion(podinfo)
 
 // Host processes receive http://localhost:{port}
