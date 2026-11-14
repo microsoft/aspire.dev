@@ -144,17 +144,66 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      # Upload before the web root sanity-check so the artifact is always
-      # available for debugging, even when the check step fails.
-      # Note: `uses` actions ignore the job-level working-directory,
-      # so the path is repo-root-relative.
+      # The shards get the web root as one zstd-compressed tar: about 330 MB
+      # in a single file uploads in seconds, where the ~61k separate files
+      # took 70 to 90 s (#2153). Packed before the sanity check so the
+      # artifact is there for debugging even when the check fails.
+      - name: Pack the web root
+        id: pack_web_root
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          tar -C ../statichost/StaticHost/wwwroot -cf - . | zstd -3 -T0 -q -o "$RUNNER_TEMP/site.tar.zst"
+          ls -la "$RUNNER_TEMP/site.tar.zst"
+
+      # Note: `uses` actions ignore the job-level working-directory.
+      - name: Upload the packed web root
+        if: ${{ always() && steps.pack_web_root.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-site
+          path: ${{ runner.temp }}/site.tar.zst
+          if-no-files-found: error
+          retention-days: 7
+          # Already zstd-compressed.
+          compression-level: 0
+
+      - name: Check dist
+        run: |
+          wwwroot=../statichost/StaticHost/wwwroot
+          if [ ! -f "$wwwroot/index.html" ]; then
+            echo "Frontend build incomplete - index.html not found"
+            exit 1
+          fi
+
+          ls -la "$wwwroot"
+
+  # The browsable `frontend-dist` artifact (GitHub Artifacts Explorer and the
+  # PR comment). It holds ~61k files and takes 70 to 90 s to upload, so it is
+  # its own job, off the path of the E2E shards.
+  publish:
+    name: Publish the HTML artifact
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the packed web root
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: frontend-site
+          path: ${{ runner.temp }}/site
+
+      - name: Unpack the web root
+        run: |
+          set -euo pipefail
+          mkdir -p wwwroot
+          zstd -d -T0 -q -c "$RUNNER_TEMP/site/site.tar.zst" | tar -C wwwroot -xf -
+
       - name: Upload build artifact
         id: upload_build_artifact
-        if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: frontend-dist
-          path: src/statichost/StaticHost/wwwroot
+          path: wwwroot
           if-no-files-found: warn
           retention-days: 7
           compression-level: 1
@@ -169,7 +218,7 @@ jobs:
         run: |
           can_comment=true
 
-          if [ ! -f "../statichost/StaticHost/wwwroot/index.html" ]; then
+          if [ ! -f "wwwroot/index.html" ]; then
             echo "::notice::Skipping frontend artifact PR comment because the web root index.html was not found."
             can_comment=false
           fi
@@ -248,15 +297,6 @@ jobs:
               >/dev/null
           fi
 
-      - name: Check dist
-        run: |
-          wwwroot=../statichost/StaticHost/wwwroot
-          if [ ! -f "$wwwroot/index.html" ]; then
-            echo "Frontend build incomplete - index.html not found"
-            exit 1
-          fi
-
-          ls -la "$wwwroot"
 
   validation:
     name: Frontend validation
@@ -320,11 +360,18 @@ jobs:
       - name: Install deps
         run: bun install --frozen-lockfile
 
-      - name: Download dist artifact
+      - name: Download the packed web root
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: frontend-dist
-          path: src/statichost/StaticHost/wwwroot
+          name: frontend-site
+          path: ${{ runner.temp }}/site
+
+      - name: Unpack the web root
+        run: |
+          set -euo pipefail
+          mkdir -p ../statichost/StaticHost/wwwroot
+          zstd -d -T0 -q -c "$RUNNER_TEMP/site/site.tar.zst" | tar -C ../statichost/StaticHost/wwwroot -xf -
+          rm -rf "$RUNNER_TEMP/site"
 
       # StaticHost's build lists every file of the web root (MapStaticAssets),
       # so it starts once the artifact is in place, and runs while Playwright
@@ -448,19 +495,20 @@ jobs:
   frontend-gate:
     name: Frontend gate
     if: ${{ always() }}
-    needs: [build, validation, e2e, report]
+    needs: [build, publish, validation, e2e, report]
     runs-on: ubuntu-latest
     steps:
       - name: Require all frontend checks
         env:
           BUILD: ${{ needs.build.result }}
+          PUBLISH: ${{ needs.publish.result }}
           VALIDATION: ${{ needs.validation.result }}
           E2E: ${{ needs.e2e.result }}
           REPORT: ${{ needs.report.result }}
         run: |
-          for result in "$BUILD" "$VALIDATION" "$E2E" "$REPORT"; do
+          for result in "$BUILD" "$PUBLISH" "$VALIDATION" "$E2E" "$REPORT"; do
             if [[ "$result" != "success" ]]; then
-              echo "::error::Every frontend job must succeed (build=$BUILD validation=$VALIDATION e2e=$E2E report=$REPORT)."
+              echo "::error::Every frontend job must succeed (build=$BUILD publish=$PUBLISH validation=$VALIDATION e2e=$E2E report=$REPORT)."
               exit 1
             fi
           done
