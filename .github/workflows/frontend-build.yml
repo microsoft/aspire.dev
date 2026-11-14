@@ -27,6 +27,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # Fast-disk experiment: where the folders with many files live (none: the workspace disk, mnt: the VM's temporary
+  # disk, tmpfs: RAM; .github/scripts/fast-disk.sh), and a salt that starts a cold Douze cache when it changes.
+  FAST_DISK: none
+  DOUZE_CACHE_SALT: "1"
+
 jobs:
   build:
     name: Frontend Build
@@ -40,6 +46,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Put the heavy folders on the fast disk
+        working-directory: .
+        run: .github/scripts/fast-disk.sh src/site/.douze src/statichost/StaticHost/wwwroot
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -88,9 +98,9 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: src/site/.douze
-          key: douze-build-${{ runner.os }}-0.5.2-${{ github.sha }}
+          key: douze-build-${{ runner.os }}-0.5.2-${{ env.DOUZE_CACHE_SALT }}-${{ github.sha }}
           restore-keys: |
-            douze-build-${{ runner.os }}-0.5.2-
+            douze-build-${{ runner.os }}-0.5.2-${{ env.DOUZE_CACHE_SALT }}-
 
       - name: Install the Douze tools
         run: douze tools install -s .
@@ -126,7 +136,7 @@ jobs:
             echo '### Douze build'
             echo "- Restored key: \`${CACHE_MATCHED_KEY:-none}\`"
             echo "- Exact hit: \`${CACHE_HIT:-false}\`"
-            echo "- Cache size: \`$(du -sh .douze 2>/dev/null | cut -f1)\`"
+            echo "- Cache size: \`$(du -sh .douze 2>/dev/null | cut -f1)\`, output: \`$(find ../statichost/StaticHost/wwwroot -type f | wc -l) files, $(du -sh ../statichost/StaticHost/wwwroot | cut -f1)\`, fast disk: \`$FAST_DISK\`"
             echo "- $(grep -E '^Build (succeeded|failed)' "$log" || echo 'No build summary')"
             echo "- Wall clock: \`$(grep 'Elapsed (wall clock)' "$log" | awk '{print $NF}')\`, peak memory: \`$(grep 'Maximum resident' "$log" | awk '{printf "%.1f GB", $NF/1048576}')\`"
             echo
@@ -320,6 +330,10 @@ jobs:
       - name: Install deps
         run: bun install --frozen-lockfile
 
+      - name: Put the heavy folders on the fast disk
+        working-directory: .
+        run: .github/scripts/fast-disk.sh src/statichost/StaticHost/wwwroot src/statichost/StaticHost/obj src/statichost/StaticHost/bin
+
       - name: Download dist artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -331,7 +345,8 @@ jobs:
       # installs Chromium.
       - name: Start the StaticHost build
         run: |
-          ( dotnet build -c Release ../statichost/StaticHost > "$RUNNER_TEMP/statichost-build.log" 2>&1
+          ( /usr/bin/time -f '%e' -o "$RUNNER_TEMP/statichost-build.time" \
+              dotnet build -c Release ../statichost/StaticHost > "$RUNNER_TEMP/statichost-build.log" 2>&1
             echo $? > "$RUNNER_TEMP/statichost-build.exit" ) &
 
       - name: Install Playwright Chromium
@@ -341,6 +356,7 @@ jobs:
         run: |
           while [ ! -f "$RUNNER_TEMP/statichost-build.exit" ]; do sleep 1; done
           tail -n 5 "$RUNNER_TEMP/statichost-build.log"
+          echo "- StaticHost build: \`$(cat "$RUNNER_TEMP/statichost-build.time") s\`, fast disk: \`$FAST_DISK\`" >> "$GITHUB_STEP_SUMMARY"
           exit "$(cat "$RUNNER_TEMP/statichost-build.exit")"
 
       # Reporters (blob, github, junit, list) are configured in
