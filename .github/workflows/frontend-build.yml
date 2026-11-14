@@ -111,6 +111,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/frontend-performance"
+          # The temp folder of Douze and its tools goes to RAM with the rest (/dev/shm is a tmpfs).
+          if [[ "$FAST_DISK" == tmpfs ]]; then
+            export TMPDIR=/dev/shm/douze-tmp
+            mkdir -p "$TMPDIR"
+          fi
           profile=()
           if [[ "$PROFILE_BUILD" == "true" ]]; then
             profile=(--timeline "$RUNNER_TEMP/frontend-performance/timeline.html")
