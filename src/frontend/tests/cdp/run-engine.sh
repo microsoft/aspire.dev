@@ -78,7 +78,7 @@ endpoint=http://127.0.0.1:9222
 case "$ENGINE" in
   lightpanda) default_workarounds=scope-polyfill,extra-connection ;;
   jint-browser) default_workarounds=scope-polyfill,set-content-route,style-tag-no-load ;;
-  kitesurf) default_workarounds=scope-polyfill ;;
+  kitesurf) default_workarounds=scope-polyfill,set-content-route,style-tag-no-load ;;
   *) default_workarounds= ;;
 esac
 workarounds=${WORKAROUNDS:-$default_workarounds}
