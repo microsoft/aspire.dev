@@ -711,6 +711,8 @@ test('Developer Hub typography and glossary controls reflow in both themes', asy
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
       await page.goto('/hub/glossary/');
+      // The controls are server-rendered hidden; glossary-browser shows them once its script runs.
+      await expect(page.getByRole('search', { name: 'Search the glossary' })).toBeVisible();
       await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
       const layout = await page.evaluate(() => {
         const heading = getComputedStyle(document.querySelector('main h1')!);

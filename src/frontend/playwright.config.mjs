@@ -35,8 +35,9 @@ export default defineConfig({
   use: {
     baseURL: e2eBaseUrl,
     screenshot: 'only-on-failure',
-    trace: 'retain-on-failure',
-    video: 'retain-on-failure',
+    // Recording every run doubles the test time; with CI retries the first retry of a failing test records both.
+    trace: 'on-first-retry',
+    video: 'on-first-retry',
   },
   projects: [
     {
