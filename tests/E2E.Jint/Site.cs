@@ -20,7 +20,9 @@ public sealed class Site : IAsyncLifetime
     public Task InitializeAsync()
     {
         // The desktop-chromium project of playwright.config.mjs.
-        Browser = new Browser(new BrowserOptions { Viewport = new Viewport(1440, 900) });
+        // MaxTaskDuration: a click scrolls its target into view, and on the browse page (about 700 cards) that layout
+        // query can exceed the 5 s default on a CI runner. Chromium has no per-task ceiling.
+        Browser = new Browser(new BrowserOptions { Viewport = new Viewport(1440, 900), MaxTaskDuration = TimeSpan.FromSeconds(30) });
         return Task.CompletedTask;
     }
 
