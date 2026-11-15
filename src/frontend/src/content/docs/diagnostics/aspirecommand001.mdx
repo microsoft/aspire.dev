@@ -1,7 +1,7 @@
 ---
-title: Compiler Warning ASPIRECOMMAND001
-seoTitle: 'ASPIRECOMMAND001: Required command validation types and members'
-description: Learn what causes the Aspire compiler warning ASPIRECOMMAND001 and how to fix it so your AppHost builds cleanly.
+title: Retired compiler warning ASPIRECOMMAND001
+seoTitle: "ASPIRECOMMAND001 retired in Aspire 17.0"
+description: ASPIRECOMMAND001 was removed in Aspire 17.0 when custom required-command validation became stable. Learn what to do if you still see this warning.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -14,62 +14,38 @@ import ApiReference from '@components/ApiReference.astro';
   class:list={'mb-1'}
 />
 
-> Required command validation types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+<Badge
+  text="Retired in: 17.0"
+  variant="tip"
+  size="large"
+  class:list={'mb-1'}
+/>
 
-This diagnostic warning is reported when using the experimental required-command validation APIs. These APIs let an AppHost run custom validation against a resource's required command or executable before the resource starts.
+`ASPIRECOMMAND001` was emitted by Aspire 13.2 and later releases when code used the required-command validation APIs while they were experimental. This diagnostic no longer applies in Aspire 17.0 and later because custom required-command validation is stable.
 
-The following APIs are protected by this diagnostic:
+The following APIs are no longer experimental:
 
 - The <ApiReference name="Aspire.Hosting.RequiredCommandResourceExtensions.WithRequiredCommand" /> overload that accepts a validation callback (`Func<RequiredCommandValidationContext, Task<RequiredCommandValidationResult>>`)
 - `RequiredCommandAnnotation`
 - `IRequiredCommandValidator`
 - `RequiredCommandValidationContext` and `RequiredCommandValidationResult`
 
-The simpler `WithRequiredCommand(command, helpLink)` overload isn't experimental and doesn't raise this diagnostic.
+## Validation is advisory
 
-## Example
-
-The following code generates `ASPIRECOMMAND001`:
+Required-command validation is annotation-driven and runs at run time against the app model. Validation is advisory: when a command is missing, or a validation callback returns a failure, Aspire logs a warning and the resource still attempts to start. Validation doesn't block startup.
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddContainer("db", "postgres")
-    .WithRequiredCommand(
-        "psql",
-        context => Task.FromResult(context.Success()));
+builder.AddExecutable("worker", "my-tool", ".")
+    .WithRequiredCommand("my-tool", context =>
+        Task.FromResult(context.Success()));
 
 builder.Build().Run();
 ```
 
-The diagnostic is triggered because the `WithRequiredCommand` validation-callback overload and the `RequiredCommandValidationContext` type are marked with the `[Experimental("ASPIRECOMMAND001")]` attribute.
+A callback can return `context.Failure("Install a supported tool version.")` to report a warning with a custom message.
 
-## To correct this warning
+## If you still see this warning
 
-Suppress the warning with one of the following methods:
-
-- Set the severity of the rule in the _.editorconfig_ file.
-
-  ```ini title=".editorconfig"
-  [*.{cs,vb}]
-  dotnet_diagnostic.ASPIRECOMMAND001.severity = none
-  ```
-
-  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
-
-- Add the following `PropertyGroup` to your project file:
-
-  ```xml title="C# project file"
-  <PropertyGroup>
-      <NoWarn>$(NoWarn);ASPIRECOMMAND001</NoWarn>
-  </PropertyGroup>
-  ```
-
-- Suppress in code with the `#pragma warning disable ASPIRECOMMAND001` directive:
-
-  ```csharp title="Suppressing the warning"
-  #pragma warning disable ASPIRECOMMAND001
-  builder.AddContainer("db", "postgres")
-      .WithRequiredCommand("psql", context => Task.FromResult(context.Success()));
-  #pragma warning restore ASPIRECOMMAND001
-  ```
+Upgrade the Aspire CLI, AppHost SDK, and hosting integration packages to Aspire 17.0 or later. After upgrading, remove any `ASPIRECOMMAND001` suppressions from _.editorconfig_ files, project files, and `#pragma warning` blocks.
