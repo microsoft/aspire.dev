@@ -51,6 +51,111 @@ Once Aspire 17.0 is available on the stable channel, use the [`aspire update` co
   CLI](/get-started/install-cli/).
 </LearnMore>
 
+## 📊 Dashboard updates
+
+Keep the resources you're investigating in view as you move between logs, traces, and metrics. The redesigned dashboard adds a shared resource pane with search, filters, and multi-selection, plus grouping by tags, resource type, or state.
+
+Metrics appear as cards with live sparklines. Pin instruments you want to return to instead of finding them again in the full instrument list.
+
+The new experience is still evolving. You can switch to the previous dashboard from **Settings** when the previous experience is available in your dashboard distribution.
+
+For the redesign and its ongoing feedback, see [microsoft/aspire#21412](https://github.com/microsoft/aspire/pull/21412).
+
+## 🛠️ CLI updates
+
+### Shell completion
+
+Complete Aspire commands and options in Bash, Fish, PowerShell, and Zsh. Generate a completion script with `aspire completions script`, specifying `bash`, `fish`, `pwsh`, or `zsh` when you want to select the shell explicitly.
+
+For example, generate and load a Bash completion script for your current shell session:
+
+```bash title="Aspire CLI — Generate Bash completions"
+aspire completions script bash > aspire-completion.bash
+source ./aspire-completion.bash
+```
+
+For installation details, see [microsoft/aspire#20026](https://github.com/microsoft/aspire/pull/20026).
+
+### Environment-specific secrets
+
+Keep deployment secrets separate by using `--environment` or `-e` with the `aspire secret` commands.
+
+Run the secret commands from your AppHost directory. You can set a secret without putting its value in the command line: omit the value to enter it at a masked interactive prompt, or use `--envvar` to read an environment variable:
+
+```bash title="Aspire CLI — Set a deployment secret from an environment variable"
+aspire secret set Parameters:database-password --environment production --envvar DATABASE_PASSWORD
+```
+
+Set `DATABASE_PASSWORD` in your environment before running this command. Non-interactive calls must supply a value or `--envvar`; they don't open an input prompt.
+
+For details, see [microsoft/aspire#20135](https://github.com/microsoft/aspire/pull/20135) and [microsoft/aspire#20984](https://github.com/microsoft/aspire/pull/20984).
+
+## 🧩 AppHost updates
+
+Aspire 17.0 raises its minimum supported .NET version to **.NET 10**. Review your AppHost and Aspire package target frameworks before updating. This requirement doesn't mean every workload orchestrated by Aspire must target .NET 10. For details, see [microsoft/aspire#20614](https://github.com/microsoft/aspire/pull/20614).
+
+The `Aspire.Hosting.Dotnet` integration now follows stable package versioning for .NET projects added by path. The older `AddProject` APIs are deprecated, not removed. Use the path-based project model when updating your AppHost; see [microsoft/aspire#21360](https://github.com/microsoft/aspire/pull/21360) for migration details.
+
+<LearnMore>
+  Follow the [17.0 project migration guide on GitHub](https://github.com/microsoft/aspire/blob/a509f094e0ee87d17dc0e1cc9bca84f7ca2623da/docs/migrate-from-addproject.md)
+  for project paths, launch profiles, and scenarios that retain the legacy model.
+</LearnMore>
+
+## ✨ New integrations
+
+### Microsoft Entra ID
+
+Model application registrations alongside the services that use them with the new preview `Aspire.Hosting.Azure.EntraId` integration. You can provision registrations and service principals, or reference registrations you already manage.
+
+References supply identity configuration to your workloads. They don't install authentication middleware or protect application routes; configure authentication and authorization in the consuming application.
+
+Thanks to @jmprieur for the initial integration proposal in [microsoft/aspire#14668](https://github.com/microsoft/aspire/pull/14668).
+
+<LearnMore>
+  See the [Microsoft Entra ID integration README on GitHub](https://github.com/microsoft/aspire/blob/a509f094e0ee87d17dc0e1cc9bca84f7ca2623da/src/Aspire.Hosting.Azure.EntraId/README.md)
+  for registration, credential, and workload configuration.
+</LearnMore>
+
+### Azure API Management
+
+Define an API gateway in your AppHost with the new preview `Aspire.Hosting.Azure.ApiManagement` integration. Model APIs, backends, and policies, and import OpenAPI documents from files or reachable deployed workload endpoints.
+
+API Management is a deployment-only resource: it isn't provisioned during `aspire run`. Your local workloads can still run without an API Management service.
+
+Thanks to @tommasodotNET for [microsoft/aspire#19664](https://github.com/microsoft/aspire/pull/19664).
+
+<LearnMore>
+  See [Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/)
+  for setup and gateway configuration.
+</LearnMore>
+
+## 🚀 Deployment updates
+
+The `Aspire.Hosting.Kubernetes` and `Aspire.Hosting.Azure.Kubernetes` packages graduate to stable releases. Some APIs, including persistent-volume APIs, remain experimental. Helm-based deployment requires **Helm 4.0.0 or later**.
+
+You can also target an existing Azure Kubernetes Service cluster rather than provisioning a new one. See [microsoft/aspire#20921](https://github.com/microsoft/aspire/pull/20921).
+
+Azure Front Door can connect to Aspire-provisioned Azure Container Apps and App Service environments through Private Link. This API remains experimental, and the private endpoint connection must be approved before Front Door can reach the workloads. See [microsoft/aspire#21228](https://github.com/microsoft/aspire/pull/21228) and [microsoft/aspire#21396](https://github.com/microsoft/aspire/pull/21396).
+
+<LearnMore>
+  See [Deploy to Kubernetes clusters](/deployment/kubernetes/clusters/),
+  [Azure Container Apps](/deployment/azure/container-apps/), and
+  [Azure App Service](/deployment/azure/app-service/) for deployment guidance.
+</LearnMore>
+
+## 📦 Integration updates
+
+- Run Azure Web PubSub locally with its emulator using `RunAsEmulator`. Thanks to @vicancy for [microsoft/aspire#20956](https://github.com/microsoft/aspire/pull/20956).
+- Reuse a SQL Server resource for the Azure Service Bus emulator instead of creating a separate instance. Thanks to @thomhurst for [microsoft/aspire#17885](https://github.com/microsoft/aspire/pull/17885).
+- Use Deno hosting APIs without their previous experimental designation. See [microsoft/aspire#22159](https://github.com/microsoft/aspire/pull/22159).
+
+<LearnMore>
+  See the [Web PubSub emulator README on GitHub](https://github.com/microsoft/aspire/blob/a509f094e0ee87d17dc0e1cc9bca84f7ca2623da/src/Aspire.Hosting.Azure.WebPubSub/README.md#run-locally-with-the-emulator)
+  and [Service Bus emulator README on GitHub](https://github.com/microsoft/aspire/blob/a509f094e0ee87d17dc0e1cc9bca84f7ca2623da/src/Aspire.Hosting.Azure.ServiceBus/README.md#emulator-usage)
+  for local configuration, and [Host Deno apps](/integrations/frameworks/deno/deno-host/)
+  for Deno guidance.
+</LearnMore>
+
 ## 🐹 Go AppHost documentation
 
 <span id="go-apphost-docs"></span>
