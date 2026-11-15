@@ -90,6 +90,91 @@ Set `DATABASE_PASSWORD` in your environment before running this command. Non-int
 
 For details, see [microsoft/aspire#20135](https://github.com/microsoft/aspire/pull/20135) and [microsoft/aspire#20984](https://github.com/microsoft/aspire/pull/20984).
 
+### Custom templates, integrations, and skills
+
+Bring your team's project scaffolding, hosting packages, and agent guidance into the Aspire CLI. Named sources let you reuse these across apps without replacing Aspire's built-in choices. Use sources you trust: templates and agent plugins can contain executable code.
+
+#### Custom templates
+
+Create apps from your own unpacked .NET templates, stored in a local directory or a Git repository. Register a named source in your global Aspire settings, then select one of its templates in `aspire new`:
+
+```bash title="Aspire CLI — Register local templates"
+aspire template source add team --path /absolute/path/to/team-templates
+aspire new
+```
+
+Replace the path with a directory containing your templates. The CLI asks you to confirm that you trust the source before registering it. Git sources can specify a repository, a template directory within it, and a branch, tag, or commit.
+
+<LearnMore>
+  See [`aspire new`](/reference/cli/commands/aspire-new/) for project creation.
+  TODO: Add complete documentation for authoring templates and managing named template sources.
+</LearnMore>
+
+#### Custom integrations
+
+Make your hosting integrations discoverable from a NuGet feed or a local package directory. Add an `integrationSources` entry to `aspire.config.json`; optional package patterns limit which packages the source offers:
+
+```json title="aspire.config.json — Discover team integrations"
+{
+  "integrationSources": {
+    "team": {
+      "source": "./packages",
+      "patterns": ["Team.Hosting.*"]
+    }
+  }
+}
+```
+
+Place your `Team.Hosting.*` NuGet packages in the `packages` directory alongside this configuration. They appear in integration discovery and the `aspire add` picker. The built-in source remains enabled unless you set `integrationSources.default.enabled` to `false`.
+
+<LearnMore>
+  See [Create hosting integrations](/integrations/custom-integrations/hosting-integrations/)
+  for integration authoring. TODO: Add complete documentation for named integration sources and package filtering.
+</LearnMore>
+
+#### Custom skills
+
+Configure your team's agent plugins through `skillSources` in `aspire.config.json`. For example, point GitHub Copilot or Claude Code at your team's marketplace and select its plugin:
+
+```json title="aspire.config.json — Configure a team plugin"
+{
+  "skillSources": {
+    "team": {
+      "repository": "example-org/team-skills",
+      "marketplace": "team-skills",
+      "plugins": ["platform"]
+    }
+  }
+}
+```
+
+Replace the repository, marketplace, and plugin names with your own. Run `aspire agent init --skills aspire` from your project to apply the enabled sources to your selected agents. OpenCode uses skill catalog URLs instead of marketplace plugins.
+
+<LearnMore>
+  See [Configure AI agent plugins and skill sources](/reference/cli/configuration/#configure-ai-agent-plugins-and-skill-sources)
+  for agent-specific settings, catalog URLs, and source defaults.
+</LearnMore>
+
+#### Init source mechanism
+
+Offer a shared starting configuration to everyone creating or initializing an app. Set **`ASPIRE_INIT_SOURCE_URL`** to a Git repository containing an `aspire.config.json` file:
+
+```bash title="Aspire CLI — Offer a shared initialization source"
+ASPIRE_INIT_SOURCE_URL=https://github.com/example-org/aspire-defaults.git aspire init
+```
+
+Replace the URL with your configuration repository. The variable proposes a source; it doesn't silently apply it. The CLI displays the source and asks for consent. Use `--use-config-source` to accept explicitly or `--use-config-source false` to decline, including in non-interactive runs.
+
+After acceptance, Aspire copies the source's `integrationSources` and `skillSources` into the project's local configuration and records its source binding. During template discovery, an explicitly configured URL can also supply `templateSources` without copying them into the project file. These are optional defaults, not enforced organizational policy.
+
+Use `ASPIRE_INIT_SOURCE_PATH` to select a different configuration file within the repository, or `ASPIRE_INIT_SOURCE_REF` to pin a branch, tag, or commit. If you don't set a URL, the CLI normally offers no source, although detected internal Microsoft environments can supply an organizational default. Refresh an adopted configuration with `aspire update --config-source`.
+
+<LearnMore>
+  See [`aspire init`](/reference/cli/commands/aspire-init/) and
+  [`aspire update`](/reference/cli/commands/aspire-update/) for adoption and refresh commands.
+  TODO: Add a complete guide to shared configuration sources and their activation environment variables.
+</LearnMore>
+
 ## 🧩 AppHost updates
 
 Aspire 17.0 raises its minimum supported .NET version to **.NET 10**. Review your AppHost and Aspire package target frameworks before updating. This requirement doesn't mean every workload orchestrated by Aspire must target .NET 10. For details, see [microsoft/aspire#20614](https://github.com/microsoft/aspire/pull/20614).
@@ -112,7 +197,7 @@ References supply identity configuration to your workloads. They don't install a
 Thanks to @jmprieur for the initial integration proposal in [microsoft/aspire#14668](https://github.com/microsoft/aspire/pull/14668).
 
 <LearnMore>
-  See the [Microsoft Entra ID integration README on GitHub](https://github.com/microsoft/aspire/blob/a509f094e0ee87d17dc0e1cc9bca84f7ca2623da/src/Aspire.Hosting.Azure.EntraId/README.md)
+  See the [Microsoft Entra ID integration](/integrations/security/microsoft-entra-id/)
   for registration, credential, and workload configuration.
 </LearnMore>
 
