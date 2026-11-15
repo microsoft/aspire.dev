@@ -74,8 +74,6 @@ public sealed class SiteCollection2 : ICollectionFixture<Site>;
 /// <summary>A page with the few Playwright-style helpers the ported specs need.</summary>
 public sealed class SitePage(BrowserContext context, Page page) : IAsyncDisposable
 {
-    private int _marks;
-
     public Page Page { get; } = page;
 
     public Task<PageResponse?> GotoAsync(string path) => Page.NavigateAsync(new Uri(Site.BaseUrl, path).ToString());
@@ -92,22 +90,47 @@ public sealed class SitePage(BrowserContext context, Page page) : IAsyncDisposab
     public Task ExpectUrlAsync(string pattern) =>
         ExpectAsync("arg => new RegExp(arg.pattern).test(location.href)", new { pattern }, $"URL should match /{pattern}/");
 
-    public Task ExpectCountAsync(string selector, int count) =>
-        ExpectAsync("arg => document.querySelectorAll(arg.selector).length === arg.count", new { selector, count }, $"{selector} should match {count} elements");
+    // Native waits (WaitForCountAsync, WaitForVisibleAsync, WaitForTextAsync, WaitForSelectorAsync) observe mutations
+    // in .NET instead of re-running a JavaScript predicate in the page on every poll.
+    public async Task ExpectCountAsync(string selector, int count) =>
+        Assert.True(await Page.WaitForCountAsync(selector, count, Site.Timeout), $"{selector} should match {count} elements, found {await CountAsync(selector)}");
 
-    public Task ExpectVisibleAsync(string selector) =>
-        ExpectAsync("arg => { const e = document.querySelector(arg.selector); return !!e && e.checkVisibility({ visibilityProperty: true }); }", new { selector }, $"{selector} should be visible");
+    public async Task ExpectVisibleAsync(string selector) =>
+        Assert.True(await Page.WaitForVisibleAsync(selector, Site.Timeout), $"{selector} should be visible");
 
-    public Task ExpectTextAsync(string selector, string text) =>
-        ExpectAsync("arg => document.querySelector(arg.selector)?.textContent.replace(/\\s+/g, ' ').trim() === arg.text", new { selector, text }, $"{selector} should read \"{text}\"");
+    public async Task ExpectSelectorAsync(string selector) =>
+        Assert.True(await Page.WaitForSelectorAsync(selector, Site.Timeout), $"{selector} should exist");
 
-    public Task ExpectTextMatchesAsync(string selector, string pattern) =>
-        ExpectAsync("arg => new RegExp(arg.pattern).test(document.querySelector(arg.selector)?.textContent ?? '')", new { selector, pattern }, $"{selector} should match /{pattern}/");
+    /// <summary>Waits for the resource browser to finish restoring its state from the URL.</summary>
+    public Task ExpectReadyAsync() => ExpectSelectorAsync("resource-browser[data-ready]");
+
+    /// <summary>Waits for <paramref name="text"/> in the element's innerText, then checks it is the whole text.</summary>
+    public async Task ExpectTextAsync(string selector, string text)
+    {
+        Assert.True(await Page.WaitForTextAsync(selector, text, Site.Timeout), $"{selector} should read \"{text}\"");
+        Assert.Equal(text, Normalize(await Page.InnerTextAsync(selector)));
+    }
+
+    public async Task ExpectTextContainsAsync(string selector, string text) =>
+        Assert.True(await Page.WaitForTextAsync(selector, text, Site.Timeout), $"{selector} should contain \"{text}\"");
+
+    /// <summary>
+    /// Waits for a visible <paramref name="selector"/> whose text contains <paramref name="name"/> and returns the
+    /// selector, standing in for <c>getByRole(role, { name })</c> on controls that carry a stable attribute.
+    /// </summary>
+    public async Task<string> NamedAsync(string selector, string name)
+    {
+        await ExpectVisibleAsync(selector);
+        await ExpectTextContainsAsync(selector, name);
+        return selector;
+    }
+
+    private static string Normalize(string? text) => System.Text.RegularExpressions.Regex.Replace(text ?? "", "\\s+", " ").Trim();
 
     public Task ExpectFocusedAsync(string selector) =>
         ExpectAsync("arg => !!document.activeElement && document.activeElement === document.querySelector(arg.selector)", new { selector }, $"{selector} should be focused");
 
-    public Task<int> CountAsync(string selector) => Page.EvaluateAsync<int>("arg => document.querySelectorAll(arg.selector).length", new { selector });
+    public Task<int> CountAsync(string selector, bool visibleOnly = false) => Page.CountAsync(selector, visibleOnly);
 
     public async Task<string[]> AttributesAsync(string selector, string attribute) =>
         ((object?[]?)await Page.EvaluateAsync("arg => [...document.querySelectorAll(arg.selector)].map(e => e.getAttribute(arg.attribute))", new { selector, attribute }) ?? [])
@@ -115,20 +138,6 @@ public sealed class SitePage(BrowserContext context, Page page) : IAsyncDisposab
 
     public async Task<string[]> TextsAsync(string selector) =>
         (await Page.TextsAsync(selector)).Select(text => text.Trim()).ToArray();
-
-    /// <summary>
-    /// The CSS selector of the first element matching <paramref name="selector"/> whose accessible text (aria-label,
-    /// else text content) is <paramref name="name"/>, in the spirit of <c>getByRole(role, { name, exact: true })</c>.
-    /// </summary>
-    public async Task<string> ByNameAsync(string selector, string name)
-    {
-        var mark = $"e2e-{++_marks}";
-        await ExpectAsync(
-            "arg => { const e = [...document.querySelectorAll(arg.selector)].find(e => (e.getAttribute('aria-label') ?? e.textContent).replace(/\\s+/g, ' ').trim() === arg.name && e.checkVisibility()); if (e) e.setAttribute('data-e2e', arg.mark); return !!e; }",
-            new { selector, name, mark },
-            $"No visible {selector} named \"{name}\"");
-        return $"[data-e2e=\"{mark}\"]";
-    }
 
     public async Task ClickAsync(string selector) => Assert.True(await Page.ClickAsync(selector), $"Could not click {selector}");
 

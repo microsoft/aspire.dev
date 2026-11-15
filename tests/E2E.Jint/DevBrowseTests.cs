@@ -16,12 +16,12 @@ public sealed class DevBrowseTests(Site site)
     {
         await using var page = await site.NewPageAsync();
         await page.GotoAsync("/hub/browse/");
-        await page.ExpectAsync("() => document.querySelector('resource-browser')?.getAttribute('data-ready') === ''");
+        await page.ExpectReadyAsync();
 
         Assert.True(await page.CountAsync("[data-resource-entry]") > 100);
-        await page.ExpectAsync("() => [...document.querySelectorAll('[data-resource-entry]')].filter(e => e.checkVisibility()).length === 24");
-        Assert.Equal(0, await page.Page.EvaluateAsync<int>("[...document.querySelectorAll('[data-resource-entry]')].filter(e => e.checkVisibility() && e.querySelector('template[data-resource-image]')).length"));
-        Assert.True(await page.Page.EvaluateAsync<int>("[...document.querySelectorAll('[data-resource-entry]')].filter(e => e.querySelector('template[data-resource-image]')).length") > 0);
+        Assert.True(await page.Page.WaitForCountAsync("[data-resource-entry]", 24, Site.Timeout, visibleOnly: true));
+        Assert.Equal(0, await page.CountAsync("[data-resource-entry]:has(template[data-resource-image])", visibleOnly: true));
+        Assert.True(await page.CountAsync("[data-resource-entry]:has(template[data-resource-image])") > 0);
         Assert.True(await page.CountAsync("[data-resource-entry] img") < 75);
     }
 
@@ -30,7 +30,7 @@ public sealed class DevBrowseTests(Site site)
     {
         await using var page = await site.NewPageAsync();
         await page.GotoAsync("/hub/");
-        await page.ClickAsync(await page.ByNameAsync("a", "Browse all resources"));
+        await page.ClickAsync(await page.NamedAsync("a[href=\"/hub/browse/\"][data-underline-trigger]", "Browse all resources"));
         await page.ExpectUrlAsync("/hub/browse/$");
         await page.ExpectVisibleAsync("h1");
         await page.ExpectTextAsync("main h1", "Browse resources");
@@ -39,13 +39,13 @@ public sealed class DevBrowseTests(Site site)
         Assert.True(total > 100);
         await page.ExpectTextAsync("[data-results-summary]", $"1-24 of {total} resources");
 
-        var next = await page.ByNameAsync("button", "Next");
+        var next = await page.NamedAsync("button[data-page-next][aria-label=\"Next\"]", "");
         await page.ClickAsync(next);
         await page.ExpectUrlAsync("\\?page=2$");
-        await page.ExpectTextMatchesAsync("[data-page-label]", "Page 2 of");
+        await page.ExpectTextContainsAsync("[data-page-label]", "Page 2 of");
         await page.ExpectFocusedAsync(next);
         Assert.True(await page.Page.GoBackAsync(Site.Timeout));
-        await page.ExpectTextMatchesAsync("[data-page-label]", "Page 1 of");
+        await page.ExpectTextContainsAsync("[data-page-label]", "Page 1 of");
     }
 
     [Fact]
@@ -105,11 +105,11 @@ public sealed class DevBrowseFilterTests(Site site)
         var seen = new HashSet<string>();
         while (true)
         {
-            var first = await page.Page.EvaluateAsync<string>($"document.querySelector('{Results} a')?.getAttribute('href')");
+            var first = (await page.AttributesAsync($"{Results} a", "href")).FirstOrDefault();
             foreach (var href in await page.AttributesAsync($"{Results} a", "href")) Assert.True(seen.Add(href), $"{href} is listed twice");
-            var hasNext = await page.Page.EvaluateAsync<bool>("(() => { const b = [...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label') ?? b.textContent).trim() === 'Next'); return !!b && b.checkVisibility() && !b.disabled; })()");
+            var hasNext = await page.Page.IsVisibleAsync("button[data-page-next]:not(:disabled)");
             if (!hasNext) break;
-            await page.ClickAsync(await page.ByNameAsync("button", "Next"));
+            await page.ClickAsync("button[data-page-next]");
             await page.ExpectAsync($"arg => document.querySelector('{Results} a')?.getAttribute('href') !== arg.first", new { first });
         }
 
@@ -124,10 +124,10 @@ public sealed class DevBrowseFilterTests(Site site)
     {
         await using var page = await site.NewPageAsync();
         await page.GotoAsync("/hub/browse/?q=not-a-real-resource-555&type=glossary");
-        await page.ByNameAsync("h1, h2, h3", "No matching resources");
+        await page.ExpectTextAsync(".browse-empty .search-empty-title", "No matching resources");
         await page.ExpectTextAsync(".browse-empty .search-empty-query", "Search: \"not-a-real-resource-555\"");
         await page.ExpectCountAsync(Results, 0);
-        await page.ClickAsync(await page.ByNameAsync(".browse-empty button", "Clear search"));
+        await page.ClickAsync(await page.NamedAsync(".browse-empty [data-reset-search]", "Clear search"));
         await page.ExpectUrlAsync("/hub/browse/\\?type=glossary$");
         await page.ExpectCountAsync(Results, 24);
         await page.ExpectCountAsync(".browse-result:not([hidden])[data-resource-type=\"glossary\"]", 24);
@@ -143,9 +143,9 @@ public sealed class DevBrowseFilterTests(Site site)
     {
         await using var page = await site.NewPageAsync();
         await page.GotoAsync("/hub/browse/?type=video&type=blog");
-        await page.ExpectAsync("() => document.querySelector('resource-browser')?.getAttribute('data-ready') === ''");
+        await page.ExpectReadyAsync();
         Assert.All(await page.AttributesAsync(Results, "data-resource-type"), type => Assert.Contains(type, new[] { "video", "blog" }));
-        await page.ExpectAsync("() => document.querySelector('[data-filter-group=\"sort\"] summary')?.getAttribute('aria-label') === 'Sort by: Date Newest first, then Title A-Z'");
+        await page.ExpectSelectorAsync("[data-filter-group=\"sort\"] summary[aria-label=\"Sort by: Date Newest first, then Title A-Z\"]");
         Assert.Equal(0, await page.CountAsync("[data-sort-direction]"));
         var dates = (await page.AttributesAsync($"{Results} time", "datetime")).Select(date => date[..10]).ToArray();
         Assert.NotEmpty(dates);
@@ -157,20 +157,20 @@ public sealed class DevBrowseFilterTests(Site site)
     {
         await using var page = await site.NewPageAsync();
         await page.GotoAsync("/hub/browse/?type=sample&sort=oldest");
-        await page.ExpectAsync("() => document.querySelector('resource-browser')?.getAttribute('data-ready') === ''");
+        await page.ExpectReadyAsync();
         var initialResults = await page.TextsAsync($"{Results} h3");
-        var initialSummary = await page.Page.EvaluateAsync<string>("document.querySelector('[data-results-summary]').textContent");
+        var initialSummary = (await page.TextsAsync("[data-results-summary]")).Single();
 
         await page.GotoAsync("/hub/browse/?keep=1&type=sample&provider=aws&provider=azure&sort=oldest");
         await page.ExpectUrlAsync("\\?keep=1&type=sample&sort=oldest$");
         Assert.Equal(0, await page.CountAsync("[data-filter-group=\"provider\"], input[name=\"provider\"]"));
         Assert.Equal(initialResults, await page.TextsAsync($"{Results} h3"));
-        await page.ExpectAsync("arg => document.querySelector('[data-results-summary]').textContent === arg.summary", new { summary = initialSummary });
+        await page.ExpectTextAsync("[data-results-summary]", initialSummary);
 
         await page.Page.ReloadAsync();
-        await page.ExpectAsync("() => document.querySelector('resource-browser')?.getAttribute('data-ready') === ''");
+        await page.ExpectReadyAsync();
         Assert.Equal(initialResults, await page.TextsAsync($"{Results} h3"));
-        await page.ClickAsync(await page.ByNameAsync("button", "Clear filters"));
+        await page.ClickAsync(await page.NamedAsync("[data-reset-filters]", "Clear filters"));
         await page.ExpectUrlAsync("\\?keep=1&sort=oldest$");
         Assert.True(await page.Page.GoBackAsync(Site.Timeout));
         await page.ExpectUrlAsync("\\?keep=1&type=sample&sort=oldest$");
