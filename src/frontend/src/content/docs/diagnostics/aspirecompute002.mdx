@@ -1,11 +1,10 @@
 ---
 title: Compiler Warning ASPIRECOMPUTE002
-seoTitle: "ASPIRECOMPUTE002: The GetHostAddressExpression method is for"
+seoTitle: "ASPIRECOMPUTE002: Kubernetes persistent volume APIs are for"
 description: Learn what causes the Aspire compiler warning ASPIRECOMPUTE002 and how to fix it so your AppHost builds cleanly.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import ApiReference from '@components/ApiReference.astro';
+import { Aside, Badge } from '@astrojs/starlight/components';
 
 <Badge
   text="Version introduced: 13.0"
@@ -14,39 +13,33 @@ import ApiReference from '@components/ApiReference.astro';
   class:list={'mb-1'}
 />
 
-> The <ApiReference name="Aspire.Hosting.Docker.DockerComposeEnvironmentResource.GetHostAddressExpression" /> method is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+> Kubernetes persistent volume APIs are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-This diagnostic warning is reported when using the experimental `GetHostAddressExpression` method from the `IComputeEnvironmentResource` interface.
+This diagnostic warning is reported when using the experimental Kubernetes persistent volume APIs: `KubernetesPersistentVolumeExtensions`, `KubernetesPersistentVolumeResource`, `PersistentVolumeAccessMode`, and `AzureKubernetesPersistentVolumeExtensions`.
 
-## Example
+<Aside type="note">
+Starting in Aspire 17.0, the compute environment endpoint-mapping contracts `IComputeEnvironmentResource.GetHostAddressExpression` and `IComputeEnvironmentResource.GetEndpointPropertyExpression` are stable and no longer report `ASPIRECOMPUTE002`. You can remove suppressions that were added only for those members. Suppressions for persistent volume APIs are still required.
+</Aside>
 
-The following code generates `ASPIRECOMPUTE002`:
+## Endpoint-mapping contracts
 
-```csharp title="Using GetHostAddressExpression"
+`GetHostAddressExpression` returns a `ReferenceExpression` for the host only, without scheme, port, or path. It isn't a full URL. `GetEndpointPropertyExpression` composes the host, scheme, and port expressions by default, and compute environments can override it with platform-specific mappings.
+
+The default `GetHostAddressExpression` implementation throws `NotImplementedException`, so environments that don't provide host mapping (for example, `AzureKubernetesEnvironmentResource`) still inherit that behavior.
+
+```csharp title="No suppression required"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var computeEnv = builder.AddAzureContainerAppEnvironment("env");
+var environment = builder.AddDockerComposeEnvironment("env");
+var api = builder.AddContainer("api", "nginx")
+    .WithHttpEndpoint(targetPort: 80);
 
-// Accessing GetHostAddressExpression on a compute environment resource
-var endpoint = computeEnv.Resource.GetEndpoint("http");
-var hostAddress = computeEnv.Resource.GetHostAddressExpression(endpoint);
+IComputeEnvironmentResource compute = environment.Resource;
+var endpoint = api.GetEndpoint("http");
+ReferenceExpression host = compute.GetHostAddressExpression(endpoint);
+ReferenceExpression url = compute.GetEndpointPropertyExpression(
+    endpoint.Property(EndpointProperty.Url));
 ```
-
-## Understanding GetHostAddressExpression
-
-The `GetHostAddressExpression` method is part of the `IComputeEnvironmentResource` interface and provides a way to retrieve the host address or hostname for a specified endpoint reference as a `ReferenceExpression`.
-
-### Key characteristics
-
-- **Returns host only** — The returned value contains only the hostname or address, without scheme, port, or path information
-- **Reference expression** — Returns a `ReferenceExpression` that can be evaluated in different contexts
-- **Compute environment specific** — Designed for use with compute environment resources like Azure Container Apps, Kubernetes, or Docker Compose
-
-This method is useful when you need to configure resources with just the hostname rather than a full URL, which is common in scenarios like:
-
-- Configuring service-to-service communication within a compute environment
-- Setting up DNS-based service discovery
-- Configuring load balancers or ingress controllers
 
 ## To suppress this warning
 
@@ -72,13 +65,10 @@ Suppress the warning with either of the following methods:
 - Suppress in code with the `#pragma warning disable ASPIRECOMPUTE002` directive:
 
   ```csharp title="Suppressing the warning"
-  var builder = DistributedApplication.CreateBuilder(args);
-
-  var computeEnv = builder.AddAzureContainerAppEnvironment("env");
-
   #pragma warning disable ASPIRECOMPUTE002
-  var endpoint = computeEnv.Resource.GetEndpoint("http");
-  var hostAddress = computeEnv.Resource.GetHostAddressExpression(endpoint);
+  var k8s = builder.AddKubernetesEnvironment("k8s");
+  var data = k8s.AddPersistentVolume("data")
+      .WithAccessMode(PersistentVolumeAccessMode.ReadWriteOnce);
   #pragma warning restore ASPIRECOMPUTE002
   ```
 
