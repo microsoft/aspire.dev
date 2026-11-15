@@ -1,4 +1,4 @@
-using System.Text.Json;
+using System.Text.RegularExpressions;
 using Jint.Browser;
 
 namespace E2E.Jint;
@@ -34,20 +34,14 @@ public sealed class Site : IAsyncLifetime
 
     /// <summary>
     /// A new page in a new context, in the state of <c>emulateConsentNotRequiredRegion</c> (tests/e2e/helpers.ts):
-    /// no third-party request leaves the machine (WCP never loads) and the consent flag is cached as not required.
+    /// WCP requests fail, and the consent flag is cached as not required before the site's own scripts run.
     /// </summary>
     public async Task<SitePage> NewPageAsync()
     {
-        var context = await Browser.NewContextAsync(new BrowserContextOptions
-        {
-            UrlFilter = uri => uri.Host == BaseUrl.Host && uri.Port == BaseUrl.Port,
-        });
-        var page = await context.NewPageAsync();
-        // Jint.Browser has no public init-script API; a document on the site's origin, fetched from nowhere,
-        // seeds that origin's localStorage for the rest of the context.
-        await page.SetContentAsync("<!doctype html><title>seed</title>", BaseUrl.ToString());
-        await page.EvaluateAsync("localStorage.setItem('aspireConsentRequired', 'false')");
-        return new SitePage(context, page);
+        var context = await Browser.NewContextAsync();
+        await context.RouteAsync(uri => uri.Host.EndsWith("wcpstatic.microsoft.com", StringComparison.OrdinalIgnoreCase), request => request.AbortAsync());
+        await context.AddInitScriptAsync("localStorage.setItem('aspireConsentRequired', 'false')");
+        return new SitePage(context, await context.NewPageAsync());
     }
 
     /// <summary>The repository root, for the data files the specs import.</summary>
@@ -73,75 +67,86 @@ public sealed class SiteCollection : ICollectionFixture<Site>;
 [CollectionDefinition(nameof(Site) + "2")]
 public sealed class SiteCollection2 : ICollectionFixture<Site>;
 
-/// <summary>A page with the few Playwright-style helpers the ported specs need.</summary>
+/// <summary>
+/// A page with the few Playwright-style assertions the ported specs need, each on a native Jint.Browser wait: they
+/// observe mutations, URL changes and focus in .NET, so no JavaScript predicate is re-run in the page on every poll.
+/// </summary>
 public sealed class SitePage(BrowserContext context, Page page) : IAsyncDisposable
 {
     public Page Page { get; } = page;
 
     public Task<PageResponse?> GotoAsync(string path) => Page.NavigateAsync(new Uri(Site.BaseUrl, path).ToString());
 
-    public async Task<string> UrlAsync() => await Page.EvaluateAsync<string>("location.href") ?? "";
+    public string Url => Page.Url.ToString();
 
-    /// <summary>Waits until a JavaScript predicate (a function of one argument) is true, as <c>expect.poll</c> does.</summary>
-    public async Task ExpectAsync(string predicate, object? argument = null, string? because = null)
+    /// <summary>
+    /// <c>expect(locator).toHaveText(array)</c>. Jint.Browser has no native list wait, so this polls
+    /// <see cref="Page.TextsAsync"/>, one request per look, instead of a JavaScript predicate.
+    /// </summary>
+    public async Task ExpectTextsAsync(string target, string[] expected)
     {
-        var met = await Page.WaitForAsync(predicate, argument ?? new { }, Site.Timeout);
-        Assert.True(met, because ?? $"Timed out waiting for {predicate} ({JsonSerializer.Serialize(argument)}) on {await UrlAsync()}");
+        var deadline = DateTime.UtcNow + Site.Timeout;
+        string[] actual;
+        while (!(actual = await TextsAsync(target)).SequenceEqual(expected) && DateTime.UtcNow < deadline) await Task.Delay(50);
+        Assert.Equal(expected, actual);
     }
 
-    public Task ExpectUrlAsync(string pattern) =>
-        ExpectAsync("arg => new RegExp(arg.pattern).test(location.href)", new { pattern }, $"URL should match /{pattern}/");
+    /// <summary><c>expect(page).toHaveURL(regex)</c>.</summary>
+    public async Task ExpectUrlAsync(string pattern) =>
+        Assert.True(await Page.WaitForUrlAsync(new Regex(pattern), Site.Timeout), $"URL should match /{pattern}/, was {Url}");
 
-    // Native waits (WaitForCountAsync, WaitForVisibleAsync, WaitForTextAsync, WaitForSelectorAsync) observe mutations
-    // in .NET instead of re-running a JavaScript predicate in the page on every poll.
-    public async Task ExpectCountAsync(string selector, int count) =>
-        Assert.True(await Page.WaitForCountAsync(selector, count, Site.Timeout), $"{selector} should match {count} elements, found {await CountAsync(selector)}");
+    /// <summary><c>expect(page).not.toHaveURL(regex)</c>.</summary>
+    public async Task ExpectUrlNotAsync(string pattern)
+    {
+        var regex = new Regex(pattern);
+        Assert.True(await Page.WaitForUrlAsync(uri => !regex.IsMatch(uri.ToString()), Site.Timeout), $"URL should not match /{pattern}/, was {Url}");
+    }
 
-    public async Task ExpectVisibleAsync(string selector) =>
-        Assert.True(await Page.WaitForVisibleAsync(selector, Site.Timeout), $"{selector} should be visible");
+    public async Task ExpectCountAsync(string target, int count) =>
+        Assert.True(await Page.WaitForCountAsync(target, count, Site.Timeout), $"{target} should match {count} elements, found {await CountAsync(target)}");
 
-    public async Task ExpectSelectorAsync(string selector) =>
-        Assert.True(await Page.WaitForSelectorAsync(selector, Site.Timeout), $"{selector} should exist");
+    public async Task ExpectVisibleAsync(string target) =>
+        Assert.True(await Page.WaitForVisibleAsync(target, Site.Timeout), $"{target} should be visible");
+
+    public async Task ExpectSelectorAsync(string target) =>
+        Assert.True(await Page.WaitForSelectorAsync(target, Site.Timeout), $"{target} should exist");
 
     /// <summary>Waits for the resource browser to finish restoring its state from the URL.</summary>
     public Task ExpectReadyAsync() => ExpectSelectorAsync("resource-browser[data-ready]");
 
     /// <summary>Waits for <paramref name="text"/> in the element's innerText, then checks it is the whole text.</summary>
-    public async Task ExpectTextAsync(string selector, string text)
+    public async Task ExpectTextAsync(string target, string text)
     {
-        Assert.True(await Page.WaitForTextAsync(selector, text, Site.Timeout), $"{selector} should read \"{text}\"");
-        Assert.Equal(text, Normalize(await Page.InnerTextAsync(selector)));
+        Assert.True(await Page.WaitForTextAsync(target, text, Site.Timeout), $"{target} should read \"{text}\"");
+        Assert.Equal(text, Normalize(await Page.InnerTextAsync(target)));
     }
 
-    public async Task ExpectTextContainsAsync(string selector, string text) =>
-        Assert.True(await Page.WaitForTextAsync(selector, text, Site.Timeout), $"{selector} should contain \"{text}\"");
+    public async Task ExpectTextContainsAsync(string target, string text) =>
+        Assert.True(await Page.WaitForTextAsync(target, text, Site.Timeout), $"{target} should contain \"{text}\"");
 
-    /// <summary>
-    /// Waits for a visible <paramref name="selector"/> whose text contains <paramref name="name"/> and returns the
-    /// selector, standing in for <c>getByRole(role, { name })</c> on controls that carry a stable attribute.
-    /// </summary>
-    public async Task<string> NamedAsync(string selector, string name)
-    {
-        await ExpectVisibleAsync(selector);
-        await ExpectTextContainsAsync(selector, name);
-        return selector;
-    }
+    /// <summary><c>expect(locator).toBeFocused()</c>.</summary>
+    public async Task ExpectFocusedAsync(string target) =>
+        Assert.True(await Page.WaitForFocusAsync(target, Site.Timeout), $"{target} should be focused");
 
-    private static string Normalize(string? text) => System.Text.RegularExpressions.Regex.Replace(text ?? "", "\\s+", " ").Trim();
+    /// <summary>Waits until the attribute of the first match differs from <paramref name="value"/>.</summary>
+    public async Task ExpectAttributeChangedAsync(string target, string attribute, string? value) =>
+        Assert.True(await Page.WaitForAttributeAsync(target, attribute, new Regex($"^(?!{Regex.Escape(value ?? "")}$)"), Site.Timeout), $"{target} [{attribute}] should change from {value}");
 
-    public Task ExpectFocusedAsync(string selector) =>
-        ExpectAsync("arg => !!document.activeElement && document.activeElement === document.querySelector(arg.selector)", new { selector }, $"{selector} should be focused");
+    /// <summary><c>getByRole(role, { name, exact: true })</c>, in Playwright's locator syntax.</summary>
+    public static string Role(string role, string name) => $"role={role}[name=\"{name}\"s]";
 
-    public Task<int> CountAsync(string selector, bool visibleOnly = false) => Page.CountAsync(selector, visibleOnly);
+    private static string Normalize(string? text) => Regex.Replace(text ?? "", "\\s+", " ").Trim();
+
+    public Task<int> CountAsync(string target, bool visibleOnly = false) => Page.CountAsync(target, visibleOnly);
 
     public async Task<string[]> AttributesAsync(string selector, string attribute) =>
         ((object?[]?)await Page.EvaluateAsync("arg => [...document.querySelectorAll(arg.selector)].map(e => e.getAttribute(arg.attribute))", new { selector, attribute }) ?? [])
         .Select(value => value?.ToString() ?? "").ToArray();
 
-    public async Task<string[]> TextsAsync(string selector) =>
-        (await Page.TextsAsync(selector)).Select(text => text.Trim()).ToArray();
+    public async Task<string[]> TextsAsync(string target) =>
+        (await Page.TextsAsync(target)).Select(text => text.Trim()).ToArray();
 
-    public async Task ClickAsync(string selector) => Assert.True(await Page.ClickAsync(selector), $"Could not click {selector}");
+    public async Task ClickAsync(string target) => Assert.True(await Page.ClickAsync(target), $"Could not click {target}");
 
     public async ValueTask DisposeAsync()
     {

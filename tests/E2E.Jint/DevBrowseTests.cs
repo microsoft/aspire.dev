@@ -30,7 +30,7 @@ public sealed class DevBrowseTests(Site site)
     {
         await using var page = await site.NewPageAsync();
         await page.GotoAsync("/hub/");
-        await page.ClickAsync(await page.NamedAsync("a[href=\"/hub/browse/\"][data-underline-trigger]", "Browse all resources"));
+        await page.ClickAsync(SitePage.Role("link", "Browse all resources"));
         await page.ExpectUrlAsync("/hub/browse/$");
         await page.ExpectVisibleAsync("h1");
         await page.ExpectTextAsync("main h1", "Browse resources");
@@ -39,7 +39,7 @@ public sealed class DevBrowseTests(Site site)
         Assert.True(total > 100);
         await page.ExpectTextAsync("[data-results-summary]", $"1-24 of {total} resources");
 
-        var next = await page.NamedAsync("button[data-page-next][aria-label=\"Next\"]", "");
+        var next = SitePage.Role("button", "Next");
         await page.ClickAsync(next);
         await page.ExpectUrlAsync("\\?page=2$");
         await page.ExpectTextContainsAsync("[data-page-label]", "Page 2 of");
@@ -107,10 +107,10 @@ public sealed class DevBrowseFilterTests(Site site)
         {
             var first = (await page.AttributesAsync($"{Results} a", "href")).FirstOrDefault();
             foreach (var href in await page.AttributesAsync($"{Results} a", "href")) Assert.True(seen.Add(href), $"{href} is listed twice");
-            var hasNext = await page.Page.IsVisibleAsync("button[data-page-next]:not(:disabled)");
-            if (!hasNext) break;
-            await page.ClickAsync("button[data-page-next]");
-            await page.ExpectAsync($"arg => document.querySelector('{Results} a')?.getAttribute('href') !== arg.first", new { first });
+            var next = SitePage.Role("button", "Next");
+            if (!await page.Page.IsVisibleAsync(next) || await page.CountAsync(next + "[disabled]") > 0) break;
+            await page.ClickAsync(next);
+            await page.ExpectAttributeChangedAsync($"{Results} a", "href", first);
         }
 
         foreach (var post in posts.RootElement.EnumerateArray())
@@ -127,15 +127,15 @@ public sealed class DevBrowseFilterTests(Site site)
         await page.ExpectTextAsync(".browse-empty .search-empty-title", "No matching resources");
         await page.ExpectTextAsync(".browse-empty .search-empty-query", "Search: \"not-a-real-resource-555\"");
         await page.ExpectCountAsync(Results, 0);
-        await page.ClickAsync(await page.NamedAsync(".browse-empty [data-reset-search]", "Clear search"));
+        await page.ClickAsync(".browse-empty >> " + SitePage.Role("button", "Clear search"));
         await page.ExpectUrlAsync("/hub/browse/\\?type=glossary$");
         await page.ExpectCountAsync(Results, 24);
         await page.ExpectCountAsync(".browse-result:not([hidden])[data-resource-type=\"glossary\"]", 24);
-        await page.ExpectFocusedAsync("input[placeholder=\"Search resources...\"]");
+        await page.ExpectFocusedAsync(SitePage.Role("searchbox", "Search resources..."));
 
         await page.GotoAsync("/hub/browse/?type=unknown&topic=unknown&page=999999999&sort=unknown");
         await page.ExpectVisibleAsync(Results);
-        await page.ExpectAsync("() => !/unknown|999999999/.test(location.href)");
+        await page.ExpectUrlNotAsync("unknown|999999999");
     }
 
     [Fact]
@@ -170,10 +170,10 @@ public sealed class DevBrowseFilterTests(Site site)
         await page.Page.ReloadAsync();
         await page.ExpectReadyAsync();
         Assert.Equal(initialResults, await page.TextsAsync($"{Results} h3"));
-        await page.ClickAsync(await page.NamedAsync("[data-reset-filters]", "Clear filters"));
+        await page.ClickAsync(SitePage.Role("button", "Clear filters"));
         await page.ExpectUrlAsync("\\?keep=1&sort=oldest$");
         Assert.True(await page.Page.GoBackAsync(Site.Timeout));
         await page.ExpectUrlAsync("\\?keep=1&type=sample&sort=oldest$");
-        await page.ExpectAsync("arg => { const list = [...document.querySelectorAll(arg.selector)].map(e => e.textContent.trim()); return list.length === arg.expected.length && list.every((text, i) => text === arg.expected[i]); }", new { selector = $"{Results} h3", expected = initialResults });
+        await page.ExpectTextsAsync($"{Results} h3", initialResults);
     }
 }
