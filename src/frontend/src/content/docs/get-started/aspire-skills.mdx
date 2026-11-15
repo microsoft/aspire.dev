@@ -148,6 +148,14 @@ copilot plugin marketplace add microsoft/aspire-skills
 copilot plugin install aspire@aspire-skills
 ```
 
+To update the plugin later, run:
+
+```bash title="GitHub Copilot CLI"
+copilot plugin update aspire@aspire-skills
+```
+
+To use Ollama models, run `ollama launch copilot`, then run the same plugin commands in the Copilot session that opens.
+
 Use this path for terminal workflows where GitHub Copilot needs Aspire-specific guidance for AppHost, lifecycle, deployment, and diagnostics tasks.
 
 <LearnMore>
@@ -191,7 +199,7 @@ claude
 /plugin install aspire@aspire-skills
 ```
 
-Run the slash commands inside the Claude Code CLI session.
+Run the slash commands inside the Claude Code CLI session. To update later, run `/plugin update aspire@aspire-skills`.
 
 <LearnMore>
   For plugin marketplace details, see [Discover and install prebuilt plugins
@@ -220,6 +228,26 @@ Use this path for terminal-first Codex work that needs repeatable Aspire setup, 
 </LearnMore>
 
 </TabItem>
+<TabItem id='gemini-cli' label='Gemini CLI'>
+
+Install the Aspire skills as a Gemini extension.
+
+```bash title="Gemini CLI"
+gemini extensions install https://github.com/microsoft/aspire-skills
+```
+
+</TabItem>
+<TabItem id='cursor-cli' label='Cursor CLI'>
+
+Clone the repository into your Cursor skills directory, then start Cursor CLI.
+
+```bash title="Terminal"
+mkdir -p ~/.cursor/skills
+git clone https://github.com/microsoft/aspire-skills ~/.cursor/skills/aspire-skills
+agent
+```
+
+</TabItem>
 <TabItem id='opencode' label='OpenCode'>
 
 Use APM to install Aspire skills into agent hosts that support OpenCode-compatible skill locations.
@@ -230,6 +258,28 @@ opencode
 ```
 
 Use this path when APM is your preferred way to manage agent skills.
+
+As an alternative to APM, configure OpenCode to load the skills from an HTTP catalog. Add the configuration for your OpenCode version to `opencode.json` or `opencode.jsonc`, and preserve any existing settings.
+
+```json title="opencode.json (OpenCode V2)"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": [
+    "https://raw.githubusercontent.com/microsoft/aspire-skills/main/opencode/v2/"
+  ]
+}
+```
+
+```json title="opencode.json (OpenCode V1)"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "urls": [
+      "https://raw.githubusercontent.com/microsoft/aspire-skills/main/opencode/v1/"
+    ]
+  }
+}
+```
 
 <LearnMore>
   For APM install details, see the [Agent Package Manager
@@ -271,15 +321,16 @@ In that command, `-a github-copilot` selects the target agent, `-g` installs glo
 | `aspire-monitoring`           | Observing running Aspire apps                                                                          | Inspect resource state, logs, traces, metrics, browser telemetry, and dashboard data before making changes                                                               |
 | `aspire-deployment`           | Publishing, deploying, and tearing down Aspire apps                                                    | Use AppHost-modeled deployments for targets such as Docker Compose, Kubernetes, Azure, and AWS                                                                           |
 | `aspire-project-v2-migration` | Migrating eligible AppHosts to Project v2 resource APIs                                                | Assess legacy project resources, require approval for exact edits, and preserve supported behavior while migrating to `DotnetProjectResource` APIs                       |
+| `aspire-terminals`            | Authoring and automating Aspire terminals                                                              | Configure resource, dock, dialog, and headless terminals with `WithTerminal`/`WithRepl`, reuse REPLs, prompt for terminal input, and automate terminal input with VHS-subset tapes |
 | `aspireify`                   | Completing Aspire initialization in an existing codebase after `aspire init` drops an AppHost skeleton | Scan the repo, propose a resource graph, wire projects and containers into the AppHost, connect resources, configure telemetry when appropriate, and validate the wiring |
 
-Use the top-level `aspire` skill when the request is about an Aspire app and the right workflow isn't obvious. Use a workflow-specific skill directly when the task is clear, such as `aspire-orchestration` for local lifecycle work, `aspire-monitoring` for telemetry investigation, `aspire-deployment` for publish and deploy workflows, `aspire-project-v2-migration` for eligible legacy project resources, or `aspireify` for existing-codebase AppHost wiring.
+Use the top-level `aspire` skill when the request is about an Aspire app and the right workflow isn't obvious. Use a workflow-specific skill directly when the task is clear, such as `aspire-orchestration` for local lifecycle work, `aspire-monitoring` for telemetry investigation, `aspire-deployment` for publish and deploy workflows, `aspire-project-v2-migration` for eligible legacy project resources, `aspire-terminals` for terminal authoring and automation, or `aspireify` for existing-codebase AppHost wiring.
 
 <a id="github-copilot-app-canvas-extensions"></a>
 
 ## Copilot canvas extensions
 
-The `aspire` plugin provides canvas extensions in Copilot agent environments, including Copilot CLI, VS Code, and the GitHub Copilot app. Your environment loads them when the plugin is enabled.
+The `aspire` plugin provides canvas extensions (`aspire-doctor`, `aspire-apphosts`, and `aspireify`) in Copilot agent environments, including Copilot CLI, VS Code, and the GitHub Copilot app. Your environment loads them when the plugin is enabled.
 
 | Canvas          | Use it for                              | What it shows                                                                                  |
 | --------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -333,6 +384,8 @@ Install skills to a single location for the agent environment you actively use. 
   - aspire-deployment/
     - SKILL.md
   - aspire-project-v2-migration/
+    - SKILL.md
+  - aspire-terminals/
     - SKILL.md
   - aspireify/
     - SKILL.md
