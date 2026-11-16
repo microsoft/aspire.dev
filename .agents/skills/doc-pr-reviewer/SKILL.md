@@ -134,7 +134,7 @@ This artifact must survive into Phase C. Do not let Phase B overwrite or replace
 
 Phase B does **not** consume Phase A's output. Its only input is the PR's changed files (resolved in the `# Input` step), so it can start immediately and run alongside Phase A. Keep it blind to source code regardless of Phase A's progress.
 
-1. **Serve the PR under review locally.** Ensure a clone of this `aspire.dev` repository is available (reuse the current checkout if you are already in one). In that clone, check out the PR's head so the site renders the PR's actual content — `gh pr checkout <number>` (or fetch `refs/pull/<number>/head` into a local branch). Then, if a docs server isn't already running, start one with `pnpm dev` from the repository **root** (it delegates to `src/frontend`) and note the local URL/port it prints (Astro picks the next free port, e.g. `http://localhost:4321/`). `pnpm dev` is a lightweight dev server and is the one local long-running task this skill needs — do **not** run `pnpm build`.
+1. **Serve the PR under review locally.** Ensure a clone of this `aspire.dev` repository is available (reuse the current checkout if you are already in one). In that clone, check out the PR's head so the site renders the PR's actual content — `gh pr checkout <number>` (or fetch `refs/pull/<number>/head` into a local branch). Then, if a docs server isn't already running, start one with `bun run dev` from the repository **root** (it delegates to `src/frontend`) and note the local URL/port it prints (Astro picks the next free port, e.g. `http://localhost:4321/`). `bun run dev` is a lightweight dev server and is the one local long-running task this skill needs — do **not** run `bun run build`.
 2. Activate the `doc-tester` skill (`.agents/skills/doc-tester/SKILL.md`). Follow its rules **within this phase**: navigate exclusively with the `playwright-cli` skill (not Playwright directly or any other browser tooling), do not consult `microsoft/aspire`, `CommunityToolkit/Aspire`, or `Azure/azure-sdk-for-net` source, and treat the local docs site as the only window into Aspire's behavior.
 3. Scope the tester run to the pages and sections affected by this PR's diff (use the PR's changed files to derive which doc routes to exercise). Do not test unrelated areas.
 4. Capture the skill's standard test report verbatim: critical issues, warnings, passed checks, recommendations, plus any "knowledge gap" notes the skill produced.
@@ -178,7 +178,7 @@ Combine both phases when choosing the verdict:
 
 Once the single review is posted, restore the workspace so nothing is left running or mutated:
 
-- Stop the local docs server you started in Phase B (`Stop-Process -Id <PID>` for the `pnpm dev` / Astro process) and confirm nothing is still listening on its port.
+- Stop the local docs server you started in Phase B (`Stop-Process -Id <PID>` for the `bun run dev` / Astro process) and confirm nothing is still listening on its port.
 - Return the `aspire.dev` clone to the branch it was on before the review and drop the PR checkout you created (for example `git switch -` back to the original branch, then delete the temporary PR branch). Never leave the working tree on the PR's head or with overlaid files.
 - Delete any temporary artifacts the run produced (saved diffs, fetched files, screenshots, browser-automation output).
 - Leave every source clone (`microsoft/aspire`, `CommunityToolkit/Aspire`, `Azure/azure-sdk-for-net`) untouched and read-only — only the fetch/checkout you needed to read, with nothing written.

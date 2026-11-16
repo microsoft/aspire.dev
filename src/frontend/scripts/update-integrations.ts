@@ -14,9 +14,19 @@ import { normalizeAspireTerminology } from './aspire-terminology';
 const OFFICIAL_NUGET_ORG_QUERIES = ['owner:aspire', 'Aspire.Hosting.'];
 const OFFICIAL_RELEASE_FEED_QUERIES = ['Aspire.'];
 const COMMUNITY_TOOLKIT_QUERIES = ['CommunityToolkit.Aspire'];
+// Third-party packages whose IDs don't start with `Aspire.` or `CommunityToolkit.Aspire`.
+// They are fetched by exact package ID and must still be verified and non-deprecated.
+export const THIRD_PARTY_PACKAGES = ['Particular.Aspire.Hosting.ServicePlatform'];
+// Packages whose docs target a prerelease that is newer than the latest stable release, so
+// the newest prerelease is selected instead of the older stable version.
+const PRERELEASE_PREFERRED_PACKAGES = new Set([
+  'communitytoolkit.aspire.microsoft.entityframeworkcore.sqlite',
+]);
+const THIRD_PARTY_QUERIES = THIRD_PARTY_PACKAGES.map((id) => `packageid:${id}`);
 const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
   'Aspire.Hosting.Azure.AIFoundry',
+  'Aspire.Hosting.GitHub.Models',
   'Aspire.Hosting.IncrementalMigration',
   'Aspire.Hosting.NodeJs',
   'Aspire.Hosting.Testing',
@@ -24,9 +34,16 @@ const EXCLUDED_PACKAGES = [
   'Aspire.MongoDB.Driver.v3',
   'Aspire.RabbitMQ.Client.v7',
   'CommunityToolkit.Aspire.Hosting.Azure.StaticWebApps',
+  'CommunityToolkit.Aspire.Hosting.Bun',
+  'CommunityToolkit.Aspire.Hosting.Dapr.AzureRedis',
   'CommunityToolkit.Aspire.Hosting.EventStore',
   'CommunityToolkit.Aspire.Hosting.Golang',
+  'CommunityToolkit.Aspire.Hosting.Java',
+  'CommunityToolkit.Aspire.Hosting.Minio',
+  'CommunityToolkit.Aspire.Hosting.Python.Extensions',
+  'CommunityToolkit.Aspire.Hosting.Rust',
   'CommunityToolkit.Aspire.EventStore',
+  'CommunityToolkit.Aspire.Minio.Client',
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
 const DOCS_OUTPUT_PATH = './src/data/integration-docs.json';
@@ -119,6 +136,8 @@ export interface IntegrationOutput {
   tags: string[];
   downloads?: number;
   version?: string;
+  // `false` for third-party packages, whose API reference is owned by their authors.
+  apiReference?: false;
 }
 
 interface IntegrationDoc {
@@ -304,14 +323,17 @@ export function reconcileIntegrationDocs(
   });
 }
 
-function filterAndTransform(pkgs: PackageRecord[]): IntegrationOutput[] {
+export function filterAndTransform(pkgs: PackageRecord[]): IntegrationOutput[] {
   const excludedLower = EXCLUDED_PACKAGES.map((pkg) => pkg.toLowerCase());
+  const thirdPartyLower = THIRD_PARTY_PACKAGES.map((pkg) => pkg.toLowerCase());
 
   return pkgs
     .filter((pkg) => {
       const id = pkg.id.toLowerCase();
       return (
-        (id.startsWith('aspire.') || id.startsWith('communitytoolkit.aspire')) &&
+        (id.startsWith('aspire.') ||
+          id.startsWith('communitytoolkit.aspire') ||
+          thirdPartyLower.includes(id)) &&
         (pkg.__trustedSource || pkg.verified === true) &&
         pkg.deprecated !== true &&
         !pkg.deprecation &&
@@ -328,6 +350,7 @@ function filterAndTransform(pkgs: PackageRecord[]): IntegrationOutput[] {
       tags: pkg.tags?.map((tag) => tag.toLowerCase()) ?? [],
       downloads: pkg.totalDownloads,
       version: pkg.version,
+      ...(thirdPartyLower.includes(pkg.id.toLowerCase()) && { apiReference: false as const }),
     }));
 }
 
@@ -518,7 +541,11 @@ async function getPreferredNonDeprecatedVersion(
 ): Promise<RegistrationLeaf | null> {
   try {
     const leaves = await getAllRegistrationLeaves(registrationBase, id, Boolean(pinnedVersion));
-    const version = selectPreferredPackageVersion(leaves, pinnedVersion);
+    const version = selectPreferredPackageVersion(
+      leaves,
+      pinnedVersion,
+      PRERELEASE_PREFERRED_PACKAGES.has(id.toLowerCase())
+    );
     return leaves.find((leaf) => leaf.version === version) ?? null;
   } catch (error: unknown) {
     if (pinnedVersion) {
@@ -533,7 +560,8 @@ async function getPreferredNonDeprecatedVersion(
 
 export function selectPreferredPackageVersion(
   leaves: RegistrationLeaf[],
-  pinnedVersion?: string
+  pinnedVersion?: string,
+  preferLatestPrerelease = false
 ): string | null {
   if (pinnedVersion) {
     const match = leaves.find((leaf) => leaf.version.toLowerCase() === pinnedVersion.toLowerCase());
@@ -551,7 +579,8 @@ export function selectPreferredPackageVersion(
     return null;
   }
 
-  const pickFrom = nonDeprecatedStable.length > 0 ? nonDeprecatedStable : nonDeprecated;
+  const pickFrom =
+    nonDeprecatedStable.length > 0 && !preferLatestPrerelease ? nonDeprecatedStable : nonDeprecated;
   pickFrom.sort((a, b) => cmpSemVer(a.version, b.version));
   return pickFrom.at(-1)?.version ?? null;
 }
@@ -738,6 +767,52 @@ export function reconcileReleaseBranchCatalog(
   return [...reconciled, ...carriedForward].sort((a, b) => a.title.localeCompare(b.title));
 }
 
+// The nuget.org search replicas lag the package page's download stats, so third-party
+// packages take their total from the package page's version history table instead.
+export function parseNuGetPageDownloads(html: string): number | null {
+  const rows = html.match(/<tr[^>]*\bversion-row\b[\s\S]*?<\/tr>/g) ?? [];
+  let total = 0;
+  let counted = 0;
+
+  for (const row of rows) {
+    const cells = [...row.matchAll(/<td[^>]*>\s*([\d,]+)\s*<\/td>/g)];
+    if (cells.length > 0) {
+      total += Number(cells[0][1].replace(/,/g, ''));
+      counted++;
+    }
+  }
+
+  return counted > 0 ? total : null;
+}
+
+async function applyNuGetPageDownloads(output: IntegrationOutput[]): Promise<IntegrationOutput[]> {
+  const thirdPartyLower = new Set(THIRD_PARTY_PACKAGES.map((id) => id.toLowerCase()));
+
+  return Promise.all(
+    output.map(async (entry) => {
+      if (!thirdPartyLower.has(entry.title.toLowerCase())) {
+        return entry;
+      }
+
+      try {
+        const res = await fetch(
+          `https://www.nuget.org/packages/${encodeURIComponent(entry.title)}`
+        );
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const downloads = parseNuGetPageDownloads(await res.text());
+        return downloads === null ? entry : { ...entry, downloads };
+      } catch (error: unknown) {
+        console.warn(
+          `⚠️ Could not read the nuget.org page download count for ${entry.title}: ${getErrorMessage(error)}`
+        );
+        return entry;
+      }
+    })
+  );
+}
+
 export async function updateIntegrations(): Promise<void> {
   const officialSource = resolveOfficialAspirePackageSource();
   const releaseVersion = getPinnedReleaseVersion(officialSource.branchName);
@@ -768,6 +843,14 @@ export async function updateIntegrations(): Promise<void> {
       trusted: false,
       serviceIndex: NUGET_ORG_SERVICE_INDEX,
       queries: COMMUNITY_TOOLKIT_QUERIES,
+      optional: true,
+    },
+    {
+      label: 'Third-party integrations (nuget.org)',
+      priority: 0,
+      trusted: false,
+      serviceIndex: NUGET_ORG_SERVICE_INDEX,
+      queries: THIRD_PARTY_QUERIES,
       optional: true,
     },
   ];
@@ -832,6 +915,7 @@ export async function updateIntegrations(): Promise<void> {
   if (officialSource.isReleaseBranch) {
     output = reconcileReleaseBranchCatalog(output, fetchedPackageIds);
   }
+  output = await applyNuGetPageDownloads(output);
   const defaultIconPackages = getOfficialAspireDefaultIconPackages(output);
   const releaseIconPackages = output.filter((pkg) => pkg.icon === ASPIRE_RELEASE_ICON_URL);
   if (releaseIconPackages.length > 0) {

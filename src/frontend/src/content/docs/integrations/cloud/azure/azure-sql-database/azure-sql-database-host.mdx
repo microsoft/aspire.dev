@@ -18,7 +18,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure SQL Database Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Azure SQL server and database resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure SQL Database Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model Azure SQL server and database resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure SQL Database integration, start with the [Get started with Azure SQL Database integrations](/integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure SQL Database](../azure-sql-database-connect/). For the Azure SQL Database Entity Framework Core client integration, see [Azure SQL Database EF Core integration](/integrations/databases/efcore/azure-sql/azure-sql-get-started/).
 
@@ -71,6 +71,27 @@ This updates your `aspire.config.json` with the Azure SQL Database hosting integ
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-sql
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure SQL Database hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Sql": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Azure SQL server resource and database
@@ -108,6 +129,31 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sql := builder.AddAzureSqlServer("sql")
+db := sql.AddDatabase("database")
+
+builder.AddGoApp("api", "./api").
+	WithReference(db)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
 
 </TabItem>
 </Tabs>
@@ -179,6 +225,33 @@ await builder.build().run();
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sql := builder.AddAzureSqlServer("sql")
+sql.RunAsContainer()
+
+db := sql.AddDatabase("database")
+
+builder.AddGoApp("api", "./api").
+	WithReference(db)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 When `RunAsContainer` is active, Aspire pulls a SQL Server container image and runs it locally. The consuming project receives the same connection environment variables it would receive when deployed to Azure, so your code works without modification between local and cloud environments.
@@ -234,6 +307,35 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 await builder.build().run();
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingName := builder.AddParameter("existingSqlServerName")
+existingResourceGroup := builder.AddParameter("existingSqlServerResourceGroup")
+
+sql := builder.AddAzureSqlServer("sql")
+sql.AsExisting(existingName, aspire.AsExistingResourceGroup(existingResourceGroup))
+db := sql.AddDatabase("database")
+
+builder.AddGoApp("api", "./api").
+	WithReference(db)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
 
 </TabItem>
 </Tabs>
@@ -399,6 +501,27 @@ await builder.build().run();
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sql := builder.AddAzureSqlServer("sql")
+sql.ClearDefaultRoleAssignments()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Aside type="caution">
@@ -450,6 +573,34 @@ await builder.build().run();
 ````
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+vnet := builder.AddAzureVirtualNetwork("vnet")
+peSubnet := vnet.AddSubnet("pe-subnet", "10.0.2.0/24")
+aciSubnet := vnet.AddSubnet("aci-subnet", "10.0.3.0/29")
+
+sql := builder.AddAzureSqlServer("sql")
+sql.WithAdminDeploymentScriptSubnet(aciSubnet)
+sql.AddDatabase("database")
+
+peSubnet.AddPrivateEndpoint(sql)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 #### Specify a custom storage account
@@ -493,6 +644,35 @@ await peSubnet.addPrivateEndpoint(sql);
 
 await builder.build().run();
 ````
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+vnet := builder.AddAzureVirtualNetwork("vnet")
+peSubnet := vnet.AddSubnet("pe-subnet", "10.0.2.0/24")
+
+storage := builder.AddAzureStorage("scriptstorage")
+
+sql := builder.AddAzureSqlServer("sql")
+sql.WithAdminDeploymentScriptStorage(storage)
+sql.AddDatabase("database")
+
+peSubnet.AddPrivateEndpoint(sql)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
 
 </TabItem>
 </Tabs>

@@ -607,6 +607,24 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               ],
             },
             {
+              label: 'aspire tray',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire tray',
+                  slug: 'reference/cli/commands/aspire-tray',
+                },
+                {
+                  label: 'aspire tray start',
+                  slug: 'reference/cli/commands/aspire-tray-start',
+                },
+                {
+                  label: 'aspire tray stop',
+                  slug: 'reference/cli/commands/aspire-tray-stop',
+                },
+              ],
+            },
+            {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',
             },
@@ -808,6 +826,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE008', link: '/diagnostics/aspire008' },
             { label: 'ASPIRE009', link: '/diagnostics/aspire009' },
             { label: 'ASPIRE011', link: '/diagnostics/aspire011' },
+            { label: 'ASPIRE013', link: '/diagnostics/aspire013' },
             {
               label: 'ASPIREACADOMAIN001',
               link: '/diagnostics/aspireacadomains001',
@@ -870,6 +889,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspirepipelines003',
             },
             {
+              label: 'ASPIREPIPELINES005',
+              link: '/diagnostics/aspirepipelines005',
+            },
+            {
               label: 'ASPIREPROXYENDPOINTS001',
               link: '/diagnostics/aspireproxyendpoints001',
             },
@@ -880,6 +903,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIREAZURE001', link: '/diagnostics/aspireazure001' },
             { label: 'ASPIREAZURE002', link: '/diagnostics/aspireazure002' },
             { label: 'ASPIREAZURE003', link: '/diagnostics/aspireazure003' },
+            { label: 'ASPIREAZURE004', link: '/diagnostics/aspireazure004' },
+            { label: 'ASPIREAZURE005', link: '/diagnostics/aspireazure005' },
+            { label: 'ASPIREAZURE006', link: '/diagnostics/aspireazure006' },
+            { label: 'ASPIREAZURE007', link: '/diagnostics/aspireazure007' },
             {
               label: 'ASPIREBROWSERLOGS001',
               link: '/diagnostics/aspirebrowserlogs001',

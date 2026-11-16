@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { getSiteNavigationLink } from './helpers';
+import {
+  getSiteNavigationLink,
+  emulateConsentNotRequiredRegion,
+  revealMobileSiteMenu,
+} from './helpers';
+
+test.beforeEach(async ({ page }) => {
+  await emulateConsentNotRequiredRegion(page);
+});
 
 test('production Dev Hub scripts, styles, and Pagefind load from static assets', async ({ page, request }) => {
   const pagefind = await request.get('/pagefind/pagefind.js');
@@ -703,6 +711,8 @@ test('Developer Hub typography and glossary controls reflow in both themes', asy
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
       await page.goto('/hub/glossary/');
+      // The controls are server-rendered hidden; glossary-browser shows them once its script runs.
+      await expect(page.getByRole('search', { name: 'Search the glossary' })).toBeVisible();
       await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
       const layout = await page.evaluate(() => {
         const heading = getComputedStyle(document.querySelector('main h1')!);
@@ -767,6 +777,24 @@ test('localized navigation keeps the English Developer Hub destination', async (
   const link = await getSiteNavigationLink(page, '/hub/');
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute('href', '/hub/');
+});
+
+test('localized docs sidebar opens the English Glossary and keeps translated docs localized', async ({ page }) => {
+  await page.goto('/de/docs/');
+  await revealMobileSiteMenu(page);
+  const sidebar = page.locator('#starlight__sidebar');
+  const sidebarLink = (label: string) => sidebar.locator('a', { hasText: new RegExp(`^\\s*${label}\\s*$`) });
+  await expect(sidebarLink('Ressourcen verstehen')).toHaveAttribute('href', '/de/get-started/resources/');
+
+  const glossary = sidebarLink('Glossar');
+  await expect(glossary).toHaveAttribute('href', '/hub/glossary/');
+  for (const summary of await glossary.locator('xpath=ancestor::details[not(@open)]/summary').all()) {
+    await summary.click();
+  }
+  await glossary.click();
+
+  await expect(page).toHaveURL(/\/hub\/glossary\/$/);
+  await expect(page.getByRole('heading', { name: 'Aspire glossary', exact: true })).toBeVisible();
 });
 
 test('the hub and glossary retain accessible light and dark layouts', async ({ page }) => {

@@ -619,6 +619,32 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
   await expect(kbdTrigger).toContainText('macOS');
 });
 
+test('language selector keeps English-only pages on their English URL', async ({ page }) => {
+  // Developer Hub and sample pages are only generated in English, so prefixing a
+  // locale (e.g. /de/hub/) used to send readers to a 404 page.
+  for (const path of ['/hub/', '/reference/samples/aspire-shop/']) {
+    await page.goto(path);
+    await dismissCookieConsentIfVisible(page);
+
+    const languageTrigger = page.getByRole('combobox', { name: 'Select language' });
+    await languageTrigger.click();
+    const navigation = page.waitForEvent('framenavigated', (frame) => frame === page.mainFrame());
+    await page
+      .locator('#footer-language-select-listbox')
+      .getByRole('option', { name: 'Deutsch' })
+      .click();
+    await navigation;
+    await page.waitForLoadState('domcontentloaded');
+
+    expect(new URL(page.url()).pathname).toBe(path);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      `https://aspire.dev${path}`
+    );
+    await expect(page.getByRole('combobox', { name: 'Select language' })).toContainText('Deutsch');
+  }
+});
+
 test('language selector stays open while its listbox is scrolled', async ({ page }) => {
   await page.goto('/get-started/aspire-vscode-extension/');
   await dismissCookieConsentIfVisible(page);

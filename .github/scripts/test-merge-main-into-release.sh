@@ -7,6 +7,7 @@ unset GITHUB_STEP_SUMMARY
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 HELPER="$SCRIPT_DIR/merge-main-into-release.sh"
+REPAIR_HELPER="$SCRIPT_DIR/repair-release-sync-ancestry.sh"
 TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/release-sync-tests.XXXXXX")"
 trap 'cd "$SCRIPT_DIR"; rm -rf -- "$TEST_ROOT"' EXIT
 
@@ -40,6 +41,15 @@ new_repo() {
 
 run_helper() {
   if bash "$HELPER" main release/test > "$TEST_ROOT/output" 2>&1; then
+    return 0
+  else
+    cat "$TEST_ROOT/output" >&2
+    return 1
+  fi
+}
+
+run_repair_helper() {
+  if bash "$REPAIR_HELPER" main release/test "$repair_head" > "$TEST_ROOT/output" 2>&1; then
     return 0
   else
     cat "$TEST_ROOT/output" >&2
@@ -290,3 +300,119 @@ run_helper
 assert_parents
 [[ "$(cat shared.txt)" == reconciled && -f next.txt ]] || fail "Next sync revisited repaired content."
 echo "PASS: real repair avoids repeating squash-era conflicts"
+
+# A repair PR conflicted on shared.txt, a human resolved it, and it landed on
+# release by <squash|merge>. Main then edits region.txt again. A squash leaves
+# the first main commit unmerged, so the next sync uses a stale merge base and
+# re-conflicts on content the repair already resolved.
+new_landed_repair_repo() {
+  new_repo "$1"
+  git switch -q main
+  write_file region.txt $'top\nbottom'
+  commit_all region-base
+  git switch -q release/test
+  git merge -q --ff-only main
+  write_file shared.txt release
+  commit_all release-edit
+  git switch -q main
+  write_file shared.txt main
+  write_file region.txt $'top\nfirst\nbottom'
+  commit_all first-main
+  first_main="$(git rev-parse HEAD)"
+  git switch -q release/test
+  git switch -qc release-sync/test
+  bash "$HELPER" main release/test --commit-conflicts > "$TEST_ROOT/output" 2>&1 \
+    || { cat "$TEST_ROOT/output"; fail "Repair fixture could not commit its conflicts."; }
+  write_file shared.txt reconciled
+  commit_all human-resolution
+  repair_head="$(git rev-parse HEAD)"
+  git switch -q release/test
+  case "$2" in
+    squash)
+      git merge -q --squash release-sync/test > /dev/null
+      git commit -qm squash-repair
+      ;;
+    merge)
+      git merge -q --no-ff release-sync/test -m merge-repair
+      ;;
+  esac
+  write_file later.txt later
+  commit_all release-later
+  git switch -q main
+  write_file region.txt $'top\nsecond\nbottom'
+  commit_all second-main
+  git switch -q release/test
+  release_sha="$(git rev-parse HEAD)"
+}
+
+new_landed_repair_repo heal-squash squash
+if git merge-base --is-ancestor "$first_main" HEAD; then
+  fail "Squash fixture unexpectedly preserved ancestry."
+fi
+# Control: without the repair, the stale merge base conflicts on resolved content.
+expect_failure "conflicts require human review"
+[[ "$helper_status" == 3 ]] || fail "Stale merge base must conflict with exit 3, got $helper_status."
+grep -q 'region.txt' "$TEST_ROOT/output" || { cat "$TEST_ROOT/output"; fail "Stale merge base did not conflict on region.txt."; }
+export GITHUB_STEP_SUMMARY="$TEST_ROOT/repair-summary"
+: > "$GITHUB_STEP_SUMMARY"
+run_repair_helper
+grep -q "$first_main" "$GITHUB_STEP_SUMMARY" || fail "Summary omitted the recorded main commit."
+unset GITHUB_STEP_SUMMARY
+[[ "$(git show -s --format=%P HEAD)" == "$release_sha $first_main" ]] || fail "Ancestry repair parents differ."
+[[ "$(git rev-parse 'HEAD^{tree}')" == "$(git rev-parse "$release_sha^{tree}")" ]] || fail "Ancestry repair changed the release tree."
+git merge-base --is-ancestor "$first_main" HEAD || fail "Ancestry repair did not record main history."
+[[ -z "$(git status --porcelain)" ]] || fail "Ancestry repair left a dirty checkout."
+release_sha="$(git rev-parse HEAD)"
+run_helper
+assert_parents
+[[ "$(cat region.txt)" == $'top\nsecond\nbottom' ]] || fail "Main's later change was not merged."
+[[ "$(cat shared.txt)" == reconciled ]] || fail "The repaired content was overwritten."
+[[ -f later.txt ]] || fail "Release-only work was lost."
+release_sha="$(git rev-parse HEAD)"
+run_repair_helper
+[[ "$(git rev-parse HEAD)" == "$release_sha" ]] || fail "Repeating the ancestry repair created a commit."
+grep -q "already an ancestor" "$TEST_ROOT/output" || fail "Missing idempotence diagnostic."
+echo "PASS: squashed repair PR history is recorded so the next sync stays clean"
+
+new_landed_repair_repo heal-merge merge
+git merge-base --is-ancestor "$first_main" HEAD || fail "Merge fixture did not preserve ancestry."
+export GITHUB_STEP_SUMMARY="$TEST_ROOT/repair-summary"
+: > "$GITHUB_STEP_SUMMARY"
+run_repair_helper
+[[ ! -s "$GITHUB_STEP_SUMMARY" ]] || fail "No-op ancestry repair wrote a summary."
+unset GITHUB_STEP_SUMMARY
+[[ "$(git rev-parse HEAD)" == "$release_sha" ]] || fail "Ancestry repair touched a merge-landed repair PR."
+grep -q "already an ancestor" "$TEST_ROOT/output" || fail "Missing no-op diagnostic."
+run_helper
+assert_parents
+[[ "$(cat region.txt)" == $'top\nsecond\nbottom' && "$(cat shared.txt)" == reconciled ]] || fail "Next sync revisited repaired content."
+echo "PASS: merge-landed repair PR needs no ancestry repair"
+
+new_landed_repair_repo heal-unrelated squash
+unrelated_head="$(git commit-tree "$(git rev-parse 'HEAD^{tree}')" -m unrelated)"
+repair_head="$unrelated_head"
+run_repair_helper
+grep -q "shares no history" "$TEST_ROOT/output" || fail "Missing no-shared-history warning."
+[[ "$(git rev-parse HEAD)" == "$release_sha" && -z "$(git status --porcelain)" ]] || fail "Unrelated repair head changed release."
+echo "PASS: repair PR head without main history is skipped"
+
+new_landed_repair_repo heal-refusals squash
+write_file untracked.txt dirty
+repair_status=0
+bash "$REPAIR_HELPER" main release/test "$repair_head" > "$TEST_ROOT/output" 2>&1 || repair_status=$?
+[[ "$repair_status" == 1 ]] || fail "Dirty checkout must exit 1, got $repair_status."
+grep -q "must be clean" "$TEST_ROOT/output" || { cat "$TEST_ROOT/output"; fail "Missing dirty-checkout diagnostic."; }
+[[ "$(git rev-parse HEAD)" == "$release_sha" ]] || fail "Refused ancestry repair changed release HEAD."
+rm -- untracked.txt
+# Refuse Git's index lock without introducing tracked or untracked changes.
+write_file .git/index.lock locked
+repair_status=0
+bash "$REPAIR_HELPER" main release/test "$repair_head" > "$TEST_ROOT/output" 2>&1 || repair_status=$?
+[[ "$repair_status" -ne 0 ]] || fail "A failed ancestry merge was reported as success."
+[[ "$(git rev-parse HEAD)" == "$release_sha" ]] || fail "A failed ancestry merge changed release HEAD."
+rm -- .git/index.lock
+if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+  fail "Failed ancestry merge was not aborted."
+fi
+[[ -z "$(git status --porcelain)" ]] || fail "Failed ancestry merge left a dirty checkout."
+echo "PASS: ancestry repair refuses dirty checkouts and fails without side effects"

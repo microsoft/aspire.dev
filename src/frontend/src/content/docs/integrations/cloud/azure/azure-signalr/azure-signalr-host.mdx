@@ -19,7 +19,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure SignalR Service hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure SignalR Service resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure SignalR Service hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure SignalR Service resource in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure SignalR Service integration, start with the [Get started with the Azure SignalR Service integration](/integrations/cloud/azure/azure-signalr/azure-signalr-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure SignalR Service](../azure-signalr-connect/).
 
@@ -50,6 +50,27 @@ Or, choose a manual installation approach:
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-signalr
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure SignalR Service hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.SignalR": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
 
 ```bash title="Terminal"
 aspire add azure-signalr
@@ -105,6 +126,29 @@ await builder.addProject("api", "../ApiService/ApiService.csproj")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+signalR := builder.AddAzureSignalR("signalr")
+
+builder.AddGoApp("api", "./api").
+	WithReference(signalR).
+	WaitFor(signalR)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -189,6 +233,31 @@ await builder.build().run();
 </Aside>
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+The Go `AddAzureSignalR` API doesn't expose a service mode parameter. To configure Serverless mode in a Go AppHost, use `ConfigureInfrastructure` to modify the generated Bicep:
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+signalR := builder.AddAzureSignalR("signalr")
+signalR.ConfigureInfrastructure(func(infra aspire.AzureResourceInfrastructure) {
+	// Use infra to customize the generated Bicep.
+})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 :::important
@@ -236,6 +305,30 @@ await builder.addProject("api", "../ApiService/ApiService.csproj")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+signalR := builder.AddAzureSignalR("signalr").
+	RunAsEmulator()
+
+builder.AddGoApp("api", "./api").
+	WithReference(signalR).
+	WaitFor(signalR)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 The `RunAsEmulator` call configures the Azure SignalR Service resource to use the `mcr.microsoft.com/signalr/signalr-emulator:latest` container image for local development. The emulator is started when the AppHost runs and stopped when it stops.
@@ -280,6 +373,31 @@ await builder.addProject("api", "../ApiService/ApiService.csproj")
     .withReference(signalR);
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingName := builder.AddParameter("existingSignalRName")
+existingRG := builder.AddParameter("existingSignalRResourceGroup")
+
+signalR := builder.AddAzureSignalR("signalr").
+	AsExisting(existingName, aspire.AsExistingResourceGroup(existingRG))
+
+builder.AddGoApp("api", "./api").
+	WithReference(signalR)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -399,6 +517,27 @@ await builder.addAzureSignalR("signalr")
     });
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddAzureSignalR("signalr").
+	ConfigureInfrastructure(func(infra aspire.AzureResourceInfrastructure) {
+		// Use infra to customize the generated Bicep.
+	})
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>

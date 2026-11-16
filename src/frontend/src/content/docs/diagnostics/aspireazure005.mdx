@@ -1,0 +1,76 @@
+---
+title: Compiler Error ASPIREAZURE005
+seoTitle: "ASPIREAZURE005: Output reference providers are experimental"
+description: Learn what causes the Aspire compiler error ASPIREAZURE005 and how to suppress it when you implement the experimental IBicepOutputReferenceProvider interface.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 17.0"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> 'Aspire.Hosting.Azure.IBicepOutputReferenceProvider' is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+The `IBicepOutputReferenceProvider` interface represents a value that's published as a Bicep output reference, even though the output isn't known when the value is created. For example, a value might refer to the client ID of a managed identity that Aspire creates only while it prepares the app model for publishing. The interface has a single method, `GetOutputReference`, which returns the `BicepOutputReference` to use, or `null` when no output is available. Azure publishers treat a value that implements this interface as the output that it returns.
+
+This interface is experimental and might change in future releases. The C# compiler reports `ASPIREAZURE005` when your code uses it.
+
+## Example
+
+The following code generates `ASPIREAZURE005`:
+
+```csharp title="DeferredOutputValue.cs"
+using Aspire.Hosting.Azure;
+
+// Implementing IBicepOutputReferenceProvider generates ASPIREAZURE005
+internal sealed class DeferredOutputValue(Func<BicepOutputReference?> resolve)
+    : IBicepOutputReferenceProvider
+{
+    public BicepOutputReference? GetOutputReference() => resolve();
+}
+```
+
+TypeScript AppHosts can't use this interface, so they don't report this diagnostic.
+
+## To correct this error
+
+Suppress the error with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREAZURE005.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREAZURE005</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Add the following property directive to a file-based AppHost:
+
+  ```csharp title="AppHost.cs"
+  #:property NoWarn=ASPIREAZURE005
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREAZURE005` directive:
+
+  ```csharp title="Suppressing the error"
+  #pragma warning disable ASPIREAZURE005
+  internal sealed class DeferredOutputValue(Func<BicepOutputReference?> resolve)
+      : IBicepOutputReferenceProvider
+  {
+      public BicepOutputReference? GetOutputReference() => resolve();
+  }
+  #pragma warning restore ASPIREAZURE005
+  ```

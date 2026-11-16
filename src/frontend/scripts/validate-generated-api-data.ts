@@ -7,6 +7,7 @@ import { readEnumDeclarations } from './supplement-ats-enums';
 interface CatalogEntry {
   title: string;
   version: string;
+  apiReference?: boolean;
 }
 
 interface PackageMetadata {
@@ -91,6 +92,14 @@ export interface ValidationInput {
   packages: GeneratedFile<PackageJson>[];
   modules: GeneratedFile<TsModuleJson>[];
   declarations: string;
+  failures?: ApiGenerationFailure[];
+}
+
+export interface ApiGenerationFailure {
+  name: string;
+  version: string;
+  stage: 'C#' | 'TypeScript';
+  reason: string;
 }
 
 export interface ValidationResult {
@@ -376,8 +385,23 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     errors
   );
 
+  const failedPackages = new Set<string>();
+  for (const failure of input.failures ?? []) {
+    if (
+      !failure.reason?.trim() ||
+      !['C#', 'TypeScript'].includes(failure.stage) ||
+      catalogByName.get(failure.name)?.version !== failure.version
+    ) {
+      errors.push(
+        `Invalid or outdated API generation failure for ${failure.name}@${failure.version}.`
+      );
+    } else {
+      failedPackages.add(failure.name);
+    }
+  }
   for (const entry of input.catalog) {
-    if (!isPackageOutputExpected(entry.title)) continue;
+    if (!isPackageOutputExpected(entry.title) || entry.apiReference === false) continue;
+    if (failedPackages.has(entry.title)) continue;
     const key = `${entry.title}@${entry.version}`;
     if (!packageByIdentity.has(key)) {
       errors.push(`Missing C# API output for catalog package ${key}.`);
@@ -389,7 +413,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     const catalogEntry = catalogByName.get(metadata.name);
     if (!catalogEntry) {
       errors.push(`C# API output ${identity(metadata)} is not present in the integration catalog.`);
-    } else if (catalogEntry.version !== metadata.version) {
+    } else if (catalogEntry.version !== metadata.version && !failedPackages.has(metadata.name)) {
       errors.push(
         `Stale C# API output ${identity(metadata)}; catalog version is ${catalogEntry.version}.`
       );
@@ -427,7 +451,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
       errors.push(
         `TypeScript API output ${identity(metadata)} is not present in the integration catalog.`
       );
-    } else if (catalogEntry.version !== metadata.version) {
+    } else if (catalogEntry.version !== metadata.version && !failedPackages.has(metadata.name)) {
       errors.push(
         `Stale TypeScript API output ${identity(metadata)}; catalog version is ${catalogEntry.version}.`
       );
@@ -573,6 +597,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
       `${selectedDtos.size} DTO shapes checked`,
       `${selectedHandles.size} handle inheritance chains checked`,
       'attribute payload regressions checked against HEAD',
+      `${failedPackages.size} failed package updates deferred (see api-generation-failures.json)`,
     ],
   };
 }
@@ -666,6 +691,9 @@ function main(): void {
     packages: loadJsonFiles<PackageJson>(packageDir, canonicalPackageDir),
     modules: loadJsonFiles<TsModuleJson>(moduleDir),
     declarations: fs.readFileSync(declarationsFile, 'utf8'),
+    failures: JSON.parse(
+      fs.readFileSync(path.join(dataDir, 'api-generation-failures.json'), 'utf8')
+    ) as ApiGenerationFailure[],
   });
 
   if (result.errors.length > 0) {

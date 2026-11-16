@@ -33,7 +33,7 @@ This command is useful for troubleshooting when you encounter issues with Aspire
 - **AppHost checks**: Reports the AppHost Aspire SDK version when an AppHost project is present in the current directory
 - **SDK checks**: Reports .NET SDK availability and version
 - **Container checks**: Validates container runtime availability, running status, and version. On Windows, this includes WSLc in addition to Docker and Podman; on other platforms only Docker and Podman are checked. Marks the active runtime `← active`, or `← explicitly selected` when chosen via `ASPIRE_CONTAINER_RUNTIME`
-- **Environment checks**: Reports operating system information (type, version, and Linux distro details when available) and validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
+- **Environment checks**: Reports operating system information (type, version, and Linux distro details when available) and validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun) and the Go toolchain required by Go AppHosts
 - **Development tools checks**: When VS Code is detected, reports whether the [Aspire VS Code extension](https://aka.ms/aspire/vscode-extension) is installed
 
 <Aside type="note">
@@ -45,6 +45,15 @@ This command is useful for troubleshooting when you encounter issues with Aspire
   (`microsoft-aspire.aspire-vscode`) isn't installed, `aspire doctor` reports a
   warning with a link to install it from the Marketplace. When the extension is
   already installed, the check passes.
+</Aside>
+
+<Aside type="note">
+  When the AppHost is a Go AppHost (the configured AppHost, or an `apphost.go`
+  file in the current directory), `aspire doctor` checks for Go 1.26 or later.
+  The check fails when `go` isn't on `PATH`, when Go is older than 1.21, or when
+  Go is older than 1.26 and `GOTOOLCHAIN` is `local`. For Go 1.21 through 1.25,
+  it reports a warning because Go has to switch to a newer toolchain: it
+  downloads one unless `GOTOOLCHAIN` limits it to toolchains already on `PATH`.
 </Aside>
 
 <Aside type="note">

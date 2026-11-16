@@ -10,7 +10,10 @@ import integrationDocs from '@data/integration-docs.json';
 import {
   DEFAULT_NUGET_ICON_URL,
   ASPIRE_RELEASE_ICON_URL,
+  THIRD_PARTY_PACKAGES,
+  filterAndTransform,
   getOfficialAspireDefaultIconPackages,
+  parseNuGetPageDownloads,
   reconcileIntegrationDocs,
   reconcileReleaseBranchCatalog,
   resolveIconUrl,
@@ -115,6 +118,12 @@ describe('release package version pinning', () => {
     expect(selectPreferredPackageVersion([leaf(pin), leaf('14.0.0-preview.1')])).toBe(
       '14.0.0-preview.1'
     );
+  });
+
+  test('selects the newest prerelease when a package prefers it over older stable', () => {
+    expect(
+      selectPreferredPackageVersion([leaf('9.7.2'), leaf('13.6.2-beta.959')], undefined, true)
+    ).toBe('13.6.2-beta.959');
   });
 
   test('does not substitute another version when the requested build is absent', () => {
@@ -321,9 +330,9 @@ describe('integration update automation', () => {
   });
 
   test('validates updated mappings before checking for changes or regenerating APIs', () => {
-    const validationIndex = script.indexOf('& pnpm run test:unit:structured-data');
+    const validationIndex = script.indexOf('& bun run test:unit:structured-data');
 
-    expect(validationIndex).toBeGreaterThan(script.indexOf('& pnpm run update:all'));
+    expect(validationIndex).toBeGreaterThan(script.indexOf('& bun run update:all'));
     expect(validationIndex).toBeLessThan(script.indexOf('if (-not $anyChanges)'));
     expect(script.slice(validationIndex)).toMatch(
       /test:unit:structured-data\s+if \(\$LASTEXITCODE -ne 0\) \{[^}]*exit 1/
@@ -341,7 +350,7 @@ describe('integration update automation', () => {
     const allowedPaths = script.match(/\$AllowedPaths = @\(([\s\S]*?)\)/)?.[1];
     const stagedPaths = workflow.match(/git add -- \\[\s\S]*?\r?\n\r?\n/)?.[0];
 
-    expect(packageJson.scripts['update:all']).toContain('pnpm update:schemas');
+    expect(packageJson.scripts['update:all']).toContain('bun run update:schemas');
     expect(structuredDataConfig).toContain("'tests/unit/cli-config-schema.vitest.test.ts'");
     expect(allowedPaths).toContain("'src/frontend/src/data/schemas/'");
     expect(stagedPaths).toContain('src/frontend/src/data/schemas');
@@ -354,9 +363,7 @@ describe('integration update automation', () => {
       "$publishedSchemaPattern = '^src/frontend/src/data/schemas/aspire-config\\..+\\.schema\\.json$'"
     );
     expect(scopeCheck).toContain("$isNewFile = $statusCode -eq '??' -or $statusCode[0] -eq 'A'");
-    expect(scopeCheck).toMatch(
-      /if \(\$changedPublishedSchemas\.Count -gt 0\) \{[^}]*exit 1/
-    );
+    expect(scopeCheck).toMatch(/if \(\$changedPublishedSchemas\.Count -gt 0\) \{[^}]*exit 1/);
     expect(scopeCheck.indexOf('$changedPublishedSchemas.Count -gt 0')).toBeLessThan(
       scopeCheck.indexOf('All changes are within the allowed data paths.')
     );
@@ -407,6 +414,61 @@ describe('Community Toolkit documentation mappings', () => {
       .map(({ match, href }) => `${match}: ${href}`);
 
     expect(invalidDestinations).toEqual([]);
+  });
+});
+
+describe('third-party integration allow list', () => {
+  const record = (id: string, overrides: Record<string, unknown> = {}) => ({
+    id,
+    version: '1.0.0',
+    verified: true,
+    ...overrides,
+  });
+
+  test('keeps allow-listed packages outside the Aspire ID prefixes', () => {
+    const titles = filterAndTransform([
+      record('Particular.Aspire.Hosting.ServicePlatform'),
+      record('Contoso.Aspire.Hosting.Other'),
+    ]).map(({ title }) => title);
+
+    expect(titles).toEqual(['Particular.Aspire.Hosting.ServicePlatform']);
+  });
+
+  test('still rejects allow-listed packages that are unverified or deprecated', () => {
+    const titles = filterAndTransform([
+      record('Particular.Aspire.Hosting.ServicePlatform', { verified: false }),
+      record('Particular.Aspire.Hosting.ServicePlatform', { deprecated: true }),
+    ]);
+
+    expect(titles).toEqual([]);
+  });
+
+  test('marks allow-listed packages as excluded from API reference generation', () => {
+    const [entry] = filterAndTransform([
+      record('Particular.Aspire.Hosting.ServicePlatform'),
+      record('Aspire.Hosting.Redis'),
+    ]);
+    const redis = filterAndTransform([record('Aspire.Hosting.Redis')])[0];
+
+    expect(entry.apiReference).toBe(false);
+    expect(redis).not.toHaveProperty('apiReference');
+  });
+
+  test('sums the per-version downloads listed on the nuget.org package page', () => {
+    const perVersion = [4200, 90, 3];
+    const row = (downloads: number, index: number) =>
+      `<tr class="version-row"><td><a href="/packages/x/${index}">${index}</a></td><td> ${downloads.toLocaleString('en-US')} </td><td>6/16/2026</td></tr>`;
+    const html = `<table><tbody>${perVersion.map(row).join('')}</tbody></table>`;
+
+    expect(parseNuGetPageDownloads(html)).toBe(perVersion.reduce((a, b) => a + b, 0));
+    expect(parseNuGetPageDownloads('<html></html>')).toBeNull();
+  });
+
+  test.each(THIRD_PARTY_PACKAGES)('catalogs %s and links its card to external docs', (id) => {
+    expect(aspireIntegrations.some(({ title }) => title === id)).toBe(true);
+
+    const mapping = integrationDocs.find(({ match }) => match === id);
+    expect(mapping?.href).toMatch(/^https:\/\//);
   });
 });
 

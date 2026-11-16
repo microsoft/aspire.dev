@@ -16,7 +16,7 @@ import { Kbd } from 'starlight-kbd/components';
 import ApiReference from '@components/ApiReference.astro';
 
 The official Aspire extension for [Visual Studio Code](https://code.visualstudio.com/) turns VS Code into a first-class environment for building, debugging, and shipping [polyglot](/get-started/glossary/#polyglot) Aspire apps.
-Press <Kbd windows='F5' /> to build your AppHost, start your resources, and debug supported resource types — including C#, TypeScript, Java, Python, browser apps, and Azure Functions — alongside the Aspire dashboard.
+Press <Kbd windows='F5' /> to build your AppHost, start your resources, and debug supported resource types — including C#, TypeScript, Java, Python, Go, browser apps, and Azure Functions — alongside the Aspire dashboard.
 
 :::note[Prerequisites]
 A recent version of [Visual Studio Code](https://code.visualstudio.com/) and the **Aspire CLI** — install the CLI via the **Aspire: Install Aspire CLI** command from the Command Palette, or follow the [installation guide](/get-started/install-cli/).
@@ -150,12 +150,14 @@ When no AppHost is detected in the workspace, the view's empty state offers a **
 This makes project onboarding discoverable directly from the Aspire pane without requiring the Command Palette.
 :::
 
-Each resource shows its type, state, health summary, and exit code, plus a health-aware icon and a markdown tooltip listing endpoint URLs. Resources with health checks expose an expandable **Health Checks** group; use **Expand all** on the AppHost item to open everything at once. You can right-click a resource to start, stop, or restart it, view its logs, run resource-specific commands, open the dashboard, or open an interactive terminal session (for resources configured with [`WithTerminal()`](/app-host/with-terminal/)).
+Each resource shows its type, state, health summary, and exit code, plus a health-aware icon and a markdown tooltip listing endpoint URLs. Resources with health checks expose an expandable **Health Checks** group; use **Expand all** on the AppHost item to open everything at once. You can right-click a resource to start, stop, or restart it, view its logs, run resource-specific commands, open the dashboard, open the resource's source with **Open resource source** (for resources backed by a source file or project), or open an interactive terminal session (for resources configured with [`WithTerminal()`](/app-host/with-terminal/)).
 
 Expand an idle AppHost or open its right-click menu to select **Deploy AppHost**, **Publish AppHost**, **Run pipeline step**, or **Debug pipeline step**. The pipeline actions prompt you to choose a step. Wait for the operation to finish before starting another for the same AppHost. For launch configuration options, see [Run, debug, and deploy](#run-debug-and-deploy).
 
 :::note[Renamed polling setting]
-`aspire.globalAppHostsPollingInterval` is deprecated. Use `aspire.appHostsPollingInterval` to configure how often the Aspire view polls for running AppHosts.
+`aspire.globalAppHostsPollingInterval` is deprecated. Use `aspire.appHostsPollingInterval` to configure how often the Aspire view polls for running AppHosts and reconciles live status streaming.
+
+The extension only polls and watches resources while the Aspire view or an AppHost editor is visible, or while an extension-owned run or debug session needs data. Background tabs and passive debugger hints don't keep polling alive, and polling resumes immediately at the configured interval when you return to the view.
 :::
 
 :::note[Single-AppHost auto-expansion]
@@ -177,6 +179,8 @@ Enable the **Aspire: Enable Aspire Cli Debug Logging** setting (`aspire.enableAs
 :::
 
 **Aspire: Configure launch.json file** adds a minimal launch configuration `.vscode/launch.json` that supports AppHosts written in any language. AppHosts are discovered automatically in the workspace.
+
+Go AppHosts (`apphost.go`) run and debug the same way, using the [Go extension](https://marketplace.visualstudio.com/items?itemName=golang.go)'s Delve debugger. If the Go extension isn't installed, the Aspire extension shows an error instead of starting the AppHost.
 
 <LearnMore>
 To launch a specific AppHost, configure an [aspire.config.json](/reference/cli/configuration/) with an `appHost.path` property.
@@ -266,6 +270,7 @@ The extension detects each resource's language and attaches the right debugger:
 | Node.js / Browser apps | `js-debug`   | None (built into VS Code)                                                                                                                                                                           |
 | Python                 | `debugpy`    | [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)                                                                                                                      |
 | Java                   | `java`       | [Language Support for Java](https://marketplace.visualstudio.com/items?itemName=redhat.java) and [Debugger for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-debug) |
+| Go                     | `go` (Delve) | [Go](https://marketplace.visualstudio.com/items?itemName=golang.go)                                                                                                                                 |
 | C# / .NET              | `coreclr`    | [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit) (recommended) or [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp)          |
 | Azure Functions, C# / .NET | `coreclr` | [Azure Functions](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azurefunctions) plus [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) |
 | Azure Functions, JavaScript / TypeScript | `js-debug` | None (built into VS Code) |

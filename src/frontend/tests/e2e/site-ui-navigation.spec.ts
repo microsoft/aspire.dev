@@ -67,7 +67,7 @@ for (const fallback of [false, true]) {
       }, fallback);
     });
 
-    test('renders two diagrams once per page/theme across repeat visits and history', async ({
+    test('renders three diagrams once per page/theme across repeat visits and history', async ({
       page,
     }) => {
       test.setTimeout(120000);
@@ -81,7 +81,7 @@ for (const fallback of [false, true]) {
       await page.evaluate(() => Reflect.set(window, '__dependencySession', true));
       const diagrams = page.locator('pre.mermaid');
       const expectRenders = async (count: number) => {
-        await expect(diagrams).toHaveCount(2);
+        await expect(diagrams).toHaveCount(3);
         for (const diagram of await diagrams.all()) {
           await expect(diagram.locator(':scope > svg')).toHaveCount(1, { timeout: 30000 });
           await expect(diagram).toHaveAttribute('data-test-render-count', String(count));

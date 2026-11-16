@@ -8,6 +8,7 @@
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import {
   countGoHandleMembers,
+  getGoModuleDocument,
   getGoModules,
   goModuleSlug,
   groupGoFunctionsByReceiver,
@@ -26,15 +27,20 @@ import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import GoDocText from '@components/api-reference/GoDocText.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 
+interface Props {
+  packageName: string;
+}
+
 export async function getStaticPaths() {
   const packages = await getGoModules();
   return packages.map(pkg => ({
     params: { module: goModuleSlug(pkg.data.package.name) },
-    props: { pkg: pkg.data },
+    props: { packageName: pkg.data.package.name },
   }));
 }
 
-const { pkg } = Astro.props;
+const { packageName } = Astro.props;
+const pkg = await getGoModuleDocument(packageName);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pkgSlug = goModuleSlug(pkg.package.name);
 const isOfficial = pkg.package.name.startsWith('Aspire.');

@@ -50,9 +50,9 @@ test('frontend workflow keeps validation parallel and every shard required', asy
   const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-build.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
   const job = (name: string) => workflow.match(new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [\\w-]+:\\n|$)`))?.[1] ?? '';
   expect(job('validation')).not.toMatch(/^\s+needs:/m);
-  expect(job('validation')).toContain('pnpm lint');
-  expect(job('validation')).toContain('pnpm test:unit');
-  expect(job('build')).not.toContain('pnpm test:unit');
+  expect(job('validation')).toContain('bun run lint');
+  expect(job('validation')).toContain('bun run test:unit');
+  expect(job('build')).not.toContain('bun run test:unit');
   expect(job('e2e')).toMatch(/needs: build/);
   expect(job('e2e')).toContain('shard: [1, 2]');
   for (const project of ['desktop-chromium', 'tablet-chromium', 'mobile-chromium']) {
@@ -61,14 +61,42 @@ test('frontend workflow keeps validation parallel and every shard required', asy
   expect(job('e2e')).toContain('--shard=${{ matrix.shard }}/2');
   expect(job('e2e')).toContain('frontend-blob-report-${{ matrix.project }}-${{ matrix.shard }}');
   expect(job('e2e')).toContain('frontend-test-results-${{ matrix.project }}-${{ matrix.shard }}');
-  expect(job('frontend-gate')).toContain('needs: [build, validation, e2e, report]');
-  expect(job('frontend-gate')).toContain('for result in "$BUILD" "$VALIDATION" "$E2E" "$REPORT"');
+  expect(job('frontend-gate')).toContain('needs: [build, browsable-artifact, validation, e2e, report]');
+  expect(job('frontend-gate')).toContain('for result in "$BUILD" "$BROWSABLE_ARTIFACT" "$VALIDATION" "$E2E" "$REPORT"');
   expect(job('frontend-gate')).toContain('if [[ "$result" != "success" ]]');
   expect(job('frontend-gate')).toContain('exit 1');
   expect(job('report')).toContain('pattern: frontend-blob-report-*');
-  expect(job('build')).toContain('name: frontend-dist');
-  expect(job('build')).toContain('path: src/frontend/dist');
+  // The shards get the site as one zstd tar; the browsable many-file
+  // artifact is uploaded alongside them, not before them.
+  expect(job('build')).toContain('zstd -3 -T0');
+  expect(job('build')).toContain('name: frontend-site');
+  expect(job('build')).not.toContain('name: frontend-dist');
+  expect(job('e2e')).toContain('name: frontend-site');
+  expect(job('e2e')).not.toContain('frontend-dist');
+  expect(job('browsable-artifact')).toMatch(/needs: build/);
+  // Still runs after a failed build that packed the site, for debugging.
+  expect(job('browsable-artifact')).toContain("if: ${{ !cancelled() && needs.build.outputs.site_archive_uploaded == 'true' }}");
+  expect(job('browsable-artifact')).toContain('name: frontend-dist');
+  expect(job('browsable-artifact')).toContain('Upsert PR artifact comment');
   expect(job('build')).toContain('./node_modules/astro/bin/astro.mjs build --mode production');
+});
+
+test('build job restores Astro incremental state keyed on the Bun lockfile and saves it sparingly', async () => {
+  const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-build.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const step = (name: string) => workflow.match(new RegExp(`- name: ${name}\\n([\\s\\S]*?)(?=\\n {6}- name:)`))?.[1];
+  const restoreStep = step('Restore Astro build state');
+  expect(restoreStep).toBeDefined();
+  expect(restoreStep).toContain('uses: actions/cache/restore@');
+  expect(restoreStep).toContain('path: src/frontend/node_modules/.astro');
+  expect(restoreStep).toContain("hashFiles('src/frontend/bun.lock', 'src/frontend/astro.config.mjs', 'src/frontend/patches/*.patch')");
+  expect(restoreStep).toContain('-${{ github.sha }}');
+  expect(restoreStep).toMatch(/restore-keys: \|\n\s+astro-build-\$\{\{ runner\.os \}\}-/);
+  const saveStep = step('Save Astro build state');
+  expect(saveStep).toBeDefined();
+  expect(saveStep).toContain('uses: actions/cache/save@');
+  expect(saveStep).toContain('path: src/frontend/node_modules/.astro');
+  expect(saveStep).toContain('key: ${{ steps.astro_cache.outputs.cache-primary-key }}');
+  expect(saveStep).toContain("if: ${{ success() && (github.event_name == 'push' || steps.astro_cache.outputs.cache-matched-key == '') }}");
 });
 
 test('CPU, timing, output inventories and diagnostic uploads are opt-in only', async () => {
@@ -78,7 +106,7 @@ test('CPU, timing, output inventories and diagnostic uploads are opt-in only', a
   expect(caller).toContain("contains(github.event.pull_request.labels.*.name, 'build-profile')");
   expect(workflow).toContain("BUILD_TIMING: ${{ inputs.profile_build && '1' || '0' }}");
   expect(workflow).toMatch(/if \[\[ "\$PROFILE_BUILD" == "true" \]\]; then\n\s+mkdir -p/);
-  expect(workflow).toMatch(/else\n\s+pnpm build:production\n\s+fi/);
+  expect(workflow).toMatch(/else\n\s+bun run build:production\n\s+fi/);
   expect(workflow).toContain('name: Measure frontend output\n        if: ${{ inputs.profile_build }}');
   expect(workflow).toContain('name: Upload build diagnostics\n        if: ${{ always() && inputs.profile_build }}');
 });

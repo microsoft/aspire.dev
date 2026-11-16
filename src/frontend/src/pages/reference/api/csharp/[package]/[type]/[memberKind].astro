@@ -7,6 +7,7 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
+import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import MemberCard from '@components/api-reference/MemberCard.astro';
 import DocContent from '@components/api-reference/DocContent.astro';
@@ -20,9 +21,14 @@ import {
   shortTypeName,
   typeHref,
   getPackages,
+  getPackageDocument,
+  getPackageType,
   memberDisplayName,
   resolveMemberAnchors,
 } from '@utils/packages';
+import type { PackageMemberRouteProps } from '@utils/packages';
+
+type Props = PackageMemberRouteProps;
 
 /** Reverse map: slug ΓåÆ kind (e.g. 'properties' ΓåÆ 'property'). */
 const slugToKind = Object.fromEntries(
@@ -31,10 +37,11 @@ const slugToKind = Object.fromEntries(
 
 export async function getStaticPaths() {
   const packages = await getPackages();
-  const paths: any[] = [];
+  const paths: Array<{ params: { package: string; type: string; memberKind: string }; props: Props }> = [];
 
   for (const pkg of packages) {
-    for (const t of pkg.data.types) {
+    const cacheKey = apiDocumentCacheKey(pkg.data);
+    for (const [typeIndex, t] of pkg.data.types.entries()) {
       const typeSlug = slugify(t.name, genericArity(t));
       if (!typeSlug) continue;
 
@@ -46,16 +53,16 @@ export async function getStaticPaths() {
         if (!members.some((m: any) => m.kind === kind)) continue;
 
         paths.push({
+          cacheKey,
           params: {
             package: packageSlug(pkg.data.package.name),
             type: typeSlug,
             memberKind: slug,
           },
           props: {
-            pkg: pkg.data,
-            type: t,
-            allTypes: pkg.data.types,
-            kind,
+            packageName: pkg.data.package.name,
+            typeIndex,
+            memberKind: kind,
           },
         });
       }
@@ -65,7 +72,10 @@ export async function getStaticPaths() {
   return paths;
 }
 
-const { pkg, type, allTypes, kind } = Astro.props;
+const { packageName, typeIndex, memberKind: kind } = Astro.props;
+const pkg = await getPackageDocument(packageName);
+const type = getPackageType(pkg, typeIndex);
+const allTypes = pkg.types;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const apiSidebar = await getApiReferenceSidebar({ packageName: pkg.package.name });
 

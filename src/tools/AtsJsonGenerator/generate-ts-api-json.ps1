@@ -1071,6 +1071,7 @@ $failedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
 $skippedPackageNames = [System.Collections.Generic.HashSet[string]]::new(
     [StringComparer]::OrdinalIgnoreCase)
 $toleratedDiagnosticsByPackage = @{}
+$failureReasons = @{}
 $coreOutputFile = $null
 $slowestResult = $null
 $generationStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -1103,6 +1104,9 @@ function Complete-TsModuleResult {
         if ($Result.Status -ne "Succeeded") {
             $script:failed++
             [void]$failedPackageNames.Add($Result.Name)
+            $failureReasons[$Result.Name] = ($Result.Log |
+                Where-Object Kind -eq 'Warning' |
+                Select-Object -Last 1).Text
             return
         }
 
@@ -1130,6 +1134,7 @@ function Complete-TsModuleResult {
             Remove-Item $Result.OutputFile -Force -ErrorAction SilentlyContinue
             $script:failed++
             [void]$failedPackageNames.Add($Result.Name)
+            $failureReasons[$Result.Name] = $_.Exception.Message
         }
     }
 }
@@ -1155,6 +1160,10 @@ Write-Host "══════════════════════�
 Write-Host "Complete: $success succeeded, $failed failed, $skipped skipped" -ForegroundColor $(if ($failed -gt 0) { "Yellow" } else { "Green" })
 if ($failedPackageNames.Count -gt 0) {
     Write-Host "Failed packages: $(($failedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Red
+    foreach ($name in ($failedPackageNames | Sort-Object)) {
+        $reason = $failureReasons[$name] -replace '\r?\n', ' '
+        Write-Host "FAILURE ${name}: $reason" -ForegroundColor Red
+    }
 }
 if ($skippedPackageNames.Count -gt 0) {
     Write-Host "Skipped packages: $(($skippedPackageNames | Sort-Object) -join ', ')" -ForegroundColor Yellow
