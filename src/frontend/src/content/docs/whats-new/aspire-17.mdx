@@ -1,7 +1,7 @@
 ---
 title: "What's new in Aspire 17.0"
 seoTitle: 'Aspire 17.0: New features, updates, and upgrade guidance'
-description: 'Explore new features and improvements in Aspire 17.0, with upgrade guidance and breaking changes to review before updating your apps.'
+description: 'Aspire 17.0 brings a redesigned dashboard, generally available Go AppHosts, a tray companion, stable Kubernetes deployment, and dozens of graduated APIs.'
 sidebar:
   label: Aspire 17.0
   order: 0
@@ -10,10 +10,22 @@ tableOfContents:
   maxHeadingLevel: 2
 ---
 
-import { Icon, Steps } from '@astrojs/starlight/components';
+import { Icon, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-This page tracks changes for the upcoming Aspire 17.0 release.
+Aspire 17.0 puts your resources at the center of a **redesigned dashboard**, with a resource table home page, a dedicated **Terminals** page, and graph export to Mermaid. **Go AppHosts are generally available**, a **tray companion** keeps running AppHosts within reach, and the **Kubernetes deployment packages are stable**. Many APIs that previously required an experimental-warning suppression are now stable, too.
+
+This release introduces:
+
+- A redesigned dashboard with a resource table home page, a Terminals page, Mermaid export, and first-run telemetry guidance.
+- A CLI that adds shell completion, environment-specific secrets, team template, integration, and skill sources, plus a preview tray companion.
+- Generally available Go AppHosts with templates, debugging, `aspire doctor` checks, and SDK export.
+- AppHost updates including optional parameters, browser-origin references, TypeScript Azure Functions, and graduated APIs.
+- New Microsoft Entra ID and Azure API Management integrations.
+- Stable Kubernetes deployment with Helm 4, AKS Standard tier and OS SKU selection, and cert-manager External Account Binding.
+- Integration updates for Azure Web PubSub, Azure Service Bus, Redis output caching, and Deno.
+- Updated default container images, including MongoDB `9.0`, PostgreSQL `18.6`, and Redis `8.10`.
+- …and much more.
 
 We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and the community, or file feedback and issues on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues).
 
@@ -110,6 +122,45 @@ Expand a trace to see the time spent in each service and dependency. This trace 
   light={testShopTracesLight}
   alt="A populated TestShop trace waterfall in Aspire 17.0, with ten nested spans covering frontend, catalog, PostgreSQL, basket, and Redis calls."
 />
+
+### Resource table home page
+
+The dashboard opens to a full-width table of every resource. Select a row, **All resources**, or a tab to drill in. Select the application name in the header to return to the table. Error badges in the resource list now open that resource's structured logs filtered to errors.
+
+Resources also show friendly type labels such as **Redis** or **PostgreSQL Server** in the dashboard and in the **Type** column of `aspire describe`.
+
+For details, see [microsoft/aspire#22188](https://github.com/microsoft/aspire/pull/22188), [microsoft/aspire#21834](https://github.com/microsoft/aspire/pull/21834), and [microsoft/aspire#21279](https://github.com/microsoft/aspire/pull/21279).
+
+### Terminals page
+
+Interactive resource terminals have their own **Terminals** page instead of sharing **Console logs**. The selector lists only terminal-capable resources and their replicas, and terminals resize to fit the available space.
+
+Terminal host resources are always hidden from the resource list. To see them, turn on **Show hidden resources**.
+
+<LearnMore>
+  See [Dashboard terminals](/dashboard/terminals/) for terminal-capable
+  resources and the terminal dock.
+</LearnMore>
+
+### Export the resource graph as Mermaid
+
+Share your app's architecture in a pull request or design doc. Choose **Export as Mermaid** from the resource graph, or generate the same diagram from the CLI:
+
+```bash title="Aspire CLI — Export the resource graph"
+aspire describe --format mermaid
+```
+
+The `aspire resources` alias accepts the same option. Mermaid output can't be combined with `--follow`.
+
+<LearnMore>
+  See [`aspire describe`](/reference/cli/commands/aspire-describe/) for output formats.
+</LearnMore>
+
+### More dashboard improvements
+
+- **Telemetry setup guidance**: Empty **Structured logs**, **Traces**, and **Metrics** pages offer an **Add telemetry** dialog with your dashboard's OTLP endpoints and container guidance.
+- **SQL highlighting**: The text visualizer highlights SQL syntax.
+- **Aspire Outage**: Press <kbd>O</kbd> on the resource graph to play an arcade game where your resources are the enemies. In the optional hard core mode, destroying an enemy really stops its resource.
 
 ## 🛠️ CLI updates
 
@@ -241,6 +292,64 @@ Use `ASPIRE_INIT_SOURCE_PATH` to select a different configuration file within th
   TODO: Add a complete guide to shared configuration sources and their activation environment variables.
 </LearnMore>
 
+### Tray companion (preview)
+
+Keep an eye on every running AppHost without repeatedly running `aspire ps`. The tray companion adds an Aspire icon to the macOS menu bar, the Windows notification area, or a Linux StatusNotifierItem tray, with a shared panel for your local AppHosts:
+
+```bash title="Aspire CLI — Start the tray companion"
+aspire tray start
+```
+
+Stop it with `aspire tray stop`. The tray companion requires a native Aspire CLI installation. Linux support requires a graphical desktop session and GTK 3. Thanks to @tommasodotNET for Linux support in [microsoft/aspire#20764](https://github.com/microsoft/aspire/pull/20764).
+
+<LearnMore>
+  See [`aspire tray`](/reference/cli/commands/aspire-tray/) for platform
+  requirements and subcommands.
+</LearnMore>
+
+### Agent setup by client and scope
+
+`aspire agent init` asks which agents you use, GitHub Copilot, Claude Code, or OpenCode, instead of which skill folders to write. Choose project scope for repository settings or global scope for user settings. The CLI configures the Aspire plugin through each agent's marketplace instead of copying a bundled skills folder into your repository. `aspire new` and `aspire init` use the same selection.
+
+<LearnMore>
+  See [`aspire agent init`](/reference/cli/commands/aspire-agent-init/) for
+  per-agent settings files and scopes.
+</LearnMore>
+
+### More CLI improvements
+
+- **WSLc container runtime**: Set `ASPIRE_CONTAINER_RUNTIME=wslc` on Windows to run, publish, and deploy containers with WSLc. `aspire doctor` checks only the configured runtime and reports features WSLc doesn't support.
+- **Container tunnel base image**: Use a mirrored or customized tunnel image with `aspire config set containerTunnel.baseImage <image>`.
+- **Stricter `aspire destroy`**: The command rejects unknown arguments instead of ignoring them.
+- **Clearer publish guidance**: `dotnet run --operation publish` fails fast and directs you to `aspire publish`.
+
+## 🐹 Go AppHost support
+
+<span id="go-apphost-docs"></span>
+
+Go AppHosts are generally available. You no longer need the `experimentalPolyglotGo` feature flag: create a Go AppHost with `aspire new`, using the `aspire-go-empty` or `aspire-go-starter` template, or add one to an existing app:
+
+```bash title="Aspire CLI — Initialize a Go AppHost"
+aspire init --language go
+```
+
+The starter template includes a Go API, a React frontend, and Redis. Go AppHosts also get first-class tooling:
+
+- **Debugging**: Launch and debug `apphost.go` in VS Code through the Go extension's Delve adapter, and attach the debugger to running Go and .NET resources from the Aspire view.
+- **Environment checks**: `aspire doctor` verifies that Go 1.26 or later is installed.
+- **SDK and API reference**: Export the generated Go SDK's API with `aspire sdk export --language go`, and search Go API reference content with `aspire docs api search <query> --language go`.
+- **Certificates**: On macOS and Windows, Go resources trust development certificates through the system certificate store by default.
+
+The generated Go SDK uses idiomatic option structs and propagates child resource errors through `Build`.
+
+Throughout aspire.dev, the landing page, AppHost builder, and hosting integration articles show `apphost.go` samples next to their C# and TypeScript equivalents. The AppHost language selection stays in sync across the page.
+
+<LearnMore>
+  See [Get started with the Go AppHost](/app-host/go-apphost/) and [Go
+  AppHost conventions](/app-host/go-apphost-conventions/) for option structs,
+  pointer helpers, and error handling.
+</LearnMore>
+
 ## 🧩 AppHost updates
 
 Aspire 17.0 raises its minimum supported .NET version to **.NET 10**. Review your AppHost and Aspire package target frameworks before updating. This requirement doesn't mean every workload orchestrated by Aspire must target .NET 10. For details, see [microsoft/aspire#20614](https://github.com/microsoft/aspire/pull/20614).
@@ -251,6 +360,105 @@ The `Aspire.Hosting.Dotnet` integration now follows stable package versioning fo
   Follow the [17.0 project migration guide on GitHub](https://github.com/microsoft/aspire/blob/a509f094e0ee87d17dc0e1cc9bca84f7ca2623da/docs/migrate-from-addproject.md)
   for project paths, launch profiles, and scenarios that retain the legacy model.
 </LearnMore>
+
+### Optional parameters
+
+Not every parameter needs a value in every environment. Mark a parameter as optional, and Aspire stops prompting for it during `aspire run` and no longer fails publishing when it's unset. An unset optional parameter resolves to `null`, so consumers can fall back to their own defaults.
+
+<Tabs syncKey='aspire-lang'>
+  <TabItem label='TypeScript'>
+
+```typescript title="apphost.ts"
+const messagePrefix = await builder.addParameter('message-prefix').asOptional();
+```
+
+  </TabItem>
+  <TabItem label='C#'>
+
+```csharp title="AppHost.cs"
+var messagePrefix = builder.AddParameter("message-prefix")
+                           .AsOptional();
+```
+
+  </TabItem>
+</Tabs>
+
+Call `AsRequired` to make a parameter required again. In code, `ParameterResource.TryGetCurrentValue` reads a value without prompting, and `SetValueAsync` sets or clears one. The legacy manifest publisher doesn't support optional parameters. See [microsoft/aspire#18108](https://github.com/microsoft/aspire/pull/18108).
+
+<LearnMore>
+  See [External parameters](/fundamentals/external-parameters/) for optional
+  parameter behavior during run and publish.
+</LearnMore>
+
+### Browser origins for CORS and redirects
+
+Endpoints expose `PrimaryBrowserOrigin` and `BrowserOrigins`, deferred values that resolve to the origins a browser actually uses for a resource. They account for `*.dev.localhost` hosts, custom public URLs, and GitHub Codespaces forwarding, so CORS policies and authentication redirects keep working without hard-coded URLs:
+
+```csharp title="AppHost.cs"
+var frontendEndpoint = frontend.GetEndpoint("https");
+
+backend.WithEnvironment("ALLOWED_ORIGINS", frontendEndpoint.BrowserOrigins)
+       .WithEnvironment("FRONTEND_ORIGIN", frontendEndpoint.PrimaryBrowserOrigin);
+```
+
+When you deploy, Docker Compose, Kubernetes, and Radius publishers turn these values into deployment parameters. See [microsoft/aspire#21260](https://github.com/microsoft/aspire/pull/21260).
+
+### TypeScript and JavaScript Azure Functions
+
+`AddAzureFunctionsApp` hosts Azure Functions written in TypeScript or JavaScript. Functions apps can be published as the API for a static website with `PublishAsStaticWebsite`, and the Aspire VS Code extension can debug Node.js Functions. This API is experimental (`ASPIREAZUREFUNCTIONS001`).
+
+```csharp title="AppHost.cs"
+var functions = builder.AddAzureFunctionsApp(
+    "functions", "../functions", AzureFunctionsLanguage.TypeScript);
+```
+
+See [microsoft/aspire#17980](https://github.com/microsoft/aspire/pull/17980) and [microsoft/aspire#20943](https://github.com/microsoft/aspire/pull/20943).
+
+<LearnMore>
+  See [Azure Functions hosting](/integrations/cloud/azure/azure-functions/azure-functions-host/)
+  for Functions app setup.
+</LearnMore>
+
+### Hosting integrations written in TypeScript
+
+You can now author hosting integrations in TypeScript and consume them from polyglot AppHosts, starting with the preview `@aspire/nuxt` package. See [microsoft/aspire#16110](https://github.com/microsoft/aspire/pull/16110).
+
+To try the next-generation AppHost server included in the CLI bundle, opt in through `aspire.config.json`:
+
+```json title="aspire.config.json"
+{
+  "features": {
+    "appHostServerV2": true
+  }
+}
+```
+
+For details, see [microsoft/aspire#20897](https://github.com/microsoft/aspire/pull/20897).
+
+### APIs now stable
+
+The following APIs no longer require you to suppress an experimental diagnostic:
+
+- **File system and user secrets**: `ASPIREFILESYSTEM001` and `ASPIREUSERSECRETS001`.
+- **Pipelines**: `ASPIREPIPELINES001`, `ASPIREPIPELINES002`, and `ASPIREPIPELINES004`.
+- **Probes and commands**: `WithHttpProbe` (`ASPIREPROBES001`) and the `WithRequiredCommand` callback (`ASPIRECOMMAND001`).
+- **Azure**: `ASPIREAZURE001` and Azure Container Apps naming (`ASPIREACANAMING001` and `ASPIREACANAMING002`).
+- **Containers**: The Dockerfile builder (`ASPIREDOCKERFILEBUILDER001`) and compute endpoint mapping (`ASPIRECOMPUTE002`). Compute volume APIs remain experimental.
+- **JavaScript and Deno**: `AddNextJsApp`, `PublishAsStaticWebsite`, `PublishAsNodeServer`, and `PublishAsPackageScript` (`ASPIREJAVASCRIPT001`), plus the Deno APIs (`ASPIREDENO001`).
+- **Integrations**: `WithMcpServer` (`ASPIREMCP001`), connection string APIs (`ASPIRECONNECTIONSTRINGS001`), and the `Aspire.Hosting.Dotnet` package.
+
+### More AppHost improvements
+
+- **Resource traits (experimental)**: `WithTrait`, `WithTags`, and `WithDisplayOrder` attach metadata that tools and the dashboard can use (`ASPIRERESOURCETRAITS001`). See [microsoft/aspire#22206](https://github.com/microsoft/aspire/pull/22206).
+- **Pipeline dependencies**: Custom pipeline steps can depend on deployment-target steps. See [microsoft/aspire#21511](https://github.com/microsoft/aspire/pull/21511).
+- **Output diffing**: `WithOutputDiffing` is available through the standard usings. See [microsoft/aspire#21990](https://github.com/microsoft/aspire/pull/21990).
+- **Idempotent bind mounts**: Repeating an identical `WithBindMount` call is a no-op, and a conflicting target throws. See [microsoft/aspire#21546](https://github.com/microsoft/aspire/pull/21546).
+- **`*.localhost` in containers**: Container references to `*.localhost` hosts are remapped so they resolve inside the container. See [microsoft/aspire#21609](https://github.com/microsoft/aspire/pull/21609).
+- **Interaction availability**: `IInteractionService.IsAvailable` returns `false` during `BeforeStart`, before the dashboard can show prompts. See [microsoft/aspire#21553](https://github.com/microsoft/aspire/pull/21553).
+
+### `Aspire.AppHost.Sdk` is deprecated
+
+C# AppHosts that use the `Aspire.AppHost.Sdk` MSBuild SDK now get warning `ASPIRE012`. The SDK remains available for staged migration. To migrate, switch the project's `Sdk` attribute to `Microsoft.NET.Sdk`, add `PackageReference` items for `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet`, and replace resource `ProjectReference` items with `AddDotnetProject` calls. To silence the warning temporarily, set `SuppressAspireAppHostSdkObsoleteWarning` to `true`. C# AppHosts also require the Aspire CLI bundle; see [ASPIRE013](/diagnostics/aspire013/). For details, see [microsoft/aspire#20867](https://github.com/microsoft/aspire/pull/20867).
 
 ## ✨ New integrations
 
@@ -288,8 +496,27 @@ You can also target an existing Azure Kubernetes Service cluster rather than pro
 
 Azure Front Door can connect to Aspire-provisioned Azure Container Apps and App Service environments through Private Link. This API remains experimental, and the private endpoint connection must be approved before Front Door can reach the workloads. See [microsoft/aspire#21228](https://github.com/microsoft/aspire/pull/21228) and [microsoft/aspire#21396](https://github.com/microsoft/aspire/pull/21396).
 
+### Azure Kubernetes Service
+
+- **Standard tier by default**: New and updated AKS clusters use the Standard control-plane tier, which includes an uptime SLA and adds cost. See [microsoft/aspire#20917](https://github.com/microsoft/aspire/pull/20917).
+- **Node pool OS SKU**: Choose a node OS, such as `AzureLinux`, with `AksNodePoolConfig.OsSku`. See [microsoft/aspire#21118](https://github.com/microsoft/aspire/pull/21118).
+- **Separate identities**: Clusters use separate user-assigned identities for the control plane and kubelet, so images can be pulled from an existing registry in another resource group. See [microsoft/aspire#20919](https://github.com/microsoft/aspire/pull/20919).
+
+### Kubernetes and cert-manager
+
+- **External account binding**: Use ACME providers that require external account binding (EAB) by calling `WithExternalAccountBinding` after `WithAcmeServer`. The HMAC key must be a secret parameter, and it isn't written to published artifacts. See [microsoft/aspire#20918](https://github.com/microsoft/aspire/pull/20918).
+- **File-based environment variables**: Generated manifests support Kubernetes `fileKeyRef` environment variable sources. See [microsoft/aspire#20847](https://github.com/microsoft/aspire/pull/20847).
+- **Container registries in Helm charts**: Published charts honor the container registry configured for each image. See [microsoft/aspire#21121](https://github.com/microsoft/aspire/pull/21121).
+- **Structured manifest fields**: Polyglot AppHosts can pass structured values to `withField` when customizing Kubernetes manifests. See [microsoft/aspire#22107](https://github.com/microsoft/aspire/pull/22107).
+
+### More deployment improvements
+
+- **Dashboard telemetry**: Dashboards in generated Docker Compose files and Helm charts opt out of dashboard usage telemetry with `ASPIRE_DASHBOARD_TELEMETRY_OPTOUT=true`. Your application's OpenTelemetry data isn't affected. See [microsoft/aspire#20906](https://github.com/microsoft/aspire/pull/20906).
+- **Registry cleanup**: The Azure Container Registry `WithPurgeTask` also deletes untagged manifests. Thanks to @codebytes for [microsoft/aspire#21720](https://github.com/microsoft/aspire/pull/21720).
+
 <LearnMore>
   See [Deploy to Kubernetes clusters](/deployment/kubernetes/clusters/),
+  [Azure Kubernetes Service](/deployment/kubernetes/aks/),
   [Azure Container Apps](/deployment/azure/container-apps/), and
   [Azure App Service](/deployment/azure/app-service/) for deployment guidance.
 </LearnMore>
@@ -299,29 +526,15 @@ Azure Front Door can connect to Aspire-provisioned Azure Container Apps and App 
 - Run Azure Web PubSub locally with its emulator using `RunAsEmulator`. Thanks to @vicancy for [microsoft/aspire#20956](https://github.com/microsoft/aspire/pull/20956).
 - Reuse a SQL Server resource for the Azure Service Bus emulator instead of creating a separate instance. Thanks to @thomhurst for [microsoft/aspire#17885](https://github.com/microsoft/aspire/pull/17885).
 - Use Deno hosting APIs without their previous experimental designation. See [microsoft/aspire#22159](https://github.com/microsoft/aspire/pull/22159).
+- Read `Uri` and `HubName` connection properties from Azure Web PubSub hub references. Thanks to @austinaviv for [microsoft/aspire#21098](https://github.com/microsoft/aspire/pull/21098).
+- Use `UseOutputCache` with the Redis output cache integration, which now registers the core output caching services. Thanks to @curllog for [microsoft/aspire#21222](https://github.com/microsoft/aspire/pull/21222).
+- Launch the SQL Server dashboard REPL from Windows checkouts, and select the `sqlcmd` client with `WithRepl(options => options.Command = SqlServerReplCommand.Version17)` for older images. See [microsoft/aspire#20704](https://github.com/microsoft/aspire/pull/20704).
 
 <LearnMore>
   See the [Web PubSub emulator README on GitHub](https://github.com/microsoft/aspire/blob/a509f094e0ee87d17dc0e1cc9bca84f7ca2623da/src/Aspire.Hosting.Azure.WebPubSub/README.md#run-locally-with-the-emulator)
   and [Service Bus emulator README on GitHub](https://github.com/microsoft/aspire/blob/a509f094e0ee87d17dc0e1cc9bca84f7ca2623da/src/Aspire.Hosting.Azure.ServiceBus/README.md#emulator-usage)
   for local configuration, and the [core Deno hosting README on GitHub](https://github.com/microsoft/aspire/blob/a509f094e0ee87d17dc0e1cc9bca84f7ca2623da/src/Aspire.Hosting.JavaScript/README.md#deno-runtime-and-publishing)
   for Deno guidance.
-</LearnMore>
-
-## 🐹 Go AppHost documentation
-
-<span id="go-apphost-docs"></span>
-
-Go joins C# and TypeScript as a documented AppHost language. The landing page, AppHost builder, and hosting integration articles now show `apphost.go` samples next to their C# and TypeScript equivalents, and the AppHost language selection stays in sync across the page.
-
-New and updated Go AppHost guidance:
-
-- [Get started with the Go AppHost](/app-host/go-apphost/) walks through the `aspire-go-starter` template and the generated SDK.
-- [Go AppHost conventions](/app-host/go-apphost-conventions/) covers option structs, pointer helpers, and error handling.
-- Hosting integration articles include Go tabs where the integration is available to Go AppHosts.
-
-<LearnMore>
-  See the [Go AppHost project structure](/app-host/go-apphost/) and the [Go
-  AppHost conventions](/app-host/go-apphost-conventions/) for the full details.
 </LearnMore>
 
 ## 🐳 Default container image updates
@@ -342,6 +555,29 @@ image: "mcr.microsoft.com/aspire/nightly/dashboard:17.0"
 
 Without an explicit override, publishers resolve the dashboard tag from the Aspire product version, so this applies automatically when you publish with Aspire 17.0. This doesn't change the dashboard image repository or switch generated deployments to the `latest` tag.
 
+Hosting integrations also default to newer container image tags:
+
+| Integration image             | Aspire 13.6                          | Aspire 17.0                          |
+| ----------------------------- | ------------------------------------ | ------------------------------------ |
+| Azurite                       | `3.35.0`                             | `3.37.0`                             |
+| Azure Event Hubs emulator     | `2.2.0`                              | `2.2.1`                              |
+| Azure Service Bus emulator    | `2.0.0`                              | `2.0.1`                              |
+| Kusto emulator                | `2026.03.16.1116-2611-994a3c9-master` | `2026.11.06.1252-2644-b905900-master` |
+| Kafka (`confluent-local`)     | `8.2.0`                              | `8.4.0`                              |
+| Keycloak                      | `26.6`                               | `26.8`                               |
+| MongoDB                       | `8.3`                                | `9.0`                                |
+| NATS                          | `2.14`                               | `2.15`                               |
+| Oracle                        | `23.26.1.0`                          | `23.26.3.0`                          |
+| PostgreSQL                    | `18.3`                               | `18.6`                               |
+| pgAdmin                       | `9.15.0`                             | `9.19.0`                             |
+| Qdrant                        | `v1.18.0`                            | `v1.20.0`                            |
+| RabbitMQ                      | `4.3`                                | `4.4`                                |
+| Redis                         | `8.6`                                | `8.10`                               |
+| RedisInsight                  | `3.4`                                | `3.8`                                |
+| Valkey                        | `9.1`                                | `9.2`                                |
+
+MongoDB moves to a new major version. Review the MongoDB 9.0 release notes before updating persistent data volumes, or pin the earlier tag with `WithImageTag`.
+
 ## ⚠️ Breaking changes
 
 <span id="breaking-changes"></span>
@@ -352,6 +588,14 @@ Without an explicit override, publishers resolve the dashboard tag from the Aspi
 | Legacy `Aspire.RabbitMQ.Client.v6` and `Aspire.MongoDB.Driver.v2` packages removed                  | Switch to `Aspire.RabbitMQ.Client` and `Aspire.MongoDB.Driver`, and migrate to the 7.x and 3.x client libraries. |
 | Azure Cosmos DB `configureClientOptions` now receives `IServiceProvider`                            | Add the service-provider parameter to callbacks and rebuild binaries that call these methods.          |
 | Docker Swarm `UpdateConfig.MaxFailureRatio` changed from `string?` to `double?`                    | Assign a number such as `0.3` instead of a string such as `"0.3"`.                                     |
+| `AddCSharpApp` is obsolete                                                                          | Add `Aspire.Hosting.Dotnet` and call `AddDotnetProject`.                                               |
+| `Aspire.AppHost.Sdk` is obsolete (`ASPIRE012`)                                                      | Switch to `Microsoft.NET.Sdk` with explicit Aspire package references.                                 |
+| `TerminalOptions.ShowTerminalHost` removed                                                          | Remove the assignment; terminal hosts are always hidden.                                               |
+| Polyglot feature keys renamed                                                                       | Use `experimentalPolyglotJava`, `experimentalPolyglotGo`, `experimentalPolyglotPython`, or `experimentalPolyglotRust`. |
+| Let's Encrypt cert-manager shortcuts removed                                                        | Call `WithAcmeServer` with the ACME directory URL.                                                     |
+| AKS clusters use user-assigned identities                                                           | Plan for node pool updates and reapply custom permissions.                                             |
+| Polyglot `addNodePool` takes a callback                                                             | Configure the node pool in a callback instead of an options object.                                    |
+| SQL Server REPL no longer discovers older `sqlcmd` paths                                            | Select `SqlServerReplCommand.Version17` for images with only the older client.                         |
 
 ### `ResourceUrlAnnotation.DisplayOrder` is now a property
 
@@ -382,6 +626,7 @@ The service registration calls, `AddRabbitMQClient` and `AddMongoDBClient`, rema
   current client setup guidance. For the removal details, see
   [microsoft/aspire#20608](https://github.com/microsoft/aspire/pull/20608).
 </LearnMore>
+
 ### Azure Cosmos DB client options callback receives a service provider
 
 The `configureClientOptions` parameter on the Azure Cosmos DB client integration now has the type `Action<IServiceProvider, CosmosClientOptions>` instead of `Action<CosmosClientOptions>`. This change applies to the client, container, and database registration methods, including their keyed variants.
@@ -414,3 +659,78 @@ Change string assignments to numeric assignments:
 
 For details, see [microsoft/aspire#21512](https://github.com/microsoft/aspire/pull/21512).
 
+
+### `AddCSharpApp` is obsolete
+
+`AddCSharpApp` now produces compiler warning CS0618. Add the `Aspire.Hosting.Dotnet` package and call `AddDotnetProject` (`addDotnetProject` in TypeScript), which returns a `DotnetProjectResource`:
+
+```bash title="Aspire CLI"
+aspire add Aspire.Hosting.Dotnet
+```
+
+```diff title="AppHost.cs"
+- var api = builder.AddCSharpApp("api", "../Api");
++ var api = builder.AddDotnetProject("api", "../Api");
+```
+
+For details, see [microsoft/aspire#20825](https://github.com/microsoft/aspire/pull/20825).
+
+### `Aspire.AppHost.Sdk` is obsolete
+
+Projects that use `Aspire.AppHost.Sdk` get warning `ASPIRE012`. Follow the migration steps in [`Aspire.AppHost.Sdk` is deprecated](#aspireapphostsdk-is-deprecated), or temporarily set `SuppressAspireAppHostSdkObsoleteWarning` to `true`. For details, see [microsoft/aspire#20867](https://github.com/microsoft/aspire/pull/20867).
+
+### `TerminalOptions.ShowTerminalHost` removed
+
+Terminal host resources are always hidden from the dashboard, so the `ShowTerminalHost` option was removed. Delete any assignments to it. For details, see [microsoft/aspire#20756](https://github.com/microsoft/aspire/pull/20756).
+
+### Polyglot feature keys renamed
+
+The experimental polyglot feature flags no longer use a colon-separated suffix. Update `aspire.config.json` and any `aspire config set` scripts:
+
+| Before                         | After                          |
+| ------------------------------ | ------------------------------ |
+| `experimentalPolyglot:java`    | `experimentalPolyglotJava`     |
+| `experimentalPolyglot:go`      | `experimentalPolyglotGo`       |
+| `experimentalPolyglot:python`  | `experimentalPolyglotPython`   |
+| `experimentalPolyglot:rust`    | `experimentalPolyglotRust`     |
+
+Go AppHosts no longer need a feature flag. For details, see [microsoft/aspire#20481](https://github.com/microsoft/aspire/pull/20481).
+
+### Let's Encrypt cert-manager shortcuts removed
+
+`WithLetsEncryptProduction` and `WithLetsEncryptStaging` were removed, along with the `WithAcmeServer` overload that mixed a literal server URL with a parameter email. Pass the ACME directory URL explicitly, using either two literals or two parameters:
+
+```csharp title="AppHost.cs"
+issuer.WithAcmeServer(
+    "https://acme-v02.api.letsencrypt.org/directory",
+    "admin@contoso.com");
+```
+
+For details, see [microsoft/aspire#20918](https://github.com/microsoft/aspire/pull/20918).
+
+### AKS clusters use user-assigned identities
+
+Aspire-provisioned AKS clusters now use separate user-assigned identities for the control plane and kubelet. When you redeploy an existing cluster, Azure may update its node pools, which can disrupt running workloads. Permissions you granted manually to the previous identities aren't transferred; grant them to the new identities. For details, see [microsoft/aspire#20919](https://github.com/microsoft/aspire/pull/20919).
+
+### Polyglot `addNodePool` takes a callback
+
+In polyglot AppHosts, `addNodePool` configures the pool through a callback instead of an options object. C# AppHosts are unchanged.
+
+```typescript title="apphost.ts"
+await aks.addNodePool('workers', async pool => {
+  pool.minCount = 0;
+});
+```
+
+Python AppHosts use camelCase keys for node pool settings. For details, see [microsoft/aspire#21118](https://github.com/microsoft/aspire/pull/21118).
+
+### SQL Server REPL no longer discovers older `sqlcmd` paths
+
+The SQL Server dashboard REPL now launches `/opt/mssql-tools18/bin/sqlcmd` directly. Images that only include the older `/opt/mssql-tools/bin/sqlcmd` client must select it explicitly:
+
+```csharp title="AppHost.cs"
+builder.AddSqlServer("sql")
+       .WithRepl(options => options.Command = SqlServerReplCommand.Version17);
+```
+
+The default image and parameterless `WithRepl` call are unaffected. For details, see [microsoft/aspire#20704](https://github.com/microsoft/aspire/pull/20704).
