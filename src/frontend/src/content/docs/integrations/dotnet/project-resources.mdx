@@ -224,9 +224,7 @@ await builder.build().run();
 </TabItem>
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
-builder.AddDotnetProject("inventoryservice", "../InventoryService/InventoryService.csproj", &aspire.AddDotnetProjectOptions{
-	Options: &aspire.DotnetProjectOptions{LaunchProfileName: aspire.StringPtr("https")},
-})
+builder.AddDotnetProject("inventoryservice", "../InventoryService/InventoryService.csproj", aspire.AddDotnetProjectOptionsValue(&aspire.DotnetProjectOptions{LaunchProfileName: aspire.StringPtr("https")}))
 ```
 </TabItem>
 </Tabs>
@@ -279,8 +277,8 @@ await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 builder.AddDotnetProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(5066)}).
-	WithHttpsEndpoint(&aspire.WithHttpsEndpointOptions{Port: aspire.IntPtr(7239)})
+	WithHttpEndpoint(aspire.HttpEndpointPort(5066)).
+	WithHttpsEndpoint(aspire.HttpsEndpointPort(7239))
 ```
 </TabItem>
 </Tabs>
@@ -341,12 +339,10 @@ await builder.build().run();
 In a Go AppHost, pass `ExcludeLaunchProfile` and `ExcludeKestrelEndpoints` through `DotnetProjectOptions`:
 
 ```go title="apphost.go"
-builder.AddDotnetProject("inventoryservice", "../InventoryService/InventoryService.csproj", &aspire.AddDotnetProjectOptions{
-	Options: &aspire.DotnetProjectOptions{
-		ExcludeLaunchProfile:    aspire.BoolPtr(true),
-		ExcludeKestrelEndpoints: aspire.BoolPtr(false),
-	},
-}).
+builder.AddDotnetProject("inventoryservice", "../InventoryService/InventoryService.csproj", aspire.AddDotnetProjectOptionsValue(&aspire.DotnetProjectOptions{
+	ExcludeLaunchProfile:    aspire.BoolPtr(true),
+	ExcludeKestrelEndpoints: aspire.BoolPtr(false),
+})).
 	WithHttpsEndpoint()
 ```
 </TabItem>
@@ -413,7 +409,7 @@ await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 builder.AddDotnetProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(5066)}).
+	WithHttpEndpoint(aspire.HttpEndpointPort(5066)).
 	WithReplicas(2)
 ```
 </TabItem>
@@ -451,7 +447,7 @@ await builder.addProject("frontend", "../Networking_Frontend/Networking_Frontend
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 builder.AddDotnetProject("frontend", "../Networking_Frontend/Networking_Frontend.csproj").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(5066)})
+	WithHttpEndpoint(aspire.HttpEndpointPort(5066))
 ```
 </TabItem>
 </Tabs>
@@ -532,10 +528,8 @@ await builder.build().run();
 ```go title="apphost.go"
 builder.AddDotnetProject("apiservice", "../Networking.ApiService/Networking.ApiService.csproj").
 	WithHttpsEndpoint().
-	WithHttpsEndpoint(&aspire.WithHttpsEndpointOptions{
-		Port: aspire.IntPtr(19227),
-		Name: aspire.StringPtr("admin"),
-	}).
+	WithHttpsEndpoint(aspire.HttpsEndpointPort(19227),
+							aspire.HttpsEndpointName("admin")).
 	WithEndpointsInEnvironment([]string{"https"}) // include only "https"; "admin" is excluded
 ```
 </TabItem>

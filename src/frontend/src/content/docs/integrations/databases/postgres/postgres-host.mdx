@@ -366,11 +366,9 @@ if err != nil {
 }
 
 postgres := builder.AddPostgres("postgres").
-	WithPgAdmin(&aspire.WithPgAdminOptions{
-		ConfigureContainer: func(pgAdmin aspire.PgAdminContainerResource) {
-			pgAdmin.WithHostPort(aspire.IntPtr(5050))
-		},
-	})
+	WithPgAdmin(aspire.PgAdminConfigureContainer(func(pgAdmin aspire.PgAdminContainerResource) {
+		pgAdmin.WithHostPort(aspire.IntPtr(5050))
+	}))
 
 postgresdb := postgres.AddDatabase("postgresdb")
 
@@ -494,11 +492,9 @@ if err != nil {
 }
 
 postgres := builder.AddPostgres("postgres").
-	WithPgWeb(&aspire.WithPgWebOptions{
-		ConfigureContainer: func(pgWeb aspire.PgWebContainerResource) {
-			pgWeb.WithHostPort(aspire.IntPtr(5050))
-		},
-	})
+	WithPgWeb(aspire.PgWebConfigureContainer(func(pgWeb aspire.PgWebContainerResource) {
+		pgWeb.WithHostPort(aspire.IntPtr(5050))
+	}))
 
 postgresdb := postgres.AddDatabase("postgresdb")
 
@@ -557,7 +553,7 @@ if err != nil {
 }
 
 postgres := builder.AddPostgres("postgres").
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 postgresdb := postgres.AddDatabase("postgresdb")
 
@@ -628,7 +624,7 @@ if err != nil {
 }
 
 postgres := builder.AddPostgres("postgres").
-	WithDataBindMount("/PostgreSQL/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("/PostgreSQL/Data", aspire.DataBindMountIsReadOnly(false))
 
 postgresdb := postgres.AddDatabase("postgresdb")
 
@@ -754,13 +750,11 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+userName := builder.AddParameter("username", aspire.AddParameterSecret(true))
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-postgres := builder.AddPostgres("postgres", &aspire.AddPostgresOptions{
-	UserName: &userName,
-	Password: &password,
-})
+postgres := builder.AddPostgres("postgres", aspire.AddPostgresUserName(userName),
+	aspire.AddPostgresPassword(password))
 postgresdb := postgres.AddDatabase("postgresdb")
 
 builder.AddGoApp("api", "./api").

@@ -166,8 +166,8 @@ func main() {
 		log.Fatal(aspire.FormatError(err))
 	}
 
-	api := builder.AddGoApp("api", "./api").
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(8080), Env: aspire.StringPtr("PORT")}).
+	builder.AddGoApp("api", "./api").
+		WithHttpEndpoint(aspire.HttpEndpointPort(8080), aspire.HttpEndpointEnv("PORT")).
 		WithExternalHttpEndpoints()
 
 	app, err := builder.Build()
@@ -270,10 +270,8 @@ await builder.build().run();
 <TabItem id='go' label='Go'>
 
 ```go title="apphost.go"
-builder.AddGoApp("api", "./api", &aspire.AddGoAppOptions{
-	PackagePath: aspire.StringPtr("./cmd/server"),
-}).
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+builder.AddGoApp("api", "./api", aspire.AddGoAppPackagePath("./cmd/server")).
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
 ```
 
 </TabItem>
@@ -326,13 +324,11 @@ await builder.build().run();
 <TabItem id='go' label='Go'>
 
 ```go title="apphost.go"
-builder.AddGoApp("api", "./api", &aspire.AddGoAppOptions{
-	PackagePath:  aspire.StringPtr("./cmd/server"),
-	BuildTags:    []string{"netgo", "integration"},
-	LdFlags:      aspire.StringPtr("-X main.version=1.2.3 -s -w"),
-	GcFlags:      aspire.StringPtr("all=-N -l"),
-	RaceDetector: aspire.BoolPtr(true),
-})
+builder.AddGoApp("api", "./api", aspire.AddGoAppPackagePath("./cmd/server"),
+	aspire.AddGoAppBuildTags([]string{"netgo", "integration"}),
+	aspire.AddGoAppLdFlags("-X main.version=1.2.3 -s -w"),
+	aspire.AddGoAppGcFlags("all=-N -l"),
+	aspire.AddGoAppRaceDetector(true))
 ```
 
 </TabItem>
@@ -383,7 +379,7 @@ await builder.build().run();
 ```go title="apphost.go"
 builder.AddGoApp("api", "./api").
 	WithAppArgs([]any{"--config", "dev.yaml"}).
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
 ```
 
 </TabItem>
@@ -438,7 +434,7 @@ builder.AddGoApp("api", "./api").
 	WithModVendor().
 	WithModDownload().
 	WithVetTool().
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
 ```
 
 </TabItem>
@@ -503,7 +499,8 @@ await builder.build().run();
 ```go title="apphost.go"
 builder.AddGoApp("api", "./api").
 	WithDelveServer().
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{	Port: aspire.IntPtr(8080), Env: aspire.StringPtr("PORT")})```
+	WithHttpEndpoint(aspire.HttpEndpointPort(8080), aspire.HttpEndpointEnv("PORT"))
+```
 
 </TabItem>
 </Tabs>
@@ -545,12 +542,12 @@ await api.withDelveServer({
 
 ```go title="apphost.go"
 builder.AddGoApp("api", "./api").
-	WithDelveServer(&aspire.DelveServerOptions{
+	WithDelveServer(aspire.DelveServerOptions2(&aspire.DelveServerOptions{
 		AcceptMultiClient: aspire.BoolPtr(true),
 		ContinueOnStart:   aspire.BoolPtr(true),
 		Log:               aspire.BoolPtr(true),
 		LogOutput:         aspire.StringPtr("rpc,dap,debugger"),
-	})
+	}))
 ```
 
 </TabItem>

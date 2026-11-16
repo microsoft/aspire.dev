@@ -240,11 +240,9 @@ await builder.addNodeApp("api", "./api", "index.js")
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 kafka := builder.AddKafka("kafka").
-	WithKafkaUI(&aspire.WithKafkaUIOptions{
-		ConfigureContainer: func(kafkaUI aspire.KafkaUIContainerResource) {
-			kafkaUI.WithHostPort(aspire.IntPtr(9100))
-		},
-	})
+	WithKafkaUI(aspire.KafkaUIConfigureContainer(func(kafkaUI aspire.KafkaUIContainerResource) {
+		kafkaUI.WithHostPort(aspire.IntPtr(9100))
+	}))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(kafka)
@@ -290,7 +288,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 kafka := builder.AddKafka("kafka").
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(kafka)
@@ -340,7 +338,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 kafka := builder.AddKafka("kafka").
-	WithDataBindMount("/Kafka/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("/Kafka/Data", aspire.DataBindMountIsReadOnly(false))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(kafka)

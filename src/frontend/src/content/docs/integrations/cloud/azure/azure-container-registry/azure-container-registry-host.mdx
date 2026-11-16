@@ -303,7 +303,7 @@ registryName := builder.AddParameter("registryName")
 rgName := builder.AddParameter("rgName")
 
 acr := builder.AddAzureContainerRegistry("my-acr")
-acr.PublishAsExisting(registryName, &aspire.PublishAsExistingOptions{ResourceGroup: rgName})
+acr.PublishAsExisting(registryName, aspire.PublishAsExistingResourceGroup(rgName))
 
 env := builder.AddAzureContainerAppEnvironment("env")
 env.WithAzureContainerRegistry(acr)
@@ -321,7 +321,7 @@ Use `AsExisting` to reference an existing registry in both run and publish modes
 
 ```go title="apphost.go"
 acr := builder.AddAzureContainerRegistry("my-acr")
-acr.AsExisting(registryName, &aspire.AsExistingOptions{ResourceGroup: rgName})
+acr.AsExisting(registryName, aspire.AsExistingResourceGroup(rgName))
 ```
 
 </TabItem>
@@ -437,10 +437,10 @@ if err != nil {
 }
 
 acr := builder.AddAzureContainerRegistry("my-acr")
-acr.WithPurgeTask("0 1 * * *", &aspire.WithPurgeTaskOptions{
-	Ago:  aspire.Float64Ptr(7 * 24 * 60 * 60 * 1000), // 7 days in milliseconds
-	Keep: aspire.IntPtr(5),
-})
+acr.WithPurgeTask("0 1 * * *",
+	aspire.PurgeTaskAgo(7*24*60*60*1000), // 7 days in milliseconds
+	aspire.PurgeTaskKeep(5),
+)
 
 app, err := builder.Build()
 if err != nil {
@@ -487,15 +487,11 @@ await acr.withPurgeTask("0 2 * * 0", {
 
 ```go title="Multiple purge tasks"
 acr := builder.AddAzureContainerRegistry("my-acr")
-acr.WithPurgeTask("0 1 * * *", &aspire.WithPurgeTaskOptions{
-	Filter: aspire.StringPtr("app1:.*"),
-	Keep:   aspire.IntPtr(3),
-})
-acr.WithPurgeTask("0 2 * * 0", &aspire.WithPurgeTaskOptions{
-	Filter: aspire.StringPtr("app2:.*"),
-	Ago:    aspire.Float64Ptr(30 * 24 * 60 * 60 * 1000),
-	Keep:   aspire.IntPtr(10),
-})
+acr.WithPurgeTask("0 1 * * *", aspire.PurgeTaskFilter("app1:.*"),
+	aspire.PurgeTaskKeep(3))
+acr.WithPurgeTask("0 2 * * 0", aspire.PurgeTaskFilter("app2:.*"),
+	aspire.PurgeTaskAgo(30*24*60*60*1000),
+	aspire.PurgeTaskKeep(10))
 ```
 
 </TabItem>

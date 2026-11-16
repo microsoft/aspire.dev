@@ -193,7 +193,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 rabbitmq := builder.AddRabbitMQ("messaging").
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(rabbitmq)
@@ -243,7 +243,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 rabbitmq := builder.AddRabbitMQ("messaging").
-	WithDataBindMount("/RabbitMQ/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("/RabbitMQ/Data", aspire.DataBindMountIsReadOnly(false))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(rabbitmq)
@@ -298,13 +298,11 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
-userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+userName := builder.AddParameter("username", aspire.AddParameterSecret(true))
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-rabbitmq := builder.AddRabbitMQ("messaging", &aspire.AddRabbitMQOptions{
-	UserName: &userName,
-	Password: &password,
-})
+rabbitmq := builder.AddRabbitMQ("messaging", aspire.AddRabbitMQUserName(userName),
+	aspire.AddRabbitMQPassword(password))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(rabbitmq)
@@ -357,13 +355,11 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
-userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+userName := builder.AddParameter("username", aspire.AddParameterSecret(true))
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-rabbitmq := builder.AddRabbitMQ("messaging", &aspire.AddRabbitMQOptions{
-	UserName: &userName,
-	Password: &password,
-}).WithManagementPlugin()
+rabbitmq := builder.AddRabbitMQ("messaging", aspire.AddRabbitMQUserName(userName),
+	aspire.AddRabbitMQPassword(password)).WithManagementPlugin()
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(rabbitmq)
@@ -392,7 +388,7 @@ await rabbitmq.withManagementPlugin({ port: 15672 });
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 rabbitmq := builder.AddRabbitMQ("messaging").
-	WithManagementPlugin(&aspire.WithManagementPluginOptions{Port: aspire.IntPtr(15672)})
+	WithManagementPlugin(aspire.ManagementPluginPort(15672))
 ```
 </TabItem>
 </Tabs>

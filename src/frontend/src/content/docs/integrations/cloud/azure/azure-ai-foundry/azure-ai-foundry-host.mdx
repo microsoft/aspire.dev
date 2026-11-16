@@ -603,10 +603,8 @@ approvalMode := aspire.FoundryToolboxMcpGlobalApprovalModeAlways
 
 toolbox := project.AddToolbox("field-tools").
 	WithDescription("Tools for field technicians.").
-	WithWebSearchTool(&aspire.WithWebSearchToolOptions{
-		Name:        aspire.StringPtr("web-search"),
-		Description: aspire.StringPtr("Search the public web."),
-	}).
+	WithWebSearchTool(aspire.WebSearchToolName("web-search"),
+		aspire.WebSearchToolDescription("Search the public web.")).
 	WithMcpTool("inventory", "https://inventory.example.com/mcp", aspire.McpToolOptions(&aspire.FoundryToolboxMcpToolOptions{
 		ServerDescription: aspire.StringPtr("Inventory MCP server."),
 		ApprovalPolicy: &aspire.FoundryToolboxMcpApprovalPolicy{
@@ -750,7 +748,7 @@ agentPython := builder.AddPythonApp("agent-python", "../agent", "main:app").
 agentPython.AsHostedAgent(project)
 
 agentDotnet := builder.AddDotnetProject("agent-dotnet", "../Agent/Agent.csproj").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(9000)}).
+	WithHttpEndpoint(aspire.HttpEndpointTargetPort(9000)).
 	WithReference(project).
 	WithReference(chat)
 agentDotnet.AsHostedAgent(project)
@@ -813,7 +811,7 @@ await dotnetWeatherAgent.asHostedAgent(project);
 
 ```go
 dotnetWeatherAgent := builder.AddDotnetProject("weather-agent-dotnet", "../WeatherAgent.Dotnet/WeatherAgent.Dotnet.csproj").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(9000)}).
+	WithHttpEndpoint(aspire.HttpEndpointTargetPort(9000)).
 	WithReference(project).
 	WaitFor(project).
 	WithReference(chat).
@@ -943,19 +941,15 @@ if err != nil {
 
 foundry := builder.AddFoundry("foundry")
 project := foundry.AddProject("my-project")
-chat := project.AddModelDeployment("chat", "gpt-5-mini", &aspire.AddModelDeploymentOptions{
-	ModelVersion: aspire.StringPtr("2025-06-01"),
-	Format:       aspire.StringPtr("OpenAI"),
-})
+chat := project.AddModelDeployment("chat", "gpt-5-mini", aspire.AddModelDeploymentModelVersion("2025-06-01"),
+	aspire.AddModelDeploymentFormat("OpenAI"))
 
 webSearch := project.AddWebSearchTool("web-search")
 
-project.AddPromptAgent("web-researcher", chat, &aspire.AddPromptAgentOptions{
-	Instructions: aspire.StringPtr(`
+project.AddPromptAgent("web-researcher", chat, aspire.AddPromptAgentInstructions(`
 You are the Web Researcher. Use web search for current information,
 cite sources, summarize tradeoffs, and keep answers concise and practical.
-`),
-}).
+`)).
 	WithTool(webSearch)
 
 app, err := builder.Build()
@@ -1058,7 +1052,7 @@ existingFoundryName := builder.AddParameter("existingFoundryName")
 existingFoundryResourceGroup := builder.AddParameter("existingFoundryResourceGroup")
 
 foundry := builder.AddFoundry("foundry").
-	AsExisting(existingFoundryName, &aspire.AsExistingOptions{ResourceGroup: existingFoundryResourceGroup})
+	AsExisting(existingFoundryName, aspire.AsExistingResourceGroup(existingFoundryResourceGroup))
 
 api := builder.AddGoApp("api", "./api").
 	WithReference(foundry)
@@ -1219,12 +1213,10 @@ const chat = await foundry
 
 ```go title="apphost.go"
 foundry := builder.AddFoundry("foundry").
-	RunAsFoundryLocal(&aspire.RunAsFoundryLocalOptions{Endpoint: aspire.StringPtr("http://windows-host:5273")})
+	RunAsFoundryLocal(aspire.RunAsFoundryLocalEndpoint("http://windows-host:5273"))
 
-chat := foundry.AddDeployment("chat", "Phi-3.5-mini-instruct", &aspire.AddDeploymentOptions{
-	ModelVersion: aspire.StringPtr("1"),
-	Format:       aspire.StringPtr("Microsoft"),
-}).
+chat := foundry.AddDeployment("chat", "Phi-3.5-mini-instruct", aspire.AddDeploymentModelVersion("1"),
+	aspire.AddDeploymentFormat("Microsoft")).
 	SetLocalModelId(aspire.StringPtr("Phi-3.5-mini-instruct-generic-gpu:1"))
 ```
 

@@ -234,9 +234,7 @@ await api.withFlociGcpReference(gcp).waitFor(gcp);
 <TabItem id='go' label='Go'>
 
 ```go title="apphost.go"
-gcp := builder.AddFlociGcp("floci-gcp", &aspire.AddFlociGcpOptions{
-	DefaultProjectId: aspire.StringPtr("my-project"),
-})
+gcp := builder.AddFlociGcp("floci-gcp", aspire.AddFlociGcpDefaultProjectId("my-project"))
 
 api := builder.AddDotnetProject("api", "../Api/Api.csproj")
 api.WithFlociGcpReference(gcp).WaitFor(gcp)
@@ -285,10 +283,8 @@ const aws = await builder.addFlociAws('floci-aws', {
 <TabItem id='go' label='Go'>
 
 ```go title="apphost.go"
-aws := builder.AddFlociAws("floci-aws", &aspire.AddFlociAwsOptions{
-	DefaultRegion:    aspire.StringPtr("eu-west-1"),
-	DefaultAccountId: aspire.StringPtr("123456789012"),
-})
+aws := builder.AddFlociAws("floci-aws", aspire.AddFlociAwsDefaultRegion("eu-west-1"),
+	aspire.AddFlociAwsDefaultAccountId("123456789012"))
 ```
 
 </TabItem>
@@ -322,9 +318,7 @@ const gcp = await builder.addFlociGcp('floci-gcp', {
 <TabItem id='go' label='Go'>
 
 ```go title="apphost.go"
-gcp := builder.AddFlociGcp("floci-gcp", &aspire.AddFlociGcpOptions{
-	DefaultProjectId: aspire.StringPtr("my-project"),
-})
+gcp := builder.AddFlociGcp("floci-gcp", aspire.AddFlociGcpDefaultProjectId("my-project"))
 ```
 
 </TabItem>
@@ -408,9 +402,7 @@ await aws.withDockerSocket({ socketPath: '/run/user/1000/podman/podman.sock' });
 
 ```go title="apphost.go"
 aws := builder.AddFlociAws("floci-aws")
-aws.WithDockerSocket(&aspire.WithDockerSocketOptions{
-	SocketPath: aspire.StringPtr("/run/user/1000/podman/podman.sock"),
-})
+aws.WithDockerSocket(aspire.DockerSocketSocketPath("/run/user/1000/podman/podman.sock"))
 ```
 
 </TabItem>
@@ -630,12 +622,10 @@ await floci.withFlociUI({
 
 ```go title="apphost.go"
 floci := builder.AddFlociAws("floci")
-floci.WithFlociUI(&aspire.WithFlociUIOptions{
-	ContainerName: aspire.StringPtr("my-floci-ui"),
-	ConfigureContainer: func(ui aspire.FlociUIContainerResource) {
+floci.WithFlociUI(aspire.FlociUIContainerName("my-floci-ui"),
+	aspire.FlociUIConfigureContainer(func(ui aspire.FlociUIContainerResource) {
 		ui.WithHostPort(aspire.IntPtr(14500))
-	},
-})
+	}))
 ```
 
 </TabItem>
@@ -694,12 +684,10 @@ aws := builder.AddFlociAws("floci-aws")
 azure := builder.AddFlociAzure("floci-az")
 gcp := builder.AddFlociGcp("floci-gcp")
 
-aws.WithFlociUI(&aspire.WithFlociUIOptions{
-	ConfigureContainer: func(ui aspire.FlociUIContainerResource) {
-		ui.WithAzureReference(azure)
-		ui.WithGcpReference(gcp)
-	},
-})
+aws.WithFlociUI(aspire.FlociUIConfigureContainer(func(ui aspire.FlociUIContainerResource) {
+	ui.WithAzureReference(azure)
+	ui.WithGcpReference(gcp)
+}))
 ```
 
 </TabItem>

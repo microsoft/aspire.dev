@@ -252,11 +252,9 @@ if err != nil {
 }
 
 cosmos := builder.AddAzureCosmosDB("cosmos-db").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(emulator aspire.AzureCosmosDBEmulatorResource) {
-			emulator.WithGatewayPort(aspire.IntPtr(7777))
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(emulator aspire.AzureCosmosDBEmulatorResource) {
+		emulator.WithGatewayPort(aspire.IntPtr(7777))
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -311,11 +309,9 @@ if err != nil {
 }
 
 cosmos := builder.AddAzureCosmosDB("cosmos-db").
-	RunAsClassicEmulator(&aspire.RunAsClassicEmulatorOptions{
-		ConfigureContainer: func(emulator aspire.AzureCosmosDBEmulatorResource) {
-			emulator.WithPartitionCount(100) // Defaults to 25
-		},
-	})
+	RunAsClassicEmulator(aspire.RunAsClassicEmulatorConfigureContainer(func(emulator aspire.AzureCosmosDBEmulatorResource) {
+		emulator.WithPartitionCount(100) // Defaults to 25
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -366,11 +362,9 @@ if err != nil {
 }
 
 cosmos := builder.AddAzureCosmosDB("cosmos-db").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(emulator aspire.AzureCosmosDBEmulatorResource) {
-			emulator.WithDataVolume()
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(emulator aspire.AzureCosmosDBEmulatorResource) {
+		emulator.WithDataVolume()
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -494,11 +488,9 @@ if err != nil {
 }
 
 cosmos := builder.AddAzureCosmosDB("cosmos-db").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(emulator aspire.AzureCosmosDBEmulatorResource) {
-			emulator.WithDataExplorer()
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(emulator aspire.AzureCosmosDBEmulatorResource) {
+		emulator.WithDataExplorer()
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -558,7 +550,7 @@ existingCosmosName := builder.AddParameter("existingCosmosName")
 existingCosmosRG := builder.AddParameter("existingCosmosResourceGroup")
 
 cosmos := builder.AddAzureCosmosDB("cosmos-db").
-	AsExisting(existingCosmosName, &aspire.AsExistingOptions{ResourceGroup: existingCosmosRG})
+	AsExisting(existingCosmosName, aspire.AsExistingResourceGroup(existingCosmosRG))
 
 api := builder.AddGoApp("api", "./api").
 	WithReference(cosmos)

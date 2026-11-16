@@ -1,7 +1,7 @@
 ---
 title: Go AppHost API conventions
 seoTitle: Go AppHost API conventions for the Aspire SDK
-description: Learn how the generated Aspire Go SDK names methods, passes optional parameters with options structs, reports errors through handles, and cancels a running AppHost.
+description: Learn how the generated Aspire Go SDK names methods, passes typed options, reports errors through handles, and cancels a running AppHost.
 ---
 
 The Aspire CLI generates the Go SDK from the integrations in your `aspire.config.json` file, and every integration follows the same conventions. The examples on this page use a `builder` from `aspire.CreateBuilder()`, as in [Get started with the Go AppHost](/app-host/go-apphost/).
@@ -14,19 +14,28 @@ Methods that add a resource, such as `AddRedis` and `AddGoApp`, return a _handle
 
 ## Optional parameters
 
-Optional parameters go in a trailing variadic options argument. Leave it out to use the defaults. The argument is usually a struct named `<Method>Options`, such as `*aspire.WithHttpEndpointOptions`. Methods with the same name share one struct when their optional parameters match. If they don't match, or if another type already has the name, the name starts with the type that defines the method, such as `*aspire.ExecutableResourceWithVolumeOptions` for `WithVolume` on a Go app. A few methods take an existing type instead, such as `*aspire.DelveServerOptions` for `WithDelveServer`, and that type declares its own field types.
-
-In a `<Method>Options` struct, scalar fields (string, number, bool, and enum) are pointers, so a field that you don't set stays `nil`. Use `aspire.StringPtr`, `aspire.BoolPtr`, `aspire.IntPtr`, and `aspire.Float64Ptr` to create the values. Numeric fields use the type that matches the option: for example, ports are `*int` and durations expressed in milliseconds are `*float64`. Slice, map, callback, and `any` fields can already be `nil`, so they aren't pointers. For example, `AddGoAppOptions.BuildTags` is a `[]string`.
+Optional parameters go in a trailing variadic options argument. Leave it out to use the defaults, or pass typed option values for the settings you want to change. You don't need an options struct or pointer helpers:
 
 ```go title="apphost.go"
 builder.AddGoApp("api", "./api").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
-		Port: aspire.IntPtr(8080),
-		Env:  aspire.StringPtr("PORT"),
-	})
+	WithHttpEndpoint(aspire.HttpEndpointPort(8080), aspire.HttpEndpointEnv("PORT"))
 ```
 
-The [`WithHttpEndpoint` API reference](/reference/api/go/aspire.hosting/withhttpendpoint/) describes each field of `WithHttpEndpointOptions`.
+Option names combine the method name without a leading `With` and the parameter name, such as `HttpEndpointPort`, `HttpEndpointEnv`, and `AddGoAppPackagePath`. Collection and callback options use the same pattern:
+
+```go title="apphost.go"
+builder.AddGoApp("api", "./api",
+	aspire.AddGoAppPackagePath("./cmd/server"),
+	aspire.AddGoAppBuildTags([]string{"netgo", "integration"}),
+	aspire.AddGoAppRaceDetector(true),
+)
+```
+
+Options are applied from left to right. Omitting an option preserves the default; passing `false`, `0`, or `""` explicitly sets that value. If you repeat an option, the last value wins.
+
+The generated SDK still accepts pointer-based options structs for compatibility. DTO inputs that aren't variadic options, such as `AddContainerOptions`, retain their declared field types. Check the generated SDK for the exact types and option names available for your installed integrations.
+
+The [`WithHttpEndpoint` API reference](/reference/api/go/aspire.hosting/withhttpendpoint/) describes the available endpoint settings.
 
 ## Errors
 
@@ -59,7 +68,7 @@ log.Println("AppHost directory:", dir)
 
 ## Cancellation
 
-A method that accepts a cancellation token takes it in its options struct. For example, `aspire.RunOptions` has a `CancellationToken` field. Create a token with `aspire.NewCancellationToken`, pass it in the options, and call its `Cancel` method to cancel the call:
+A method that accepts a cancellation token exposes a typed option for it, such as `aspire.RunCancellationToken`. Create a token with `aspire.NewCancellationToken`, pass it in the options, and call its `Cancel` method to cancel the call:
 
 ```go title="apphost.go"
 app, err := builder.Build()
@@ -71,7 +80,7 @@ if err != nil {
 token := aspire.NewCancellationToken()
 time.AfterFunc(time.Hour, token.Cancel)
 
-if err := app.Run(&aspire.RunOptions{CancellationToken: token}); err != nil {
+if err := app.Run(aspire.RunCancellationToken(token)); err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 ```

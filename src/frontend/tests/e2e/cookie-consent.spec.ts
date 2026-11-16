@@ -282,7 +282,11 @@ test.describe('WCP cookie consent bridge', () => {
       });
       await page.goto('/');
       await waitForConsentBootstrap(page);
+      // Rejecting changes consent, and the bootstrap reloads the page on every consent change.
+      const reloaded = page.waitForEvent('load');
       await dismissCookieConsentIfVisible(page);
+      await reloaded;
+      await waitForConsentBootstrap(page);
       await expect(page.getByRole('region', { name: 'Cookie consent', exact: true })).toBeHidden();
       expect(await page.evaluate(() => sessionStorage.getItem('wcp-test-choice'))).toBe(rejectLabel);
     });
@@ -305,9 +309,14 @@ test.describe('WCP cookie consent bridge', () => {
       element.hidden = false;
     });
 
+    // The locator handler rejects the banner before this click, and that consent change reloads.
+    const reloaded = page.waitForEvent('load');
     await page.locator('.header .site-title').click();
+    await reloaded;
     await expect(banner).toBeHidden();
-    expect(await page.evaluate(() => sessionStorage.getItem('wcp-test-choice'))).toBe('Reject');
+    await expect
+      .poll(() => safeEvaluate(page, () => sessionStorage.getItem('wcp-test-choice')))
+      .toBe('Reject');
   });
 
   test('keeps an unanswered banner and its original callbacks usable across client navigation', async ({

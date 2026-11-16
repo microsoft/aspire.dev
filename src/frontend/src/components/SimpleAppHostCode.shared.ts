@@ -282,7 +282,7 @@ ${apiResource}
 
 	// Add frontend service and reference the API
 	builder.AddViteApp("frontend", "../frontend").
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
 		WithReference(api)
 
 	app, err := builder.Build()
@@ -311,7 +311,7 @@ const nodejsGo = goAppHost(`	api := builder.AddNodeApp("api", "../api", "server.
 		WaitFor(postgres)`);
 
 const golangGo = goAppHost(`	api := builder.AddGoApp("api", "../api").
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
 		WithReference(postgres).
 		WaitFor(postgres)`);
 

@@ -199,7 +199,7 @@ if err != nil {
 }
 
 cache := builder.AddValkey("cache").
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -254,7 +254,7 @@ if err != nil {
 }
 
 cache := builder.AddValkey("cache").
-	WithDataBindMount("/Valkey/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("/Valkey/Data", aspire.DataBindMountIsReadOnly(false))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -319,10 +319,8 @@ if err != nil {
 
 cache := builder.AddValkey("cache").
 	WithDataVolume().
-	WithPersistence(&aspire.WithPersistenceOptions{
-		Interval:             aspire.Float64Ptr(5 * 60 * 1000),
-		KeysChangedThreshold: aspire.Int64Ptr(100),
-	})
+	WithPersistence(aspire.PersistenceInterval(5*60*1000),
+		aspire.PersistenceKeysChangedThreshold(100))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)
@@ -376,12 +374,10 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-cache := builder.AddValkey("cache", &aspire.AddValkeyOptions{
-	Port:     aspire.IntPtr(6379),
-	Password: &password,
-})
+cache := builder.AddValkey("cache", aspire.AddValkeyPort(6379),
+	aspire.AddValkeyPassword(password))
 
 api := builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(cache)

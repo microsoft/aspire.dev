@@ -151,7 +151,7 @@ func main() {
 	builder.AddKubernetesEnvironment("k8s")
 
 	builder.AddNodeApp("api", "./api", "src/index.ts").
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
 		WithExternalHttpEndpoints()
 
 	app, err := builder.Build()
@@ -241,15 +241,13 @@ await k8s.withHelm(async (helm) => {
 
 ```go title="apphost.go"
 k8s := builder.AddKubernetesEnvironment("k8s")
-k8s.WithHelm(&aspire.WithHelmOptions{
-	Configure: func(helm aspire.HelmChartOptions) {
-		helm.WithNamespace("my-namespace")
-		helm.WithReleaseName("my-release")
-		helm.WithChartName("my-aspire-app")
-		helm.WithChartVersion("1.0.0")
-		helm.WithChartDescription("My Aspire application deployed to Kubernetes")
-	},
-})
+k8s.WithHelm(aspire.HelmConfigure(func(helm aspire.HelmChartOptions) {
+	helm.WithNamespace("my-namespace")
+	helm.WithReleaseName("my-release")
+	helm.WithChartName("my-aspire-app")
+	helm.WithChartVersion("1.0.0")
+	helm.WithChartDescription("My Aspire application deployed to Kubernetes")
+}))
 ```
 
 </TabItem>
@@ -351,7 +349,7 @@ pgData.WithStorageClass("managed-csi")
 pgData.WithCapacity("20Gi")
 
 pg := builder.AddPostgres("pg")
-pg.WithDataVolume(&aspire.WithDataVolumeOptions{Name: aspire.StringPtr("pg-data")})
+pg.WithDataVolume(aspire.DataVolumeName("pg-data"))
 pg.WithKubernetesPersistentVolume(pgData)
 ```
 
@@ -580,15 +578,13 @@ await service.publishAsKubernetesService(async (resource) => {
 ```go title="apphost.go"
 service := builder.AddContainer("service", "nginx")
 service.PublishAsKubernetesService(func(resource aspire.KubernetesResource) {
-	resource.AddManifest("cert-manager.io/v1", "Certificate", "service-tls", &aspire.AddManifestOptions{
-		Configure: func(manifest aspire.KubernetesManifestResource) {
-			manifest.WithLabel("example.com/managed-by", "aspire")
-			manifest.WithField("spec.secretName", "service-tls")
-			manifest.WithField("spec.dnsNames", []string{"service.example.com"})
-			manifest.WithField("spec.issuerRef.name", "letsencrypt-prod")
-			manifest.WithField("spec.issuerRef.kind", "ClusterIssuer")
-		},
-	})
+	resource.AddManifest("cert-manager.io/v1", "Certificate", "service-tls", aspire.AddManifestConfigure(func(manifest aspire.KubernetesManifestResource) {
+		manifest.WithLabel("example.com/managed-by", "aspire")
+		manifest.WithField("spec.secretName", "service-tls")
+		manifest.WithField("spec.dnsNames", []string{"service.example.com"})
+		manifest.WithField("spec.issuerRef.name", "letsencrypt-prod")
+		manifest.WithField("spec.issuerRef.kind", "ClusterIssuer")
+	}))
 })
 ```
 </TabItem>

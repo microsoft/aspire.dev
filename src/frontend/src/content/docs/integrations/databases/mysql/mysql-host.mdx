@@ -380,12 +380,10 @@ if err != nil {
 }
 
 mysql := builder.AddMySql("mysql").
-	WithPhpMyAdmin(&aspire.WithPhpMyAdminOptions{
-		ContainerName: aspire.StringPtr("phpmyadmin"),
-		ConfigureContainer: func(phpMyAdmin aspire.PhpMyAdminContainerResource) {
+	WithPhpMyAdmin(aspire.PhpMyAdminContainerName("phpmyadmin"),
+		aspire.PhpMyAdminConfigureContainer(func(phpMyAdmin aspire.PhpMyAdminContainerResource) {
 			phpMyAdmin.WithHostPort(aspire.IntPtr(8080))
-		},
-	})
+		}))
 
 mysqldb := mysql.AddDatabase("mysqldb")
 
@@ -445,7 +443,7 @@ if err != nil {
 }
 
 mysql := builder.AddMySql("mysql").
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 mysqldb := mysql.AddDatabase("mysqldb")
 
@@ -519,7 +517,7 @@ if err != nil {
 }
 
 mysql := builder.AddMySql("mysql").
-	WithDataBindMount("/MySQL/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("/MySQL/Data", aspire.DataBindMountIsReadOnly(false))
 
 mysqldb := mysql.AddDatabase("mysqldb")
 
@@ -648,12 +646,10 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-mysql := builder.AddMySql("mysql", &aspire.AddMySqlOptions{
-	Password: &password,
-	Port:     aspire.IntPtr(3306),
-})
+mysql := builder.AddMySql("mysql", aspire.AddMySqlPassword(password),
+	aspire.AddMySqlPort(3306))
 mysqldb := mysql.AddDatabase("mysqldb")
 
 builder.AddGoApp("api", "./api").

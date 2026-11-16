@@ -311,13 +311,11 @@ if err != nil {
 }
 
 storage := builder.AddAzureStorage("storage").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
-			azurite.WithBlobPort(27000).
-				WithQueuePort(27001).
-				WithTablePort(27002)
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithBlobPort(27000).
+			WithQueuePort(27001).
+			WithTablePort(27002)
+	}))
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -389,11 +387,9 @@ if err != nil {
 }
 
 storage := builder.AddAzureStorage("storage").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
-			azurite.WithLifetime(aspire.ContainerLifetimePersistent)
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithLifetime(aspire.ContainerLifetimePersistent)
+	}))
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -457,11 +453,9 @@ if err != nil {
 }
 
 storage := builder.AddAzureStorage("storage").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
-			azurite.WithDataVolume()
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithDataVolume()
+	}))
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -527,13 +521,9 @@ if err != nil {
 }
 
 storage := builder.AddAzureStorage("storage").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
-			azurite.WithDataBindMount(&aspire.WithDataBindMountOptions{
-				Path: aspire.StringPtr("../azurite/data"),
-			})
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithDataBindMount(aspire.DataBindMountPath("../azurite/data"))
+	}))
 
 // After adding all resources, run the app...
 app, err := builder.Build()

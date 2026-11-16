@@ -195,9 +195,7 @@ if err != nil {
 }
 
 webPubSub := builder.AddAzureWebPubSub("web-pubsub")
-messagesHub := webPubSub.AddHub("messages", &aspire.AddHubOptions{
-	HubName: aspire.StringPtr("messageHub"),
-})
+messagesHub := webPubSub.AddHub("messages", aspire.AddHubHubName("messageHub"))
 
 // After adding all resources, run the app...
 ```
@@ -261,13 +259,9 @@ worker := builder.AddGoApp("worker", "./worker").
 workerEndpoint := worker.GetEndpoint("https")
 
 webPubSub := builder.AddAzureWebPubSub("web-pubsub")
-messagesHub := webPubSub.AddHub("messages", &aspire.AddHubOptions{
-	HubName: aspire.StringPtr("messageHub"),
-})
+messagesHub := webPubSub.AddHub("messages", aspire.AddHubHubName("messageHub"))
 
-messagesHub.AddEventHandler(aspire.RefExpr("{0}", workerEndpoint), &aspire.AddEventHandlerOptions{
-	SystemEvents: []string{"connected"},
-})
+messagesHub.AddEventHandler(aspire.RefExpr("{0}", workerEndpoint), aspire.AddEventHandlerSystemEvents([]string{"connected"}))
 
 // After adding all resources, run the app...
 ```

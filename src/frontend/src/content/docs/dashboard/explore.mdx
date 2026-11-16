@@ -4,7 +4,7 @@ description: Explore Aspire dashboard features — resource graph, console logs,
 ---
 
 import ThemeImage from '@components/ThemeImage.astro';
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import { Kbd } from 'starlight-kbd/components';
 
@@ -280,6 +280,45 @@ Select **Group resources** to group the list by tags, resource type, or state, o
 
 <ThemeImage dark={resourcesGrouped} light={resourcesGroupedLight} alt="A screenshot of the Aspire dashboard Resources page with resources grouped by resource type." />
 
+### Resource display order
+
+By default, the resource list is ordered by resource type and then by name. To change where a resource appears, call `WithDisplayOrder` in the AppHost. It's a relative sort key: resources with a higher value appear first, resources without a value count as `0`, and a negative value moves a resource after them. Resources with the same value are sorted by name. If you reorder resources in the dashboard, your saved order takes precedence.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIRERESOURCETRAITS001
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.Api>("api")
+       .WithDisplayOrder(10);
+
+builder.AddProject<Projects.Worker>("worker")
+       .WithDisplayOrder(5);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addExecutable('api', 'node', '.', ['api.js']).withDisplayOrder(10);
+await builder.addExecutable('worker', 'node', '.', ['worker.js']).withDisplayOrder(5);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+In the preceding example, `api` appears before `worker`, and both appear before resources that don't set a display order. `WithDisplayOrder` is experimental; in C#, suppress the `ASPIRERESOURCETRAITS001` diagnostic to use it.
+
 ### Resource list sidebar
 
 The Graph view and the telemetry pages (Console logs, Structured logs, Traces, and Metrics) show a resource list sidebar. Drag the splitter between the sidebar and the content to resize it. Select **Collapse resource list** to hide it and give the content more room.
@@ -313,6 +352,8 @@ Select **Export as Mermaid** to open the currently visible resource graph as [Me
 ### Resource actions
 
 Each resource has a set of available actions based on its current state, capabilities, and telemetry. For example, if a resource is running, the **Stop** action is enabled. If the resource is stopped, the **Start** action is enabled. Actions that don't apply to a resource may be omitted from its menu.
+
+In the resource list, you can also open a resource's actions by right-clicking its row, or by focusing the row and pressing the <kbd>Context Menu</kbd> key or <Kbd windows="Shift+F10" mac="Shift+F10" linux="Shift+F10" />.
 
 #### Stop or Start a resource
 
@@ -881,13 +922,13 @@ The Graph view on the **Overview** page of the new dashboard includes a small ga
 
 <ThemeImage dark={aspireOutageStart} light={aspireOutageStartLight} alt="The Aspire dashboard Graph view with the Play Aspire Outage button highlighted." />
 
-Choose **Normal** or **Hard** mode:
+Choose **Normal** or **Hard core** mode. In **Hard core** mode, destroying an enemy really stops its resource. Clearing the wave starts the stopped resources again, but they stay stopped if you lose or exit the game; start them again from the Resources page.
 
-<ThemeImage dark={aspireOutageModes} light={aspireOutageModesLight} alt="The Aspire Outage start screen showing the Normal and Hard modes." />
+<ThemeImage dark={aspireOutageModes} light={aspireOutageModesLight} alt="The Aspire Outage start screen showing the Normal and Hard core modes." />
 
 <ThemeImage dark={aspireOutageGameplay} light={aspireOutageGameplayLight} alt="Aspire Outage gameplay." />
 
-Press <Kbd windows="Esc" mac="Esc" linux="Esc" /> to exit the game.
+You can also press <Kbd windows="O" mac="O" linux="O" /> while the graph has focus to start the game. Press <Kbd windows="Esc" mac="Esc" linux="Esc" /> to exit it.
 
 ## Interaction prompts
 

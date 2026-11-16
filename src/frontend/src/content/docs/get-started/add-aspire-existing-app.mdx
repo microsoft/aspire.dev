@@ -716,19 +716,15 @@ func main() {
 	api := builder.AddContainer("api", "ghcr.io/contoso/orders-api:latest").
 		WithReference(db).
 		WithReference(cache).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
-			Port:       aspire.IntPtr(8080),
-			TargetPort: aspire.IntPtr(8080),
-			Name:       aspire.StringPtr("http"),
-		})
+		WithHttpEndpoint(aspire.HttpEndpointPort(8080),
+			aspire.HttpEndpointTargetPort(8080),
+			aspire.HttpEndpointName("http"))
 
 	builder.AddContainer("web", "ghcr.io/contoso/orders-web:latest").
 		WithReference(api).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
-			Port:       aspire.IntPtr(3000),
-			TargetPort: aspire.IntPtr(3000),
-			Name:       aspire.StringPtr("http"),
-		})
+		WithHttpEndpoint(aspire.HttpEndpointPort(3000),
+			aspire.HttpEndpointTargetPort(3000),
+			aspire.HttpEndpointName("http"))
 
 	app, err := builder.Build()
 	if err != nil {
@@ -847,19 +843,15 @@ func main() {
 
 	api := builder.AddDockerfile("api", "./api").
 		WithReference(db).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
-			Port:       aspire.IntPtr(8080),
-			TargetPort: aspire.IntPtr(8080),
-			Name:       aspire.StringPtr("http"),
-		})
+		WithHttpEndpoint(aspire.HttpEndpointPort(8080),
+			aspire.HttpEndpointTargetPort(8080),
+			aspire.HttpEndpointName("http"))
 
 	builder.AddDockerfile("web", "./web").
 		WithReference(api).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
-			Port:       aspire.IntPtr(3000),
-			TargetPort: aspire.IntPtr(3000),
-			Name:       aspire.StringPtr("http"),
-		})
+		WithHttpEndpoint(aspire.HttpEndpointPort(3000),
+			aspire.HttpEndpointTargetPort(3000),
+			aspire.HttpEndpointName("http"))
 
 	app, err := builder.Build()
 	if err != nil {
