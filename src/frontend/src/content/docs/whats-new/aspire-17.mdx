@@ -146,14 +146,29 @@ Bring your team's project scaffolding, hosting packages, and agent guidance into
 
 #### Custom templates
 
-Create apps from your own unpacked .NET templates, stored in a local directory or a Git repository. Register a named source in your global Aspire settings, then select one of its templates in `aspire new`:
+Try templates directly from a Git repository without registering a source. For example, browse the Azure-focused templates in [Azure/aspire-templates](https://github.com/Azure/aspire-templates):
 
-```bash title="Aspire CLI — Register local templates"
-aspire template source add team --path /absolute/path/to/team-templates
+```bash title="Aspire CLI — Try Azure templates"
+aspire new --template-repository https://github.com/Azure/aspire-templates
+```
+
+Fork the repository and customize a template for your team. Push your changes to a branch, then use `--template-repository-ref` to test it before merging:
+
+```bash title="Aspire CLI — Test a template branch"
+aspire new --template-repository https://github.com/example-org/aspire-templates \
+  --template-repository-ref custom-starter
+```
+
+Replace `example-org` with your fork's owner and `custom-starter` with your branch. The ref can also be a tag or full commit SHA; omitting it uses the repository's default branch. Use `--template-path` to select a directory within the repository.
+
+When you want to reuse a source, add a persistent reference in your global Aspire settings:
+
+```bash title="Aspire CLI — Save a template source"
+aspire template source add azure --repository https://github.com/Azure/aspire-templates
 aspire new
 ```
 
-Replace the path with a directory containing your templates. The CLI asks you to confirm that you trust the source before registering it. Git sources can specify a repository, a template directory within it, and a branch, tag, or commit.
+The CLI asks you to confirm that you trust the source before registering it. Use `--path` for a template directory within the repository and `--ref` to pin a branch, tag, or full commit SHA.
 
 <LearnMore>
   See [`aspire new`](/reference/cli/commands/aspire-new/) for project creation.
@@ -162,20 +177,20 @@ Replace the path with a directory containing your templates. The CLI asks you to
 
 #### Custom integrations
 
-Make your hosting integrations discoverable from a NuGet feed or a local package directory. Add an `integrationSources` entry to `aspire.config.json`; optional package patterns limit which packages the source offers:
+Make your hosting integrations discoverable from a NuGet server. Add an `integrationSources` entry to `aspire.config.json`; optional package patterns limit which packages the source offers:
 
 ```json title="aspire.config.json — Discover team integrations"
 {
   "integrationSources": {
     "team": {
-      "source": "./packages",
+      "source": "https://nuget.example.com/v3/index.json",
       "patterns": ["Team.Hosting.*"]
     }
   }
 }
 ```
 
-Place your `Team.Hosting.*` NuGet packages in the `packages` directory alongside this configuration. They appear in integration discovery and the `aspire add` picker. The built-in source remains enabled unless you set `integrationSources.default.enabled` to `false`.
+Replace the illustrative feed URL with your NuGet server's service index and publish your `Team.Hosting.*` packages there. Matching integrations appear in discovery and the `aspire add` picker. The built-in source remains enabled unless you set `integrationSources.default.enabled` to `false`.
 
 <LearnMore>
   See [Create hosting integrations](/integrations/custom-integrations/hosting-integrations/)
@@ -210,7 +225,7 @@ Replace the repository, marketplace, and plugin names with your own. Run `aspire
 Offer a shared starting configuration to everyone creating or initializing an app. Set **`ASPIRE_INIT_SOURCE_URL`** to a Git repository containing an `aspire.config.json` file:
 
 ```bash title="Aspire CLI — Offer a shared initialization source"
-ASPIRE_INIT_SOURCE_URL=https://github.com/example-org/aspire-defaults.git aspire init
+ASPIRE_INIT_SOURCE_URL=https://github.com/example-org/aspire-init.git aspire init
 ```
 
 Replace the URL with your configuration repository. The variable proposes a source; it doesn't silently apply it. The CLI displays the source and asks for consent. Use `--use-config-source` to accept explicitly or `--use-config-source false` to decline, including in non-interactive runs.
