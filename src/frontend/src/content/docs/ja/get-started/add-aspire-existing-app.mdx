@@ -154,11 +154,11 @@ TypeScript AppHost は、リポジトリが Node.js ワークスペース中心�
 
    var cache = builder.AddRedis("cache");
 
-   var api = builder.AddCSharpApp("api", "./src/Api/MyApp.Api.csproj")
+   var api = builder.AddDotnetProject("api", "./src/Api/MyApp.Api.csproj")
        .WithReference(cache)
        .WithHttpHealthCheck("/health");
 
-   var worker = builder.AddCSharpApp("worker", "./src/Worker/MyApp.Worker.csproj")
+   var worker = builder.AddDotnetProject("worker", "./src/Worker/MyApp.Worker.csproj")
        .WithReference(cache);
 
    builder.Build().Run();
@@ -221,16 +221,16 @@ TypeScript AppHost は、リポジトリが Node.js ワークスペース中心�
        .WithLifetime(ContainerLifetime.Persistent)
        .AddDatabase("mydb");
 
-   var api = builder.AddProject<Projects.MyApp_Api>("api")
+   var api = builder.AddDotnetProject("api", "../MyApp.Api/MyApp.Api.csproj")
        .WithReference(db)
        .WithReference(cache)
        .WaitFor(db);
 
-   builder.AddProject<Projects.MyApp_Web>("web")
+   builder.AddDotnetProject("web", "../MyApp.Web/MyApp.Web.csproj")
        .WithReference(api)
        .WaitFor(api);
 
-   builder.AddProject<Projects.MyApp_Worker>("worker")
+   builder.AddDotnetProject("worker", "../MyApp.Worker/MyApp.Worker.csproj")
        .WithReference(cache)
        .WithReference(db);
 
@@ -296,7 +296,7 @@ AppHost 内の各 `ProjectReference` はソース ジェネレーターを起動
    const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
 
    const api = await builder
-       .addProject('api', '../src/Api/MyApp.Api.csproj')
+       .addDotnetProject('api', '../src/Api/MyApp.Api.csproj')
        .withReference(db)
        .withReference(cache)
        .waitFor(db);
