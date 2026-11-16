@@ -228668,22 +228668,6 @@ export interface ParameterResource {
    * Customizes the parameter input shown by the dashboard
    */
   withCustomInput(options: ParameterCustomInputOptions): this;
-  /**
-   * Marks the parameter resource as optional
-   */
-  asOptional(): this;
-  /**
-   * Marks the parameter resource as required
-   */
-  asRequired(): this;
-  /**
-   * Gets the current value for this parameter without waiting for unresolved input
-   */
-  tryGetCurrentValue(): Promise<string | null>;
-  /**
-   * Sets or replaces the value for this parameter
-   */
-  setValueAsync(options?: { value?: string | null }): Promise<void>;
 }
 
 export interface ComposeFile {
