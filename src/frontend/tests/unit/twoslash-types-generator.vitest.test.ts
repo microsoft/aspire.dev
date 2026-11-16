@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, test } from 'vitest';
+import { hasNestedSingleDtoOptionsWrapper } from '../../scripts/validate-generated-api-data';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
@@ -121,7 +122,7 @@ describe('generate-twoslash-types', () => {
   });
 
   test('does not wrap an existing options DTO in another options object', () => {
-    expect(output).not.toMatch(/options\?: \{\s*options\?:/);
+    expect(hasNestedSingleDtoOptionsWrapper(output)).toBe(false);
   });
 
   test('does not infer ContainerResource from marker interfaces', () => {
