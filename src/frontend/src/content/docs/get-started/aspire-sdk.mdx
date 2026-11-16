@@ -103,7 +103,7 @@ When the AppHost project runs, the orchestrator relies on these dependencies to 
 
 For C# AppHosts, the Aspire SDK sources the binaries for these dependencies from the installed **Aspire CLI bundle**. Those binaries update when you update the Aspire CLI through [`aspire update --self`](/reference/cli/commands/aspire-update/).
 
-C# AppHosts require the Aspire CLI bundle, so [install the Aspire CLI](/get-started/install-cli/) before you build or run them. If `AspireUseCliBundle` is set to `false`, whether in the project, in `Directory.Build.props`, or through an environment variable, the build fails with error [`ASPIRE013`](/diagnostics/aspire013/), which can't be suppressed. Remove that setting or set it to `true`. On older SDKs, set it to `true` to enable the bundle.
+C# AppHosts require the Aspire CLI bundle, so [install the Aspire CLI](/get-started/install-cli/) before you build or run them. If `AspireUseCliBundle` is set to `false`, whether in the project, in `Directory.Build.props`, or through an environment variable, the build fails with error [`ASPIRE013`](/diagnostics/aspire013/), which can't be suppressed. Remove that setting or set it to `true`. In Aspire versions before 17.0, `AspireUseCliBundle` defaults to `false` for all AppHosts, so set it to `true` to use the bundle.
 
 Non-C# AppHosts, such as F# or Visual Basic projects, default `AspireUseCliBundle` to `false` and restore orchestration dependencies from NuGet packages. They report the suppressible warning [`ASPIRE010`](/diagnostics/aspire010/) until you set `AspireUseCliBundle` to `true` in the project file.
 
@@ -134,11 +134,11 @@ Most apps don't need to set either path. `AspireCliPath` selects an explicit `as
 
 #### Running with aspire run or aspire start
 
-When you start an AppHost using `aspire run` or `aspire start`, the CLI automatically passes the resolved bundle paths through the `ASPIRE_DCP_PATH` and `ASPIRE_DASHBOARD_PATH` environment variables.
+When you start an AppHost that uses the CLI bundle with `aspire run` or `aspire start`, the CLI automatically passes the resolved bundle paths through the `ASPIRE_DCP_PATH` and `ASPIRE_DASHBOARD_PATH` environment variables.
 
 #### Running with dotnet run
 
-When you start the AppHost with `dotnet run` instead of `aspire run`, the SDK resolves and invokes the Aspire CLI itself. Set `AspireCliInvocationMode` to control how that invocation happens:
+When the AppHost uses the CLI bundle and you start it with `dotnet run` instead of `aspire run`, the SDK resolves and invokes the Aspire CLI itself. Set `AspireCliInvocationMode` to control how that invocation happens:
 
 - **`Path`** (default) — resolves a compatible `aspire` command from `AspireCliPath` (if set) or `PATH`. If no compatible command is found, it falls back to invoking the `Aspire.Cli` version paired with `Aspire.AppHost.Sdk` through [`dnx`](https://learn.microsoft.com/dotnet/core/tools/dotnet-tool-exec).
 - **`Dnx`** — always invokes the Aspire CLI through `dnx`, using the unversioned `Aspire.Cli` package. This honors an in-scope [.NET local tool manifest](https://learn.microsoft.com/dotnet/core/tools/local-tools-how-to-use#create-a-manifest-file) (`.config/dotnet-tools.json`) if one pins `Aspire.Cli`, or resolves the latest published package when no manifest applies.
