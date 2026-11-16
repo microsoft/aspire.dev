@@ -1,0 +1,286 @@
+---
+title: Shell completion
+seoTitle: Set up Aspire CLI shell completion for Bash, Zsh, Fish, and PowerShell
+description: Enable tab completion for the Aspire CLI in Bash, Zsh, Fish, and PowerShell 7+, make it persistent, remove it, and troubleshoot common activation problems.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Shell completion lets you press <kbd>Tab</kbd> to complete `aspire` commands, subcommands, options, and option values. The Aspire CLI generates the completion script for your shell with the [`aspire completions script`](/reference/cli/commands/aspire-completions-script/) command. You then source that script in your current session or in your shell profile.
+
+:::note[Availability]
+Shell completion is new in Aspire 17.0. The `aspire completions` command isn't available in the 13.6 stable releases. To try it before 17.0 ships, install a `dev` build with the [install script](/reference/cli/install-script/) by passing `--quality dev` (or `-Quality dev` on Windows).
+:::
+
+## Generate a completion script
+
+The `aspire completions script` command writes a completion script to standard output:
+
+```bash title="Aspire CLI"
+aspire completions script [bash|fish|pwsh|zsh]
+```
+
+The supported shells are:
+
+| Shell | Argument | Notes |
+| ----- | -------- | ----- |
+| Bash | `bash` | |
+| Zsh | `zsh` | |
+| Fish | `fish` | |
+| PowerShell | `pwsh` | PowerShell 7 or later only. |
+
+`cmd.exe` and Windows PowerShell (`powershell.exe`) aren't supported.
+
+If you omit the shell argument, the CLI infers it from the `SHELL` environment variable. On Windows, when `SHELL` doesn't name a supported shell, the CLI falls back to `pwsh`. On other platforms, if the shell can't be inferred, the command fails and asks you to specify one of `bash`, `fish`, `pwsh`, or `zsh`.
+
+<Aside type="tip">
+  Always specify the shell explicitly in scripts, installers, and profile
+  snippets. Your login shell isn't necessarily the shell that's currently
+  running, so inference from `SHELL` can pick the wrong one.
+</Aside>
+
+The command writes only the script to standard output, with no banner, colors, or markup, so you can safely redirect or pipe it.
+
+## Before you begin
+
+- The `aspire` command must be available on your `PATH`. The generated scripts resolve `aspire` through `PATH` each time you press <kbd>Tab</kbd>, so upgrades and switching between [installation routes](#installation-routes) don't leave completion pinned to an old binary. Don't replace `aspire` in these snippets with a versioned npm cache, .NET tool store, or Homebrew staging path.
+- Use a Bash, Zsh, Fish, or PowerShell 7+ session. See [Install the Aspire CLI](/get-started/install-cli/) if you don't have the CLI yet.
+
+## Bash
+
+Enable completion in the current shell:
+
+```bash title="Bash"
+source <(aspire completions script bash)
+```
+
+To enable it in all future interactive shells, add the following block once to `~/.bashrc`:
+
+```bash title="~/.bashrc"
+if command -v aspire >/dev/null 2>&1; then
+    source <(aspire completions script bash)
+fi
+```
+
+If you use login shells, make sure your login profile (for example `~/.bash_profile` or `~/.profile`) sources `~/.bashrc`. Bash reads `~/.bashrc` only for interactive non-login shells, so completion doesn't activate in a login shell unless the login profile sources it. See [Troubleshooting](#troubleshooting).
+
+To remove persistent completion, delete the block from `~/.bashrc`. To unregister completion from the current shell without restarting it, run:
+
+```bash title="Bash"
+complete -r aspire
+```
+
+## Zsh
+
+If you manage Zsh initialization yourself, source the script after your `compinit` call. Otherwise the generated script initializes the completion system for you, excluding insecure completion directories instead of prompting while your profile loads.
+
+Enable completion in the current shell:
+
+```zsh title="Zsh"
+source <(aspire completions script zsh)
+```
+
+To enable it in all future shells, add the following block once to `${ZDOTDIR:-$HOME}/.zshrc`, after your existing `compinit` call:
+
+```zsh title="~/.zshrc"
+if (( $+commands[aspire] )); then
+    source <(aspire completions script zsh)
+fi
+```
+
+Alternatively, save the generated script as `_aspire` in a directory on your `fpath` *before* `compinit` runs.
+
+To remove persistent completion, delete the block from your `.zshrc`, or delete the `_aspire` file. To unregister completion from the current shell, run:
+
+```zsh title="Zsh"
+compdef -d aspire
+```
+
+## Fish
+
+Enable completion in the current shell:
+
+```fish title="Fish"
+aspire completions script fish | source
+```
+
+To enable it in all future shells, save the generated script in Fish's user completion directory:
+
+```fish title="Fish"
+set -l completion_dir ~/.config/fish/completions
+if set -q XDG_CONFIG_HOME
+    set completion_dir "$XDG_CONFIG_HOME/fish/completions"
+end
+mkdir -p "$completion_dir"
+aspire completions script fish > "$completion_dir/aspire.fish"
+```
+
+To remove persistent completion, delete the `aspire.fish` file from that directory. To unregister completion and its helper function from the current shell, run:
+
+```fish title="Fish"
+complete --erase --command aspire
+functions --erase __aspire_complete
+```
+
+## PowerShell 7+
+
+Enable completion in the current session:
+
+```powershell title="PowerShell"
+aspire completions script pwsh | Out-String | Invoke-Expression
+```
+
+To enable it in all future sessions, add the following block once to your PowerShell profile:
+
+```powershell title="PowerShell profile"
+if (Get-Command aspire -ErrorAction SilentlyContinue) {
+    aspire completions script pwsh | Out-String | Invoke-Expression
+}
+```
+
+Choose the profile that matches the scope you want:
+
+| Profile | Applies to |
+| ------- | ---------- |
+| `$PROFILE.CurrentUserAllHosts` | All PowerShell hosts for the current user and edition. |
+| `$PROFILE` | Only the current host. |
+
+Get the profile path from inside `pwsh`, not Windows PowerShell, because the two editions use different profile locations. If the profile file or its parent directory doesn't exist, create it without replacing existing contents. For example:
+
+```powershell title="PowerShell"
+New-Item -ItemType File -Path $PROFILE.CurrentUserAllHosts -Force | Out-Null
+```
+
+<Aside type="caution">
+  `New-Item -Force` overwrites an existing file, so run it only when
+  `Test-Path $PROFILE.CurrentUserAllHosts` returns `False`. Then append the
+  block with an editor or `Add-Content`.
+</Aside>
+
+To remove persistent completion, delete the block from the profile. Completion stays registered in the current session until you start a new one. Starting `pwsh` with `-NoProfile` deliberately skips your profiles, so completion isn't enabled in that session.
+
+## What's completed
+
+The completion hooks query the CLI's live command model, so they complete:
+
+- Commands and subcommands, such as `aspire config set`.
+- Options, such as `--log-level`.
+- Option and argument values that have a completion source, such as enum values.
+
+Suggestions always match the version of the CLI that's on your `PATH`. The hooks don't require `dotnet-suggest`.
+
+### What isn't completed
+
+Completion is intentionally limited to the CLI's static model:
+
+- Suggestions don't query running resources, AppHosts, or package feeds. For example, completion doesn't list the resources of a running AppHost or search NuGet for integrations.
+- Pressing <kbd>Tab</kbd> doesn't execute commands, launch AppHosts, prefetch packages, collect telemetry, or write CLI logs or first-use state.
+- Local .NET tools (`dotnet aspire` or `dotnet tool run aspire`) and `npx` or `npm exec` are different outer commands, so these hooks don't complete them. Install `aspire` so it's available on `PATH` instead.
+
+## Safety guidance
+
+- **Profile edits are yours to manage.** The manual snippets on this page change only the profile file you choose, and only when you add them. When you remove completion, delete only the Aspire block and any generated completion file. Don't delete the rest of your profile.
+- **Don't modify signed PowerShell profiles or change execution policy.** If your profile is signed, or your execution policy is `AllSigned`, editing the profile invalidates the signature or blocks the script. Don't weaken your execution policy to enable completion; use a session-only activation instead.
+- **Literal arguments stay literal.** Bash and Zsh complete the current command after separators and preserve literal arguments inside single or double quotes. Bash also decodes ANSI-C quotes such as `$'a\tb'`. The input is decoded without evaluating shell substitutions, so accepting a suggestion never executes its contents.
+- **Settings are read, not rewritten.** Settings that completion uses are normalized in memory without rewriting your CLI configuration files.
+- **Installers stay within your user profile.** Installers never modify machine-wide profiles or shell execution policies. An elevated install leaves shell profiles untouched, so activate completion from an unelevated shell.
+
+## Installation routes
+
+How completion gets set up depends on how you installed the Aspire CLI. In every case, you can use the manual setup on this page.
+
+| Installation route | Completion setup |
+| ------------------ | ---------------- |
+| [Install script](/reference/cli/install-script/) (release) | The script generates a completion file and registers it for the current user's shell. Use `--skip-completions` (`aspire-install.sh`) or `-SkipCompletions` (`aspire-install.ps1`) to opt out. A dry run doesn't write registration. |
+| PR and dogfood scripts | Transient installs stay out of persistent profiles. Use the activation instructions that the script prints for the current session. |
+| WinGet | The portable ZIP installation has no post-install hook. Follow the manual setup on this page. |
+| npm global install | Follow the manual setup. npm lifecycle hooks can't reliably identify your shell, can be disabled, and have no uninstall hook, so npm doesn't edit your profile. |
+| .NET global tool or `--tool-path` install | Follow the manual setup after you put the tool shim on `PATH`. `dotnet tool install` has no supported post-install hook. |
+| Homebrew cask | Homebrew owns the generated Bash, Zsh, and Fish scripts and a PowerShell loader. You control activation. See [Homebrew](#homebrew). |
+
+<Aside type="note">
+  Shell functions can't be installed into a parent process by a child
+  installer. After any installer runs, open a new shell or explicitly source
+  the generated file to activate completion.
+</Aside>
+
+### Install script details
+
+The release install scripts keep generated files at `$HOME/.aspire/completions/aspire.{bash,zsh,fish,ps1}` and mark their profile entries with `Aspire CLI completions`. They register completion as follows:
+
+| Shell | Registration |
+| ----- | ------------ |
+| Bash | `~/.bashrc` and the first existing login profile. A newly created `.bash_profile` also sources `.bashrc`. |
+| Zsh | `${ZDOTDIR:-$HOME}/.zshrc` |
+| Fish | `${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/aspire-completions.fish` |
+| PowerShell | `$PROFILE.CurrentUserAllHosts` |
+
+Other behaviors to be aware of:
+
+- Reinstalling updates the generated files without duplicating registration.
+- When you use `--skip-path` or `-SkipPath`, or an archive dogfood install, the script generates only an artifact under `<CLI-directory>/completions` and prints manual activation instructions. Package-manager dogfood modes don't register profiles.
+- Automatic profile writes and persistent completion files are confined to your home directory. Redirected or symlinked profiles, elevated installs, unsupported shells, older PowerShell engines, and signed profiles can require manual setup, and an `AllSigned` execution policy leaves the generated PowerShell files untouched. The installer reports the reason and doesn't change execution policy.
+- If the installed CLI doesn't have the `completions` command, the installer leaves any working completion files intact.
+- Saved scripts query the current CLI dynamically. Regenerate them when you upgrade to a version that changes the shell integration protocol.
+- Uninstalling the CLI doesn't remove your profile entries. Remove the Aspire block and the generated completion file yourself.
+
+### Homebrew
+
+Homebrew installs completion files under `brew --prefix`:
+
+- `etc/bash_completion.d/aspire`
+- `share/zsh/site-functions/_aspire`
+- `share/fish/vendor_completions.d/aspire.fish`
+- `share/pwsh/completions/_aspire.ps1`
+
+Configure your shell's Homebrew completion paths or loader as described in [Homebrew's shell completion documentation](https://docs.brew.sh/Shell-Completion). For PowerShell, dot-source the loader explicitly in your chosen profile:
+
+```powershell title="PowerShell profile"
+. (Join-Path (brew --prefix) 'share/pwsh/completions/_aspire.ps1')
+```
+
+The PowerShell file is a loader that gets the current script from `aspire` when it's sourced. Homebrew removes its files on uninstall, but not your profile entry, and the custom installer flags such as `--skip-completions` don't apply to Homebrew.
+
+## Troubleshooting
+
+### Completion doesn't work in a Bash login shell
+
+Bash reads `~/.bashrc` only for interactive non-login shells. Terminals that start a login shell (some Linux terminal emulators, SSH sessions, and macOS Terminal by default) read `~/.bash_profile`, or `~/.profile` if it doesn't exist, and skip `~/.bashrc`. Make the login profile source `~/.bashrc`:
+
+```bash title="~/.bash_profile"
+if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+fi
+```
+
+### Nothing is completed after I add the snippet
+
+<Steps>
+
+1. Confirm that `aspire` resolves on `PATH`: run `command -v aspire` in Bash or Zsh, `type aspire` in Fish, or `Get-Command aspire` in PowerShell. The profile snippets skip registration when `aspire` isn't found.
+1. Open a new shell, or source your profile again. Installers can't change the shell that launched them.
+1. Run `aspire completions script <shell>` with the shell you're using and check that it prints a script instead of an error.
+1. Make sure you're using the matching shell. A script for `bash` doesn't work in Zsh, and the other way around.
+
+</Steps>
+
+### The wrong shell was inferred
+
+When you omit the shell argument, the command infers it from `SHELL`, which names your login shell. Pass the shell explicitly, for example `aspire completions script zsh`.
+
+### PowerShell completion isn't active
+
+Completion needs PowerShell 7 or later. Windows PowerShell isn't supported. Check that you edited the profile of `pwsh`, not `powershell.exe`, that the profile isn't skipped by `-NoProfile`, and that your execution policy allows the profile to load.
+
+### Completion doesn't work with `dotnet aspire` or `npx`
+
+The hooks complete the `aspire` command only. Put `aspire` on `PATH`, for example by installing it globally.
+
+## See also
+
+- [`aspire completions script` command reference](/reference/cli/commands/aspire-completions-script/)
+- [`aspire completions` command reference](/reference/cli/commands/aspire-completions/)
+- [Install the Aspire CLI](/get-started/install-cli/)
+- [Install script reference](/reference/cli/install-script/)
+- [Aspire CLI overview](/reference/cli/overview/)
