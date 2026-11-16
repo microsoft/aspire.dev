@@ -266,6 +266,54 @@ builder.AddDotnetProject("inventoryservice", "../InventoryService.cs", aspire.Ad
 - `excludeLaunchProfile: true` disables launch profiles entirely and takes precedence over a supplied `launchProfileName`.
 - `excludeKestrelEndpoints: true` stops Aspire from deriving model endpoints from the project's Kestrel configuration. It doesn't rewrite or disable the service's own Kestrel configuration.
 
+<LearnMore>
+  For profile selection order and how `applicationUrl` values become endpoints, see [Launch profiles](/integrations/dotnet/launch-profiles/).
+</LearnMore>
+
+## Filter endpoints in environment variables
+
+By default, Aspire passes a project's endpoints to the process through environment variables such as `ASPNETCORE_URLS` and `HTTP_PORTS`/`HTTPS_PORTS`. Call `WithEndpointsInEnvironment` / `withEndpointsInEnvironment` to control which endpoints are included:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
+    .WithHttpsEndpoint()
+    .WithHttpsEndpoint(port: 19227, name: "admin")
+    .WithEndpointsInEnvironment(
+        filter: static endpoint => endpoint.Name is not "admin");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await builder.addDotnetProject('apiservice', '../ApiService/ApiService.csproj')
+  .withHttpsEndpoint()
+  .withHttpsEndpoint({ port: 19227, name: 'admin' })
+  .withEndpointsInEnvironment(['https']); // include only "https"
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj").
+	WithHttpsEndpoint().
+	WithHttpsEndpoint(aspire.HttpsEndpointPort(19227), aspire.HttpsEndpointName("admin")).
+	WithEndpointsInEnvironment([]string{"https"}) // include only "https"
+```
+
+</TabItem>
+</Tabs>
+
+The `admin` endpoint stays in the application model but isn't exposed to the process through environment variables. The C# overload takes a filter callback; TypeScript and Go take the names of the endpoints to include.
+
+<LearnMore>
+  For ports, proxies, and replicas, see [Inner-loop networking](/fundamentals/networking-overview/).
+</LearnMore>
+
 ## Launch from an IDE
 
 Aspire builds SDK-style project resources before launching them and surfaces any compiler diagnostics. A compile failure stops the resource from launching. You don't need to build each service yourself, whether you start the app with `aspire run` or from an IDE.
@@ -277,6 +325,36 @@ IDEs without external build support, such as Visual Studio, still launch project
 - The IDE might build projects again before launching them, because Aspire can't suppress the IDE build.
 - This build customization isn't supported. Aspire fails to start the application and reports an error instead of launching output that the IDE can't reliably locate. Run the application with `aspire run`, use an IDE with external build support, or remove the build customization.
 - File-based apps build themselves when they launch. They wait for Aspire to finish building project resources, but they aren't serialized with each other, so separate file-based apps can race when they share `#:project` outputs. `WaitForStart` only waits for the file-based app process to start, not for its build to finish. To avoid races, run with `aspire run`, use an IDE with external build support, or add a health check to the preceding app that passes only after it finishes building and call `WaitFor` on the next app.
+
+## Coordinated builds and restore
+
+Before resources start, Aspire groups SDK-style projects that share a compatible SDK and build environment into generated MSBuild traversal projects under the AppHost's intermediate output. Build groups run one after another. Projects within a group build in parallel and share one NuGet graph restore, which avoids restoring overlapping dependency graphs repeatedly. Projects that call `WithBuildEnvironment` build separately from these groups.
+
+Because the group restore doesn't invoke each project's `Restore` target separately, custom targets attached to it, such as `BeforeTargets="Restore"` or `AfterTargets="Restore"`, don't run for each project. If a project relies on those hooks, set `Aspire:Dotnet:RestoreProjectsIndividually` to `true` in the **AppHost's** configuration:
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "Dotnet": {
+      "RestoreProjectsIndividually": true
+    }
+  }
+}
+```
+
+The environment-variable equivalent is `Aspire__Dotnet__RestoreProjectsIndividually=true`. The setting defaults to `false` and applies to every generated traversal in the AppHost; it isn't a runtime environment variable for your resources. With individual restore, each project restores one at a time while builds remain parallel.
+
+A traversal also restores projects individually when its MSBuild context enables `RestoreUseStaticGraphEvaluation`, because NuGet's static restore requires a restore-capable entry project. The build resource's logs report why individual restore was selected. Restore failures aren't retried with the other strategy.
+
+File-based apps, projects with a custom build environment, individual **Rebuild** commands, and publishing use their own build and restore paths.
+
+### Multithreaded builds
+
+When the `dotnet` SDK selected for a build (honoring `global.json`) supports the MSBuild `-mt` switch, Aspire passes it to coordinated traversal builds, file-based app builds, and [rebuild commands](/app-host/hot-reload-and-watch/#recommended-workflow). Multithreaded task execution can reduce the time it takes for resources to become ready. No configuration is required.
+
+:::note
+Project and traversal builds use `-mt` with .NET SDK `11.0.100-rc.1` or later. File-based app builds require .NET SDK `11.0.100` or later.
+:::
 
 ## Publishing
 
