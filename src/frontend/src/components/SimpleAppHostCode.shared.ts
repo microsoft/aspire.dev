@@ -86,7 +86,7 @@ var postgres = builder.AddPostgres("db")
     .WithDataVolume();
 
 // Add API service and reference the database
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../api/Api.csproj")
     .WithReference(postgres)
     .WaitFor(postgres);
 
@@ -196,7 +196,7 @@ const postgres = await builder.addPostgres("db")
     .withDataVolume();
 
 // Add API service and reference the database
-const api = await builder.addProject("api", "../api/Api.csproj", "https")
+const api = await builder.addDotnetProject("api", "../api/Api.csproj")
     .withReference(postgres)
     .waitFor(postgres);
 
