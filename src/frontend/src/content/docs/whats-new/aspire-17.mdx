@@ -460,15 +460,34 @@ To try the next-generation AppHost server included in the CLI bundle, opt in thr
 
 ### APIs now stable
 
-The following APIs no longer require you to suppress an experimental diagnostic:
+<span id="retired-diagnostics"></span>
 
-- **File system and user secrets**: `ASPIREFILESYSTEM001` and `ASPIREUSERSECRETS001`.
-- **Pipelines**: `ASPIREPIPELINES001`, `ASPIREPIPELINES002`, and `ASPIREPIPELINES004`.
-- **Probes and commands**: `WithHttpProbe` (`ASPIREPROBES001`) and the `WithRequiredCommand` callback (`ASPIRECOMMAND001`).
-- **Azure**: `ASPIREAZURE001` and Azure Container Apps naming (`ASPIREACANAMING001` and `ASPIREACANAMING002`).
-- **Containers**: The Dockerfile builder (`ASPIREDOCKERFILEBUILDER001`) and compute endpoint mapping (`ASPIRECOMPUTE002`). Compute volume APIs remain experimental.
-- **JavaScript and Deno**: `AddNextJsApp`, `PublishAsStaticWebsite`, `PublishAsNodeServer`, and `PublishAsPackageScript` (`ASPIREJAVASCRIPT001`), plus the Deno APIs (`ASPIREDENO001`).
-- **Integrations**: `WithMcpServer` (`ASPIREMCP001`), connection string APIs (`ASPIRECONNECTIONSTRINGS001`), and the `Aspire.Hosting.Dotnet` package.
+The following APIs are stable starting with Aspire 17.0 and no longer report their experimental diagnostics. After you upgrade, remove the matching suppressions from _.editorconfig_ files, project files, and `#pragma warning` directives.
+
+| Retired diagnostic                                                     | Stable APIs                                                                                                                    |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| [ASPIREACANAMING001](/diagnostics/aspireacanaming001/)                 | `WithCompactResourceNaming`                                                                                                    |
+| [ASPIREACANAMING002](/diagnostics/aspireacanaming002/)                 | `WithUniqueResourceNaming`                                                                                                     |
+| [ASPIREAZURE001](/diagnostics/aspireazure001/)                         | `AzureEnvironmentResource`, `AddAzureEnvironment`, `WithLocation`, `WithResourceGroup`, and `AzurePublishingContext`           |
+| [ASPIRECOMMAND001](/diagnostics/aspirecommand001/)                     | Required-command validation (`WithRequiredCommand` with a validation callback, `IRequiredCommandValidator`, and related types) |
+| `ASPIRECONNECTIONSTRINGS001`                                           | `ConnectionStringEnvironmentVariableNames` and `ConnectionStringReference.EnvironmentVariableNames`                            |
+| `ASPIREDENO001`                                                        | Deno hosting APIs (`AddDenoApp`, `DenoAppResource`, and the `WithDeno*` methods)                                               |
+| [ASPIREDOCKERFILEBUILDER001](/diagnostics/aspiredockerfilebuilder001/) | `AddDockerfileBuilder`, `WithDockerfileBuilder`, and related Dockerfile builder types                                           |
+| [ASPIREFILESYSTEM001](/diagnostics/aspirefilesystem001/)               | `IFileSystemService`, `ITempFileSystemService`, `TempDirectory`, and `TempFile`                                                |
+| [ASPIREJAVASCRIPT001](/diagnostics/aspirejavascript001/)               | `AddNextJsApp`, `DisableBuildValidation`, `PublishAsStaticWebsite`, `PublishAsNodeServer`, and `PublishAsPackageScript`        |
+| [ASPIREMCP001](/diagnostics/aspiremcp001/)                             | `WithMcpServer`                                                                                                                |
+| [ASPIREPIPELINES001](/diagnostics/aspirepipelines001/)                 | Core pipeline APIs, including `IDistributedApplicationPipeline`, `PipelineStep`, and `IPipelineActivityReporter`               |
+| [ASPIREPIPELINES002](/diagnostics/aspirepipelines002/)                 | `IDeploymentStateManager` and `DeploymentStateSection`                                                                         |
+| [ASPIREPIPELINES004](/diagnostics/aspirepipelines004/)                 | `IPipelineOutputService` and `PipelineOutputService`                                                                           |
+| [ASPIREPROBES001](/diagnostics/aspireprobes001/)                       | `WithHttpProbe`, `ProbeType`, and related probe types                                                                          |
+| [ASPIREUSERSECRETS001](/diagnostics/aspireusersecrets001/)             | `IUserSecretsManager` and `IDistributedApplicationBuilder.UserSecretsManager`                                                  |
+
+`ASPIRECOMPUTE002` still applies to the Kubernetes persistent volume APIs, but the compute environment endpoint-mapping contracts `GetHostAddressExpression` and `GetEndpointPropertyExpression` no longer report it. `ASPIRECSHARPAPPS001` is also retired because `AddCSharpApp` is now marked `[Obsolete]` and reports `CS0618` instead.
+
+<LearnMore>
+  See the [diagnostics overview](/diagnostics/overview/) for the full list of
+  retired diagnostics.
+</LearnMore>
 
 ### More AppHost improvements
 
@@ -550,7 +569,7 @@ Azure Front Door can connect to Aspire-provisioned Azure Container Apps and App 
 
 - Run Azure Web PubSub locally with its emulator using `RunAsEmulator`. Thanks to @vicancy for the emulator integration.
 - Reuse a SQL Server resource for the [Azure Service Bus emulator](/integrations/cloud/azure/azure-service-bus/azure-service-bus-host/#add-azure-service-bus-emulator-resource) instead of creating a separate instance. Thanks to @thomhurst for SQL Server reuse.
-- Use [Deno hosting APIs](/integrations/frameworks/deno/deno-host/) without their previous experimental designation.
+- Use [Deno hosting APIs](/integrations/frameworks/deno/deno-host/), which are stable and no longer report `ASPIREDENO001`.
 - Read `Uri` and `HubName` [connection properties](/integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-host/#connection-properties) from Azure Web PubSub hub references. Thanks to @austinaviv for hub connection properties.
 - Use `UseOutputCache` with the [Redis output cache integration](/integrations/caching/redis-output/redis-output-connect/#register-the-output-cache-store), which now registers the core output caching services. Thanks to @curllog for this fix.
 - Launch the [SQL Server dashboard REPL](/integrations/databases/sql-server/sql-server-host/#open-an-interactive-repl) from Windows checkouts, and select the `sqlcmd` client with `WithRepl(options => options.Command = SqlServerReplCommand.Version17)` for older images.
