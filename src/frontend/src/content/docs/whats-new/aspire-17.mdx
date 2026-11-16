@@ -361,6 +361,19 @@ The `Aspire.Hosting.Dotnet` integration now follows stable package versioning fo
   for project paths, launch profiles, and scenarios that retain the legacy model.
 </LearnMore>
 
+:::caution[Known issue: Visual Studio project enlistment]
+In Visual Studio, right-clicking a web project and selecting **Enlist in Aspire orchestration** can add it using the legacy `AddProject<TProject>` API instead of the new path-based project model (Project V2). The generated AppHost can fail to build with CS0234.
+
+As a workaround, run `aspire add Aspire.Hosting.Dotnet` from the AppHost directory and replace the generated registration with `AddDotnetProject`, using the actual project path relative to the AppHost:
+
+```diff title="AppHost.cs"
+- var web = builder.AddProject<Projects.WebApplication1>("webapplication1");
++ var web = builder.AddDotnetProject("webapplication1", "../WebApplication1/WebApplication1.csproj");
+```
+
+Keep the resource name and any chained configuration. See the [Visual Studio validation notes in microsoft/aspire#21506](https://github.com/microsoft/aspire/pull/21506) and the project migration guide above. That PR fixes version discovery for the enlistment checkbox, not this generated-code issue.
+:::
+
 ### Optional parameters
 
 Not every parameter needs a value in every environment. Mark a parameter as optional, and Aspire stops prompting for it during `aspire run` and no longer fails publishing when it's unset. An unset optional parameter resolves to `null`, so consumers can fall back to their own defaults.
