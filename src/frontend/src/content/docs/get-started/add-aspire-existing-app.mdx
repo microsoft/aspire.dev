@@ -159,6 +159,7 @@ Use a file-based AppHost when you want a lightweight single-file orchestrator wi
 
    ```bash title="Add hosting integrations"
    aspire add redis
+   aspire add Aspire.Hosting.Dotnet
    ```
 
 3. Wire the resources in `apphost.cs`:
@@ -166,18 +167,17 @@ Use a file-based AppHost when you want a lightweight single-file orchestrator wi
    ```csharp title="apphost.cs"
    #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
    #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
-
-   #pragma warning disable ASPIRECSHARPAPPS001
+   #:package Aspire.Hosting.Dotnet@%ASPIRE_VERSION%
 
    var builder = DistributedApplication.CreateBuilder(args);
 
    var cache = builder.AddRedis("cache");
 
-   var api = builder.AddCSharpApp("api", "./src/Api/MyApp.Api.csproj")
+   var api = builder.AddDotnetProject("api", "./src/Api/MyApp.Api.csproj")
        .WithReference(cache)
        .WithHttpHealthCheck("/health");
 
-   var worker = builder.AddCSharpApp("worker", "./src/Worker/MyApp.Worker.csproj")
+   var worker = builder.AddDotnetProject("worker", "./src/Worker/MyApp.Worker.csproj")
        .WithReference(cache);
 
    builder.Build().Run();
@@ -196,10 +196,6 @@ After setup, a typical repo layout looks like this:
         - Worker/
             - MyApp.Worker.csproj
 </FileTree>
-
-:::caution[AddCSharpApp is experimental]
-<ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddCSharpApp" /> is currently experimental. If you want details on limitations or diagnostic suppression, see [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/).
-:::
 
 #### Project-based AppHost (with a .sln)
 
