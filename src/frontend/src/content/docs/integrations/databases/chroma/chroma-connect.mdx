@@ -1,0 +1,259 @@
+---
+title: Connect with the Chroma integration
+description: Connect to Chroma from Aspire apps with the .NET client, keyed services, connection settings, heartbeat checks, and client telemetry.
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+:::caution[Package availability]
+`CommunityToolkit.Aspire.Chroma` is present in the Toolkit source but is not currently published on nuget.org. The .NET installation commands below apply once it is published. An upstream source build is required to evaluate that integration now. The HTTP and other language clients can connect directly to a running Chroma server without this package.
+:::
+
+Reference a Chroma resource from the consuming app as shown in [Chroma hosting integration](/integrations/databases/chroma/chroma-host/#add-chroma-resource). The resource name becomes the connection name. The examples on this page use `chroma`.
+
+## Connection properties
+
+The resource's exact connection-string format is `Endpoint=http://{host}:{port}`. Aspire injects it as `ConnectionStrings__chroma`; .NET configuration reads it at `ConnectionStrings:chroma`.
+
+The reference also supplies:
+
+| Property | Environment variable | Value                                        |
+| -------- | -------------------- | -------------------------------------------- |
+| `Host`   | `CHROMA_HOST`        | Allocated server host.                       |
+| `Port`   | `CHROMA_PORT`        | Allocated HTTP port.                         |
+| `Uri`    | `CHROMA_URI`         | `http://{host}:{port}`, without an API path. |
+
+Use `Uri` with clients that expect a server address. Do not pass the `Endpoint=` connection string as a URL.
+
+## Installation
+
+Install [📦 CommunityToolkit.Aspire.Chroma](https://nuget.org/packages/CommunityToolkit.Aspire.Chroma) in the consuming .NET project:
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.Chroma" />
+
+The package uses ChromaDotNet.Client and the `ChromaDB.Client` namespace. It targets Chroma's v2 API.
+
+## Add Chroma client
+
+Register a singleton client and inject it into an ASP.NET Core endpoint:
+
+```csharp title="Program.cs"
+using ChromaDB.Client;
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.AddChromaClient("chroma");
+
+var app = builder.Build();
+app.MapGet("/collections", async (ChromaClient client) =>
+    await client.ListCollectionsAsync());
+app.Run();
+```
+
+The client adds the v2 API path to a server address such as `http://localhost:8000`. It uses the default tenant and database unless configured otherwise. Collection clients can be created through `GetCollectionClient` after retrieving or creating a collection.
+
+<Aside type="tip">
+  Keep the connection name identical to the referenced AppHost resource name. A
+  client registered as `chroma` does not read another resource's connection
+  string.
+</Aside>
+
+## Add keyed Chroma client
+
+Use a keyed singleton when an app needs several independently configured clients. The following example registers one keyed client against the same `chroma` resource:
+
+```csharp title="Program.cs"
+using ChromaDB.Client;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.AddKeyedChromaClient("chroma");
+
+var app = builder.Build();
+app.MapGet("/collections", async (
+    [FromKeyedServices("chroma")] ChromaClient client) =>
+    await client.ListCollectionsAsync());
+app.Run();
+```
+
+For multiple clients, register each name and reference each matching resource or connection-string resource from the AppHost. See [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Configuration
+
+Settings are read from `Aspire:Chroma:Client` for a non-keyed client and `Aspire:Chroma:Client:{name}` for a keyed client.
+
+### Connection strings
+
+For an app running without AppHost injection, configure a connection string:
+
+```json title="appsettings.json"
+{
+  "ConnectionStrings": {
+    "chroma": "Endpoint=http://localhost:8000"
+  }
+}
+```
+
+The parser also accepts a bare absolute HTTP or HTTPS URI. The endpoint must include its scheme.
+
+For Chroma Cloud, the supported connection-string keys are `Endpoint`, `Token`, `Tenant`, and `Database`:
+
+```text title="Chroma Cloud connection-string format"
+Endpoint=https://api.trychroma.com;Token=<API key>;Tenant=<tenant>;Database=<database>
+```
+
+`Token` is sent in the `X-Chroma-Token` header. Store cloud credentials in a secret configuration provider, not in source-controlled settings. Reference an AppHost connection-string resource for an existing server instead of starting a local Chroma container.
+
+### Configuration providers
+
+Use .NET configuration providers for settings that are not supplied by the connection string:
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "Chroma": {
+      "Client": {
+        "Endpoint": "http://localhost:8000",
+        "Tenant": "default_tenant",
+        "Database": "default_database",
+        "DisableHealthChecks": false,
+        "HealthCheckTimeout": 5000,
+        "DisableTracing": false,
+        "DisableMetrics": false
+      }
+    }
+  }
+}
+```
+
+For keyed registration, place these settings under `Client:chroma` instead.
+
+The connection string replaces the configured `Endpoint`. Nonempty `Token`, `Tenant`, and `Database` values from the connection string override the corresponding settings. Values absent from the connection string retain their configured settings.
+
+### Inline delegates
+
+An inline delegate runs after settings and the connection string are read:
+
+```csharp title="Program.cs"
+using ChromaDB.Client;
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.AddChromaClient("chroma", settings =>
+{
+    settings.HealthCheckTimeout = 5000;
+    settings.DisableMetrics = true;
+});
+
+var app = builder.Build();
+app.MapGet("/collections", async (ChromaClient client) =>
+    await client.ListCollectionsAsync());
+app.Run();
+```
+
+The exported settings are `Endpoint`, `Token`, `Tenant`, `Database`, `DisableHealthChecks`, `HealthCheckTimeout`, `DisableTracing`, and `DisableMetrics`. The three disable flags default to `false`; the timeout is nullable and uses milliseconds. A positive timeout limits the health-check duration.
+
+The integration registers a named HTTP client using the connection name. Configure that named client through `builder.Services.AddHttpClient("chroma")` when request-handler customization is required. The singleton Chroma client uses the HTTP client's current factory-managed handler.
+
+## Client integration health checks
+
+The health check calls `ChromaClient.HeartbeatAsync`. Its registration name is `Chroma` for the non-keyed client and `Chroma_{name}` for a keyed client. Disable registration with `DisableHealthChecks=true`.
+
+The registration does not create an HTTP health endpoint. Use [service defaults](/get-started/csharp-service-defaults/) to expose the registered checks and configure telemetry export.
+
+## Observability and telemetry
+
+When tracing is enabled, the integration subscribes to `ChromaTelemetry.ActivitySourceName`. When metrics are enabled, it subscribes to `ChromaTelemetry.MeterName`. ChromaDotNet.Client emits operation spans and the `db.client.operation.duration` histogram.
+
+Set `DisableTracing` or `DisableMetrics` to stop the corresponding registration. Configure an OpenTelemetry exporter, for example through service defaults, to send client telemetry to the dashboard. This does not enable server-side Chroma OTLP export or add a separate logging provider. Server console request logs are configured by the [hosting integration](/integrations/databases/chroma/chroma-host/#logs-and-telemetry).
+
+## Connect from other languages
+
+These complete HTTP examples call Chroma's v2 heartbeat using the injected `CHROMA_URI`. They require no Community Toolkit client package. For collection operations, use a [Chroma client](https://docs.trychroma.com/docs/overview/getting-started) or the v2 HTTP API.
+
+<Tabs syncKey="chroma-client-lang">
+<TabItem label="TypeScript">
+
+Use Node.js with its built-in `fetch`. Run the file with a TypeScript runner or compile it for Node.js.
+
+```typescript title="index.ts"
+const uri = process.env.CHROMA_URI;
+if (!uri) {
+  throw new Error('CHROMA_URI is required');
+}
+
+const response = await fetch(new URL('/api/v2/heartbeat', uri));
+if (!response.ok) {
+  throw new Error(`Chroma heartbeat failed: ${response.status}`);
+}
+console.log(await response.json());
+
+export {};
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Use Python's standard-library HTTP client:
+
+```python title="app.py"
+import json
+import os
+from urllib.request import urlopen
+
+uri = os.environ["CHROMA_URI"].rstrip("/")
+with urlopen(f"{uri}/api/v2/heartbeat", timeout=5) as response:
+    print(json.load(response))
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use Go's standard-library HTTP client:
+
+```go title="main.go"
+package main
+
+import (
+    "fmt"
+    "io"
+    "net/http"
+    "os"
+    "strings"
+    "time"
+)
+
+func main() {
+    uri := os.Getenv("CHROMA_URI")
+    if uri == "" {
+        panic("CHROMA_URI is required")
+    }
+    client := &http.Client{Timeout: 5 * time.Second}
+    response, err := client.Get(strings.TrimRight(uri, "/") + "/api/v2/heartbeat")
+    if err != nil {
+        panic(err)
+    }
+    defer response.Body.Close()
+    if response.StatusCode != http.StatusOK {
+        panic(response.Status)
+    }
+    body, err := io.ReadAll(response.Body)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println(string(body))
+}
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Chroma hosting integration](/integrations/databases/chroma/chroma-host/)
+- [ChromaDotNet.Client](https://nuget.org/packages/ChromaDotNet.Client)
+- [Chroma client integration source](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Chroma)

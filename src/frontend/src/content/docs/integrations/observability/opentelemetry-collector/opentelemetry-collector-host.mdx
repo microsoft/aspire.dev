@@ -1,0 +1,209 @@
+---
+title: 'OpenTelemetry Collector integration: hosting'
+description: Use the Community Toolkit hosting integration to configure an OpenTelemetry Collector container and route Aspire resource telemetry to it.
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+This page describes the AppHost APIs for adding an OpenTelemetry Collector resource and routing telemetry to it. For an introduction to this integration, see [OpenTelemetry Collector integration](/integrations/observability/opentelemetry-collector/opentelemetry-collector-get-started/).
+
+## Installation
+
+Install the [📦 CommunityToolkit.Aspire.Hosting.OpenTelemetryCollector](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.OpenTelemetryCollector) package in the AppHost project:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.OpenTelemetryCollector" />
+
+## Add an OpenTelemetry Collector resource
+
+Call `AddOpenTelemetryCollector` with a resource name, then call `WithConfig` to mount the Collector configuration file into the container. `WithOpenTelemetryCollectorRouting` forwards telemetry from a specific resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const collector = await builder.addOpenTelemetryCollector('otel-collector');
+await collector.withConfig('./otel-collector-config.yaml');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withOpenTelemetryCollectorRouting(collector);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var collector = builder.AddOpenTelemetryCollector("otel-collector")
+    .WithConfig("./otel-collector-config.yaml");
+
+builder.AddProject<Projects.Api>("api")
+    .WithOpenTelemetryCollectorRouting(collector);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+`WithConfig` bind-mounts the specified file into the container at `/config/{filename}` and passes that path to the Collector with `--config`. For example, `./otel-collector-config.yaml` is mounted at `/config/otel-collector-config.yaml`.
+
+<Aside type="caution">
+  The integration exposes OTLP endpoints, but the Collector configuration still
+  needs matching OTLP receiver and pipeline definitions. Ensure the receiver
+  ports and protocols in the configuration file match the endpoint options
+  enabled on the resource.
+</Aside>
+
+## Route telemetry from all compatible resources
+
+Call `WithAppForwarding` on the Collector resource to configure forwarding for application resources that have an `OtlpExporterAnnotation`. This includes resources with a configured OTLP exporter:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const collector = await builder.addOpenTelemetryCollector('otel-collector');
+await collector.withConfig('./otel-collector-config.yaml');
+await collector.withAppForwarding();
+
+await builder.addProject('api', '../Api/Api.csproj');
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var collector = builder.AddOpenTelemetryCollector("otel-collector")
+    .WithConfig("./otel-collector-config.yaml")
+    .WithAppForwarding();
+
+builder.AddProject<Projects.Api>("api");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The integration applies the same routing behavior to compatible resources discovered before the AppHost starts. Use `WithOpenTelemetryCollectorRouting` instead when only specific resources should send telemetry to the Collector.
+
+## Configure the Collector resource
+
+`AddOpenTelemetryCollector` accepts a settings callback. The settings control the container image, OTLP endpoints, and health check:
+
+| Setting                  | Default                                                                           | Description                                                      |
+| ------------------------ | --------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `Image`                  | `open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib` | Collector image path.                                            |
+| `Registry`               | `ghcr.io`                                                                         | Container image registry.                                        |
+| `CollectorTag`           | `latest`                                                                          | Collector image tag.                                             |
+| `EnableGrpcEndpoint`     | `true`                                                                            | Expose the OTLP gRPC endpoint on container port `4317`.          |
+| `EnableHttpEndpoint`     | `true`                                                                            | Expose the OTLP HTTP endpoint on container port `4318`.          |
+| `ForceNonSecureReceiver` | `false`                                                                           | Keep OTLP receivers on HTTP when Aspire is configured for HTTPS. |
+| `DisableHealthcheck`     | `false`                                                                           | Disable the Collector health endpoint and Aspire health check.   |
+
+`CollectorImage` is a read-only setting that returns the registry and image path combined. Configure `Registry`, `Image`, and `CollectorTag` separately to change the image.
+
+Set a setting in the callback when adding the resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const collector = await builder.addOpenTelemetryCollector(
+  'otel-collector',
+  async (settings) => {
+    await settings.enableHttpEndpoint.set(false);
+    await settings.collectorTag.set('0.135.0');
+  }
+);
+await collector.withConfig('./otel-collector-config.yaml');
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var collector = builder.AddOpenTelemetryCollector("otel-collector", settings =>
+{
+    settings.EnableHttpEndpoint = false;
+    settings.CollectorTag = "0.135.0";
+})
+    .WithConfig("./otel-collector-config.yaml");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The example disables Aspire's HTTP endpoint exposure and selects a specific image tag. This setting does not change the receivers in the mounted Collector configuration. Choose an image tag that matches the Collector version supported by your configuration.
+
+## Collector endpoints
+
+The resource exposes these endpoint properties:
+
+| Resource property | Endpoint name | Container port | Description                  |
+| ----------------- | ------------- | -------------- | ---------------------------- |
+| `GrpcEndpoint`    | `grpc`        | `4317`         | OTLP gRPC receiver endpoint. |
+| `HttpEndpoint`    | `http`        | `4318`         | OTLP HTTP receiver endpoint. |
+
+Both endpoints are enabled by default. When Aspire is configured for HTTPS, the integration configures enabled endpoints for HTTPS and passes certificate paths to the Collector. Set `ForceNonSecureReceiver` to `true` to keep these receivers on HTTP.
+
+When `WithOpenTelemetryCollectorRouting` configures a resource, it reads `OTEL_EXPORTER_OTLP_PROTOCOL` from that resource, defaulting to `grpc`, and uses its value as the Collector endpoint name. Set it to `grpc` or `http`, which correspond to `GrpcEndpoint` and `HttpEndpoint`. The standard OTLP values `http/protobuf` and `http/json` are not endpoint names and do not resolve with this helper. The resource also waits for the Collector to become healthy before starting.
+
+## Hosting integration health checks
+
+Health checks are enabled by default. The integration configures the Collector `health_check` extension on container port `13233` and registers an HTTP health check against `/health`. Set `DisableHealthcheck` to `true` to disable this endpoint and check.
+
+## Exported AppHost API
+
+The package exports these APIs:
+
+| API                                                   | Description                                                                                   |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `AddOpenTelemetryCollector(name, configureSettings?)` | Adds a Collector container resource and optionally configures its settings.                   |
+| `WithConfig(configPath)`                              | Mounts the configuration file and passes its container path to the Collector.                 |
+| `WithOpenTelemetryCollectorRouting(collectorBuilder)` | Routes a resource's OTLP telemetry to the specified Collector and waits for it to be healthy. |
+| `WithAppForwarding()`                                 | Routes all compatible application resources to the Collector.                                 |
+| `GrpcEndpoint`                                        | Gets the resource's gRPC endpoint reference.                                                  |
+| `HttpEndpoint`                                        | Gets the resource's HTTP endpoint reference.                                                  |
+
+The `OpenTelemetryCollectorSettings` class exposes `CollectorTag`, `Registry`, `Image`, `CollectorImage`, `ForceNonSecureReceiver`, `EnableGrpcEndpoint`, `EnableHttpEndpoint`, and `DisableHealthcheck`. `CollectorImage` is read-only; the other settings are configurable.
+
+## See also
+
+- [OpenTelemetry Collector integration](/integrations/observability/opentelemetry-collector/opentelemetry-collector-get-started/)
+- [OpenTelemetry Collector documentation](https://opentelemetry.io/docs/collector/)
+- [OpenTelemetry Collector configuration](https://opentelemetry.io/docs/collector/configuration/)

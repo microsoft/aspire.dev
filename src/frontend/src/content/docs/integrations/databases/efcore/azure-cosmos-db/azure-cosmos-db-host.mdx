@@ -27,7 +27,7 @@ This article is the AppHost reference for the Azure Cosmos DB hosting integratio
 If you're new to the EF Core Azure Cosmos DB integration, start with the [Get started with the EF Core Azure Cosmos DB integrations](/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-get-started/) guide. For how C# consuming apps register a `DbContext` from the resources this page exposes, see [Connect to Azure Cosmos DB with EF Core](../azure-cosmos-db-connect/).
 
 <Aside type="note">
-  The AppHost hosting integration is **shared** between the direct `CosmosClient` integration and this EF Core integration — both use the same `Aspire.Hosting.Azure.CosmosDB` package and the same <ApiReference name="Aspire.Hosting.AzureCosmosExtensions.AddAzureCosmosDB" /> API. The difference is in the client-side package: EF Core apps install `Aspire.Microsoft.EntityFrameworkCore.Cosmos` and call `AddCosmosDbContext`, while direct SDK apps install `Aspire.Microsoft.Azure.Cosmos` and call `AddAzureCosmosClient`. For the full AppHost reference including TypeScript examples, see [Azure Cosmos DB Hosting integration](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-host/).
+  The AppHost hosting integration is **shared** between the direct `CosmosClient` integration and this EF Core integration — both use the same `Aspire.Hosting.Azure.CosmosDB` package and the same <ApiReference name="Aspire.Hosting.AzureCosmosExtensions.AddAzureCosmosDB" /> API. The difference is in the client-side package: EF Core apps install `Aspire.Microsoft.EntityFrameworkCore.Cosmos` and call `AddCosmosDbContext`, while direct SDK apps install `Aspire.Microsoft.Azure.Cosmos` and call `AddAzureCosmosClient`. For the full AppHost reference including TypeScript and Go examples, see [Azure Cosmos DB Hosting integration](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-host/).
 </Aside>
 
 ## Installation
@@ -77,6 +77,27 @@ This updates your `aspire.config.json` with the Azure Cosmos DB hosting integrat
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add cosmosdb
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Cosmos DB hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.CosmosDB": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Azure Cosmos DB resource
@@ -99,9 +120,31 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const cosmos = await builder.addAzureCosmosDb("cosmos-db");
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	builder.AddAzureCosmosDB("cosmos-db")
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -136,7 +179,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const cosmos = await builder.addAzureCosmosDb("cosmos-db");
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
 const db = await cosmos.addCosmosDatabase("db");
 const container = await db.addContainer("entries", "/id");
 
@@ -145,6 +188,34 @@ await builder.addProject("apiservice", { projectPath: "../ExampleProject/Example
     .withReference(container);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cosmos := builder.AddAzureCosmosDB("cosmos-db")
+	db := cosmos.AddCosmosDatabase("db")
+	container := db.AddContainer("entries", "/id")
+
+	apiservice := builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+	apiservice.WaitFor(container)
+	apiservice.WithReference(container)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -181,10 +252,33 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const cosmos = await builder.addAzureCosmosDb("cosmos-db");
+const cosmos = await builder.addAzureCosmosDB("cosmos-db");
 await cosmos.runAsEmulator();
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cosmos := builder.AddAzureCosmosDB("cosmos-db")
+	cosmos.RunAsEmulator()
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>

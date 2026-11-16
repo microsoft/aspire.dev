@@ -20,11 +20,8 @@ for (const videoId of ['DtdP0JBawPI', null]) {
       updatedAt: new Date().toISOString(),
     };
     await page.route(/\/api\/live\/?$/, (route) => route.fulfill({ json: snapshot }));
-    await page.route(/\/api\/live\/stream\/?$/, (route) =>
-      route.fulfill({
-        contentType: 'text/event-stream',
-        body: `event: state\ndata: ${JSON.stringify(snapshot)}\n\n`,
-      })
+    await page.routeWebSocket(/\/api\/live\/ws$/, (ws) =>
+      ws.send(JSON.stringify({ type: 'state', data: snapshot }))
     );
 
     // Stub only the provider response, not PiP: Chromium must generate the real request.

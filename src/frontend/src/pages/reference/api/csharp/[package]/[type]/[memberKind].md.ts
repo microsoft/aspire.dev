@@ -1,12 +1,13 @@
 import type { APIRoute } from 'astro';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
+import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import { renderCSharpMemberKindMarkdown } from '@utils/csharp-api-markdown';
 import type { PackageMember, PackageMemberRouteProps } from '@utils/packages';
 import {
   genericArity,
-  getPackages,
   getPackageDocument,
+  getPackages,
   getPackageType,
   memberKindOrder,
   memberKindSlugs,
@@ -19,6 +20,7 @@ export const prerender = true;
 type RouteProps = PackageMemberRouteProps;
 
 type StaticPath = {
+  cacheKey: string;
   params: { memberKind: string; package: string; type: string };
   props: RouteProps;
 };
@@ -30,6 +32,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   for (const entry of packages) {
     const pkg = entry.data;
     const pkgSlug = packageSlug(pkg.package.name);
+    const cacheKey = apiDocumentCacheKey(pkg);
 
     for (const [typeIndex, type] of pkg.types.entries()) {
       const typeSlug = slugify(type.name, genericArity(type));
@@ -45,6 +48,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
         }
 
         paths.push({
+          cacheKey,
           params: {
             memberKind: memberKindSlug,
             package: pkgSlug,

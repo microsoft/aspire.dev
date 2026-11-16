@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import heroImage from '@assets/aspire-hero.png';
@@ -248,6 +251,45 @@ describe('community brand components', () => {
     expect(licenseLink).toContain(brandLicenseUrl);
     expect(licenseLink).not.toContain('target=');
   });
+});
+
+it.each([
+  ['ResourceNotificationService', ['Resource', 'Notification', 'Service']],
+  ['RedisResource.withModule', ['Redis', 'Resource.', 'with', 'Module']],
+  ['SQLServerResource', ['SQL', 'Server', 'Resource']],
+  ['IResourceBuilder<RedisResource>', ['I', 'Resource', 'Builder', '<Redis', 'Resource>']],
+])('identifiers expose readable wrap boundaries without changing their text: %s', async (text, parts) => {
+  const html = await renderComponent(ReadableText, { props: { text } });
+  const rendered = html.trim();
+  expect(rendered.replaceAll('<wbr>', '')).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  expect(rendered.split('<wbr>')).toEqual(parts.map((part) => part.replaceAll('<', '&lt;').replaceAll('>', '&gt;')));
+});
+
+it.each(['Install Aspire CLI', 'Aspire 13.6', '日本語', 'plain text <script>'])(
+  'readable text preserves ordinary copy and escapes markup: %s',
+  async (text) => {
+    const html = await renderComponent(ReadableText, { props: { text } });
+    expect(html).not.toContain('<script>');
+    expect(html.replaceAll('<wbr>', '').trim()).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  }
+);
+
+it.each([
+  { Component: YouTubeEmbed, props: { videoId: 'test', title: null }, name: 'YouTube video player' },
+  { Component: TwitchEmbed, props: { channel: 'aspiredotdev', title: ' ' }, name: 'Twitch stream player' },
+])('media embeds retain an accessible name when the title is empty: $name', async ({ Component, props, name }) => {
+  expect(await renderComponent(Component, { props })).toContain(`aria-label="${name}"`);
+});
+
+it('breadcrumbs retain the nearest linked parent and semantic current page', async () => {
+  const html = await renderComponent(Breadcrumb, { props: { crumbs: [
+    { label: 'Docs', href: '/docs/' }, { label: 'Reference' }, { label: 'Current type' },
+  ] } });
+  expect(html).toMatch(/class="bc-parent\b[^"]*" href="\/docs\/"/);
+  expect(html).toMatch(/<ol class="bc-inline\b/);
+  expect(html).not.toContain('<details');
+  expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+  expect(html).toContain('aria-current="page"');
 });
 
 it.each([
@@ -1285,6 +1327,37 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('fit="contain"');
   });
 
+  it('ThemeImage changes development URLs only when image contents change', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'theme-image-'));
+    const path = join(directory, 'diagram.png');
+    const contents = await readFile(new URL('../../src/assets/aspire-hero.png', import.meta.url));
+    const image = { ...heroImage, src: `/@fs/${path.replaceAll('\\', '/')}` };
+    const render = async () =>
+      normalizeHtml(
+        await renderComponent(ThemeImage, {
+          props: { light: image, dark: image, alt: 'Versioned diagram', zoomable: false },
+        })
+      );
+    const sources = (html: string) => [
+      html.match(/data-light="([^"]+)"/)?.[1],
+      html.match(/data-dark="([^"]+)"/)?.[1],
+    ];
+
+    try {
+      await writeFile(path, contents);
+      const first = sources(await render());
+      expect(first.every(Boolean)).toBe(true);
+      expect(sources(await render())).toEqual(first);
+
+      await writeFile(path, Buffer.concat([contents, Buffer.from('updated')]));
+      const updated = sources(await render());
+      expect(updated[0]).not.toEqual(first[0]);
+      expect(updated[1]).not.toEqual(first[1]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('LoopingImage defers themed requests until the page theme is known', async () => {
     const html = normalizeHtml(
       await renderComponent(LoopingImage, {
@@ -1916,6 +1989,28 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('footer-mobile-tool');
     expect(html).not.toContain('data-cookie-manage-consent');
     expect(html).not.toContain('data-open-install-modal');
+  });
+
+  it('links Aspire software to its MIT license without replacing website legal links', async () => {
+    const html = normalizeHtml(
+      await renderComponent(FooterLegal, {
+        locals: { t: createTestTranslator(enTranslations) },
+      })
+    );
+
+    expect(html).toMatch(
+      /<a[^>]*href="https:\/\/github\.com\/microsoft\/aspire\/blob\/main\/LICENSE\.TXT"[^>]*>\s*Aspire software: MIT License\s*<\/a>/
+    );
+    for (const href of [
+      'https://aka.ms/yourcaliforniaprivacychoices',
+      'https://go.microsoft.com/fwlink/?LinkId=521839',
+      'https://go.microsoft.com/fwlink/?LinkID=206977',
+      'https://go.microsoft.com/fwlink/?linkid=2196228',
+      '/support/',
+    ]) {
+      expect(html).toContain(`href="${href}"`);
+    }
+    expect(html).toContain('Terms of Use');
   });
 
   it('renders a unique scanner-addressable Manage Cookies action under Legal', async () => {

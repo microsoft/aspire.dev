@@ -76,6 +76,25 @@ for (const url of [
   });
 }
 
+for (const [url, ogType] of [
+  ['/', 'website'],
+  ['/da/', 'website'],
+  ['/support/', 'website'],
+  ['/fundamentals/telemetry/', 'article'],
+]) {
+  test(`emits a single og:type of ${ogType} for ${url}`, async ({ request }) => {
+    const response = await request.get(url);
+    expect(response.ok()).toBe(true);
+    const tree = unified()
+      .use(rehypeParse)
+      .parse(await response.text());
+    const ogTypes = selectAll('meta[property="og:type"]', tree);
+
+    expect(ogTypes).toHaveLength(1);
+    expect(ogTypes[0].properties.content).toBe(ogType);
+  });
+}
+
 test('preserves Starlight content languages and canonical links for translations and fallbacks', async ({
   request,
 }) => {

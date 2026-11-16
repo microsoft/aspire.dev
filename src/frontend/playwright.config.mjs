@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
 const isCI = Boolean(process.env.CI);
@@ -34,8 +35,9 @@ export default defineConfig({
   use: {
     baseURL: e2eBaseUrl,
     screenshot: 'only-on-failure',
-    trace: 'retain-on-failure',
-    video: 'retain-on-failure',
+    // Recording every run doubles the test time; with CI retries the first retry of a failing test records both.
+    trace: 'on-first-retry',
+    video: 'on-first-retry',
   },
   projects: [
     {
@@ -61,24 +63,40 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    // In CI the preceding `pnpm build:production` step has already produced
-    // `dist/`, so serve the built site via `astro preview`. Under `astro dev`
-    // the first request to each page triggers twoslash processing, which
-    // stacks up under parallel test workers and blows past the default
-    // 30s test timeout. Locally we keep `astro dev` so interactive work
-    // doesn't require a full rebuild.
-    command: isCI
-      ? `astro preview --host 127.0.0.1 --port ${e2ePort}`
-      : `pnpm git-env && pnpm check-data && astro dev --host 127.0.0.1 --port ${e2ePort}`,
-    env: {
-      ...process.env,
-      ASTRO_TELEMETRY_DISABLED: '1',
-    },
-    url: e2eBaseUrl,
-    reuseExistingServer: false,
-    stdout: 'pipe',
-    stderr: 'pipe',
-    timeout: 120000,
-  },
+  webServer: isCI
+    ? {
+        // CI serves the built site with StaticHost, as production does (Markdown negotiation, canonical
+        // redirects, the 404 page, headers). The Frontend Build job builds it against the site's files
+        // (wwwroot holds a copy of dist), so the tests start its assembly directly: `dotnet run --no-build`
+        // still evaluates the project, which takes seconds. The E2E jobs start it before dist arrives
+        // (.github/scripts/start-web-server.mjs), hence reuseExistingServer.
+        command: `dotnet bin/Release/net10.0/StaticHost.dll --urls ${e2eBaseUrl}`,
+        cwd: fileURLToPath(new URL('../statichost/StaticHost/', import.meta.url)),
+        // No Redis runs with the tests: the short connect timeout keeps StaticHost from waiting 5 s per
+        // attempt at startup.
+        env: {
+          ...process.env,
+          ASPNETCORE_ENVIRONMENT: 'Development',
+          DOTNET_NOLOGO: '1',
+          ConnectionStrings__cache: 'localhost:6379,abortConnect=false,connectTimeout=500',
+        },
+        url: `${e2eBaseUrl}/`,
+        reuseExistingServer: true,
+        stdout: 'pipe',
+        stderr: 'pipe',
+        timeout: 180_000,
+      }
+    : {
+        // Locally `astro dev` keeps interactive work free of a full rebuild.
+        command: `bun run git-env && bun run check-data && astro dev --host 127.0.0.1 --port ${e2ePort}`,
+        env: {
+          ...process.env,
+          ASTRO_TELEMETRY_DISABLED: '1',
+        },
+        url: e2eBaseUrl,
+        reuseExistingServer: false,
+        stdout: 'pipe',
+        stderr: 'pipe',
+        timeout: 120000,
+      },
 });

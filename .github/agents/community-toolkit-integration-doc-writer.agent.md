@@ -87,9 +87,9 @@ Example entry:
 
 After completing all documentation writing and sidebar updates:
 
-1. Run `pnpm --dir ./src/frontend update:integrations` if the NuGet package catalog needs to be refreshed.
+1. Run `bun run --cwd ./src/frontend update:integrations` if the NuGet package catalog needs to be refreshed.
 2. Reconcile each exact package ID with its canonical page in `src/frontend/src/data/integration-docs.json`.
-3. Run `pnpm --dir ./src/frontend test:unit:structured-data`.
+3. Run `bun run --cwd ./src/frontend test:unit:structured-data`.
 
 This step ensures that the documentation you've created is properly indexed and linked in the Aspire documentation site.
 

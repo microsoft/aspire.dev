@@ -141,6 +141,16 @@ describe('validateGeneratedApiData', () => {
     expect(validateGeneratedApiData(input).errors).toEqual([]);
   });
 
+  test('allows catalog packages excluded from API reference generation to have no output', () => {
+    const input = createValidInput();
+    input.catalog.push({
+      title: 'Particular.Aspire.Hosting.ServicePlatform',
+      version: '1.1.0',
+      apiReference: false,
+    });
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+  });
+
   test('accepts semantically faithful generated data', () => {
     expect(validateGeneratedApiData(createValidInput()).errors).toEqual([]);
   });
@@ -307,6 +317,75 @@ describe('validateGeneratedApiData', () => {
       'Stale C# API output Aspire.Hosting.Foo@1.0.0; catalog version is 2.0.0.'
     );
     expect(errors).toContain('Missing C# API output for catalog package Aspire.Hosting.Foo@2.0.0.');
+  });
+
+  test('tolerates missing and stale output for packages whose generation failed', () => {
+    const input = createValidInput();
+    input.catalog[0].version = '2.0.0';
+    input.failures = [
+      {
+        name: 'Aspire.Hosting.Foo',
+        version: '2.0.0',
+        stage: 'C#',
+        reason: 'NU1102: required dependency is unavailable',
+      },
+    ];
+
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+  });
+
+  test('allows a new failed package to have no previous API data', () => {
+    const input = createValidInput();
+    input.catalog.push({ title: 'Aspire.Hosting.New', version: '2.0.0' });
+    input.failures = [
+      {
+        name: 'Aspire.Hosting.New',
+        version: '2.0.0',
+        stage: 'C#',
+        reason: 'NU1102',
+      },
+    ];
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+  });
+
+  test('does not exempt unrelated packages or another version of a failed package', () => {
+    const input = createValidInput();
+    input.catalog[0].version = '2.0.0';
+    input.failures = [
+      {
+        name: 'Aspire.Hosting.Foo',
+        version: '1.0.0',
+        stage: 'C#',
+        reason: 'NU1102',
+      },
+    ];
+    const errors = validateGeneratedApiData(input).errors;
+    expect(errors).toContain(
+      'Invalid or outdated API generation failure for Aspire.Hosting.Foo@1.0.0.'
+    );
+    expect(errors).toContain('Missing C# API output for catalog package Aspire.Hosting.Foo@2.0.0.');
+  });
+
+  test('still rejects broken provenance and missing exported modules for a deferred package', () => {
+    const input = createValidInput();
+    input.failures = [
+      {
+        name: 'Aspire.Hosting.Foo',
+        version: '1.0.0',
+        stage: 'TypeScript',
+        reason: 'SDK dump failed',
+      },
+    ];
+    input.modules[0].data.package.sourceCommit = 'wrong';
+    expect(
+      validateGeneratedApiData(input).errors.some((error) =>
+        error.startsWith('Source commit mismatch')
+      )
+    ).toBe(true);
+    input.modules = [];
+    expect(validateGeneratedApiData(input).errors).toContain(
+      'Missing TypeScript API output for exported package Aspire.Hosting.Foo@1.0.0.'
+    );
   });
 });
 

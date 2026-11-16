@@ -65,7 +65,7 @@ export const redirects = {
   '/app-host/persistent-containers/': '/app-host/resource-lifetimes/',
   '/ja/app-host/persistent-containers/': '/ja/app-host/resource-lifetimes/',
   // Integration -client → -connect rename
-  '/integrations/ai/github-models/github-models-client/': '/integrations/ai/github-models/github-models-connect/',
+  '/integrations/ai/github-models/github-models-client/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/',
   '/integrations/ai/ollama/ollama-client/': '/integrations/ai/ollama/ollama-connect/',
   '/integrations/ai/openai/openai-client/': '/integrations/ai/openai/openai-connect/',
   '/integrations/caching/garnet/garnet-client/': '/integrations/caching/garnet/garnet-connect/',
@@ -143,7 +143,11 @@ export const redirects = {
   '/integrations/databases/efcore/postgresql/': '/integrations/databases/efcore/postgres/postgresql-get-started/',
   '/integrations/databases/efcore/azure-postgresql/': '/integrations/databases/efcore/azure-postgresql/azure-postgresql-get-started/',
   '/integrations/databases/efcore/azure-sql/': '/integrations/databases/efcore/azure-sql/azure-sql-get-started/',
-  '/integrations/ai/github-models/': '/integrations/ai/github-models/github-models-get-started/',
+  // GitHub Models was retired; its former pages redirect to the Microsoft Foundry integration.
+  '/integrations/ai/github-models/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/',
+  '/integrations/ai/github-models/github-models-get-started/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/',
+  '/integrations/ai/github-models/github-models-host/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/',
+  '/integrations/ai/github-models/github-models-connect/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/',
   '/integrations/ai/openai/': '/integrations/ai/openai/openai-get-started/',
   '/integrations/caching/redis/': '/integrations/caching/redis/redis-get-started/',
   '/integrations/caching/redis-distributed/': '/integrations/caching/redis-distributed/redis-distributed-get-started/',
