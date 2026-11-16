@@ -23,7 +23,7 @@ In your AppHost, mark the resource as explicitly started:
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.Api>("api");
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj");
 
 // This resource is optional and won't start automatically
 builder.AddContainer("monitoring", "grafana/grafana")
@@ -61,7 +61,7 @@ Another approach is to use configuration in your AppHost to conditionally add re
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.Api>("api");
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj");
 
 // Only add the database resource if not explicitly disabled
 if (builder.Configuration.GetValue("AddDatabase", true))
@@ -139,6 +139,8 @@ Because Aspire tests run services in separate processes, you can't inject servic
 Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" /> on the resource builder after creating the testing builder to set environment variables for specific resources. You access the resource builder through the `CreateResourceBuilder` method:
 
 ```csharp title="IntegrationTest.cs"
+using Aspire.Hosting.Dotnet;
+
 [Fact]
 public async Task ApiUsesTestFeatureFlag()
 {
@@ -146,7 +148,7 @@ public async Task ApiUsesTestFeatureFlag()
         .CreateAsync<Projects.MyAppHost>();
 
     // Override an environment variable for the "api" resource
-    appHost.CreateResourceBuilder<ProjectResource>("api")
+    appHost.CreateResourceBuilder<DotnetProjectResource>("api")
         .WithEnvironment("FeatureFlags__NewCheckout", "true");
 
     await using var app = await appHost.BuildAsync();

@@ -143,7 +143,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("redis");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(cache)
     .WithContainerBuildOptions(options =>
     {
@@ -179,20 +179,20 @@ private static async Task PublishAsync(PipelineStepContext context)
     var imageManager = context.Services.GetRequiredService<IResourceContainerImageManager>();
     var reportingStep = context.ReportingStep;
 
-    var projectResources = context.Model.Resources
-        .OfType<ProjectResource>()
+    var imageResources = context.Model.Resources
+        .Where(resource => resource.RequiresImageBuild())
         .ToList();
 
-    if (projectResources.Count > 0)
+    if (imageResources.Count > 0)
     {
         var buildTask = await reportingStep.CreateTaskAsync(
-            $"Building {projectResources.Count} container image(s)",
+            $"Building {imageResources.Count} container image(s)",
             context.CancellationToken);
 
-        await imageManager.BuildImagesAsync(projectResources, context.CancellationToken);
+        await imageManager.BuildImagesAsync(imageResources, context.CancellationToken);
 
         await buildTask.SucceedAsync(
-            $"Built {projectResources.Count} image(s) successfully",
+            $"Built {imageResources.Count} image(s) successfully",
             context.CancellationToken);
     }
     else

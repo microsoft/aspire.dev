@@ -187,7 +187,7 @@ const builder = await createBuilder();
 const identity = await builder.addAzureUserAssignedIdentity("identity");
 const clientId = await identity.getOutput("clientId");
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withEnvironment("IDENTITY_CLIENT_ID", clientId);
 
 await builder.build().run();
@@ -201,7 +201,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var identity = builder.AddAzureUserAssignedIdentity("identity");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithEnvironment("IDENTITY_CLIENT_ID", identity.Resource.ClientId);
 
 builder.Build().Run();
@@ -946,7 +946,7 @@ await storage.withParameter('storageAccountName', {
 
 const storageAccountName = await storage.getOutput('storageAccountName');
 
-const webapp = await builder.addProject('webapp', '../WebApp/WebApp.csproj');
+const webapp = await builder.addDotnetProject('webapp', '../WebApp/WebApp.csproj');
 await webapp.withEnvironment('STORAGE_ACCOUNT_NAME', storageAccountName);
 
 await builder.build().run();
@@ -962,7 +962,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var storage = builder.AddBicepTemplate("storage", "./custom-storage.bicep")
     .WithParameter("storageAccountName", "mystorageaccount");
 
-builder.AddProject<Projects.WebApp>("webapp")
+builder.AddDotnetProject("webapp", "../WebApp/WebApp.csproj")
        .WithEnvironment("STORAGE_ACCOUNT_NAME", storage.GetOutput("storageAccountName"));
 
 builder.Build().Run();
@@ -1064,7 +1064,7 @@ await sql.withParameter('administratorLoginPassword', { value: adminPassword });
 
 const sqlServerName = await sql.getOutput('sqlServerName');
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withEnvironment('SQL_SERVER_NAME', sqlServerName);
 
 await builder.build().run();
@@ -1082,7 +1082,7 @@ var adminPassword = builder.AddParameter("adminPassword", secret: true);
 var sql = builder.AddBicepTemplate("sql", "./custom-sql.bicep")
     .WithParameter("administratorLoginPassword", adminPassword);
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
        .WithEnvironment("SQL_SERVER_NAME", sql.GetOutput("sqlServerName"));
 
 builder.Build().Run();

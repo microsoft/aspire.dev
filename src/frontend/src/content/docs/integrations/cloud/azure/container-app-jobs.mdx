@@ -17,7 +17,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-[Azure Container Apps jobs](https://learn.microsoft.com/azure/container-apps/jobs) let you run containerized tasks that execute for a finite duration and exit. Unlike continuously-running Container Apps, jobs are purpose-built for batch processing, scheduled tasks, and event-driven workloads. The Aspire Azure Container App Jobs hosting integration exposes <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsAzureContainerAppJob" /> and <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsScheduledAzureContainerAppJob" /> extension methods so you can declare any `ProjectResource`, `ContainerResource`, or `ExecutableResource` as an Azure Container App Job directly from your [`AppHost`](/get-started/app-host/).
+[Azure Container Apps jobs](https://learn.microsoft.com/azure/container-apps/jobs) let you run containerized tasks that execute for a finite duration and exit. Unlike continuously-running Container Apps, jobs are purpose-built for batch processing, scheduled tasks, and event-driven workloads. The Aspire Azure Container App Jobs hosting integration exposes <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsAzureContainerAppJob" /> and <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsScheduledAzureContainerAppJob" /> extension methods so you can declare any `ContainerResource` or `ExecutableResource`, including a `DotnetProjectResource`, as an Azure Container App Job directly from your [`AppHost`](/get-started/app-host/).
 
 ## Supported resource types
 
@@ -25,7 +25,7 @@ The following resource types can be published as Azure Container App Jobs:
 
 | Resource type | Description |
 |---|---|
-| `ProjectResource` | A .NET project added via <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" />. |
+| `DotnetProjectResource` | A .NET project or C# file-based app added via <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" />. |
 | `ContainerResource` | A container image added via <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddContainer" />. |
 | `ExecutableResource` | An executable process added via <ApiReference name="Aspire.Hosting.ExecutableResourceBuilderExtensions.AddExecutable" />. |
 
@@ -38,7 +38,7 @@ Use `PublishAsAzureContainerAppJob` to deploy a project, container, or executabl
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.DataProcessor>("data-processor")
+builder.AddDotnetProject("data-processor", "../DataProcessor/DataProcessor.csproj")
     .PublishAsScheduledAzureContainerAppJob("0 0 * * *"); // Every day at midnight
 ```
 </TabItem>
@@ -48,7 +48,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const dataProcessor = await builder.addProject("data-processor", "../DataProcessor/DataProcessor.csproj");
+const dataProcessor = await builder.addDotnetProject("data-processor", "../DataProcessor/DataProcessor.csproj");
 await dataProcessor.publishAsScheduledAzureContainerAppJob("0 0 * * *"); // Every day at midnight
 ```
 </TabItem>
@@ -94,7 +94,7 @@ Azure Container App Jobs support three trigger types: **manual**, **schedule**, 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.ManualTask>("manual-task")
+builder.AddDotnetProject("manual-task", "../ManualTask/ManualTask.csproj")
     .PublishAsAzureContainerAppJob((_, job) =>
     {
         job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
@@ -115,7 +115,7 @@ builder.AddProject<Projects.ManualTask>("manual-task")
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.ScheduledTask>("scheduled-task")
+builder.AddDotnetProject("scheduled-task", "../ScheduledTask/ScheduledTask.csproj")
     .PublishAsAzureContainerAppJob((_, job) =>
     {
         job.Configuration.TriggerType = ContainerAppJobTriggerType.Schedule;
@@ -139,7 +139,7 @@ builder.AddProject<Projects.ScheduledTask>("scheduled-task")
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.EventDrivenTask>("event-task")
+builder.AddDotnetProject("event-task", "../EventDrivenTask/EventDrivenTask.csproj")
     .PublishAsAzureContainerAppJob((_, job) =>
     {
         job.Configuration.TriggerType = ContainerAppJobTriggerType.Event;
@@ -168,7 +168,7 @@ Configure CPU and memory for your job:
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.ResourceIntensiveTask>("intensive-task")
+builder.AddDotnetProject("intensive-task", "../ResourceIntensiveTask/ResourceIntensiveTask.csproj")
     .PublishAsAzureContainerAppJob((_, job) =>
     {
         job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
@@ -195,7 +195,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var connectionString = builder.AddParameter("connectionString");
 
-builder.AddProject<Projects.DatabaseTask>("db-task")
+builder.AddDotnetProject("db-task", "../DatabaseTask/DatabaseTask.csproj")
     .PublishAsAzureContainerAppJob((infra, job) =>
     {
         job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
@@ -221,7 +221,7 @@ builder.AddProject<Projects.DatabaseTask>("db-task")
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.RetryableTask>("retryable-task")
+builder.AddDotnetProject("retryable-task", "../RetryableTask/RetryableTask.csproj")
     .PublishAsAzureContainerAppJob((_, job) =>
     {
         job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;

@@ -29,7 +29,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add a parameter named "example-parameter-name"
 var parameter = builder.AddParameter("example-parameter-name");
 
-builder.AddProject<Projects.ApiService>("api")
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
        .WithEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter);
 ```
 
@@ -44,7 +44,7 @@ const builder = await createBuilder();
 // Add a parameter named "example-parameter-name"
 const parameter = await builder.addParameter('example-parameter-name');
 
-const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+const api = await builder.addDotnetProject('api', '../ApiService/ApiService.csproj');
 await api.withEnvironment('ENVIRONMENT_VARIABLE_NAME', parameter);
 ```
 
@@ -310,7 +310,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add a secret parameter named "secret"
 var secret = builder.AddParameter("secret", secret: true);
 
-builder.AddProject<Projects.ApiService>("api")
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
        .WithEnvironment("SECRET", secret);
 
 builder.Build().Run();
@@ -327,7 +327,7 @@ const builder = await createBuilder();
 // Add a secret parameter named "secret"
 const secret = await builder.addParameter('secret', { secret: true });
 
-const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+const api = await builder.addDotnetProject('api', '../ApiService/ApiService.csproj');
 await api.withEnvironment('SECRET', secret);
 
 await builder.build().run();
@@ -378,7 +378,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var messagePrefix = builder.AddParameter("message-prefix")
                            .AsOptional();
 
-builder.AddProject<Projects.ApiService>("api")
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
        .WithEnvironment("MESSAGE_PREFIX", messagePrefix);
 
 builder.Build().Run();
@@ -394,7 +394,7 @@ const builder = await createBuilder();
 
 const messagePrefix = await builder.addParameter('message-prefix').asOptional();
 
-const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+const api = await builder.addDotnetProject('api', '../ApiService/ApiService.csproj');
 await api.withEnvironment('MESSAGE_PREFIX', messagePrefix);
 
 await builder.build().run();
@@ -493,7 +493,7 @@ var dbPassword = builder.AddParameterFromConfiguration(
     "CustomConfig:Database:Password",
     secret: true);
 
-builder.AddProject<Projects.ApiService>("api")
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
        .WithEnvironment("DB_PASSWORD", dbPassword);
 
 builder.Build().Run();
@@ -514,7 +514,7 @@ const dbPassword = await builder.addParameterFromConfiguration(
   { secret: true }
 );
 
-const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+const api = await builder.addDotnetProject('api', '../ApiService/ApiService.csproj');
 await api.withEnvironment('DB_PASSWORD', dbPassword);
 
 await builder.build().run();
@@ -562,7 +562,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddConnectionString("redis");
 
-builder.AddProject<Projects.WebApplication>("api")
+builder.AddDotnetProject("api", "../WebApplication/WebApplication.csproj")
        .WithReference(redis)
        .WaitFor(redis);
 
@@ -579,7 +579,7 @@ const builder = await createBuilder();
 
 const redis = await builder.addConnectionString('redis');
 
-const api = await builder.addProject(
+const api = await builder.addDotnetProject(
   'api',
   '../WebApplication/WebApplication.csproj'
 );
@@ -624,7 +624,7 @@ var connectionString = builder.AddConnectionString(
     "composedconnectionstring",
     ReferenceExpression.Create($"Endpoint=https://api.contoso.com/v1;Key={secretKey}"));
 
-builder.AddProject<Projects.AspireReferenceExpressions_CatalogAPI>("catalogapi")
+builder.AddDotnetProject("catalogapi", "../AspireReferenceExpressions.CatalogAPI/AspireReferenceExpressions.CatalogAPI.csproj")
        .WithReference(connectionString)
        .WaitFor(connectionString);
 ```
@@ -646,7 +646,7 @@ const connectionString = await builder.addConnectionString(
   }
 );
 
-const catalogApi = await builder.addProject(
+const catalogApi = await builder.addDotnetProject(
   'catalogapi',
   '../CatalogApi/CatalogApi.csproj'
 );
@@ -669,7 +669,7 @@ var pgConnectionString = builder.AddConnectionString(
     "pgdatabase",
     ReferenceExpression.Create($"{database};Include Error Details=true"));
 
-builder.AddProject<Projects.AspireReferenceExpressions_CustomerAPI>("customerapi")
+builder.AddDotnetProject("customerapi", "../AspireReferenceExpressions.CustomerAPI/AspireReferenceExpressions.CustomerAPI.csproj")
        .WithReference(pgConnectionString)
        .WaitFor(pgConnectionString);
 ```
@@ -689,7 +689,7 @@ const pgConnectionString = await builder.addConnectionString('pgdatabase', {
   environmentVariableNameOrExpression: refExpr`${database};Include Error Details=true`,
 });
 
-const customerApi = await builder.addProject(
+const customerApi = await builder.addDotnetProject(
   'customerapi',
   '../CustomerApi/CustomerApi.csproj'
 );
@@ -717,7 +717,7 @@ IResourceBuilder<IResourceWithConnectionString> db = builder.ExecutionContext.Is
 
 var insertionRows = builder.AddParameter("insertionRows");
 
-builder.AddProject<Projects.Parameters_ApiService>("api")
+builder.AddDotnetProject("api", "../Parameters.ApiService/Parameters.ApiService.csproj")
        .WithEnvironment("InsertionRows", insertionRows)
        .WithReference(db);
 
@@ -742,7 +742,7 @@ const db = isRunMode
 
 const insertionRows = await builder.addParameter('insertionRows');
 
-const api = await builder.addProject(
+const api = await builder.addDotnetProject(
   'api',
   '../Parameters.ApiService/Parameters.ApiService.csproj'
 );
