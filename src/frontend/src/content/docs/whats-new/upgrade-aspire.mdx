@@ -55,7 +55,7 @@ To test your app against an upcoming release before it ships, switch both the CL
     aspire update --self --channel staging
     ```
 
-    In CI, install the matching CLI with the install script's [`--quality staging`](/reference/cli/install-script/#options) option (`-Quality 'staging'` in PowerShell) instead of the default `release` quality.
+    This switches CLIs installed with the install script. If you installed the CLI as a .NET tool or with npm, `aspire update --self` prints the package manager's update command instead and doesn't switch channels. Reinstall with the install script and the [`--quality staging`](/reference/cli/install-script/#options) option (`-Quality 'staging'` in PowerShell) instead. Use the same option in CI instead of the default `release` quality.
 
 2. **Update your app to the staging channel:**
 
@@ -63,13 +63,16 @@ To test your app against an upcoming release before it ships, switch both the CL
     aspire update --channel staging --migrate
     ```
 
-    Besides updating package versions, this command:
+    Besides updating package versions, this command writes `"channel": "staging"` to `aspire.config.json` when that file exists. For TypeScript and other non-C# AppHosts, later `aspire add` and `aspire update` runs use that saved channel. For C# AppHosts, an `aspire update` run without `--channel` follows your NuGet configuration instead of the saved channel, so pass `--channel staging` on each update while you test.
 
-    - Writes `"channel": "staging"` to `aspire.config.json` when that file exists, so later `aspire add` and `aspire update` runs keep resolving staging packages.
-    - Creates or updates a project-level `NuGet.config` with the staging feed and a package source mapping that routes `Aspire*` packages to it.
-    - Sets `globalPackagesFolder` to a repository-local `.nugetpackages` folder in that `NuGet.config`, so prerelease packages don't mix with your global package cache. Add `.nugetpackages/` to your `.gitignore`.
+    For C# AppHosts, the command can also create or update a project-level `NuGet.config` that adds the staging feed. Depending on your existing configuration, it can also:
 
-    `--migrate` applies only automatic migrations. Build the app afterward and review any new warnings, such as `ASPIRE012`, which flags approval-gated changes that `aspire update` doesn't make for you. See the [diagnostics overview](/diagnostics/overview/) for each warning's fix.
+    - Add a package source mapping that routes `Aspire*` packages to the staging feed.
+    - Set `globalPackagesFolder` to a repository-local `.nugetpackages` folder when one isn't already set, so prerelease packages don't mix with your global package cache. If it does, add `.nugetpackages/` to your `.gitignore`.
+
+    Review the resulting `NuGet.config` before you commit it.
+
+    `--migrate` applies only automatic migrations. Build the app afterward and review any new warnings, such as `ASPIRE012`, which flags approval-gated changes that `aspire update` doesn't make for you. For the `ASPIRE012` migration steps, see [aka.ms/aspire/diagnostics/aspire012](https://aka.ms/aspire/diagnostics/aspire012). For other warnings, see the [diagnostics overview](/diagnostics/overview/).
 
 3. **Point `aspire docs` at the prerelease documentation.** The prerelease site, reached through `https://aka.ms/aspire/vnext`, documents features that aren't on aspire.dev yet. Open that link once to find the prerelease host, then set both documentation sources so guide search and API lookup (including AI agent skills that call `aspire docs`) read the same content:
 
