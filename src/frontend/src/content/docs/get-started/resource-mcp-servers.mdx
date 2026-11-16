@@ -25,7 +25,7 @@ For PostgreSQL, use <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIREMCP001
+#pragma warning disable ASPIREPOSTGRES001
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -57,7 +57,7 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="note">
-The resource MCP APIs are experimental. Suppress the `ASPIREMCP001` or `ASPIREPOSTGRES001` diagnostic to use them.
+The PostgreSQL MCP integration is experimental. Suppress the `ASPIREPOSTGRES001` diagnostic to use it. The `WithMcpServer` endpoint declaration helper is stable and no longer requires suppressing `ASPIREMCP001`.
 </Aside>
 
 <ContainerImages package="Aspire.Hosting.PostgreSQL" only="Postgres MCP" />
@@ -97,8 +97,6 @@ You can add any container that implements the MCP protocol as an MCP-enabled res
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIREMCP001
-
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add a custom MCP server container
@@ -126,14 +124,18 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-The MCP annotation method accepts an optional path and endpoint name:
+`WithMcpServer` declares an MCP server that already exists on the resource. It adds metadata that Aspire tooling uses for discovery and proxying; it doesn't create an endpoint, start a server, or configure transport or authentication. The server must implement MCP at the declared URL.
 
-- With no arguments, it uses the default HTTP endpoint at `/mcp`.
-- To use a named endpoint at a different path, pass the path and endpoint name, such as `/sse` and `https`.
+The method accepts an optional path and endpoint name:
+
+- With no arguments, it uses the `https` endpoint if one exists, otherwise the `http` endpoint, at the `/mcp` path. Endpoint names are matched case-insensitively, regardless of declaration order.
+- To use any other endpoint, pass its name with `endpointName`, even when it uses HTTPS.
+- A path without a leading slash gets one added. A null or empty path uses the endpoint's base URL, and trailing slashes are kept.
+- A missing endpoint selection fails when the resolver consumes the declaration, not when you call `WithMcpServer`.
 
 ## See also
 
 - [Use AI coding agents](/get-started/ai-coding-agents/) — set up your project for AI agents
 - [Aspire MCP server](/get-started/aspire-mcp-server/) — the built-in MCP server tools
-- [ASPIREMCP001 diagnostic](/diagnostics/aspiremcp001/) — experimental MCP server API warning
+- [ASPIREMCP001 diagnostic](/diagnostics/aspiremcp001/) — retired MCP server API warning
 - [ASPIREPOSTGRES001 diagnostic](/diagnostics/aspirepostgres001/) — experimental PostgreSQL MCP warning
