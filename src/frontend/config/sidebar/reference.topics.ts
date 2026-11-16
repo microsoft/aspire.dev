@@ -724,6 +724,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspirecompute003',
             },
             {
+              label: 'ASPIRECONNECTIONSTRINGS001',
+              link: '/diagnostics/aspireconnectionstrings001',
+            },
+            {
               label: 'ASPIRECONTAINERRUNTIME001',
               link: '/diagnostics/aspirecontainerruntime001',
             },

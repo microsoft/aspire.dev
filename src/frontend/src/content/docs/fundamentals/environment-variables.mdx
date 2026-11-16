@@ -79,7 +79,9 @@ If you must keep an older client integration, set the reference's `connectionNam
 
 For generated injections, inspect `ConnectionStringReference` values in the environment-variable dictionary, not resource annotations. Their `EnvironmentVariableNames` property exposes a `ConnectionStringEnvironmentVariableNames` record with `LogicalName`, `OriginalName`, `PortableName`, and `IsExplicit`. Its `Create` factory derives names from a resource and logical name; `GetPhysicalNames` enumerates the distinct physical aliases.
 
-`ConnectionStringEnvironmentVariableNames` and `ConnectionStringReference.EnvironmentVariableNames` are stable. You don't need to suppress the `ASPIRECONNECTIONSTRINGS001` diagnostic to use them, and the diagnostic is retired. The record properties keep their `init` accessors, so a `with` copy can change names independently without recomputing the other properties.
+Starting with Aspire 17.0, `ConnectionStringEnvironmentVariableNames` and `ConnectionStringReference.EnvironmentVariableNames` are stable and no longer emit [`ASPIRECONNECTIONSTRINGS001`](/diagnostics/aspireconnectionstrings001/). After upgrading, remove any suppressions of that diagnostic. Aspire 13.6 still reports it for these APIs.
+
+The record's properties have public `init` accessors, so you can make a modified copy with a `with` expression. A `with` copy doesn't recompute the other properties: changing `LogicalName` leaves `OriginalName` and `PortableName` unchanged. To derive a consistent set of names for another logical name, call `Create` instead.
 
 A standalone reference created with the existing two-argument constructor has no naming metadata. Don't infer that it's a generated alias. Resolve the reference's `ConnectionStringExpression`, not `Resource.ConnectionStringExpression`, because a reference can select another value on the same resource, such as Qdrant's HTTP connection.
 

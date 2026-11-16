@@ -1,0 +1,76 @@
+---
+title: Compiler Error ASPIRECONNECTIONSTRINGS001
+seoTitle: 'ASPIRECONNECTIONSTRINGS001: Connection-string naming metadata'
+description: Learn why Aspire 17.0 retired ASPIRECONNECTIONSTRINGS001 now that the connection-string naming metadata APIs are stable.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.6"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+:::note[Removed in Aspire 17.0]
+Starting with Aspire 17.0, `ConnectionStringEnvironmentVariableNames` and `ConnectionStringReference.EnvironmentVariableNames` are stable and no longer emit `ASPIRECONNECTIONSTRINGS001`. You can remove suppressions for these APIs after upgrading.
+:::
+
+> 'Aspire.Hosting.ApplicationModel.ConnectionStringEnvironmentVariableNames' is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+In Aspire 13.6, this diagnostic is reported when you use the following experimental APIs from `Aspire.Hosting`:
+
+- `ConnectionStringEnvironmentVariableNames`, the record that describes a connection-string reference's logical name and its original and portable environment-variable names
+- `ConnectionStringReference.EnvironmentVariableNames`, which exposes that record for generated connection-string injections
+
+Ordinary `WithReference` usage never reported this diagnostic. It only applies to custom publishers and integrations that inspect the naming metadata. For more information, see [Custom publishers and integrations](/fundamentals/environment-variables/#custom-publishers-and-integrations).
+
+## Example in Aspire 13.6
+
+In Aspire 13.6, the following code generates `ASPIRECONNECTIONSTRINGS001`:
+
+```csharp title="Publisher.cs"
+if (value is ConnectionStringReference { EnvironmentVariableNames: { } names })
+{
+    foreach (var name in names.GetPhysicalNames())
+    {
+        Console.WriteLine(name);
+    }
+}
+```
+
+## To correct this error
+
+Upgrade to Aspire 17.0 or later. After upgrading, remove `ASPIRECONNECTIONSTRINGS001` suppressions from _.editorconfig_ files, project `NoWarn` properties, and `#pragma warning` directives.
+
+For Aspire 13.6, suppress the error with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRECONNECTIONSTRINGS001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRECONNECTIONSTRINGS001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRECONNECTIONSTRINGS001` directive:
+
+  ```csharp title="Suppressing the error"
+  #pragma warning disable ASPIRECONNECTIONSTRINGS001
+  var names = reference.EnvironmentVariableNames;
+  #pragma warning restore ASPIRECONNECTIONSTRINGS001
+  ```
+
+## See also
+
+- [Environment variables: Connection strings](/fundamentals/environment-variables/#connection-strings)
