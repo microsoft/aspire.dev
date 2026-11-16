@@ -159,7 +159,7 @@ The version check runs only when:
 - The check hasn't been disabled via the `ASPIRE_VERSION_CHECK_DISABLED` configuration setting.
 - The app is not running in publish mode.
 
-Updates are manual. You need to edit your project file to upgrade the Aspire SDK and package versions.
+Update the Aspire CLI with `aspire update --self`, then run `aspire update` to update the AppHost's Aspire package versions. You can also edit the package versions manually.
 
 ## Resource service
 
@@ -207,7 +207,7 @@ Internal settings are used by the AppHost and integrations. Internal settings ar
 ## Advanced orchestration properties
 
 <Aside type="caution">
-The following MSBuild properties and command-line arguments are intended for internal use by the Aspire SDK and tooling. You should not need to set these manually under normal circumstances. Incorrectly configuring these values can break your AppHost.
+The following MSBuild properties and command-line arguments are intended for internal use by the AppHost build and tooling. You should not need to set these manually under normal circumstances. Incorrectly configuring these values can break your AppHost.
 </Aside>
 
 ### DcpCliPath
@@ -216,11 +216,7 @@ The `DcpCliPath` property specifies the path to the **Developer Control Plane (D
 
 #### How it works
 
-When you use the [Aspire SDK](/get-started/aspire-sdk/), the build system automatically:
-
-1. Imports the platform-specific `Aspire.Hosting.Orchestration` NuGet package (for example, `Aspire.Hosting.Orchestration.win-x64`).
-2. Sets `DcpCliPath` to point to the `dcp` executable within that package.
-3. Embeds this path as assembly metadata in your compiled AppHost.
+The AppHost build resolves DCP from the installed [Aspire CLI bundle](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies), which C# AppHosts require, and embeds its path as assembly metadata in your compiled AppHost. When you start the AppHost with `aspire run` or `aspire start`, the CLI passes the bundle paths to the AppHost directly.
 
 At runtime, the AppHost reads this metadata to locate and start the DCP process, which then orchestrates your application's resources.
 
@@ -239,9 +235,9 @@ In rare cases, you may need to override the default DCP path:
 You might override `DcpCliPath` in these scenarios:
 
 - **Aspire contributors**: Testing with a custom or debug build of DCP when developing Aspire itself.
-- **CI/CD pipelines**: Non-standard SDK layouts where automatic discovery doesn't work.
+- **CI/CD pipelines**: Nonstandard layouts where automatic discovery doesn't work.
 - **Troubleshooting**: Temporarily pointing to a specific DCP version to diagnose issues.
 
 <Aside type="tip">
-If your AppHost fails to start with an error about missing DCP or orchestration dependencies, ensure you have the [Aspire SDK](/get-started/aspire-sdk/) properly configured rather than manually setting `DcpCliPath`.
+If your AppHost fails to start with an error about missing DCP or orchestration dependencies, make sure the [Aspire CLI is installed and the AppHost is configured correctly](/get-started/aspire-sdk/) rather than manually setting `DcpCliPath`.
 </Aside>

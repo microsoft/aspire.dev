@@ -1016,7 +1016,7 @@ export const docsTopics = {
               collapsed: false,
               items: [
                 {
-                  label: 'Aspire SDK',
+                  label: 'AppHost project configuration',
                   slug: 'get-started/aspire-sdk',
                 },
                 {

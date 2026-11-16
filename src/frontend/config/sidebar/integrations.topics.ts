@@ -1519,6 +1519,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'Project resources', slug: 'integrations/dotnet/project-resources' },
             { label: 'C# file-based apps', slug: 'integrations/dotnet/csharp-file-based-apps' },
             { label: 'Launch profiles', slug: 'integrations/dotnet/launch-profiles' },
+            {
+              label: 'Migrate to DotnetProjectResource',
+              slug: 'integrations/dotnet/migrate-dotnet-project-resource',
+            },
             { label: '.NET tool resources', slug: 'integrations/dotnet/dotnet-tool-resources' },
             {
               label: 'Blazor',

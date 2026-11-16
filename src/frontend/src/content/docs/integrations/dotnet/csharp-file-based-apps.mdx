@@ -21,7 +21,11 @@ import ApiReference from '@components/ApiReference.astro';
 
 This article explains how to add C# file-based app resources to your [`AppHost`](/get-started/app-host/) with the stable `Aspire.Hosting.Dotnet` integration. The examples cover C#, TypeScript, and Go AppHosts.
 
-C# file-based applications let you run single `.cs` files without a `.csproj` project file. This feature, built on .NET 10 SDK's file-based app support, integrates directly with Aspire's orchestration. Use `AddDotnetProject` (`addDotnetProject` in TypeScript and Go AppHosts) to add a `.cs` file, `.csproj` file, or directory containing a project.
+C# file-based applications let you run single `.cs` files without a `.csproj` project file. This feature, built on .NET 10 SDK's file-based app support, integrates directly with Aspire's orchestration. Use <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" /> to add a `.cs` file, `.csproj` file, or directory containing a project.
+
+:::note[Upgrading to Aspire 17?]
+`AddCSharpApp` is obsolete in Aspire 17. Replace it with `AddDotnetProject`; see [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/).
+:::
 
 Add the integration to your AppHost before using the examples:
 
@@ -38,7 +42,7 @@ Use file-based apps when you need to:
 - Create lightweight APIs with minimal ceremony.
 - Experiment with Aspire integrations in a single file.
 
-For apps with multiple source files, use `AddDotnetProject` with a `.csproj` path. In a project-based AppHost that references the app project, you can also use <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" />.
+For apps with multiple source files, use `AddDotnetProject` with a `.csproj` path.
 
 ## Add C# app resource
 
@@ -170,12 +174,12 @@ When pointing to a `.csproj` file or directory, `AddDotnetProject` doesn't requi
 </Aside>
 
 <LearnMore>
-  For more information about `AddProject`, project references, and generated `Projects` types, see [Project resources](/integrations/dotnet/project-resources/).
+  For supported project paths, build behavior, and publishing, see the [.NET hosting reference](/integrations/frameworks/dotnet/dotnet-host/).
 </LearnMore>
 
 ## Add resource dependencies
 
-File-based apps integrate fully with Aspire's resource model. You can reference other resources and configure service discovery just like any other project resource:
+File-based apps integrate fully with Aspire's resource model. You can reference other resources and configure service discovery just like any other resource:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -255,7 +259,7 @@ The file-based app receives connection strings and service discovery information
 
 ## Configure options
 
-`AddDotnetProject` accepts optional launch settings. The following example sets the launch profile and disables automatic endpoint inference from the launch profile and Kestrel configuration:
+`AddDotnetProject` accepts optional launch settings. The following example selects a launch profile and explicitly keeps endpoint inference from the launch profile and Kestrel configuration enabled:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -324,7 +328,7 @@ if err := app.Run(); err != nil {
 </TabItem>
 </Tabs>
 
-The available options are the same as those used with `AddProject<T>`:
+The following options are available:
 
 | Option                    | Description                                                       |
 | ------------------------- | ----------------------------------------------------------------- |
@@ -334,10 +338,10 @@ The available options are the same as those used with `AddProject<T>`:
 
 ## File-based AppHost
 
-You can also write the AppHost itself as a file-based C# app using the `#:sdk` directive:
+You can also write the AppHost itself as a file-based C# app. Reference the AppHost packages with `#:package` directives:
 
 ```csharp title="apphost.cs"
-#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+#:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
 #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
 #:package Aspire.Hosting.Dotnet@%ASPIRE_VERSION%
 
@@ -354,11 +358,11 @@ builder.Build().Run();
 Use `#:package` directives to add NuGet package references directly in the source file instead of a `.csproj`.
 
 :::note
-A TypeScript AppHost (`apphost.mts`) is already a file-based script with no project file required. The `#:sdk` and `#:package` directives are specific to the C# file-based AppHost feature and have no TypeScript equivalent.
+A TypeScript AppHost (`apphost.mts`) is already a file-based script with no project file required. The `#:package` directive is specific to C# file-based apps and has no TypeScript equivalent.
 :::
 
 <LearnMore>
-  Learn more about the [Aspire SDK](/get-started/aspire-sdk/).
+  Learn more about [C# AppHost project configuration](/get-started/aspire-sdk/).
 </LearnMore>
 
 ## IDE debugging behavior
@@ -378,62 +382,11 @@ Be aware of the following limitations:
 - **Single-file only** &mdash; file-based apps are limited to a single `.cs` file per resource.
 - **.NET 10 SDK required** &mdash; file-based app execution requires the .NET 10 SDK or later.
 
-## Migrating from AddCSharpApp
-
-Starting in Aspire 17.0, `AddCSharpApp` and the polyglot `addCSharpApp` export are obsolete. Existing C# calls now produce the `CS0618` compiler warning instead of the `ASPIRECSHARPAPPS001` experimental error, and the TypeScript API surface emits `@deprecated` instead of `@experimental`. Signatures, defaults, validation, callbacks, path handling, and launch/publish behavior are unchanged for existing `AddCSharpApp` calls &mdash; only the diagnostic metadata changed.
-
-Add the [📦 Aspire.Hosting.Dotnet](https://www.nuget.org/packages/Aspire.Hosting.Dotnet) integration and replace `AddCSharpApp` / `addCSharpApp` calls with `AddDotnetProject` / `addDotnetProject`:
-
-```bash title="Terminal"
-aspire add Aspire.Hosting.Dotnet
-```
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-await builder.addDotnetProject("worker", "../worker/Program.cs");
-```
-
-</TabItem>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-builder.AddDotnetProject("worker", "../worker/Program.cs");
-```
-
-</TabItem>
-<TabItem id='go' label='Go'>
-
-```go title="apphost.go"
-builder.AddDotnetProject("worker", "../worker/Program.cs")
-```
-
-</TabItem>
-</Tabs>
-
-`AddDotnetProject` accepts the same kinds of paths &mdash; a `.cs` file, a `.csproj` file, or a directory containing a single `.csproj` &mdash; but returns a `DotnetProjectResource` instead of a `ProjectResource` / `CSharpAppResource`. Explicitly typed resource builders and project-specific customizations might need updating. Resources added with `AddDotnetProject` are configured for .NET SDK container publishing automatically.
-
-If you keep using `AddCSharpApp` and treat warnings as errors, suppress `CS0618` for the retained calls:
-
-```csharp title="AppHost.cs"
-#pragma warning disable CS0618
-builder.AddCSharpApp("worker", "../worker/Program.cs");
-#pragma warning restore CS0618
-```
-
-<LearnMore>
-  See [Set up .NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/)
-  for the full `AddDotnetProject` reference, and
-  [What's new in Aspire 17.0](/whats-new/aspire-17/#breaking-changes) for the
-  obsoletion announcement.
-</LearnMore>
-
 ## See also
 
 - [What is the AppHost?](/get-started/app-host/)
 - [Set up .NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/)
-- [Project resources](/integrations/dotnet/project-resources/)
-- [Aspire SDK](/get-started/aspire-sdk/)
+- [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/)
+- [C# AppHost project configuration](/get-started/aspire-sdk/)
 - [Executable resources](/app-host/executable-resources/)
 - [What's new in Aspire 13.0](/whats-new/aspire-13/)
