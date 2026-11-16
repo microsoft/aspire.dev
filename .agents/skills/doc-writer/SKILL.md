@@ -410,7 +410,7 @@ Always include a descriptive title:
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.Api>("api");
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj");
 
 // After adding all resources, run the app...
 builder.Build().Run();
@@ -423,7 +423,7 @@ import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 
 await builder.build().run();
 ```
@@ -484,7 +484,7 @@ const builder = await createBuilder();
 
 const cache = await builder.addRedis("cache");
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(cache);
 
 await builder.build().run();
@@ -498,7 +498,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(cache);
 
 builder.Build().Run();
@@ -523,7 +523,7 @@ func main() {
 	}
 
 	cache := builder.AddRedis("cache")
-	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+	builder.AddDotnetProject("api", "../Api/Api.csproj").
 		WithReference(cache)
 
 	app, err := builder.Build()
@@ -557,6 +557,15 @@ If a section heading should appear in the **On this page** table of contents, ke
 | Method casing    | camelCase (`addRedis`)                                                                                              | PascalCase (`AddRedis`)                         | PascalCase (`AddRedis`)                                  |
 | Async pattern    | `await` each builder call                                                                                           | Synchronous fluent calls                        | Synchronous fluent calls; errors surface at `Build()`    |
 | Build & run      | `await builder.build().run()`                                                                                       | `builder.Build().Run()`                         | `app, err := builder.Build()` then `app.Run()`           |
+
+### .NET projects in AppHost samples
+
+Add .NET projects with `AddDotnetProject("name", "path")` (`addDotnetProject` in TypeScript and `AddDotnetProject` in Go) from the `Aspire.Hosting.Dotnet` integration. The path can be a `.csproj` file, a directory containing one project, or a file-based `.cs` app.
+
+- Do **not** use the obsolete `AddProject<Projects.X>()`, `AddProject("name", "path")`, `addProject`, `AddCSharpApp`, or `addCSharpApp` APIs in new or updated evergreen docs. They return the legacy `ProjectResource`.
+- Do **not** show `Aspire.AppHost.Sdk` in project files or `#:sdk` in file-based apps. C# AppHosts use `Microsoft.NET.Sdk` with `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` package references (`#:package` directives in file-based apps).
+- When a page needs to mention the legacy APIs, keep it to a short `:::note[Upgrading to Aspire 17?]` that links to [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/). Don't add history to evergreen pages.
+- Historical what's-new pages and diagnostics about the legacy APIs (such as `ASPIRE012` and `ASPIRECSHARPAPPS001`) are the exceptions.
 
 ### Prose Guidelines
 
@@ -739,8 +748,7 @@ the active Aspire release:
 | `%ASPIRE_VERSION%` | Full current stable version, including patch |
 | `%ASPIRE_VERSION_MAJOR_MINOR%` | Current major/minor display or installer version |
 
-Use these placeholders in package references, `Aspire.AppHost.Sdk`
-declarations, file-based app directives, CLI/AppHost output, and generic
+Use these placeholders in package references, file-based app directives, CLI/AppHost output, and generic
 installation examples that should advance with the release branch. This
 applies to localized documentation as well as English documentation.
 
