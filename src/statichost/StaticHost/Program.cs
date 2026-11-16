@@ -12,6 +12,7 @@ if (builder.Configuration.GetConnectionString("secrets") is not null)
 }
 
 builder.AddLiveStatus();
+builder.Services.AddSiteFiles();
 
 builder.Services.AddHsts(options =>
 {
@@ -43,8 +44,7 @@ app.UseCanonicalPathRedirects();
 
 // Agent-readiness middlewares MUST run before UseDefaultFiles + UseRouting:
 //   * UseDefaultFiles rewrites /foo/ -> /foo/index.html, breaking .md-companion mapping.
-//   * MapStaticAssets registers endpoints during UseRouting, so a path rewrite
-//     after UseRouting wouldn't re-trigger endpoint selection.
+//   * A path rewrite after UseRouting wouldn't re-trigger endpoint selection.
 // MarkdownNegotiationMiddleware short-circuits to serve the .md body directly;
 // LinkHeaderMiddleware attaches a Link header on HTML 2xx responses via OnStarting.
 app.UseAgentReadiness();
@@ -92,6 +92,10 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// The site's files. Requests that matched an endpoint below (health, downloads, live status)
+// pass through to it; a file that does not exist falls through to the 404 page above.
+app.UseSiteFiles();
+
 app.MapGet("/healthz", (HttpContext context) =>
 {
     // A health probe must always reach the origin, never a cached copy.
@@ -138,7 +142,5 @@ app.MapGet("/install.sh", (HttpContext context, OneDSTelemetryService telemetry)
 
     return Results.Redirect("https://aka.ms/aspire/get/install.sh");
 });
-
-app.MapStaticAssets();
 
 await app.RunAsync();

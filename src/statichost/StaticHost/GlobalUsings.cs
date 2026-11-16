@@ -4,6 +4,7 @@ global using StaticHost;
 global using StaticHost.AgentReadiness;
 global using StaticHost.Live;
 global using StaticHost.Routing;
+global using StaticHost.SiteFiles;
 global using StaticHost.Telemetry;
 
 global using OpenTelemetry;

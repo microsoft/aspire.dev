@@ -1,0 +1,107 @@
+<Project>
+  <!--
+  Publishes the site (src/frontend/dist) to wwwroot with a brotli copy of each text file.
+
+  StaticHost serves the web root with SiteFileMiddleware, not MapStaticAssets, so the project
+  turns static web assets off (StaticWebAssetsEnabled). That pipeline hashed every file, wrote a
+  manifest of every URL, and made each instance load it at startup, which costs a lot with
+  about 70,000 files. What it did that the site needs is here: run the frontend build, copy its
+  output, and compress it once at publish. Caching and ETags are decided per request.
+
+  Asking frontend.esproj for JavaScriptOutputGroup runs its BuildCommand and returns dist's
+  files, as the static web assets pipeline did.
+  -->
+  <PropertyGroup>
+    <!-- The text types the SDK compressed (Microsoft.NET.Sdk.StaticWebAssets.Compression.targets). -->
+    <SiteCompressedExtensions>.html;.htm;.md;.markdown;.txt;.xml;.json;.webmanifest;.js;.mjs;.jsx;.css;.map;.svg;.ico;.bmp;.otf;.wasm;.csv;.tsv;.ics;.xsl;.xslt</SiteCompressedExtensions>
+  </PropertyGroup>
+
+  <UsingTask TaskName="CompressSiteFiles" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Files ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputDirectory ParameterType="System.String" Required="true" />
+      <Extensions ParameterType="System.String" Required="true" />
+      <PublishFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.Collections.Concurrent" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.IO.Compression" />
+      <Using Namespace="System.Threading" />
+      <Using Namespace="System.Threading.Tasks" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Inline tasks compile against .NET Standard, which has no BrotliStream; MSBuild runs on .NET.
+        var brotliStream = Type.GetType("System.IO.Compression.BrotliStream, System.IO.Compression.Brotli", throwOnError: true);
+        // Optimal is brotli quality 4, which the SDK used at publish (_BlazorBrotliCompressionLevel).
+        // SmallestSize (11) saves about a sixth more but compresses about 100 times slower.
+        var level = CompressionLevel.Optimal;
+        var extensions = new HashSet<string>(Extensions.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries), StringComparer.OrdinalIgnoreCase);
+        var publishFiles = new ConcurrentBag<ITaskItem>();
+        var compressed = 0;
+
+        Func<string, string, ITaskItem> publish = (path, relativePath) =>
+        {
+            var item = new TaskItem(path);
+            item.SetMetadata("RelativePath", "wwwroot/" + relativePath.Replace('\\', '/'));
+            item.SetMetadata("CopyToPublishDirectory", "PreserveNewest");
+            item.SetMetadata("ExcludeFromSingleFile", "true");
+            return item;
+        };
+
+        Parallel.ForEach(Files, file =>
+        {
+            var source = file.GetMetadata("FullPath");
+            var relativePath = file.GetMetadata("TemplateSubPath") + Path.GetFileName(source);
+            publishFiles.Add(publish(source, relativePath));
+
+            if (!extensions.Contains(Path.GetExtension(source)))
+            {
+                return;
+            }
+
+            // Reuse a copy that is newer than its source, so an unchanged site compresses once.
+            var target = Path.Combine(OutputDirectory, relativePath + ".br");
+            if (!File.Exists(target) || File.GetLastWriteTimeUtc(target) < File.GetLastWriteTimeUtc(source))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(target));
+                var temporary = target + ".tmp";
+                using (var input = File.OpenRead(source))
+                using (var output = File.Create(temporary))
+                using (var brotli = (Stream)Activator.CreateInstance(brotliStream, output, level))
+                {
+                    input.CopyTo(brotli);
+                }
+
+                File.Delete(target);
+                File.Move(temporary, target);
+                Interlocked.Increment(ref compressed);
+            }
+
+            // A copy that saves nothing (tiny files) is not worth serving.
+            if (new FileInfo(target).Length < new FileInfo(source).Length)
+            {
+                publishFiles.Add(publish(target, relativePath + ".br"));
+            }
+        });
+
+        PublishFiles = publishFiles.ToArray();
+        Log.LogMessage(MessageImportance.High, "Site: " + Files.Length + " files, " + compressed + " compressed now, " + (PublishFiles.Length - Files.Length) + " brotli copies published.");
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="AddSiteToPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <PropertyGroup>
+      <!-- Set here: IntermediateOutputPath is not defined yet when this file's properties are. -->
+      <SiteCompressedDirectory>$(MSBuildProjectDirectory)/$(IntermediateOutputPath)site-br/</SiteCompressedDirectory>
+    </PropertyGroup>
+
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('Filename', 'frontend'))" Targets="JavaScriptOutputGroup">
+      <Output TaskParameter="TargetOutputs" ItemName="_SiteFile" />
+    </MSBuild>
+
+    <CompressSiteFiles Files="@(_SiteFile)" OutputDirectory="$(SiteCompressedDirectory)" Extensions="$(SiteCompressedExtensions)">
+      <Output TaskParameter="PublishFiles" ItemName="ResolvedFileToPublish" />
+    </CompressSiteFiles>
+  </Target>
+</Project>
