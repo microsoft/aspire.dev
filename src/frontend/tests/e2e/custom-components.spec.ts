@@ -351,9 +351,11 @@ test('prerequisites presents runtime choices with Podman setup and WSLc limitati
 
   await expect(wslcChoice).toBeVisible();
   await expect(podmanChoice).toBeHidden();
-  await expect(wslcChoice).toContainText('Windows local development only');
+  await expect(wslcChoice).toContainText('Windows only; limited publish support');
   await expect(wslcChoice).toContainText('Requires WSLc version 3.0.2.0 or later.');
-  await expect(wslcChoice).toContainText('Publishing and deployment are not supported yet.');
+  await expect(wslcChoice).toContainText(
+    "Publishing has initial, limited support; Compose deployment isn't supported."
+  );
   await expect(wslcChoice.getByRole('link', { name: 'Set up WSLc' })).toHaveAttribute(
     'href',
     'https://aka.ms/aspire/containers'
