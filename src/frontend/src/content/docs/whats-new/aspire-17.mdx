@@ -276,7 +276,7 @@ The following APIs are stable starting with Aspire 17.0 and no longer report the
 | [ASPIREPROBES001](/diagnostics/aspireprobes001/)                       | `WithHttpProbe`, `ProbeType`, and related probe types                                                                          |
 | [ASPIREUSERSECRETS001](/diagnostics/aspireusersecrets001/)             | `IUserSecretsManager` and `IDistributedApplicationBuilder.UserSecretsManager`                                                  |
 
-`ASPIRECOMPUTE002` still applies to the Kubernetes persistent volume APIs, but the compute environment endpoint-mapping contracts `GetHostAddressExpression` and `GetEndpointPropertyExpression` no longer report it. `ASPIRECSHARPAPPS001` is also retired because `AddCSharpApp` is now obsolete; see [`AddCSharpApp` is obsolete](#addcsharpapp-is-obsolete).
+`ASPIRECOMPUTE002` still applies to the Kubernetes persistent volume APIs, but the compute environment endpoint-mapping contracts `GetHostAddressExpression` and `GetEndpointPropertyExpression` no longer report it. `ASPIRECSHARPAPPS001` is also retired because `AddCSharpApp` is now marked `[Obsolete]` and reports `CS0618` instead.
 
 <LearnMore>
   See the [diagnostics overview](/diagnostics/overview/) for the full list of
@@ -387,7 +387,6 @@ Without an explicit override, publishers resolve the dashboard tag from the Aspi
 | Legacy `Aspire.RabbitMQ.Client.v6` and `Aspire.MongoDB.Driver.v2` packages removed                  | Switch to `Aspire.RabbitMQ.Client` and `Aspire.MongoDB.Driver`, and migrate to the 7.x and 3.x client libraries. |
 | Azure Cosmos DB `configureClientOptions` now receives `IServiceProvider`                            | Add the service-provider parameter to callbacks and rebuild binaries that call these methods.          |
 | Docker Swarm `UpdateConfig.MaxFailureRatio` changed from `string?` to `double?`                    | Assign a number such as `0.3` instead of a string such as `"0.3"`.                                     |
-| `AddCSharpApp` is obsolete and reports `CS0618` instead of `ASPIRECSHARPAPPS001`                    | Add `Aspire.Hosting.Dotnet` and replace calls with `AddDotnetProject`.                                 |
 
 ### `ResourceUrlAnnotation.DisplayOrder` is now a property
 
@@ -449,23 +448,4 @@ Change string assignments to numeric assignments:
 ```
 
 For details, see [microsoft/aspire#21512](https://github.com/microsoft/aspire/pull/21512).
-
-### `AddCSharpApp` is obsolete
-
-`AddCSharpApp` (and the polyglot `addCSharpApp` export) was previously experimental. Starting in Aspire 17.0, it's marked `[Obsolete]` instead of `[Experimental("ASPIRECSHARPAPPS001")]`. Existing calls now produce the compiler warning `CS0618` instead of the `ASPIRECSHARPAPPS001` error, and the TypeScript API surface emits `@deprecated` instead of `@experimental`.
-
-Add the [📦 Aspire.Hosting.Dotnet](https://www.nuget.org/packages/Aspire.Hosting.Dotnet) integration and replace calls with `AddDotnetProject` (`addDotnetProject` in TypeScript):
-
-```csharp title="AppHost.cs" del={1} ins={2}
-builder.AddCSharpApp("api", "./api/api.cs");
-builder.AddDotnetProject("api", "./api/api.cs");
-```
-
-`AddDotnetProject` accepts the same kinds of paths (a `.cs` file, a `.csproj` file, or a directory containing a single `.csproj`) but returns a `DotnetProjectResource` rather than a `ProjectResource` or `CSharpAppResource`. Explicitly typed resource builders and project-specific customizations might need updating. Existing `AddCSharpApp` calls keep their current launch and publishing behavior; if you treat warnings as errors, suppress `CS0618` until you migrate.
-
-<LearnMore>
-  See [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/#migrating-to-adddotnetproject)
-  for migration guidance. For the obsoletion details, see
-  [microsoft/aspire#20825](https://github.com/microsoft/aspire/pull/20825).
-</LearnMore>
 
