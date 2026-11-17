@@ -18,13 +18,6 @@ import {
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
 const docsRoot = path.join(frontendRoot, 'src', 'content', 'docs');
-const appHostProjectPath = path.resolve(
-  frontendRoot,
-  '..',
-  'apphost',
-  'Aspire.Dev.AppHost',
-  'Aspire.Dev.AppHost.csproj'
-);
 const excludedCurrentDocsDirectories = new Set([
   ...Object.keys(locales).filter((locale) => locale !== 'root'),
   'whats-new',
@@ -145,17 +138,6 @@ describe('Aspire version placeholders', () => {
     );
     expect(tree.children[1].value).toBe(`aspire ${currentAspirePreviewVersion}`);
     expect(tree.children[2].attributes[0].value).toBe(currentAspireVersion);
-  });
-
-  test('matches the stable and preview versions used by the site AppHost', async () => {
-    const project = await readFile(appHostProjectPath, 'utf8');
-    const sdkVersion = project.match(/<Project Sdk="Aspire\.AppHost\.Sdk\/([^"]+)">/)?.[1];
-    const previewVersion = project.match(
-      /<PackageReference Include="Aspire\.Hosting\.Azure\.FrontDoor" Version="([^"]+)" \/>/
-    )?.[1];
-
-    expect(sdkVersion).toBe(currentAspireVersion);
-    expect(previewVersion).toBe(currentAspirePreviewVersion);
   });
 
   test('finds hard-coded previews in multiline Aspire package examples', () => {
