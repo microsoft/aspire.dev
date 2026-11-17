@@ -10,7 +10,24 @@ The Aspire CLI generates the Go SDK from the integrations in your `aspire.config
 
 Every integration adds its methods to the `aspire` package, and method names are PascalCase. The TypeScript method `addRedis` is `AddRedis` in Go.
 
+Numeric parameters and fields use the Go type that matches the .NET type, such as `int` for a port and `int64` for a file size. Methods and properties that are marked obsolete in .NET aren't generated.
+
 Methods that add a resource, such as `AddRedis` and `AddGoApp`, return a _handle_. A handle is a Go interface that stands for the resource in the app model, for example `aspire.RedisResource`. Methods that configure a resource return the same handle type, so calls chain. Errors are reported when you call `Build`, as described in [Errors](#errors).
+
+### Pass derived resource handles
+
+Go interfaces don't support covariant return types, so the handle for a derived resource type doesn't satisfy the handle interface of its base type. When other resource types derive from a type, the SDK also generates an `Any<Type>` interface that accepts a handle of that type or of any type derived from it. Parameters that take such a resource use this interface. For example, `WithNodePool` takes an `aspire.AnyKubernetesNodePoolResource`, so it accepts the `aspire.AksNodePoolResource` handle that `AddNodePool` returns:
+
+```go title="apphost.go"
+aks := builder.AddAzureKubernetesEnvironment("aks")
+pool := aks.AddNodePool("workload", func(config *aspire.AksNodePoolConfig) {
+	config.MaxCount = 5
+})
+
+builder.AddContainer("api", "nginx").WithNodePool(pool)
+```
+
+The compiler rejects a handle of an unrelated resource type. Methods still return the receiver's own handle type, so chained calls keep their type.
 
 ## Optional parameters
 
@@ -41,7 +58,7 @@ The [`WithHttpEndpoint` API reference](/reference/api/go/aspire.hosting/withhttp
 
 The SDK reports errors in two ways.
 
-Methods that add or configure a resource return a handle instead of an error, so you can add many resources without checking each call. The SDK aggregates the errors and reports them when you call `Build`:
+Methods that add or configure a resource return a handle instead of an error, so you can add many resources without checking each call. A failed resource doesn't stop you from adding other resources. The SDK collects the error from every failed handle and `Build` returns them together, joined with `errors.Join`:
 
 ```go title="apphost.go"
 cache := builder.AddRedis("cache")
@@ -52,6 +69,8 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 ```
+
+Each failure is reported once, even when it passes through a chain of calls. To check for errors before you call `Build`, call `builder.Err()`, which returns the same combined error. To check a single resource, call the `Err()` method on its handle, which returns the first error recorded for that resource.
 
 Methods that return a value return a `(T, error)` pair, and `Build` and `Run` return an `error`:
 
@@ -64,7 +83,9 @@ if err != nil {
 log.Println("AppHost directory:", dir)
 ```
 
-`aspire.FormatError` turns an error into a message that is ready to log. When the AppHost server returns an error for a call, the error is an `*aspire.CapabilityError`, and `FormatError` adds its error code and the capability that failed. Use `errors.As` and the `Code`, `Message`, and `Capability` methods to read these values yourself. For any other error, `FormatError` returns `err.Error()`.
+`aspire.FormatError` turns an error into a message that is ready to log. When the AppHost server returns an error for a call, the error is an `*aspire.CapabilityError`, and `FormatError` adds its error code and the capability that failed. Use `errors.As` and the `Code`, `Message`, and `Capability` methods to read these values yourself. When the error combines several errors, such as the error that `Build` returns, `FormatError` formats each one on its own line. For any other error, `FormatError` returns `err.Error()`.
+
+If a callback that you pass to an SDK method panics, the AppHost process keeps running. The SDK recovers the panic and fails only the call that invoked the callback.
 
 ## Cancellation
 
