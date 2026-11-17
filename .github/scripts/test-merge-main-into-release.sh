@@ -140,12 +140,89 @@ commit_all release-paths
 release_sha="$(git rev-parse HEAD)"
 run_helper
 assert_parents
-git diff --exit-code main HEAD -- "${generated_files[@]}" "${generated_dirs[@]}"
+git diff --exit-code "$release_sha" HEAD -- "${generated_files[@]}" "${generated_dirs[@]}"
 [[ "$(cat "$curated")" == release && "$(cat "$asset")" == release ]] || fail "Curated content was overwritten."
 [[ ! -e "$deleted" ]] || fail "Release-side deletion was lost."
 [[ -f src/frontend/src/content/docs/new.mdx ]] || fail "Nonconflicting content did not merge."
 [[ "$(cat src/frontend/src/data/hand-authored.json)" == release ]] || fail "Hand-authored data was overwritten."
-echo "PASS: generated mirroring, curated conflicts/deletions, nonconflicting content"
+echo "PASS: release-owned data, curated conflicts/deletions, nonconflicting content"
+
+# Only the catalog changes on release. Main's nonconflicting API renames and
+# additions must still be rejected as a group, but unrelated data can advance.
+new_repo data-groups
+catalog=src/frontend/src/data/aspire-integrations.json
+package_dir=src/frontend/src/data/pkgs
+stats=src/frontend/src/data/github-stats.json
+samples=src/frontend/src/data/samples.json
+sample_dir=src/frontend/src/assets/samples
+write_file "$catalog" base
+write_file "$package_dir/v13.json" base
+write_file "$stats" base
+write_file "$samples" base
+write_file "$sample_dir/base.png" base
+write_file src/frontend/src/data/editorial.json base
+commit_all data-base
+git switch -q main
+git merge -q --ff-only release/test
+write_file "$catalog" main
+git mv "$package_dir/v13.json" "$package_dir/v14.json"
+write_file "$package_dir/main-only.json" main
+write_file src/frontend/src/data/ts-modules/main.json main
+write_file "$stats" first
+write_file "$samples" main
+git mv "$sample_dir/base.png" "$sample_dir/main.png"
+write_file src/frontend/src/data/editorial.json main
+commit_all main-data
+git switch -q release/test
+write_file "$catalog" release-v17
+write_file src/frontend/src/data/go-modules/v17.json release
+git rm -q src/frontend/src/data/editorial.json
+commit_all release-data
+release_sha="$(git rev-parse HEAD)"
+run_helper
+assert_parents
+git diff --exit-code "$release_sha" HEAD -- \
+  "$catalog" "$package_dir" src/frontend/src/data/ts-modules src/frontend/src/data/go-modules \
+  src/frontend/src/data/editorial.json
+git diff --exit-code main HEAD -- "$stats" "$samples" "$sample_dir"
+echo "PASS: API group stays on release while untouched data groups accept main"
+
+# The next merge base is the previously merged main, not the original fork.
+# Release data must remain protected across subsequent syncs as well.
+git switch -q main
+write_file "$catalog" second-main
+write_file "$package_dir/later.json" main
+write_file "$stats" second
+commit_all next-main-data
+git switch -q release/test
+release_sha="$(git rev-parse HEAD)"
+run_helper
+assert_parents
+git diff --exit-code "$release_sha" HEAD -- "$catalog" "$package_dir"
+[[ "$(cat "$stats")" == second ]] || fail "Untouched data stopped following main."
+echo "PASS: repeated sync preserves release ownership and advances untouched data"
+
+new_repo samples-group
+write_file "$samples" base
+write_file "$sample_dir/base.png" base
+write_file "$catalog" base
+commit_all samples-base
+git switch -q main
+git merge -q --ff-only release/test
+write_file "$samples" main
+write_file "$sample_dir/main.png" main
+write_file "$catalog" main
+write_file "$package_dir/main.json" main
+commit_all main-samples
+git switch -q release/test
+git rm -q "$sample_dir/base.png"
+commit_all release-samples
+release_sha="$(git rev-parse HEAD)"
+run_helper
+assert_parents
+git diff --exit-code "$release_sha" HEAD -- "$samples" "$sample_dir"
+git diff --exit-code main HEAD -- "$catalog" "$package_dir"
+echo "PASS: release sample deletion protects its catalog without blocking main API data"
 
 new_repo unknown-conflict
 write_file shared.txt release
@@ -180,7 +257,7 @@ assert_parents
 [[ "$(cat "$TEST_ROOT/conflicts")" == $'text\tshared.txt' ]] || fail "Conflict list is wrong."
 grep -q '^<<<<<<<' shared.txt || fail "Repair commit lost conflict markers."
 [[ -z "$(git status --porcelain)" ]] || fail "Repair commit left a dirty checkout."
-git diff --exit-code main HEAD -- "$generated" || fail "Generated data was not mirrored from main."
+git diff --exit-code "$release_sha" HEAD -- "$generated" || fail "Release data was overwritten in repair mode."
 echo "PASS: --commit-conflicts commits markers with both parents"
 
 new_repo commit-conflicts-clean

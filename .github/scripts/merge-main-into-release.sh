@@ -2,6 +2,11 @@
 # Usage: merge-main-into-release.sh <main-ref> <release-branch> [--commit-conflicts]
 # Run from a clean release checkout. The caller owns fetching and pushing.
 #
+# Data groups changed on release since the merge base keep the release snapshot;
+# untouched groups merge normally. API catalogs and generated API directories
+# form one group, samples and their assets another. Other top-level data entries
+# are independent groups. This policy applies in repair mode as well.
+#
 # Exit codes:
 #   0  main is merged (or was already an ancestor); HEAD is the result.
 #   1  unexpected failure; nothing should be pushed.
@@ -61,28 +66,19 @@ case "$ancestor_status" in
   *) fail "Could not check main ancestry (exit $ancestor_status)." ;;
 esac
 
-generated_files=(
+api_paths=(
   src/frontend/src/data/aspire-integrations.json
-  src/frontend/src/data/github-stats.json
-  src/frontend/src/data/samples.json
-  src/frontend/src/data/twoslash/aspire.d.ts
-)
-generated_dirs=(
+  src/frontend/src/data/integration-docs.json
+  src/frontend/src/data/api-generation-failures.json
   src/frontend/src/data/pkgs
   src/frontend/src/data/ts-modules
+  src/frontend/src/data/go-modules
+  src/frontend/src/data/twoslash
+)
+sample_paths=(
+  src/frontend/src/data/samples.json
   src/frontend/src/assets/samples
 )
-
-is_generated() {
-  local path
-  for path in "${generated_files[@]}"; do
-    [[ "$1" != "$path" ]] || return 0
-  done
-  for path in "${generated_dirs[@]}"; do
-    case "$1" in "$path"|"$path"/*) return 0 ;; esac
-  done
-  return 1
-}
 
 is_curated() {
   case "$1" in
@@ -93,10 +89,9 @@ is_curated() {
 }
 
 keep_release() {
+  git rm -r -q --force --ignore-unmatch -- "$1"
   if git cat-file -e "$RELEASE_SHA:$1" 2>/dev/null; then
     git checkout "$RELEASE_SHA" -- "$1"
-  else
-    git rm -q --force --ignore-unmatch -- "$1"
   fi
 }
 
@@ -114,23 +109,61 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# A release-side change owns its whole data group, including files that main
+# adds or renames without a conflict. API versions and sample assets must stay
+# consistent with their catalogs. Other top-level data entries are independent.
+git diff --name-only -z "$MERGE_BASE" "$RELEASE_SHA" -- \
+  src/frontend/src/data src/frontend/src/assets/samples > "$conflicts_file"
+mapfile -d '' -t release_data_changes < "$conflicts_file"
+protected_paths=()
+for path in "${release_data_changes[@]}"; do
+  case "$path" in
+    src/frontend/src/data/aspire-integrations.json|\
+    src/frontend/src/data/integration-docs.json|\
+    src/frontend/src/data/api-generation-failures.json|\
+    src/frontend/src/data/pkgs/*|\
+    src/frontend/src/data/ts-modules/*|\
+    src/frontend/src/data/go-modules/*|\
+    src/frontend/src/data/twoslash/*)
+      protected_paths+=("${api_paths[@]}")
+      ;;
+    src/frontend/src/data/samples.json|src/frontend/src/assets/samples/*)
+      protected_paths+=("${sample_paths[@]}")
+      ;;
+    src/frontend/src/data/*)
+      entry="${path#src/frontend/src/data/}"
+      protected_paths+=("src/frontend/src/data/${entry%%/*}")
+      ;;
+  esac
+done
+if [[ "${#protected_paths[@]}" -ne 0 ]]; then
+  printf '%s\0' "${protected_paths[@]}" | sort -zu > "$conflicts_file"
+  mapfile -d '' -t protected_paths < "$conflicts_file"
+  report "" "### Release-owned data preserved"
+  for path in "${protected_paths[@]}"; do
+    report "- \`$path\`"
+  done
+fi
+
 merge_status=0
 git merge --no-commit --no-ff "$MAIN_SHA" || merge_status=$?
 if [[ "$merge_status" -gt 1 ]] || ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
   fail "Git merge failed (exit $merge_status); main is not already integrated."
 fi
-
-git diff --name-only --diff-filter=U -z > "$conflicts_file"
-mapfile -d '' -t conflicts < "$conflicts_file"
-if [[ "$merge_status" -ne 0 && "${#conflicts[@]}" -eq 0 ]]; then
+if [[ "$merge_status" -ne 0 && -z "$(git ls-files -u)" ]]; then
   fail "Git merge failed without resolvable conflict entries (exit $merge_status)."
 fi
 
+for path in "${protected_paths[@]}"; do
+  keep_release "$path"
+done
+
+git diff --name-only --diff-filter=U -z > "$conflicts_file"
+mapfile -d '' -t conflicts < "$conflicts_file"
+
 unresolved=()
 for path in "${conflicts[@]}"; do
-  if is_generated "$path"; then
-    continue
-  elif is_curated "$path"; then
+  if is_curated "$path"; then
     keep_release "$path"
   else
     unresolved+=("$path")
@@ -170,20 +203,6 @@ if [[ "${#unresolved[@]}" -ne 0 ]]; then
     done
   fi
 fi
-
-# Only these producer-owned paths are mirrored. Other data is hand-authored.
-for path in "${generated_files[@]}" "${generated_dirs[@]}"; do
-  diff_status=0
-  git diff --quiet "$MAIN_SHA" -- "$path" || diff_status=$?
-  [[ "$diff_status" -le 1 ]] || fail "Could not compare generated path $path."
-  if [[ "$diff_status" -eq 0 && -z "$(git ls-files -u -- "$path")" ]]; then
-    continue
-  fi
-  git rm -r -q --force --ignore-unmatch -- "$path"
-  if git cat-file -e "$MAIN_SHA:$path" 2>/dev/null; then
-    git checkout "$MAIN_SHA" -- "$path"
-  fi
-done
 
 if [[ "${#unresolved[@]}" -ne 0 ]]; then
   # Stage the conflicted files as-is for the repair branch. Text conflicts keep
