@@ -88,19 +88,11 @@ export async function renderOgImagePng(input: RenderOgImageInput): Promise<Buffe
         title: input.title,
         description: input.description?.trim() ? input.description.trim() : undefined,
         topic: input.topic,
+        details: input.details,
       })
     ),
   ]);
 
-<<<<<<< HEAD
-  const tree = buildTree({
-    title: input.title,
-    description: input.description?.trim() ? input.description.trim() : undefined,
-    topic: input.topic,
-    details: input.details,
-    backgroundDataUri,
-  });
-=======
   // Cards are fully opaque, so emit RGB rather than RGBA (less to encode, smaller files).
   return sharp(baseLayer.data, { raw: baseLayer.info })
     .composite([{ input: Buffer.from(stripRedundantOverflowMasks(overlaySvg)) }])
@@ -108,7 +100,6 @@ export async function renderOgImagePng(input: RenderOgImageInput): Promise<Buffe
     .png({ compressionLevel: 6 })
     .toBuffer();
 }
->>>>>>> 24fa655677788e02b297ec5f2f6c78ad8275f92d
 
 /**
  * Satori clips `overflow: hidden` elements with both a rectangular `clip-path`
@@ -248,17 +239,10 @@ interface OverlayTreeInput {
   title: string;
   description?: string;
   topic: TopicMetadata;
-<<<<<<< HEAD
   details?: OgImageDetail[];
-  backgroundDataUri: string;
-}
-
-function buildTree({ title, description, topic, details, backgroundDataUri }: TreeInput) {
-=======
 }
 
 function rootNode(children: unknown[]) {
->>>>>>> 24fa655677788e02b297ec5f2f6c78ad8275f92d
   return {
     type: 'div',
     props: {
@@ -269,64 +253,7 @@ function rootNode(children: unknown[]) {
         display: 'flex',
         fontFamily: 'Outfit',
       },
-<<<<<<< HEAD
-      children: [
-        {
-          type: 'img',
-          props: {
-            src: backgroundDataUri,
-            width: DEFAULT_OG_IMAGE_WIDTH,
-            height: DEFAULT_OG_IMAGE_HEIGHT,
-            style: {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              objectFit: 'cover',
-            },
-          },
-        },
-        // Bottom-to-top gradient ensures the overlay card has high contrast
-        // against bright background imagery.
-        {
-          type: 'div',
-          props: {
-            style: {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              backgroundImage:
-                'linear-gradient(to top, rgba(15,14,30,0.92) 0%, rgba(15,14,30,0.45) 55%, rgba(15,14,30,0) 100%)',
-            },
-          },
-        },
-        {
-          type: 'div',
-          props: {
-            style: {
-              position: 'absolute',
-              left: 56,
-              right: 56,
-              bottom: 56,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 22,
-            },
-            children: [
-              topicPill(topic),
-              titleBubble(title),
-              details?.length ? detailsBubble(details) : null,
-              description ? descriptionBubble(description) : null,
-            ].filter(Boolean),
-          },
-        },
-        ctaChip(),
-      ],
-=======
       children,
->>>>>>> 24fa655677788e02b297ec5f2f6c78ad8275f92d
     },
   };
 }
@@ -368,7 +295,7 @@ function buildBaseTree(backgroundDataUri: string) {
   ]);
 }
 
-function buildOverlayTree({ title, description, topic }: OverlayTreeInput) {
+function buildOverlayTree({ title, description, topic, details }: OverlayTreeInput) {
   return rootNode([
     {
       type: 'div',
@@ -385,6 +312,7 @@ function buildOverlayTree({ title, description, topic }: OverlayTreeInput) {
         children: [
           topicPill(topic),
           titleBubble(title),
+          details?.length ? detailsBubble(details) : null,
           description ? descriptionBubble(description) : null,
         ].filter(Boolean),
       },
@@ -530,7 +458,6 @@ function detailsBubble(details: OgImageDetail[]) {
         backgroundColor: DESCRIPTION_BG,
         borderRadius: 22,
         padding: '22px 32px',
-        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
       },
       children: details.map(detailRow),
     },
