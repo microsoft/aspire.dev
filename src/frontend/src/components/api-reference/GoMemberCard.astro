@@ -90,10 +90,13 @@ const parameters: { name: string; type: string; description?: string | null; isC
     }))
   : [];
 const options = isCallable ? member.options : undefined;
+// Variadic options are typed values named <Method without With><Parameter>, such as HttpEndpointPort.
+const optionValuePrefix = member.name.replace(/^With(?=[A-Z])/, '');
+const optionInterfaceName = `Option`;
 if (options?.typeName) {
   parameters.push({
     name: getGoOptionsParameterName({ signature: member.signature ?? undefined, options }),
-    type: `...*${options.typeName}`,
+    type: options.isDirect ? `...*${options.typeName}` : `...${optionInterfaceName}`,
     description: 'Optional settings, described under Options.',
   });
 }
@@ -183,8 +186,9 @@ const errorModelSegments =
         ) : (
           <p class="mc-go-note">
             Optional parameters are passed in a trailing{' '}
-            <code>{getGoOptionsParameterName({ signature: member.signature ?? undefined, options })} ...*{options.typeName}</code>{' '}
-            argument.
+            <code>{getGoOptionsParameterName({ signature: member.signature ?? undefined, options })} ...{optionInterfaceName}</code>{' '}
+            argument as typed option values, such as <code>aspire.{optionValuePrefix}{optionFields[0]?.name ?? 'Option'}(value)</code>. The{' '}
+            <code>*{options.typeName}</code> struct is still accepted for compatibility.
           </p>
         )}
         {optionFields.length > 0 && (
