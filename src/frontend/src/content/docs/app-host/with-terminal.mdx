@@ -16,8 +16,8 @@ If you have a terminal user interface (TUI) application or a shell-based experie
 
 For an introduction to the resource Terminal view, terminal dock, and detached windows, start with [Dashboard terminals](/dashboard/terminals/).
 
-:::caution[Aspire 13.6 preview]
-This page describes resource-terminal behavior and defaults for Aspire 13.6 preview. Use matching AppHost, dashboard, and CLI builds.
+:::caution[Aspire 17.0 preview]
+This page describes resource-terminal behavior and defaults for Aspire 17.0 preview. Use matching AppHost, dashboard, and CLI builds.
 :::
 
 ## Prerequisites
@@ -104,21 +104,16 @@ To query a running database or cache, use the integration's [`WithRepl()` comman
 
 The terminal session is described by a set of options with sensible defaults:
 
-| Option              | Default | Description                                                                                                                                                     |
-| ------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Columns`           | `120`   | The initial number of columns for the terminal grid.                                                                                                            |
-| `Rows`              | `30`    | The initial number of rows for the terminal grid.                                                                                                               |
-| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists **and** export their diagnostic logs, metrics, and traces. Set to `true` to diagnose terminal-host startup or connectivity issues. |
+| Option    | Default | Description                                          |
+| --------- | ------- | ---------------------------------------------------- |
+| `Columns` | `132`   | The initial number of columns for the terminal grid. |
+| `Rows`    | `50`    | The initial number of rows for the terminal grid.    |
 
 <Aside type="tip">
   `Columns` and `Rows` must each be `1` or greater. Configuring either with zero
   or a negative value in the `WithTerminal(...)` callback throws an
   `ArgumentOutOfRangeException` immediately instead of failing later during
   terminal-host startup.
-</Aside>
-
-<Aside type="note" title="Terminal host telemetry is opt-in">
-By default, the hidden terminal host helper resources don't export logs, metrics, or traces, even when an OTLP endpoint is configured for the app—so they never show up in the dashboard's telemetry resource list (including the **Traces** filter). Setting `ShowTerminalHost = true` both reveals the helper resources and turns on their diagnostic telemetry when an OTLP endpoint is available. This is independent of the parent resource's own telemetry, which is never affected by `WithTerminal`.
 </Aside>
 
 <Aside type="note">
@@ -132,9 +127,9 @@ By default, the hidden terminal host helper resources don't export logs, metrics
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-In TypeScript, pass a `configure` callback to override any of these options. Calling `withTerminal()` without a callback, or with a callback that doesn't assign a dimension, keeps the default dimensions and automatic dashboard fitting. Assigning `columns` or `rows`, even to its default value, disables automatic fitting.
+In TypeScript, pass a `configure` callback to set the initial number of columns and rows. Calling `withTerminal()` without a callback, or with a callback that doesn't assign a dimension, keeps the default dimensions and automatic dashboard fitting. Assigning `columns` or `rows`, even to its default value, disables automatic fitting.
 
-```typescript title="apphost.mts" twoslash
+```typescript title="apphost.mts"
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -198,7 +193,6 @@ await builder.build().run();
 Add a project reference to `Agent.csproj` in your AppHost before using its generated `Projects.Agent` type.
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRETERMINAL001
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.Agent>("agent")
