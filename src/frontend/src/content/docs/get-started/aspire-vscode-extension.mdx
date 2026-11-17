@@ -83,7 +83,7 @@ When you create or initialize an Aspire project, you can choose to configure AI 
 
 ## Let coding agents use Aspire language model tools
 
-The Aspire extension provides VS Code language model tools that let coding agents manage AppHosts, inspect resources, and attach debuggers. Aspire 13.6 added the start and stop tools; Aspire 17.0 added the rest:
+The Aspire extension provides VS Code language model tools that let coding agents manage AppHosts, inspect resources, and attach debuggers. Aspire 13.6 added the start and stop tools; Aspire 17.0 added the rest. The resource debug tool requires Aspire extension v1.25.0 or later, and the other 17.0 tools require v1.24.0 or later:
 
 | Tool                            | Chat reference                | Action                                                                                                            |
 | ------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -118,7 +118,7 @@ The start tool accepts these inputs:
 | `isolated`      | No       | Use `true` for randomized ports and isolated user secrets or `false` to disable isolation. Linked Git worktrees use isolation when omitted. |
 | `launchProfile` | No       | The exact profile name from the AppHost's `launchSettings.json` file.                                                                       |
 
-The tools accept only buildable AppHosts returned by the extension's discovery service, not arbitrary filesystem paths supplied by an agent. If a selector is unknown or ambiguous, the result includes `knownAppHosts` so the agent can choose a discovered target. Multi-root workspaces use folder-qualified selectors.
+The tools accept only buildable AppHosts returned by the extension's discovery service, not arbitrary filesystem paths supplied by an agent. If a start or stop selector is unknown or ambiguous, the result includes `knownAppHosts` so the agent can choose a discovered target. Multi-root workspaces use folder-qualified selectors.
 
 Before starting, the extension checks its own sessions and running AppHosts to avoid duplicate launches. A successful new launch reports the effective isolation setting. Results for an AppHost that was already starting or running omit that setting because the tool didn't create a new process.
 
@@ -131,6 +131,123 @@ The workspace must be trusted, and the VS Code host must support the language mo
 <LearnMore>
   See [Use AI coding agents with Aspire](/get-started/ai-coding-agents/).
 </LearnMore>
+
+### Language model tool reference
+
+Each tool returns a JSON result with `tool`, `success`, and `outcome` fields. Besides the outcomes listed for each tool, every tool can report `workspaceNotTrusted`, `invalidInput`, cancellation, or an error. Expand a tool to see its inputs and main outcomes.
+
+<details>
+<summary><code>aspire_resource_debug</code> (extension v1.25.0 or later)</summary>
+
+| Input          | Required | Description                                                        |
+| -------------- | -------- | ------------------------------------------------------------------ |
+| `appHostPath`  | Yes      | The workspace-relative path of a discovered AppHost.               |
+| `resourceName` | Yes      | The name of the resource to attach to.                             |
+| `strategy`     | No       | `auto` (default) or `attach`. Both attach to the running resource. |
+
+The confirmation names the resource and the AppHost, and it's bound to the AppHost that was resolved when you approved it. If the path points to a different AppHost before the debugger attaches, the tool refuses the operation. Retry after discovery finds the intended AppHost, and confirm again.
+
+| Outcome                              | Meaning                                                                                                                                                   |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `started`                            | The debugger attached. `provider` is `dotnet` or `go`.                                                                                                    |
+| `alreadyDebugging`                   | A debugger is already attached to the resource. No new session starts.                                                                                    |
+| `resourceNotRunning`                 | The resource isn't running. The tool never starts or restarts a resource.                                                                                 |
+| `debuggerExtensionMissing`           | A required debugger extension is missing or disabled. `debuggerExtensions` lists each extension's `id` and `label`. Install or enable it, and then retry. |
+| `unsupportedResource`                | The resource isn't a .NET project or Go resource that Aspire can attach to.                                                                               |
+| `resourceNotFound`                   | The AppHost has no resource with that name.                                                                                                               |
+| `appHostNotFound`                    | The AppHost isn't running, or Aspire can't match it to exactly one running AppHost.                                                                       |
+| `unknownAppHost`, `ambiguousAppHost` | `appHostPath` doesn't match exactly one discovered AppHost.                                                                                               |
+| `error`                              | The attach failed. `errorKind` identifies the failing step, such as `debuggerStartDeclined` or `debuggerStartFailed`.                                     |
+
+After installing or enabling a missing debugger extension, the AppHost doesn't need to restart. For attach requirements and limitations, see [Attach a debugger to a running resource](#attach-a-debugger-to-a-running-resource).
+
+</details>
+
+<details>
+<summary><code>aspire_debug_session_status</code></summary>
+
+| Input          | Required | Description                                                             |
+| -------------- | -------- | ----------------------------------------------------------------------- |
+| `appHostPath`  | Yes      | The workspace-relative path of a discovered AppHost.                    |
+| `resourceName` | No       | A resource to report on. When omitted, the tool reports on the AppHost. |
+
+| Outcome                                 | Meaning                                                                    |
+| --------------------------------------- | -------------------------------------------------------------------------- |
+| `running`, `starting`, `stopping`       | The state of the AppHost, or of the editor session that runs the resource. |
+| `notDebugging`                          | The AppHost isn't running, or no editor session runs the resource.         |
+| `multipleSessions`                      | More than one editor session matches.                                      |
+| `resourceNotFound`, `resourceAmbiguous` | The resource name matches no resource, or more than one.                   |
+
+The result's `controller` is `editor` when this VS Code window runs the AppHost, or `external` when it runs elsewhere, such as from `aspire start`. `mode` is `run`, `debug`, or `other`. Resource results also include the resource's type, state, health, exit code, and source.
+
+</details>
+
+<details>
+<summary><code>aspire_list_debug_sessions</code></summary>
+
+This tool has no inputs. It returns `sessionsFound` with the `appHost`, `state`, `mode`, and `controller` of each AppHost that this VS Code window runs, or `noSessions` when there are none. The list includes up to 20 AppHosts. When more are active, the result includes `truncated: true`.
+
+</details>
+
+<details>
+<summary><code>aspire_explain_launch_failure</code></summary>
+
+The only input is the required `appHostPath`.
+
+The extension keeps only the latest launch failure for each AppHost, in memory, for 30 minutes. It stores a sanitized summary instead of raw output. A `failureFound` result includes:
+
+- `stage`: where the launch failed. The value is `discovery`, `validation`, `cliLaunch`, `build`, `dcpStartup`, `debugSession`, or `dashboard`.
+- `category`: the kind of failure, such as `buildFailed`, `missingDependency`, `cliUnavailable`, `portConflict`, `permissionDenied`, or `timeout`.
+- `recommendedActions`: fixed actions for the category, such as `fixBuildErrors`, `checkDependencies`, `installAspireCli`, `freeRequiredPort`, `checkPermissions`, `retryLaunch`, or `checkAspireOutput`.
+- `controller`, `mode`, and `exitCodeBucket`, which is `none`, `zero`, `one`, `signal`, or `other`.
+
+The outcome is `noRecordedFailure` when no failure is recorded for the AppHost. The tool never returns compiler errors, logs, or other raw output. To read them, open the **Output** panel on the **Aspire Extension** channel and check the [CLI logs](/get-started/troubleshooting/#cli-logs).
+
+</details>
+
+<details>
+<summary><code>aspire_hot_reload_status</code></summary>
+
+| Input          | Required | Description                                                                                                                              |
+| -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `resourceName` | No       | The resource to check. When omitted, the tool answers only if exactly one resource runs in an editor session.                            |
+| `appHostPath`  | No       | The AppHost to check. When omitted, the tool checks every AppHost that this VS Code window runs. Use it to disambiguate a resource name. |
+
+The result separates two questions:
+
+- `hotReloadEnabled` is `true` when C# Dev Kit is installed and its Hot Reload setting, `csharp.experimental.debug.hotReload`, is enabled. Enabled doesn't mean that Hot Reload can reach the resource.
+- `outcome` is `applicable` only when Hot Reload is enabled and the resource is a .NET project resource that this VS Code window launched under the debugger, after the debug session has started. Resources started with **Run Without Debugging** and resources in other languages report `notApplicable`.
+
+The `evidence` field explains the answer. The `fallback` field is always `restartResource` and then `rebuildAndRestartAppHost`: if an edit doesn't take effect, restart the resource first, and rebuild and restart the AppHost only if that doesn't help. The tool only reports. It never applies or verifies an edit.
+
+Other outcomes:
+
+| Outcome                                 | Meaning                                                                                                              |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `noEditorControlledResource`            | No editor session runs a resource in scope, or `appHostPath` names an AppHost that runs outside this VS Code window. |
+| `appHostNotRunning`                     | The AppHost named by `appHostPath` isn't running.                                                                    |
+| `resourceNotFound`, `resourceAmbiguous` | The resource name matches no resource, or more than one. Supply `appHostPath` to disambiguate.                       |
+| `tooManyActiveAppHosts`                 | Too many AppHosts are active to check them all. Supply `appHostPath`.                                                |
+
+</details>
+
+<details>
+<summary><code>aspire_open_dashboard</code></summary>
+
+The only input is the required `appHostPath`. The tool doesn't ask for confirmation.
+
+The tool opens the dashboard only for a running AppHost that this VS Code window started. It uses the `dashboardBrowser` value from the launch configuration or the **Aspire: Dashboard Browser** setting (`aspire.dashboardBrowser`). When neither selects a browser, the dashboard opens in your external browser. An `opened` result reports the `presentation` that was used. The tool never returns the dashboard URL, because the URL contains a login token.
+
+Other outcomes include `dashboardUnavailable` and `appHostNotRunning`.
+
+</details>
+
+<details>
+<summary><code>aspire_open_output</code></summary>
+
+This tool has no inputs. After you confirm, it opens the **Output** panel on the **Aspire Extension** channel and returns `opened`. It doesn't read the channel or return its contents.
+
+</details>
 
 ## Live editor integration
 
@@ -161,7 +278,7 @@ When no AppHost is detected in the workspace, the view's empty state offers a **
 This makes project onboarding discoverable directly from the Aspire pane without requiring the Command Palette.
 :::
 
-Each resource shows its type, state, health summary, and exit code, plus a health-aware icon and a markdown tooltip listing endpoint URLs. Resources with health checks expose an expandable **Health Checks** group; use **Expand all** on the AppHost item to open everything at once. You can right-click a resource to start, stop, or restart it, view its logs, run resource-specific commands, open the dashboard, open the resource's source with **Open resource source** (for resources backed by a source file or project), or open an interactive terminal session (for resources configured with [`WithTerminal()`](/app-host/with-terminal/)).
+Each resource shows its type, state, health summary, and exit code, plus a health-aware icon and a markdown tooltip listing endpoint URLs. Resources with health checks expose an expandable **Health Checks** group; use **Expand all** on the AppHost item to open everything at once. You can right-click a resource to start, stop, or restart it, view its logs, run resource-specific commands, open the dashboard, open the resource's source with **Open resource source** (for resources backed by a source file or project), or open an interactive terminal session (for resources configured with [`WithTerminal()`](/app-host/with-terminal/)). Running .NET project and Go resources also show **Attach debugger**. For details, see [Attach a debugger to a running resource](#attach-a-debugger-to-a-running-resource).
 
 Expand an idle AppHost or open its right-click menu to select **Deploy AppHost**, **Publish AppHost**, **Run pipeline step**, or **Debug pipeline step**. The pipeline actions prompt you to choose a step. Wait for the operation to finish before starting another for the same AppHost. For launch configuration options, see [Run, debug, and deploy](#run-debug-and-deploy).
 
@@ -274,6 +391,54 @@ Finally, you can specify `env` and `args` to set environment variables and comma
 For more information, see [Aspire publishing and deployment overview](/deployment/deploy-with-aspire/).
 </LearnMore>
 
+## Attach a debugger to a running resource
+
+You can attach the VS Code debugger to a .NET project or Go resource that's already running. Attaching requires Aspire extension v1.25.0 or later and a trusted workspace.
+
+Attach works for resources that run without a debugger. That includes resources started with **Run Without Debugging** in VS Code and resources in an AppHost started from the CLI, such as with [`aspire start`](/reference/cli/commands/aspire-start/).
+
+Install the debugger extension for the resource's language first:
+
+- .NET project resources need the [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) extension (`ms-dotnettools.csharp`). [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit) installs it for you.
+- Go resources need the [Go](https://marketplace.visualstudio.com/items?itemName=golang.go) extension (`golang.go`) and [Delve](https://github.com/go-delve/delve). They also need the Aspire 17.0 Go hosting integration. For build flag guidance, see [Attach to a running Go resource](/integrations/frameworks/go/go-host/#attach-to-a-running-go-resource-vs-code).
+
+To attach a debugger:
+
+<Steps>
+
+1. In the Aspire view, expand the running AppHost.
+1. Right-click a running .NET project or Go resource and select **Attach debugger**.
+1. Wait for the **Attaching debugger** progress notification to finish. To stop attaching, select **Cancel** on the notification.
+1. Set breakpoints and debug as usual. To detach, select **Disconnect** on the debug toolbar.
+
+</Steps>
+
+The debugger attaches to the application process, not to the `dotnet run`, `dotnet watch`, or `go run` process that launched it. Attaching and detaching don't restart the resource or the AppHost, and attach never starts a resource that isn't running. If a debugger is already attached to the resource, VS Code reports that and doesn't start another session.
+
+If the required debugger extension is missing or disabled, VS Code shows a notification with an **Open Extensions** action. Install or enable the extension, and then select **Attach debugger** again. The AppHost doesn't need to restart.
+
+Coding agents can attach the same way with the `aspire_resource_debug` tool (`#aspireDebugResource`). For its inputs and outcomes, see the [language model tool reference](#language-model-tool-reference).
+
+Attach has these limitations:
+
+- You can't attach to a .NET resource launched by `dotnet watch` when arguments follow its first `--`. SDK versions interpret that separator differently, so Aspire declines instead of guessing which build output is running. The resource keeps running, and `dotnet run` launches aren't affected.
+- Go resources configured with `WithDelveServer` don't offer **Attach debugger**. Connect your debugger to the [headless Delve server](/integrations/frameworks/go/go-host/#headless-delve-server) instead.
+- Coding agents can't detach a debugger because there's no detach tool. Detach from the debug toolbar instead. For the feature request, see [microsoft/aspire#22154](https://github.com/microsoft/aspire/issues/22154).
+
+:::note[Go attach permissions on Linux and macOS]
+On Linux, Delve uses `ptrace` to attach. Many distributions, including Ubuntu, set `kernel.yama.ptrace_scope` to `1` by default, which only lets a process trace its own descendants. Delve didn't launch the Go resource, so the attach fails with this setting.
+
+To allow attach until the next reboot, run:
+
+```bash title="Terminal"
+sudo sysctl -w kernel.yama.ptrace_scope=0
+```
+
+A value of `0` lets any process trace other processes that run as the same user, so a compromised process could read data from them. Only make this change on a development machine where you accept that risk. Otherwise, press <Kbd windows='F5' /> to start the AppHost with debugging, so that the Go extension launches the resource under Delve.
+
+On macOS, if your account isn't in the `_developer` group, macOS might ask you to authorize Developer Tools Access when Delve attaches.
+:::
+
 ## Language coverage
 
 The extension detects each resource's language and attaches the right debugger:
@@ -289,6 +454,8 @@ The extension detects each resource's language and attaches the right debugger:
 | Azure Functions, JavaScript / TypeScript | `js-debug` | None (built into VS Code) |
 
 For TypeScript or JavaScript Azure Functions apps, the Aspire extension reserves a loopback Node inspector port until task launch, starts Azure Functions Core Tools as a task, and attaches VS Code's built-in `pwa-node` debugger. Stopping the Aspire debug session also stops the Functions task. The Azure Functions VS Code extension isn't required for these apps.
+
+To attach the debugger to a .NET project or Go resource that's already running, see [Attach a debugger to a running resource](#attach-a-debugger-to-a-running-resource).
 
 ## Feedback and issues
 

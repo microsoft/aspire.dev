@@ -467,6 +467,65 @@ The Aspire VS Code extension detects the `golang.go` extension and, when you sta
 When <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithDelveServer" /> is applied to a resource, VS Code debugging is disabled for that resource. The two modes are mutually exclusive: `WithDelveServer` starts a headless Delve server that an IDE attaches to manually, while VS Code debugging hands control of launch and build to the `golang.go` extension.
 :::
 
+### Attach to a running Go resource (VS Code)
+
+Starting with Aspire 17.0, you can attach the VS Code debugger to a Go resource that's already running. Attach requires Aspire extension v1.25.0 or later, the `golang.go` extension, and Delve (`dlv`).
+
+Start the AppHost with **Run Without Debugging** or `aspire start`. In both cases, Aspire runs the resource with `go run`. Then right-click the running Go resource in the Aspire view and select **Attach debugger**. The debugger attaches to your app process, not to `go run`. Attaching and detaching don't restart the resource or the AppHost.
+
+Source breakpoints need the symbols and DWARF debug information in your binary. Local `AddGoApp` / `addGoApp` launches keep this information by default, including under `aspire start`, so no opt-in is required. Aspire preserves other linker options from `GOFLAGS`, but explicit `-s` and `-w` flags take precedence. Published Docker builds keep the linker flags that you configure.
+
+When you set custom `ldFlags`, include `-s=false -w=false`, and don't pass `-s` or `-w`. For example, the `-s -w` flags in [Configure build options](#configure-build-options) strip the information that source breakpoints need. For predictable stepping, also set `gcFlags: "all=-N -l"` to turn off compiler optimizations and inlining:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddGoApp(
+    name: "api",
+    appDirectory: "./api",
+    ldFlags: "-X main.version=1.2.3 -s=false -w=false",
+    gcFlags: "all=-N -l");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addGoApp('api', './api', {
+  ldFlags: '-X main.version=1.2.3 -s=false -w=false',
+  gcFlags: 'all=-N -l',
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddGoApp("api", "./api",
+	aspire.AddGoAppLdFlags("-X main.version=1.2.3 -s=false -w=false"),
+	aspire.AddGoAppGcFlags("all=-N -l"))
+```
+
+</TabItem>
+</Tabs>
+
+Attach isn't available for resources that use `WithDelveServer` / `withDelveServer`, because those resources run under a [headless Delve server](#headless-delve-server) instead.
+
+<LearnMore>
+  For attach steps, troubleshooting, and Linux and macOS permission requirements, see [Attach a debugger to a running resource](/get-started/aspire-vscode-extension/#attach-a-debugger-to-a-running-resource).
+</LearnMore>
+
 ### Headless Delve server
 
 For GoLand, VS Code attach mode, or another Delve-compatible client, use `WithDelveServer` / `withDelveServer`. This replaces the application command with a headless Delve server, such as `dlv --headless=true --listen=127.0.0.1:2345 --api-version=2 debug .`.
