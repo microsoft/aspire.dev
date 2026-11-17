@@ -3,8 +3,8 @@ title: "What's new in Aspire 17.0"
 seoTitle: 'Aspire 17.0: New features, updates, and upgrade guidance'
 description: 'Aspire 17.0 brings a redesigned dashboard, generally available Go AppHosts, a tray companion, stable Kubernetes deployment, and dozens of graduated APIs.'
 resourceImage:
-  light: '~/assets/whats-new/aspire-17/testshop-all-resources-light.png'
-  dark: '~/assets/whats-new/aspire-17/testshop-all-resources.png'
+  light: '~/assets/whats-new/aspire-17/dashboard-overview-light.png'
+  dark: '~/assets/whats-new/aspire-17/dashboard-overview.png'
 sidebar:
   label: Aspire 17.0
   order: 0
@@ -71,8 +71,12 @@ Once Aspire 17.0 is available on the stable channel, use the [`aspire update` co
 import ThemeImage from '@components/ThemeImage.astro';
 import testShopDashboard from '@assets/whats-new/aspire-17/testshop-dashboard.png';
 import testShopDashboardLight from '@assets/whats-new/aspire-17/testshop-dashboard-light.png';
-import testShopAllResources from '@assets/whats-new/aspire-17/testshop-all-resources.png';
-import testShopAllResourcesLight from '@assets/whats-new/aspire-17/testshop-all-resources-light.png';
+import dashboardHome from '@assets/whats-new/aspire-17/dashboard-home.png';
+import dashboardHomeLight from '@assets/whats-new/aspire-17/dashboard-home-light.png';
+import dashboardOverview from '@assets/whats-new/aspire-17/dashboard-overview.png';
+import dashboardOverviewLight from '@assets/whats-new/aspire-17/dashboard-overview-light.png';
+import dashboardMetrics from '@assets/whats-new/aspire-17/dashboard-metrics.png';
+import dashboardMetricsLight from '@assets/whats-new/aspire-17/dashboard-metrics-light.png';
 import testShopResource from '@assets/whats-new/aspire-17/testshop-resource.png';
 import testShopResourceLight from '@assets/whats-new/aspire-17/testshop-resource-light.png';
 import testShopTraces from '@assets/whats-new/aspire-17/testshop-traces.png';
@@ -82,8 +86,6 @@ import testShopTracesLight from '@assets/whats-new/aspire-17/testshop-traces-lig
 
 Keep the resources you're investigating in view as you move between logs, traces, and metrics. The redesigned dashboard adds a shared resource pane with search, filters, and multi-selection, plus grouping by tags, resource type, or state.
 
-Metrics appear as cards with live sparklines. Pin instruments you want to return to instead of finding them again in the full instrument list.
-
 The new experience is still evolving. You can switch to the previous dashboard from **Settings** when the previous experience is available in your dashboard distribution.
 
 <LearnMore>
@@ -91,14 +93,32 @@ The new experience is still evolving. You can switch to the previous dashboard f
   telemetry, and dashboard actions.
 </LearnMore>
 
-### All resources
+### Resource table home page
 
-Start with **All resources** to check resource states, incoming request rates, and the slowest endpoints. TestShop's overview below includes real catalog browsing, sample checkouts, and activity-generator traffic.
+The dashboard opens to a full-width table of every resource. Select a row, **All resources**, or a tab to drill in. Select the application name in the header to return to the table. Error badges in the resource list now open that resource's structured logs filtered to errors.
 
 <ThemeImage
-  dark={testShopAllResources}
-  light={testShopAllResourcesLight}
-  alt="TestShop's All resources overview in Aspire 17.0, showing running resources, live request activity, and slowest endpoints."
+  dark={dashboardHome}
+  light={dashboardHomeLight}
+  alt="The Aspire 17.0 dashboard home page in comfortable density, listing AspireShop's PostgreSQL, Redis, and project resources with their state, source, endpoints, incoming request counts, and p95 latency."
+/>
+
+Resources also show friendly type labels such as **Redis** or **PostgreSQL Server** in the dashboard and in the **Type** column of `aspire describe`.
+
+<LearnMore>
+  See [Filter and group
+  resources](/dashboard/explore/#filter-and-group-resources) to focus the
+  dashboard on the resources you're investigating.
+</LearnMore>
+
+### All resources
+
+Open **All resources** for a health summary of your whole app: resource states, live request activity, error rate, p95 latency, the slowest endpoints, and the busiest resources. Recent errors and failed traces are one click away.
+
+<ThemeImage
+  dark={dashboardOverview}
+  light={dashboardOverviewLight}
+  alt="The All resources overview in Aspire 17.0, showing all seven AspireShop resources running, live request activity with error rate and p95 latency, the slowest endpoints, and the busiest resources."
 />
 
 ### Resource graph
@@ -131,17 +151,15 @@ Expand a trace to see the time spent in each service and dependency. This trace 
   alt="A populated TestShop trace waterfall in Aspire 17.0, with ten nested spans covering frontend, catalog, PostgreSQL, basket, and Redis calls."
 />
 
-### Resource table home page
+### Metrics
 
-The dashboard opens to a full-width table of every resource. Select a row, **All resources**, or a tab to drill in. Select the application name in the header to return to the table. Error badges in the resource list now open that resource's structured logs filtered to errors.
+Metrics appear as cards with live sparklines. Group instruments by resource, meter, or instrument, and pin the ones you want to return to instead of finding them again in the full instrument list. Collapse the resource list to give the cards more room.
 
-Resources also show friendly type labels such as **Redis** or **PostgreSQL Server** in the dashboard and in the **Type** column of `aspire describe`.
-
-<LearnMore>
-  See [Filter and group
-  resources](/dashboard/explore/#filter-and-group-resources) to focus the
-  dashboard on the resources you're investigating.
-</LearnMore>
+<ThemeImage
+  dark={dashboardMetrics}
+  light={dashboardMetricsLight}
+  alt="The Aspire 17.0 Metrics page with the resource list collapsed, showing AspireShop's basket service instruments grouped by resource as cards with current values and sparklines."
+/>
 
 ### Terminals page
 
@@ -333,7 +351,7 @@ Stop it with `aspire tray stop`. The tray companion requires a native Aspire CLI
 - **Stricter `aspire destroy`**: The command rejects unknown arguments instead of ignoring them.
 - **Clearer publish guidance**: `dotnet run --operation publish` fails fast and directs you to `aspire publish`.
 - **Exit codes in `aspire describe`**: The table output shows the exit code of finished resources and highlights nonzero codes.
-- **SDK migration hint**: When `aspire update --migrate` finds nothing to migrate automatically but your AppHost still uses `Aspire.AppHost.Sdk`, it points you to the [ASPIRE012](/diagnostics/aspire012/) migration steps.
+- **SDK migration hint**: When `aspire update --migrate` finds nothing to migrate automatically but your AppHost still uses `Aspire.AppHost.Sdk`, it points you to the [ASPIRE012 migration steps](#aspireapphostsdk-is-deprecated).
 
 ## 🐹 Go AppHost support
 
