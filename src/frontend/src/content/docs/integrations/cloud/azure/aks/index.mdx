@@ -21,13 +21,17 @@ import ApiReference from '@components/ApiReference.astro';
 
 This article is the reference for the Aspire Azure Kubernetes Service (AKS) hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an AKS environment and its node pools in your [`AppHost`](/get-started/app-host/) project.
 
-The Aspire AKS hosting integration enables you to deploy your Aspire application to Azure Kubernetes Service (AKS) with full provisioning. Aspire creates the AKS cluster, Azure Container Registry (ACR), managed identity, and any Azure resources your app depends on — all from your AppHost definition.
+The Aspire AKS hosting integration deploys your application to a new or existing AKS cluster. By default, Aspire provisions the cluster, Azure Container Registry (ACR), cluster managed identities, and any Azure resources your app depends on. You can instead reference a cluster or registry that your team already manages.
 
 ## Hosting integration
 
 To get started with the Aspire AKS hosting integration, install the [📦 Aspire.Hosting.Azure.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Azure.Kubernetes) NuGet package in the AppHost project:
 
 <InstallPackage packageName="Aspire.Hosting.Azure.Kubernetes" />
+
+The C# project examples also require the [.NET hosting integration](/integrations/frameworks/dotnet/dotnet-host/):
+
+<InstallPackage packageName="Aspire.Hosting.Dotnet" />
 
 ## Add AKS environment
 
@@ -40,7 +44,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var aks = builder.AddAzureKubernetesEnvironment("aks");
 
-var api = builder.AddProject<Projects.MyApi>("api");
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj");
 
 builder.Build().Run();
 ```
@@ -65,49 +69,259 @@ await builder.build().run();
 
 When an AKS environment is present, all compute resources are automatically deployed to AKS — no additional opt-in is required.
 
-## Configure the system node pool
+## Use an existing AKS cluster
 
-Customize the system node pool VM size and scaling using <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.WithSystemNodePool" />:
+Starting in Aspire 17.0, you can deploy to a pre-provisioned AKS cluster with the shared Azure existing-resource APIs:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="AppHost.cs"
-builder.AddAzureKubernetesEnvironment("aks")
-    .WithSystemNodePool("Standard_D4s_v5", minCount: 1, maxCount: 5);
-```
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
+const clusterName = await builder.addParameter('cluster-name');
+const resourceGroup = await builder.addParameter('cluster-resource-group');
+const subscription = await builder.addParameter('cluster-subscription');
+
 const aks = await builder.addAzureKubernetesEnvironment('aks');
-await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
+await aks.asExistingInResourceGroup(clusterName, resourceGroup, subscription);
+```
+</TabItem>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var clusterName = builder.AddParameter("cluster-name");
+var resourceGroup = builder.AddParameter("cluster-resource-group");
+var subscription = builder.AddParameter("cluster-subscription");
+
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+    .AsExistingInResourceGroup(clusterName, resourceGroup, subscription);
 ```
 </TabItem>
 </Tabs>
+
+When Aspire prompts during publishing or deployment, provide the existing cluster's name, resource group, and subscription ID.
+
+Use `asExisting(clusterName)` in TypeScript or `AsExisting(clusterName, null)` in C# when the cluster is in the application's Azure resource group. `publishAsExisting` / `PublishAsExisting` and `publishAsExistingInResourceGroup` / `PublishAsExistingInResourceGroup` apply only when publishing or deploying.
+
+An explicit existing-cluster resource group and subscription select the cluster independently of the resource's `Scope`, which controls the module that deploys supporting infrastructure. A resource-group-only cluster reference inherits the module's subscription. An unscoped reference inherits its resource group too. Credential retrieval uses the cluster resource ID returned by provisioning.
+
+### Existing cluster behavior
+
+- Aspire references the cluster without changing its tier, identities, node pools, networking, or add-ons. Cluster-creation settings don't reconfigure it. Aspire doesn't assign workloads to an automatically created `workload` node pool. Explicit node-pool affinity must name a pool that already exists.
+- The cluster must have a kubelet managed identity for registry access. Workloads that use Azure workload identity also require OIDC and workload identity to be enabled beforehand.
+- Any ingress add-ons that the application uses must already be installed and configured.
+- For private clusters with the public DNS name disabled, the cluster FQDN output falls back to the private DNS name, or an empty string if neither is available. Deploying still requires network connectivity and DNS resolution from the deployment host.
+- Aspire still provisions the default container registry unless you [select another registry](#use-an-existing-container-registry). It grants the cluster's existing kubelet identity `AcrPull` access without creating replacement cluster identities, and creates workload identity federated credentials when needed. The deploying identity needs permission to create these resources and role assignments, retrieve AKS credentials, and deploy Kubernetes workloads.
+
+:::caution
+`aspire destroy` removes the application's workloads and deletes the application's Azure resource group. Keep the existing cluster in a separate resource group if it must survive `aspire destroy`.
+:::
+
+## Use an existing container registry
+
+Select an Azure Container Registry with the AKS-specific <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.WithContainerRegistry" /> API. This replaces the automatically created registry for image publishing and deployment.
+
+The following examples reference a registry in another resource group in the deployment subscription:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const registry = await builder.addAzureContainerRegistry('registry');
+await registry.publishAsExisting('myregistry', { resourceGroup: 'registry-resource-group' });
+
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+await aks.withContainerRegistry(registry);
+```
+</TabItem>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var registry = builder.AddAzureContainerRegistry("registry")
+    .PublishAsExisting("myregistry", "registry-resource-group");
+
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+    .WithContainerRegistry(registry);
+```
+</TabItem>
+</Tabs>
+
+For a registry in another subscription, replace the existing-resource call with:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+await registry.publishAsExistingInResourceGroup(
+    'myregistry', 'registry-resource-group', '<registry-subscription-id>');
+```
+</TabItem>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+registry.PublishAsExistingInResourceGroup(
+    "myregistry", "registry-resource-group", "<registry-subscription-id>");
+```
+</TabItem>
+</Tabs>
+
+Starting in Aspire 17.0, Aspire grants the AKS kubelet identity `AcrPull` at the selected registry's scope, independently of the cluster's resource group or subscription. This applies to both new and existing clusters. The deployment identity must have permission to create role assignments at that scope and push images to the registry.
+
+:::caution
+`aspire destroy` deletes the entire application resource group, including existing resources referenced with `PublishAsExisting`. Keep a shared registry outside that group to preserve it and its images. Role assignments on an external registry aren't removed by `aspire destroy` or by deleting the kubelet identity. Remove those assignments separately when they're no longer needed.
+:::
+
+`AcrPull` permits pulling images from every repository in the registry, including unrelated images in a shared registry. The registry must use **RBAC Registry Permissions** mode. Registries using **RBAC Registry + ABAC Repository Permissions** mode require different roles that this integration doesn't configure automatically.
+
+Workloads can potentially obtain kubelet identity tokens through the node's Instance Metadata Service (IMDS). A separate kubelet identity and Workload Identity alone don't prevent that access. Review the [AKS IMDS restriction guidance](https://learn.microsoft.com/azure/aks/imds-restriction), including its preview status and host-network and privileged-workload limitations.
+
+## Cluster identities and permissions
+
+For clusters it provisions, Aspire 17.0 creates separate user-assigned managed identities for the control plane and kubelets. Both inherit the cluster's resource-group and subscription scope, including scopes set through provisioning customization. Neither is a workload identity:
+
+| Identity | Permissions |
+| -------- | ----------- |
+| Kubelet | `AcrPull` on the selected registry. |
+| Control plane | `Managed Identity Operator` on the kubelet identity, and `Network Contributor` on virtual networks selected through environment or node-pool `WithSubnet` calls. |
+
+These role assignments are provisioned before the cluster in both the deployment pipeline and generated `main.bicep`. AKS grants the control-plane identity its normal infrastructure permissions in the AKS-managed node resource group. Aspire doesn't grant Contributor on the application resource group or subscription. If provisioning customization references other external resources, such as route tables, network security groups, or private DNS zones, configure the corresponding control-plane permissions separately. See [AKS managed identity role assignments](https://learn.microsoft.com/azure/aks/managed-identity-overview#control-plane-managed-identity-role-assignments).
+
+### Upgrade an Aspire-managed cluster
+
+:::caution[Identity migration]
+Clusters provisioned by earlier Aspire versions used a system-assigned control-plane identity and an AKS-created kubelet identity. Reprovisioning with Aspire 17.0 changes both identities. Changing the kubelet identity can trigger node-pool upgrades that drain and reimage nodes and disrupt workloads. Schedule the migration and follow the [pre-created kubelet identity guidance](https://learn.microsoft.com/azure/aks/pre-created-kubelet-managed-identity).
+
+Custom role assignments on the old identities aren't transferred automatically. Grant additional permissions to the new identities before migration. Retain the old permissions until the control plane has switched identities and node pools have finished updating. The control plane can continue using its previous identity for several hours while cached tokens expire. Remove obsolete external assignments afterward.
+:::
+
+This migration applies when Aspire manages the cluster, not when you reference it with an existing-resource API.
+
+## Cluster tier
+
+Starting in Aspire 17.0, clusters provisioned by Aspire use the **Standard** control-plane tier by default. Earlier versions defaulted to **Free**. Standard provides an uptime SLA and adds a cluster-management charge to the underlying Azure resource costs. See [AKS pricing tiers](https://learn.microsoft.com/azure/aks/free-standard-pricing-tiers) for details. The tier doesn't change node VM sizes or counts and doesn't guarantee application availability.
+
+:::caution
+Applying updated infrastructure to an Aspire-managed cluster changes its tier to Standard unless you explicitly override it. Upgrading the integration package alone doesn't change a deployed cluster. Referencing a pre-provisioned cluster with an existing-resource API leaves its tier unchanged.
+:::
+
+To select Free for development or testing, customize the generated infrastructure:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+Add the experimental provisioning integration to expose typed AKS infrastructure APIs:
+
+```bash title="Add ContainerService provisioning APIs"
+aspire add Aspire.Hosting.Azure.Provisioning.ContainerService
+```
+
+```typescript title="apphost.mts"
+import { ManagedClusterSkuTier } from './.aspire/modules/aspire.mjs';
+
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+await aks.configureInfrastructure(async infrastructure => {
+    const cluster = await infrastructure.getContainerServiceManagedCluster();
+    const sku = await cluster.sku.get();
+    await sku.tier.set(ManagedClusterSkuTier.Free);
+});
+```
+
+The provisioning integration is experimental and emits `ASPIREAZUREPROVISIONING001`.
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Azure.Provisioning.ContainerService;
+
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+    .ConfigureInfrastructure(infrastructure =>
+    {
+        var cluster = infrastructure.GetProvisionableResources()
+            .OfType<ContainerServiceManagedCluster>()
+            .Single();
+
+        cluster.Sku.Tier = ManagedClusterSkuTier.Free;
+    });
+```
+</TabItem>
+</Tabs>
+
+## Configure the system node pool
+
+Customize VM size, scaling, and OS SKU with <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.WithSystemNodePool" />. Starting in Aspire 17.0, the configuration callback supports OS SKU selection:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+await aks.withSystemNodePool(async pool => {
+    pool.vmSize = 'Standard_D2as_v5';
+    pool.minCount = 1;
+    pool.maxCount = 5;
+    pool.osSku = 'AzureLinux';
+});
+```
+</TabItem>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+    .WithSystemNodePool(pool =>
+    {
+        pool.VmSize = "Standard_D2as_v5";
+        pool.MinCount = 1;
+        pool.MaxCount = 5;
+        pool.OsSku = "AzureLinux";
+    });
+```
+</TabItem>
+</Tabs>
+
+The callback receives an `AksNodePoolConfig` with defaults of `Standard_D2s_v5` and an autoscaling range of 1-3 nodes. System pools require at least one node. Each call replaces the previous system pool configuration, including its OS SKU.
+
+Leaving `OsSku` / `osSku` unset omits `osSKU` from generated Bicep and preserves the AKS default, including for automatically created pools. Values such as `AzureLinux` and `Ubuntu` select the OS SKU, not a specific image version. These APIs configure Linux node pools. Azure validates SKU availability and compatibility.
+
+:::caution
+Changing the OS SKU of an existing pool can reimage nodes and disrupt workloads. Follow the [AKS OS SKU migration guidance](https://learn.microsoft.com/azure/aks/upgrade-os-version).
+:::
+
+:::note[Node pool API compatibility]
+In Aspire 17.0, TypeScript, Java, and Python AppHosts use callbacks for system and additional node pools. Replace older scalar or options-object calls with the callback pattern shown here. Assign properties directly inside the callback, without remote setters or per-property `await`.
+
+Parameter-based C# calls remain supported for VM size and scaling, for example `.WithSystemNodePool("Standard_D4s_v5", minCount: 1, maxCount: 5)`. Use callbacks to set the OS SKU.
+:::
 
 ## Add node pools
 
 Add additional node pools for workload isolation, GPU workloads, or specialized hardware requirements using <ApiReference name="Aspire.Hosting.AzureKubernetesEnvironmentExtensions.AddNodePool" />:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="AppHost.cs"
-var aks = builder.AddAzureKubernetesEnvironment("aks");
-var gpuPool = aks.AddNodePool("gpupool", "Standard_NC6s_v3", minCount: 0, maxCount: 5);
-
-builder.AddContainer("ml-worker", "my-ml-image")
-    .WithNodePool(gpuPool);
-```
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
-const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
+const gpuPool = await aks.addNodePool('gpupool', async pool => {
+    pool.vmSize = 'Standard_NC6s_v3';
+    pool.minCount = 0;
+    pool.maxCount = 5;
+    pool.osSku = 'Ubuntu';
+});
 
 const worker = await builder.addContainer('ml-worker', 'my-ml-image');
 await worker.withNodePool(gpuPool);
 ```
 </TabItem>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aks = builder.AddAzureKubernetesEnvironment("aks");
+var gpuPool = aks.AddNodePool("gpupool", pool =>
+{
+    pool.VmSize = "Standard_NC6s_v3";
+    pool.MinCount = 0;
+    pool.MaxCount = 5;
+    pool.OsSku = "Ubuntu";
+});
+
+builder.AddContainer("ml-worker", "my-ml-image")
+    .WithNodePool(gpuPool);
+```
+</TabItem>
 </Tabs>
+
+Additional pools have the same default VM size and autoscaling range as system pools, but can scale to zero. Parameter-based C# calls such as `aks.AddNodePool("gpupool", "Standard_NC6s_v3", minCount: 0, maxCount: 5)` remain supported.
+
+The C# callback receives the configuration stored in the app model, not a copy. Extensions can compose changes through the retained configuration or `gpuPool.Resource.Config` until infrastructure generation. The final values are validated and applied to generated Bicep at that point. Later mutations don't change artifacts already generated.
 
 ## Add a persistent volume
 
@@ -125,7 +339,7 @@ var aks = builder.AddAzureKubernetesEnvironment("aks");
 var data = aks.AddPersistentVolume("data")
     .WithCapacity("20Gi");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPersistentVolume(data, "/data");
 ```
 </TabItem>
@@ -171,6 +385,7 @@ For a complete end-to-end walkthrough, see [Deploy to AKS](/deployment/kubernete
 - [Deploy to Kubernetes](/deployment/kubernetes/)
 - [Kubernetes integration](/integrations/compute/kubernetes/)
 - [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/)
+- [Azure Container Registry integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/)
 - [Azure Container Apps integration](/integrations/cloud/azure/configure-container-apps/)
 - [Deploy to Azure](/deployment/azure/)
 - [Azure compute integrations overview](/integrations/cloud/azure/overview/)
