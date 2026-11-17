@@ -252,6 +252,23 @@ git diff --exit-code "$release_sha" HEAD -- "$samples" "$sample_dir"
 git diff --exit-code main HEAD -- "$catalog" "$package_dir" src/frontend/src/data/future-api
 echo "PASS: release sample deletion protects its catalog without blocking main API data"
 
+new_repo hand-authored-data-code
+code=src/frontend/src/data/dev-hub.ts
+write_file "$code" $'one\ntwo\nthree'
+commit_all code-base
+git switch -q main
+git merge -q --ff-only release/test
+write_file "$code" $'one\ntwo\nthree-main'
+commit_all main-code
+git switch -q release/test
+write_file "$code" $'one-release\ntwo\nthree'
+commit_all release-code
+release_sha="$(git rev-parse HEAD)"
+run_helper
+assert_parents
+[[ "$(cat "$code")" == $'one-release\ntwo\nthree-main' ]] || fail "Hand-authored data code did not merge normally."
+echo "PASS: hand-authored data code merges normally instead of being release-owned"
+
 new_repo unknown-conflict
 write_file shared.txt release
 commit_all release
