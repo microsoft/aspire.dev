@@ -729,6 +729,57 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
+## Browser-facing origins
+
+The URL that a browser uses for a resource can differ from the endpoint's allocated address. For example, the dashboard might show a `*.dev.localhost` URL, a customized URL, or a GitHub Codespaces forwarding URL. Settings that must match what the browser sends, such as a CORS allow list or an authentication redirect URI, need that browser-facing origin rather than the service discovery address.
+
+Each endpoint reference exposes two deferred values for this purpose:
+
+- `PrimaryBrowserOrigin`: Resolves to a single preferred HTTP(S) origin.
+- `BrowserOrigins`: Resolves to a comma-separated list of distinct HTTP(S) origins.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const frontendEndpoint = await frontend.getEndpoint('https');
+
+await api.withEnvironment('FRONTEND_ORIGIN', await frontendEndpoint.primaryBrowserOrigin.get());
+await api.withEnvironment('ALLOWED_ORIGINS', await frontendEndpoint.browserOrigins.get());
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var frontendEndpoint = frontend.GetEndpoint("https");
+
+api.WithEnvironment("FRONTEND_ORIGIN", frontendEndpoint.PrimaryBrowserOrigin);
+api.WithEnvironment("ALLOWED_ORIGINS", frontendEndpoint.BrowserOrigins);
+```
+
+</TabItem>
+</Tabs>
+
+These values don't change how resources reach each other through service discovery, and they resolve the same way regardless of whether the consuming resource runs on the host or in a container.
+
+During local runs, the origins come from the endpoint's final URLs, after URL customization and Codespaces forwarding are applied, in the same order the URLs are displayed. Each origin contains only the scheme, host, and port. The allocated HTTP(S) origin is always included after any customized origins, even if you remove its dashboard link. `PrimaryBrowserOrigin` is the first origin in that list. If the endpoint has no HTTP(S) origins, both values resolve to an empty string.
+
+When you publish, local URLs aren't deployment addresses, so each compute environment resolves the values from its deployed endpoints:
+
+| Compute environment | Behavior |
+| --- | --- |
+| Azure Container Apps and Azure App Service | Uses the public deployed HTTP(S) origins. Internal and non-HTTP(S) endpoints are rejected. |
+| Docker Compose | Uses deployment parameters. External HTTP(S) endpoints with an explicit published port default to `localhost` and that port. Provide a value when the published port isn't known. |
+| Kubernetes | Uses deployment parameters. Defaults come from matching literal Ingress or Gateway hostnames and their TLS configuration. Provide a value for hostless routes, wildcard hosts, or deferred hostnames. |
+| Radius | Uses required deployment parameters for external HTTP(S) endpoints. |
+
+Docker Compose, Kubernetes, and Radius use separate parameters for the two values. For example, the `web` resource's `http` endpoint reads `Parameters:web-http-PrimaryBrowserOrigin` for its single origin and `Parameters:web-http-BrowserOrigins` for its origin list.
+
+<LearnMore>
+  For authentication redirects that use the same browser origin, see [Keep browser origins consistent](/integrations/security/microsoft-entra-id/redirect-uris-and-sign-in/#keep-browser-origins-consistent).
+</LearnMore>
+
 ## Container-to-host networking
 
 The DCP container tunnel is enabled by default and provides container-to-host connectivity for TCP endpoints when you use `WithReference`. With the tunnel enabled, references to host project or executable endpoints using another transport protocol aren't supported. Runtime-specific host gateway names such as `host.docker.internal` are fallbacks for when the tunnel is disabled.

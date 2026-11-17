@@ -83,9 +83,9 @@ Ready to dive into Aspire? Before you begin, make sure your development environm
           title: 'WSLc',
           href: 'https://aka.ms/aspire/containers',
           linkLabel: 'Set up WSLc',
-          statusLabel: 'Windows local development only',
+          statusLabel: 'Windows only; limited publish support',
           description:
-            'A supported container runtime for local development on Windows. Requires WSLc version 3.0.2.0 or later. Publishing and deployment are not supported yet.',
+            'A supported container runtime on Windows. Requires WSLc version 3.0.4.0 or later. Publishing has limited support, and Docker Compose deployment is not supported.',
         },
         {
           id: 'rancher',
@@ -112,8 +112,16 @@ Ready to dive into Aspire? Before you begin, make sure your development environm
     :::note[WSLc on Windows]
     `aspire doctor` auto-detects installed runtimes in Docker, Podman, WSLc priority order.
     Set `ASPIRE_CONTAINER_RUNTIME=wslc` to select WSLc explicitly. WSLc isn't supported
-    when Aspire runs inside a Linux WSL distribution. It is currently supported only
-    for local development on Windows, not for publishing or deployment.
+    when Aspire runs inside a Linux WSL distribution.
+
+    WSLc has limited publishing support. It can build Dockerfile images for the host
+    platform, tag, remove, and push images, sign in to registries, and publish
+    single-platform .NET SDK container images to its local image store. Dockerfile
+    resources target `linux/amd64` by default when publishing, which WSLc can't select,
+    so set the target platform to `null` with `WithContainerBuildOptions` to build for the
+    WSLc host platform. Docker Compose deployment, multi-platform images in the local
+    image store, and manifest inspection aren't supported. Unsupported operations fail
+    with an error instead of falling back to another runtime.
     :::
 
 1. ## Install an integrated development environment (IDE)

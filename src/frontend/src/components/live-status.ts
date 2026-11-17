@@ -112,10 +112,9 @@ function syncDom(): void {
     btn.dataset.pipOpen = pipOpen ? 'true' : 'false';
     btn.dataset.liveDismissed = notificationDismissed ? 'true' : 'false';
     btn.dataset.source = sourceAttr;
-    btn.setAttribute(
-      'aria-label',
-      current.isLive ? 'Aspire is live — watch now' : 'Watch Aspire live streams'
-    );
+    const label = current.isLive ? 'Aspire is live — watch now' : 'Watch Aspire live streams';
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);
   });
 }
 

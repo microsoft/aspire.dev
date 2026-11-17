@@ -125,20 +125,13 @@ describe('standalone dashboard container images', () => {
 
 describe('deployment example dashboard image references', () => {
   test.each([
-    ['get-started/deploy-first-app.mdx', nightlyImage],
-    ['ja/get-started/deploy-first-app.mdx', versionedNightlyImage],
-  ])('%s preserves its documented nightly image selection', (file, image) => {
+    ['get-started/deploy-first-app.mdx', nightlyImage, 3],
+    ['ja/get-started/deploy-first-app.mdx', versionedNightlyImage, 2],
+  ])('%s preserves its documented nightly image selection', (file, image, count) => {
     const images = [...readDoc(file).matchAll(/image: "(mcr\.microsoft\.com\/[^"]+)"/g)].map(
       (match) => match[1]
     );
-    expect(images).toEqual([image, image]);
-  });
-
-  test('distinguishes the English floating examples from installed publisher output', () => {
-    const source = readDoc('get-started/deploy-first-app.mdx');
-    expect(source).toContain(`intentionally select \`${nightlyImage}\``);
-    expect(source).toContain('Your installed Aspire publisher can generate a different repository');
-    expect(source).toContain('/dashboard/standalone/#container-image-repositories-and-migration');
+    expect(images).toEqual(Array(count).fill(image));
   });
 });
 

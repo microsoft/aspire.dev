@@ -16,10 +16,6 @@ If you have a terminal user interface (TUI) application or a shell-based experie
 
 For an introduction to the resource Terminal view, terminal dock, and detached windows, start with [Dashboard terminals](/dashboard/terminals/).
 
-:::caution[Aspire 17.0 preview]
-This page describes resource-terminal behavior and defaults for Aspire 17.0 preview. Use matching AppHost, dashboard, and CLI builds.
-:::
-
 ## Prerequisites
 
 Start with a [TypeScript or C# AppHost](/get-started/app-host/) and an installed interactive program. Resource terminals support executable and project processes on Windows, macOS, and Linux, as well as container processes through the container runtime. Containers require a [supported container runtime](/get-started/prerequisites/).
@@ -58,7 +54,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-Start the app with `aspire run`, select `repl` on the dashboard's **Console logs** page, and switch to **Terminal** if needed. At the Python prompt, enter `print("Hello from Aspire")`. You can also run `aspire terminal attach repl` after [enabling the CLI commands](#work-with-terminals-from-the-cli).
+Start the app with `aspire run`, select `repl` on the dashboard's **Console logs** page, and switch to **Terminal** if needed. At the Python prompt, enter `print("Hello from Aspire")`. You can also use [`aspire terminal attach repl`](#work-with-terminals-from-the-cli).
 
 ## When to use WithTerminal
 
@@ -105,11 +101,20 @@ The terminal session is described by a set of options with sensible defaults:
 | `Columns` | `132`   | The initial number of columns for the terminal grid. |
 | `Rows`    | `50`    | The initial number of rows for the terminal grid.    |
 
+On the resource **Terminal** page, the dashboard automatically fits the terminal grid to the view when you open the terminal unless you set `Columns` or `Rows`. Setting either dimension, even to its default value, turns off automatic fitting on that page until you request a resize. A configuration callback that doesn't set either dimension keeps automatic fitting. The terminal dock still automatically fits its resource-terminal pane when it opens, even if you set dimensions.
+
 <Aside type="tip">
   `Columns` and `Rows` must each be `1` or greater. Configuring either with zero
-  or a negative value in the `WithTerminal(...)` callback throws an
-  `ArgumentOutOfRangeException` immediately instead of failing later during
-  terminal-host startup.
+  or a negative value in the `WithTerminal(...)` callback fails immediately
+  instead of failing later during terminal-host startup. In C#, the setter
+  throws an `ArgumentOutOfRangeException`.
+</Aside>
+
+<Aside type="note" title="Terminal host resources">
+  Aspire runs a terminal host resource for each replica to bridge the terminal
+  session. These resources are hidden by default. To inspect their state and
+  logs, select **Show hidden resources** in the dashboard; you don't need to
+  change or restart your AppHost.
 </Aside>
 
 <Aside type="note">
@@ -123,9 +128,9 @@ The terminal session is described by a set of options with sensible defaults:
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-In TypeScript, pass a `configure` callback to set the initial number of columns and rows. Calling `withTerminal()` without a callback, or with a callback that doesn't assign a dimension, keeps the default dimensions and automatic dashboard fitting. Assigning `columns` or `rows`, even to its default value, disables automatic fitting.
+In TypeScript, pass a `configure` callback to override any of these options:
 
-```typescript title="apphost.mts"
+```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
@@ -133,10 +138,10 @@ const builder = await createBuilder();
 await builder
   .addExecutable('repl', 'python3', '.', ['-i', '-q'])
   .withTerminal({
-    configure: async options => {
+    configure: async (options) => {
       options.columns = 200;
       options.rows = 50;
-    }
+    },
   });
 
 await builder.build().run();
