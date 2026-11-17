@@ -154,6 +154,9 @@ builder.AddGoApp("api", "./api").
   dynamically during app startup. The app must configure the appropriate
   subscription and location. For more information, see [Local provisioning:
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+  When you [run the resource with the emulator](#run-azure-web-pubsub-locally-with-the-emulator),
+  local runs use a container instead of provisioning Azure Web PubSub, so no Azure subscription
+  is needed for local development. Publishing still targets Azure Web PubSub.
 </Aside>
 
 <Aside type="note">
@@ -269,6 +272,76 @@ messagesHub.AddEventHandler(aspire.RefExpr("{0}", workerEndpoint), aspire.AddEve
 </Tabs>
 
 The preceding code registers an event handler URL pointing to the worker service's external HTTPS endpoint. For more information, see [Azure Web PubSub event handlers](https://learn.microsoft.com/azure-web-pubsub/howto-develop-eventhandler).
+
+## Run Azure Web PubSub locally with the emulator
+
+For local development, Aspire can run the Azure Web PubSub emulator as a container instead of provisioning an Azure Web PubSub resource. Chain a call to `RunAsEmulator` (or `runAsEmulator`) on the Web PubSub resource builder:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub")
+    .RunAsEmulator();
+var chat = webPubSub.AddHub("chat");
+
+var web = builder.AddProject<Projects.WebFrontend>("webfrontend")
+    .WithReference(chat)
+    .WaitFor(webPubSub);
+
+chat.AddEventHandler(
+    $"{web.GetEndpoint("http")}/events",
+    systemEvents: ["connected"]);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const webPubSub = await builder.addAzureWebPubSub("web-pubsub")
+    .runAsEmulator();
+const chat = await webPubSub.addHub("chat");
+
+await builder.addNodeApp("webfrontend", "./web-frontend", "server.js")
+    .withReference(chat)
+    .waitFor(webPubSub);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+When you call `RunAsEmulator`, Aspire runs the `mcr.microsoft.com/webpubsub/emulator:1.0.0-beta.3` container during local runs and gives consuming apps a connection string that contains the emulator's HTTP endpoint and access key. `RunAsEmulator` has no effect when publishing, so publishing continues to provision Azure Web PubSub.
+
+Keep the following emulator behaviors in mind:
+
+- Hubs and event handlers that you add with `AddHub` and `AddEventHandler` are configured in the emulator, whether you add them before or after calling `RunAsEmulator`.
+- Use an HTTP endpoint for local event handler callbacks, as shown in the preceding C# example.
+- The emulator doesn't support event handler authentication. Configuring an event handler with authentication settings while using the emulator results in a `NotSupportedException` when Aspire generates the emulator configuration.
+- The emulator endpoint uses HTTP. JavaScript clients that use `@azure/web-pubsub` must pass `allowInsecureConnection: true` when connecting to it. For more information, see [Connect to the emulator](../azure-web-pubsub-connect/#connect-to-the-emulator).
+
+By default, the emulator container exposes the following endpoint:
+
+| Endpoint   | Scheme | Target port | Host port |
+| ---------- | ------ | ----------- | --------- |
+| `emulator` | `http` | 8080        | dynamic   |
+
+### Configure the emulator host port
+
+To use a fixed host port, configure the `emulator` endpoint in the `RunAsEmulator` callback:
+
+```csharp title="AppHost.cs"
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub")
+    .RunAsEmulator(emulator =>
+        emulator.WithEndpoint("emulator", endpoint => endpoint.Port = 8080));
+```
+
+The preceding code maps the emulator to host port `8080`.
 
 ## Assign Azure Web PubSub roles
 
