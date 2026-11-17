@@ -1169,6 +1169,10 @@ export const docsTopics = {
           slug: 'extensibility/typescript-hosting-integrations',
           badge: 'Experimental',
         },
+        {
+          label: 'Configuration sources',
+          slug: 'extensibility/config-sources',
+        },
       ],
     },
     {
