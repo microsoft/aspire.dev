@@ -40,6 +40,12 @@ aspire add azure-kubernetes
 
 The Aspire CLI adds the [📦 Aspire.Hosting.Azure.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Azure.Kubernetes) integration to your AppHost.
 
+For the C# project examples, also add the [.NET hosting integration](/integrations/frameworks/dotnet/dotnet-host/):
+
+```bash title="Add .NET hosting"
+aspire add dotnet
+```
+
 Then add the AKS environment in your AppHost:
 
 <Tabs syncKey='aspire-lang'>
@@ -49,7 +55,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var aks = builder.AddAzureKubernetesEnvironment("aks");
 
-var api = builder.AddProject<Projects.MyApi>("api");
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj");
 
 builder.Build().Run();
 ```
@@ -313,8 +319,8 @@ Each AGC `ApplicationLoadBalancer` caps at five frontends (Gateways or Ingresses
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.MyApi>("api")
-                 .WithExternalHttpEndpoints();
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj")
+    .WithExternalHttpEndpoints();
 
 aks.AddGateway("storefront")
    .WithLoadBalancer(publicLb)
@@ -581,7 +587,7 @@ Use <ApiReference name="Aspire.Hosting.KubernetesServiceExtensions.PublishAsKube
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
 
-builder.AddProject<Projects.MyApi>("api")
+builder.AddDotnetProject("api", "../MyApi/MyApi.csproj")
     .PublishAsKubernetesService(resource =>
     {
         // Scale to 3 replicas
