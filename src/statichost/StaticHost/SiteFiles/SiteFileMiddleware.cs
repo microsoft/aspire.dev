@@ -84,6 +84,9 @@ internal sealed class SiteFileMiddleware
             contentType = UnknownContentType;
         }
 
+        // Look for the brotli copy even when the client does not accept brotli: a file that has one
+        // must send Vary: Accept-Encoding with both versions, so that a cache does not hand the
+        // uncompressed one to every client. Nearly every browser accepts brotli anyway.
         var compressedPath = request.Path.Value + BrotliExtension;
         var compressed = _fileProvider.GetFileInfo(compressedPath);
         var hasCompressed = compressed.Exists && !compressed.IsDirectory;

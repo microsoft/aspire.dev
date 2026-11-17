@@ -370,5 +370,5 @@ public sealed class SiteFileTests
         File.WriteAllBytes(Path.Combine(root.Path, slug.Replace('/', Path.DirectorySeparatorChar), "index.html.br"), output.ToArray());
     }
 
-    private static string ETagOf(byte[] content) => $"\"{Convert.ToBase64String(SHA256.HashData(content))}\"";
+    private static string ETagOf(byte[] content) => $"\"{Convert.ToBase64String(System.IO.Hashing.XxHash128.Hash(content))}\"";
 }
