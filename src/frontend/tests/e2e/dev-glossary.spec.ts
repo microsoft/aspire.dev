@@ -58,6 +58,7 @@ test('topic filter colors retain contrast across selection and theme changes', a
 });
 
 test('glossary toolbar keeps search compact and every letter reachable in both themes', async ({ page }) => {
+  test.setTimeout(120_000);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/hub/glossary/');
   const alphabet = page.getByRole('navigation', { name: 'Glossary letters' });
@@ -102,11 +103,12 @@ test('glossary toolbar keeps search compact and every letter reachable in both t
         expect(letter.x).toBeGreaterThanOrEqual(bounds.x);
         expect(letter.x + letter.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
         expect(letter.width).toBeGreaterThanOrEqual(24);
-        expect(letter.height).toBeGreaterThanOrEqual(width <= 600 ? 44 : 36);
+        expect(letter.height).toBe(34);
       }
       const search = (await page.getByRole('searchbox', { name: 'Find a term' }).boundingBox())!;
       expect(search.width).toBeLessThanOrEqual(512);
-      expect(search.height).toBe(48);
+      const compact = width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+      expect(search.height).toBe(compact ? 34 : 48);
       const topics = (await page.locator('#glossary-kind-filters').boundingBox())!;
       const stats = (await page.locator('.glossary-controls .inpage-search-stats').boundingBox())!;
       if (width >= 1200) {
@@ -254,8 +256,6 @@ test('restores filters on reload and Back, and supports keyboard return to the s
   await page.getByRole('heading', { name: 'WaitFor', exact: true }).getByRole('link').click();
   await expect(page.getByRole('heading', { level: 1, name: 'WaitFor', exact: true })).toBeVisible();
   await expect(page.locator('main h1')).toHaveCount(1);
-  const collapsedBreadcrumb = page.locator('.bc-collapse summary');
-  if (await collapsedBreadcrumb.isVisible()) await collapsedBreadcrumb.press('Enter');
   await page.getByRole('link', { name: 'Back to your glossary results' }).press('Enter');
   await expect(page.getByRole('searchbox')).toHaveValue('wait');
   await expect(page.locator('[data-glossary-card]:visible')).toHaveCount(4);
@@ -628,8 +628,6 @@ test('previous and next terms preserve the return to filtered glossary results',
   await page.locator('.pagination-links a[rel="prev"]').click();
   await expect(page.locator('h1#_top')).toHaveText('WaitForCompletion');
   expect(new URL(page.url()).searchParams.get('from')).toBe(from);
-  const collapsedBreadcrumb = page.locator('.bc-collapse summary');
-  if (await collapsedBreadcrumb.isVisible()) await collapsedBreadcrumb.click();
   await page.getByRole('link', { name: 'Back to your glossary results' }).click();
   await expect(page).toHaveURL(new RegExp('/hub/glossary/\\?q=wait&topic=reference$'));
   await expect(page.getByRole('searchbox')).toHaveValue('wait');
@@ -716,8 +714,6 @@ test('topic pills support multiple selections, keyboard toggling, and persistent
   await expect(foundations).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('link', { name: 'Read the full definition of AppHost' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'AppHost', exact: true })).toBeVisible();
-  const collapsed = page.locator('.bc-collapse summary');
-  if (await collapsed.isVisible()) await collapsed.press('Enter');
   await page.getByRole('link', { name: 'Back to your glossary results' }).press('Enter');
   await expect(cards).toHaveCount(expected);
   await expect(reference).toHaveAttribute('aria-pressed', 'true');

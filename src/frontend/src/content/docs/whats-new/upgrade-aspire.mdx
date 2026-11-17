@@ -43,6 +43,82 @@ If you're new to Aspire, there's no reason to upgrade anything. See [prerequisit
 For more information, see [`aspire update` command reference](/reference/cli/commands/aspire-update/).
 </LearnMore>
 
+## Migrate .NET project resources (Aspire 17)
+
+Starting in Aspire 17, `AddProject` and `AddCSharpApp` are obsolete. `aspire update` updates your packages but doesn't rewrite these calls. Replace them with `AddDotnetProject` from the `Aspire.Hosting.Dotnet` integration to use the new `DotnetProjectResource`.
+
+C# AppHosts that use `Aspire.AppHost.Sdk` also report warning [`ASPIRE012`](/diagnostics/aspire012/). `aspire update` doesn't remove the SDK; replace it with `Microsoft.NET.Sdk` and explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` package references.
+
+<LearnMore>
+For steps, caveats, and an optional agent skill, see [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/).
+</LearnMore>
+
+## Try a prerelease build
+
+To test your app against an upcoming release before it ships, switch both the CLI and your app to the `staging` channel. Staging builds come from the current release branch and aren't intended for production use. Use a branch or a throwaway copy of your repository.
+
+<Steps>
+
+1. **Update the Aspire CLI to a staging build:**
+
+    ```bash title="Update the CLI to staging"
+    aspire update --self --channel staging
+    ```
+
+    This switches CLIs installed with the install script. If you installed the CLI as a .NET tool or with npm, `aspire update --self` prints the package manager's update command instead and doesn't switch channels. Reinstall with the install script and the [`--quality staging`](/reference/cli/install-script/#options) option (`-Quality 'staging'` in PowerShell) instead. Use the same option in CI instead of the default `release` quality.
+
+2. **Update your app to the staging channel:**
+
+    ```bash title="Update the app to staging"
+    aspire update --channel staging --migrate
+    ```
+
+    Besides updating package versions, this command writes `"channel": "staging"` to `aspire.config.json` when that file exists. For TypeScript and other non-C# AppHosts, later `aspire add` and `aspire update` runs use that saved channel. For C# AppHosts, an `aspire update` run without `--channel` follows your NuGet configuration instead of the saved channel, so pass `--channel staging` on each update while you test.
+
+    For C# AppHosts, the command can also create or update a project-level `NuGet.config` that adds the staging feed. Depending on your existing configuration, it can also:
+
+    - Add a package source mapping that routes `Aspire*` packages to the staging feed.
+    - Set `globalPackagesFolder` to a repository-local `.nugetpackages` folder when one isn't already set, so prerelease packages don't mix with your global package cache. If it does, add `.nugetpackages/` to your `.gitignore`.
+
+    Review the resulting `NuGet.config` before you commit it.
+
+    `--migrate` applies only automatic migrations. Build the app afterward and review any new warnings, such as `ASPIRE012`, which flags approval-gated changes that `aspire update` doesn't make for you. For the `ASPIRE012` migration steps, see [aka.ms/aspire/diagnostics/aspire012](https://aka.ms/aspire/diagnostics/aspire012). For other warnings, see the [diagnostics overview](/diagnostics/overview/).
+
+3. **Point `aspire docs` at the prerelease documentation.** The prerelease site, reached through `https://aka.ms/aspire/vnext`, documents features that aren't on aspire.dev yet. Open that link once to find the prerelease host, then set both documentation sources so guide search and API lookup (including AI agent skills that call `aspire docs`) read the same content:
+
+    ```json title="aspire.config.json"
+    {
+      "docs": {
+        "llmsTxtUrl": "https://<prerelease-host>/llms-full.txt",
+        "api": {
+          "sitemapUrl": "https://<prerelease-host>/sitemap-0.xml"
+        }
+      }
+    }
+    ```
+
+    For details, see [`docs.llmsTxtUrl` and `docs.api.sitemapUrl`](/reference/cli/configuration/). The prerelease sitemap still lists canonical `aspire.dev` page URLs.
+
+4. **Verify the switch.** Run `aspire --version` to confirm the CLI build, check that your Aspire package references resolve to the staging version, and run `aspire docs search` for a feature that's new in the release.
+
+5. **Check for anything the updater skipped.** `aspire update` updates the AppHost it selects and the package versions it uses. Check these by hand:
+
+    - Central package pins that no project currently references.
+    - Other AppHosts in the repository.
+    - CLI versions or install qualities pinned in CI workflows and dev container definitions.
+
+6. **Switch back to stable** when you're done by running `aspire update --channel stable` for the app, then `aspire update --self --channel stable` for the CLI. Remove the `docs` overrides from `aspire.config.json`. If your app was already up to date, `aspire update` can leave the staging `NuGet.config` entries in place; remove them manually.
+
+</Steps>
+
+## Update standalone dashboard container references
+
+If you manage the standalone dashboard as a container, its stable image repository is now `mcr.microsoft.com/aspire/dashboard`; nightly images use `mcr.microsoft.com/aspire/nightly/dashboard`. Updating the Aspire CLI or packages doesn't rewrite image references in your own Docker commands, Compose files, or Kubernetes manifests.
+
+Before replacing a legacy `dotnet/aspire-dashboard` or `dotnet/nightly/aspire-dashboard` reference, verify that the tag you use exists in the new repository. Legacy repositories continue to receive Aspire 13 servicing images, but their `latest` tag stays on the Aspire 13 line rather than following future major releases. Generated deployment output remains specific to the Aspire publisher version.
+
+For the repository mapping, tag selection, and compatibility details, see [Container image repositories and migration](/dashboard/standalone/#container-image-repositories-and-migration).
+
 ## Update the VS Code extension (optional)
 
 If you have the Aspire extension installed, you can update it to get the latest tooling support:

@@ -9,6 +9,7 @@ import customClearCacheCommand from '@assets/fundamentals/custom-clear-cache-com
 import customClearCacheCommandLight from '@assets/fundamentals/custom-clear-cache-command-light.png';
 import customClearCacheCommandSucceeded from '@assets/fundamentals/custom-clear-cache-command-succeeded.png';
 import customClearCacheCommandSucceededLight from '@assets/fundamentals/custom-clear-cache-command-succeeded-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire アプリ モデル内の各リソースは `IResource` として表現され、分散アプリケーション ビルダーに追加されると、`IResourceBuilder<T>` インターフェイスのジェネリック型パラメーターになります。_resource builder_ API を使って呼び出しを連鎖し、基になるリソースを構成できます。状況によっては、そのリソースにカスタム コマンドを追加したいことがあります。カスタム コマンドを作成する一般的なシナリオには、データベース移行の実行やデータベースのシード/リセットなどがあります。この記事では、キャッシュをクリアする Redis リソースにカスタム コマンドを追加する方法を学びます。
 
@@ -74,7 +75,7 @@ internal static class RedisResourceBuilderExtensions
     private static ResourceCommandState OnUpdateResourceState(
         UpdateCommandStateContext context)
     {
-        var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var logger = context.Services.GetRequiredService<ILogger<Program>>();
         if (logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
@@ -151,7 +152,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`WithCommand` API は、リソースに適切な注釈を追加し、それらは [Aspire ダッシュボード](/ja/dashboard/overview/) で利用されます。ダッシュボードはこれらの注釈を使って UI にコマンドを描画します。詳細へ進む前に、まず `WithCommand` メソッドのパラメーターを理解しておきましょう。
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithCommand" /> API は、リソースに適切な注釈を追加し、それらは [Aspire ダッシュボード](/ja/dashboard/overview/) で利用されます。ダッシュボードはこれらの注釈を使って UI にコマンドを描画します。詳細へ進む前に、まず `WithCommand` メソッドのパラメーターを理解しておきましょう。
 
 - `name`: 呼び出すコマンド名。
 - `displayName`: ダッシュボードに表示するコマンド名。
@@ -264,7 +265,7 @@ C# ではパラメーター型は `Func<UpdateCommandStateContext, ResourceComma
 private static ResourceCommandState OnUpdateResourceState(
     UpdateCommandStateContext context)
 {
-    var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var logger = context.Services.GetRequiredService<ILogger<Program>>();
 
     if (logger.IsEnabled(LogLevel.Information))
     {
@@ -336,9 +337,9 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("cache")
                    .WithClearCommand();
 
-var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice");
+var apiService = builder.AddDotnetProject("apiservice", "../AspireApp.ApiService/AspireApp.ApiService.csproj");
 
-builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+builder.AddDotnetProject("webfrontend", "../AspireApp.Web/AspireApp.Web.csproj")
     .WithExternalHttpEndpoints()
     .WithReference(cache)
     .WaitFor(cache)
@@ -390,9 +391,9 @@ await cache.withCommand(
         },
     });
 
-const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 
-const web = await builder.addProject("webfrontend", "../Web/Web.csproj");
+const web = await builder.addDotnetProject("webfrontend", "../Web/Web.csproj");
 await web.withExternalHttpEndpoints();
 await web.withReference(cache);
 await web.waitFor(cache);
@@ -431,7 +432,7 @@ await builder.build().run();
 - ワークフローの一部としてコマンド実行を自動化する
 - リソース制御が必要なカスタム ツールを構築する
 
-最も一般的なシナリオは、他のカスタム コマンド実装からコマンドを呼び出すことです。C# では `ExecuteCommandContext.ServiceProvider` を使って `ResourceCommandService` を取得します。TypeScript では、コマンドを登録する前に AppHost の実行コンテキストからサービスを解決し、コールバックでキャプチャします。
+最も一般的なシナリオは、他のカスタム コマンド実装からコマンドを呼び出すことです。C# では `ExecuteCommandContext.Services` を使って `ResourceCommandService` を取得します。TypeScript では、コマンドを登録する前に AppHost の実行コンテキストからサービスを解決し、コールバックでキャプチャします。
 
 ### カスタム コマンドからコマンドを実行する
 
@@ -456,12 +457,12 @@ var database = builder.AddPostgres("postgres")
         return CommandResults.Success();
     });
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(cache)
     .WithReference(database)
     .WithCommand("reset-all", "Reset Everything", async (context, ct) =>
     {
-        var commandService = context.ServiceProvider.GetRequiredService<ResourceCommandService>();
+        var commandService = context.Services.GetRequiredService<ResourceCommandService>();
         
         context.Logger.LogInformation("Starting full system reset...");
         
@@ -511,7 +512,7 @@ await database.withCommand("restart", "Restart Database", async () => {
     return { success: true };
 });
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(cache);
 await api.withReference(database);
 await api.withCommand("reset-all", "Reset Everything", async (ctx) => {
@@ -705,7 +706,7 @@ using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.MyService>("myservice")
+builder.AddDotnetProject("myservice", "../MyService/MyService.csproj")
     .WithCommand(
         name: "issue-access-token",
         displayName: "Issue Access Token",
@@ -731,7 +732,7 @@ using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.MyService>("myservice")
+builder.AddDotnetProject("myservice", "../MyService/MyService.csproj")
     .WithCommand(
         name: "issue-access-token",
         displayName: "Issue Access Token",

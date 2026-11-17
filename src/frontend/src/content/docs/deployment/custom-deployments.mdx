@@ -5,6 +5,7 @@ description: Build container images from your Aspire resources and create custom
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire provides powerful APIs for building container images from your resources during publishing and deployment operations. This article covers the key components that enable programmatic container image creation and progress reporting.
 
@@ -15,12 +16,8 @@ During publishing and deployment, the container image manager is available to cr
 
 These APIs give you fine-grained control over the image building process and provide real-time feedback to users during lengthy build operations.
 
-<Aside type="note">
-  These APIs are designed for advanced scenarios where you need custom control
-  over container image building and progress reporting. For more information,
-  see [Compiler Error ASPIREPIPELINES001](/diagnostics/aspirepipelines001/) and
-  [Compiler Error ASPIREPIPELINES003](/diagnostics/aspirepipelines003/).
-</Aside>
+Some pipeline APIs remain experimental. See
+[Compiler Error ASPIREPIPELINES003](/diagnostics/aspirepipelines003/).
 
 ## When to use these APIs
 
@@ -46,7 +43,7 @@ The `IResourceContainerImageManager` is the core service in the `Aspire.Hosting.
 
 ### Configure container builds
 
-Configure each compute resource with `WithContainerBuildOptions`. The callback receives a `ContainerBuildOptionsCallbackContext` that allows you to specify:
+Configure each compute resource with <ApiReference name="Aspire.Hosting.ApplicationModel.ResourceExtensions.WithContainerBuildOptions" />. The callback receives a `ContainerBuildOptionsCallbackContext` that allows you to specify:
 
 - **Destination**: Push the image to a registry or save it as an archive.
 - **Image format**: Docker or Open Container Initiative (OCI) format.
@@ -76,7 +73,7 @@ The progress reporter uses a hierarchical model with guaranteed ordering and thr
 The reporter API provides structured access to progress reporting with the following characteristics:
 
 - **Acquisition**: The pipeline runner creates an `IReportingStep` for each pipeline step and exposes it through `PipelineStepContext.ReportingStep`.
-- **Step creation**: Register steps with `WithPipelineStepFactory` or `builder.Pipeline.AddStep`. The pipeline runner creates the corresponding reporting step during execution.
+- **Step creation**: Register steps with <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineStepFactory" /> or `builder.Pipeline.AddStep`. The pipeline runner creates the corresponding reporting step during execution.
 - **Task creation**: `IReportingStep.CreateTaskAsync(title, ct)` returns an `IReportingTask`.
 - **State transitions**: `SucceedAsync`, `WarnAsync`, `FailAsync` methods accept a summary message.
 - **Completion**: Complete individual tasks in the callback. The runner disposes the reporting step after the callback and completes the overall pipeline operation.
@@ -146,7 +143,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("redis");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(cache)
     .WithContainerBuildOptions(options =>
     {
@@ -182,20 +179,20 @@ private static async Task PublishAsync(PipelineStepContext context)
     var imageManager = context.Services.GetRequiredService<IResourceContainerImageManager>();
     var reportingStep = context.ReportingStep;
 
-    var projectResources = context.Model.Resources
-        .OfType<ProjectResource>()
+    var imageResources = context.Model.Resources
+        .Where(resource => resource.RequiresImageBuild())
         .ToList();
 
-    if (projectResources.Count > 0)
+    if (imageResources.Count > 0)
     {
         var buildTask = await reportingStep.CreateTaskAsync(
-            $"Building {projectResources.Count} container image(s)",
+            $"Building {imageResources.Count} container image(s)",
             context.CancellationToken);
 
-        await imageManager.BuildImagesAsync(projectResources, context.CancellationToken);
+        await imageManager.BuildImagesAsync(imageResources, context.CancellationToken);
 
         await buildTask.SucceedAsync(
-            $"Built {projectResources.Count} image(s) successfully",
+            $"Built {imageResources.Count} image(s) successfully",
             context.CancellationToken);
     }
     else

@@ -8,6 +8,7 @@ import ThemeImage from '@components/ThemeImage.astro';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import healthChecksDashboardStatus from '@assets/fundamentals/health-checks-dashboard-status.png';
 import healthChecksDashboardStatusLight from '@assets/fundamentals/health-checks-dashboard-status-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 Health checks provide availability and state information about an app. Health checks are often exposed as HTTP endpoints, but can also be used internally by the app to write logs or perform other tasks based on the current health. Health checks are typically used in combination with an external monitoring service or container orchestrator to check the status of an app.
 
@@ -17,7 +18,7 @@ Aspire uses health checks in two distinct contexts. Understanding the difference
 
 | Health check type           | Where it runs    | What it checks            | Used for                           |
 | --------------------------- | ---------------- | ------------------------- | ---------------------------------- |
-| **AppHost resource checks** | AppHost project  | "Is my dependency ready?" | Startup orchestration, `WaitFor()` |
+| **AppHost resource checks** | AppHost project  | "Is my dependency ready?" | Startup orchestration, <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> |
 | **Service endpoint checks** | Your application | "Am I healthy?"           | Load balancers, Kubernetes probes  |
 
 <Aside type="tip" title="Key insight">
@@ -440,7 +441,7 @@ var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
                         .WithHttpEndpoint(targetPort: 8080)
                         .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.WebApp>("webapp")
+builder.AddDotnetProject("webapp", "../WebApp/WebApp.csproj")
        .WithReference(catalogApi)
        .WaitFor(catalogApi); // Waits for /health to return HTTP 200
 ```
@@ -468,16 +469,16 @@ await webapp.waitFor(catalogApi); // Waits for /health to return HTTP 200
 </TabItem>
 </Tabs>
 
-The `WithHttpHealthCheck` method can also be applied to project resources:
+The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> method can also be applied to project resources:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
-var backend = builder.AddProject<Projects.Backend>("backend")
+var backend = builder.AddDotnetProject("backend", "../Backend/Backend.csproj")
                      .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.Frontend>("frontend")
+builder.AddDotnetProject("frontend", "../Frontend/Frontend.csproj")
        .WithReference(backend)
        .WaitFor(backend);
 ```
@@ -501,6 +502,49 @@ await frontend.waitFor(backend);
 </TabItem>
 </Tabs>
 
+### HTTP probes for deployment
+
+Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpProbe" /> to declare startup, readiness, or liveness probes that deployment targets configure on the deployed resource. Pass a `ProbeType` (`Startup`, `Readiness`, or `Liveness`) and the path to probe. You can add one probe of each type to a container, executable, or project resource; adding another probe of the same type replaces it:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddContainer("api", "myregistry/api")
+                 .WithHttpEndpoint(targetPort: 8080)
+                 .WithHttpProbe(ProbeType.Readiness, "/health")
+                 .WithHttpProbe(ProbeType.Liveness, "/alive", periodSeconds: 10);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder, ProbeType } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addContainer('api', 'myregistry/api')
+  .withHttpEndpoint({ targetPort: 8080 })
+  .withHttpProbe(ProbeType.Readiness, { path: '/health' })
+  .withHttpProbe(ProbeType.Liveness, { path: '/alive', periodSeconds: 10 });
+```
+
+</TabItem>
+</Tabs>
+
+By default, a probe targets the resource's first HTTP or HTTPS endpoint; set `endpointName` to choose another. The optional `initialDelaySeconds`, `periodSeconds`, `timeoutSeconds`, `failureThreshold`, and `successThreshold` parameters default to `5`, `5`, `1`, `3`, and `1`, and the path defaults to `/`. Each probe also adds an HTTP health check for the same endpoint and path, so `WaitFor` and the dashboard use it when you run locally.
+
+Deployment targets apply probes as follows:
+
+- **Azure Container Apps** and **Kubernetes**: Each probe becomes the matching startup, readiness, or liveness probe on the container's target port, with the configured timings.
+- **Azure App Service**: Only the path is used, as the site's health check path. The liveness probe is preferred; otherwise, the first probe is used.
+- **Azure Front Door**: An origin's health probe uses the path and scheme of the resource's liveness probe, or of its first probe when there's no liveness probe.
+
+Other deployment targets, such as Docker Compose, don't use probes.
+
 ### Custom resource health checks
 
 You can create custom health checks for more complex readiness scenarios. Start by defining the health check in the AppHost's service collection, then associate it with resources:
@@ -523,7 +567,7 @@ builder.Services.AddHealthChecks().AddCheck("mycheck", () =>
 var pg = builder.AddPostgres("pg")
     .WithHealthCheck("mycheck");
 
-builder.AddProject<Projects.MyApp>("myapp")
+builder.AddDotnetProject("myapp", "../MyApp/MyApp.csproj")
     .WithReference(pg)
     .WaitFor(pg); // Waits for both the Postgres container to be running
                   // AND the custom "mycheck" health check to be healthy
@@ -537,7 +581,7 @@ builder.AddProject<Projects.MyApp>("myapp")
   `builder.Services.AddHealthChecks()` is not yet available.
 </Aside>
 
-The `AddCheck` method registers the health check, and `WithHealthCheck` associates it with specific resources. For more details about creating and registering custom health checks, see [Create health checks](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks#create-health-checks).
+The `AddCheck` method registers the health check, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHealthCheck" /> associates it with specific resources. For more details about creating and registering custom health checks, see [Create health checks](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks#create-health-checks).
 
 ### Dashboard integration
 

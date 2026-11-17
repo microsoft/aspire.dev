@@ -1,0 +1,78 @@
+---
+title: Compiler Error ASPIREAZURE006
+seoTitle: "ASPIREAZURE006: Managed identity requirement is experimental"
+description: Learn what causes the Aspire compiler error ASPIREAZURE006 and how to suppress it when you use the experimental ManagedIdentityRequiredAnnotation type.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 17.0"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> 'Aspire.Hosting.Azure.ManagedIdentityRequiredAnnotation' is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+The `ManagedIdentityRequiredAnnotation` annotation marks a compute resource that needs a user-assigned managed identity when you publish to Azure, even when the resource has no Azure role assignments. For example, a resource might need an identity so that a Microsoft Entra ID app registration can trust it.
+
+When Aspire prepares Azure resources for publishing, it creates a user-assigned managed identity for the annotated resource, or reuses one that you added with `WithAzureUserAssignedIdentity`. After this step, the identity is available from the resource's `AppIdentityAnnotation`. Compute environments that don't support managed identities don't create one.
+
+This annotation is experimental and might change in future releases. The C# compiler reports `ASPIREAZURE006` when your code uses it.
+
+## Example
+
+The following code generates `ASPIREAZURE006`:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("env");
+
+// Using ManagedIdentityRequiredAnnotation generates ASPIREAZURE006
+builder.AddProject<Projects.Api>("api")
+    .WithAnnotation(new ManagedIdentityRequiredAnnotation());
+
+builder.Build().Run();
+```
+
+TypeScript AppHosts can't use this annotation, so they don't report this diagnostic.
+
+## To correct this error
+
+Suppress the error with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREAZURE006.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREAZURE006</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Add the following property directive to a file-based AppHost:
+
+  ```csharp title="AppHost.cs"
+  #:property NoWarn=ASPIREAZURE006
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREAZURE006` directive:
+
+  ```csharp title="Suppressing the error"
+  #pragma warning disable ASPIREAZURE006
+  builder.AddProject<Projects.Api>("api")
+      .WithAnnotation(new ManagedIdentityRequiredAnnotation());
+  #pragma warning restore ASPIREAZURE006
+  ```

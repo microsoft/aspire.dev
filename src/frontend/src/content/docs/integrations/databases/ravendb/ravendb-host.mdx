@@ -8,6 +8,7 @@ import { Image } from 'astro:assets';
 import { Aside, Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ravendbIcon from '@assets/icons/ravendb-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -72,6 +73,27 @@ This updates your `aspire.config.json` with the RavenDB hosting integration pack
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.RavenDB
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the RavenDB hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.RavenDB": "13.4.0"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add RavenDB server resource and database resource
@@ -87,7 +109,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var ravenServer = builder.AddRavenDB("ravenServer");
 var ravendb = ravenServer.AddDatabase("ravendb");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
@@ -105,11 +127,36 @@ const builder = await createBuilder();
 const ravenServer = await builder.addRavenDB("ravenServer");
 const ravendb = await ravenServer.addDatabase("ravendb");
 
-const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj");
 await apiService.withReference(ravendb);
 await apiService.waitFor(ravendb);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+ravenServer := builder.AddRavenDB("ravenServer")
+ravendb := ravenServer.AddDatabase("ravendb")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(ravendb).
+	WaitFor(ravendb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -119,7 +166,7 @@ await builder.build().run();
 
 1. When Aspire adds a container image to the app host, as shown in the preceding example with the `docker.io/ravendb/ravendb` image, it creates a new RavenDB instance on your local machine.
 
-1. The `AddDatabase` call registers a database sub-resource named `ravendb` on the server. By default, the database name matches the resource name. You can pass a different database name as the second argument: `ravenServer.AddDatabase("ravendb", databaseName: "mydb")`.
+1. The <ApiReference name="Aspire.Hosting.RavenDBBuilderExtensions.AddDatabase" /> call registers a database sub-resource named `ravendb` on the server. By default, the database name matches the resource name. You can pass a different database name as the second argument: `ravenServer.AddDatabase("ravendb", databaseName: "mydb")`.
 
 1. The AppHost reference call configures a connection in the consuming project named after the referenced database resource, such as `ravendb` in the preceding example.
 
@@ -150,7 +197,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var ravenServer = builder.AddRavenDB("ravenServer");
 var ravendb = ravenServer.AddDatabase("ravendb", ensureCreated: true);
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
@@ -168,11 +215,36 @@ const builder = await createBuilder();
 const ravenServer = await builder.addRavenDB("ravenServer");
 const ravendb = await ravenServer.addDatabase("ravendb", { ensureCreated: true });
 
-const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj");
 await apiService.withReference(ravendb);
 await apiService.waitFor(ravendb);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+ravenServer := builder.AddRavenDB("ravenServer")
+ravendb := ravenServer.AddDatabase("ravendb", aspire.AddDatabaseEnsureCreated(true))
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(ravendb).
+	WaitFor(ravendb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -193,7 +265,7 @@ var ravenServer = builder.AddRavenDB("ravenServer")
 
 var ravendb = ravenServer.AddDatabase("ravendb");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
@@ -213,11 +285,38 @@ await ravenServer.withDataVolume();
 
 const ravendb = await ravenServer.addDatabase("ravendb");
 
-const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj");
 await apiService.withReference(ravendb);
 await apiService.waitFor(ravendb);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+ravenServer := builder.AddRavenDB("ravenServer").
+	WithDataVolume()
+
+ravendb := ravenServer.AddDatabase("ravendb")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(ravendb).
+	WaitFor(ravendb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -240,7 +339,7 @@ var ravenServer = builder.AddRavenDB("ravenServer")
 
 var ravendb = ravenServer.AddDatabase("ravendb");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
@@ -260,11 +359,38 @@ await ravenServer.withDataBindMount("C:\\RavenDb\\Data");
 
 const ravendb = await ravenServer.addDatabase("ravendb");
 
-const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj");
 await apiService.withReference(ravendb);
 await apiService.waitFor(ravendb);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+ravenServer := builder.AddRavenDB("ravenServer").
+	WithDataBindMount(`C:\RavenDb\Data`)
+
+ravendb := ravenServer.AddDatabase("ravendb")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(ravendb).
+	WaitFor(ravendb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -292,7 +418,7 @@ var ravenServer = builder.AddRavenDB("ravenServer")
 
 var ravendb = ravenServer.AddDatabase("ravendb");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 
@@ -313,11 +439,39 @@ await ravenServer.withLogVolume();
 
 const ravendb = await ravenServer.addDatabase("ravendb");
 
-const apiService = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj");
 await apiService.withReference(ravendb);
 await apiService.waitFor(ravendb);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+ravenServer := builder.AddRavenDB("ravenServer").
+	WithDataVolume().
+	WithLogVolume()
+
+ravendb := ravenServer.AddDatabase("ravendb")
+
+builder.AddGoApp("apiservice", "./api").
+	WithReference(ravendb).
+	WaitFor(ravendb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -341,7 +495,7 @@ var ravenServer = builder.AddRavenDB("ravenSecuredServer", serverSettings)
 
 var ravendb = ravenServer.AddDatabase("ravendbSecured");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(ravendb)
     .WaitFor(ravendb);
 

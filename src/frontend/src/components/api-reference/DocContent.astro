@@ -10,6 +10,7 @@
  */
 import { Code } from '@astrojs/starlight/components';
 import { parseSeeAlso, typeHref, genericArity } from '@utils/packages';
+import ReadableText from '@components/ReadableText.astro';
 
 interface Props {
   content: any;
@@ -237,7 +238,7 @@ function needsSpaceBefore(nodes: any[], idx: number): boolean {
           return <>{sp && ' '}<Fragment set:text={node.text} /></>;
 
         case 'code':
-          return <>{sp && ' '}<code class="doc-inline-code">{node.text}</code></>;
+          return <>{sp && ' '}<code class="doc-inline-code"><ReadableText text={node.text ?? ''} /></code></>;
 
         case 'codeblock': {
           const lang = node.language || 'csharp';
@@ -253,10 +254,10 @@ function needsSpaceBefore(nodes: any[], idx: number): boolean {
         case 'cref': {
           const link = resolveCref(node.value ?? '');
           if (link) {
-            return <>{sp && ' '}<a href={link.href} class="type-link"><code class="doc-cref-link">{link.label}</code></a></>;
+            return <>{sp && ' '}<a href={link.href} class="type-link"><code class="doc-cref-link"><ReadableText text={link.label} /></code></a></>;
           }
           const label = cleanCrefLabel(node.value ?? '');
-          return <>{sp && ' '}<code class="doc-cref">{label}</code></>;
+          return <>{sp && ' '}<code class="doc-cref"><ReadableText text={label} /></code></>;
         }
 
         case 'href':
@@ -270,10 +271,10 @@ function needsSpaceBefore(nodes: any[], idx: number): boolean {
           return <>{sp && ' '}<code class="doc-langword">{node.value}</code></>;
 
         case 'paramref':
-          return <>{sp && ' '}<code class="doc-paramref">{node.value}</code></>;
+          return <>{sp && ' '}<code class="doc-paramref"><ReadableText text={node.value ?? ''} /></code></>;
 
         case 'typeparamref':
-          return <>{sp && ' '}<code class="doc-typeparamref">{node.value}</code></>;
+          return <>{sp && ' '}<code class="doc-typeparamref"><ReadableText text={node.value ?? ''} /></code></>;
 
         case 'para':
           return (
@@ -412,8 +413,17 @@ function needsSpaceBefore(nodes: any[], idx: number): boolean {
     background: color-mix(in srgb, var(--api-accent-text) 10%, transparent);
     color: inherit;
   }
+  .doc-content :global(a.type-link) {
+    color: var(--api-accent-text);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .doc-content :global(a.type-link:hover) {
+    text-decoration-thickness: 2px;
+  }
   .doc-href {
-    text-decoration: none;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
     color: var(--api-accent-text);
   }
   .doc-href:hover {
@@ -491,7 +501,7 @@ function needsSpaceBefore(nodes: any[], idx: number): boolean {
     background: var(--sl-color-gray-6, #f0f0f0);
   }
   :global([data-theme='light']) .doc-langword {
-    color: var(--sl-color-accent, #7455dd);
+    color: var(--api-accent-text);
     background: color-mix(in srgb, var(--sl-color-accent) 10%, var(--sl-color-gray-6, #f0f0f0));
   }
   :global([data-theme='light']) .doc-paramref,

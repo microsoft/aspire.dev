@@ -9,6 +9,17 @@ it.each(['/hub/', '/hub/browse/', '/hub/glossary/'])(
   async (requestPath) => {
     const html = await renderComponent(PageTitle, {
       requestUrl: `https://aspire.dev${requestPath}`,
+      locals: {
+        starlightRoute: {
+          editUrl: '',
+          entry: {
+            id: requestPath,
+            slug: requestPath,
+            filePath: '',
+            data: { title: 'Directory title' },
+          },
+        },
+      },
     });
     const css = html.match(/<style[^>]*>([\s\S]*?)<\/style>/)?.[1].trim();
     expect(css).toBeDefined();

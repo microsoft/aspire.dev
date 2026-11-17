@@ -11,10 +11,9 @@ title: Config Settings Table
 | `docs.api.sitemapUrl`                        | `https://aspire.dev/sitemap-0.xml` | API reference sitemap used by `aspire docs api`. Leave it unset to use the built-in aspire.dev source. |
 | `docs.llmsTxtUrl`                            | `https://aspire.dev/llms-full.txt` | `llms.txt` documentation source used by `aspire docs`. Leave it unset to use the built-in aspire.dev source. |
 | `features.defaultWatchEnabled`               | `false`                            | Enable or disable watch mode by default when running Aspire applications for automatic restarts on file changes. |
-| `features.experimentalPolyglot:go`           | `false`                            | Enable or disable experimental Go AppHost support. |
-| `features.experimentalPolyglot:java`         | `false`                            | Enable or disable experimental Java AppHost support. |
-| `features.experimentalPolyglot:python`       | `false`                            | Enable or disable experimental Python AppHost support. |
-| `features.experimentalPolyglot:rust`         | `false`                            | Enable or disable experimental Rust AppHost support. |
+| `features.experimentalPolyglotJava`          | `false`                            | Enable or disable experimental Java AppHost support. |
+| `features.experimentalPolyglotPython`        | `false`                            | Enable or disable experimental Python AppHost support. |
+| `features.experimentalPolyglotRust`          | `false`                            | Enable or disable experimental Rust AppHost support. |
 | `features.nugetSignatureVerificationEnabled` | `true`                             | Enable or disable defaulting the `DOTNET_NUGET_SIGNATURE_VERIFICATION` environment variable for NuGet operations. When enabled on Linux, the CLI sets the variable to `true` unless you've set it to `false`. |
 | `features.polyglotIntegrationFilterEnabled`  | `false`                            | Enable or disable an experimental filter that restricts `aspire add`, `aspire integration list`, and `aspire integration search` in non-C# AppHosts to integrations with the `polyglot` NuGet tag. The filter fails closed, so enabling it against a remote feed hides every integration. Azure DevOps Artifacts feeds ignore `tags:` query scoping, and nuget.org returns no first-party integrations for the tag. Enable it only against a local package source or hive, where the CLI reads the tag from the package's `.nuspec` file. |
 | `features.showAllTemplates`                  | `false`                            | Show all available templates, including experimental ones, in `aspire new` and `aspire init`. |
@@ -26,12 +25,11 @@ title: Config Settings Table
 | `profiles.<name>.applicationUrl`             | —                                  | Application URLs for the launch profile, such as `https://localhost:17000;http://localhost:15000`. To learn where each kind of AppHost stores launch profiles, see [AppHost configuration](/app-host/configuration/). |
 | `profiles.<name>.environmentVariables`       | —                                  | Environment variables for the launch profile. |
 | `sdk.version`                                | Installed CLI version              | Aspire SDK version for a non-C# AppHost, which determines the version of the `Aspire.Hosting` packages to use. `aspire update` updates this value. |
+| `skillSources.<name>`                        | Built-in Aspire source enabled     | Named agent plugin marketplaces and OpenCode skill catalogs configured by `aspire agent init`. Sources merge across global and project configuration. Set `skillSources.default.enabled` to `false` to exclude the built-in source. For fields and examples, see [Configure AI agent plugins and skill sources](/reference/cli/configuration/#configure-ai-agent-plugins-and-skill-sources). |
 
 Each `.` in a key maps to a nested object in `aspire.config.json`. For example, `aspire config set appHost.path ./apphost.mts` writes `"appHost": { "path": "./apphost.mts" }`. Replace placeholders such as `<packageId>` and `<name>` with your own values.
 
 :::caution
-`aspire config set` treats every `.` and `:` in a key as a nesting separator, so it can't write keys whose names contain those characters:
+`aspire config set` treats every `.` and `:` in a key as a nesting separator, so it can't write keys whose names contain those characters. Package IDs such as `Aspire.Hosting.Redis` contain dots, so use `aspire add` to add packages, or edit the `packages` object by hand.
 
-- In `features.experimentalPolyglot:<language>`, `experimentalPolyglot:<language>` is a single feature name. Without `--global`, the CLI writes a nested `experimentalPolyglot` object to the local `aspire.config.json` file, and later commands fail to load the file. Set these flags with `--global`, or add them to the local file by hand, for example `"experimentalPolyglot:go": true` in the `features` object.
-- Package IDs such as `Aspire.Hosting.Redis` contain dots. Use `aspire add` to add packages, or edit the `packages` object by hand.
 :::

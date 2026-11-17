@@ -5,11 +5,12 @@ description: Inject files and directories into Aspire container resources at dev
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire provides APIs to inject files and directories into containers, enabling you to configure containerized resources with custom configuration files, scripts, certificates, and other assets. There are two complementary APIs:
 
-- **`WithContainerFiles`**: Injects files into containers at development time when they start during `aspire run`.
-- **`PublishWithContainerFiles`**: Copies files from one resource's container into another resource's container as build artifacts at publish time during `aspire publish`.
+- <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithContainerFiles" />: Injects files into containers at development time when they start during `aspire run`.
+- <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.PublishWithContainerFiles" />: Copies files from one resource's container into another resource's container as build artifacts at publish time during `aspire publish`.
 
 ## Inject files at development time
 
@@ -98,7 +99,7 @@ const builder = await createBuilder();
 const frontend = await builder.addViteApp("frontend", "../frontend");
 await frontend.withContainerFilesSource("/app/dist");
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.publishWithContainerFiles(frontend, "./wwwroot");
 
 await builder.build().run();
@@ -350,7 +351,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var frontend = builder.AddViteApp("frontend", "../frontend");
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .PublishWithContainerFiles(frontend, "./wwwroot");
 
 builder.Build().Run();
@@ -364,7 +365,7 @@ const builder = await createBuilder();
 
 const frontend = await builder.addViteApp("frontend", "../frontend");
 
-const api = await builder.addProject("api", "./Api/Api.csproj")
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj")
     .publishWithContainerFiles(frontend, "./wwwroot");
 
 await builder.build().run();
@@ -413,11 +414,11 @@ await builder.build().run();
 
 This produces a self-contained Nginx container that serves the frontend application, with no external volume mounts or runtime file copying needed.
 
-`PublishWithContainerFiles` only applies in publish mode — it has no effect during `aspire run`. The destination resource must implement `IContainerFilesDestinationResource` (such as `ProjectResource`), and the source resource must implement `IResourceWithContainerFiles`.
+`PublishWithContainerFiles` only applies in publish mode — it has no effect during `aspire run`. The destination resource must implement `IContainerFilesDestinationResource` (such as a .NET project added with `AddDotnetProject`), and the source resource must implement `IResourceWithContainerFiles`.
 
 ### Customize the source path
 
-By default, the source resource exports files from its container based on its configured output paths. Use `WithContainerFilesSource` to specify which path inside the source container to copy from:
+By default, the source resource exports files from its container based on its configured output paths. Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithContainerFilesSource" /> to specify which path inside the source container to copy from:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -425,7 +426,7 @@ By default, the source resource exports files from its container based on its co
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithContainerFilesSource("/app/dist");
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .PublishWithContainerFiles(frontend, "./wwwroot");
 ```
 </TabItem>
@@ -436,7 +437,7 @@ The `withContainerFiles` API is not yet available in the TypeScript AppHost SDK.
 </TabItem>
 </Tabs>
 
-Use `ClearContainerFilesSources` to remove any previously configured source paths before adding new ones.
+Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.ClearContainerFilesSources" /> to remove any previously configured source paths before adding new ones.
 
 ## See also
 

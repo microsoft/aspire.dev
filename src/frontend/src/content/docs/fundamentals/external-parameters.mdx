@@ -10,6 +10,7 @@ import dashboardUnresolvedParams from '@assets/fundamentals/dashboard-unresolved
 import dashboardUnresolvedParamsLight from '@assets/fundamentals/dashboard-unresolved-parameters-message-light.png';
 import customizedParameterUi from '@assets/fundamentals/customized-parameter-ui.png';
 import customizedParameterUiLight from '@assets/fundamentals/customized-parameter-ui-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 Environments provide context for the application to run in. Parameters express the ability to ask for an external value when running the app. Parameters can be used to provide values to the app when running locally, or to prompt for values when deploying. They can be used to model a wide range of scenarios including secrets, connection strings, and other configuration values that might vary between environments.
 
@@ -28,7 +29,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add a parameter named "example-parameter-name"
 var parameter = builder.AddParameter("example-parameter-name");
 
-builder.AddProject<Projects.ApiService>("api")
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
        .WithEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter);
 ```
 
@@ -43,7 +44,7 @@ const builder = await createBuilder();
 // Add a parameter named "example-parameter-name"
 const parameter = await builder.addParameter('example-parameter-name');
 
-const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+const api = await builder.addDotnetProject('api', '../ApiService/ApiService.csproj');
 await api.withEnvironment('ENVIRONMENT_VARIABLE_NAME', parameter);
 ```
 
@@ -203,8 +204,8 @@ When you select **Enter values**, Aspire displays a form that you can use to con
 
 You can also control how the dashboard displays these parameters, by using these methods:
 
-- `WithDescription`: Use this method to provide a text description that helps users understand the purpose of the parameter. To provide a formatted description in [Markdown](https://www.markdownguide.org/basic-syntax/), use the `enableMarkdown: true` parameter.
-- `WithCustomInput`: Use this method to provide a callback method that customizes the parameter dialog. For example, in this callback you can customize the default value, input type, label, and placeholder text. When using `WithCustomInput`, you must copy the `EnableDescriptionMarkdown` property from the parameter to the `InteractionInput` object to preserve markdown rendering.
+- <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.WithDescription" />: Use this method to provide a text description that helps users understand the purpose of the parameter. To provide a formatted description in [Markdown](https://www.markdownguide.org/basic-syntax/), use the `enableMarkdown: true` parameter.
+- <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.WithCustomInput" />: Use this method to provide a callback method that customizes the parameter dialog. For example, in this callback you can customize the default value, input type, label, and placeholder text. When using `WithCustomInput`, you must copy the `EnableDescriptionMarkdown` property from the parameter to the `InteractionInput` object to preserve markdown rendering.
 
 This code shows how to set a description and use the callback:
 
@@ -309,7 +310,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add a secret parameter named "secret"
 var secret = builder.AddParameter("secret", secret: true);
 
-builder.AddProject<Projects.ApiService>("api")
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
        .WithEnvironment("SECRET", secret);
 
 builder.Build().Run();
@@ -326,7 +327,7 @@ const builder = await createBuilder();
 // Add a secret parameter named "secret"
 const secret = await builder.addParameter('secret', { secret: true });
 
-const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+const api = await builder.addDotnetProject('api', '../ApiService/ApiService.csproj');
 await api.withEnvironment('SECRET', secret);
 
 await builder.build().run();
@@ -364,9 +365,102 @@ The manifest representation is as follows:
 }
 ```
 
+## Optional parameters
+
+By default, a parameter is required: if no value is configured, you're prompted for one when you run or publish the app, and publishing fails until a value is supplied. An empty string doesn't satisfy a required parameter either, including secret and connection-string parameters.
+
+When a required value is missing or empty during `aspire run`, the parameter shows a `ValueMissing` state, and the dashboard asks you to supply the value. When the dashboard can't prompt, such as in publish or non-interactive runs, initialization fails with a `MissingParameterValueException` that names the parameter.
+
+Some parameters don't need a value in every environment. Use `AsOptional` to mark a parameter as optional:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var messagePrefix = builder.AddParameter("message-prefix")
+                           .AsOptional();
+
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
+       .WithEnvironment("MESSAGE_PREFIX", messagePrefix);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const messagePrefix = await builder.addParameter('message-prefix').asOptional();
+
+const api = await builder.addDotnetProject('api', '../ApiService/ApiService.csproj');
+await api.withEnvironment('MESSAGE_PREFIX', messagePrefix);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+When an optional parameter has no configured value, you aren't prompted for it, and resources that depend on it don't wait for it. The parameter resolves to `null`, and a `null` value is omitted when it's used as an environment variable, so in the preceding example `MESSAGE_PREFIX` isn't set. If a value is configured, it's used just like a required parameter's value, and an explicitly configured empty string stays `""`.
+
+Mark a parameter optional only when an absent or empty value is genuinely valid for your app. Don't make required credentials optional to avoid the missing-value check.
+
+<Aside type="caution">
+  The manifest format generated by `aspire do publish-manifest` doesn't support optional parameter inputs. Publishing an optional parameter to the manifest throws a <code>DistributedApplicationException</code>.
+</Aside>
+
+## Set and inspect parameter values programmatically
+
+In addition to configuration, environment variables, and dashboard prompts, AppHost code can read and set a parameter's value directly on the `ParameterResource`. This is useful when a value should be derived from other resources or computed logic instead of coming from an external source.
+
+Use `TryGetCurrentValue` to check whether a parameter currently has a value without waiting for an unresolved prompt, and `SetValueAsync` to set or clear it:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var messagePrefix = builder.AddParameter("message-prefix")
+                           .AsOptional();
+
+if (!messagePrefix.Resource.TryGetCurrentValue(out _))
+{
+    await messagePrefix.Resource.SetValueAsync("local");
+}
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const messagePrefix = await builder.addParameter('message-prefix').asOptional();
+
+if ((await messagePrefix.tryGetCurrentValue()) === null) {
+    await messagePrefix.setValueAsync({ value: 'local' });
+}
+```
+
+</TabItem>
+</Tabs>
+
+`TryGetCurrentValue` returns `false` (or `null` in TypeScript) when the parameter is unresolved, an empty string, failed to initialize, or is an optional parameter that resolved without a value. `SetValueAsync` sets or replaces the value and updates any dependent dashboard state. Calling `SetValueAsync` without a value (`setValueAsync()` in TypeScript) clears it.
+
+<Aside type="note">
+  `SetValueAsync` doesn't itself save the value to user secrets or deployment state. In publish mode, parameter initialization can subsequently save the resolved value to deployment state.
+</Aside>
+
 ## Add parameters from configuration
 
-In some scenarios, you might want to read parameter values directly from a specific configuration key rather than following the standard `Parameters:*` pattern. The `AddParameterFromConfiguration` method allows you to specify a custom configuration key for a parameter.
+In some scenarios, you might want to read parameter values directly from a specific configuration key rather than following the standard `Parameters:*` pattern. The <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddParameterFromConfiguration" /> method allows you to specify a custom configuration key for a parameter.
 
 <Aside type="note">
 The `addParameterFromConfiguration` API is not yet available in the TypeScript AppHost SDK.
@@ -405,7 +499,7 @@ var dbPassword = builder.AddParameterFromConfiguration(
     "CustomConfig:Database:Password",
     secret: true);
 
-builder.AddProject<Projects.ApiService>("api")
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
        .WithEnvironment("DB_PASSWORD", dbPassword);
 
 builder.Build().Run();
@@ -426,7 +520,7 @@ const dbPassword = await builder.addParameterFromConfiguration(
   { secret: true }
 );
 
-const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+const api = await builder.addDotnetProject('api', '../ApiService/ApiService.csproj');
 await api.withEnvironment('DB_PASSWORD', dbPassword);
 
 await builder.build().run();
@@ -458,7 +552,7 @@ This method is useful when:
 Parameters can be used to model connection strings. When you publish the app, the value is prompted for and stored in a secure location. When you run the app locally, the value is read from the `ConnectionStrings` section of the AppHost configuration.
 
 <Aside type="danger">
-Always use `AddParameter` to pass secrets to resources. Never include passwords or other sensitive data like connection strings in source code.
+Always use <ApiReference name="Aspire.Hosting.ParameterResourceBuilderExtensions.AddParameter" /> to pass secrets to resources. Never include passwords or other sensitive data like connection strings in source code.
 
 If you're connecting to a local database, and want to use Integrated Security or passwordless authentication, you don't need to worry about securing your connection strings. If you're using a password, store the connection string securely using app secrets.
 
@@ -474,7 +568,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder.AddConnectionString("redis");
 
-builder.AddProject<Projects.WebApplication>("api")
+builder.AddDotnetProject("api", "../WebApplication/WebApplication.csproj")
        .WithReference(redis)
        .WaitFor(redis);
 
@@ -491,7 +585,7 @@ const builder = await createBuilder();
 
 const redis = await builder.addConnectionString('redis');
 
-const api = await builder.addProject(
+const api = await builder.addDotnetProject(
   'api',
   '../WebApplication/WebApplication.csproj'
 );
@@ -504,7 +598,7 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="note">
-  Using `WaitFor` with a connection string will implicitly wait for the resource
+  Using <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> with a connection string will implicitly wait for the resource
   that the connection string connects to. For connection strings backed only by
   configuration, the dependency is still modeled but there isn't an
   Aspire-managed resource to wait for.
@@ -522,7 +616,7 @@ Now consider the following AppHost configuration file _appsettings.json_:
 
 ### Build connection strings with reference expressions
 
-If you want to construct a connection string from parameters and ensure that it's handled correctly in both development and production, use `AddConnectionString` with a `ReferenceExpression`.
+If you want to construct a connection string from parameters and ensure that it's handled correctly in both development and production, use <ApiReference name="Aspire.Hosting.ConnectionStringBuilderExtensions.AddConnectionString" /> with a `ReferenceExpression`.
 
 For example, if you have a secret parameter that stores a small part of a connection string, use this code to insert it:
 
@@ -536,7 +630,7 @@ var connectionString = builder.AddConnectionString(
     "composedconnectionstring",
     ReferenceExpression.Create($"Endpoint=https://api.contoso.com/v1;Key={secretKey}"));
 
-builder.AddProject<Projects.AspireReferenceExpressions_CatalogAPI>("catalogapi")
+builder.AddDotnetProject("catalogapi", "../AspireReferenceExpressions.CatalogAPI/AspireReferenceExpressions.CatalogAPI.csproj")
        .WithReference(connectionString)
        .WaitFor(connectionString);
 ```
@@ -558,7 +652,7 @@ const connectionString = await builder.addConnectionString(
   }
 );
 
-const catalogApi = await builder.addProject(
+const catalogApi = await builder.addDotnetProject(
   'catalogapi',
   '../CatalogApi/CatalogApi.csproj'
 );
@@ -581,7 +675,7 @@ var pgConnectionString = builder.AddConnectionString(
     "pgdatabase",
     ReferenceExpression.Create($"{database};Include Error Details=true"));
 
-builder.AddProject<Projects.AspireReferenceExpressions_CustomerAPI>("customerapi")
+builder.AddDotnetProject("customerapi", "../AspireReferenceExpressions.CustomerAPI/AspireReferenceExpressions.CustomerAPI.csproj")
        .WithReference(pgConnectionString)
        .WaitFor(pgConnectionString);
 ```
@@ -601,7 +695,7 @@ const pgConnectionString = await builder.addConnectionString('pgdatabase', {
   environmentVariableNameOrExpression: refExpr`${database};Include Error Details=true`,
 });
 
-const customerApi = await builder.addProject(
+const customerApi = await builder.addDotnetProject(
   'customerapi',
   '../CustomerApi/CustomerApi.csproj'
 );
@@ -629,7 +723,7 @@ IResourceBuilder<IResourceWithConnectionString> db = builder.ExecutionContext.Is
 
 var insertionRows = builder.AddParameter("insertionRows");
 
-builder.AddProject<Projects.Parameters_ApiService>("api")
+builder.AddDotnetProject("api", "../Parameters.ApiService/Parameters.ApiService.csproj")
        .WithEnvironment("InsertionRows", insertionRows)
        .WithReference(db);
 
@@ -654,7 +748,7 @@ const db = isRunMode
 
 const insertionRows = await builder.addParameter('insertionRows');
 
-const api = await builder.addProject(
+const api = await builder.addDotnetProject(
   'api',
   '../Parameters.ApiService/Parameters.ApiService.csproj'
 );

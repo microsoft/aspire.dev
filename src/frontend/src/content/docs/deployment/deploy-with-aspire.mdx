@@ -9,6 +9,7 @@ import {
   TabItem,
   Tabs,
 } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 Aspire deployment is pipeline-based. Add a deployment target to your AppHost, and Aspire gains the steps needed for that target. `aspire publish`, `aspire deploy`, and `aspire do <step>` are different ways of entering that pipeline.
@@ -26,7 +27,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddDockerComposeEnvironment("env");
 
-builder.AddProject<Projects.Api>("api");
+builder.AddDotnetProject("api", "../Api/Api.csproj");
 
 builder.Build().Run();
 
@@ -40,7 +41,7 @@ const builder = await createBuilder();
 
 await builder.addDockerComposeEnvironment('env');
 
-await builder.addProject('api', '../Api/Api.csproj');
+await builder.addDotnetProject('api', '../Api/Api.csproj');
 
 await builder.build().run();
 ```
@@ -103,7 +104,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var apiKey = builder.AddParameter("apiKey", secret: true);
 builder.AddDockerComposeEnvironment("env");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithEnvironment("API_KEY", apiKey);
 
 builder.Build().Run();
@@ -119,7 +120,7 @@ const builder = await createBuilder();
 const apiKey = await builder.addParameter('apiKey', { secret: true });
 await builder.addDockerComposeEnvironment('env');
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withEnvironment('API_KEY', apiKey);
 
 await builder.build().run();
@@ -162,7 +163,7 @@ The placeholder name in published output is target-specific, but the mapping sta
 
 This `.env` example is specific to Docker Compose publish output. It illustrates the **publish artifact handoff** path. `aspire deploy` does not consume this `.env` file; Aspire resolves the parameter before applying changes directly.
 
-Because this example has only one matching compute environment, the project resource attaches to it automatically. Use `WithComputeEnvironment` only when you need to disambiguate between multiple matching targets.
+Because this example has only one matching compute environment, the project resource attaches to it automatically. Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithComputeEnvironment" /> only when you need to disambiguate between multiple matching targets.
 
 Parameters answer **what values does this pipeline need?**
 

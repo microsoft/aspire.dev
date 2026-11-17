@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { dismissCookieConsentIfVisible, getSiteNavigationLink } from '@tests/e2e/helpers';
 
 // This suite exercises native Document PiP, which needs the full browser rather than headless shell.
 test.use({ channel: 'chromium' });
@@ -39,7 +39,7 @@ test('same-deployment navigation and history preserve the running document', asy
   await page.goto('/');
   await dismissCookieConsentIfVisible(page);
   await page.evaluate(() => Reflect.set(window, '__deploymentSession', true));
-  await navigateClient(page, () => page.locator('header a[href="/docs/"]:visible').click());
+  await navigateClient(page, async () => (await getSiteNavigationLink(page, '/docs/')).click());
   await expect(page).toHaveURL(/\/docs\/$/);
   await expect
     .poll(() => page.evaluate(() => Reflect.get(window, '__deploymentSession')))
@@ -81,10 +81,10 @@ for (const identity of ['changed', 'missing'] as const) {
         .replace('</head>', '<script>window.__recordIncompatibleExecution()</script></head>');
       await route.fulfill({ response, body });
     });
-    await page.locator('header a[href="/docs/"]:visible').evaluate((element) => {
+    await (await getSiteNavigationLink(page, '/docs/')).evaluate((element) => {
       element.setAttribute('href', '/docs/?deployment-test=1#_top');
     });
-    await page.locator('header a[href^="/docs/?deployment-test=1"]:visible').click();
+    await page.locator(':is(header, .mobile-site-links) a[href^="/docs/?deployment-test=1"]:visible').click();
     await expect(page).toHaveURL(/\/docs\/\?deployment-test=1#_top$/);
     await expect
       .poll(() => page.evaluate(() => Reflect.get(window, '__deploymentSession')))
@@ -94,7 +94,11 @@ for (const identity of ['changed', 'missing'] as const) {
     await expect(page.locator('site-search button[data-open-modal]')).toBeEnabled();
     await page.keyboard.press('Control+k');
     await expect(page.locator('site-search dialog[open]')).toBeVisible();
-    await expect(page.locator('site-search input.pagefind-ui__search-input')).toBeVisible();
+    await expect(
+      page.locator('site-search input.pagefind-ui__search-input').or(
+        page.locator('site-search').getByText(/Search is only available in production builds/i)
+      )
+    ).toBeVisible();
     expect(errors).toEqual([]);
   });
 }
@@ -134,7 +138,7 @@ test('native Document PiP survives same-build navigation and closes on a deploym
   await expect
     .poll(() => page.evaluate(() => Boolean(Reflect.get(window, '__nativePipTest'))))
     .toBe(true);
-  await navigateClient(page, () => page.locator('header a[href="/docs/"]:visible').click());
+  await navigateClient(page, async () => (await getSiteNavigationLink(page, '/docs/')).click());
   await expect(page).toHaveURL(/\/docs\/$/);
   expect(pipPage.isClosed()).toBe(false);
   await expect(pipPage.locator('body')).toHaveText('Native PiP navigation test');

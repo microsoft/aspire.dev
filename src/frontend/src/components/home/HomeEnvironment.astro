@@ -306,7 +306,6 @@ const localizedEnvironments = environments.map((environment) => {
                       class="topology-core-icon"
                       width="32"
                       height="32"
-                      loading="eager"
                     />
                     <span>AppHost</span>
                   </div>
@@ -325,7 +324,6 @@ const localizedEnvironments = environments.map((environment) => {
                                 class={`topology-node-icon${icon === redisIcon ? ' cache-icon' : ''}${icon === awsIcon ? ' topology-node-icon-aws' : ''}`}
                                 width="30"
                                 height="30"
-                                loading={iconIndex === 0 || icon === awsIcon ? 'eager' : 'lazy'}
                                 style={`--topology-cycle-delay: ${getCycleDelay(resource.icons.length, iconIndex, resourceIndex)}s`}
                               />
                             ))}
@@ -375,6 +373,7 @@ const localizedEnvironments = environments.map((environment) => {
 </section>
 
 <script>
+  import { loadLazyImagesNearViewport } from '@utils/lazy-images';
   import { createViewportActivationObserver } from '@utils/viewport-activation';
 
   function initializeHomeEnvironments() {
@@ -399,7 +398,6 @@ const localizedEnvironments = environments.map((environment) => {
     let activeId = root.dataset.environmentState ?? 'local';
     let stageVisible = false;
     let manuallyPaused = false;
-    let panelTransitionTimer = 0;
 
     const updateControl = () => {
       motionControl.hidden = reducedMotion.matches;
@@ -424,7 +422,6 @@ const localizedEnvironments = environments.map((environment) => {
     };
 
     const settlePanels = () => {
-      window.clearTimeout(panelTransitionTimer);
       panels.forEach((panel) => {
         const selected = panel.dataset.environmentPanel === activeId;
         panel.hidden = !selected;
@@ -440,7 +437,6 @@ const localizedEnvironments = environments.map((environment) => {
       const previousId = activeId;
       const previousPanel = panels.find((panel) => panel.dataset.environmentPanel === previousId);
       const nextPanel = panels.find((panel) => panel.dataset.environmentPanel === id);
-      window.clearTimeout(panelTransitionTimer);
       panels.forEach((panel) => delete panel.dataset.transition);
       activeId = id;
       root.dataset.environmentState = id;
@@ -470,7 +466,25 @@ const localizedEnvironments = environments.map((environment) => {
         });
         void nextPanel.offsetWidth;
         nextPanel.dataset.transition = 'fade-in';
-        panelTransitionTimer = window.setTimeout(settlePanels, 200);
+        // getAnimations() flushes style so the fade starts now; a click-time timer could
+        // otherwise remove the attribute before a delayed frame ever started the animation.
+        const fade = nextPanel
+          .getAnimations()
+          .find(
+            (animation) =>
+              animation instanceof CSSAnimation &&
+              animation.animationName === 'environment-panel-fade-in'
+          );
+        if (fade) {
+          fade.finished.then(
+            () => {
+              if (activeId === id && nextPanel.dataset.transition) settlePanels();
+            },
+            () => {}
+          );
+        } else {
+          settlePanels();
+        }
       } else {
         settlePanels();
       }
@@ -529,6 +543,10 @@ const localizedEnvironments = environments.map((environment) => {
     document.addEventListener('visibilitychange', handleVisibility);
     selectEnvironment(activeId, false);
 
+    // Panels that aren't displayed never start native lazy loading, so load their icons as the
+    // section nears the viewport instead of when a visitor first selects a panel.
+    const stopIconLoading = loadLazyImagesNearViewport(root);
+
     const motionObserver = createViewportActivationObserver((_, active) => {
       stageVisible = active;
       if (!stageVisible) settlePanels();
@@ -569,10 +587,10 @@ const localizedEnvironments = environments.map((environment) => {
         });
         motionObserver?.disconnect();
         scrollObserver?.disconnect();
+        stopIconLoading();
         motionControl.removeEventListener('click', toggleMotion);
         reducedMotion.removeEventListener('change', handleMotionPreference);
         document.removeEventListener('visibilitychange', handleVisibility);
-        window.clearTimeout(panelTransitionTimer);
         delete root.dataset.environmentInitialized;
       },
       { once: true }

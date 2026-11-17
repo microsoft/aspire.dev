@@ -125,7 +125,7 @@ test('app host builder swaps visible code when toggles and language change', asy
   const typeScriptToggle = builder.locator('.lang-toggle[data-lang="typescript"]');
   const csharpToggle = builder.locator('.lang-toggle[data-lang="csharp"]');
 
-  await expect(languageToggles).toHaveText(['TypeScript', 'C#']);
+  await expect(languageToggles).toHaveText(['TypeScript', 'C#', 'Go']);
   await expect(typeScriptToggle).toHaveAttribute('aria-pressed', 'true');
   await expect(csharpToggle).toHaveAttribute('aria-pressed', 'false');
   await expect(codeStage).toBeVisible();
@@ -175,6 +175,34 @@ test('AppHost builder types additions and selects removals before deleting them'
   await expect(codeStage).toHaveAttribute('data-code-variant', 'frontend');
   await expect(codeDisplay).toHaveAttribute('data-editor-state', 'idle');
   await expect(codeStage).not.toContainText('.addPostgres("db")');
+});
+
+test('Go AppHost builder uses a Go API with typed options in every API variant', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const stage = builder.locator('[data-code-stage]');
+  await builder.locator('[data-lang="go"]').click();
+  await builder.locator('[data-toggle="api"]').click();
+
+  const toggles = ['frontend', 'database', 'container', 'deployment'];
+  for (let mask = 0; mask < 16; mask++) {
+    for (const [bit, toggle] of toggles.entries()) {
+      const button = builder.locator(`[data-toggle="${toggle}"]`);
+      const enabled = String(Boolean(mask & (1 << bit)));
+      if ((await button.getAttribute('aria-pressed')) !== enabled) {
+        await button.click();
+      }
+    }
+    await expect(stage).toContainText('builder.AddGoApp("api", "../api")');
+    await expect(stage).toContainText('aspire.HttpEndpointEnv("PORT")');
+    await expect(stage).not.toContainText('AddNodeApp');
+    await expect(stage).not.toContainText('aspire.StringPtr');
+  }
 });
 
 test('AppHost builder applies code changes immediately when reduced motion is requested', async ({
@@ -313,7 +341,7 @@ test('accessible code enhancements label code regions and remove disabled copy b
   await expect(page.locator('.code-display[data-disable-copy] .copy')).toHaveCount(0);
 });
 
-test('prerequisites presents container runtimes as one choice with Podman setup inline', async ({
+test('prerequisites presents runtime choices with Podman setup and WSLc limitations', async ({
   page,
 }) => {
   await page.goto('/get-started/prerequisites/');
@@ -322,13 +350,14 @@ test('prerequisites presents container runtimes as one choice with Podman setup 
   const main = page.locator('main');
   const runtimeChoices = page.locator('.runtime-choices');
   const podmanChoice = runtimeChoices.locator('.runtime-podman');
+  const wslcChoice = runtimeChoices.locator('.runtime-wslc');
 
   await expect(main).toContainText('Install an OCI-compliant container runtime');
-  await expect(main).toContainText('Install one option from the tabs above.');
-  await expect(main).toContainText('Podman or Rancher Desktop unless you specifically want');
+  await expect(main).toContainText('Install only one container runtime.');
   await expect(runtimeChoices).toBeVisible();
   await expect(runtimeChoices).toContainText('Docker Desktop');
   await expect(runtimeChoices).toContainText('Podman');
+  await expect(runtimeChoices).toContainText('WSLc');
   await expect(runtimeChoices).toContainText('Rancher Desktop');
 
   await expect(runtimeChoices.getByRole('tab', { name: 'Docker Desktop' })).toHaveAttribute(
@@ -336,6 +365,7 @@ test('prerequisites presents container runtimes as one choice with Podman setup 
     'true'
   );
   await expect(podmanChoice).toBeHidden();
+  await expect(wslcChoice).toBeHidden();
 
   await runtimeChoices.getByRole('tab', { name: 'Podman' }).click();
 
@@ -344,6 +374,18 @@ test('prerequisites presents container runtimes as one choice with Podman setup 
   await expect(podmanChoice).toContainText('ASPIRE_CONTAINER_RUNTIME');
   await expect(podmanChoice).toContainText('podman');
   await expect(podmanChoice.locator('starlight-tabs[data-sync-key="terminal"]')).toBeVisible();
+
+  await runtimeChoices.getByRole('tab', { name: 'WSLc', exact: true }).click();
+
+  await expect(wslcChoice).toBeVisible();
+  await expect(podmanChoice).toBeHidden();
+  await expect(wslcChoice).toContainText('Windows local development only');
+  await expect(wslcChoice).toContainText('Requires WSLc version 3.0.2.0 or later.');
+  await expect(wslcChoice).toContainText('Publishing and deployment are not supported yet.');
+  await expect(wslcChoice.getByRole('link', { name: 'Set up WSLc' })).toHaveAttribute(
+    'href',
+    'https://aka.ms/aspire/containers'
+  );
 });
 
 test('homepage environment story exposes a keyboard-operable selected state', async ({ page }) => {
@@ -457,6 +499,8 @@ test('samples grid hydrates filters from the URL and syncs them back on change',
   // back/forward stack, so a shared link reflects current state but
   // browser history stays clean.
   const redisChip = page.locator('[data-tag="redis"]');
+  if (!await redisChip.isVisible()) await page.locator('[data-tag-toggle]').click();
+  await expect(redisChip).toBeVisible();
   await redisChip.click();
   await expect.poll(() => page.url()).toMatch(/tags=databases%2Credis|tags=databases,redis/);
 

@@ -141,10 +141,12 @@ import AppHostDcpFlowLight from '@assets/architecture/overview/app-host-dcp-flow
 
 DCP is at the core of the Aspire AppHost orchestration functionality. It's responsible for orchestrating all resources defined in your app model, starting the developer dashboard, ensuring that everything is set up correctly for local development and testing. DCP manages the lifecycle of resources, applies network configurations, and resolves dependencies.
 
-DCP is written in Go, aligning with Kubernetes and its ecosystem, which are also Go-based. This choice enables deep, native integration with Kubernetes APIs, efficient concurrency, and access to mature tooling like Kubebuilder. DCP is delivered as two executables:
+DCP is written in Go, aligning with Kubernetes and its ecosystem, which are also Go-based. This choice enables deep, native integration with Kubernetes APIs, efficient concurrency, and access to mature tooling like Kubebuilder. DCP ships as a single `dcp` binary, named `dcp.exe` on Windows. The subcommand used to launch it selects its operating mode:
 
-- `dcp.exe`: API server that exposes a Kubernetes-like API endpoint for the AppHost to communicate with. Additionally, it exposes log streaming to the AppHost, which ultimately streams logs to the developer dashboard.
-- `dcpctrl.exe`: Controller that monitors the API server for new objects and changes, ensuring that the real-world environment matches the specified model.
+- **`dcp start-apiserver`**: Runs the API server that exposes a Kubernetes-compatible API endpoint for the AppHost to communicate with. It also exposes log streaming to the AppHost, which forwards the logs to the developer dashboard.
+- **`dcp run-controllers`**: Runs the controllers that monitor the API server for new objects and changes, ensuring that the real-world environment matches the specified model.
+
+The AppHost launches DCP with `start-apiserver`. The API server then launches the controllers in a child process using the same binary with `run-controllers`. Additional subcommands, such as `monitor-process` and `monitor-container`, run resource-monitoring processes.
 
 <Aside type="note">
   DCP operates on the principle of "eventual consistency," meaning that changes

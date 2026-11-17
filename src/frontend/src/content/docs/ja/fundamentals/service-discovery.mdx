@@ -4,12 +4,13 @@ description: Aspire における重要なサービス検出の概念を理解し
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 
 サービス検出は、サービス同士が互いを見つけるための仕組みです。`http://localhost:5001` のような URL をハードコーディングする代わりに、フロントエンドは `catalog` サービスを名前で参照するだけで、実際のアドレス解決は Aspire が担当します。
 
 ## サービス検出の仕組み
 
-`WithReference()` を使ってサービスを接続すると、Aspire は自動的にサービス検出を構成します。
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> を使ってサービスを接続すると、Aspire は自動的にサービス検出を構成します。
 
 1. **AppHost がリソースを宣言** してエンドポイントを割り当てる
 2. **構成が注入される** 各サービスに環境変数経由で構成が渡される
@@ -32,10 +33,10 @@ import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var catalog = builder.AddProject<Projects.CatalogService>("catalog");
-var basket = builder.AddProject<Projects.BasketService>("basket");
+var catalog = builder.AddDotnetProject("catalog", "../CatalogService/CatalogService.csproj");
+var basket = builder.AddDotnetProject("basket", "../BasketService/BasketService.csproj");
 
-var frontend = builder.AddProject<Projects.MyFrontend>("frontend")
+var frontend = builder.AddDotnetProject("frontend", "../MyFrontend/MyFrontend.csproj")
                       .WithReference(basket)
                       .WithReference(catalog);
 ```
@@ -48,10 +49,10 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const catalog = await builder.addProject("catalog", "./CatalogService/CatalogService.csproj");
-const basket = await builder.addProject("basket", "./BasketService/BasketService.csproj");
+const catalog = await builder.addDotnetProject("catalog", "./CatalogService/CatalogService.csproj");
+const basket = await builder.addDotnetProject("basket", "./BasketService/BasketService.csproj");
 
-const frontend = await builder.addProject("frontend", "./MyFrontend/MyFrontend.csproj")
+const frontend = await builder.addDotnetProject("frontend", "./MyFrontend/MyFrontend.csproj")
     .withReference(basket)
     .withReference(catalog);
 
@@ -178,7 +179,7 @@ const response = await fetch(`${basketUrl}/api/items`);
 <TabItem id="csharp" label="C#">
 
 ```csharp
-var basket = builder.AddProject<Projects.BasketService>("basket")
+var basket = builder.AddDotnetProject("basket", "../BasketService/BasketService.csproj")
     .WithHttpsEndpoint(port: 9999, name: "dashboard");
 ```
 
@@ -186,7 +187,7 @@ var basket = builder.AddProject<Projects.BasketService>("basket")
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-const basket = await builder.addProject("basket", "./BasketService/BasketService.csproj")
+const basket = await builder.addDotnetProject("basket", "./BasketService/BasketService.csproj")
     .withHttpsEndpoint({ port: 9999, name: "dashboard" });
 ```
 
@@ -342,7 +343,7 @@ const response = await fetch(`${dashboardUrl}/api/stats`);
 
 **よくある原因**:
 1. **`WithReference()` の不足**: 呼び出し元サービスが AppHost で対象サービスに接続されていない
-2. **サービス名の不一致**: URI 内の名前が `AddProject()` または `AddContainer()` の名前と一致していない
+2. **サービス名の不一致**: URI 内の名前が <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> または <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddContainer" /> の名前と一致していない
 3. **サービス未起動**: 対象サービスが起動に失敗している、または起動中である
 
 **対処方法**: AppHost でサービス同士が接続されていることを確認します。
@@ -351,8 +352,8 @@ const response = await fetch(`${dashboardUrl}/api/stats`);
 <TabItem id="csharp" label="C#">
 
 ```csharp
-var api = builder.AddProject<Projects.Api>("api");
-var frontend = builder.AddProject<Projects.Frontend>("frontend")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj");
+var frontend = builder.AddDotnetProject("frontend", "../Frontend/Frontend.csproj")
     .WithReference(api);  // ← これが必要です
 ```
 
@@ -360,8 +361,8 @@ var frontend = builder.AddProject<Projects.Frontend>("frontend")
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-const api = await builder.addProject("api", "./Api/Api.csproj");
-const frontend = await builder.addProject("frontend", "./Frontend/Frontend.csproj")
+const api = await builder.addDotnetProject("api", "./Api/Api.csproj");
+const frontend = await builder.addDotnetProject("frontend", "./Frontend/Frontend.csproj")
     .withReference(api);  // ← これは必須です！
 ```
 
@@ -378,7 +379,7 @@ const frontend = await builder.addProject("frontend", "./Frontend/Frontend.cspro
 <TabItem id="csharp" label="C#">
 
 ```csharp
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithHttpEndpoint(port: 9999, name: "dashboard");  // ← 名前を一致させる
 ```
 
@@ -386,7 +387,7 @@ var api = builder.AddProject<Projects.Api>("api")
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-const api = await builder.addProject("api", "./Api/Api.csproj")
+const api = await builder.addDotnetProject("api", "./Api/Api.csproj")
     .withHttpEndpoint({ port: 9999, name: "dashboard" });  // ← 名前は一致させる必要があります
 ```
 

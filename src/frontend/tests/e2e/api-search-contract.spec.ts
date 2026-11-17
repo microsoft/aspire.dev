@@ -11,6 +11,9 @@ const surfaces = [
   { path: 'typescript/', prefix: 'ts-api' },
   { path: 'typescript/aspire.hosting/', prefix: 'pkg' },
   { path: 'typescript/aspire.hosting/idistributedapplicationbuilder/', prefix: 'type' },
+  { path: 'go/', prefix: 'go-api' },
+  { path: 'go/aspire.hosting/', prefix: 'pkg' },
+  { path: 'go/aspire.hosting/distributedapplicationbuilder/', prefix: 'type' },
 ];
 
 async function navigateAwayAndBack(page: Page) {
@@ -33,11 +36,12 @@ for (const { path, prefix } of surfaces) {
     const input = page.locator(`#${prefix}-search-input`);
     const field = input.locator('..');
     const clear = page.locator(`#${prefix}-search-clear`);
+    const compact = page.viewportSize()!.width < 800 || await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
 
     for (const theme of ['light', 'dark']) {
       await page.evaluate(value => document.documentElement.dataset.theme = value, theme);
       await input.evaluate(element => element.blur());
-      await expect(input).toHaveCSS('height', '48px');
+      await expect(input).toHaveCSS('height', compact ? '34px' : '48px');
       await expect(input).toHaveCSS('font-size', '16px');
       await expect(field.locator('.search-field-icon')).toHaveCSS('width', '18px');
       await expect(field.locator('.search-field-icon')).toHaveCSS('height', '18px');
@@ -191,7 +195,7 @@ for (const { path, prefix } of surfaces) {
   });
 }
 
-for (const { path, prefix } of [surfaces[0], surfaces[3]]) {
+for (const { path, prefix } of [surfaces[0], surfaces[3], surfaces[6]]) {
   test(`API version-only empty recovery persists defaults: ${path}`, async ({ page }) => {
     await page.goto(`/reference/api/${path}?versions=&keep=1`);
     await dismissCookieConsentIfVisible(page);

@@ -5,6 +5,7 @@ description: Learn how to install external Helm charts alongside your Aspire app
 
 import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 Install pre-existing Helm charts — such as cert-manager, NGINX ingress controller, or monitoring tools — as part of your Aspire Kubernetes deployment. Aspire runs `helm upgrade --install` for each configured external chart after deploying your application's own generated Helm chart.
 
@@ -16,7 +17,7 @@ Install pre-existing Helm charts — such as cert-manager, NGINX ingress control
 
 ## Deployment order
 
-When you use `aspire deploy`, Aspire deploys your application as a Helm chart and then runs any additional install steps you have defined. `AddHelmChart` registers one of these post-deploy pipeline steps. The install order is:
+When you use `aspire deploy`, Aspire deploys your application as a Helm chart and then runs any additional install steps you have defined. <ApiReference name="Aspire.Hosting.KubernetesHelmChartExtensions.AddHelmChart" /> registers one of these post-deploy pipeline steps. The install order is:
 
 <Steps>
 
@@ -39,7 +40,7 @@ var k8s = builder.AddKubernetesEnvironment("k8s");
 
 k8s.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "1.17.0");
 
-var api = builder.AddProject<Projects.MyApi>("api");
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj");
 
 builder.Build().Run();
 ```
@@ -60,7 +61,7 @@ await k8s.addHelmChart(
   '1.17.0'
 );
 
-const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
+const api = await builder.addDotnetProject('api', '../MyApi/MyApi.csproj');
 
 await builder.build().run();
 ```
@@ -215,7 +216,7 @@ aks.AddHelmChart("podinfo", "oci://ghcr.io/stefanprodan/charts/podinfo", "6.7.1"
     .WithHelmValue("replicaCount", "2")
     .WithDestroy();
 
-var api = builder.AddProject<Projects.MyApi>("api");
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj");
 
 builder.Build().Run();
 ```
@@ -238,7 +239,7 @@ const podinfo = await aks.addHelmChart(
 await podinfo.withHelmValue('replicaCount', '2');
 await podinfo.withHelmChartDestroy();
 
-const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
+const api = await builder.addDotnetProject('api', '../MyApi/MyApi.csproj');
 
 await builder.build().run();
 ```
@@ -270,7 +271,7 @@ k8s.AddHelmChart("podinfo", "oci://ghcr.io/stefanprodan/charts/podinfo", "6.7.1"
     .WithHelmValue("replicaCount", "2")
     .WithDestroy();
 
-var api = builder.AddProject<Projects.MyApi>("api");
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj");
 
 builder.Build().Run();
 ```
@@ -303,7 +304,7 @@ await podinfo.withHelmChartNamespace('podinfo');
 await podinfo.withHelmValue('replicaCount', '2');
 await podinfo.withHelmChartDestroy();
 
-const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
+const api = await builder.addDotnetProject('api', '../MyApi/MyApi.csproj');
 
 await builder.build().run();
 ```

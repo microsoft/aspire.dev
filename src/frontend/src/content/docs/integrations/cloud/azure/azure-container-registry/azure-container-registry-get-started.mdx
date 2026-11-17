@@ -13,6 +13,7 @@ import {
   Tabs,
   TabItem,
 } from '@astrojs/starlight/components';
+import ApiReference from '@components/ApiReference.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import containerRegistryIcon from '@assets/icons/azure-container-registry-icon.svg';
 
@@ -35,7 +36,7 @@ Modeling an Azure Container Registry through Aspire — rather than manually con
 - **Declarative infrastructure.** The hosting integration generates the Azure Bicep that provisions the registry alongside the rest of your app's infrastructure, keeping everything version-controlled.
 - **Fine-grained access control.** Use role assignments — such as `AcrPush` — to grant individual project resources permission to push images to the registry.
 - **Automated image cleanup.** Schedule ACR purge tasks to remove old images and control storage costs without manual intervention.
-- **Reference existing registries.** Use a registry your team already manages by referencing it with `publishAsExisting` or `asExisting` rather than provisioning a new one.
+- **Reference existing registries.** Use a registry your team already manages by referencing it with <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.PublishAsExisting" /> or <ApiReference name="Aspire.Hosting.ExistingAzureResourceExtensions.AsExisting" /> rather than provisioning a new one.
 
 ## How the pieces fit together
 
@@ -66,7 +67,7 @@ Getting there is a two-step process: model the registry in your AppHost, then un
 
 1. ### Model Azure Container Registry in your AppHost
 
-   Add the Azure Container Registry hosting integration to your AppHost, then declare a registry resource and wire it to a compute environment. The [Azure Container Registry Hosting integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/) article walks through every capability — provisioning a new registry, referencing an existing one, scheduling image cleanup with purge tasks, role assignments, and customizing the generated Bicep — with side-by-side C# and TypeScript examples.
+   Add the Azure Container Registry hosting integration to your AppHost, then declare a registry resource and wire it to a compute environment. The [Azure Container Registry Hosting integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/) article walks through every capability — provisioning a new registry, referencing an existing one, scheduling image cleanup with purge tasks, role assignments, and customizing the generated Bicep — with side-by-side C#, TypeScript, and Go examples.
 
    <LinkButton
      variant="secondary"
@@ -173,6 +174,31 @@ const env = await builder.addAzureContainerAppEnvironment('env');
 await env.withAzureContainerRegistry(acr);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+// Add (or reference) the registry
+acr := builder.AddAzureContainerRegistry("my-acr")
+
+// Wire an environment to that registry
+env := builder.AddAzureContainerAppEnvironment("env")
+env.WithAzureContainerRegistry(acr)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

@@ -6,12 +6,14 @@ interface Props {
   packageName: string;
   shortName?: string;
   omitPackageReference?: boolean;
+  cliOnly?: boolean;
 }
 
 const {
   packageName,
   shortName = generateFriendlyName(packageName),
   omitPackageReference,
+  cliOnly,
 } = Astro.props;
 
 const cliCommandTitle = Astro.locals.t('package.cliCommandTitle', {
@@ -46,11 +48,15 @@ const appHostCode = `#:package ${packageName}@*`;
       {Astro.locals.t('package.autoCliSelection')}
     </Aside>
   </TabItem>
-  <TabItem label="apphost.cs (C# file-based app)">
-    <Code lang="csharp" title={appHostTitle} code={appHostCode} />
-  </TabItem>
   {
-    !omitPackageReference && (
+    !cliOnly && (
+      <TabItem label="apphost.cs (C# file-based app)">
+        <Code lang="csharp" title={appHostTitle} code={appHostCode} />
+      </TabItem>
+    )
+  }
+  {
+    !cliOnly && !omitPackageReference && (
       <TabItem label="PackageReference (*.csproj)">
         <Code lang="xml" title={packageReferenceTitle} code={packageCode} />
       </TabItem>

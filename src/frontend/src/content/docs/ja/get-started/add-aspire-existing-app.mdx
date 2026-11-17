@@ -8,6 +8,7 @@ import { Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 import FileTree from 'starlight-plugin-icons/components/FileTree.astro';
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 新しいテンプレートを基準にソリューションを作り直す代わりに、すでにあるアプリへ Aspire を追加しましょう。最短ルートは `aspire init` と AI コーディング エージェントの組み合わせです。これによりサービスを自動検出し、 AppHost へ配線できます。より細かく制御したい場合は、下に手動手順も用意しています。
 
@@ -64,7 +65,7 @@ Aspire は段階的にも導入できます。まずは、コンテナー、デ�
 
    - リポジトリをスキャンし、既存のプロジェクト、サービス、コンテナー、インフラストラクチャを検出する
    - 検出したリソース、含める対象、その他の確認事項を開始前に質問する
-   - `WithReference`、 `WaitFor`、エンドポイント、ボリュームを使って AppHost へ配線する
+   - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" />、 <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" />、エンドポイント、ボリュームを使って AppHost へ配線する
    - 各サービスに ServiceDefaults を追加し、 OpenTelemetry を構成する
    - `aspire start` を実行してセットアップを検証する
 
@@ -98,7 +99,7 @@ Aspire には C# AppHost のスタイルが 2 つあります:
 
 **ファイル ベース AppHost** - `#:sdk` と `#:package` ディレクティブを使う単一の `apphost.cs` ファイルです。 `.csproj` もソリューション統合も不要です。ポリグロット リポジトリや迅速なセットアップに最適です。
 
-**プロジェクト ベース AppHost** - 既存の C# プロジェクトと一緒に `.sln` 内で管理される従来型の `AppHost.csproj` です。 `ProjectReference` 項目と生成される `Projects` 名前空間を使い、型付きの `AddProject<T>()` 呼び出しを行います。すでにリポジトリが .NET ソリューションで、 IDE 統合されたオーケストレーションを望む場合に最適です。
+**プロジェクト ベース AppHost** - 既存の C# プロジェクトと一緒に `.sln` 内で管理される従来型の `AppHost.csproj` です。 `ProjectReference` 項目と生成される `Projects` 名前空間を使い、型付きの <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> 呼び出しを行います。すでにリポジトリが .NET ソリューションで、 IDE 統合されたオーケストレーションを望む場合に最適です。
 
 どちらのスタイルも同じ `Aspire.AppHost.Sdk` と同じホスティング API を使用します。
 
@@ -144,20 +145,19 @@ TypeScript AppHost は、リポジトリが Node.js ワークスペース中心�
 3. `apphost.cs` でリソースを配線します:
 
    ```csharp title="apphost.cs"
-   #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+   #:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
    #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
-
-   #pragma warning disable ASPIRECSHARPAPPS001
+   #:package Aspire.Hosting.Dotnet@%ASPIRE_VERSION%
 
    var builder = DistributedApplication.CreateBuilder(args);
 
    var cache = builder.AddRedis("cache");
 
-   var api = builder.AddCSharpApp("api", "./src/Api/MyApp.Api.csproj")
+   var api = builder.AddDotnetProject("api", "./src/Api/MyApp.Api.csproj")
        .WithReference(cache)
        .WithHttpHealthCheck("/health");
 
-   var worker = builder.AddCSharpApp("worker", "./src/Worker/MyApp.Worker.csproj")
+   var worker = builder.AddDotnetProject("worker", "./src/Worker/MyApp.Worker.csproj")
        .WithReference(cache);
 
    builder.Build().Run();
@@ -178,7 +178,7 @@ TypeScript AppHost は、リポジトリが Node.js ワークスペース中心�
 </FileTree>
 
 :::caution[AddCSharpApp は実験的機能です]
-`AddCSharpApp` は現在実験的機能です。制限事項や診断抑制の詳細は、 [C# file-based apps](/ja/integrations/dotnet/csharp-file-based-apps/) を参照してください。
+<ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddCSharpApp" /> は現在実験的機能です。制限事項や診断抑制の詳細は、 [C# file-based apps](/ja/integrations/dotnet/csharp-file-based-apps/) を参照してください。
 :::
 
 #### プロジェクト ベース AppHost（ .sln あり）
@@ -220,16 +220,16 @@ TypeScript AppHost は、リポジトリが Node.js ワークスペース中心�
        .WithLifetime(ContainerLifetime.Persistent)
        .AddDatabase("mydb");
 
-   var api = builder.AddProject<Projects.MyApp_Api>("api")
+   var api = builder.AddDotnetProject("api", "../src/Api/MyApp.Api.csproj")
        .WithReference(db)
        .WithReference(cache)
        .WaitFor(db);
 
-   builder.AddProject<Projects.MyApp_Web>("web")
+   builder.AddDotnetProject("web", "../src/Web/MyApp.Web.csproj")
        .WithReference(api)
        .WaitFor(api);
 
-   builder.AddProject<Projects.MyApp_Worker>("worker")
+   builder.AddDotnetProject("worker", "../src/Worker/MyApp.Worker.csproj")
        .WithReference(cache)
        .WithReference(db);
 
@@ -295,7 +295,7 @@ AppHost 内の各 `ProjectReference` はソース ジェネレーターを起動
    const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
 
    const api = await builder
-       .addProject('api', '../src/Api/MyApp.Api.csproj')
+       .addDotnetProject('api', '../src/Api/MyApp.Api.csproj')
        .withReference(db)
        .withReference(cache)
        .waitFor(db);
@@ -401,7 +401,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-ワークロードに専用ホスティング API がまだない場合でも、 `AddExecutable` または `addExecutable` を使って実行可能リソースとしてモデル化すれば、同じアプリケーション モデルに参加させられます。
+ワークロードに専用ホスティング API がまだない場合でも、 <ApiReference name="Aspire.Hosting.ExecutableResourceBuilderExtensions.AddExecutable" /> を使って実行可能リソースとしてモデル化すれば、同じアプリケーション モデルに参加させられます。
 
 <LearnMore>
 ファーストクラス ワークロードのガイダンスは、 [JavaScript integration](/ja/integrations/frameworks/javascript/)、 [Python integration](/ja/integrations/frameworks/python/)、 [Multi-language architecture](/ja/architecture/multi-language-architecture/) を参照してください。

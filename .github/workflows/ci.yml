@@ -70,7 +70,8 @@ jobs:
             frontend=true
             apphost=true
           else
-            if git diff --quiet "$base_sha" "$head_sha" -- src/frontend; then
+            # The E2E tests serve the site with StaticHost and set up with .github/scripts.
+            if git diff --quiet "$base_sha" "$head_sha" -- src/frontend src/statichost global.json .github/scripts/e2e-setup.sh .github/scripts/start-web-server.mjs; then
               frontend=false
             else
               frontend=true
@@ -111,6 +112,7 @@ jobs:
         shell: bash
         run: |
           bash -n .github/scripts/merge-main-into-release.sh
+          bash -n .github/scripts/repair-release-sync-ancestry.sh
           bash -n .github/scripts/test-merge-main-into-release.sh
           bash .github/scripts/test-merge-main-into-release.sh
 

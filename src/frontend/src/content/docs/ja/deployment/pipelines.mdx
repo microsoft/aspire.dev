@@ -8,6 +8,7 @@ lastUpdated: true
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 Aspire の**AppHost**で分散アプリを構成する場合、単にローカル開発とオーケストレーション用のサービスを定義しているのではなく、デプロイメントの基盤も設定しています。ローカルで実行およびデバッグするために使用する同じ構成は、アプリを発行する際にも活用され、開発から本番環境まで一貫性が確保されます。
 
@@ -147,8 +148,8 @@ Aspire パイプラインの依存関係は明示的で目的が明確です。�
 
 ステップは以下を使用して関係を宣言します:
 
-- `PipelineStep.DependsOn`: このステップは別のステップが正常に完了した後に実行される必要があります
-- `PipelineStep.RequiredBy`: 別のステップはこのステップ後に実行される必要があります（逆の依存関係宣言）
+- <ApiReference name="Aspire.Hosting.Pipelines.PipelineStep.DependsOn" />: このステップは別のステップが正常に完了した後に実行される必要があります
+- <ApiReference name="Aspire.Hosting.Pipelines.PipelineStep.RequiredBy" />: 別のステップはこのステップ後に実行される必要があります（逆の依存関係宣言）
 
 **依存関係の例:**
 
@@ -290,7 +291,7 @@ await ValidateDatabaseConnection(context);
 
 // リソースを定義
 var database = builder.AddPostgres("myapp-db");
-var api = builder.AddProject<Api>("api").WithReference(database);
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj").WithReference(database);
 
 ```
 </TabItem>
@@ -309,7 +310,7 @@ builder.pipeline.addStep("validate-deployment", async (context) => {
 
 // リソースを定義
 const database = await builder.addPostgres("myapp-db");
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(database);
 
 async function validateApiHealth(_context: unknown) {
@@ -505,7 +506,7 @@ builder.Pipeline.AddStep("validate", async (context) =>
 
 // リソースを定義
 var database = builder.AddPostgres("db");
-var api = builder.AddProject<Projects.Api>("api").WithReference(database);
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj").WithReference(database);
 
 builder.Build().Run();
 ```
@@ -518,10 +519,10 @@ aspire do validate
 
 ### リソースレベルステップ
 
-リソースは `WithPipelineStepFactory` を使用して独自のパイプラインステップを提供できます:
+リソースは <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineStepFactory" /> を使用して独自のパイプラインステップを提供できます:
 
 ```csharp title="Resource-level custom step"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPipelineStepFactory(context =>
     {
         return new PipelineStep()
@@ -564,7 +565,7 @@ requiredBy: ["deploy-apiservice"]);
 
 ### パイプライン設定
 
-リソースは `WithPipelineConfiguration` を使用してパイプラインにどのように参加するかをカスタマイズすることもでき、ステップの順序付けとリソース固有のパイプライン動作を制御できます。
+リソースは <ApiReference name="Aspire.Hosting.Pipelines.PipelineStepFactoryExtensions.WithPipelineConfiguration" /> を使用してパイプラインにどのように参加するかをカスタマイズすることもでき、ステップの順序付けとリソース固有のパイプライン動作を制御できます。
 
 <Aside type="note">
 `WithPipelineConfiguration` API は実験的であり、将来のリリースで変更される可能性があります。
@@ -664,7 +665,7 @@ builder.Pipeline.AddStep("migrate-database", async (context) =>
 dependsOn: ["provision-database"],
 requiredBy: ["deploy-apiservice"]);
 
-var api = builder.AddProject<Projects.Api>("api").WithReference(database);
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj").WithReference(database);
 
 builder.Build().Run();
 ```
@@ -710,7 +711,7 @@ Aspire 9.x コードと Aspire 13.x の同等物を示すコード例を以下�
 **前（Aspire 9.x）:**
 
 ```csharp title="Old publishing callback"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPublishingCallback(async (context, cancellationToken) =>
     {
         // カスタムデプロイロジック
@@ -721,7 +722,7 @@ var api = builder.AddProject<Projects.Api>("api")
 **後（Aspire 13.0）:**
 
 ```csharp title="New pipeline step"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPipelineStepFactory(context =>
     {
         return new PipelineStep()
@@ -772,7 +773,7 @@ dependsOn: [WellKnownPipelineSteps.Deploy]);
 **前（Aspire 9.x）:**
 
 ```csharp title="Old complex callback"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPublishingCallback(async (context, cancellationToken) =>
     {
         // 複数のデプロイステップ
@@ -800,7 +801,7 @@ builder.Pipeline.AddStep("migrate-database", async (context) =>
 dependsOn: ["provision-infra"],
 requiredBy: ["deploy-application"]);
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPipelineStepFactory(context =>
     {
         return new PipelineStep()

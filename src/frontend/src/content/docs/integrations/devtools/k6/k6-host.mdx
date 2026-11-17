@@ -8,6 +8,7 @@ import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import k6Icon from '@assets/icons/k6-icon.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
@@ -67,7 +68,7 @@ The command adds the package to `aspire.config.json`:
 
 ## Add a k6 resource
 
-Use `AddK6` / `addK6` to add a Grafana k6 container resource. The resource uses the `docker.io/grafana/k6` image, exposes its HTTP API as the `http` endpoint, and is visible in the dashboard.
+Use <ApiReference name="Aspire.Hosting.K6BuilderExtensions.AddK6" /> to add a Grafana k6 container resource. The resource uses the `docker.io/grafana/k6` image, exposes its HTTP API as the `http` endpoint, and is visible in the dashboard.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -105,7 +106,7 @@ await builder.build().run();
 - An internal `http` endpoint targets port `6565`. Specify `port` to bind a fixed host port; otherwise Aspire allocates one.
 - Aspire checks `GET /health` on that endpoint.
 - The resource is a container resource, so its logs, lifecycle actions, endpoint link, and health state appear in the dashboard.
-- The integration configures an OTLP exporter for the container. Use `WithK6OtlpEnvironment` / `withK6OtlpEnvironment` when k6 should consume the corresponding k6 environment variables.
+- The integration configures an OTLP exporter for the container. Use <ApiReference name="Aspire.Hosting.K6BuilderExtensions.WithK6OtlpEnvironment" /> when k6 should consume the corresponding k6 environment variables.
 
 The examples read `PrimaryEndpoint` / `primaryEndpoint()` when an AppHost API needs the k6 HTTP endpoint directly.
 
@@ -141,9 +142,9 @@ The default image does not include browser support. Enable it only for tests tha
 
 ## Run a script
 
-`WithScript` / `withScript` configures the container command as `k6 run`, binds it to `0.0.0.0:6565`, and sets the virtual-user and duration arguments. `virtualUsers` defaults to `10` and `duration` defaults to `30s`.
+<ApiReference name="Aspire.Hosting.K6BuilderExtensions.WithScript" /> configures the container command as `k6 run`, binds it to `0.0.0.0:6565`, and sets the virtual-user and duration arguments. `virtualUsers` defaults to `10` and `duration` defaults to `30s`.
 
-Mount the script directory with the standard container `WithBindMount` / `withBindMount` API before selecting a path in the container:
+Mount the script directory with the standard container <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithBindMount" /> API before selecting a path in the container:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -193,7 +194,7 @@ await k6.withK6OtlpEnvironment();
 
 ## References and publishing
 
-Use the standard `WithReference` / `withReference` and `WaitFor` / `waitFor` APIs to model the relationship between the test and the resources it exercises. Referenced resources provide their connection information through Aspire's normal resource configuration.
+Use the standard <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> APIs to model the relationship between the test and the resources it exercises. Referenced resources provide their connection information through Aspire's normal resource configuration.
 
 The integration doesn't add k6-specific publish or export callbacks. It remains a normal Aspire container resource with its configured image, endpoint, and container settings available to publishers.
 

@@ -5,8 +5,9 @@ description: Learn how Aspire integrates with .NET launch profiles for C# AppHos
 ---
 
 import { Image } from 'astro:assets';
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import dotnetIcon from '@assets/icons/dotnet.svg';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={dotnetIcon}
@@ -20,7 +21,7 @@ import dotnetIcon from '@assets/icons/dotnet.svg';
 Aspire makes use of _launch profiles_ defined in both the AppHost and service projects to simplify configuring multiple aspects of the debugging and publishing experience for Aspire-based distributed applications.
 
 :::note
-This article applies to C# AppHosts and .NET service projects that use `launchSettings.json`. TypeScript AppHosts define profiles in `aspire.config.json` instead. For more information, see [AppHost configuration](/app-host/configuration/) and [TypeScript AppHost project structure](/app-host/typescript-apphost/).
+Service projects use `launchSettings.json` in every AppHost language. C# AppHosts also use `launchSettings.json` for their own profiles, while TypeScript AppHosts define AppHost profiles in `aspire.config.json`. For more information, see [AppHost configuration](/app-host/configuration/) and [TypeScript AppHost project structure](/app-host/typescript-apphost/).
 :::
 
 ## Launch profile basics
@@ -113,49 +114,117 @@ Other settings, such as `environmentVariables`, are passed to the application wi
 
 ## Control launch profile selection
 
-Ideally, you can align the launch profile names between the AppHost and its service projects so that switching profiles in the AppHost switches them across all coordinated projects at once. However, you can also specify which profile a particular project uses by passing `launchProfileName` to `AddProject`:
+Ideally, you can align the launch profile names between the AppHost and its service projects so that switching profiles in the AppHost switches them across all coordinated projects at once. However, you can also specify which profile a particular project uses by setting the launch profile name when you call <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" />:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript twoslash title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addDotnetProject(
+  'inventoryservice',
+  '../InventoryService/InventoryService.csproj',
+  { launchProfileName: 'mylaunchprofile' }
+);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.InventoryService>(
+builder.AddDotnetProject(
     "inventoryservice",
-    launchProfileName: "mylaunchprofile");
+    "../InventoryService/InventoryService.csproj",
+    options => options.LaunchProfileName = "mylaunchprofile");
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService/InventoryService.csproj", aspire.AddDotnetProjectOptionsValue(&aspire.DotnetProjectOptions{
+	LaunchProfileName: aspire.StringPtr("mylaunchprofile"),
+}))
+```
+
+</TabItem>
+</Tabs>
 
 The preceding code launches the `inventoryservice` resource using the options from the `mylaunchprofile` launch profile. The launch profile precedence logic is as follows:
 
 <Steps>
 
-1. Use the launch profile specified by the `launchProfileName` argument if specified.
+1. Use the launch profile specified by the launch profile name option, if set.
 2. Use the launch profile with the same name as the AppHost (determined by reading the `DOTNET_LAUNCH_PROFILE` environment variable).
 3. Use the default (first) launch profile in _launchSettings.json_.
 4. Don't use a launch profile.
 
 </Steps>
 
-To force a service project to launch without a launch profile, set the `launchProfileName` argument to `null`.
+To force a service project to launch without a launch profile, set the exclude launch profile option (`ExcludeLaunchProfile` in C#, `excludeLaunchProfile` in TypeScript and Go) to `true`.
 
 ## Launch profiles and endpoints for ASP.NET Core projects
 
-When adding an ASP.NET Core project to the AppHost, Aspire parses the _launchSettings.json_ file, selects the appropriate launch profile, and automatically generates endpoints in the application model based on the URLs in the `applicationUrl` field. To modify the automatically injected endpoints, use `WithEndpoint`:
+When adding an ASP.NET Core project to the AppHost, Aspire parses the _launchSettings.json_ file, selects the appropriate launch profile, and automatically generates endpoints in the application model based on the URLs in the `applicationUrl` field. To modify the automatically injected endpoints, configure the generated endpoint by name:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript twoslash title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const inventory = await builder.addDotnetProject(
+  'inventoryservice',
+  '../InventoryService/InventoryService.csproj'
+);
+await inventory.withEndpointCallback('https', async (endpoint) => {
+  await endpoint.isProxied.set(false);
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.InventoryService>("inventoryservice")
+builder.AddDotnetProject("inventoryservice", "../InventoryService/InventoryService.csproj")
     .WithEndpoint("https", endpoint => endpoint.IsProxied = false);
 
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddDotnetProject("inventoryservice", "../InventoryService/InventoryService.csproj").
+	WithEndpointCallback("https", func(endpoint aspire.EndpointUpdateContext) {
+		endpoint.SetIsProxied(aspire.BoolPtr(false))
+	})
+```
+
+</TabItem>
+</Tabs>
+
 The preceding code disables the reverse proxy that Aspire deploys in front of the .NET application and allows the application to respond directly to requests over HTTP(S).
 
 ## See also
 
-- [Project resources](/integrations/dotnet/project-resources/)
+- [.NET hosting reference](/integrations/frameworks/dotnet/dotnet-host/)
 - [AppHost configuration](/app-host/configuration/)
 - [TypeScript AppHost project structure](/app-host/typescript-apphost/)
 - [Inner-loop networking](/fundamentals/networking-overview/)

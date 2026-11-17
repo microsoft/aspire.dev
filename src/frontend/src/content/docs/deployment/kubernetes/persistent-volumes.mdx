@@ -6,8 +6,9 @@ description: Model durable storage as first-class persistent volume resources in
 
 import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
-Stateful workloads — databases, message brokers, or any service that writes durable data — need storage that survives pod restarts and rescheduling. Call `AddPersistentVolume` on a Kubernetes environment to describe a durable disk once in your AppHost, configure its storage class, capacity, access modes, and annotations with fluent methods, then bind it to one or more workloads:
+Stateful workloads — databases, message brokers, or any service that writes durable data — need storage that survives pod restarts and rescheduling. Call <ApiReference name="Aspire.Hosting.KubernetesPersistentVolumeExtensions.AddPersistentVolume" /> on a Kubernetes environment to describe a durable disk once in your AppHost, configure its storage class, capacity, access modes, and annotations with fluent methods, then bind it to one or more workloads:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -162,7 +163,7 @@ var media = k8s.AddPersistentVolume("media")
     .WithCapacity("100Gi")
     .WithAccessMode(PersistentVolumeAccessMode.ReadWriteMany);
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPersistentVolume(media, "/srv/media");
 ```
 
@@ -174,7 +175,7 @@ const media = await k8s.addPersistentVolume('media');
 await media.withStorageClass('azurefile-csi');
 await media.withCapacity('100Gi');
 
-const api = await builder.addProject('api');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withKubernetesPersistentVolumeMount(media, '/srv/media');
 ```
 
@@ -192,7 +193,7 @@ Add the `env` parameter to expose the volume's effective storage path through an
 var data = k8s.AddPersistentVolume("data")
     .WithCapacity("20Gi");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPersistentVolume(data, "/data", env: "DATA_PATH");
 ```
 
@@ -203,7 +204,7 @@ builder.AddProject<Projects.Api>("api")
 const data = await k8s.addPersistentVolume('data');
 await data.withCapacity('20Gi');
 
-const api = await builder.addProject('api');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withKubernetesPersistentVolumeMount(data, '/data', { env: 'DATA_PATH' });
 ```
 
@@ -242,7 +243,7 @@ This default only applies to workloads bound through `WithPersistentVolume(...)`
 
 ### Overriding or removing the default
 
-The default security context is applied before any `PublishAsKubernetesService` callback runs, so a workload or cluster that needs a different group can replace it:
+The default security context is applied before any <ApiReference name="Aspire.Hosting.KubernetesServiceExtensions.PublishAsKubernetesService" /> callback runs, so a workload or cluster that needs a different group can replace it:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -250,7 +251,7 @@ The default security context is applied before any `PublishAsKubernetesService` 
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPersistentVolume(media, "/srv/media")
     .PublishAsKubernetesService(resource =>
     {
@@ -280,7 +281,7 @@ To remove the generated pod security context entirely — for example, when owne
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPersistentVolume(media, "/srv/media")
     .PublishAsKubernetesService(resource =>
     {

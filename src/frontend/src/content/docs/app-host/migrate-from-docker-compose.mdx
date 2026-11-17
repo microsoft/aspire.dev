@@ -5,6 +5,7 @@ description: Compare Aspire and Docker Compose for local development, service di
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 Docker Compose and Aspire both describe and run multi-service applications. This guide compares their local development workflows and maps Compose services, dependencies, and configuration to an Aspire AppHost written in TypeScript or C#.
 
@@ -109,14 +110,14 @@ var database = builder.AddPostgres("postgres")
     .AddDatabase("myapp");
 
 // Add the API project with proper dependencies
-var api = builder.AddProject<Projects.MyApp_Api>("api")
+var api = builder.AddDotnetProject("api", "../MyApp.Api/MyApp.Api.csproj")
     .WithHttpEndpoint(port: 5000)
     .WithHttpHealthCheck("/health")
     .WithReference(database, "DefaultConnection")
     .WaitFor(database);
 
 // Add the frontend project with dependencies
-var frontend = builder.AddProject<Projects.MyApp_Frontend>("frontend")
+var frontend = builder.AddDotnetProject("frontend", "../MyApp.Frontend/MyApp.Frontend.csproj")
     .WithHttpEndpoint(port: 3000)
     .WithReference(api)
     .WithEnvironment("API_URL", api.GetEndpoint("http"))
@@ -138,14 +139,14 @@ const database = (await builder.addPostgres("postgres")
     .addDatabase("myapp");
 
 // Add the API project with proper dependencies
-const api = await builder.addProject("api", "./MyApp.Api/MyApp.Api.csproj")
+const api = await builder.addDotnetProject("api", "./MyApp.Api/MyApp.Api.csproj")
     .withHttpEndpoint({ port: 5000 })
     .withHttpHealthCheck("/health")
     .withReference(database, "DefaultConnection")
     .waitFor(database);
 
 // Add the frontend project with dependencies
-const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj")
+const frontend = await builder.addDotnetProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj")
     .withHttpEndpoint({ port: 3000 })
     .withReference(api)
     .withEnvironment("API_URL", api.getEndpoint("http"))
@@ -157,17 +158,17 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="note" title="build: services become project or Dockerfile resources">
-In Docker Compose, the `build:` directive creates container images from Dockerfiles. In Aspire, .NET services are added directly as project references with `AddProject<T>()`, providing better debugging, hot reload, and telemetry integration. For services that still build from Dockerfiles, use `AddDockerfile()` for an existing Dockerfile or `AddDockerfileBuilder()` when the AppHost should generate the Dockerfile programmatically.
+In Docker Compose, the `build:` directive creates container images from Dockerfiles. In Aspire, .NET services are added directly by project path with <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" />, providing better debugging, hot reload, and telemetry integration. For services that still build from Dockerfiles, use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfile" /> for an existing Dockerfile or <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfileBuilder" /> when the AppHost should generate the Dockerfile programmatically.
 </Aside>
 
 **Key differences explained:**
 
-- **Build vs. project** — Docker Compose `build:` services become `AddProject<T>()` for .NET apps, which runs them directly instead of in containers
+- **Build vs. project** — Docker Compose `build:` services become `AddDotnetProject` resources for .NET apps, which runs them directly instead of in containers
 - **Ports** — Both examples explicitly map ports (3000 and 5000)
-- **Startup order** — Docker Compose uses `depends_on` with health conditions; Aspire uses `WaitFor()` for startup ordering
-- **Service discovery** — `WithReference()` only configures service discovery and connection strings; it doesn't control startup order
-- **Connection strings** — By default, `WithReference(database)` provides `ConnectionStrings__myapp` using the resource name from `AddDatabase()`. To match a different name like `DefaultConnection`, use a named reference: `.WithReference(database, "DefaultConnection")`
-- **Volumes** — `WithDataVolume()` must be called explicitly to add persistent storage; it's not automatic
+- **Startup order** — Docker Compose uses `depends_on` with health conditions; Aspire uses <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> for startup ordering
+- **Service discovery** — <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> only configures service discovery and connection strings; it doesn't control startup order
+- **Connection strings** — By default, `WithReference(database)` provides `ConnectionStrings__myapp` using the resource name from <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.AddDatabase" />. To match a different name like `DefaultConnection`, use a named reference: `.WithReference(database, "DefaultConnection")`
+- **Volumes** — <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithDataVolume" /> must be called explicitly to add persistent storage; it's not automatic
 - **Image versions** — `WithImageTag("15")` pins PostgreSQL to version 15
 
 ### Container-based services
@@ -277,13 +278,13 @@ Aspire generates .NET-format connection strings, which differ from Docker Compos
 - Docker Compose: `DATABASE_URL=postgresql://postgres:secret@postgres:5432/main`
 - Aspire: `ConnectionStrings__main=Host=localhost;Port=12345;Username=postgres;Password=<generated>;Database=main`
 
-If your application expects URL-format environment variables, construct them manually with `WithEnvironment()`. See [Environment variables and configuration](#environment-variables-and-configuration) for details.
+If your application expects URL-format environment variables, construct them manually with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEnvironment" />. See [Environment variables and configuration](#environment-variables-and-configuration) for details.
 </Aside>
 
 **Key differences explained:**
 
-- **Image versions** — Explicitly specified with `WithImageTag()` to match Docker Compose
-- **Dockerfile builds** — Docker Compose `build: .` maps to `AddDockerfile("web", ".")`, which builds a container image from a Dockerfile. Use `AddContainer()` for pre-built images that use `image:` in Docker Compose
+- **Image versions** — Explicitly specified with <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithImageTag" /> to match Docker Compose
+- **Dockerfile builds** — Docker Compose `build: .` maps to `AddDockerfile("web", ".")`, which builds a container image from a Dockerfile. Use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddContainer" /> for pre-built images that use `image:` in Docker Compose
 - **Ports** — `WithHostPort()` maps to a static host port; without it, Aspire assigns a random port
 - **Volumes** — `WithDataVolume()` must be called explicitly to add persistent storage
 - **Startup ordering** — `WaitFor()` controls startup order, similar to Docker Compose `depends_on` with conditions
@@ -462,7 +463,7 @@ await builder.build().run();
 **Key differences:**
 
 - **Named volumes** — Created with `AddVolume()` and shared between containers
-- **Bind mounts** — Use `WithBindMount()` for host directory access
+- **Bind mounts** — Use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithBindMount" /> for host directory access
 
 ### Networking
 
@@ -526,20 +527,20 @@ Successfully migrating from Docker Compose to Aspire requires a systematic appro
 
    - **Add backing services** like PostgreSQL, Redis with specific versions using `WithImageTag()`
    - **Add persistent storage** using `WithDataVolume()` where needed
-   - **Convert .NET applications** to project references with `AddProject<T>()` for better integration
+   - **Convert .NET applications** to `AddDotnetProject` resources for better integration
    - **Convert Dockerfile-built containers** using `AddDockerfile()` to match `build:` directives
    - **Convert pre-built images** using `AddContainer()` to match `image:` directives
    - **Configure dependencies** with `WithReference()` for service discovery
    - **Add startup ordering** with `WaitFor()` to match `depends_on` behavior
    - **Set up environment variables** — Note that connection string formats will differ
-   - **Migrate health checks** — Use `WithHttpHealthCheck()` or `WithHealthCheck()` for custom checks
+   - **Migrate health checks** — Use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> or <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHealthCheck" /> for custom checks
 
 4. ### Handle data migration
 
    For persistent data:
 
    - Use `WithDataVolume()` for automatic volume management with integrations
-   - Use `WithVolume()` for named volumes that need to persist data
+   - Use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.WithVolume" /> for named volumes that need to persist data
    - Use `WithBindMount()` for host directory mounts when you need direct access to host files
 
 5. ### Test and validate
@@ -603,14 +604,14 @@ const app = await builder.addContainer("app", "myapp:latest")
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(database)  // Service discovery
     .WaitFor(database);       // Startup ordering
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
-const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+const api = await builder.addDotnetProject("api", "./Api/Api.csproj", { launchProfileName: "https" })
     .withReference(database)  // Service discovery
     .waitFor(database);       // Startup ordering
 ```
@@ -653,13 +654,13 @@ Docker Compose health checks use shell commands. Aspire integrations (like Postg
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithHttpHealthCheck("/health");
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
-const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+const api = await builder.addDotnetProject("api", "./Api/Api.csproj", { launchProfileName: "https" })
     .withHttpHealthCheck("/health");
 ```
 </TabItem>
@@ -682,7 +683,7 @@ var rabbit = builder.AddContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpi
     .WithHealthCheck("rabbitmq-health");
 
 // WaitFor uses the registered health check to determine readiness
-var app = builder.AddProject<Projects.App>("app")
+var app = builder.AddDotnetProject("app", "../App/App.csproj")
     .WaitFor(rabbit);
 ```
 </TabItem>
@@ -692,7 +693,7 @@ const rabbit = await builder.addContainer("rabbitmq", "rabbitmq", "4.1.4-managem
     .withHealthCheck("rabbitmq-health");
 
 // WaitFor uses the registered health check to determine readiness
-const app = await builder.addProject("app", "./App/App.csproj", "https")
+const app = await builder.addDotnetProject("app", "./App/App.csproj", { launchProfileName: "https" })
     .waitFor(rabbit);
 ```
 </TabItem>

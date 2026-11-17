@@ -74,142 +74,9 @@ This updates your `aspire.config.json` with the Blazor hosting package:
 </TabItem>
 </Tabs>
 
-## Add Blazor WebAssembly project
+## Add a Blazor WebAssembly app
 
-Use <ApiReference name="Aspire.Hosting.BlazorGatewayExtensions.AddBlazorWasmProject" /> to add a Blazor WebAssembly project to the AppHost model.
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var api = builder.AddProject<Projects.MyApi>("api");
-
-var blazorApp = builder.AddBlazorWasmProject("app", "../MyBlazorApp/MyBlazorApp.csproj");
-blazorApp.WithReference(api);
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
-
-const blazorApp = await builder
-  .addBlazorWasmProject('app', '../MyBlazorApp/MyBlazorApp.csproj')
-  .withReference(await api.getEndpoint('http'));
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
-
-## Add Blazor Gateway
-
-Use <ApiReference name="Aspire.Hosting.BlazorGatewayExtensions.AddBlazorGateway" /> to add the Blazor Gateway resource. The gateway is the browser-facing endpoint for your hosted Blazor app.
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var gateway = builder.AddBlazorGateway("gateway")
-    .WithExternalHttpEndpoints();
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const gateway = await builder
-  .addBlazorGateway('gateway')
-  .withExternalHttpEndpoints();
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
-
-:::note
-<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" /> marks the gateway endpoint as externally accessible so browser traffic can reach your app.
-:::
-
-## Associate a client app with the gateway
-
-Use <ApiReference name="Aspire.Hosting.BlazorGatewayExtensions.WithBlazorClientApp" parameterTypes={['Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ProjectResource>', 'Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.BlazorWasmAppResource>', 'string', 'string', 'bool']} /> to bind the WebAssembly project resource to the Blazor Gateway:
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var weatherApi = builder.AddProject<Projects.WeatherApi>("weatherapi");
-
-var blazorApp = builder.AddBlazorWasmProject("app", "../MyBlazorApp/MyBlazorApp.csproj");
-blazorApp.WithReference(weatherApi);
-
-var gateway = builder.AddBlazorGateway("gateway")
-    .WithExternalHttpEndpoints();
-
-gateway.WithBlazorClientApp(blazorApp);
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-const weatherApi = await builder.addProject(
-  'weatherapi',
-  '../WeatherApi/WeatherApi.csproj'
-);
-
-const blazorApp = await builder
-  .addBlazorWasmProject('app', '../MyBlazorApp/MyBlazorApp.csproj')
-  .withReference(await weatherApi.getEndpoint('http'));
-
-await builder
-  .addBlazorGateway('gateway')
-  .withExternalHttpEndpoints()
-  .withBlazorClientApp(blazorApp);
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
-
-<Aside type="note">
-  When you reference API endpoints from a Blazor app resource, Aspire publishes
-  service discovery connection properties to the consuming app. For details and
-  examples, see [Connect Blazor apps and APIs](../blazor-connect/).
-</Aside>
-
-## Add a Blazor Gateway for a C# project resource
-
-[`AddDotnetProjectBlazorGateway`](/reference/api/csharp/aspire.hosting.blazor/blazorgatewayextensions/methods/#adddotnetprojectblazorgateway) adds a Blazor Gateway that hosts a [`DotnetProjectResource`](/integrations/frameworks/dotnet/dotnet-host/) (a C# project or file-based app added with <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" />) instead of the standard `ProjectResource`-based gateway. Use the distinct [`WithBlazorClientApp`](/reference/api/csharp/aspire.hosting.blazor/blazorgatewayextensions/methods/#withblazorclientapp-iresourcebuilder-dotnetprojectresource-iresourcebuilder-blazorwasmappresource-string-string-bool) overload on this resource to attach a Blazor WebAssembly client app:
+Use <ApiReference name="Aspire.Hosting.BlazorGatewayExtensions.AddBlazorWasmApp" /> to add a Blazor WebAssembly project to the AppHost model. In TypeScript AppHosts, this API is named `addBlazorWasmProject`. Aspire doesn't launch the WebAssembly app as its own process; a [Blazor Gateway](#add-a-blazor-gateway) serves it to the browser.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -219,32 +86,27 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const client = await builder.addBlazorWasmProject(
-  'client',
-  '../Client/Client.csproj'
-);
-const gateway = await builder.addDotnetProjectBlazorGateway('gateway');
+const api = await builder.addDotnetProject('api', '../MyApi/MyApi.csproj');
 
-await gateway.withExternalHttpEndpoints();
-await gateway.withBlazorClientApp(client);
+const blazorApp = await builder
+  .addBlazorWasmProject('app', '../MyBlazorApp/MyBlazorApp.csproj')
+  .withReference(api);
 
 await builder.build().run();
 ```
 
 </TabItem>
-
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
 #pragma warning disable ASPIREBLAZOR001
 
-var client = builder.AddBlazorWasmProject<Projects.Client>("client");
+var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddDotnetProjectBlazorGateway("gateway")
-    .WithExternalHttpEndpoints()
-    .WithBlazorClientApp(client);
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj");
+
+var blazorApp = builder.AddBlazorWasmApp("app", "../MyBlazorApp/MyBlazorApp.csproj")
+    .WithReference(api);
 
 builder.Build().Run();
 ```
@@ -252,20 +114,113 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-:::note
-`Aspire.Hosting.Blazor` is a prerelease package. Its APIs remain unstable and may change in future releases.
+## Add a Blazor Gateway
 
-Starting with Aspire 13.6, `AddDotnetProjectBlazorGateway` and its `WithBlazorClientApp` overload no longer emit [`ASPIREDOTNETPROJECT001`](/diagnostics/aspiredotnetproject001/). You can remove existing suppressions for this diagnostic after upgrading.
+Use <ApiReference name="Aspire.Hosting.BlazorGatewayExtensions.AddDotnetProjectBlazorGateway" /> to add the Blazor Gateway resource. The gateway is the browser-facing endpoint for your Blazor app: it serves the WebAssembly client and forwards the client's API and telemetry traffic. Aspire provides the gateway, so you don't need to create a gateway project.
 
-The separate [`ASPIREBLAZOR001`](/diagnostics/aspireblazor001/) diagnostic still applies to experimental Blazor hosting types, such as `BlazorWasmAppResource`. Keep the `ASPIREBLAZOR001` suppression in the example.
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const gateway = await builder
+  .addDotnetProjectBlazorGateway('gateway')
+  .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var gateway = builder.AddDotnetProjectBlazorGateway("gateway")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExternalHttpEndpoints" /> marks the gateway endpoint as externally accessible so browser traffic can reach your app.
+
+:::note[Upgrading to Aspire 17?]
+`AddBlazorGateway` creates a gateway based on the legacy `ProjectResource` type. Replace it with `AddDotnetProjectBlazorGateway`; the `WithBlazorClientApp` call stays the same. If you customized the gateway's publishing, review that configuration after you switch. For the broader move off `ProjectResource`, see [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/).
 :::
 
-The gateway forwards the client's service references and supports publishing through the shared Blazor client attachment and publish-companion pipeline. Browser-debugger resources are created only for local runs.
+## Associate a client app with the gateway
 
+Use <ApiReference name="Aspire.Hosting.BlazorGatewayExtensions.WithBlazorClientApp" parameterTypes={['Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.Dotnet.DotnetProjectResource>', 'Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.BlazorWasmAppResource>', 'string', 'string', 'bool']} /> to bind the WebAssembly app resource to the Blazor Gateway:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const weatherApi = await builder.addDotnetProject(
+  'weatherapi',
+  '../WeatherApi/WeatherApi.csproj'
+);
+
+const blazorApp = await builder
+  .addBlazorWasmProject('app', '../MyBlazorApp/MyBlazorApp.csproj')
+  .withReference(weatherApi);
+
+await builder
+  .addDotnetProjectBlazorGateway('gateway')
+  .withExternalHttpEndpoints()
+  .withBlazorClientApp(blazorApp);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREBLAZOR001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var weatherApi = builder.AddDotnetProject("weatherapi", "../WeatherApi/WeatherApi.csproj");
+
+var blazorApp = builder.AddBlazorWasmApp("app", "../MyBlazorApp/MyBlazorApp.csproj")
+    .WithReference(weatherApi);
+
+builder.AddDotnetProjectBlazorGateway("gateway")
+    .WithExternalHttpEndpoints()
+    .WithBlazorClientApp(blazorApp);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The gateway forwards the client's service references to the browser app and is included when you publish the AppHost. Browser-debugger resources are created only for local runs.
+
+<Aside type="note">
+  When you reference API endpoints from a Blazor app resource, Aspire publishes
+  service discovery connection properties to the consuming app. For details and
+  examples, see [Connect Blazor apps and APIs](../blazor-connect/).
+</Aside>
+
+:::note
+`Aspire.Hosting.Blazor` is a prerelease package, and its APIs may change in future releases. Experimental Blazor hosting types, such as `BlazorWasmAppResource`, report the [`ASPIREBLAZOR001`](/diagnostics/aspireblazor001/) diagnostic, so the C# examples suppress it.
+:::
 ## See also
 
 - [Get started with Blazor hosting](/integrations/dotnet/blazor-get-started/)
 - [Connect Blazor apps and APIs](/integrations/dotnet/blazor-connect/)
 - [Set up .NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/)
-- [ASPIREDOTNETPROJECT001](/diagnostics/aspiredotnetproject001/)
+- [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/)
 - [Aspire integrations overview](/integrations/overview/)

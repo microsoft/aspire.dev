@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import heroImage from '@assets/aspire-hero.png';
@@ -16,7 +19,19 @@ import CustomSelect from '@components/CustomSelect.astro';
 import Expand from '@components/Expand.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
+import BrandAssetGallery from '@components/brand/BrandAssetGallery.astro';
+import BrandCopyValue from '@components/brand/BrandCopyValue.astro';
+import BrandPalette from '@components/brand/BrandPalette.astro';
+import BrandTypography from '@components/brand/BrandTypography.astro';
+import BrandDownloadButton from '@components/brand/BrandDownloadButton.astro';
+import BrandDownloadGate from '@components/brand/BrandDownloadGate.astro';
+import BrandIconDownloads from '@components/brand/BrandIconDownloads.astro';
+import BrandExternalLink from '@components/brand/BrandExternalLink.astro';
+import BrandUsageGuidance from '@components/brand/BrandUsageGuidance.astro';
+import BrandLicenseModal from '@components/brand/BrandLicenseModal.astro';
+import BrandCodeTypography from '@components/brand/BrandCodeTypography.astro';
 import FooterLegal from '@components/FooterLegal.astro';
+import FooterResources from '@components/FooterResources.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
 import FooterSocials from '@components/FooterSocials.astro';
 import GitHubRepoStats from '@components/GitHubRepoStats.astro';
@@ -42,6 +57,7 @@ import Pivot from '@components/Pivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Placeholder from '@components/Placeholder.astro';
 import QuickStartJourney from '@components/QuickStartJourney.astro';
+import ReadableText from '@components/ReadableText.astro';
 import ReleaseCommunity from '@components/ReleaseCommunity.astro';
 import SampleCard from '@components/SampleCard.astro';
 import SampleDetail from '@components/SampleDetail.astro';
@@ -62,6 +78,7 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 import samplesData from '@data/samples.json';
+import { brandAssets, brandColors, brandGradients, brandAccents, brandLicenseUrl } from '@data/brand';
 import daTranslations from '../../src/content/i18n/da.json';
 import deTranslations from '../../src/content/i18n/de.json';
 import enTranslations from '../../src/content/i18n/en.json';
@@ -93,6 +110,226 @@ type BasicRenderCase = {
   excludes?: string[];
   requestUrl?: string;
 };
+
+describe('community brand components', () => {
+  it('renders local SVGs with explicit dimensions and named downloads', async () => {
+    const html = normalizeHtml(await renderComponent(BrandAssetGallery, {
+      props: { assets: brandAssets },
+    }));
+    for (const asset of brandAssets) {
+      expect(html).toContain(
+        asset.kind === 'logo'
+          ? `data-brand-wordmark="${asset.file}"`
+          : `src="/brand/${asset.file}"`
+      );
+      expect(html).toContain(`width="${asset.width}"`);
+      expect(html).toContain(`height="${asset.height}"`);
+      expect(html).toContain(`aria-label="Download ${asset.name} SVG"`);
+    }
+    expect(html.match(/data-brand-download="svg"/g)).toHaveLength(9);
+    expect(html).toContain('brand-gallery not-content');
+    expect(html).toContain('<ul');
+    expect(html.match(/<li\b/g)).toHaveLength(9);
+    expect(html).not.toContain('https://microsoft.github.io/aspire-brand/logo');
+  });
+
+  it('renders visible copyable values and progressive enhancement controls', async () => {
+    const html = normalizeHtml(await renderComponent(BrandCopyValue, {
+      props: { value: '#7455DD', label: 'Aspire primary' },
+    }));
+    expect(html).toContain('<code');
+    expect(html).toContain('#7455DD');
+    expect(html).toContain('aria-label="Copy Aspire primary"');
+    expect(html).toMatch(/<button[^>]* hidden/);
+    expect(html).toContain('role="status"');
+  });
+
+  it('renders core and gradient samples with values and token names', async () => {
+    for (const [colors, variant] of [[brandColors, 'colors'], [brandGradients, 'gradients']] as const) {
+      const html = normalizeHtml(await renderComponent(BrandPalette, { props: { colors, variant } }));
+      for (const { name, token, value } of colors) {
+        expect(html).toContain(name);
+        expect(html).toContain(token);
+        expect(html).toContain(variant === 'gradients'
+          ? value.replace('(', '( ').replaceAll(', ', ', ').replace(/\)$/, ' )')
+          : value);
+        expect(html).toContain(`aria-label="Copy ${name}"`);
+      }
+    }
+  });
+
+  it('omits filler descriptions from supporting accent cards', async () => {
+    const html = await renderComponent(BrandPalette, {
+      props: { colors: brandAccents, variant: 'accents' },
+    });
+    expect(html).not.toMatch(/<p(?:\s|>)/);
+    expect(html).not.toContain('Supporting accent.');
+    for (const { name, value } of brandAccents) {
+      expect(html).toContain(name);
+      expect(html).toContain(value);
+    }
+  });
+
+  it('renders four local Poppins specimens', async () => {
+    const type = await renderComponent(BrandTypography);
+    for (const weight of [400, 500, 600, 700]) {
+      expect(type).toContain(`font-weight:${weight}`);
+    }
+  });
+
+  it('points the translated footer brand link at the local page in the same tab', async () => {
+    const html = normalizeHtml(await renderComponent(FooterResources, {
+      locals: { t: createTestTranslator(enTranslations) },
+    }));
+    const brandLink = html.match(/<a href="\/community\/brand\/"[^>]*>[^<]+<\/a>/)?.[0];
+    expect(brandLink).toContain('Aspire brand');
+    expect(brandLink).not.toContain('target=');
+    expect(html).not.toContain('https://microsoft.github.io/aspire-brand/');
+    expect(html).toContain('href="https://devblogs.microsoft.com/aspire/"');
+    expect(html).toContain('>Blog</a>');
+  });
+
+  it('groups both standalone icon downloads beside a single preview', async () => {
+    const html = normalizeHtml(await renderComponent(BrandIconDownloads));
+    expect(html.match(/<img\b/g)).toHaveLength(1);
+    expect(html).toContain('Download 256px SVG');
+    expect(html).toContain('Download 32px SVG');
+    expect(html.match(/data-brand-download="svg"/g)).toHaveLength(2);
+  });
+
+  it('renders original guidance in labelled Do and Do not cards', async () => {
+    const html = normalizeHtml(await renderComponent(BrandUsageGuidance));
+    expect(html).toContain('aria-labelledby="do"');
+    expect(html).toContain('aria-labelledby="do-not"');
+    expect(html.match(/<li\b/g)).toHaveLength(10);
+    expect(html).toContain('Call the product Aspire in brand, editorial, and marketing copy.');
+    expect(html).toContain('Do not rely on internal shorthand');
+    expect(html).toContain('except as permitted for the provided developer-icon variants below.');
+    expect(html).toContain('Recoloring is permitted only under the narrow developer-icon usage permission below.');
+  });
+
+  it('adds a new-tab suffix to external resource links', async () => {
+    const html = normalizeHtml(await renderComponent(BrandExternalLink, {
+      props: { href: 'https://fontsource.org/fonts/poppins' }, slots: { default: 'Poppins' },
+    }));
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).toContain('resource-link not-content');
+    expect(html).toContain('opens in a new tab');
+    expect(html).toContain('<svg');
+  });
+
+  it('renders an upstream license loader, direct-link fallback, and Fira Code specimen', async () => {
+    const html = normalizeHtml(await renderComponent(BrandLicenseModal));
+    expect(html).toContain('aria-labelledby="brand-artwork-license-title"');
+    expect(html).toMatch(/<textarea[^>]* readonly/);
+    expect(html).toContain('CC0 1.0 Universal');
+    expect(html).toContain(`data-license-url="${brandLicenseUrl}"`);
+    expect(html).toContain('data-license-status');
+    expect(html).toContain('Open the original artwork license');
+    const code = await renderComponent(BrandCodeTypography);
+    expect(code).toContain('Fira Code Variable');
+    expect(code).toContain('expressive-code');
+  });
+
+  it('renders disabled download triggers and a required, unchecked agreement', async () => {
+    const trigger = await renderComponent(BrandDownloadButton, {
+      props: { href: '/brand/aspire-icon-32.svg', name: 'Aspire icon, 32', kind: 'svg' },
+    });
+    expect(trigger).toContain('data-brand-download="svg"');
+    expect(trigger).toContain('value="/brand/aspire-icon-32.svg"');
+    expect(trigger).toMatch(/<button[^>]* disabled/);
+    const dialog = normalizeHtml(await renderComponent(BrandDownloadGate));
+    expect(dialog).toContain('aria-labelledby="brand-download-title"');
+    expect(dialog).toMatch(/<input[^>]*type="checkbox"[^>]*required/);
+    expect(dialog).not.toMatch(/<input[^>]* checked/);
+    expect(dialog).toContain('Continue to download');
+    expect(dialog).toContain('/community/brand/usage/');
+    expect(dialog).toContain(brandLicenseUrl);
+    expect(dialog).toContain('When local storage is available');
+    const licenseLink = dialog.match(/<a[^>]*data-brand-license[^>]*>artwork license<\/a>/)?.[0];
+    expect(licenseLink).toContain(brandLicenseUrl);
+    expect(licenseLink).not.toContain('target=');
+  });
+});
+
+it.each([
+  ['ResourceNotificationService', ['Resource', 'Notification', 'Service']],
+  ['RedisResource.withModule', ['Redis', 'Resource.', 'with', 'Module']],
+  ['SQLServerResource', ['SQL', 'Server', 'Resource']],
+  ['IResourceBuilder<RedisResource>', ['I', 'Resource', 'Builder', '<Redis', 'Resource>']],
+])('identifiers expose readable wrap boundaries without changing their text: %s', async (text, parts) => {
+  const html = await renderComponent(ReadableText, { props: { text } });
+  const rendered = html.trim();
+  expect(rendered.replaceAll('<wbr>', '')).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  expect(rendered.split('<wbr>')).toEqual(parts.map((part) => part.replaceAll('<', '&lt;').replaceAll('>', '&gt;')));
+});
+
+it.each(['Install Aspire CLI', 'Aspire 13.6', '日本語', 'plain text <script>'])(
+  'readable text preserves ordinary copy and escapes markup: %s',
+  async (text) => {
+    const html = await renderComponent(ReadableText, { props: { text } });
+    expect(html).not.toContain('<script>');
+    expect(html.replaceAll('<wbr>', '').trim()).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  }
+);
+
+it.each([
+  { Component: YouTubeEmbed, props: { videoId: 'test', title: null }, name: 'YouTube video player' },
+  { Component: TwitchEmbed, props: { channel: 'aspiredotdev', title: ' ' }, name: 'Twitch stream player' },
+])('media embeds retain an accessible name when the title is empty: $name', async ({ Component, props, name }) => {
+  expect(await renderComponent(Component, { props })).toContain(`aria-label="${name}"`);
+});
+
+it('breadcrumbs retain the nearest linked parent and semantic current page', async () => {
+  const html = await renderComponent(Breadcrumb, { props: { crumbs: [
+    { label: 'Docs', href: '/docs/' }, { label: 'Reference' }, { label: 'Current type' },
+  ] } });
+  expect(html).toMatch(/class="bc-parent\b[^"]*" href="\/docs\/"/);
+  expect(html).toMatch(/<ol class="bc-inline\b/);
+  expect(html).not.toContain('<details');
+  expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+  expect(html).toContain('aria-current="page"');
+});
+
+it.each([
+  ['ResourceNotificationService', ['Resource', 'Notification', 'Service']],
+  ['RedisResource.withModule', ['Redis', 'Resource.', 'with', 'Module']],
+  ['SQLServerResource', ['SQL', 'Server', 'Resource']],
+  ['IResourceBuilder<RedisResource>', ['I', 'Resource', 'Builder', '<Redis', 'Resource>']],
+])('identifiers expose readable wrap boundaries without changing their text: %s', async (text, parts) => {
+  const html = await renderComponent(ReadableText, { props: { text } });
+  const rendered = html.trim();
+  expect(rendered.replaceAll('<wbr>', '')).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  expect(rendered.split('<wbr>')).toEqual(parts.map((part) => part.replaceAll('<', '&lt;').replaceAll('>', '&gt;')));
+});
+
+it.each(['Install Aspire CLI', 'Aspire 13.6', '日本語', 'plain text <script>'])(
+  'readable text preserves ordinary copy and escapes markup: %s',
+  async (text) => {
+    const html = await renderComponent(ReadableText, { props: { text } });
+    expect(html).not.toContain('<script>');
+    expect(html.replaceAll('<wbr>', '').trim()).toBe(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+  }
+);
+
+it.each([
+  { Component: YouTubeEmbed, props: { videoId: 'test', title: null }, name: 'YouTube video player' },
+  { Component: TwitchEmbed, props: { channel: 'aspiredotdev', title: ' ' }, name: 'Twitch stream player' },
+])('media embeds retain an accessible name when the title is empty: $name', async ({ Component, props, name }) => {
+  expect(await renderComponent(Component, { props })).toContain(`aria-label="${name}"`);
+});
+
+it('breadcrumbs retain the nearest linked parent and semantic current page', async () => {
+  const html = await renderComponent(Breadcrumb, { props: { crumbs: [
+    { label: 'Docs', href: '/docs/' }, { label: 'Reference' }, { label: 'Current type' },
+  ] } });
+  expect(html).toMatch(/class="bc-parent\b[^"]*" href="\/docs\/"/);
+  expect(html).toMatch(/<ol class="bc-inline\b/);
+  expect(html).not.toContain('<details');
+  expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+  expect(html).toContain('aria-current="page"');
+});
 
 it.each([
   ['en', 'Scroll to top'], ['fr', 'Retour en haut'], ['pt-BR', 'Voltar ao topo'],
@@ -403,7 +640,7 @@ const basicRenderCases: BasicRenderCase[] = [
         { label: 'Aspire.Hosting' },
       ],
     },
-    includes: ['aria-label="Breadcrumb"', '/docs/', 'Reference', 'Aspire.Hosting'],
+    includes: ['aria-label="Breadcrumb"', '/docs/', 'Reference', 'Aspire.<wbr>Hosting'],
   },
   {
     name: 'Breadcrumb renders the shared Dev Hub logo',
@@ -414,7 +651,7 @@ const basicRenderCases: BasicRenderCase[] = [
         { label: 'Glossary' },
       ],
     },
-    includes: ['Dev Hub', '/hub/', 'M3.875 22.125', 'bc-inline', 'bc-dropdown'],
+    includes: ['Dev Hub', '/hub/', 'M3.875 22.125', 'bc-inline'],
   },
   {
     name: 'FeatureShowcase renders feature cards',
@@ -1090,6 +1327,37 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('fit="contain"');
   });
 
+  it('ThemeImage changes development URLs only when image contents change', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'theme-image-'));
+    const path = join(directory, 'diagram.png');
+    const contents = await readFile(new URL('../../src/assets/aspire-hero.png', import.meta.url));
+    const image = { ...heroImage, src: `/@fs/${path.replaceAll('\\', '/')}` };
+    const render = async () =>
+      normalizeHtml(
+        await renderComponent(ThemeImage, {
+          props: { light: image, dark: image, alt: 'Versioned diagram', zoomable: false },
+        })
+      );
+    const sources = (html: string) => [
+      html.match(/data-light="([^"]+)"/)?.[1],
+      html.match(/data-dark="([^"]+)"/)?.[1],
+    ];
+
+    try {
+      await writeFile(path, contents);
+      const first = sources(await render());
+      expect(first.every(Boolean)).toBe(true);
+      expect(sources(await render())).toEqual(first);
+
+      await writeFile(path, Buffer.concat([contents, Buffer.from('updated')]));
+      const updated = sources(await render());
+      expect(updated[0]).not.toEqual(first[0]);
+      expect(updated[1]).not.toEqual(first[1]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('LoopingImage defers themed requests until the page theme is known', async () => {
     const html = normalizeHtml(
       await renderComponent(LoopingImage, {
@@ -1721,6 +1989,28 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('footer-mobile-tool');
     expect(html).not.toContain('data-cookie-manage-consent');
     expect(html).not.toContain('data-open-install-modal');
+  });
+
+  it('links Aspire software to its MIT license without replacing website legal links', async () => {
+    const html = normalizeHtml(
+      await renderComponent(FooterLegal, {
+        locals: { t: createTestTranslator(enTranslations) },
+      })
+    );
+
+    expect(html).toMatch(
+      /<a[^>]*href="https:\/\/github\.com\/microsoft\/aspire\/blob\/main\/LICENSE\.TXT"[^>]*>\s*Aspire software: MIT License\s*<\/a>/
+    );
+    for (const href of [
+      'https://aka.ms/yourcaliforniaprivacychoices',
+      'https://go.microsoft.com/fwlink/?LinkId=521839',
+      'https://go.microsoft.com/fwlink/?LinkID=206977',
+      'https://go.microsoft.com/fwlink/?linkid=2196228',
+      '/support/',
+    ]) {
+      expect(html).toContain(`href="${href}"`);
+    }
+    expect(html).toContain('Terms of Use');
   });
 
   it('renders a unique scanner-addressable Manage Cookies action under Legal', async () => {

@@ -6,6 +6,7 @@ description: Learn how Aspire annotations work, how the AppHost composes built-i
 
 import { Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
 
 Annotations are a key extensibility mechanism in Aspire that allow you to attach metadata and behavior to resources. They provide a way to customize how resources are configured, deployed, and managed throughout the application lifecycle. This article explains how annotations work and how to use them effectively in your Aspire applications.
 
@@ -39,8 +40,8 @@ builder.Build().Run();
 
 In this example:
 
-- `WithCommand` adds a `ResourceCommandAnnotation` that defines a custom command.
-- `WithUrl` adds a `ResourceUrlAnnotation` that defines a custom URL.
+- <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithCommand" /> adds a `ResourceCommandAnnotation` that defines a custom command.
+- <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithUrl" /> adds a `ResourceUrlAnnotation` that defines a custom URL.
 
 ## Adding and managing annotations
 
@@ -83,7 +84,7 @@ Aspire includes many built-in annotation types for common scenarios. This sectio
 The `EndpointAnnotation` defines network endpoints for resources. It contains information about ports, protocols, and endpoint configuration.
 
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithEndpoint(callback: endpoint =>
     {
         endpoint.Port = 5000;
@@ -108,7 +109,7 @@ The `EnvironmentCallbackAnnotation` allows you to modify environment variables a
 
 ```csharp title="AppHost.cs"
 // This is typically used internally by WithReference
-var app = builder.AddProject<Projects.MyApp>("app")
+var app = builder.AddDotnetProject("app", "../MyApp/MyApp.csproj")
     .WithReference(database);
 ```
 
@@ -123,10 +124,10 @@ var postgres = builder.AddPostgres("postgres")
 
 ### `HealthCheckAnnotation`
 
-The `HealthCheckAnnotation` associates health checks with a resource, used by `WaitFor()` to determine when a resource is ready:
+The `HealthCheckAnnotation` associates health checks with a resource, used by <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> to determine when a resource is ready:
 
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithHttpHealthCheck("/health");  // Adds HealthCheckAnnotation
 ```
 
@@ -136,13 +137,13 @@ Learn more about how Aspire uses health checks for orchestration in the [Health 
 
 ### `WaitAnnotation`
 
-The `WaitAnnotation` declares a dependency on another resource and controls startup order. The `WaitFor`, `WaitForStart`, and `WaitForCompletion` methods add this annotation:
+The `WaitAnnotation` declares a dependency on another resource and controls startup order. The `WaitFor`, <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitForStart" />, and <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitForCompletion" /> methods add this annotation:
 
 ```csharp title="AppHost.cs"
 var cache = builder.AddRedis("cache");
 
 // Wait for cache to be healthy before starting web
-var web = builder.AddProject<Projects.Web>("web")
+var web = builder.AddDotnetProject("web", "../Web/Web.csproj")
     .WaitFor(cache);  // Adds WaitAnnotation with WaitType.WaitForHealthy
 ```
 
@@ -159,7 +160,7 @@ The `WaitType` enum specifies what condition to wait for:
 The `ReplicaAnnotation` specifies how many instances of a resource should run:
 
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReplicas(3);  // Adds ReplicaAnnotation
 ```
 
@@ -181,7 +182,7 @@ For details on supported lifetime modes and their use cases, see [Resource lifet
 The `ExplicitStartupAnnotation` prevents a resource from starting automatically. Users must manually start it from the dashboard:
 
 ```csharp title="AppHost.cs"
-var worker = builder.AddProject<Projects.BatchJob>("batch")
+var worker = builder.AddDotnetProject("batch", "../BatchJob/BatchJob.csproj")
     .WithExplicitStart();  // Adds ExplicitStartupAnnotation
 ```
 
@@ -258,7 +259,7 @@ Once defined, annotations integrate seamlessly into the AppHost model:
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithMetrics("/api/metrics", 9090, "environment:production", "service:api");
 ```
 

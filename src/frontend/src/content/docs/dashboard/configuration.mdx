@@ -85,7 +85,7 @@ docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-
     -e DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT='1000' \
     -e DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT='1000' \
     -e DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT='1000' \
-    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    mcr.microsoft.com/aspire/dashboard:latest
 ```
 
 </div>
@@ -96,7 +96,7 @@ docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-
     -e DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT='1000' `
     -e DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT='1000' `
     -e DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT='1000' `
-    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    mcr.microsoft.com/aspire/dashboard:latest
 ```
 
 </div>
@@ -141,6 +141,7 @@ Browser token authentication works by the frontend asking for a token. The token
 | `Dashboard:Frontend:BrowserToken`<br/>Default: `null` | Specifies the browser token. If the browser token isn't specified, then the dashboard generates one. Tooling that wants to automate logging in with browser token authentication can specify a token and open a browser with the token in the query string. A new token should be generated each time the dashboard is launched. |
 | `Dashboard:Frontend:MaxConsoleLogCount`<br/>Default: `100,000` | The maximum number of console log messages retained per database. The limit is shared across resources. When the limit is reached, the oldest messages are removed. |
 | `Dashboard:Frontend:PublicUrl`<br/>Default: `null` | Specifies the public URL used to access the dashboard frontend. The public URL is used when constructing links to the dashboard frontend. If a public URL isn't specified, the frontend endpoint is used instead. This setting is important when the dashboard is accessed through a proxy and the dashboard endpoint isn't directly reachable. |
+| `Dashboard:Frontend:DisableWebSocketCompression`<br/>Default: `false` | Disables compression for the Blazor WebSocket connection. Set to `true` when a reverse proxy, such as IIS Application Request Routing (ARR), doesn't support compressed WebSocket messages. Disabling compression increases WebSocket bandwidth usage. |
 | `Dashboard:Frontend:OpenIdConnect:NameClaimType`<br/>Default: `name` | Specifies one or more claim types that should be used to display the authenticated user's full name. Can be a single claim type or a comma-delimited list of claim types. |
 | `Dashboard:Frontend:OpenIdConnect:UsernameClaimType`<br/>Default: `preferred_username` | Specifies one or more claim types that should be used to display the authenticated user's username. Can be a single claim type or a comma-delimited list of claim types. |
 | `Dashboard:Frontend:OpenIdConnect:RequiredClaimType`<br/>Default: `null` | Specifies the claim that must be present for authorized users. Authorization fails without this claim. This value is optional. |
@@ -212,6 +213,17 @@ export DASHBOARD__OTLP__ALLOWEDCERTIFICATES__0__THUMBPRINT="HEX_SHA256_THUMBPRIN
 <Aside type="note">
 If no allowed certificates are configured then all certificates that pass [ASP.NET Core certificate validation](https://learn.microsoft.com/aspnet/core/security/authentication/certauth#configure-certificate-validation) can authenticate.
 </Aside>
+
+### Dashboard self-telemetry
+
+The dashboard can export its own traces over OTLP, separate from the telemetry it receives from your app's resources. Set `OTEL_EXPORTER_OTLP_ENDPOINT` to enable export; the dashboard doesn't configure an OpenTelemetry resource or export its own traces unless this variable is set.
+
+Exported traces use `aspire-dashboard` as the default `service.name`. Override it with `OTEL_SERVICE_NAME`, or with `service.name` in `OTEL_RESOURCE_ATTRIBUTES`. `OTEL_SERVICE_NAME` takes precedence when both are specified. The dashboard doesn't generate a `service.instance.id` for itself, but preserves one supplied through `OTEL_RESOURCE_ATTRIBUTES`.
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+export OTEL_SERVICE_NAME="custom-dashboard"
+```
 
 ## Data persistence
 
@@ -317,6 +329,7 @@ Telemetry limits have different scopes depending upon the telemetry type:
 | Option | Description |
 |--------|-------------|
 | `Dashboard:ApplicationName`<br/>Default: `Aspire` | The logical application name used to partition persisted data and to scope authentication and antiforgery cookie names. The AppHost supplies its application name automatically. Set it with the `ASPIRE_DASHBOARD_APPLICATION_NAME` environment variable. Configure a distinct name for dashboards whose cookies should be kept separate; see [Cookie scoping by application name](/dashboard/security-considerations/#cookie-scoping-by-application-name). |
+| `Dashboard:LaunchContext`<br/>Default: `null` | The launch context reported in dashboard startup telemetry, such as `apphost`, `cli`, or `container`. The AppHost and the `aspire dashboard run` CLI command set this automatically; container deployments can set `container` explicitly. See [Microsoft-collected dashboard telemetry](/dashboard/microsoft-collected-dashboard-telemetry/). |
 | `Dashboard:UI:DisableResourceGraph`<br/>Default: `false` | Disables displaying the resource graph UI in the dashboard. |
 | `Dashboard:UI:DisableImport`<br/>Default: `false` | Disables the telemetry import UI in the dashboard. |
 | `Dashboard:UI:DisableAgentHelp`<br/>Default: `false` | Disables the **AI Agents** button in the dashboard header. When `false`, a button is shown in the header that opens a dialog with instructions for using AI coding agents with the dashboard. |

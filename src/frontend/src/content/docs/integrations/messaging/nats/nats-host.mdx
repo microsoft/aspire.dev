@@ -9,6 +9,7 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import ContainerImages from '@components/ContainerImages.astro';
 import LearnMore from '@components/LearnMore.astro';
 import natsIcon from '@assets/icons/nats-icon.png';
+import ApiReference from '@components/ApiReference.astro';
 
 <Image
   src={natsIcon}
@@ -70,6 +71,27 @@ This updates your `aspire.config.json` with the NATS hosting integration package
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add nats
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the NATS hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Nats": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add NATS resource
@@ -83,7 +105,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var nats = builder.AddNats("nats");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(nats);
 
 // After adding all resources, run the app...
@@ -99,6 +121,16 @@ const nats = await builder.addNats("nats");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(nats);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+nats := builder.AddNats("nats")
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(nats)
 
 // After adding all resources, run the app...
 ```
@@ -123,7 +155,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 ## Add NATS resource with JetStream
 
-[JetStream](https://docs.nats.io/nats-concepts/jetstream) is NATS's built-in persistence engine that provides at-least-once delivery, replay, and stream retention. To enable JetStream on the NATS resource, use `WithJetStream` (or `withJetStream`):
+[JetStream](https://docs.nats.io/nats-concepts/jetstream) is NATS's built-in persistence engine that provides at-least-once delivery, replay, and stream retention. To enable JetStream on the NATS resource, use <ApiReference name="Aspire.Hosting.NatsBuilderExtensions.WithJetStream" />:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -133,7 +165,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var nats = builder.AddNats("nats")
     .WithJetStream();
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(nats);
 
 // After adding all resources, run the app...
@@ -150,6 +182,17 @@ await nats.withJetStream();
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(nats);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+nats := builder.AddNats("nats").
+	WithJetStream()
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(nats)
 
 // After adding all resources, run the app...
 ```
@@ -169,7 +212,7 @@ var nats = builder.AddNats("nats")
     .WithJetStream()
     .WithDataVolume(isReadOnly: false);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(nats);
 
 // After adding all resources, run the app...
@@ -187,6 +230,18 @@ await nats.withDataVolume({ isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(nats);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+nats := builder.AddNats("nats").
+	WithJetStream().
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(nats)
 
 // After adding all resources, run the app...
 ```
@@ -210,7 +265,7 @@ var nats = builder.AddNats("nats")
         source: @"C:\Nats\Data",
         isReadOnly: false);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(nats);
 
 // After adding all resources, run the app...
@@ -228,6 +283,18 @@ await nats.withDataBindMount("/Nats/Data", { isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(nats);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+nats := builder.AddNats("nats").
+	WithJetStream().
+	WithDataBindMount("/Nats/Data", aspire.DataBindMountIsReadOnly(false))
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(nats)
 
 // After adding all resources, run the app...
 ```
@@ -254,7 +321,7 @@ var password = builder.AddParameter("natsPass", secret: true);
 
 var nats = builder.AddNats("nats", userName: userName, password: password);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(nats);
 
 // After adding all resources, run the app...
@@ -273,6 +340,20 @@ const nats = await builder.addNats("nats", { userName, password });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(nats);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+userName := builder.AddParameter("natsUser")
+password := builder.AddParameter("natsPass", aspire.AddParameterSecret(true))
+
+nats := builder.AddNats("nats", aspire.AddNatsUserName(userName),
+	aspire.AddNatsPassword(password))
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(nats)
 
 // After adding all resources, run the app...
 ```
@@ -324,6 +405,18 @@ await builder.addNodeApp("my-app", "./app", "index.js")
     .withEnvironment("NATS_PASSWORD", nats.passwordParameter);
 
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+nats := builder.AddNats("nats")
+
+builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(nats).
+	WithEnvironment("NATS_HOST", nats.Host()).
+	WithEnvironment("NATS_PORT", nats.Port()).
+	WithEnvironment("NATS_USER", nats.UserNameReference()).
+	WithEnvironment("NATS_PASSWORD", nats.PasswordParameter())
 ```
 </TabItem>
 </Tabs>

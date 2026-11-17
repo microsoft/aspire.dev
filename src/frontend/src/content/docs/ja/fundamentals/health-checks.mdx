@@ -7,6 +7,7 @@ import ThemeImage from '@components/ThemeImage.astro';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import healthChecksDashboardStatus from '@assets/fundamentals/health-checks-dashboard-status.png';
 import healthChecksDashboardStatusLight from '@assets/fundamentals/health-checks-dashboard-status-light.png';
+import ApiReference from '@components/ApiReference.astro';
 
 正常性チェックは、アプリの可用性と状態に関する情報を提供します。正常性チェックは多くの場合 HTTP エンドポイントとして公開されますが、現在の正常性に基づいてログを書き込んだり、ほかのタスクを実行したりするために、アプリ内部でも使用できます。正常性チェックは通常、外部の監視サービスやコンテナー オーケストレーターと組み合わせて、アプリの状態確認に使用されます。
 
@@ -16,7 +17,7 @@ Aspire は、2 つの異なるコンテキストで正常性チェックを利�
 
 | 正常性チェックの種類           | 実行場所             | チェック内容                   | 用途                                 |
 | ------------------------------ | -------------------- | ------------------------------ | ------------------------------------ |
-| **AppHost リソース チェック**  | AppHost プロジェクト | 「依存関係の準備はできているか?」 | 起動オーケストレーション、`WaitFor()` |
+| **AppHost リソース チェック**  | AppHost プロジェクト | 「依存関係の準備はできているか?」 | 起動オーケストレーション、<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> |
 | **サービス エンドポイント チェック** | アプリケーション     | 「自分は正常か?」               | ロード バランサー、Kubernetes プローブ |
 
 <Aside type="tip" title="重要なポイント">
@@ -439,7 +440,7 @@ var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
                         .WithHttpEndpoint(targetPort: 8080)
                         .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.WebApp>("webapp")
+builder.AddDotnetProject("webapp", "../WebApp/WebApp.csproj")
        .WithReference(catalogApi)
        .WaitFor(catalogApi); // /health が HTTP 200 を返すまで待機
 ```
@@ -458,7 +459,7 @@ const catalogApi = await builder
   .withHttpHealthCheck('/health');
 
 await builder
-  .addProject('webapp', './WebApp/WebApp.csproj')
+  .addDotnetProject('webapp', './WebApp/WebApp.csproj')
   .withReference(catalogApi)
   .waitFor(catalogApi);
 
@@ -468,16 +469,16 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`WithHttpHealthCheck` メソッドは、プロジェクト リソースにも適用できます:
+<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> メソッドは、プロジェクト リソースにも適用できます:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
-var backend = builder.AddProject<Projects.Backend>("backend")
+var backend = builder.AddDotnetProject("backend", "../Backend/Backend.csproj")
                      .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.Frontend>("frontend")
+builder.AddDotnetProject("frontend", "../Frontend/Frontend.csproj")
        .WithReference(backend)
        .WaitFor(backend);
 ```
@@ -491,11 +492,11 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const backend = await builder
-  .addProject('backend', './Backend/Backend.csproj')
+  .addDotnetProject('backend', './Backend/Backend.csproj')
   .withHttpHealthCheck('/health');
 
 await builder
-  .addProject('frontend', './Frontend/Frontend.csproj')
+  .addDotnetProject('frontend', './Frontend/Frontend.csproj')
   .withReference(backend)
   .waitFor(backend);
 
@@ -527,7 +528,7 @@ builder.Services.AddHealthChecks().AddCheck("mycheck", () =>
 var pg = builder.AddPostgres("pg")
     .WithHealthCheck("mycheck");
 
-builder.AddProject<Projects.MyApp>("myapp")
+builder.AddDotnetProject("myapp", "../MyApp/MyApp.csproj")
     .WithReference(pg)
     .WaitFor(pg); // Postgres コンテナーが実行中になるのを待ち
                   // かつカスタム "mycheck" が healthy になるのを待機
@@ -550,7 +551,7 @@ const pg = await builder
   .withHttpHealthCheck('/health');
 
 await builder
-  .addProject('myapp', './MyApp/MyApp.csproj')
+  .addDotnetProject('myapp', './MyApp/MyApp.csproj')
   .withReference(pg)
   .waitFor(pg);
 
@@ -560,7 +561,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`AddCheck` メソッドは正常性チェックを登録し、`WithHealthCheck` はそれを特定リソースに関連付けます。カスタム正常性チェックの作成と登録の詳細は、[正常性チェックの作成](https://learn.microsoft.com/ja-jp/aspnet/core/host-and-deploy/health-checks#create-health-checks) を参照してください。
+`AddCheck` メソッドは正常性チェックを登録し、<ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHealthCheck" /> はそれを特定リソースに関連付けます。カスタム正常性チェックの作成と登録の詳細は、[正常性チェックの作成](https://learn.microsoft.com/ja-jp/aspnet/core/host-and-deploy/health-checks#create-health-checks) を参照してください。
 
 ### ダッシュボード統合
 

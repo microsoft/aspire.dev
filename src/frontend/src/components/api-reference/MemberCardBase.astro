@@ -13,6 +13,7 @@
  */
 import { Code } from '@astrojs/starlight/components';
 import { formatTsSignature } from '@utils/ts-modules';
+import ReadableText from '@components/ReadableText.astro';
 
 interface Param {
   name: string;
@@ -80,16 +81,16 @@ const retColorIdx = hasReturn ? typeColorIndex(returnType) : 0;
     {
       href ? (
         <a href={href} class="mc-name-link">
-          <code class="mc-param-name">{name}</code>
+          <code class="mc-param-name"><ReadableText text={name} /></code>
         </a>
       ) : (
-        <code class="mc-param-name">{name}</code>
+        <code class="mc-param-name"><ReadableText text={name} /></code>
       )
     }
     {
       showReturnInHeader && hasReturn && (
         <span class={`mc-param-type mc-param-type-${retColorIdx}`}>
-          <code>{returnType}</code>
+          <code><ReadableText text={returnType} /></code>
         </span>
       )
     }
@@ -129,9 +130,9 @@ const retColorIdx = hasReturn ? typeColorIndex(returnType) : 0;
             return (
               <div class="mc-param">
                 <span class="mc-param-header">
-                  <code class="mc-param-name">{p.name}</code>
+                  <code class="mc-param-name"><ReadableText text={p.name} /></code>
                   <span class={`mc-param-type mc-param-type-${colorIdx}`}>
-                    <code>{p.type}</code>
+                    <code><ReadableText text={p.type} /></code>
                   </span>
                   {p.isOptional && <span class="api-mod-badge">optional</span>}
                   {p.defaultValue && <span class="api-mod-badge">= {p.defaultValue}</span>}
@@ -152,7 +153,7 @@ const retColorIdx = hasReturn ? typeColorIndex(returnType) : 0;
         <p class="api-section-label">Returns</p>
         <div class="mc-section-body mc-returns">
           <span class={`mc-param-type mc-param-type-${retColorIdx}`}>
-            <code class="mc-return-inline">{returnType}</code>
+            <code class="mc-return-inline"><ReadableText text={returnType} /></code>
           </span>
         </div>
       </div>
@@ -203,6 +204,12 @@ const retColorIdx = hasReturn ? typeColorIndex(returnType) : 0;
     font-size: var(--api-text-base);
     color: var(--sl-color-gray-2);
     line-height: 1.6;
+  }
+
+  .mc-header > :is(code, a), .mc-param-header {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   .mcb .mc-section-body {
