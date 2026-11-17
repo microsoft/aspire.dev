@@ -131,6 +131,53 @@ public sealed class SiteFileTests
     }
 
     [Fact]
+    public async Task If_match_and_if_unmodified_since_fail_for_another_version()
+    {
+        await using var server = await AgentReadinessTestServer.StartAsync(root => root.WriteFile("docs/page/index.html", Page));
+
+        using var first = await server.Client.GetAsync("/docs/page/");
+        var etag = first.Headers.ETag!.Tag;
+        var lastModified = first.Content.Headers.LastModified!.Value;
+
+        foreach (var (ifMatch, status) in new[] { (etag, HttpStatusCode.OK), ("*", HttpStatusCode.OK), ("\"stale\"", HttpStatusCode.PreconditionFailed), ($"W/{etag}", HttpStatusCode.PreconditionFailed) })
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/docs/page/");
+            request.Headers.TryAddWithoutValidation("If-Match", ifMatch);
+            using var response = await server.Client.SendAsync(request);
+
+            Assert.Equal(status, response.StatusCode);
+        }
+
+        foreach (var (ifUnmodifiedSince, status) in new[] { (lastModified, HttpStatusCode.OK), (lastModified.AddDays(-1), HttpStatusCode.PreconditionFailed) })
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/docs/page/");
+            request.Headers.IfUnmodifiedSince = ifUnmodifiedSince;
+            using var response = await server.Client.SendAsync(request);
+
+            Assert.Equal(status, response.StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task If_range_date_does_not_apply_a_range_to_the_brotli_copy()
+    {
+        await using var server = await AgentReadinessTestServer.StartAsync(root => SeedCompressedPage(root, "docs/page"));
+        using var first = await server.Client.GetAsync("/docs/page/");
+        var lastModified = first.Content.Headers.LastModified!.Value;
+
+        foreach (var (acceptEncoding, status) in new[] { ("identity", HttpStatusCode.PartialContent), ("br", HttpStatusCode.OK) })
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/docs/page/");
+            request.Headers.AcceptEncoding.ParseAdd(acceptEncoding);
+            request.Headers.TryAddWithoutValidation("Range", "bytes=0-1");
+            request.Headers.IfRange = new System.Net.Http.Headers.RangeConditionHeaderValue(lastModified);
+            using var response = await server.Client.SendAsync(request);
+
+            Assert.Equal(status, response.StatusCode);
+        }
+    }
+
+    [Fact]
     public async Task ETag_follows_a_file_that_changes()
     {
         await using var server = await AgentReadinessTestServer.StartAsync(root => root.WriteFile("data.json", "{\"v\":1}"));

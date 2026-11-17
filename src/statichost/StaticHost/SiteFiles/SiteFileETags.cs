@@ -19,15 +19,15 @@ internal sealed class SiteFileETags
 {
     private readonly ConcurrentDictionary<string, Entry> _entries = new(StringComparer.Ordinal);
 
-    public int Count => _entries.Count;
-
-    public async ValueTask<string> GetAsync(IFileInfo file, CancellationToken cancellationToken)
+    /// <param name="path">The file's path in the web root, which identifies it whatever the provider.</param>
+    /// <param name="file">The file to hash.</param>
+    /// <param name="cancellationToken">Cancels the hashing.</param>
+    public async ValueTask<string> GetAsync(string path, IFileInfo file, CancellationToken cancellationToken)
     {
-        var key = file.PhysicalPath ?? file.Name;
         var length = file.Length;
         var lastModified = file.LastModified;
 
-        if (_entries.TryGetValue(key, out var entry) && entry.Length == length && entry.LastModified == lastModified)
+        if (_entries.TryGetValue(path, out var entry) && entry.Length == length && entry.LastModified == lastModified)
         {
             return entry.ETag;
         }
@@ -37,7 +37,7 @@ internal sealed class SiteFileETags
         var hash = await SHA256.HashDataAsync(stream, cancellationToken);
         var etag = $"\"{Convert.ToBase64String(hash)}\"";
 
-        _entries[key] = new Entry(length, lastModified, etag);
+        _entries[path] = new Entry(length, lastModified, etag);
         return etag;
     }
 

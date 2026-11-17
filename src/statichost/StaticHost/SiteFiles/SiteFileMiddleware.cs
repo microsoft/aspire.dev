@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http.Headers;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Primitives;
@@ -83,14 +84,17 @@ internal sealed class SiteFileMiddleware
             contentType = UnknownContentType;
         }
 
-        var compressed = _fileProvider.GetFileInfo(request.Path.Value + BrotliExtension);
+        var compressedPath = request.Path.Value + BrotliExtension;
+        var compressed = _fileProvider.GetFileInfo(compressedPath);
         var hasCompressed = compressed.Exists && !compressed.IsDirectory;
         var useCompressed = hasCompressed && AcceptsBrotli(request.Headers.AcceptEncoding);
         var served = useCompressed ? compressed : file;
 
         var response = context.Response;
-        var etag = await _etags.GetAsync(served, context.RequestAborted);
+        var etag = await _etags.GetAsync(useCompressed ? compressedPath : request.Path.Value, served, context.RequestAborted);
+        var entityTag = new EntityTagHeaderValue(etag);
         var lastModified = TruncateToSeconds(file.LastModified);
+        var requestHeaders = request.GetTypedHeaders();
 
         var headers = response.Headers;
         headers.CacheControl = GetCacheControl(request.Path, contentType);
@@ -101,14 +105,16 @@ internal sealed class SiteFileMiddleware
             headers.Vary = HeaderNames.AcceptEncoding;
         }
 
-        if (IsNotModified(request, etag, lastModified))
+        if (EvaluatePreconditions(requestHeaders, entityTag, lastModified) is { } status)
         {
-            response.StatusCode = StatusCodes.Status304NotModified;
+            response.StatusCode = status;
             return;
         }
 
         headers.AcceptRanges = "bytes";
-        var range = GetRange(request, etag, lastModified, served.Length, out var unsatisfiable);
+        // Last-Modified is the original file's, so a date in If-Range does not vouch for the bytes
+        // of its brotli copy, which can be rewritten while the original keeps its time.
+        var range = GetRange(requestHeaders, entityTag, useCompressed ? null : lastModified, served.Length, out var unsatisfiable);
         if (unsatisfiable)
         {
             response.StatusCode = StatusCodes.Status416RangeNotSatisfiable;
@@ -182,27 +188,50 @@ internal sealed class SiteFileMiddleware
         return (brotli ?? wildcard ?? 0) > 0;
     }
 
-    private static bool IsNotModified(HttpRequest request, string etag, DateTimeOffset lastModified)
+    /// <summary>
+    /// Evaluates the request's preconditions in the order of RFC 9110, 13.2.2, as
+    /// <c>MapStaticAssets</c> did. Returns 412 or 304 when one decides the response, otherwise
+    /// <see langword="null"/>.
+    /// </summary>
+    private static int? EvaluatePreconditions(RequestHeaders requestHeaders, EntityTagHeaderValue etag, DateTimeOffset lastModified)
     {
-        var requestHeaders = request.GetTypedHeaders();
+        // If-Match takes precedence over If-Unmodified-Since, and uses the strong comparison.
+        var ifMatch = requestHeaders.IfMatch;
+        if (ifMatch.Count > 0)
+        {
+            if (!Matches(ifMatch, etag, useStrongComparison: true))
+            {
+                return StatusCodes.Status412PreconditionFailed;
+            }
+        }
+        else if (requestHeaders.IfUnmodifiedSince is { } ifUnmodifiedSince && lastModified > ifUnmodifiedSince)
+        {
+            return StatusCodes.Status412PreconditionFailed;
+        }
 
         // If-None-Match takes precedence over If-Modified-Since (RFC 9110, 13.1.3).
         var ifNoneMatch = requestHeaders.IfNoneMatch;
         if (ifNoneMatch.Count > 0)
         {
-            var current = EntityTagHeaderValue.Parse(etag);
-            foreach (var candidate in ifNoneMatch)
-            {
-                if (candidate.Equals(EntityTagHeaderValue.Any) || candidate.Compare(current, useStrongComparison: false))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return Matches(ifNoneMatch, etag, useStrongComparison: false) ? StatusCodes.Status304NotModified : null;
         }
 
-        return requestHeaders.IfModifiedSince is { } ifModifiedSince && lastModified <= ifModifiedSince;
+        return requestHeaders.IfModifiedSince is { } ifModifiedSince && lastModified <= ifModifiedSince
+            ? StatusCodes.Status304NotModified
+            : null;
+    }
+
+    private static bool Matches(IList<EntityTagHeaderValue> candidates, EntityTagHeaderValue etag, bool useStrongComparison)
+    {
+        foreach (var candidate in candidates)
+        {
+            if (candidate.Equals(EntityTagHeaderValue.Any) || candidate.Compare(etag, useStrongComparison))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -210,11 +239,14 @@ internal sealed class SiteFileMiddleware
     /// which a server may do for any range request it does not support, such as several ranges.
     /// Safari only plays video from servers that answer ranges.
     /// </summary>
+    /// <param name="lastModified">
+    /// The time a date in <c>If-Range</c> must match, or <see langword="null"/> when a date does
+    /// not identify the bytes sent, so only an entity tag can.
+    /// </param>
     private static (long Offset, long Count)? GetRange(
-        HttpRequest request, string etag, DateTimeOffset lastModified, long length, out bool unsatisfiable)
+        RequestHeaders requestHeaders, EntityTagHeaderValue etag, DateTimeOffset? lastModified, long length, out bool unsatisfiable)
     {
         unsatisfiable = false;
-        var requestHeaders = request.GetTypedHeaders();
         var range = requestHeaders.Range;
         if (range is null
             || !StringSegment.Equals(range.Unit, "bytes", StringComparison.OrdinalIgnoreCase)
@@ -227,8 +259,8 @@ internal sealed class SiteFileMiddleware
         if (requestHeaders.IfRange is { } ifRange)
         {
             var matches = ifRange.EntityTag is { } tag
-                ? tag.Compare(EntityTagHeaderValue.Parse(etag), useStrongComparison: true)
-                : ifRange.LastModified == lastModified;
+                ? tag.Compare(etag, useStrongComparison: true)
+                : lastModified is not null && ifRange.LastModified == lastModified;
             if (!matches)
             {
                 return null;
