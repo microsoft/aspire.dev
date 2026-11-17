@@ -314,6 +314,30 @@ await builder.addNodeApp("webfrontend", "./web-frontend", "server.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+webPubSub := builder.AddAzureWebPubSub("web-pubsub").
+	RunAsEmulator()
+chat := webPubSub.AddHub("chat")
+
+web := builder.AddGoApp("webfrontend", "./webfrontend").
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
+web.WithReference(chat)
+web.WaitFor(webPubSub)
+webEndpoint := web.GetEndpoint("http")
+
+chat.AddEventHandler(
+	aspire.RefExpr("{0}/events", webEndpoint),
+	aspire.AddEventHandlerSystemEvents([]string{"connected"}))
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 When you call `RunAsEmulator`, Aspire runs the `mcr.microsoft.com/webpubsub/emulator:1.0.0-beta.3` container during local runs and gives consuming apps a connection string that contains the emulator's HTTP endpoint and access key. `RunAsEmulator` has no effect when publishing, so publishing continues to provision Azure Web PubSub.
@@ -321,7 +345,7 @@ When you call `RunAsEmulator`, Aspire runs the `mcr.microsoft.com/webpubsub/emul
 Keep the following emulator behaviors in mind:
 
 - Hubs and event handlers that you add with `AddHub` and `AddEventHandler` are configured in the emulator, whether you add them before or after calling `RunAsEmulator`.
-- Use an HTTP endpoint for local event handler callbacks, as shown in the preceding C# example.
+- Use an HTTP endpoint for local event handler callbacks, as shown in the preceding C# and Go examples.
 - The emulator doesn't support event handler authentication. Configuring an event handler with authentication settings while using the emulator results in a `NotSupportedException` when Aspire generates the emulator configuration.
 - The emulator endpoint uses HTTP. JavaScript clients that use `@azure/web-pubsub` must pass `allowInsecureConnection: true` when connecting to it. For more information, see [Connect to the emulator](../azure-web-pubsub-connect/#connect-to-the-emulator).
 
