@@ -1016,7 +1016,7 @@ export const docsTopics = {
               collapsed: false,
               items: [
                 {
-                  label: 'Aspire SDK',
+                  label: 'AppHost project configuration',
                   slug: 'get-started/aspire-sdk',
                 },
                 {
@@ -1163,6 +1163,11 @@ export const docsTopics = {
         {
           label: 'Multi-language integrations',
           slug: 'extensibility/multi-language-integration-authoring',
+        },
+        {
+          label: 'TypeScript hosting integrations',
+          slug: 'extensibility/typescript-hosting-integrations',
+          badge: 'Experimental',
         },
       ],
     },

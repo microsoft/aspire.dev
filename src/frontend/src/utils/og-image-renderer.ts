@@ -24,6 +24,15 @@ import type { TopicMetadata } from './topic-resolver.ts';
  * Buffers (fonts + background image) are loaded once and cached because
  * every static path renders through the same module instance.
  *
+ * Rasterizing satori's SVG with librsvg dominates the cost of each card, so
+ * the layers that never change (background, gradient, and the CTA chip with
+ * its drop shadow) are rasterized once into a cached base layer. Each card
+ * then only rasterizes its own overlay and composites it onto that base. The
+ * per-card elements intentionally have no `boxShadow`: satori emits shadows
+ * as SVG blur filters, which made up most of the render time while being
+ * imperceptible against the dark gradient behind those elements.
+ * See `stripRedundantOverflowMasks` for the other rasterization shortcut.
+ *
  * Paths are resolved against `process.cwd()` (which Astro sets to the
  * frontend project root at build time) rather than `import.meta.url` so
  * that the renderer continues to work after Vite bundles this module into
@@ -48,6 +57,15 @@ const CTA_LABEL = 'Read on aspire.dev →';
 let regularFontPromise: Promise<Buffer> | undefined;
 let boldFontPromise: Promise<Buffer> | undefined;
 let backgroundDataUriPromise: Promise<string> | undefined;
+let fontsPromise: Promise<SatoriFont[]> | undefined;
+let baseLayerPromise: Promise<RawImage> | undefined;
+
+type SatoriFont = Parameters<typeof satori>[1]['fonts'][number];
+
+interface RawImage {
+  data: Buffer;
+  info: { width: number; height: number; channels: 3 };
+}
 
 export interface OgImageDetail {
   label: string;
@@ -63,27 +81,42 @@ export interface RenderOgImageInput {
 }
 
 export async function renderOgImagePng(input: RenderOgImageInput): Promise<Buffer> {
-  const [regularFont, boldFont, backgroundDataUri] = await Promise.all([
-    loadRegularFont(),
-    loadBoldFont(),
-    loadBackgroundDataUri(),
+  const [baseLayer, overlaySvg] = await Promise.all([
+    loadBaseLayer(),
+    renderSvg(
+      buildOverlayTree({
+        title: input.title,
+        description: input.description?.trim() ? input.description.trim() : undefined,
+        topic: input.topic,
+        details: input.details,
+      })
+    ),
   ]);
 
-  const tree = buildTree({
-    title: input.title,
-    description: input.description?.trim() ? input.description.trim() : undefined,
-    topic: input.topic,
-    details: input.details,
-    backgroundDataUri,
-  });
+  // Cards are fully opaque, so emit RGB rather than RGBA (less to encode, smaller files).
+  return sharp(baseLayer.data, { raw: baseLayer.info })
+    .composite([{ input: Buffer.from(stripRedundantOverflowMasks(overlaySvg)) }])
+    .removeAlpha()
+    .png({ compressionLevel: 6 })
+    .toBuffer();
+}
 
-  const svg = await satori(tree, {
+/**
+ * Satori clips `overflow: hidden` elements with both a rectangular `clip-path`
+ * and an equivalent rectangular `mask`. librsvg renders every mask to an
+ * offscreen surface, which more than doubles the overlay's rasterization time,
+ * so drop the mask reference wherever the same element already has a clip-path.
+ * If satori's output ever changes shape this simply stops matching.
+ */
+function stripRedundantOverflowMasks(svg: string): string {
+  return svg.replace(/ mask="url\(#satori_om-[^)]+\)"(?=[^>]* clip-path=")/g, '');
+}
+
+async function renderSvg(tree: ReturnType<typeof rootNode>): Promise<string> {
+  return satori(tree, {
     width: DEFAULT_OG_IMAGE_WIDTH,
     height: DEFAULT_OG_IMAGE_HEIGHT,
-    fonts: [
-      { name: 'Outfit', data: regularFont, weight: 400, style: 'normal' },
-      { name: 'Outfit', data: boldFont, weight: 700, style: 'normal' },
-    ],
+    fonts: await loadFonts(),
     loadAdditionalAsset: async (code, segment) => {
       if (code === 'emoji') {
         return loadEmojiSvgDataUri(segment);
@@ -91,8 +124,32 @@ export async function renderOgImagePng(input: RenderOgImageInput): Promise<Buffe
       return [];
     },
   });
+}
 
-  return sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toBuffer();
+/** Rasterizes the layers shared by every card (background, gradient, CTA chip) once per process. */
+function loadBaseLayer(): Promise<RawImage> {
+  if (!baseLayerPromise) {
+    baseLayerPromise = (async () => {
+      const svg = await renderSvg(buildBaseTree(await loadBackgroundDataUri()));
+      const { data, info } = await sharp(Buffer.from(svg))
+        .removeAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      return { data, info: { width: info.width, height: info.height, channels: 3 } };
+    })();
+  }
+  return baseLayerPromise;
+}
+
+// Satori caches its font loader per `fonts` array instance, so reuse one array.
+function loadFonts(): Promise<SatoriFont[]> {
+  if (!fontsPromise) {
+    fontsPromise = Promise.all([loadRegularFont(), loadBoldFont()]).then(([regular, bold]) => [
+      { name: 'Outfit', data: regular, weight: 400, style: 'normal' },
+      { name: 'Outfit', data: bold, weight: 700, style: 'normal' },
+    ]);
+  }
+  return fontsPromise;
 }
 
 const TWEMOJI_BASE = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg';
@@ -178,15 +235,14 @@ function loadBackgroundDataUri(): Promise<string> {
   return backgroundDataUriPromise;
 }
 
-interface TreeInput {
+interface OverlayTreeInput {
   title: string;
   description?: string;
   topic: TopicMetadata;
   details?: OgImageDetail[];
-  backgroundDataUri: string;
 }
 
-function buildTree({ title, description, topic, details, backgroundDataUri }: TreeInput) {
+function rootNode(children: unknown[]) {
   return {
     type: 'div',
     props: {
@@ -197,62 +253,71 @@ function buildTree({ title, description, topic, details, backgroundDataUri }: Tr
         display: 'flex',
         fontFamily: 'Outfit',
       },
-      children: [
-        {
-          type: 'img',
-          props: {
-            src: backgroundDataUri,
-            width: DEFAULT_OG_IMAGE_WIDTH,
-            height: DEFAULT_OG_IMAGE_HEIGHT,
-            style: {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              objectFit: 'cover',
-            },
-          },
-        },
-        // Bottom-to-top gradient ensures the overlay card has high contrast
-        // against bright background imagery.
-        {
-          type: 'div',
-          props: {
-            style: {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              backgroundImage:
-                'linear-gradient(to top, rgba(15,14,30,0.92) 0%, rgba(15,14,30,0.45) 55%, rgba(15,14,30,0) 100%)',
-            },
-          },
-        },
-        {
-          type: 'div',
-          props: {
-            style: {
-              position: 'absolute',
-              left: 56,
-              right: 56,
-              bottom: 56,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 22,
-            },
-            children: [
-              topicPill(topic),
-              titleBubble(title),
-              details?.length ? detailsBubble(details) : null,
-              description ? descriptionBubble(description) : null,
-            ].filter(Boolean),
-          },
-        },
-        ctaChip(),
-      ],
+      children,
     },
   };
+}
+
+function buildBaseTree(backgroundDataUri: string) {
+  return rootNode([
+    {
+      type: 'img',
+      props: {
+        src: backgroundDataUri,
+        width: DEFAULT_OG_IMAGE_WIDTH,
+        height: DEFAULT_OG_IMAGE_HEIGHT,
+        style: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          objectFit: 'cover',
+        },
+      },
+    },
+    // Bottom-to-top gradient ensures the overlay card has high contrast
+    // against bright background imagery.
+    {
+      type: 'div',
+      props: {
+        style: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          backgroundImage:
+            'linear-gradient(to top, rgba(15,14,30,0.92) 0%, rgba(15,14,30,0.45) 55%, rgba(15,14,30,0) 100%)',
+        },
+      },
+    },
+    ctaChip(),
+  ]);
+}
+
+function buildOverlayTree({ title, description, topic, details }: OverlayTreeInput) {
+  return rootNode([
+    {
+      type: 'div',
+      props: {
+        style: {
+          position: 'absolute',
+          left: 56,
+          right: 56,
+          bottom: 56,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 22,
+        },
+        children: [
+          topicPill(topic),
+          titleBubble(title),
+          details?.length ? detailsBubble(details) : null,
+          description ? descriptionBubble(description) : null,
+        ].filter(Boolean),
+      },
+    },
+  ]);
 }
 
 function topicPill(topic: TopicMetadata) {
@@ -270,7 +335,6 @@ function topicPill(topic: TopicMetadata) {
         padding: '12px 26px 12px 18px',
         fontSize: 28,
         fontWeight: 600,
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.32)',
       },
       children: [
         {
@@ -328,7 +392,6 @@ function titleBubble(title: string) {
         borderRadius: 28,
         padding: '32px 40px',
         maxWidth: '100%',
-        boxShadow: '0 18px 48px rgba(0, 0, 0, 0.45)',
       },
       children: {
         type: 'div',
@@ -362,7 +425,6 @@ function descriptionBubble(description: string) {
         borderRadius: 22,
         padding: '20px 32px',
         maxWidth: '92%',
-        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
       },
       children: {
         type: 'div',
@@ -396,7 +458,6 @@ function detailsBubble(details: OgImageDetail[]) {
         backgroundColor: DESCRIPTION_BG,
         borderRadius: 22,
         padding: '22px 32px',
-        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
       },
       children: details.map(detailRow),
     },
@@ -477,5 +538,7 @@ export function __setRendererCachesForTests(overrides: {
   backgroundDataUriPromise = overrides.background
     ? Promise.resolve(overrides.background)
     : backgroundDataUriPromise;
+  fontsPromise = undefined;
+  baseLayerPromise = undefined;
 }
 

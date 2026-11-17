@@ -282,6 +282,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
           slug: 'reference/cli/configuration',
         },
         {
+          label: 'Shell completion',
+          slug: 'reference/cli/shell-completion',
+        },
+        {
           label: 'Microsoft telemetry',
           translations: {
             da: 'Microsoft telemetri',
@@ -372,6 +376,20 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                 {
                   label: 'aspire certs trust',
                   slug: 'reference/cli/commands/aspire-certs-trust',
+                },
+              ],
+            },
+            {
+              label: 'aspire completions',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire completions',
+                  slug: 'reference/cli/commands/aspire-completions',
+                },
+                {
+                  label: 'aspire completions script',
+                  slug: 'reference/cli/commands/aspire-completions-script',
                 },
               ],
             },
@@ -581,6 +599,32 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             },
             { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
             {
+              label: 'aspire template',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire template',
+                  slug: 'reference/cli/commands/aspire-template',
+                },
+                {
+                  label: 'aspire template source',
+                  slug: 'reference/cli/commands/aspire-template-source',
+                },
+                {
+                  label: 'aspire template source add',
+                  slug: 'reference/cli/commands/aspire-template-source-add',
+                },
+                {
+                  label: 'aspire template source list',
+                  slug: 'reference/cli/commands/aspire-template-source-list',
+                },
+                {
+                  label: 'aspire template source remove',
+                  slug: 'reference/cli/commands/aspire-template-source-remove',
+                },
+              ],
+            },
+            {
               label: 'aspire terminal',
               collapsed: true,
               items: [
@@ -667,6 +711,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
             { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
             { label: 'ASPIRE010', link: '/diagnostics/aspire010' },
+            { label: 'ASPIRE012', link: '/diagnostics/aspire012' },
             {
               label: 'ASPIREEXPORT005',
               link: '/diagnostics/aspireexport005',
@@ -702,6 +747,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREACANAMING001',
               link: '/diagnostics/aspireacanaming001',
+            },
+            {
+              label: 'ASPIREAZUREFUNCTIONS001',
+              link: '/diagnostics/aspireazurefunctions001',
             },
             {
               label: 'ASPIREBLAZOR001',

@@ -1,0 +1,804 @@
+{
+  "package": {
+    "name": "Aspire.Hosting.Azure.Kubernetes",
+    "version": "17.0.0",
+    "language": "typescript",
+    "sourceRepository": "https://github.com/microsoft/aspire",
+    "sourceCommit": "bcfa151cdca6d0a573f22d5d9c23f9c727cb3b2f"
+  },
+  "functions": [
+    {
+      "name": "addAzureKubernetesEnvironment",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addAzureKubernetesEnvironment",
+      "qualifiedName": "addAzureKubernetesEnvironment",
+      "description": "Adds an Azure Kubernetes Service (AKS) environment to the distributed application. This provisions an AKS cluster and configures it as a Kubernetes compute environment.",
+      "remarks": "This method internally creates a Kubernetes environment for Helm-based deployment\nand provisions an AKS cluster via Azure Bicep. It combines the functionality of\n`AddKubernetesEnvironment` with Azure-specific provisioning.\nThe cluster uses the Standard control-plane tier by default, which includes an uptime SLA\nand a cluster-management charge. Use `ConfigureInfrastructure` to select a different tier.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addAzureKubernetesEnvironment(name: string): AzureKubernetesEnvironmentResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the AKS environment resource."
+        }
+      ],
+      "returnType": "AzureKubernetesEnvironmentResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "addCertManager",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addCertManager",
+      "qualifiedName": "addCertManager",
+      "description": "Installs cert-manager into an AKS environment",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addCertManager(name: string, chartVersion?: string): CertManagerResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The Aspire resource name for the cert-manager installation."
+        },
+        {
+          "name": "chartVersion",
+          "type": "string",
+          "isOptional": true,
+          "description": "The cert-manager Helm chart version to install. Defaults to a pinned version validated against this Aspire build."
+        }
+      ],
+      "returnType": "CertManagerResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "addGateway",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addGateway",
+      "qualifiedName": "addGateway",
+      "description": "Adds a Kubernetes Gateway API Gateway resource to the application model, associated with the inner Kubernetes environment of the specified AKS environment.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addGateway(name: string): KubernetesGatewayResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the gateway resource."
+        }
+      ],
+      "returnType": "KubernetesGatewayResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "addHelmChart",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addHelmChart",
+      "qualifiedName": "addHelmChart",
+      "description": "Adds an external Helm chart to be installed in the AKS environment's inner Kubernetes environment. The chart is installed via `helm upgrade --install` as a pipeline step after the main application Helm chart is deployed.",
+      "remarks": "This method delegates to the inner `KubernetesEnvironmentResource` of the AKS\nenvironment, so the returned `KubernetesHelmChartResource` can be configured\nwith the same `WithHelmValue`,\n`WithNamespace`,\n`WithReleaseName`, and\n`WithDestroy` extensions used with\nnon-AKS Kubernetes environments.\nExternal Helm charts are not uninstalled by `aspire destroy` by default,\nbecause they may be shared with workloads outside the Aspire app. Opt in by chaining\n`WithDestroy`.",
+      "returns": "A resource builder for the Helm chart resource.",
+      "kind": "Method",
+      "signature": "addHelmChart(name: string, chartReference: string, chartVersion: string): KubernetesHelmChartResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the Helm chart resource."
+        },
+        {
+          "name": "chartReference",
+          "type": "string",
+          "description": "The Helm chart reference. Can be an OCI registry URL (e.g., `oci://quay.io/jetstack/charts/cert-manager`) or a chart name from an added repository."
+        },
+        {
+          "name": "chartVersion",
+          "type": "string",
+          "description": "The chart version to install."
+        }
+      ],
+      "returnType": "KubernetesHelmChartResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "addIngress",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addIngress",
+      "qualifiedName": "addIngress",
+      "description": "Adds a Kubernetes Ingress resource to the application model, associated with the inner Kubernetes environment of the specified AKS environment. The ingress generates a `networking.k8s.io/v1 Ingress` resource in the Helm chart output at publish time.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addIngress(name: string): KubernetesIngressResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the ingress resource."
+        }
+      ],
+      "returnType": "KubernetesIngressResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "addLoadBalancer",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addLoadBalancer",
+      "qualifiedName": "addLoadBalancer",
+      "description": "Adds an Azure Application Gateway for Containers (AGC) `ApplicationLoadBalancer` to this AKS environment, bound to the supplied delegated subnet. Returns a resource builder that can be passed to `gateway.WithLoadBalancer(lb)` / `ingress.WithLoadBalancer(lb)` to route traffic through this load balancer.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addLoadBalancer(name: string, subnet: AzureSubnetResource): AzureKubernetesLoadBalancerResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the load balancer resource. Used to derive the in-cluster `ApplicationLoadBalancer` name (`alb-{name}`) referenced by gateway/ingress annotations."
+        },
+        {
+          "name": "subnet",
+          "type": "AzureSubnetResource",
+          "description": "A subnet that will be associated with the AGC ALB. The subnet is automatically delegated to `Microsoft.ServiceNetworking/trafficControllers`; this is required by AGC and is idempotent across multiple `AddLoadBalancer` calls against the same subnet."
+        }
+      ],
+      "returnType": "AzureKubernetesLoadBalancerResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "addNodePool",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addNodePool",
+      "qualifiedName": "addNodePool",
+      "description": "Adds a node pool to the AKS cluster using a configuration callback.",
+      "remarks": "The callback receives the node pool configuration with default VM size and node counts.\nConfiguration remains mutable and is validated during infrastructure generation.\nOmitting the OS SKU leaves AKS to choose its default.\nThe returned resource can be used to schedule workloads on this pool.",
+      "returns": "The resource builder for the new node pool.",
+      "kind": "Method",
+      "signature": "addNodePool(name: string, configure: (obj: AksNodePoolConfig) => Promise<void>): AksNodePoolResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the node pool."
+        },
+        {
+          "name": "configure",
+          "type": "callback",
+          "isCallback": true,
+          "callbackSignature": "(obj: AksNodePoolConfig) => Promise<void>",
+          "description": "A callback to configure VM size, autoscaling, and OS SKU."
+        }
+      ],
+      "returnType": "AksNodePoolResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "addPersistentVolume",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addPersistentVolume",
+      "qualifiedName": "addPersistentVolume",
+      "description": "Adds a Kubernetes PersistentVolumeClaim resource to an AKS environment",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "addPersistentVolume(name: string): KubernetesPersistentVolumeResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the persistent volume resource."
+        }
+      ],
+      "returnType": "KubernetesPersistentVolumeResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "withContainerRegistry",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withContainerRegistry",
+      "qualifiedName": "withContainerRegistry",
+      "description": "Configures the AKS environment to use a specific Azure Container Registry for image storage. When set, this replaces the auto-created default container registry.",
+      "remarks": "If not called, a default Azure Container Registry is automatically created.\nThe registry endpoint is flowed to the inner Kubernetes environment so that\nHelm deployments can push and pull images.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withContainerRegistry(registry: AzureContainerRegistryResource): AzureKubernetesEnvironmentResource",
+      "parameters": [
+        {
+          "name": "registry",
+          "type": "AzureContainerRegistryResource",
+          "description": "The Azure Container Registry resource builder."
+        }
+      ],
+      "returnType": "AzureKubernetesEnvironmentResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "withLoadBalancer",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withLoadBalancer",
+      "qualifiedName": "withLoadBalancer",
+      "description": "Routes a Kubernetes Gateway through an AGC ApplicationLoadBalancer",
+      "remarks": "Writes the AGC routing annotations (`alb.networking.azure.io/alb-name` and\n`alb.networking.azure.io/alb-namespace`) onto the rendered Gateway and defaults\nthe GatewayClass to `azure-alb-external` when one has not already been set via\n`WithGatewayClass(...)`.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withLoadBalancer(loadBalancer: AzureKubernetesLoadBalancerResource): KubernetesGatewayResource",
+      "parameters": [
+        {
+          "name": "loadBalancer",
+          "type": "AzureKubernetesLoadBalancerResource",
+          "description": "The AGC load balancer to route through."
+        }
+      ],
+      "returnType": "KubernetesGatewayResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesGatewayResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Kubernetes.KubernetesGatewayResource"
+      ]
+    },
+    {
+      "name": "withLoadBalancer",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withLoadBalancerOnIngress",
+      "qualifiedName": "withLoadBalancer",
+      "description": "Routes a Kubernetes Ingress through an AGC ApplicationLoadBalancer",
+      "remarks": "Writes the AGC routing annotations (`alb.networking.azure.io/alb-name` and\n`alb.networking.azure.io/alb-namespace`) onto the rendered Ingress and defaults\nthe IngressClass to `azure-alb-external` when one has not already been set via\n`WithIngressClass(...)`.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withLoadBalancer(loadBalancer: AzureKubernetesLoadBalancerResource): KubernetesIngressResource",
+      "parameters": [
+        {
+          "name": "loadBalancer",
+          "type": "AzureKubernetesLoadBalancerResource",
+          "description": "The AGC load balancer to route through."
+        }
+      ],
+      "returnType": "KubernetesIngressResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesIngressResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Kubernetes.KubernetesIngressResource"
+      ]
+    },
+    {
+      "name": "withSubnet",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withSubnet",
+      "qualifiedName": "withSubnet",
+      "description": "Configures the AKS cluster to use a VNet subnet",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withSubnet(subnet: AzureSubnetResource): AzureKubernetesEnvironmentResource",
+      "parameters": [
+        {
+          "name": "subnet",
+          "type": "AzureSubnetResource",
+          "description": "The subnet to use for AKS node pools."
+        }
+      ],
+      "returnType": "AzureKubernetesEnvironmentResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "withSubnet",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withNodePoolSubnet",
+      "qualifiedName": "withSubnet",
+      "description": "Configures an AKS node pool to use a specific VNet subnet",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withSubnet(subnet: AzureSubnetResource): AksNodePoolResource",
+      "parameters": [
+        {
+          "name": "subnet",
+          "type": "AzureSubnetResource",
+          "description": "The subnet to use for this node pool."
+        }
+      ],
+      "returnType": "AksNodePoolResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AksNodePoolResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AksNodePoolResource"
+      ]
+    },
+    {
+      "name": "withSystemNodePool",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withSystemNodePool",
+      "qualifiedName": "withSystemNodePool",
+      "description": "Replaces the system node pool using a configuration callback.",
+      "remarks": "Each call replaces the previous system pool configuration, starting with default VM size and node counts.\nConfiguration remains mutable and is validated during infrastructure generation.\nOmitting the OS SKU leaves AKS to choose its default.",
+      "returns": "The AKS environment resource builder for chaining.",
+      "kind": "Method",
+      "signature": "withSystemNodePool(configure: (obj: AksNodePoolConfig) => Promise<void>): AzureKubernetesEnvironmentResource",
+      "parameters": [
+        {
+          "name": "configure",
+          "type": "callback",
+          "isCallback": true,
+          "callbackSignature": "(obj: AksNodePoolConfig) => Promise<void>",
+          "description": "A callback to configure VM size, autoscaling, and OS SKU."
+        }
+      ],
+      "returnType": "AzureKubernetesEnvironmentResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "withWorkloadIdentity",
+      "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withWorkloadIdentity",
+      "qualifiedName": "withWorkloadIdentity",
+      "description": "Enables or disables workload identity on the AKS environment, allowing pods to authenticate to Azure services using federated credentials.",
+      "remarks": "This ensures the AKS cluster is configured with OIDC issuer and workload identity enabled.\nWorkload identity is automatically wired when compute resources have an `AppIdentityAnnotation`,\nwhich is added by `WithAzureUserAssignedIdentity` or auto-created by `AzureResourcePreparer`.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "withWorkloadIdentity(enabled?: boolean): AzureKubernetesEnvironmentResource",
+      "parameters": [
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "isOptional": true,
+          "defaultValue": "True",
+          "description": "`true` to enable workload identity (the default); `false` to disable it."
+        }
+      ],
+      "returnType": "AzureKubernetesEnvironmentResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+      ]
+    }
+  ],
+  "handleTypes": [
+    {
+      "name": "AksNodePoolResource",
+      "fullName": "Aspire.Hosting.Azure.Kubernetes.AksNodePoolResource",
+      "kind": "handle",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.Kubernetes.KubernetesNodePoolResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": [
+        {
+          "name": "withSubnet",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withNodePoolSubnet",
+          "qualifiedName": "withSubnet",
+          "description": "Configures an AKS node pool to use a specific VNet subnet",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withSubnet(subnet: AzureSubnetResource): AksNodePoolResource",
+          "parameters": [
+            {
+              "name": "subnet",
+              "type": "AzureSubnetResource",
+              "description": "The subnet to use for this node pool."
+            }
+          ],
+          "returnType": "AksNodePoolResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AksNodePoolResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AksNodePoolResource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AzureKubernetesEnvironmentResource",
+      "fullName": "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+      "kind": "handle",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IAzureResource",
+        "Aspire.Hosting.ApplicationModel.IComputeEnvironmentResource",
+        "Aspire.Hosting.ApplicationModel.IComputeEnvironmentWithVolumeMounts",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParameters",
+        "Aspire.Hosting.Azure.IAzureComputeEnvironmentResource",
+        "Aspire.Hosting.Azure.IAzureNspAssociationTarget"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.Azure.AzureProvisioningResource",
+        "Aspire.Hosting.Azure.AzureBicepResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": [
+        {
+          "name": "addCertManager",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addCertManager",
+          "qualifiedName": "addCertManager",
+          "description": "Installs cert-manager into an AKS environment",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "addCertManager(name: string, chartVersion?: string): CertManagerResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The Aspire resource name for the cert-manager installation."
+            },
+            {
+              "name": "chartVersion",
+              "type": "string",
+              "isOptional": true,
+              "description": "The cert-manager Helm chart version to install. Defaults to a pinned version validated against this Aspire build."
+            }
+          ],
+          "returnType": "CertManagerResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        },
+        {
+          "name": "addGateway",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addGateway",
+          "qualifiedName": "addGateway",
+          "description": "Adds a Kubernetes Gateway API Gateway resource to the application model, associated with the inner Kubernetes environment of the specified AKS environment.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "addGateway(name: string): KubernetesGatewayResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The name of the gateway resource."
+            }
+          ],
+          "returnType": "KubernetesGatewayResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        },
+        {
+          "name": "addHelmChart",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addHelmChart",
+          "qualifiedName": "addHelmChart",
+          "description": "Adds an external Helm chart to be installed in the AKS environment's inner Kubernetes environment. The chart is installed via `helm upgrade --install` as a pipeline step after the main application Helm chart is deployed.",
+          "remarks": "This method delegates to the inner `KubernetesEnvironmentResource` of the AKS\nenvironment, so the returned `KubernetesHelmChartResource` can be configured\nwith the same `WithHelmValue`,\n`WithNamespace`,\n`WithReleaseName`, and\n`WithDestroy` extensions used with\nnon-AKS Kubernetes environments.\nExternal Helm charts are not uninstalled by `aspire destroy` by default,\nbecause they may be shared with workloads outside the Aspire app. Opt in by chaining\n`WithDestroy`.",
+          "returns": "A resource builder for the Helm chart resource.",
+          "kind": "Method",
+          "signature": "addHelmChart(name: string, chartReference: string, chartVersion: string): KubernetesHelmChartResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The name of the Helm chart resource."
+            },
+            {
+              "name": "chartReference",
+              "type": "string",
+              "description": "The Helm chart reference. Can be an OCI registry URL (e.g., `oci://quay.io/jetstack/charts/cert-manager`) or a chart name from an added repository."
+            },
+            {
+              "name": "chartVersion",
+              "type": "string",
+              "description": "The chart version to install."
+            }
+          ],
+          "returnType": "KubernetesHelmChartResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        },
+        {
+          "name": "addIngress",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addIngress",
+          "qualifiedName": "addIngress",
+          "description": "Adds a Kubernetes Ingress resource to the application model, associated with the inner Kubernetes environment of the specified AKS environment. The ingress generates a `networking.k8s.io/v1 Ingress` resource in the Helm chart output at publish time.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "addIngress(name: string): KubernetesIngressResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The name of the ingress resource."
+            }
+          ],
+          "returnType": "KubernetesIngressResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        },
+        {
+          "name": "addLoadBalancer",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addLoadBalancer",
+          "qualifiedName": "addLoadBalancer",
+          "description": "Adds an Azure Application Gateway for Containers (AGC) `ApplicationLoadBalancer` to this AKS environment, bound to the supplied delegated subnet. Returns a resource builder that can be passed to `gateway.WithLoadBalancer(lb)` / `ingress.WithLoadBalancer(lb)` to route traffic through this load balancer.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "addLoadBalancer(name: string, subnet: AzureSubnetResource): AzureKubernetesLoadBalancerResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The name of the load balancer resource. Used to derive the in-cluster `ApplicationLoadBalancer` name (`alb-{name}`) referenced by gateway/ingress annotations."
+            },
+            {
+              "name": "subnet",
+              "type": "AzureSubnetResource",
+              "description": "A subnet that will be associated with the AGC ALB. The subnet is automatically delegated to `Microsoft.ServiceNetworking/trafficControllers`; this is required by AGC and is idempotent across multiple `AddLoadBalancer` calls against the same subnet."
+            }
+          ],
+          "returnType": "AzureKubernetesLoadBalancerResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        },
+        {
+          "name": "addNodePool",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addNodePool",
+          "qualifiedName": "addNodePool",
+          "description": "Adds a node pool to the AKS cluster using a configuration callback.",
+          "remarks": "The callback receives the node pool configuration with default VM size and node counts.\nConfiguration remains mutable and is validated during infrastructure generation.\nOmitting the OS SKU leaves AKS to choose its default.\nThe returned resource can be used to schedule workloads on this pool.",
+          "returns": "The resource builder for the new node pool.",
+          "kind": "Method",
+          "signature": "addNodePool(name: string, configure: (obj: AksNodePoolConfig) => Promise<void>): AksNodePoolResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The name of the node pool."
+            },
+            {
+              "name": "configure",
+              "type": "callback",
+              "isCallback": true,
+              "callbackSignature": "(obj: AksNodePoolConfig) => Promise<void>",
+              "description": "A callback to configure VM size, autoscaling, and OS SKU."
+            }
+          ],
+          "returnType": "AksNodePoolResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        },
+        {
+          "name": "addPersistentVolume",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addPersistentVolume",
+          "qualifiedName": "addPersistentVolume",
+          "description": "Adds a Kubernetes PersistentVolumeClaim resource to an AKS environment",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "addPersistentVolume(name: string): KubernetesPersistentVolumeResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The name of the persistent volume resource."
+            }
+          ],
+          "returnType": "KubernetesPersistentVolumeResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        },
+        {
+          "name": "withContainerRegistry",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withContainerRegistry",
+          "qualifiedName": "withContainerRegistry",
+          "description": "Configures the AKS environment to use a specific Azure Container Registry for image storage. When set, this replaces the auto-created default container registry.",
+          "remarks": "If not called, a default Azure Container Registry is automatically created.\nThe registry endpoint is flowed to the inner Kubernetes environment so that\nHelm deployments can push and pull images.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withContainerRegistry(registry: AzureContainerRegistryResource): AzureKubernetesEnvironmentResource",
+          "parameters": [
+            {
+              "name": "registry",
+              "type": "AzureContainerRegistryResource",
+              "description": "The Azure Container Registry resource builder."
+            }
+          ],
+          "returnType": "AzureKubernetesEnvironmentResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        },
+        {
+          "name": "withSubnet",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withSubnet",
+          "qualifiedName": "withSubnet",
+          "description": "Configures the AKS cluster to use a VNet subnet",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withSubnet(subnet: AzureSubnetResource): AzureKubernetesEnvironmentResource",
+          "parameters": [
+            {
+              "name": "subnet",
+              "type": "AzureSubnetResource",
+              "description": "The subnet to use for AKS node pools."
+            }
+          ],
+          "returnType": "AzureKubernetesEnvironmentResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        },
+        {
+          "name": "withSystemNodePool",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withSystemNodePool",
+          "qualifiedName": "withSystemNodePool",
+          "description": "Replaces the system node pool using a configuration callback.",
+          "remarks": "Each call replaces the previous system pool configuration, starting with default VM size and node counts.\nConfiguration remains mutable and is validated during infrastructure generation.\nOmitting the OS SKU leaves AKS to choose its default.",
+          "returns": "The AKS environment resource builder for chaining.",
+          "kind": "Method",
+          "signature": "withSystemNodePool(configure: (obj: AksNodePoolConfig) => Promise<void>): AzureKubernetesEnvironmentResource",
+          "parameters": [
+            {
+              "name": "configure",
+              "type": "callback",
+              "isCallback": true,
+              "callbackSignature": "(obj: AksNodePoolConfig) => Promise<void>",
+              "description": "A callback to configure VM size, autoscaling, and OS SKU."
+            }
+          ],
+          "returnType": "AzureKubernetesEnvironmentResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        },
+        {
+          "name": "withWorkloadIdentity",
+          "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withWorkloadIdentity",
+          "qualifiedName": "withWorkloadIdentity",
+          "description": "Enables or disables workload identity on the AKS environment, allowing pods to authenticate to Azure services using federated credentials.",
+          "remarks": "This ensures the AKS cluster is configured with OIDC issuer and workload identity enabled.\nWorkload identity is automatically wired when compute resources have an `AppIdentityAnnotation`,\nwhich is added by `WithAzureUserAssignedIdentity` or auto-created by `AzureResourcePreparer`.",
+          "returns": "The resource builder.",
+          "kind": "Method",
+          "signature": "withWorkloadIdentity(enabled?: boolean): AzureKubernetesEnvironmentResource",
+          "parameters": [
+            {
+              "name": "enabled",
+              "type": "boolean",
+              "isOptional": true,
+              "defaultValue": "True",
+              "description": "`true` to enable workload identity (the default); `false` to disable it."
+            }
+          ],
+          "returnType": "AzureKubernetesEnvironmentResource",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.Kubernetes/Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AzureKubernetesLoadBalancerResource",
+      "fullName": "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesLoadBalancerResource",
+      "kind": "handle",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource]]"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": []
+    }
+  ],
+  "dtoTypes": [
+    {
+      "name": "AksNodePoolConfig",
+      "fullName": "Aspire.Hosting.Azure.Kubernetes.AksNodePoolConfig",
+      "kind": "dto",
+      "description": "Configuration for an AKS node pool.",
+      "remarks": "Configuration remains mutable so extensions can compose changes before infrastructure generation.\nThe final values are validated when generating the AKS agent pool profile.\nThe node pool name and mode are fixed at construction to preserve pool identity.",
+      "fields": [
+        {
+          "name": "Name",
+          "type": "string",
+          "isOptional": true,
+          "description": "Gets the name of the node pool."
+        },
+        {
+          "name": "Mode",
+          "type": "AksNodePoolMode",
+          "isOptional": true,
+          "description": "Gets the mode of the node pool."
+        },
+        {
+          "name": "VmSize",
+          "type": "string",
+          "isOptional": true,
+          "description": "Gets or sets the VM size for nodes in the pool."
+        },
+        {
+          "name": "MinCount",
+          "type": "number",
+          "isOptional": true,
+          "description": "Gets or sets the minimum node count for autoscaling. System pools require at least 1; user pools can scale to 0."
+        },
+        {
+          "name": "MaxCount",
+          "type": "number",
+          "isOptional": true,
+          "description": "Gets or sets the maximum node count for autoscaling. Must be at least the minimum node count."
+        },
+        {
+          "name": "OsSku",
+          "type": "string",
+          "isOptional": true,
+          "description": "Gets or sets the Linux OS SKU, such as `AzureLinux` or `Ubuntu`. A `null` value leaves the SKU unspecified so AKS chooses its default."
+        }
+      ]
+    }
+  ],
+  "enumTypes": [
+    {
+      "name": "AksNodePoolMode",
+      "fullName": "Aspire.Hosting.Azure.Kubernetes.AksNodePoolMode",
+      "kind": "enum",
+      "description": "Specifies the mode of an AKS node pool.",
+      "members": [
+        "System",
+        "User"
+      ],
+      "memberDocs": [
+        {
+          "name": "System",
+          "description": "System node pool for hosting system pods."
+        },
+        {
+          "name": "User",
+          "description": "User node pool for hosting application workloads."
+        }
+      ]
+    }
+  ]
+}

@@ -228,7 +228,7 @@ var existingEnvResourceGroup = builder.AddParameter("existingEnvResourceGroup");
 var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env")
     .AsExisting(existingEnvName, existingEnvResourceGroup);
 
-builder.AddProject<Projects.ApiService>("api");
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj");
 
 builder.Build().Run();
 ```
@@ -245,7 +245,7 @@ const existingEnvResourceGroup = await builder.addParameter("existingEnvResource
 const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env");
 await acaEnv.asExisting(existingEnvName, { resourceGroup: existingEnvResourceGroup });
 
-await builder.addProject("api", "../ApiService/ApiService.csproj");
+await builder.addDotnetProject("api", "../ApiService/ApiService.csproj");
 
 await builder.build().run();
 ```
@@ -319,7 +319,7 @@ builder.AddAzureContainerAppEnvironment("aca-env")
     .WithAzureContainerRegistry(acr)
     .WithAcrPullIdentity(pullIdentity);
 
-builder.AddProject<Projects.ApiService>("api");
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj");
 
 builder.Build().Run();
 ```
@@ -346,7 +346,7 @@ await acaEnv.asExisting(existingEnvName, { resourceGroup: existingResourceGroup 
 await acaEnv.withAzureContainerRegistry(acr);
 await acaEnv.withAcrPullIdentity(pullIdentity);
 
-await builder.addProject("api", "../ApiService/ApiService.csproj");
+await builder.addDotnetProject("api", "../ApiService/ApiService.csproj");
 
 await builder.build().run();
 ```
@@ -435,7 +435,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureContainerAppEnvironment("aca-env");
 
-builder.AddProject<Projects.ApiService>("api")
+builder.AddDotnetProject("api", "../ApiService/ApiService.csproj")
     .PublishAsAzureContainerApp((infrastructure, containerApp) =>
     {
         containerApp.Template.Value!.Scale = new ContainerAppScale
@@ -544,7 +544,7 @@ builder.Build().Run();
 `WithUniqueResourceNaming` preserves digits in the resource name when computing the managed environment `name`, so `cae1` and `cae2` produce distinct names and can coexist in the same resource group.
 
 <Aside type="caution">
-  This method is marked with `[Experimental("ASPIREACANAMING002")]` and changes the managed environment `name` for the environment it's applied to. Applying it to an *already-deployed* single environment changes its name, which causes Azure to recreate the resource. Apply it only when deploying more than one environment to a single resource group, or to new deployments. For more information, see [ASPIREACANAMING002](/diagnostics/aspireacanaming002/).
+  This method changes the managed environment `name` for the environment it's applied to. Applying it to an *already-deployed* single environment changes its name, which causes Azure to recreate the resource. Apply it only when deploying more than one environment to a single resource group, or to new deployments.
 </Aside>
 
 `WithUniqueResourceNaming` acts as a fallback after any name resolver you configure explicitly through `AzureProvisioningOptions.ProvisioningBuildOptions`, and it has no effect when `WithAzdResourceNaming` is used, since `azd` naming sets the environment name explicitly.

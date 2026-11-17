@@ -59,7 +59,7 @@ builder.Services.AddHttpClient("commands-with-timeout", client =>
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithHttpCommand(
         path: "/admin/sync",
         displayName: "Sync now",
@@ -84,7 +84,7 @@ var cache = builder.AddRedis("cache");
 
 var apiCacheInvalidationKey = builder.AddParameter("ApiCacheInvalidationKey", secret: true);
 
-var api = builder.AddProject<Projects.AspireApp_Api>("api")
+var api = builder.AddDotnetProject("api", "../AspireApp.Api/AspireApp.Api.csproj")
     .WithReference(cache)
     .WaitFor(cache)
     .WithEnvironment("ApiCacheInvalidationKey", apiCacheInvalidationKey)
@@ -180,7 +180,7 @@ The following example configures an HTTP command that returns a JSON response bo
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithHttpCommand(
         path: "/admin/sync",
         displayName: "Sync now",

@@ -203,7 +203,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureContainerAppEnvironment("env");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .PublishAsAzureContainerApp((infrastructure, app) =>
     {
         app.Template.Scale.MinReplicas = 1;
@@ -221,7 +221,7 @@ const builder = await createBuilder();
 
 await builder.addAzureContainerAppEnvironment("env");
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.publishAsAzureContainerApp(async (_infrastructure, _app) => {
     // Customize the generated Container App here.
 });
@@ -245,7 +245,7 @@ var certificateName = builder.AddParameter("certificateName");
 
 builder.AddAzureContainerAppEnvironment("env");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .PublishAsAzureContainerApp((infrastructure, app) =>
     {
         app.ConfigureCustomDomain(customDomain, certificateName);
@@ -266,7 +266,7 @@ const certificateName = await builder.addParameter("certificateName");
 
 await builder.addAzureContainerAppEnvironment("env");
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.publishAsAzureContainerApp(async (_infrastructure, app) => {
     await app.configureCustomDomain(customDomain, certificateName);
 });
@@ -284,13 +284,13 @@ Services deployed to Azure Container Apps use internal DNS for service discovery
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithExternalHttpEndpoints();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
-const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj", { launchProfileName: "http" });
 await api.withExternalHttpEndpoints();
 ```
 </TabItem>
@@ -384,10 +384,10 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.AddAzureContainerAppEnvironment("aspire-env")
     .AsExpress();
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithExternalHttpEndpoints();
 
-builder.AddProject<Projects.Frontend>("frontend")
+builder.AddDotnetProject("frontend", "../Frontend/Frontend.csproj")
     .WithExternalHttpEndpoints()
     .WithReference(api);
 
@@ -403,10 +403,10 @@ const builder = await createBuilder();
 const env = await builder.addAzureContainerAppEnvironment("aspire-env");
 await env.asExpress();
 
-const api = await builder.addCSharpApp("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withExternalHttpEndpoints();
 
-const frontend = await builder.addCSharpApp("frontend", "../Frontend/Frontend.csproj");
+const frontend = await builder.addDotnetProject("frontend", "../Frontend/Frontend.csproj");
 await frontend.withExternalHttpEndpoints();
 await frontend.withReference(api);
 

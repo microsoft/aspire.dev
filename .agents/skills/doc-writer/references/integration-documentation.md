@@ -140,7 +140,7 @@ const builder = await createBuilder();
 
 const tech = await builder.addTechnology("tech");
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(tech);
 
 await builder.build().run();
@@ -154,7 +154,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var tech = builder.AddTechnology("tech");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(tech);
 
 builder.Build().Run();
@@ -179,7 +179,7 @@ func main() {
 	}
 
 	tech := builder.AddTechnology("tech")
-	api := builder.AddDotnetProject("api", "../Api/Api.csproj").
+	builder.AddDotnetProject("api", "../Api/Api.csproj").
 		WithReference(tech)
 
 	app, err := builder.Build()

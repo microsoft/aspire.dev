@@ -22,33 +22,32 @@ Aspire provides several AI hosting and client integrations that enable you to wo
 
 The following table shows the compatibility between Aspire AI hosting and client integrations:
 
-| **Hosting Integration** | **Aspire.OpenAI** | **Aspire.Azure.AI.OpenAI** | **Aspire.Azure.AI.Inference** |
+| **Hosting Integration** | **Aspire.OpenAI** | **Aspire.Azure.AI.Extensions.OpenAI** | **Aspire.Azure.AI.Projects** |
 |--|--|--|--|
-| `Aspire.Hosting.Foundry` | ⚠️ Partial — Foundry Local only (preferred) | ⚠️ Partial | ❗ Legacy |
+| `Aspire.Hosting.Foundry` | ⚠️ Partial — Foundry Local only (preferred) | ✅ Yes — deployments and projects (preferred) | ⚠️ Partial — projects only |
 | `Aspire.Hosting.Azure.CognitiveServices` | ❌ No | ✅ Yes (preferred) | ❌ No |
-| `Aspire.Hosting.OpenAI` | ✅ Yes (preferred) | ✅ Yes | ❌ No |
+| `Aspire.Hosting.OpenAI` | ✅ Yes (preferred) | ⚠️ Partial — `AddOpenAIClientFromConfiguration` only | ❌ No |
 
 <Aside type="note" title="Legend">
 
 - ✅ **Yes**: The client integration is compatible with the hosting integration.
 - ⚠️ **Partial**: The client integration has limited model, API, or hosting-mode support.
 - ❌ **No**: The client integration does not support the hosting environment.
-- ❗ **Legacy**: The client integration remains available for existing apps but is not recommended for this pairing.
 - **(preferred)**: The recommended client integration for this hosting integration.
 
 </Aside>
 
+:::note[Upgrading to Aspire 17?]
+`Aspire.Azure.AI.OpenAI` and `Aspire.Azure.AI.Inference` are discontinued. See [Migrate from Aspire.Azure.AI.Inference or Aspire.Azure.AI.OpenAI](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/#migrate-from-aspireazureaiinference-or-aspireazureaiopenai).
+:::
+
 ## Recommended pairings
 
-In general, use an Aspire client integration when one supports the resource and its authentication method. Use **Aspire.OpenAI** for OpenAI-compatible resources that provide an API key, including Foundry Local. For cloud-provisioned Microsoft Foundry resources, use the OpenAI SDK directly because they authenticate with managed identity.
+In general, use an Aspire client integration when one supports the resource and its authentication method. Use **Aspire.OpenAI** for OpenAI-compatible resources that provide an API key, including Foundry Local. For Azure OpenAI and cloud-provisioned Microsoft Foundry resources, which authenticate with Microsoft Entra ID, use **Aspire.Azure.AI.Extensions.OpenAI**.
 
 ### Microsoft Foundry
 
-For Foundry Local resources, use the **Aspire.OpenAI** client integration. It provides dependency injection and telemetry for the OpenAI-compatible endpoint and the API key that Foundry Local exposes. Cloud-provisioned Microsoft Foundry resources use managed identity, which **Aspire.OpenAI** does not support; use the OpenAI SDK directly for those resources.
-
-<Aside type="note">
-  **Aspire.Azure.AI.Inference** wraps the Azure AI Inference SDK, which Microsoft has retired in favor of the OpenAI SDK for calling Azure AI Foundry Models. Retain it only for existing applications that have not migrated. For cloud Foundry resources, see [Connect to Azure AI Foundry](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/#connect-with-the-openai-sdk). See Microsoft's [migration guide](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration) for details.
-</Aside>
+For Foundry Local resources, use the **Aspire.OpenAI** client integration. It provides dependency injection and telemetry for the OpenAI-compatible endpoint and the API key that Foundry Local exposes. For cloud-provisioned Microsoft Foundry resources, use **Aspire.Azure.AI.Extensions.OpenAI**: `AddAzureOpenAIClient` for model deployments, or `AddAzureProjectOpenAIClient` for Foundry projects. Use **Aspire.Azure.AI.Projects** (`AddAzureAIProjectClient`) for project and agent-management operations.
 
 For more information, see [Microsoft Foundry integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/).
 
@@ -66,7 +65,7 @@ var foundry = builder.AddFoundry("foundry")
 
 var chat = foundry.AddDeployment("chat", FoundryModel.Local.Phi4);
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(chat);
 ```
 </TabItem>
@@ -110,11 +109,17 @@ api := builder.AddNodeApp("api", "./api", "index.js").
 
 #### Client integration
 
-For Foundry Local, the [Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) package provides the recommended client integration. For its configuration sample, see [Connect with Aspire.OpenAI](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/#connect-with-aspireopenai-foundry-local). For cloud-provisioned Foundry resources that authenticate with managed identity, use the OpenAI SDK directly as shown on that page.
+For Foundry Local, the [Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) package provides the recommended client integration. For its configuration sample, see [Connect with Aspire.OpenAI](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/#connect-with-aspireopenai-foundry-local). For cloud-provisioned Foundry resources, the [Aspire.Azure.AI.Extensions.OpenAI](https://www.nuget.org/packages/Aspire.Azure.AI.Extensions.OpenAI) package provides the client integration:
+
+```csharp title="Program.cs"
+builder.AddAzureOpenAIClient("chat").AddChatClient();
+```
+
+For Foundry projects and the [Aspire.Azure.AI.Projects](https://www.nuget.org/packages/Aspire.Azure.AI.Projects) package, see [Connect to a Foundry project](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/#connect-to-a-foundry-project).
 
 ### Azure Cognitive Services (Azure OpenAI)
 
-For Azure OpenAI resources, use the **Aspire.Azure.AI.OpenAI** client integration for full Azure-specific features and authentication support. For more information, see [Azure OpenAI integration](/integrations/cloud/azure/azure-openai/azure-openai-get-started/).
+For Azure OpenAI resources, use the **Aspire.Azure.AI.Extensions.OpenAI** client integration for Microsoft Entra ID and API-key authentication support. For more information, see [Azure OpenAI integration](/integrations/cloud/azure/azure-openai/azure-openai-get-started/).
 
 #### Hosting integration
 
@@ -127,7 +132,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var openai = builder.AddAzureOpenAI("openai");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(openai);
 ```
 </TabItem>
@@ -161,7 +166,7 @@ api := builder.AddNodeApp("api", "./api", "index.js").
 
 #### Client integration
 
-The [Aspire.Azure.AI.OpenAI](https://www.nuget.org/packages/Aspire.Azure.AI.OpenAI) package provides the client integration. In your service project:
+The [Aspire.Azure.AI.Extensions.OpenAI](https://www.nuget.org/packages/Aspire.Azure.AI.Extensions.OpenAI) package provides the client integration. In your service project:
 
 ```csharp title="Program.cs"
 builder.AddAzureOpenAIClient("openai");
@@ -182,7 +187,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var openai = builder.AddOpenAI("openai");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(openai);
 ```
 </TabItem>
@@ -276,29 +281,33 @@ Endpoint={Endpoint};Key={Key};Deployment={Deployment};Model={Model}
 
 Uses either `Deployment` or `Model` (in that order). `Deployment` is set by `Aspire.Hosting.Azure.CognitiveServices` while `Model` is set by `Aspire.Hosting.OpenAI`.
 
-#### Aspire.Azure.AI.OpenAI
+#### Aspire.Azure.AI.Extensions.OpenAI
 
-Expects connection strings in the format:
-
-```
-Endpoint={Endpoint};Key={Key};Deployment={Deployment};Model={Model}
-```
-
-Uses either `Deployment` or `Model` (in that order). `Deployment` is set by `Aspire.Hosting.Azure.CognitiveServices` while `Model` is set by `Aspire.Hosting.OpenAI`.
-
-This integration is a superset of `Aspire.OpenAI` and supports `TokenCredential` and Azure-specific features.
-
-#### Aspire.Azure.AI.Inference
-
-Expects connection strings in the format:
+`AddAzureOpenAIClient` expects an HTTPS Azure OpenAI or Foundry account endpoint:
 
 ```
-Endpoint={Endpoint};EndpointAIInference={EndpointAIInference};Key={Key};Deployment={DeploymentName};Model={ModelName}
+Endpoint={Endpoint};Key={Key};Deployment={Deployment}
 ```
 
-Uses either `Deployment` or `Model` (in that order).
+`Key` is optional; without it, the client uses Microsoft Entra ID. A bare endpoint URI is also accepted. Chat and embedding helpers use either `Deployment` or `Model`, but not both.
 
-Uses `EndpointAIInference` if available, otherwise `Endpoint`.
+`AddAzureProjectOpenAIClient` expects a Foundry project endpoint and rejects `Key`:
+
+```
+Endpoint=https://{account}.services.ai.azure.com/api/projects/{project}
+```
+
+`AddOpenAIClientFromConfiguration` selects an Azure account, Foundry project, or OpenAI-compatible registration from the endpoint. Endpoints on Azure hosts are treated as Azure; use `IsAzure=true` or `IsAzure=false` to override detection.
+
+#### Aspire.Azure.AI.Projects
+
+Expects a Foundry project endpoint, either as a bare URI or in the format:
+
+```
+Endpoint=https://{account}.services.ai.azure.com/api/projects/{project}
+```
+
+`Key` isn't supported; the client uses Microsoft Entra ID.
 
 ## See also
 

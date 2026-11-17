@@ -149,7 +149,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cluster = builder.AddK3sCluster("k8s");
 
-builder.AddProject<Projects.MyOperator>("operator")
+builder.AddDotnetProject("operator", "../MyOperator/MyOperator.csproj")
     .WaitFor(cluster)
     .WithReference(cluster);   // injects KUBECONFIG automatically
 
@@ -167,7 +167,7 @@ const builder = await createBuilder();
 const cluster = await builder.addK3sCluster('k8s');
 
 await builder
-    .addProject('operator', '../MyOperator/MyOperator.csproj')
+    .addDotnetProject('operator', '../MyOperator/MyOperator.csproj')
     .withReference(cluster);   // injects KUBECONFIG automatically
 
 await builder.build().run();
@@ -345,7 +345,7 @@ var podinfo = cluster.AddHelmRelease(
     .WithHelmValuesFile("./deploy/podinfo-values.yaml");
 
 // Wait for the chart install to complete before starting the operator.
-builder.AddProject<Projects.MyOperator>("operator")
+builder.AddDotnetProject("operator", "../MyOperator/MyOperator.csproj")
     .WaitForCompletion(podinfo)
     .WithReference(cluster);
 ```
@@ -361,7 +361,7 @@ const podinfo = await cluster.addHelmRelease('podinfo', 'podinfo', {
 });
 
 // Wait for the chart install to complete before starting the operator.
-const operator = await builder.addProject('operator', '../MyOperator/MyOperator.csproj');
+const operator = await builder.addDotnetProject('operator', '../MyOperator/MyOperator.csproj');
 await operator.waitForCompletion(podinfo);
 await operator.withReference(cluster);
 ```
@@ -460,7 +460,7 @@ var podinfoWeb = cluster
     .WaitForCompletion(podinfo);
 
 // Host processes receive http://localhost:{port}
-builder.AddProject<Projects.MyApi>("api")
+builder.AddDotnetProject("api", "../MyApi/MyApi.csproj")
     .WaitFor(podinfoWeb)
     .WithReference(podinfoWeb);
 
@@ -481,7 +481,7 @@ const podinfoWeb = await cluster
 
 // Host processes receive http://localhost:{port}
 await builder
-    .addProject('api', '../MyApi/MyApi.csproj')
+    .addDotnetProject('api', '../MyApi/MyApi.csproj')
     .withReference(podinfoWeb);
 
 // DCP-network containers receive http://host.docker.internal:{port}
@@ -524,7 +524,7 @@ Both `K3sClusterResource` and `K3sServiceEndpointResource` implement `IResourceW
 
 ```csharp title="AppHost.cs"
 // Projects and executables receive KUBECONFIG pointing to the host-accessible variant
-builder.AddProject<Projects.MyOperator>("operator")
+builder.AddDotnetProject("operator", "../MyOperator/MyOperator.csproj")
     .WithReference(cluster);   // KUBECONFIG=…/.k3s/k8s/local/kubeconfig.yaml
 
 // Containers receive a bind-mounted kubeconfig at /tmp/k3s-kubeconfig.yaml
@@ -545,10 +545,10 @@ using var client = new Kubernetes(config);
 
 ```typescript title="apphost.mts"
 // Standard withReference — injects KUBECONFIG or services__name__url
-const operator = await builder.addProject('operator', '../MyOperator/MyOperator.csproj');
+const operator = await builder.addDotnetProject('operator', '../MyOperator/MyOperator.csproj');
 await operator.withReference(cluster);
 
-const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
+const api = await builder.addDotnetProject('api', '../MyApi/MyApi.csproj');
 await api.withReference(podinfoWeb);
 ```
 
