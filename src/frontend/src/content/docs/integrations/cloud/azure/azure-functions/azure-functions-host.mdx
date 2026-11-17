@@ -350,6 +350,8 @@ Use `AddAzureFunctionsApp` (or `addAzureFunctionsApp`) to model a TypeScript or 
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
 #pragma warning disable ASPIREAZUREFUNCTIONS001
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -388,15 +390,48 @@ await functions.withReference(blob);
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+package main
+
+import (
+    "log"
+
+    "apphost/modules/aspire"
+)
+
+func main() {
+    builder, err := aspire.CreateBuilder()
+    if err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+
+    storage := builder.AddAzureStorage("storage").RunAsEmulator()
+    blob := storage.AddBlobs("blob")
+    builder.AddAzureFunctionsApp("functions", "../functions", aspire.AzureFunctionsLanguageTypeScript).
+        WithReference(blob)
+
+    app, err := builder.Build()
+    if err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+    if err := app.Run(); err != nil {
+        log.Fatal(aspire.FormatError(err))
+    }
+}
+```
+
+</TabItem>
 </Tabs>
 
 <Steps>
 
 1. The path to the Functions app directory is relative to the AppHost project directory.
 
-1. `AzureFunctionsLanguage` has two values: `TypeScript` and `JavaScript`. Both run on the Node language worker.
+1. `AzureFunctionsLanguage` has two values: `TypeScript` and `JavaScript`. In Go, use `AzureFunctionsLanguageTypeScript` or `AzureFunctionsLanguageJavaScript`. Both run on the Node language worker.
 
-1. TypeScript apps are launched through `npm run start -- --port <port>`, so the standard Azure Functions Core Tools-generated `prestart` script can build the app before the host starts. The `start` script should resolve Azure Functions Core Tools from the app's local npm dependencies, for example by depending on the `azure-functions-core-tools` package in `devDependencies`. JavaScript apps are launched directly with `func host start --port <port>`.
+1. TypeScript apps are launched through `npm run start -- --port <port>`, so the standard Azure Functions Core Tools-generated `prestart` script can build the app before the host starts. The `start` script should resolve Azure Functions Core Tools from the app's local npm dependencies, for example by depending on the `azure-functions-core-tools` package in `devDependencies`. JavaScript apps are launched directly with `func host start --port <port>` and require `func` to be available on `PATH`.
 
 1. As with .NET Functions projects, Aspire provisions an implicit Azure Storage account for host storage by default. Call `WithHostStorage` (or `withHostStorage`) to use a specific storage account instead — see [Add Azure Functions resource with host storage](#add-azure-functions-resource-with-host-storage).
 
@@ -418,9 +453,11 @@ A directory-based Functions app's `package.json` should include scripts similar 
 }
 ```
 
-<Aside type="note">
-  VS Code debugger support for directory-based Functions apps is tracked separately from this release and is not yet available.
-</Aside>
+### Debug TypeScript and JavaScript Functions apps
+
+Use the Aspire extension for VS Code to start your AppHost with debugging. Set breakpoints in your JavaScript or TypeScript source and invoke the function to stop at those breakpoints. Aspire attaches the VS Code JavaScript debugger to the Functions Node worker.
+
+For TypeScript, enable source maps and build your app before invoking the function. By default, the debugger looks for compiled JavaScript under `dist/**/*.js`; configure `outFiles` in your VS Code debugger configuration if your build uses another directory.
 
 ## Durable Task Scheduler integration
 
@@ -547,6 +584,8 @@ When a directory-based Functions app doesn't already contain a `Dockerfile`, `as
 If the Functions app directory already contains a `Dockerfile`, Aspire uses it as-is instead of generating one — use this to select a different Azure Functions Node image, pin a Node version, or add project-specific build steps.
 
 When deployed to Azure Container Apps, directory-based Functions resources are published with the container app `kind` set to `functionapp` and the container's HTTP port set to `80`, matching the shape of the Azure Functions Node host image.
+
+If your subscription restricts storage network access, configure the Container Apps environment and storage with private networking. Some policies also require disabling anonymous blob access. See the [Azure Virtual Network integration](/integrations/cloud/azure/azure-virtual-network/#add-private-endpoints) and [customizing Azure resources](/integrations/cloud/azure/customize-resources/).
 
 ## Connection properties
 
