@@ -113,7 +113,7 @@ Resources also show friendly type labels such as **Redis** or **PostgreSQL Serve
 
 ### All resources
 
-Open **All resources** for a health summary of your whole app: resource states, live request activity, error rate, p95 latency, the slowest endpoints, and the busiest resources. Recent errors and failed traces are one click away.
+Open **All resources** for a health summary of your whole app: resource states, live request activity, error rate, p95 latency, the slowest endpoints, and the busiest resources. Select **View all** to open recent errors or failed traces.
 
 <ThemeImage
   dark={dashboardOverview}
@@ -528,8 +528,8 @@ C# AppHosts that use the `Aspire.AppHost.Sdk` MSBuild SDK now get warning `ASPIR
 
 Two new client integrations replace `Aspire.Azure.AI.OpenAI` and `Aspire.Azure.AI.Inference`, which are discontinued:
 
-- **`Aspire.Azure.AI.Extensions.OpenAI`** registers an `OpenAIClient` from the standard OpenAI SDK. Use `AddAzureOpenAIClient` for Azure OpenAI and Foundry model deployments, or `AddAzureProjectOpenAIClient` to call a Foundry project, including its agents.
-- **`Aspire.Azure.AI.Projects`** registers an `AIProjectClient` with `AddAzureAIProjectClient` for managing a Foundry project.
+- `Aspire.Azure.AI.Extensions.OpenAI` registers an `OpenAIClient` from the standard OpenAI SDK. Use `AddAzureOpenAIClient` for Azure OpenAI and Foundry model deployments, or `AddAzureProjectOpenAIClient` to call a Foundry project, including its agents.
+- `Aspire.Azure.AI.Projects` registers an `AIProjectClient` with `AddAzureAIProjectClient` for managing a Foundry project.
 
 ```csharp title="Program.cs"
 builder.AddAzureOpenAIClient(connectionName: "chat");
@@ -585,7 +585,7 @@ Azure Front Door can connect to Aspire-provisioned Azure Container Apps and App 
 
 - **External account binding**: Use ACME providers that require external account binding (EAB) by calling `WithExternalAccountBinding` after `WithAcmeServer`. The HMAC key must be a secret parameter, and it isn't written to published artifacts.
 - **File-based environment variables**: Generated manifests support Kubernetes `fileKeyRef` environment variable sources.
-- **Persistent volume claims**: Customize the generated `PersistentVolumeClaim` with `WithConfiguration`, or claim an existing volume with `WithPersistentVolumeName` and `WithoutStorageClass`. These APIs remain experimental (`ASPIRECOMPUTE002`). See [Persistent volumes](/deployment/kubernetes/persistent-volumes/).
+- **Persistent volume claims**: Customize the generated `PersistentVolumeClaim` with `WithConfiguration`, or claim an existing volume with `WithPersistentVolumeName` and `WithoutStorageClass`. These APIs remain experimental and report `ASPIRECOMPUTE002`. See [Persistent volumes](/deployment/kubernetes/persistent-volumes/).
 - **Container registries in Helm charts**: Published charts honor the container registry configured for each image. See [Configure a container registry](/deployment/kubernetes/clusters/#configure-a-container-registry).
 - **Structured manifest fields**: Polyglot AppHosts can pass structured values to `withField` when customizing Kubernetes manifests.
 
@@ -844,9 +844,9 @@ builder.Services.Configure<OtlpExporterOptions>(options =>
 
 Parameters are required by default, and in Aspire 17.0 an explicit empty string no longer satisfies a required value. This applies to ordinary, secret, and connection-string parameters.
 
-- **Supply a nonempty value.** During `aspire run`, a missing or empty required value puts the parameter in the `ValueMissing` state, and the dashboard prompts for it. Without dashboard interaction, initialization fails with a `MissingParameterValueException` that names the parameter.
-- **Mark genuinely optional parameters.** If an empty or absent value is valid, call `AsOptional()` (`asOptional()` in TypeScript). An explicitly configured empty optional value stays `""`, and an unset optional value resolves to `null` and is omitted from environment variables. Don't make required credentials optional just to avoid the check.
-- **Plan for publishing.** The manifest publisher doesn't support optional parameters, so supply values for required deployment parameters instead.
+- Supply a nonempty value. During `aspire run`, a missing or empty required value puts the parameter in the `ValueMissing` state, and the dashboard prompts for it. Without dashboard interaction, initialization fails with a `MissingParameterValueException` that names the parameter.
+- Mark a parameter optional only when an empty or absent value is valid. Call `AsOptional()` in C# and Go, or `asOptional()` in TypeScript. An explicitly configured empty optional value stays `""`, and an unset optional value resolves to `null` and is omitted from environment variables. Don't make required credentials optional just to avoid the check.
+- The manifest publisher doesn't support optional parameters, so supply values for required deployment parameters instead.
 
 <LearnMore>
   See [Optional parameters](/fundamentals/external-parameters/#optional-parameters) for required and optional parameter behavior.
