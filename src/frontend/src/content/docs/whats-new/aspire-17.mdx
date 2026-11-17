@@ -678,12 +678,15 @@ MongoDB moves to a new major version. Review the MongoDB 9.0 release notes befor
 | Polyglot `addNodePool` takes a callback                                            | Configure the node pool in a callback instead of an options object.                                              |
 | SQL Server REPL no longer discovers older `sqlcmd` paths                           | Select `SqlServerReplCommand.Version17` for images with only the older client.                                   |
 | OpenTelemetry 1.18 halves the default maximum OTLP request size to 64 MiB          | Set `OtlpExporterOptions.MaxRequestSizeBytes` if your app exports larger batches.                                |
+| Required parameters reject empty values                                            | Supply a nonempty value, or mark the parameter optional with `AsOptional` when an empty value is valid.          |
 
 ### `ResourceUrlAnnotation.DisplayOrder` is now a property
 
 `DisplayOrder` changed from an obsolete public field to a read/write property. Its behavior is unchanged: higher values display higher in the dashboard URL list.
 
-Rebuild assemblies that access the field. Typical C# reads and assignments need no changes.
+Rebuild assemblies that access the field: binaries compiled against an earlier version throw `MissingFieldException` until they're rebuilt. Hosting integration authors who set `DisplayOrder`, for example in a `WithUrlForEndpoint` callback, need to ship a version built against Aspire 17.0.
+
+Typical C# reads, assignments, and object initializers need no changes, and you can remove `CS0618` suppressions that existed only for `DisplayOrder`. Passing `DisplayOrder` by `ref` or `out` no longer compiles; use a local variable and assign it to the property. Reflection code must use `Type.GetProperty` instead of `Type.GetField`.
 
 ### Legacy RabbitMQ and MongoDB client packages removed
 
@@ -732,7 +735,7 @@ builder.AddAzureCosmosClient(
     });
 ```
 
-The callback runs when the `CosmosClient` is first resolved from dependency injection, not during service registration. An exception in the callback therefore occurs when the client is resolved. Rebuild applications compiled against an earlier version: calls to these methods from older binaries throw `MissingMethodException`, even when they don't pass a callback.
+The callback runs when the `CosmosClient` is first resolved from dependency injection, not during service registration. An exception in the callback therefore occurs when the client is resolved. Similarly, `AddKeyedContainer` on a database builder no longer creates the `CosmosClient` during registration, so missing connection information is reported when the container is first resolved. Rebuild applications compiled against an earlier version: calls to these methods from older binaries throw `MissingMethodException`, even when they don't pass a callback.
 
 ### Docker Swarm `MaxFailureRatio` now requires a number
 
@@ -836,3 +839,15 @@ If your app exports very large telemetry batches, restore the previous limit in 
 builder.Services.Configure<OtlpExporterOptions>(options =>
     options.MaxRequestSizeBytes = 128 * 1024 * 1024);
 ```
+
+### Required parameters reject empty values
+
+Parameters are required by default, and in Aspire 17.0 an explicit empty string no longer satisfies a required value. This applies to ordinary, secret, and connection-string parameters.
+
+- **Supply a nonempty value.** During `aspire run`, a missing or empty required value puts the parameter in the `ValueMissing` state, and the dashboard prompts for it. Without dashboard interaction, initialization fails with a `MissingParameterValueException` that names the parameter.
+- **Mark genuinely optional parameters.** If an empty or absent value is valid, call `AsOptional()` (`asOptional()` in TypeScript). An explicitly configured empty optional value stays `""`, and an unset optional value resolves to `null` and is omitted from environment variables. Don't make required credentials optional just to avoid the check.
+- **Plan for publishing.** The manifest publisher doesn't support optional parameters, so supply values for required deployment parameters instead.
+
+<LearnMore>
+  See [Optional parameters](/fundamentals/external-parameters/#optional-parameters) for required and optional parameter behavior.
+</LearnMore>
