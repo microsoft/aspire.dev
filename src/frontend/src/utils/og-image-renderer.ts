@@ -31,6 +31,7 @@ import type { TopicMetadata } from './topic-resolver.ts';
  * per-card elements intentionally have no `boxShadow`: satori emits shadows
  * as SVG blur filters, which made up most of the render time while being
  * imperceptible against the dark gradient behind those elements.
+ * See `stripRedundantOverflowMasks` for the other rasterization shortcut.
  *
  * Paths are resolved against `process.cwd()` (which Astro sets to the
  * frontend project root at build time) rather than `import.meta.url` so
@@ -62,7 +63,7 @@ type SatoriFont = Parameters<typeof satori>[1]['fonts'][number];
 
 interface RawImage {
   data: Buffer;
-  info: { width: number; height: number; channels: 4 };
+  info: { width: number; height: number; channels: 3 };
 }
 
 export interface RenderOgImageInput {
@@ -83,10 +84,23 @@ export async function renderOgImagePng(input: RenderOgImageInput): Promise<Buffe
     ),
   ]);
 
+  // Cards are fully opaque, so emit RGB rather than RGBA (less to encode, smaller files).
   return sharp(baseLayer.data, { raw: baseLayer.info })
-    .composite([{ input: Buffer.from(overlaySvg) }])
+    .composite([{ input: Buffer.from(stripRedundantOverflowMasks(overlaySvg)) }])
+    .removeAlpha()
     .png({ compressionLevel: 6 })
     .toBuffer();
+}
+
+/**
+ * Satori clips `overflow: hidden` elements with both a rectangular `clip-path`
+ * and an equivalent rectangular `mask`. librsvg renders every mask to an
+ * offscreen surface, which more than doubles the overlay's rasterization time,
+ * so drop the mask reference wherever the same element already has a clip-path.
+ * If satori's output ever changes shape this simply stops matching.
+ */
+function stripRedundantOverflowMasks(svg: string): string {
+  return svg.replace(/ mask="url\(#satori_om-[^)]+\)"(?=[^>]* clip-path=")/g, '');
 }
 
 async function renderSvg(tree: ReturnType<typeof rootNode>): Promise<string> {
@@ -109,10 +123,10 @@ function loadBaseLayer(): Promise<RawImage> {
     baseLayerPromise = (async () => {
       const svg = await renderSvg(buildBaseTree(await loadBackgroundDataUri()));
       const { data, info } = await sharp(Buffer.from(svg))
-        .ensureAlpha()
+        .removeAlpha()
         .raw()
         .toBuffer({ resolveWithObject: true });
-      return { data, info: { width: info.width, height: info.height, channels: 4 } };
+      return { data, info: { width: info.width, height: info.height, channels: 3 } };
     })();
   }
   return baseLayerPromise;
