@@ -1,6 +1,6 @@
 ---
 title: "What's new in Aspire 17.0"
-seoTitle: 'Aspire 17.0: New features, updates, and upgrade guidance'
+seoTitle: 'Aspire 17.0: New dashboard, Go AppHosts, custom config sources'
 description: 'Aspire 17.0 brings a redesigned dashboard, generally available Go AppHosts, a tray companion, stable Kubernetes deployment, and dozens of graduated APIs.'
 resourceImage:
   light: '~/assets/whats-new/aspire-17/dashboard-overview-light.png'
@@ -11,11 +11,26 @@ sidebar:
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2
+publishDate: 2026-11-17
 ---
 
 import { Icon, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
+import ReleaseCommunity from '@components/ReleaseCommunity.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import testShopDashboard from '@assets/whats-new/aspire-17/testshop-dashboard.png';
+import testShopDashboardLight from '@assets/whats-new/aspire-17/testshop-dashboard-light.png';
+import dashboardHome from '@assets/whats-new/aspire-17/dashboard-home.png';
+import dashboardHomeLight from '@assets/whats-new/aspire-17/dashboard-home-light.png';
+import dashboardOverview from '@assets/whats-new/aspire-17/dashboard-overview.png';
+import dashboardOverviewLight from '@assets/whats-new/aspire-17/dashboard-overview-light.png';
+import dashboardMetrics from '@assets/whats-new/aspire-17/dashboard-metrics.png';
+import dashboardMetricsLight from '@assets/whats-new/aspire-17/dashboard-metrics-light.png';
+import testShopResource from '@assets/whats-new/aspire-17/testshop-resource.png';
+import testShopResourceLight from '@assets/whats-new/aspire-17/testshop-resource-light.png';
+import testShopTraces from '@assets/whats-new/aspire-17/testshop-traces.png';
+import testShopTracesLight from '@assets/whats-new/aspire-17/testshop-traces-light.png';
 
 Aspire 17.0 puts your resources at the center of a **redesigned dashboard**, with a resource table home page, a dedicated **Terminals** page, and graph export to Mermaid. **Go AppHosts are generally available**, a **tray companion** keeps running AppHosts within reach, and the **Kubernetes deployment packages are stable**. Many APIs that previously required an experimental-warning suppression are now stable, too.
 
@@ -46,7 +61,7 @@ Review the [Breaking changes](#breaking-changes) before upgrading.
 
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
 
-Once Aspire 17.0 is available on the stable channel, use the [`aspire update` command](/reference/cli/commands/aspire-update/):
+To upgrade to Aspire 17.0, use the [`aspire update` command](/reference/cli/commands/aspire-update/):
 
 <Steps>
 
@@ -68,20 +83,6 @@ Once Aspire 17.0 is available on the stable channel, use the [`aspire update` co
   For more details on installing the Aspire CLI, see [Install the
   CLI](/get-started/install-cli/).
 </LearnMore>
-
-import ThemeImage from '@components/ThemeImage.astro';
-import testShopDashboard from '@assets/whats-new/aspire-17/testshop-dashboard.png';
-import testShopDashboardLight from '@assets/whats-new/aspire-17/testshop-dashboard-light.png';
-import dashboardHome from '@assets/whats-new/aspire-17/dashboard-home.png';
-import dashboardHomeLight from '@assets/whats-new/aspire-17/dashboard-home-light.png';
-import dashboardOverview from '@assets/whats-new/aspire-17/dashboard-overview.png';
-import dashboardOverviewLight from '@assets/whats-new/aspire-17/dashboard-overview-light.png';
-import dashboardMetrics from '@assets/whats-new/aspire-17/dashboard-metrics.png';
-import dashboardMetricsLight from '@assets/whats-new/aspire-17/dashboard-metrics-light.png';
-import testShopResource from '@assets/whats-new/aspire-17/testshop-resource.png';
-import testShopResourceLight from '@assets/whats-new/aspire-17/testshop-resource-light.png';
-import testShopTraces from '@assets/whats-new/aspire-17/testshop-traces.png';
-import testShopTracesLight from '@assets/whats-new/aspire-17/testshop-traces-light.png';
 
 ## 📊 Dashboard updates
 
@@ -192,7 +193,7 @@ The `aspire resources` alias accepts the same option. Mermaid output can't be co
 
 - **Telemetry setup guidance**: Empty **Structured logs**, **Traces**, and **Metrics** pages offer an **Add telemetry** dialog with your dashboard's OTLP endpoints and container guidance.
 - **SQL highlighting**: The text visualizer highlights SQL syntax.
-- **Aspire Outage**: Press <Kbd windows="O" /> on the resource graph to play an arcade game where your resources are the enemies. In the optional hard core mode, destroying an enemy really stops its resource.
+- **Aspire Outage**: Press <Kbd windows="O" /> on the resource graph to play an arcade game where your resources are the enemies. In the optional hardcore mode, destroying an enemy really stops its resource.
 
 ## 🛠️ CLI updates
 
@@ -347,7 +348,7 @@ Stop it with `aspire tray stop`. The tray companion requires a native Aspire CLI
 
 ### More CLI improvements
 
-- **WSLc container runtime**: Set `ASPIRE_CONTAINER_RUNTIME=wslc` on Windows to run containers with WSLc 3.0.4.0 or later. Publishing has limited support, and Docker Compose deployment isn't supported. `aspire doctor` checks only the configured runtime and reports features WSLc doesn't support.
+- **WSLc container runtime**: Set `ASPIRE_CONTAINER_RUNTIME=wslc` on Windows to run containers with WSLc 3.0.4.0 or later. Publishing and deployment have preliminary support, limited by what WSLc supports, and Docker Compose deployment isn't supported. `aspire doctor` checks only the configured runtime and reports features WSLc doesn't support.
 - **Container tunnel base image**: Use a mirrored or customized tunnel image with `aspire config set containerTunnel.baseImage <image>`.
 - **Stricter `aspire destroy`**: The command rejects unknown arguments instead of ignoring them.
 - **Clearer publish guidance**: `dotnet run --operation publish` fails fast and directs you to `aspire publish`.
@@ -401,7 +402,7 @@ Aspire 17.0 raises its minimum supported .NET version to **.NET 10**. Review you
 
 The `Aspire.Hosting.Dotnet` integration now follows stable package versioning for .NET projects added by path. The older `AddProject` APIs are deprecated, not removed. Use the path-based project model when updating your AppHost.
 
-`Aspire.AppHost.Sdk` is also obsolete. C# AppHosts that still use it report warning [`ASPIRE012`](/diagnostics/aspire012/) but keep working, so you can migrate in stages. New C# AppHosts use `Microsoft.NET.Sdk` with explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` package references, and `aspire update` doesn't remove the SDK for you. For details, see [microsoft/aspire#20867](https://github.com/microsoft/aspire/pull/20867).
+`Aspire.AppHost.Sdk` is also obsolete; see [`Aspire.AppHost.Sdk` is deprecated](#aspireapphostsdk-is-deprecated).
 
 <LearnMore>
   See [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/)
@@ -535,7 +536,7 @@ The following APIs are stable starting with Aspire 17.0 and no longer report the
 
 ### `Aspire.AppHost.Sdk` is deprecated
 
-C# AppHosts that use the `Aspire.AppHost.Sdk` MSBuild SDK now get warning `ASPIRE012`. The SDK remains available for staged migration. To migrate, switch the project's `Sdk` attribute to `Microsoft.NET.Sdk`, add `PackageReference` items for `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet`, and replace resource `ProjectReference` items with `AddDotnetProject` calls. To silence the warning temporarily, set `SuppressAspireAppHostSdkObsoleteWarning` to `true`. C# AppHosts also require the Aspire CLI bundle; see [ASPIRE013](/diagnostics/aspire013/).
+C# AppHosts that use the `Aspire.AppHost.Sdk` MSBuild SDK now get warning [`ASPIRE012`](/diagnostics/aspire012/) but keep working, so you can migrate in stages. New C# AppHosts use `Microsoft.NET.Sdk` with explicit package references, and `aspire update` doesn't remove the SDK for you. To migrate, switch the project's `Sdk` attribute to `Microsoft.NET.Sdk`, add `PackageReference` items for `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet`, and replace resource `ProjectReference` items with `AddDotnetProject` calls. To silence the warning temporarily, set `SuppressAspireAppHostSdkObsoleteWarning` to `true`. C# AppHosts also require the Aspire CLI bundle; see [ASPIRE013](/diagnostics/aspire013/). For details, see [microsoft/aspire#20867](https://github.com/microsoft/aspire/pull/20867).
 
 ## ✨ New integrations
 
@@ -673,6 +674,18 @@ MongoDB moves to a new major version. Review the MongoDB 9.0 release notes befor
   catalog and hosting integration links.
 </LearnMore>
 
+## 🐛 Bug fixes
+
+For the complete list of fixes, see the [Aspire 17.0 release notes](https://github.com/microsoft/aspire/releases/tag/v17.0.0).
+
+## 🙏 Community
+
+<span id="community-contributions"></span>
+
+Aspire is built in the open, and this release wouldn't be what it is without you. A huge thank you to everyone who helped make Aspire 17.0 possible.
+
+<ReleaseCommunity version="17.0" />
+
 ## ⚠️ Breaking changes
 
 <span id="breaking-changes"></span>
@@ -685,7 +698,7 @@ MongoDB moves to a new major version. Review the MongoDB 9.0 release notes befor
 | Azure Cosmos DB `configureClientOptions` now receives `IServiceProvider`           | Add the service-provider parameter to callbacks and rebuild binaries that call these methods.                    |
 | Docker Swarm `UpdateConfig.MaxFailureRatio` changed from `string?` to `double?`    | Assign a number such as `0.3` instead of a string such as `"0.3"`.                                               |
 | `AddCSharpApp` is obsolete and reports `CS0618` instead of `ASPIRECSHARPAPPS001`   | Add `Aspire.Hosting.Dotnet` and replace calls with `AddDotnetProject`.                                           |
-| `Aspire.AppHost.Sdk` is obsolete (`ASPIRE012`)                                     | Switch to `Microsoft.NET.Sdk` with explicit Aspire package references.                                           |
+| `Aspire.AppHost.Sdk` is obsolete (`ASPIRE012`)                                     | Follow the [migration steps](#aspireapphostsdk-is-deprecated).                                                   |
 | `TerminalOptions.ShowTerminalHost` removed                                         | Remove the assignment; terminal hosts are always hidden.                                                         |
 | Polyglot feature keys renamed                                                      | Use `experimentalPolyglotJava`, `experimentalPolyglotPython`, or `experimentalPolyglotRust`; Go needs no flag.   |
 | Let's Encrypt cert-manager shortcuts removed                                       | Call `WithAcmeServer` with the ACME directory URL.                                                               |
@@ -781,10 +794,6 @@ builder.AddDotnetProject("api", "./api/api.cs");
   for migration guidance. For the obsoletion details, see
   [microsoft/aspire#20825](https://github.com/microsoft/aspire/pull/20825).
 </LearnMore>
-
-### `Aspire.AppHost.Sdk` is obsolete
-
-Projects that use `Aspire.AppHost.Sdk` get warning `ASPIRE012`. Follow the migration steps in [`Aspire.AppHost.Sdk` is deprecated](#aspireapphostsdk-is-deprecated), or temporarily set `SuppressAspireAppHostSdkObsoleteWarning` to `true`.
 
 ### `TerminalOptions.ShowTerminalHost` removed
 
