@@ -70,10 +70,10 @@ var postgres = builder.AddPostgres("postgres")
 var cache = builder.AddRedis("basketcache");
 
 var catalog = builder
-    .AddProject<Projects.CatalogService>("catalogservice")
+    .AddDotnetProject("catalogservice", "./catalog/CatalogService.csproj")
     .WithReference(postgres);
 
-builder.AddProject<Projects.Frontend>("frontend")
+builder.AddDotnetProject("frontend", "./frontend/Frontend.csproj")
     .WithReference(catalog)
     .WithReference(cache);
 
@@ -3417,7 +3417,10 @@ const localizedPrinciples = principles.map((principle) => ({
   }
 
   @media (prefers-reduced-motion: reduce) {
-    :global(html[data-home-js='true']) [data-home-reveal] {
+    /* List the major and visible states too: their rules are more specific than the plain selector. */
+    :global(html[data-home-js='true']) [data-home-reveal],
+    :global(html[data-home-js='true']) [data-home-reveal][data-home-reveal-distance='major'],
+    :global(html[data-home-js='true']) [data-home-reveal].home-visible {
       opacity: 1;
       transform: none;
       transition: none;

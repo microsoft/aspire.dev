@@ -99,7 +99,7 @@ const builder = await createBuilder();
 const frontend = await builder.addViteApp("frontend", "../frontend");
 await frontend.withContainerFilesSource("/app/dist");
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.publishWithContainerFiles(frontend, "./wwwroot");
 
 await builder.build().run();
@@ -351,7 +351,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var frontend = builder.AddViteApp("frontend", "../frontend");
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .PublishWithContainerFiles(frontend, "./wwwroot");
 
 builder.Build().Run();
@@ -365,7 +365,7 @@ const builder = await createBuilder();
 
 const frontend = await builder.addViteApp("frontend", "../frontend");
 
-const api = await builder.addProject("api", "./Api/Api.csproj")
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj")
     .publishWithContainerFiles(frontend, "./wwwroot");
 
 await builder.build().run();
@@ -414,7 +414,7 @@ await builder.build().run();
 
 This produces a self-contained Nginx container that serves the frontend application, with no external volume mounts or runtime file copying needed.
 
-`PublishWithContainerFiles` only applies in publish mode — it has no effect during `aspire run`. The destination resource must implement `IContainerFilesDestinationResource` (such as `ProjectResource`), and the source resource must implement `IResourceWithContainerFiles`.
+`PublishWithContainerFiles` only applies in publish mode — it has no effect during `aspire run`. The destination resource must implement `IContainerFilesDestinationResource` (such as a .NET project added with `AddDotnetProject`), and the source resource must implement `IResourceWithContainerFiles`.
 
 ### Customize the source path
 
@@ -426,7 +426,7 @@ By default, the source resource exports files from its container based on its co
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithContainerFilesSource("/app/dist");
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .PublishWithContainerFiles(frontend, "./wwwroot");
 ```
 </TabItem>

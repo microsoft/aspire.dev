@@ -19,24 +19,41 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This page describes how consuming apps connect to an Azure Web PubSub resource that's already modeled in your AppHost. For the AppHost API surface — adding a Web PubSub resource, hubs, event handlers, role assignments, and more — see [Azure Web PubSub Hosting integration](../azure-web-pubsub-host/).
+This page describes how consuming apps connect to an Azure Web PubSub resource that's already modeled in your AppHost. For the AppHost API surface — adding a Web PubSub resource, hubs, event handlers, the local emulator, role assignments, and more — see [Azure Web PubSub Hosting integration](../azure-web-pubsub-host/).
 
 When you reference an Azure Web PubSub resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Azure Web PubSub client integration for automatic dependency injection, health checks, and telemetry.
 
 ## Connection properties
 
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `web-pubsub` becomes `WEB_PUBSUB_URI`.
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `web-pubsub` becomes `WEB_PUBSUB_URI`, and the `HubName` property of a hub called `chat` becomes `CHAT_HUBNAME`.
+
+### Web PubSub service
 
 The Azure Web PubSub resource exposes the following connection properties:
 
 | Property Name | Description |
 | ------------- | ----------- |
-| `Uri`         | The HTTPS service endpoint, with the format `https://{resource-name}.webpubsub.azure.com` |
+| `Uri`         | The service endpoint. In Azure, this is the HTTPS endpoint with the format `https://{resource-name}.webpubsub.azure.com`. When the resource [runs with the emulator](#connect-to-the-emulator), this is the emulator's local HTTP endpoint. |
 
 **Example:**
 
 ```
 WEB_PUBSUB_URI: https://webpubsub-abc123.webpubsub.azure.com
+```
+
+### Web PubSub hub
+
+When you reference a hub resource (added with [`AddHub`](../azure-web-pubsub-host/#add-azure-web-pubsub-hub-resource)), the hub inherits all properties from its parent Web PubSub service and adds:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `HubName`     | The name of the Web PubSub hub |
+
+**Example:**
+
+```
+CHAT_URI: https://webpubsub-abc123.webpubsub.azure.com
+CHAT_HUBNAME: chat
 ```
 
 ### Connection string formats
@@ -60,6 +77,30 @@ Azure Web PubSub clients accept two connection formats:
   provisions a `WebPubSubServiceOwner` role assignment for your app automatically. See
   [Assign Azure Web PubSub roles](../azure-web-pubsub-host/#assign-azure-web-pubsub-roles).
 </Aside>
+
+### Connect to the emulator
+
+When the AppHost calls [`RunAsEmulator`](../azure-web-pubsub-host/#run-azure-web-pubsub-locally-with-the-emulator), the emulator doesn't use managed identity. Instead, Aspire provides a connection string that includes the emulator's HTTP endpoint and access key:
+
+```
+Endpoint=http://localhost:{port};AccessKey={emulator_access_key};Version=1.0
+```
+
+When you reference a hub, the connection string also includes the hub name, for example `...;Version=1.0;Hub=chat`.
+
+- **C#:** The Aspire client integration reads this connection string, including the hub name, when you pass the referenced resource name as the `connectionName`, for example `builder.AddAzureWebPubSubServiceClient("chat")`.
+- **Other languages:** Create the service client from the connection string rather than from `Uri` and a token credential. Use the `HubName` property for the hub name. The JavaScript `@azure/web-pubsub` client requires `allowInsecureConnection: true` to connect to the emulator's HTTP endpoint:
+
+  ```typescript title="Connect to the emulator"
+  import { WebPubSubServiceClient } from '@azure/web-pubsub';
+
+  const client = new WebPubSubServiceClient(
+      process.env.ConnectionStrings__chat!,
+      process.env.CHAT_HUBNAME!,
+      { allowInsecureConnection: true });
+  ```
+
+The emulator is for local development only. Publishing your app still provisions Azure Web PubSub, where the managed identity examples on this page apply.
 
 ## Connect from your app
 

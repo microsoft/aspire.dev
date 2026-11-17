@@ -109,7 +109,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var kusto = builder.AddAzureKustoCluster("kusto");
 var database = kusto.AddReadWriteDatabase("analytics");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(database)
     .WaitFor(database);
 
@@ -174,7 +174,7 @@ var kusto = builder.AddAzureKustoCluster("kusto")
 
 var database = kusto.AddReadWriteDatabase("analytics");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(database)
     .WaitFor(database);
 
@@ -266,11 +266,9 @@ if err != nil {
 }
 
 kusto := builder.AddAzureKustoCluster("kusto").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(emulator aspire.AzureKustoEmulatorResource) {
-			emulator.WithHostPort(8080)
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(emulator aspire.AzureKustoEmulatorResource) {
+		emulator.WithHostPort(8080)
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -298,7 +296,7 @@ var database = kusto.AddReadWriteDatabase("analytics")
         )
         """);
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(database)
     .WaitFor(database);
 
@@ -323,7 +321,7 @@ const database = await kusto.addReadWriteDatabase("analytics")
         )
         `);
 
-const exampleProject = await builder.addProject("example", "../ExampleProject/ExampleProject.csproj");
+const exampleProject = await builder.addDotnetProject("example", "../ExampleProject/ExampleProject.csproj");
 await exampleProject
     .withReference(database)
     .waitFor(database);

@@ -2,6 +2,7 @@ import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import ts from 'typescript';
 import { readEnumDeclarations } from './supplement-ats-enums';
 
 interface CatalogEntry {
@@ -366,6 +367,33 @@ function resolveBaseHierarchy(
   return hierarchy;
 }
 
+export function hasNestedSingleDtoOptionsWrapper(declarations: string): boolean {
+  const sourceFile = ts.createSourceFile('aspire.d.ts', declarations, ts.ScriptTarget.Latest);
+  const visit = (node: ts.Node): boolean => {
+    if (
+      ts.isParameter(node) &&
+      node.questionToken &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === 'options' &&
+      node.type &&
+      ts.isTypeLiteralNode(node.type) &&
+      node.type.members.length === 1
+    ) {
+      const member = node.type.members[0];
+      if (
+        ts.isPropertySignature(member) &&
+        member.questionToken &&
+        ts.isIdentifier(member.name) &&
+        member.name.text === 'options'
+      ) {
+        return true;
+      }
+    }
+    return ts.forEachChild(node, visit) ?? false;
+  };
+  return visit(sourceFile);
+}
+
 export function validateGeneratedApiData(input: ValidationInput): ValidationResult {
   const errors: string[] = [];
   const catalogByName = new Map<string, CatalogEntry>();
@@ -585,7 +613,7 @@ export function validateGeneratedApiData(input: ValidationInput): ValidationResu
     }
   }
 
-  if (/options\?:\s*\{\s*options\?:/s.test(input.declarations)) {
+  if (hasNestedSingleDtoOptionsWrapper(input.declarations)) {
     errors.push('Twoslash declarations contain a nested single-DTO options wrapper.');
   }
 

@@ -105,7 +105,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var nats = builder.AddNats("nats");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(nats);
 
 // After adding all resources, run the app...
@@ -165,7 +165,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var nats = builder.AddNats("nats")
     .WithJetStream();
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(nats);
 
 // After adding all resources, run the app...
@@ -212,7 +212,7 @@ var nats = builder.AddNats("nats")
     .WithJetStream()
     .WithDataVolume(isReadOnly: false);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(nats);
 
 // After adding all resources, run the app...
@@ -238,7 +238,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 ```go title="apphost.go"
 nats := builder.AddNats("nats").
 	WithJetStream().
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(nats)
@@ -265,7 +265,7 @@ var nats = builder.AddNats("nats")
         source: @"C:\Nats\Data",
         isReadOnly: false);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(nats);
 
 // After adding all resources, run the app...
@@ -291,7 +291,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 ```go title="apphost.go"
 nats := builder.AddNats("nats").
 	WithJetStream().
-	WithDataBindMount("/Nats/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("/Nats/Data", aspire.DataBindMountIsReadOnly(false))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(nats)
@@ -321,7 +321,7 @@ var password = builder.AddParameter("natsPass", secret: true);
 
 var nats = builder.AddNats("nats", userName: userName, password: password);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(nats);
 
 // After adding all resources, run the app...
@@ -347,12 +347,10 @@ await builder.addNodeApp("api", "./api", "index.js")
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 userName := builder.AddParameter("natsUser")
-password := builder.AddParameter("natsPass", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("natsPass", aspire.AddParameterSecret(true))
 
-nats := builder.AddNats("nats", &aspire.AddNatsOptions{
-	UserName: &userName,
-	Password: &password,
-})
+nats := builder.AddNats("nats", aspire.AddNatsUserName(userName),
+	aspire.AddNatsPassword(password))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(nats)

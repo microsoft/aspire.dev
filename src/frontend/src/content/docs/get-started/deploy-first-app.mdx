@@ -1,7 +1,7 @@
 ---
 title: Deploy your first Aspire app
 category: tutorial
-description: "Deploy your first Aspire application end to end — choose a target (Azure, Kubernetes, or Docker Compose), publish artifacts, and run `aspire deploy` from a C# or TypeScript AppHost."
+description: "Deploy your first Aspire app to Docker Compose or Azure Container Apps from a C#, TypeScript, or Go AppHost, then verify your deployment."
 ---
 
 import { Aside, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -19,10 +19,6 @@ import dockerIcon from '@assets/icons/docker.svg';
 import csharpStarterPng from '@assets/get-started/csharp-starter.png';
 import javascriptStarterDarkPng from '@assets/get-started/javascript-starter-dark.png';
 import javascriptStarterLightPng from '@assets/get-started/javascript-starter-light.png';
-
-:::note[Dashboard image in these examples]
-The Docker Compose examples on this page intentionally select `mcr.microsoft.com/aspire/nightly/dashboard:latest`. This floating tag follows the latest nightly dashboard image; it isn't an immutable digest or a stable release. Your installed Aspire publisher can generate a different repository or pin a version-line tag, so these examples don't guarantee its default output. For image selection and compatibility guidance, see [Container image repositories and migration](/dashboard/standalone/#container-image-repositories-and-migration).
-:::
 
 <PivotSelector
     title="Select your programming language"
@@ -372,10 +368,10 @@ In the AppHost, use <ApiReference name="Aspire.Hosting.DockerComposeEnvironmentE
     // Add the following line to configure the Docker Compose environment
     builder.AddDockerComposeEnvironment("env");
 
-    var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+    var apiService = builder.AddDotnetProject("apiservice", "../AspireApp.ApiService/AspireApp.ApiService.csproj")
       .WithHttpHealthCheck("/health");
 
-    builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+    builder.AddDotnetProject("webfrontend", "../AspireApp.Web/AspireApp.Web.csproj")
       .WithExternalHttpEndpoints()
       .WithHttpHealthCheck("/health")
       .WithReference(apiService)
@@ -396,10 +392,10 @@ In the AppHost, use <ApiReference name="Aspire.Hosting.DockerComposeEnvironmentE
     // Add the following line to configure the Azure App Container environment
     builder.AddAzureContainerAppEnvironment("env");
 
-    var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+    var apiService = builder.AddDotnetProject("apiservice", "../AspireApp.ApiService/AspireApp.ApiService.csproj")
       .WithHttpHealthCheck("/health");
 
-    builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+    builder.AddDotnetProject("webfrontend", "../AspireApp.Web/AspireApp.Web.csproj")
       .WithExternalHttpEndpoints()
       .WithHttpHealthCheck("/health")
       .WithReference(apiService)
@@ -834,108 +830,6 @@ Steps Summary:
 Additional information about this command can be found in the [`aspire deploy`](/reference/cli/commands/aspire-deploy/) reference docs.
 </LearnMore>
 
-### Post deployment output
-
-After a deployment, the Aspire CLI writes to the provided output path (or the default output path if none is provided) a set of files based on your deployment target. This may include files such as Docker Compose files, Kubernetes manifests, or cloud provider-specific configuration files.
-
-<Tabs syncKey="deploy-target">
-    <TabItem id="docker-compose" label="Docker Compose">
-
-      <FileTree>
-      - aspire-output
-        - .env
-        - .env.Production
-        - docker-compose.yaml
-      </FileTree>
-
-      The `aspire-output` directory contains the generated environment variables and the Docker Compose configuration. The best part is, these files are opaque to you as a developer. You don't need to write them yourself.
-
-      The `.env.Production` file contains the name of the app image:
-
-      ```dotenv title="./aspire-output/.env.Production"
-      # Container image name for apiservice
-      APISERVICE_IMAGE=apiservice:latest
-
-      # Default container port for apiservice
-      APISERVICE_PORT=8080
-
-      # Container image name for webfrontend
-      WEBFRONTEND_IMAGE=webfrontend:latest
-
-      # Default container port for webfrontend
-      WEBFRONTEND_PORT=8080
-      ```
-
-      Finally, the `docker-compose.yaml` file defines the services for both the API and frontend:
-
-      ```yaml title="./aspire-output/docker-compose.yaml"
-      services:
-        env-dashboard:
-          image: "mcr.microsoft.com/aspire/nightly/dashboard:latest"
-          expose:
-          - "18888"
-          - "18889"
-          networks:
-          - "aspire"
-          restart: "always"
-        apiservice:
-          image: "${APISERVICE_IMAGE}"
-          environment:
-          OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
-          OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
-          OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
-          ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-          HTTP_PORTS: "${APISERVICE_PORT}"
-          OTEL_EXPORTER_OTLP_ENDPOINT: "http://env-dashboard:18889"
-          OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
-          OTEL_SERVICE_NAME: "apiservice"
-          expose:
-          - "${APISERVICE_PORT}"
-          networks:
-          - "aspire"
-        webfrontend:
-          image: "${WEBFRONTEND_IMAGE}"
-          environment:
-          OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
-          OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
-          OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
-          ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-          HTTP_PORTS: "${WEBFRONTEND_PORT}"
-          APISERVICE_HTTP: "http://apiservice:${APISERVICE_PORT}"
-          services__apiservice__http__0: "http://apiservice:${APISERVICE_PORT}"
-          APISERVICE_HTTPS: "https://apiservice:${APISERVICE_PORT}"
-          OTEL_EXPORTER_OTLP_ENDPOINT: "http://env-dashboard:18889"
-          OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
-          OTEL_SERVICE_NAME: "webfrontend"
-          ports:
-          - "${WEBFRONTEND_PORT}"
-          depends_on:
-          apiservice:
-              condition: "service_started"
-          networks:
-          - "aspire"
-      networks:
-        aspire:
-          driver: "bridge"
-      ```
-
-    </TabItem>
-    <TabItem id="azure" label="Azure">
-
-    After deploying to Azure App Containers, the Aspire CLI saves the deployment state file to your local machine.
-
-    <FileTree>
-    - %USERPROFILE%
-      - .aspire/deployments/[AppHost-Sha256]/production.json
-    </FileTree>
-
-    <Aside type="tip" title="AppHost SHA256">
-    The deployment state is saved in a directory named after the SHA256 hash of your full AppHost path. This ensures that deployments for different applications or versions are kept separate.
-    </Aside>
-
-    </TabItem>
-</Tabs>
-
 </Pivot>
 <Pivot id="typescript">
 
@@ -1151,7 +1045,255 @@ Steps Summary:
   Additional information about this command can be found in the [`aspire deploy`](/reference/cli/commands/aspire-deploy/) reference docs.
 </LearnMore>
 
+</Pivot>
+
+<Pivot id="go">
+
+Now that you've added the deployment package and updated your AppHost, you can deploy your Aspire app.
+
+<Tabs syncKey="deploy-target">
+
+    <TabItem id="docker-compose" label="Docker Compose">
+
+    Deploying to Docker Compose builds the container images and starts the services locally using Docker Compose.
+
+    ```bash title="Aspire CLI — Deploy your app"
+    aspire deploy
+    ```
+
+    The deploy builds one image for the `app` resource. For a Go app, Aspire generates a multi-stage Dockerfile that builds the Go binary, then copies in the React build output from the `frontend` resource at `./static`. When the deployment finishes, the output includes a `print-app-summary` step with the local URL for the app.
+
+    Consider the following example output:
+
+    <Expand summary="Example output for deploying Go/React app to Docker Compose"
+            backgroundColor="--sl-color-bg">
+
+    ```bash title="Aspire CLI - Deploy Go/React app with Docker Compose"
+    🛠️ Executing step deploy
+    07:00:31 (validate-compute-environments) → Starting validate-compute-environments...
+    07:00:31 (validate-compute-environments) ✓ validate-compute-environments completed successfully
+    07:00:31 (prepare-deployment-targets-env) → Starting prepare-deployment-targets-env...
+    07:00:31 (prepare-deployment-targets-env) i [INF] Creating Docker Compose resource for env-dashboard
+    07:00:31 (prepare-deployment-targets-env) i [INF] Creating Docker Compose resource for app
+    07:00:31 (prepare-deployment-targets-env) ✓ prepare-deployment-targets-env completed successfully
+    07:00:31 (validate-docker-compose) → Starting validate-docker-compose...
+    07:00:31 (validate-docker-compose) ✓ validate-docker-compose completed successfully
+    07:00:31 (pipeline-execution) → Starting pipeline-execution...
+    07:00:31 (validate-go-dockerfile-package-path-app) ✓ validate-go-dockerfile-package-path-app completed successfully
+    07:00:31 (publish-env) i [INF] Generating Compose output
+    07:00:31 (deploy-prereq) i [INF] Initializing deployment for environment 'Production'
+    07:00:31 (deploy-prereq) i [INF] Setting default deploy tag 'aspire-deploy-20261117130031' for compute resource(s).
+    07:00:31 (publish-env) ✓ Docker Compose file written successfully to ./aspire-output/docker-compose.yaml. (0.0s)
+    07:00:34 (check-container-runtime) ✓ check-container-runtime completed successfully
+    07:00:34 (build-frontend) i [INF] Building container image for resource frontend
+    07:01:38 (build-frontend) ✓ build-frontend completed successfully
+    07:01:38 (build-app) i [INF] Building container image for resource app
+    07:02:12 (build-app) ✓ build-app completed successfully
+    07:02:13 (push-app) ✓ Successfully tagged app as app:aspire-deploy-20261117130031 (1.3s)
+    07:02:13 (docker-compose-up-env) → Running compose up for env using Docker
+    07:02:25 (docker-compose-up-env) ✓ Service env is now running with Docker Compose locally (runtime: Docker) (12.0s)
+    07:02:29 (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:65415.
+    07:02:29 (print-app-summary) i [INF] Successfully deployed app to http://localhost:65414.
+    07:02:29 (deploy) ✓ deploy completed successfully
+    07:02:29 (pipeline-execution) ✓ Completed successfully
+    ------------------------------------------------------------
+    ✓ 25/25 steps succeeded • Total time: 1m 58s
+
+    Steps Summary:
+                    Step timeline:                                      0s                      1m 58s
+                                                                        │───────┬──────┬─────┬───────│
+          1m 58s  ✓ pipeline-execution                                  │╶──────────────────────────╴│
+          25.65ms  ✓ publish-env                                        │╴                           │
+           1m 3s  ✓     build-frontend                                  │╶───────────────╴           │
+          33.67s  ✓       build-app                                     │               ╶───────╴    │
+          11.96s  ✓             docker-compose-up-env                   │                       ╶──╴ │
+           4.45s  ✓               print-app-summary                     │                         ╶─╴│
+           4.11s  ✓               print-env-dashboard-summary           │                          ╴ │
+           1.32s  ✓         push-app                                    │                       ╴    │
+          (remaining steps omitted)
+
+    ✓ Pipeline succeeded
+
+      env-dashboard: http://localhost:65415
+      app: http://localhost:65414
+    ------------------------------------------------------------
+    ```
+
+    </Expand>
+
+    </TabItem>
+
+    <TabItem id="azure" label="Azure">
+
+    Deploying to Azure App Containers provisions the Azure resources, builds and pushes the container image, and deploys the app.
+
+    ```bash title="Aspire CLI — Deploy your app"
+    aspire deploy
+    ```
+
+    The Aspire CLI prompts for the Azure subscription, location, and resource group if they aren't already configured. To avoid prompts (for example, in CI/CD), set the `Azure__SubscriptionId`, `Azure__Location`, and `Azure__ResourceGroup` environment variables. The deploy builds one image for the `app` resource (the Go API with the bundled React frontend), pushes it to an Azure Container Registry, and deploys it to an Azure Container Apps environment.
+
+    Consider the following example output:
+
+    <Expand summary="Example output for deploying Go/React app to Azure App Containers"
+            backgroundColor="--sl-color-bg">
+
+    ```bash title="Aspire CLI - Deploy Go/React app to Azure App Containers"
+    🛠️ Executing step deploy
+    07:10:15 (prepare-azure-container-apps-env) i [INF] HTTP endpoints will use HTTPS (port 443) in Azure Container Apps: app:http. To opt out, use .WithHttpsUpgrade(false) on the container app environment.
+    07:10:15 (pipeline-execution) → Starting pipeline-execution...
+    07:10:15 (validate-go-dockerfile-package-path-app) ✓ validate-go-dockerfile-package-path-app completed successfully
+    07:10:15 (deploy-prereq) i [INF] Initializing deployment for environment 'Production'
+    07:10:15 (deploy-prereq) i [INF] Setting default deploy tag 'aspire-deploy-20261117131015' for compute resource(s).
+    07:10:18 (validate-azure-login) ✓ Azure CLI authentication validated successfully
+    07:10:18 (create-provisioning-context) i [INF] Using AzureCliCredential for provisioning.
+    07:10:22 (create-provisioning-context) i [INF] Using existing resource group rg-aspire-go-first-app.
+    07:10:24 (provision-env-acr) ✓ Using existing deployment for env-acr (0.0s)
+    07:10:24 (provision-env) ✓ Using existing deployment for env (0.0s)
+    07:10:30 (login-to-acr-env-acr) ✓ Successfully logged in to envacr6u4w7ohoverv6.azurecr.io (6.3s)
+    07:10:35 (build-frontend) ✓ build-frontend completed successfully
+    07:10:49 (build-app) ✓ build-app completed successfully
+    07:11:02 (push-app) ✓ Successfully pushed app to envacr6u4w7ohoverv6.azurecr.io/app:aspire-deploy-20261117131015 (12.9s)
+    07:11:02 (provision-app-containerapp) → Deploying app-containerapp
+    07:11:46 (provision-app-containerapp) ✓ Successfully provisioned app-containerapp (44.1s)
+    07:11:46 (print-dashboard-url-env) ✓ Dashboard available at https://aspire-dashboard.ext.<unique-id>.westus3.azurecontainerapps.io
+    07:11:46 (print-app-summary) i [INF] Successfully deployed app to https://app.<unique-id>.westus3.azurecontainerapps.io
+    07:11:46 (deploy) ✓ deploy completed successfully
+    07:11:46 (pipeline-execution) ✓ Completed successfully
+    ------------------------------------------------------------
+    ✓ 26/26 steps succeeded • Total time: 1m 31s
+
+    ✓ Pipeline succeeded
+
+      ☁️ Target: Azure
+      📦 Resource Group: rg-aspire-go-first-app
+      📜 Deployments: Azure Portal
+      🔑 Subscription: <subscription-id>
+      🌐 Location: westus3
+      📊 Dashboard: https://aspire-dashboard.ext.<unique-id>.westus3.azurecontainerapps.io
+      app: https://app.<unique-id>.westus3.azurecontainerapps.io
+    ------------------------------------------------------------
+    ```
+
+    </Expand>
+
+    </TabItem>
+
+</Tabs>
+
+<LearnMore>
+  For more information, see [aspire deploy](/reference/cli/commands/aspire-deploy/) and [Deploy Go apps](/deployment/go-apps/).
+</LearnMore>
+
+</Pivot>
+
 ### Post deployment output
+
+<Pivot id="csharp">
+
+After a deployment, the Aspire CLI writes to the provided output path (or the default output path if none is provided) a set of files based on your deployment target. This may include files such as Docker Compose files, Kubernetes manifests, or cloud provider-specific configuration files.
+
+<Tabs syncKey="deploy-target">
+    <TabItem id="docker-compose" label="Docker Compose">
+
+      <FileTree>
+      - aspire-output
+        - .env
+        - .env.Production
+        - docker-compose.yaml
+      </FileTree>
+
+      The `aspire-output` directory contains the generated environment variables and the Docker Compose configuration. The best part is, these files are opaque to you as a developer. You don't need to write them yourself.
+
+      The `.env.Production` file contains the name of the app image:
+
+      ```dotenv title="./aspire-output/.env.Production"
+      # Container image name for apiservice
+      APISERVICE_IMAGE=apiservice:latest
+
+      # Default container port for apiservice
+      APISERVICE_PORT=8080
+
+      # Container image name for webfrontend
+      WEBFRONTEND_IMAGE=webfrontend:latest
+
+      # Default container port for webfrontend
+      WEBFRONTEND_PORT=8080
+      ```
+
+      Finally, the `docker-compose.yaml` file defines the services for both the API and frontend:
+
+      ```yaml title="./aspire-output/docker-compose.yaml"
+      services:
+        env-dashboard:
+          image: "mcr.microsoft.com/aspire/nightly/dashboard:latest"
+          expose:
+          - "18888"
+          - "18889"
+          networks:
+          - "aspire"
+          restart: "always"
+        apiservice:
+          image: "${APISERVICE_IMAGE}"
+          environment:
+          OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+          OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+          OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+          ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+          HTTP_PORTS: "${APISERVICE_PORT}"
+          OTEL_EXPORTER_OTLP_ENDPOINT: "http://env-dashboard:18889"
+          OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+          OTEL_SERVICE_NAME: "apiservice"
+          expose:
+          - "${APISERVICE_PORT}"
+          networks:
+          - "aspire"
+        webfrontend:
+          image: "${WEBFRONTEND_IMAGE}"
+          environment:
+          OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+          OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+          OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+          ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+          HTTP_PORTS: "${WEBFRONTEND_PORT}"
+          APISERVICE_HTTP: "http://apiservice:${APISERVICE_PORT}"
+          services__apiservice__http__0: "http://apiservice:${APISERVICE_PORT}"
+          APISERVICE_HTTPS: "https://apiservice:${APISERVICE_PORT}"
+          OTEL_EXPORTER_OTLP_ENDPOINT: "http://env-dashboard:18889"
+          OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+          OTEL_SERVICE_NAME: "webfrontend"
+          ports:
+          - "${WEBFRONTEND_PORT}"
+          depends_on:
+          apiservice:
+              condition: "service_started"
+          networks:
+          - "aspire"
+      networks:
+        aspire:
+          driver: "bridge"
+      ```
+
+    </TabItem>
+    <TabItem id="azure" label="Azure">
+
+    After deploying to Azure App Containers, the Aspire CLI saves the deployment state file to your local machine.
+
+    <FileTree>
+    - %USERPROFILE%
+      - .aspire/deployments/[AppHost-Sha256]/production.json
+    </FileTree>
+
+    <Aside type="tip" title="AppHost SHA256">
+    The deployment state is saved in a directory named after the SHA256 hash of your full AppHost path. This ensures that deployments for different applications or versions are kept separate.
+    </Aside>
+
+    </TabItem>
+</Tabs>
+
+</Pivot>
+
+<Pivot id="typescript">
 
 After a deployment, the Aspire CLI writes to the provided output path (or the default output path if none is provided) a set of files based on your deployment target. This may include files such as Docker Compose files, Kubernetes manifests, or cloud provider-specific configuration files.
 
@@ -1244,42 +1386,6 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
 
 <Pivot id="go">
 
-Now that you've added the deployment package and updated your AppHost, you can deploy your Aspire app.
-
-<Tabs syncKey="deploy-target">
-
-    <TabItem id="docker-compose" label="Docker Compose">
-
-    Deploying to Docker Compose builds the container images and starts the services locally using Docker Compose.
-
-    ```bash title="Aspire CLI — Deploy your app"
-    aspire deploy
-    ```
-
-    The deploy builds one image for the `app` resource. For a Go app, Aspire generates a multi-stage Dockerfile that builds the Go binary, then copies in the React build output from the `frontend` resource at `./static`. When the deployment finishes, the output includes a `print-app-summary` step with the local URL for the app.
-
-    </TabItem>
-
-    <TabItem id="azure" label="Azure">
-
-    Deploying to Azure App Containers provisions the Azure resources, builds and pushes the container image, and deploys the app.
-
-    ```bash title="Aspire CLI — Deploy your app"
-    aspire deploy
-    ```
-
-    The Aspire CLI prompts for the Azure subscription, location, and resource group if they aren't already configured. The deploy builds one image for the `app` resource (the Go API with the bundled React frontend), pushes it to an Azure Container Registry, and deploys it to an Azure Container Apps environment.
-
-    </TabItem>
-
-</Tabs>
-
-<LearnMore>
-  For more information, see [aspire deploy](/reference/cli/commands/aspire-deploy/) and [Deploy Go apps](/deployment/go-apps/).
-</LearnMore>
-
-### Post deployment output
-
 After a deployment, the Aspire CLI writes to the provided output path (or the default output path if none is provided) a set of files based on your deployment target.
 
 <Tabs syncKey="deploy-target">
@@ -1293,7 +1399,68 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
           - docker-compose.yaml
         </FileTree>
 
-        The `aspire-output` directory contains the generated environment variables, an `app.Dockerfile`, and the Docker Compose configuration. These files are generated for you, so you don't need to write them yourself. The `app.Dockerfile` is a multi-stage Dockerfile that builds the Go API and includes the React frontend under `./static`, and the `docker-compose.yaml` file defines the `app` service alongside the Aspire dashboard.
+        The `aspire-output` directory contains the generated environment variables, an `app.Dockerfile`, and the Docker Compose configuration. These files are generated for you, so you don't need to write them yourself.
+
+        The `app.Dockerfile` is a multi-stage Dockerfile that builds the Go API and includes the React frontend under `./static`:
+
+        ```dockerfile title="./aspire-output/app.Dockerfile"
+        ARG FRONTEND_IMAGENAME=frontend:latest
+
+        FROM golang:1.26-alpine AS build
+        WORKDIR /app
+        ENV CGO_ENABLED=0
+        ENV GOOS=linux
+        COPY go.mod ./
+        COPY go.sum ./
+        RUN --mount=type=cache,target=/root/go/pkg/mod \
+            go mod download
+        COPY . .
+        RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/root/go/pkg/mod \
+            go build -o /app/app .
+
+        FROM ${FRONTEND_IMAGENAME} AS frontend_stage
+
+        FROM alpine:latest
+        RUN apk --no-cache add ca-certificates tzdata
+        RUN addgroup -S app && adduser -S -G app app
+        WORKDIR /app
+        COPY --from=frontend_stage /app/dist /app/./static
+
+        COPY --from=build /app/app /app/app
+        USER app
+        ENTRYPOINT ["/app/app"]
+        ```
+
+        The `docker-compose.yaml` file defines the `app` service alongside the Aspire dashboard:
+
+        ```yaml title="./aspire-output/docker-compose.yaml"
+        services:
+          env-dashboard:
+            image: "mcr.microsoft.com/aspire/nightly/dashboard:latest"
+            ports:
+              - "18888"
+            expose:
+              - "18889"
+              - "18890"
+            networks:
+              - "aspire"
+            restart: "always"
+          app:
+            image: "${APP_IMAGE}"
+            environment:
+              HOST: "0.0.0.0"
+              PORT: "8000"
+              OTEL_EXPORTER_OTLP_ENDPOINT: "http://env-dashboard:18889"
+              OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+              OTEL_SERVICE_NAME: "app"
+            ports:
+              - "8000"
+            networks:
+              - "aspire"
+        networks:
+          aspire:
+            driver: "bridge"
+        ```
 
     </TabItem>
     <TabItem id="azure" label="Azure">
@@ -1432,7 +1599,20 @@ To verify that your application is running as expected after deployment, follow 
 
     When deploying to Docker Compose, the `aspire deploy` command displays the URLs where your services are running. Look for the `print-*-summary` steps in the deployment output, which show the localhost URLs for each service that has been configured with `WithExternalHttpEndpoints`.
 
-    For this app, look for the `print-app-summary` step, which reports the URL for the `app` resource. Open your web browser and navigate to that URL to see your deployed application.
+    In the deployment output, you'll see lines similar to the following:
+
+    ```bash title="Aspire CLI - Deployment summary"
+    (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:54633.
+    (print-app-summary) i [INF] Successfully deployed app to http://localhost:54463.
+    ```
+
+    Open your web browser and navigate to the URL shown for your app (for example, `http://localhost:54463`) to see your deployed application.
+
+    <ThemeImage
+      light={javascriptStarterLightPng}
+      dark={javascriptStarterDarkPng}
+      alt="Deployed Go/React application running in Docker Compose"
+    />
 
     The frontend displays the weather forecast data in a React template. Both the Go API and the React frontend are served from the same Docker container.
 
@@ -1443,11 +1623,16 @@ To verify that your application is running as expected after deployment, follow 
     When deploying to Azure App Containers, you can verify that your Go/React application is running by navigating to the URL provided in the deployment output. Look for the `print-app-summary` step, which reports the URL for the `app` resource:
 
     ```bash title="Aspire CLI - Deployment summary"
-    (print-app-summary) i [INF] Successfully deployed app to
-      https://{NAME}.{LOCATION}.azurecontainerapps.io
+    (print-app-summary) i [INF] Successfully deployed app to https://app.{UNIQUE-ID}.{LOCATION}.azurecontainerapps.io
     ```
 
     Open your web browser and navigate to the provided URL to see your deployed application.
+
+    <ThemeImage
+      light={javascriptStarterLightPng}
+      dark={javascriptStarterDarkPng}
+      alt="Deployed Go/React application running on Azure Container Apps"
+    />
 
     The frontend displays the weather forecast data in a React template. Both the Go API and the React frontend are served from the same container.
 

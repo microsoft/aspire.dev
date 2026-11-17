@@ -36,7 +36,7 @@ const storage = await builder.addAzureStorage('storage');
 await storage.runAsEmulator();
 const blobs = await storage.addBlobs('blobs');
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(blobs);
 await api.waitFor(blobs);
 
@@ -53,7 +53,7 @@ var blobs = builder.AddAzureStorage("storage")
     .RunAsEmulator()
     .AddBlobs("blobs");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(blobs)
     .WaitFor(blobs);
 
@@ -521,7 +521,7 @@ var storage = builder.ExecutionContext.IsPublishMode
     ? builder.AddAzureStorage("storage")
     : builder.AddConnectionString("storage");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(storage);
 
 // After adding all resources, run the app...
@@ -598,15 +598,14 @@ Aspire deploys compute resources to [Azure Container Apps](https://learn.microso
 
 - `ContainerResource`: Represents a specified container.
 - `ExecutableResource`: Represents a specified executable process.
-- `ProjectResource`: Represents a specified .NET project.
+- `DotnetProjectResource`: Represents a .NET project or C# file-based app. It's an executable resource.
 
 Add an ACA environment with <ApiReference name="Aspire.Hosting.AzureContainerAppExtensions.AddAzureContainerAppEnvironment" /> to target these resources to Azure Container Apps.
 
 Use the following APIs when you want to customize the generated Container App resource for a specific resource:
 
 - `PublishAsAzureContainerApp` for containers
-- `PublishAsAzureContainerApp` for executables
-- `PublishAsAzureContainerApp` for projects
+- `PublishAsAzureContainerApp` for executables, including .NET projects
 
 You don't need `PublishAsAzureContainerApp` for a standard ACA deployment. Use it only when you want to customize the generated Container App resource. As an example, consider the following code:
 
@@ -617,8 +616,8 @@ var env = builder.AddParameter("env");
 
 builder.AddAzureContainerAppEnvironment("aca-env");
 
-var api = builder.AddProject<Projects.AspireApi>("api")
-    .PublishAsAzureContainerApp<Projects.AspireApi>((infra, app) =>
+var api = builder.AddDotnetProject("api", "../AspireApi/AspireApi.csproj")
+    .PublishAsAzureContainerApp((infra, app) =>
     {
         app.Template.Containers[0].Value!.Env.Add(new ContainerAppEnvironmentVariable
         {

@@ -108,7 +108,7 @@ var mysql = builder.AddMySql("mysql")
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
 
@@ -195,7 +195,7 @@ var mysqldb = mysql.AddDatabase("mysqldb")
         );
         """);
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var myService = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
 
@@ -221,7 +221,7 @@ const mysqldb = await mysql.addDatabase("mysqldb")
         );
         `);
 
-const myService = await builder.addProject("example", "../ExampleProject/ExampleProject.csproj");
+const myService = await builder.addDotnetProject("example", "../ExampleProject/ExampleProject.csproj");
 await myService
     .withReference(mysqldb)
     .waitFor(mysqldb);
@@ -278,7 +278,7 @@ var mysql = builder.AddMySql("mysql")
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var myService = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
 
@@ -342,7 +342,7 @@ var mysql = builder.AddMySql("mysql")
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var myService = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
 
@@ -380,12 +380,10 @@ if err != nil {
 }
 
 mysql := builder.AddMySql("mysql").
-	WithPhpMyAdmin(&aspire.WithPhpMyAdminOptions{
-		ContainerName: aspire.StringPtr("phpmyadmin"),
-		ConfigureContainer: func(phpMyAdmin aspire.PhpMyAdminContainerResource) {
+	WithPhpMyAdmin(aspire.PhpMyAdminContainerName("phpmyadmin"),
+		aspire.PhpMyAdminConfigureContainer(func(phpMyAdmin aspire.PhpMyAdminContainerResource) {
 			phpMyAdmin.WithHostPort(aspire.IntPtr(8080))
-		},
-	})
+		}))
 
 mysqldb := mysql.AddDatabase("mysqldb")
 
@@ -412,7 +410,7 @@ var mysql = builder.AddMySql("mysql")
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var myService = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
 
@@ -445,7 +443,7 @@ if err != nil {
 }
 
 mysql := builder.AddMySql("mysql").
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 mysqldb := mysql.AddDatabase("mysqldb")
 
@@ -486,7 +484,7 @@ var mysql = builder.AddMySql("mysql")
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var myService = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
 
@@ -519,7 +517,7 @@ if err != nil {
 }
 
 mysql := builder.AddMySql("mysql").
-	WithDataBindMount("/MySQL/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("/MySQL/Data", aspire.DataBindMountIsReadOnly(false))
 
 mysqldb := mysql.AddDatabase("mysqldb")
 
@@ -552,7 +550,7 @@ var mysql = builder.AddMySql("mysql")
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var myService = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
 
@@ -616,7 +614,7 @@ var mysql = builder.AddMySql("mysql", password)
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var myService = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
 
@@ -648,12 +646,10 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-mysql := builder.AddMySql("mysql", &aspire.AddMySqlOptions{
-	Password: &password,
-	Port:     aspire.IntPtr(3306),
-})
+mysql := builder.AddMySql("mysql", aspire.AddMySqlPassword(password),
+	aspire.AddMySqlPort(3306))
 mysqldb := mysql.AddDatabase("mysqldb")
 
 builder.AddGoApp("api", "./api").

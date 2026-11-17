@@ -303,7 +303,7 @@ registryName := builder.AddParameter("registryName")
 rgName := builder.AddParameter("rgName")
 
 acr := builder.AddAzureContainerRegistry("my-acr")
-acr.PublishAsExisting(registryName, &aspire.PublishAsExistingOptions{ResourceGroup: rgName})
+acr.PublishAsExisting(registryName, aspire.PublishAsExistingResourceGroup(rgName))
 
 env := builder.AddAzureContainerAppEnvironment("env")
 env.WithAzureContainerRegistry(acr)
@@ -321,7 +321,7 @@ Use `AsExisting` to reference an existing registry in both run and publish modes
 
 ```go title="apphost.go"
 acr := builder.AddAzureContainerRegistry("my-acr")
-acr.AsExisting(registryName, &aspire.AsExistingOptions{ResourceGroup: rgName})
+acr.AsExisting(registryName, aspire.AsExistingResourceGroup(rgName))
 ```
 
 </TabItem>
@@ -340,7 +340,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var acr = builder.AddAzureContainerRegistry("my-acr");
 
 // Grant the 'api' project permission to push images
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithRoleAssignments(acr, ContainerRegistryBuiltInRole.AcrPush);
 
 builder.Build().Run();
@@ -357,7 +357,7 @@ const builder = await createBuilder();
 const acr = await builder.addAzureContainerRegistry("my-acr");
 
 // Grant the 'api' project permission to push images
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withRoleAssignments(acr, [AzureContainerRegistryRole.AcrPush]);
 
 await builder.build().run();
@@ -396,7 +396,7 @@ Available roles include: `AcrPull`, `AcrPush`, `AcrDelete`, `AcrImageSigner`, `A
 
 ## Schedule image cleanup with purge tasks
 
-Over time, container registries accumulate old images that consume storage. Use <ApiReference name="Aspire.Hosting.AzureContainerRegistryExtensions.WithPurgeTask" /> to add a scheduled [ACR purge task](https://learn.microsoft.com/azure/container-registry/container-registry-auto-purge) that automatically removes old or unused images:
+Over time, container registries accumulate old images that consume storage. Use <ApiReference name="Aspire.Hosting.AzureContainerRegistryExtensions.WithPurgeTask" /> to add a scheduled [ACR purge task](https://learn.microsoft.com/azure/container-registry/container-registry-auto-purge) that automatically removes old image tags and untagged manifests:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -437,10 +437,10 @@ if err != nil {
 }
 
 acr := builder.AddAzureContainerRegistry("my-acr")
-acr.WithPurgeTask("0 1 * * *", &aspire.WithPurgeTaskOptions{
-	Ago:  aspire.Float64Ptr(7 * 24 * 60 * 60 * 1000), // 7 days in milliseconds
-	Keep: aspire.IntPtr(5),
-})
+acr.WithPurgeTask("0 1 * * *",
+	aspire.PurgeTaskAgo(7*24*60*60*1000), // 7 days in milliseconds
+	aspire.PurgeTaskKeep(5),
+)
 
 app, err := builder.Build()
 if err != nil {
@@ -454,7 +454,17 @@ if err := app.Run(); err != nil {
 </TabItem>
 </Tabs>
 
-The preceding code creates a purge task that runs daily at 1:00 AM, removing images older than 7 days while keeping the 5 most recent images per repository. The C# `ago` parameter accepts a `TimeSpan`; the TypeScript `ago` option accepts milliseconds.
+The preceding code creates a purge task that runs daily at 1:00 AM. It removes tags that were last modified more than 7 days ago, while always keeping the 5 newest matching tags per repository. The C# `ago` parameter accepts a `TimeSpan`; the TypeScript `ago` option accepts milliseconds.
+
+The purge task applies these rules to repositories that match `filter` (all repositories and tags by default):
+
+- **`keep`** (default `3`) is a minimum, not a maximum. Tags newer than `ago` are also retained, so more than `keep` tags can remain.
+- **`ago`** defaults to zero, so without it every matching tag except the newest `keep` is eligible for removal.
+- **Untagged manifests** are always deleted, regardless of age. This includes manifests that the task just untagged and manifests that were already untagged, so removing tags actually reclaims storage. Locked artifacts and manifests that retained images depend on aren't deleted.
+
+<Aside type="caution">
+  Deleting untagged manifests is irreversible. If you pull images by digest or roll back to earlier digests, those pulls can fail after the purge task runs. Use `filter` to limit the purge task to repositories where that's acceptable.
+</Aside>
 
 ### Multiple purge tasks
 
@@ -487,15 +497,11 @@ await acr.withPurgeTask("0 2 * * 0", {
 
 ```go title="Multiple purge tasks"
 acr := builder.AddAzureContainerRegistry("my-acr")
-acr.WithPurgeTask("0 1 * * *", &aspire.WithPurgeTaskOptions{
-	Filter: aspire.StringPtr("app1:.*"),
-	Keep:   aspire.IntPtr(3),
-})
-acr.WithPurgeTask("0 2 * * 0", &aspire.WithPurgeTaskOptions{
-	Filter: aspire.StringPtr("app2:.*"),
-	Ago:    aspire.Float64Ptr(30 * 24 * 60 * 60 * 1000),
-	Keep:   aspire.IntPtr(10),
-})
+acr.WithPurgeTask("0 1 * * *", aspire.PurgeTaskFilter("app1:.*"),
+	aspire.PurgeTaskKeep(3))
+acr.WithPurgeTask("0 2 * * 0", aspire.PurgeTaskFilter("app2:.*"),
+	aspire.PurgeTaskAgo(30*24*60*60*1000),
+	aspire.PurgeTaskKeep(10))
 ```
 
 </TabItem>

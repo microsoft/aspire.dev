@@ -257,10 +257,10 @@ All templates start with <ApiReference name="Aspire.Hosting.DistributedApplicati
     ```csharp title="AppHost.cs project-based orchestrator"
     var builder = DistributedApplication.CreateBuilder(args);
 
-    var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+    var apiService = builder.AddDotnetProject("apiservice", "../AspireApp.ApiService/AspireApp.ApiService.csproj")
         .WithHttpHealthCheck("/health");
 
-    builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+    builder.AddDotnetProject("webfrontend", "../AspireApp.Web/AspireApp.Web.csproj")
         .WithExternalHttpEndpoints()
         .WithHttpHealthCheck("/health")
         .WithReference(apiService)
@@ -272,7 +272,7 @@ All templates start with <ApiReference name="Aspire.Hosting.DistributedApplicati
     _What's happening here?_
 
     - <ApiReference name="Aspire.Hosting.DistributedApplication.CreateBuilder" /> creates the distributed application builder
-    - <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> registers your API service and web frontend
+    - <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" /> registers your API service and web frontend by their project paths
     - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> connects services. It injects the API's URL as an environment variable and sets up service discovery so you can use service names instead of hardcoded URLs
     - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> ensures the API is healthy before starting the frontend, preventing connection errors from race conditions
     - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> monitors service health
@@ -461,8 +461,8 @@ All templates start with <ApiReference name="Aspire.Hosting.DistributedApplicati
 
     _What's happening here?_
 
-    - <ApiReference name="Aspire.Hosting.DistributedApplication.CreateBuilder" /> creates the distributed application builder. In Go, `aspire.CreateBuilder()` connects to the AppHost server that the Aspire CLI starts.
-    - `AddGoApp` adds the Go API. `WithModTidy` runs `go mod tidy` before the app starts, and `WithOtlpExporter` sends its telemetry to the dashboard
+    - <ApiReference name="Aspire.Hosting.DistributedApplication.CreateBuilder" /> creates the distributed application builder. In Go, [`aspire.CreateBuilder()`](/reference/api/go/aspire.hosting/createbuilder/) connects to the AppHost server that the Aspire CLI starts.
+    - <ApiReference name="Aspire.Hosting.GoHostingExtensions.AddGoApp" /> adds the Go API. <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithModTidy" /> runs `go mod tidy` before the app starts, and <ApiReference name="Aspire.Hosting.OtlpConfigurationExtensions.WithOtlpExporter" /> sends its telemetry to the dashboard
     - <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp" /> registers your React frontend
     - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> connects the frontend to the API. It injects the API's URL and sets up service discovery
     - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> ensures the API is running before starting the frontend, preventing connection errors
@@ -618,7 +618,7 @@ All templates start with <ApiReference name="Aspire.Hosting.DistributedApplicati
 
     Once the dashboard is ready, its URL (with a login token highlighted in the example output below) appears in your terminal. The dashboard provides a live, real-time view of your running resources and their current states.
 
-    ```bash title="Example output" mark={6}
+    ```bash title="Example output"         mark={7}
     ⚙️ Preparing Aspire server...
     Connecting to AppHost...
     Starting dashboard...

@@ -105,7 +105,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var qdrant = builder.AddQdrant("qdrant")
     .WithLifetime(ContainerLifetime.Persistent);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(qdrant)
     .WaitFor(qdrant);
 
@@ -181,7 +181,7 @@ var apiKey = builder.AddParameter("apiKey", secret: true);
 var qdrant = builder.AddQdrant("qdrant", apiKey)
     .WithLifetime(ContainerLifetime.Persistent);
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(qdrant)
     .WaitFor(qdrant);
 
@@ -213,9 +213,9 @@ if err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 
-apiKey := builder.AddParameter("apiKey", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+apiKey := builder.AddParameter("apiKey", aspire.AddParameterSecret(true))
 
-qdrant := builder.AddQdrant("qdrant", &aspire.AddQdrantOptions{ApiKey: &apiKey}).
+qdrant := builder.AddQdrant("qdrant", aspire.AddQdrantApiKey(apiKey)).
 	WithLifetime(aspire.ContainerLifetimePersistent)
 
 builder.AddGoApp("api", "./api").
@@ -252,7 +252,7 @@ var qdrant = builder.AddQdrant("qdrant")
     .WithDataVolume()
     .WithLifetime(ContainerLifetime.Persistent);
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(qdrant)
     .WaitFor(qdrant);
 
@@ -311,7 +311,7 @@ var qdrant = builder.AddQdrant("qdrant")
     .WithDataBindMount(source: @"C:\Qdrant\Data")
     .WithLifetime(ContainerLifetime.Persistent);
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(qdrant)
     .WaitFor(qdrant);
 

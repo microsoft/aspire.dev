@@ -103,11 +103,11 @@ The AppHost is the orchestration layer. Your choice here changes how you express
 
 Aspire offers two C# AppHost styles:
 
-**File-based AppHost** — a single `apphost.cs` file that uses `#:sdk` and `#:package` directives. No `.csproj`, no solution integration required. Best for repos with [polyglot](/get-started/glossary/#polyglot) code or quick setups.
+**File-based AppHost** — a single `apphost.cs` file that uses `#:package` directives. No `.csproj`, no solution integration required. Best for repos with [polyglot](/get-started/glossary/#polyglot) code or quick setups.
 
-**Project-based AppHost** — a traditional `AppHost.csproj` that lives inside a `.sln` alongside your other C# projects. Uses `ProjectReference` items and the generated `Projects` namespace for strongly-typed <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> calls. Best when your repo is already a .NET solution and you want IDE-integrated orchestration.
+**Project-based AppHost** — a traditional `AppHost.csproj` that lives inside a `.sln` alongside your other C# projects. Best when your repo is already a .NET solution and you want IDE-integrated orchestration.
 
-Both styles use the same `Aspire.AppHost.Sdk` and the same hosting APIs.
+Both styles use the same [AppHost packages](/get-started/aspire-sdk/) and hosting APIs, and both add .NET projects by path with `AddDotnetProject`.
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
@@ -159,25 +159,25 @@ Use a file-based AppHost when you want a lightweight single-file orchestrator wi
 
    ```bash title="Add hosting integrations"
    aspire add redis
+   aspire add Aspire.Hosting.Dotnet
    ```
 
 3. Wire the resources in `apphost.cs`:
 
    ```csharp title="apphost.cs"
-   #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+   #:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
    #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
-
-   #pragma warning disable ASPIRECSHARPAPPS001
+   #:package Aspire.Hosting.Dotnet@%ASPIRE_VERSION%
 
    var builder = DistributedApplication.CreateBuilder(args);
 
    var cache = builder.AddRedis("cache");
 
-   var api = builder.AddCSharpApp("api", "./src/Api/MyApp.Api.csproj")
+   var api = builder.AddDotnetProject("api", "./src/Api/MyApp.Api.csproj")
        .WithReference(cache)
        .WithHttpHealthCheck("/health");
 
-   var worker = builder.AddCSharpApp("worker", "./src/Worker/MyApp.Worker.csproj")
+   var worker = builder.AddDotnetProject("worker", "./src/Worker/MyApp.Worker.csproj")
        .WithReference(cache);
 
    builder.Build().Run();
@@ -197,13 +197,9 @@ After setup, a typical repo layout looks like this:
             - MyApp.Worker.csproj
 </FileTree>
 
-:::caution[AddCSharpApp is experimental]
-<ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddCSharpApp" /> is currently experimental. If you want details on limitations or diagnostic suppression, see [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/).
-:::
-
 #### Project-based AppHost (with a .sln)
 
-Use this approach when your repo is already a .NET solution (`.sln` or `.slnx`) with multiple projects. The project-based AppHost uses `ProjectReference` items and the generated `Projects` namespace for strongly-typed `AddProject<T>()` calls, giving you full IDE support including IntelliSense, refactoring, and build-order awareness.
+Use this approach when your repo is already a .NET solution (`.sln` or `.slnx`) with multiple projects. The project-based AppHost joins your solution, so you get full IDE support including IntelliSense, debugging, and refactoring.
 
 <Steps>
 
@@ -213,24 +209,17 @@ Use this approach when your repo is already a .NET solution (`.sln` or `.slnx`) 
    aspire init
    ```
 
-2. Add project references from the AppHost to each service you want to orchestrate:
-
-   ```bash title="Add project references"
-   dotnet add MyApp.AppHost reference src/Api/MyApp.Api.csproj
-   dotnet add MyApp.AppHost reference src/Web/MyApp.Web.csproj
-   dotnet add MyApp.AppHost reference src/Worker/MyApp.Worker.csproj
-   ```
-
-3. Add hosting integrations:
+2. Add hosting integrations:
 
    ```bash title="Add hosting integrations"
    aspire add redis
    aspire add postgres
+   aspire add Aspire.Hosting.Dotnet
    ```
 
-4. Wire the resources in the AppHost's `Program.cs`:
+3. Wire the resources in the AppHost's `AppHost.cs`, referencing each service by its project path:
 
-   ```csharp title="MyApp.AppHost/Program.cs"
+   ```csharp title="MyApp.AppHost/AppHost.cs"
    var builder = DistributedApplication.CreateBuilder(args);
 
    var cache = builder.AddRedis("cache")
@@ -240,16 +229,16 @@ Use this approach when your repo is already a .NET solution (`.sln` or `.slnx`) 
        .WithLifetime(ContainerLifetime.Persistent)
        .AddDatabase("mydb");
 
-   var api = builder.AddProject<Projects.MyApp_Api>("api")
+   var api = builder.AddDotnetProject("api", "../src/Api/MyApp.Api.csproj")
        .WithReference(db)
        .WithReference(cache)
        .WaitFor(db);
 
-   builder.AddProject<Projects.MyApp_Web>("web")
+   builder.AddDotnetProject("web", "../src/Web/MyApp.Web.csproj")
        .WithReference(api)
        .WaitFor(api);
 
-   builder.AddProject<Projects.MyApp_Worker>("worker")
+   builder.AddDotnetProject("worker", "../src/Worker/MyApp.Worker.csproj")
        .WithReference(cache)
        .WithReference(db);
 
@@ -274,12 +263,12 @@ After setup, a typical solution layout looks like this:
             - MyApp.Worker.csproj
 </FileTree>
 
-:::note[ProjectReference wiring]
-Each `ProjectReference` in the AppHost triggers a source generator that creates a class in the `Projects` namespace. When you call `AddProject<Projects.MyApp_Api>("api")`, Aspire knows the project path and how to build and launch it. See [Aspire SDK](/get-started/aspire-sdk/) for details on how project references and metadata generation work.
+:::note[Project paths]
+`AddDotnetProject` paths are relative to the AppHost directory. The AppHost doesn't need a `ProjectReference` to each service, so keep the services in your solution so that IDE and CI builds include them.
 :::
 
 <LearnMore>
-For the full `AddProject` workflow including custom type names, multi-project solutions, and launch profiles, see [Project resources](/integrations/dotnet/project-resources/).
+For launch profiles, file-based apps, and IDE behavior, see [.NET hosting](/integrations/frameworks/dotnet/dotnet-host/).
 </LearnMore>
 
 </TabItem>
@@ -312,7 +301,7 @@ For the full `AddProject` workflow including custom type names, multi-project so
    const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
 
    const api = await builder
-       .addProject('api', '../src/Api/MyApp.Api.csproj')
+       .addDotnetProject('api', '../src/Api/MyApp.Api.csproj')
        .withReference(db)
        .withReference(cache)
        .waitFor(db);
@@ -517,7 +506,7 @@ The following example registers a Python API with <ApiReference name="Aspire.Hos
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="apphost.cs — Existing services with hosting integrations"
-#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+#:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
 #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
 #:package Aspire.Hosting.Python@%ASPIRE_VERSION%
 #:package Aspire.Hosting.JavaScript@%ASPIRE_VERSION%
@@ -641,7 +630,7 @@ Use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddCon
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="apphost.cs — Existing containers and shared infrastructure"
-#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+#:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
 #:package Aspire.Hosting.PostgreSQL@%ASPIRE_VERSION%
 #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
 
@@ -716,19 +705,15 @@ func main() {
 	api := builder.AddContainer("api", "ghcr.io/contoso/orders-api:latest").
 		WithReference(db).
 		WithReference(cache).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
-			Port:       aspire.IntPtr(8080),
-			TargetPort: aspire.IntPtr(8080),
-			Name:       aspire.StringPtr("http"),
-		})
+		WithHttpEndpoint(aspire.HttpEndpointPort(8080),
+			aspire.HttpEndpointTargetPort(8080),
+			aspire.HttpEndpointName("http"))
 
 	builder.AddContainer("web", "ghcr.io/contoso/orders-web:latest").
 		WithReference(api).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
-			Port:       aspire.IntPtr(3000),
-			TargetPort: aspire.IntPtr(3000),
-			Name:       aspire.StringPtr("http"),
-		})
+		WithHttpEndpoint(aspire.HttpEndpointPort(3000),
+			aspire.HttpEndpointTargetPort(3000),
+			aspire.HttpEndpointName("http"))
 
 	app, err := builder.Build()
 	if err != nil {
@@ -782,7 +767,7 @@ services:
 <TabItem label='C#'>
 
 ```csharp title="apphost.cs" showLineNumbers
-#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+#:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
 #:package Aspire.Hosting.PostgreSQL@%ASPIRE_VERSION%
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -847,19 +832,15 @@ func main() {
 
 	api := builder.AddDockerfile("api", "./api").
 		WithReference(db).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
-			Port:       aspire.IntPtr(8080),
-			TargetPort: aspire.IntPtr(8080),
-			Name:       aspire.StringPtr("http"),
-		})
+		WithHttpEndpoint(aspire.HttpEndpointPort(8080),
+			aspire.HttpEndpointTargetPort(8080),
+			aspire.HttpEndpointName("http"))
 
 	builder.AddDockerfile("web", "./web").
 		WithReference(api).
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{
-			Port:       aspire.IntPtr(3000),
-			TargetPort: aspire.IntPtr(3000),
-			Name:       aspire.StringPtr("http"),
-		})
+		WithHttpEndpoint(aspire.HttpEndpointPort(3000),
+			aspire.HttpEndpointTargetPort(3000),
+			aspire.HttpEndpointName("http"))
 
 	app, err := builder.Build()
 	if err != nil {
@@ -877,7 +858,7 @@ func main() {
 These scenarios are starting points, not mutually exclusive modes. Most real apps mix workload-specific resources, containers, shared infrastructure, project-path references, and occasional custom commands in a single application model. The key is that dependencies, endpoints, configuration, and startup behavior become explicit.
 
 <LearnMore>
-For more examples, see [Project resources](/integrations/dotnet/project-resources/), [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/), [Executable resources](/app-host/executable-resources/), and [Migrate from Docker Compose](/app-host/migrate-from-docker-compose/).
+For more examples, see [.NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/), [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/), [Executable resources](/app-host/executable-resources/), and [Migrate from Docker Compose](/app-host/migrate-from-docker-compose/).
 </LearnMore>
 
 ## Add telemetry configuration (optional)

@@ -20,26 +20,13 @@ import ApiReference from '@components/ApiReference.astro';
   classOverride="float-inline-left icon"
 />
 
-This article is the reference for the Aspire Dotnet hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to add C# projects and file-based C# apps **by path** in your [`AppHost`](/get-started/app-host/) project.
+Use the `Aspire.Hosting.Dotnet` integration to add SDK-style .NET projects and C# file-based apps by path in your [`AppHost`](/get-started/app-host/). The examples cover TypeScript, C#, and Go AppHosts.
 
 If you're new to the Dotnet integration, start with the [Get started with the .NET / C# app integration](/integrations/frameworks/dotnet/dotnet-get-started/) guide.
 
-:::note
-`Aspire.Hosting.Dotnet` is a prerelease package. Its APIs remain unstable and may change in future releases.
-
-Starting with Aspire 13.6, <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" />, `DotnetProjectResource`, and the related <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.WithBuildEnvironment" /> overloads no longer require suppressing [`ASPIREDOTNETPROJECT001`](/diagnostics/aspiredotnetproject001/). You can remove existing suppressions for these APIs after upgrading.
+:::note[Upgrading to Aspire 17?]
+In Aspire 17, `AddProject` and `AddCSharpApp` are obsolete. Use `AddDotnetProject` from the stable `Aspire.Hosting.Dotnet` package instead. See [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/) for the benefits, project-path conversion, resource-type changes, and compatibility checks.
 :::
-
-If your C# AppHost needs to reference the resource type directly — for example, to declare a strongly typed variable or a method parameter — import it from the `Aspire.Hosting.Dotnet` namespace, matching the pattern used by the Go, Python, and JavaScript hosting integrations:
-
-```csharp
-using Aspire.Hosting.Dotnet;
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-IResourceBuilder<DotnetProjectResource> api =
-    builder.AddDotnetProject("api", "../api/api.csproj");
-```
 
 :::note[Prerequisites]
 The **.NET SDK** must be available on the `PATH` of the machine running the AppHost. File-based C# apps (`.cs`) require **.NET 10 or later**.
@@ -47,7 +34,7 @@ The **.NET SDK** must be available on the `PATH` of the machine running the AppH
 
 ## Installation
 
-To start building an Aspire app that adds a C# project or file-based app by path, install the [📦 Aspire.Hosting.Dotnet](https://www.nuget.org/packages/Aspire.Hosting.Dotnet) NuGet package:
+To add a .NET project or C# file-based app by path, install the [📦 Aspire.Hosting.Dotnet](https://www.nuget.org/packages/Aspire.Hosting.Dotnet) NuGet package:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -118,9 +105,9 @@ This updates your `aspire.config.json` with the Dotnet hosting integration packa
 </TabItem>
 </Tabs>
 
-## Add a C# project or file-based app by path
+## Add a .NET project or file-based app by path
 
-Use `AddDotnetProject` / `addDotnetProject` to add a C# project or file-based app resource by path. The `path` argument can point at a project file (`.csproj`), a directory containing a single `.csproj`, or a file-based app (`.cs`). If the path isn't absolute, it's computed relative to the AppHost directory.
+Use <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" /> / `addDotnetProject` to add a resource by path. Supported inputs are SDK-style C#, F#, and Visual Basic project files (`.csproj`, `.fsproj`, and `.vbproj`), a directory containing exactly one supported project, or a C# file-based app (`.cs`). If the path isn't absolute, it's computed relative to the AppHost directory. Specify a project filename if a directory contains multiple supported projects. F# scripts and non-SDK project systems aren't supported.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -160,7 +147,7 @@ if err != nil {
 }
 
 api := builder.AddDotnetProject("api", "../api/api.csproj")
-api.WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(8080)})
+api.WithHttpEndpoint(aspire.HttpEndpointPort(8080))
 api.WithExternalHttpEndpoints()
 
 app, err := builder.Build()
@@ -175,11 +162,20 @@ if err := app.Run(); err != nil {
 </TabItem>
 </Tabs>
 
-The resource launches with `dotnet run --project <path>` for a project file, or `dotnet run --file <path>` for a file-based app. Endpoints, environment variables, and service discovery are configured from the project's `launchSettings.json` and Kestrel configuration, matching <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" />.
+The resource launches with `dotnet run --project <path>` for a project file, or `dotnet run --file <path>` for a file-based app. Endpoints, environment variables, and service discovery are configured from the project's `launchSettings.json` and Kestrel configuration.
+
+Because the resource is registered by path, the AppHost doesn't need a `ProjectReference` to the app. Before the resource starts, Aspire validates the path and, for file-based apps, that the active .NET SDK version is 10 or later.
+
+To refer to the resource type in a C# AppHost, for example in a helper method signature, add `using Aspire.Hosting.Dotnet;` and use `IResourceBuilder<DotnetProjectResource>`.
 
 ## Add a file-based C# app
 
 A file-based app is a single `.cs` file run directly with `dotnet run --file`, without a `.csproj`. File-based apps require **.NET 10 or later**.
+
+<LearnMore>
+  See [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/) for app
+  directives, file-based AppHost examples, and debugging considerations.
+</LearnMore>
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -217,49 +213,7 @@ builder.AddDotnetProject("inventoryservice", "../InventoryService.cs")
 
 ## Configure options
 
-Pass a configuration action to set additional options such as the launch profile:
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-builder.AddDotnetProject("inventoryservice", @"..\InventoryService.cs", o => o.LaunchProfileName = "https");
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-import { createBuilder } from './.aspire/modules/aspire.mjs';
-
-const builder = await createBuilder();
-
-await builder.addDotnetProject('inventoryservice', '../InventoryService.cs', {
-  launchProfileName: 'https',
-});
-
-await builder.build().run();
-```
-
-</TabItem>
-<TabItem id='go' label='Go'>
-
-```go title="apphost.go"
-builder.AddDotnetProject("inventoryservice", "../InventoryService.cs", &aspire.AddDotnetProjectOptions{
-	Options: &aspire.DotnetProjectOptions{LaunchProfileName: aspire.StringPtr("https")},
-})
-```
-
-</TabItem>
-</Tabs>
-
-The resource is added as an [`ExecutableResource`](/app-host/executable-resources/) rather than a `ProjectResource`, so it doesn't need to be referenced from the AppHost's own solution. Before the resource starts, Aspire validates that the path resolves to a `.csproj` or `.cs` file (or a directory containing a single `.csproj`) and, for file-based apps, that the active .NET SDK version is 10 or later.
-
-The TypeScript `addDotnetProject` overload accepts a plain options object rather than the shared `ProjectResourceOptions` handle used by the legacy `addProject` / `addCSharpApp` polyglot APIs, so it can be constructed directly from a generated SDK caller without an RPC round-trip:
+Pass options to choose a launch profile or control how Aspire derives endpoints from the project:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -298,13 +252,11 @@ await builder.build().run();
 <TabItem id='go' label='Go'>
 
 ```go title="apphost.go"
-builder.AddDotnetProject("inventoryservice", "../InventoryService.cs", &aspire.AddDotnetProjectOptions{
-	Options: &aspire.DotnetProjectOptions{
-		LaunchProfileName:       aspire.StringPtr("https"),
-		ExcludeLaunchProfile:    aspire.BoolPtr(false),
-		ExcludeKestrelEndpoints: aspire.BoolPtr(false),
-	},
-})
+builder.AddDotnetProject("inventoryservice", "../InventoryService.cs", aspire.AddDotnetProjectOptionsValue(&aspire.DotnetProjectOptions{
+	LaunchProfileName:       aspire.StringPtr("https"),
+	ExcludeLaunchProfile:    aspire.BoolPtr(false),
+	ExcludeKestrelEndpoints: aspire.BoolPtr(false),
+}))
 ```
 
 </TabItem>
@@ -314,27 +266,118 @@ builder.AddDotnetProject("inventoryservice", "../InventoryService.cs", &aspire.A
 - `excludeLaunchProfile: true` disables launch profiles entirely and takes precedence over a supplied `launchProfileName`.
 - `excludeKestrelEndpoints: true` stops Aspire from deriving model endpoints from the project's Kestrel configuration. It doesn't rewrite or disable the service's own Kestrel configuration.
 
-These properties have the same behavior as the corresponding `LaunchProfileName`, `ExcludeLaunchProfile`, and `ExcludeKestrelEndpoints` properties on the C# `ProjectResourceOptions` type. The options are polyglot-specific to `addDotnetProject`; they don't change the shared `ProjectResourceOptions` handle used by the legacy `addProject` / <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddCSharpApp" /> exports.
+<LearnMore>
+  For profile selection order and how `applicationUrl` values become endpoints, see [Launch profiles](/integrations/dotnet/launch-profiles/).
+</LearnMore>
+
+## Filter endpoints in environment variables
+
+By default, Aspire passes a project's endpoints to the process through environment variables such as `ASPNETCORE_URLS` and `HTTP_PORTS`/`HTTPS_PORTS`. Call `WithEndpointsInEnvironment` / `withEndpointsInEnvironment` to control which endpoints are included:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
+    .WithHttpsEndpoint()
+    .WithHttpsEndpoint(port: 19227, name: "admin")
+    .WithEndpointsInEnvironment(
+        filter: static endpoint => endpoint.Name is not "admin");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await builder.addDotnetProject('apiservice', '../ApiService/ApiService.csproj')
+  .withHttpsEndpoint()
+  .withHttpsEndpoint({ port: 19227, name: 'admin' })
+  .withEndpointsInEnvironment(['https']); // include only "https"
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj").
+	WithHttpsEndpoint().
+	WithHttpsEndpoint(aspire.HttpsEndpointPort(19227), aspire.HttpsEndpointName("admin")).
+	WithEndpointsInEnvironment([]string{"https"}) // include only "https"
+```
+
+</TabItem>
+</Tabs>
+
+The `admin` endpoint stays in the application model but isn't exposed to the process through environment variables. The C# overload takes a filter callback; TypeScript and Go take the names of the endpoints to include.
+
+<LearnMore>
+  For ports, proxies, and replicas, see [Inner-loop networking](/fundamentals/networking-overview/).
+</LearnMore>
+
+## Launch from an IDE
+
+Aspire builds SDK-style project resources before launching them and surfaces any compiler diagnostics. A compile failure stops the resource from launching. You don't need to build each service yourself, whether you start the app with `aspire run` or from an IDE.
+
+IDEs with external build support, such as Visual Studio Code, coordinate the build with Aspire. Aspire builds each resource once, and the IDE launches the resulting output without building it again. You can customize the build of SDK-style projects by calling <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.WithBuildEnvironment" /> in the AppHost, and file-based apps are fully supported: their builds are coordinated and serialized just like when you use `aspire run`.
+
+IDEs without external build support, such as Visual Studio, still launch project resources after Aspire builds them, but with these limitations:
+
+- The IDE might build projects again before launching them, because Aspire can't suppress the IDE build.
+- This build customization isn't supported. Aspire fails to start the application and reports an error instead of launching output that the IDE can't reliably locate. Run the application with `aspire run`, use an IDE with external build support, or remove the build customization.
+- File-based apps build themselves when they launch. They wait for Aspire to finish building project resources, but they aren't serialized with each other, so separate file-based apps can race when they share `#:project` outputs. `WaitForStart` only waits for the file-based app process to start, not for its build to finish. To avoid races, run with `aspire run`, use an IDE with external build support, or add a health check to the preceding app that passes only after it finishes building and call `WaitFor` on the next app.
+
+## Coordinated builds and restore
+
+Before resources start, Aspire groups SDK-style projects that share a compatible SDK and build environment into generated MSBuild traversal projects under the AppHost's intermediate output. Build groups run one after another. Projects within a group build in parallel and share one NuGet graph restore, which avoids restoring overlapping dependency graphs repeatedly. Projects that call `WithBuildEnvironment` build separately from these groups.
+
+Because the group restore doesn't invoke each project's `Restore` target separately, custom targets attached to it, such as `BeforeTargets="Restore"` or `AfterTargets="Restore"`, don't run for each project. If a project relies on those hooks, set `Aspire:Dotnet:RestoreProjectsIndividually` to `true` in the **AppHost's** configuration:
+
+```json title="appsettings.json"
+{
+  "Aspire": {
+    "Dotnet": {
+      "RestoreProjectsIndividually": true
+    }
+  }
+}
+```
+
+The environment-variable equivalent is `Aspire__Dotnet__RestoreProjectsIndividually=true`. The setting defaults to `false` and applies to every generated traversal in the AppHost; it isn't a runtime environment variable for your resources. With individual restore, each project restores one at a time while builds remain parallel.
+
+A traversal also restores projects individually when its MSBuild context enables `RestoreUseStaticGraphEvaluation`, because NuGet's static restore requires a restore-capable entry project. The build resource's logs report why individual restore was selected. Restore failures aren't retried with the other strategy.
+
+File-based apps, projects with a custom build environment, individual **Rebuild** commands, and publishing use their own build and restore paths.
+
+### Multithreaded builds
+
+When the `dotnet` SDK selected for a build (honoring `global.json`) supports the MSBuild `-mt` switch, Aspire passes it to coordinated traversal builds, file-based app builds, and [rebuild commands](/app-host/hot-reload-and-watch/#recommended-workflow). Multithreaded task execution can reduce the time it takes for resources to become ready. No configuration is required.
+
+:::note
+Project and traversal builds use `-mt` with .NET SDK `11.0.100-rc.1` or later. File-based app builds require .NET SDK `11.0.100` or later.
+:::
 
 ## Publishing
 
-Automatic project publishing for `DotnetProjectResource` isn't currently supported. A plain
-`DotnetProjectResource` causes `aspire publish` and `aspire deploy` to fail with an actionable error
-instead of emitting an `executable.v0` manifest containing machine-local paths.
+Resources created with `AddDotnetProject` are automatically configured for the .NET SDK container-publishing pipeline. Use them with your [deployment target](/deployment/deploy-with-aspire/).
 
-Use one of these alternatives:
+Use <ApiReference name="Aspire.Hosting.ApplicationModel.ResourceExtensions.WithContainerBuildOptions" /> / `withContainerBuildOptions` to configure supported image settings. See [Container registries](/app-host/container-registry/) for image naming, tags, and registries.
 
-- Use `AddProject<TProject>(...)` for a project referenced by a C# AppHost.
-- Use `AddCSharpApp(...)` / `addCSharpApp(...)` for a path-based project or file-based app that
-  should use standard .NET project publishing.
-- Call `PublishAsDockerFile(...)` / `publishAsDockerFile(...)` to configure container publishing
-  explicitly.
-- Call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.ExcludeFromManifest" /> when the resource is intentionally
-  available only during local orchestration.
+Constructing a `DotnetProjectResource` directly doesn't configure metadata, coordinated builds, or publishing. Prefer the builder API.
+
+For other publishing models:
+
+- Call <ApiReference name="Aspire.Hosting.ExecutableResourceBuilderExtensions.PublishAsDockerFile" /> / `publishAsDockerFile` to use an explicit Dockerfile instead of .NET SDK container publishing.
+- Call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.ExcludeFromManifest" /> for a resource that's intentionally available only during local orchestration.
+
+:::caution[File-based apps and Native AOT]
+File-based apps retain the SDK's publishing defaults, including Native AOT. Native AOT can't cross-compile between operating systems, so publishing a Linux container from Windows or macOS can fail. To retain Native AOT, publish on the target operating system. If you intentionally choose framework-dependent publishing instead, set `#:property PublishAot=false` in the `.cs` app. See [Native AOT cross-compilation](https://learn.microsoft.com/dotnet/core/deploying/native-aot/cross-compile).
+:::
 
 ## See also
 
 - [.NET documentation](https://learn.microsoft.com/dotnet/)
 - [Get started with the .NET / C# app integration](/integrations/frameworks/dotnet/dotnet-get-started/)
+- [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/)
+- [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/)
 - [Aspire integrations overview](/integrations/overview/)
 - [Aspire GitHub repo](https://github.com/microsoft/aspire)

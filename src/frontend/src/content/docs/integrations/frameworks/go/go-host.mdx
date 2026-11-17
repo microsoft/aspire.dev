@@ -166,8 +166,8 @@ func main() {
 		log.Fatal(aspire.FormatError(err))
 	}
 
-	api := builder.AddGoApp("api", "./api").
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Port: aspire.IntPtr(8080), Env: aspire.StringPtr("PORT")}).
+	builder.AddGoApp("api", "./api").
+		WithHttpEndpoint(aspire.HttpEndpointPort(8080), aspire.HttpEndpointEnv("PORT")).
 		WithExternalHttpEndpoints()
 
 	app, err := builder.Build()
@@ -270,10 +270,8 @@ await builder.build().run();
 <TabItem id='go' label='Go'>
 
 ```go title="apphost.go"
-builder.AddGoApp("api", "./api", &aspire.AddGoAppOptions{
-	PackagePath: aspire.StringPtr("./cmd/server"),
-}).
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+builder.AddGoApp("api", "./api", aspire.AddGoAppPackagePath("./cmd/server")).
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
 ```
 
 </TabItem>
@@ -326,13 +324,11 @@ await builder.build().run();
 <TabItem id='go' label='Go'>
 
 ```go title="apphost.go"
-builder.AddGoApp("api", "./api", &aspire.AddGoAppOptions{
-	PackagePath:  aspire.StringPtr("./cmd/server"),
-	BuildTags:    []string{"netgo", "integration"},
-	LdFlags:      aspire.StringPtr("-X main.version=1.2.3 -s -w"),
-	GcFlags:      aspire.StringPtr("all=-N -l"),
-	RaceDetector: aspire.BoolPtr(true),
-})
+builder.AddGoApp("api", "./api", aspire.AddGoAppPackagePath("./cmd/server"),
+	aspire.AddGoAppBuildTags([]string{"netgo", "integration"}),
+	aspire.AddGoAppLdFlags("-X main.version=1.2.3 -s -w"),
+	aspire.AddGoAppGcFlags("all=-N -l"),
+	aspire.AddGoAppRaceDetector(true))
 ```
 
 </TabItem>
@@ -383,7 +379,7 @@ await builder.build().run();
 ```go title="apphost.go"
 builder.AddGoApp("api", "./api").
 	WithAppArgs([]any{"--config", "dev.yaml"}).
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
 ```
 
 </TabItem>
@@ -438,7 +434,7 @@ builder.AddGoApp("api", "./api").
 	WithModVendor().
 	WithModDownload().
 	WithVetTool().
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")})
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT"))
 ```
 
 </TabItem>
@@ -452,6 +448,12 @@ The helper methods run these commands:
 - <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithVetTool" />: Runs `go vet ./...`.
 
 When multiple module helpers are configured, Aspire orders them so dependency-changing steps complete before later module cache or vendor steps.
+
+### Certificate trust for module helpers
+
+These helpers run as separate resources, so they use the platform defaults for certificate trust: `CertificateTrustScope.System` on macOS and Windows, and `CertificateTrustScope.Append` on Linux. On macOS and Windows, the certificate bundle Aspire generates includes the system root certificates, so Go can still download modules over TLS. Certificate verification remains enabled.
+
+Trust scope overrides that you set on the Go app, such as `.WithCertificateTrustScope(...)`, aren't inherited by these helper resources.
 
 ## Debug Go apps
 
@@ -503,7 +505,8 @@ await builder.build().run();
 ```go title="apphost.go"
 builder.AddGoApp("api", "./api").
 	WithDelveServer().
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{	Port: aspire.IntPtr(8080), Env: aspire.StringPtr("PORT")})```
+	WithHttpEndpoint(aspire.HttpEndpointPort(8080), aspire.HttpEndpointEnv("PORT"))
+```
 
 </TabItem>
 </Tabs>
@@ -545,12 +548,12 @@ await api.withDelveServer({
 
 ```go title="apphost.go"
 builder.AddGoApp("api", "./api").
-	WithDelveServer(&aspire.DelveServerOptions{
+	WithDelveServer(aspire.DelveServerOptions2(&aspire.DelveServerOptions{
 		AcceptMultiClient: aspire.BoolPtr(true),
 		ContinueOnStart:   aspire.BoolPtr(true),
 		Log:               aspire.BoolPtr(true),
 		LogOutput:         aspire.StringPtr("rpc,dap,debugger"),
-	})
+	}))
 ```
 
 </TabItem>
@@ -594,6 +597,12 @@ When a publisher or deployment target emits container build artifacts for a Go a
 - The build stage runs `go mod download`, caches the module and build caches, and builds a static Linux binary with `CGO_ENABLED=0` and `GOOS=linux`.
 - The runtime stage uses a small runtime image, installs certificate and time zone data for Alpine-based images, creates a non-root `app` user, and starts the compiled binary.
 - The generated `go build` command uses the same `packagePath`, `buildTags`, `ldFlags`, and `gcFlags` configured on the Go app resource. It intentionally excludes `raceDetector` for publish builds.
+
+### Use an existing Dockerfile
+
+An existing `Dockerfile` is used as-is, so Aspire can't apply a non-default `packagePath` to it. When the container has no explicit entrypoint and `packagePath` resolves to something other than the app directory, publishing logs a warning that names the resource, the requested package, and the `Dockerfile` path. The warning doesn't fail the publish, because a custom `Dockerfile` can already build and run the requested package. Build tags, linker flags, compiler flags, and the race detector don't trigger it.
+
+To silence the warning, set an explicit container entrypoint with `PublishAsDockerFile(c => c.WithEntrypoint(...))`, or rename the `Dockerfile` so Aspire generates one. The warning comes from a pipeline step, so a manifest-only publish (`--publisher manifest`) doesn't show it.
 
 For private modules, use <ApiReference name="Aspire.Hosting.GoHostingExtensions.WithGoPrivate" /> to configure the generated Dockerfile with `GOPRIVATE` and BuildKit secret-based authentication. This setting only affects generated Dockerfiles; local run mode continues to use the developer's local Go and Git credentials.
 

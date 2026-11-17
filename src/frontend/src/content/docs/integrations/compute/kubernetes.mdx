@@ -23,8 +23,8 @@ This article is the reference for the Aspire Kubernetes hosting integration. It 
 
 ## Installation
 
-:::note[Prerequisite: Helm v4.2.0 or later]
-Aspire's Kubernetes deployment pipeline shells out to `helm upgrade --install` and validates the installed Helm version before executing. **[Helm](https://helm.sh/docs/intro/install/) v4.2.0 or later** must be on your `PATH`. If Helm is missing or too old, Aspire reports a clear, actionable error instead of cryptic flag failures.
+:::note[Prerequisite: Helm v4.0.0 or later]
+Aspire's Kubernetes deployment pipeline shells out to `helm upgrade --install` and validates the installed Helm version before executing. **[Helm](https://helm.sh/docs/intro/install/) v4.0.0 or later** must be on your `PATH`. If Helm is missing or too old, Aspire reports a clear, actionable error instead of cryptic flag failures.
 :::
 
 To start building an Aspire app with Kubernetes deployment support, install the [📦 Aspire.Hosting.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Kubernetes) NuGet package:
@@ -107,7 +107,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var k8s = builder.AddKubernetesEnvironment("k8s");
 
-var api = builder.AddProject<Projects.MyApi>("api");
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj");
 
 builder.Build().Run();
 ```
@@ -151,7 +151,7 @@ func main() {
 	builder.AddKubernetesEnvironment("k8s")
 
 	builder.AddNodeApp("api", "./api", "src/index.ts").
-		WithHttpEndpoint(&aspire.WithHttpEndpointOptions{Env: aspire.StringPtr("PORT")}).
+		WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
 		WithExternalHttpEndpoints()
 
 	app, err := builder.Build()
@@ -180,7 +180,7 @@ The dashboard container included in the generated Helm chart opts out of dashboa
   ```csharp title="AppHost.cs"
   var k8s = builder.AddKubernetesEnvironment("k8s");
 
-  builder.AddProject<Projects.MyApi>("api")
+  builder.AddDotnetProject("api", "../MyApi/MyApi.csproj")
       .WithComputeEnvironment(k8s);
   ```
   </TabItem>
@@ -241,15 +241,13 @@ await k8s.withHelm(async (helm) => {
 
 ```go title="apphost.go"
 k8s := builder.AddKubernetesEnvironment("k8s")
-k8s.WithHelm(&aspire.WithHelmOptions{
-	Configure: func(helm aspire.HelmChartOptions) {
-		helm.WithNamespace("my-namespace")
-		helm.WithReleaseName("my-release")
-		helm.WithChartName("my-aspire-app")
-		helm.WithChartVersion("1.0.0")
-		helm.WithChartDescription("My Aspire application deployed to Kubernetes")
-	},
-})
+k8s.WithHelm(aspire.HelmConfigure(func(helm aspire.HelmChartOptions) {
+	helm.WithNamespace("my-namespace")
+	helm.WithReleaseName("my-release")
+	helm.WithChartName("my-aspire-app")
+	helm.WithChartVersion("1.0.0")
+	helm.WithChartDescription("My Aspire application deployed to Kubernetes")
+}))
 ```
 
 </TabItem>
@@ -351,7 +349,7 @@ pgData.WithStorageClass("managed-csi")
 pgData.WithCapacity("20Gi")
 
 pg := builder.AddPostgres("pg")
-pg.WithDataVolume(&aspire.WithDataVolumeOptions{Name: aspire.StringPtr("pg-data")})
+pg.WithDataVolume(aspire.DataVolumeName("pg-data"))
 pg.WithKubernetesPersistentVolume(pgData)
 ```
 
@@ -455,7 +453,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddKubernetesEnvironment("k8s");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .PublishAsKubernetesService(resource =>
     {
         var container = resource.Workload!.PodTemplate.Spec.Containers[0];
@@ -492,6 +490,51 @@ This example uses the C# workload resource model. The same typed CPU and memory 
 <LearnMore>
   For quantity syntax and enforcement details, see [Resource management for pods and containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 </LearnMore>
+
+### Set environment variables from an init container's env file
+
+When a value is only known at pod startup—for example, a token or setting an init container fetches or computes—an init container can write it to an env file on an `emptyDir` volume, and the app container can read individual keys with `FileKeyRef`. The file isn't mounted into the app container, and you don't need to override the app's entrypoint.
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+
+builder.AddContainer("myapp", "nginx:alpine")
+    .PublishAsKubernetesService(resource =>
+    {
+        var pod = resource.Workload!.PodTemplate.Spec;
+        pod.Volumes.Add(new VolumeV1 { Name = "generated-env", EmptyDir = new() });
+
+        pod.InitContainers.Add(new ContainerV1
+        {
+            Name = "prepare-env",
+            Image = "docker.io/library/busybox:1.37",
+            Command = { "sh", "-ec" },
+            Args = { "printf \"SOURCE_KEY='generated-value'\\n\" > /out/app.env" },
+            VolumeMounts = { new VolumeMountV1 { Name = "generated-env", MountPath = "/out" } }
+        });
+
+        pod.Containers[0].Env.Add(new EnvVarV1
+        {
+            Name = "APP_VALUE",
+            ValueFrom = new EnvVarSourceV1
+            {
+                FileKeyRef = new FileKeySelectorV1
+                {
+                    VolumeName = "generated-env",
+                    Path = "app.env",
+                    Key = "SOURCE_KEY",
+                    Optional = false
+                }
+            }
+        });
+    });
+```
+
+`FileKeySelectorV1` selects `Key` from the file at `Path`, relative to the root of the `emptyDir` volume named by `VolumeName`. When `Optional` is `true`, a missing file or key leaves the variable unset; otherwise, the container doesn't start. The value is read once when the container starts, so later changes to the file don't update a running container. Init-container images must be pullable by the cluster.
+
+:::note
+`FileKeyRef` requires Kubernetes 1.34 or later with the `EnvFiles` feature gate enabled; it's on by default starting with Kubernetes 1.35. This C# resource-model API isn't exposed to TypeScript AppHosts.
+:::
 
 ## Add custom Kubernetes manifests
 
@@ -580,15 +623,13 @@ await service.publishAsKubernetesService(async (resource) => {
 ```go title="apphost.go"
 service := builder.AddContainer("service", "nginx")
 service.PublishAsKubernetesService(func(resource aspire.KubernetesResource) {
-	resource.AddManifest("cert-manager.io/v1", "Certificate", "service-tls", &aspire.AddManifestOptions{
-		Configure: func(manifest aspire.KubernetesManifestResource) {
-			manifest.WithLabel("example.com/managed-by", "aspire")
-			manifest.WithField("spec.secretName", "service-tls")
-			manifest.WithField("spec.dnsNames", []string{"service.example.com"})
-			manifest.WithField("spec.issuerRef.name", "letsencrypt-prod")
-			manifest.WithField("spec.issuerRef.kind", "ClusterIssuer")
-		},
-	})
+	resource.AddManifest("cert-manager.io/v1", "Certificate", "service-tls", aspire.AddManifestConfigure(func(manifest aspire.KubernetesManifestResource) {
+		manifest.WithLabel("example.com/managed-by", "aspire")
+		manifest.WithField("spec.secretName", "service-tls")
+		manifest.WithField("spec.dnsNames", []string{"service.example.com"})
+		manifest.WithField("spec.issuerRef.name", "letsencrypt-prod")
+		manifest.WithField("spec.issuerRef.kind", "ClusterIssuer")
+	}))
 })
 ```
 </TabItem>
@@ -604,6 +645,23 @@ The manifest handle returned by <ApiReference name="Aspire.Hosting.KindManifestR
 | `withField` | Sets an arbitrary field using a dot-notation path (for example, `spec.maxReplicaCount`). |
 
 Each manifest is emitted as a separate template file inside the generated Helm chart.
+
+### Structured field values
+
+`withField` accepts JSON-compatible primitives, objects, and arrays, including arrays of objects. Paths are dot-separated, so to keep keys that contain dots or slashes, pass them inside an object at the parent path:
+
+```typescript title="apphost.mts"
+await manifest.withField('spec.endpointSelector.matchLabels', {
+    'app.kubernetes.io/component': 'api',
+});
+await manifest.withField('spec.ingress', [{
+    fromEndpoints: [{
+        matchLabels: { 'app.kubernetes.io/component': 'frontend' },
+    }],
+}]);
+```
+
+Each call replaces the value at that path rather than merging into an existing subtree. Non-JSON objects such as resource handles aren't supported as field values, including inside objects and arrays. Use `withNamespace`, `withLabel`, and `withAnnotation` for manifest metadata.
 
 <Aside type="note">
 `addManifest` is the recommended way to attach custom Kubernetes resources from TypeScript AppHosts, where there is no strongly-typed model for arbitrary CRDs. C# AppHosts have direct access to the resource model, so they add `BaseKubernetesResource` instances to `AdditionalResources` instead.

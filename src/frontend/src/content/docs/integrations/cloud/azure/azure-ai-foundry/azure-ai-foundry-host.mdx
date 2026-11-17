@@ -126,7 +126,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var foundry = builder.AddFoundry("foundry");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(foundry);
 
 // After adding all resources, run the app...
@@ -143,7 +143,7 @@ const builder = await createBuilder();
 const foundry = await builder.addFoundry('foundry');
 
 await builder
-  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .addDotnetProject('api', '../ExampleProject/ExampleProject.csproj')
   .withReference(foundry);
 
 await builder.build().run();
@@ -200,7 +200,7 @@ var foundry = builder.AddFoundry("foundry");
 
 var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(chat)
     .WaitFor(chat);
 
@@ -224,7 +224,7 @@ const chat = await foundry.addDeployment('chat', {
 });
 
 await builder
-  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .addDotnetProject('api', '../ExampleProject/ExampleProject.csproj')
   .withReference(chat)
   .waitFor(chat);
 
@@ -269,7 +269,7 @@ The preceding code:
 - Adds an Azure AI Foundry resource named `foundry`.
 - Adds a Foundry deployment resource named `chat` using the generated `FoundryModel.OpenAI.Gpt5Mini` descriptor.
 
-If you need a different generated model descriptor, use the corresponding nested type. The `FoundryModel` class organizes models by provider family: `FoundryModel.Microsoft`, `FoundryModel.OpenAI`, `FoundryModel.Cohere`, `FoundryModel.MistralAI`, and others. For example, to use `FoundryModel.Microsoft.Phi4Reasoning`:
+If you need a different generated model descriptor, use the corresponding nested type. The `FoundryModel` class organizes models by provider family: `FoundryModel.Microsoft`, `FoundryModel.OpenAI`, `FoundryModel.Cohere`, `FoundryModel.MistralAI`, `FoundryModel.Nvidia`, and others. For example, to use `FoundryModel.Microsoft.Phi4Reasoning`:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -281,7 +281,7 @@ var foundry = builder.AddFoundry("foundry");
 
 var chat = foundry.AddDeployment("chat", FoundryModel.Microsoft.Phi4Reasoning);
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(chat)
     .WaitFor(chat);
 
@@ -305,7 +305,7 @@ const chat = await foundry.addDeployment('chat', {
 });
 
 await builder
-  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .addDotnetProject('api', '../ExampleProject/ExampleProject.csproj')
   .withReference(chat)
   .waitFor(chat);
 
@@ -375,7 +375,7 @@ var project = foundry.AddProject("my-project");
 
 var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 
-builder.AddProject<Projects.ExampleProject>("api")
+builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .WithReference(project)
     .WithReference(chat)
     .WaitFor(chat);
@@ -401,7 +401,7 @@ const chat = await project.addModelDeployment('chat', {
 });
 
 await builder
-  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .addDotnetProject('api', '../ExampleProject/ExampleProject.csproj')
   .withReference(project)
   .withReference(chat)
   .waitFor(chat);
@@ -544,7 +544,7 @@ await toolbox.withMcpTool('inventory', 'https://inventory.example.com/mcp', {
 });
 await toolbox.withAISearchTool('knowledge-base', search, 'docs');
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(toolbox);
 await api.waitFor(toolbox);
 
@@ -580,7 +580,7 @@ var toolbox = project.AddToolbox("field-tools")
         })
     .WithAISearchTool("knowledge-base", search, "docs");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(toolbox)
     .WaitFor(toolbox);
 
@@ -603,10 +603,8 @@ approvalMode := aspire.FoundryToolboxMcpGlobalApprovalModeAlways
 
 toolbox := project.AddToolbox("field-tools").
 	WithDescription("Tools for field technicians.").
-	WithWebSearchTool(&aspire.WithWebSearchToolOptions{
-		Name:        aspire.StringPtr("web-search"),
-		Description: aspire.StringPtr("Search the public web."),
-	}).
+	WithWebSearchTool(aspire.WebSearchToolName("web-search"),
+		aspire.WebSearchToolDescription("Search the public web.")).
 	WithMcpTool("inventory", "https://inventory.example.com/mcp", aspire.McpToolOptions(&aspire.FoundryToolboxMcpToolOptions{
 		ServerDescription: aspire.StringPtr("Inventory MCP server."),
 		ApprovalPolicy: &aspire.FoundryToolboxMcpApprovalPolicy{
@@ -686,7 +684,7 @@ builder.AddPythonApp("agent-python", "..\\agent", "main:app")
     .WithReference(chat)
     .AsHostedAgent(project);
 
-builder.AddProject<Projects.Agent>("agent-dotnet")
+builder.AddDotnetProject("agent-dotnet", "../Agent/Agent.csproj")
     .WithHttpEndpoint(targetPort: 9000)
     .WithReference(project)
     .WithReference(chat)
@@ -718,7 +716,7 @@ await builder
   .asHostedAgent(project);
 
 await builder
-  .addProject('agent-dotnet', '../Agent/Agent.csproj')
+  .addDotnetProject('agent-dotnet', '../Agent/Agent.csproj')
   .withHttpEndpoint({ targetPort: 9000 })
   .withReference(project)
   .withReference(chat)
@@ -750,7 +748,7 @@ agentPython := builder.AddPythonApp("agent-python", "../agent", "main:app").
 agentPython.AsHostedAgent(project)
 
 agentDotnet := builder.AddDotnetProject("agent-dotnet", "../Agent/Agent.csproj").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(9000)}).
+	WithHttpEndpoint(aspire.HttpEndpointTargetPort(9000)).
 	WithReference(project).
 	WithReference(chat)
 agentDotnet.AsHostedAgent(project)
@@ -782,7 +780,7 @@ If your hosted agent listens on a different port, declare the endpoint before ca
 <TabItem id="csharp" label="C#">
 
 ```csharp
-var dotnetWeatherAgent = builder.AddProject<Projects.WeatherAgent_Dotnet>("weather-agent-dotnet")
+var dotnetWeatherAgent = builder.AddDotnetProject("weather-agent-dotnet", "../WeatherAgent.Dotnet/WeatherAgent.Dotnet.csproj")
     .WithHttpEndpoint(targetPort: 9000)
     .WithReference(project).WaitFor(project)
     .WithReference(chat).WaitFor(chat);
@@ -795,7 +793,7 @@ dotnetWeatherAgent.AsHostedAgent(project);
 
 ```typescript
 const dotnetWeatherAgent = await builder
-  .addProject(
+  .addDotnetProject(
     'weather-agent-dotnet',
     '../WeatherAgent.Dotnet/WeatherAgent.Dotnet.csproj'
   )
@@ -813,7 +811,7 @@ await dotnetWeatherAgent.asHostedAgent(project);
 
 ```go
 dotnetWeatherAgent := builder.AddDotnetProject("weather-agent-dotnet", "../WeatherAgent.Dotnet/WeatherAgent.Dotnet.csproj").
-	WithHttpEndpoint(&aspire.WithHttpEndpointOptions{TargetPort: aspire.IntPtr(9000)}).
+	WithHttpEndpoint(aspire.HttpEndpointTargetPort(9000)).
 	WithReference(project).
 	WaitFor(project).
 	WithReference(chat).
@@ -943,19 +941,15 @@ if err != nil {
 
 foundry := builder.AddFoundry("foundry")
 project := foundry.AddProject("my-project")
-chat := project.AddModelDeployment("chat", "gpt-5-mini", &aspire.AddModelDeploymentOptions{
-	ModelVersion: aspire.StringPtr("2025-06-01"),
-	Format:       aspire.StringPtr("OpenAI"),
-})
+chat := project.AddModelDeployment("chat", "gpt-5-mini", aspire.AddModelDeploymentModelVersion("2025-06-01"),
+	aspire.AddModelDeploymentFormat("OpenAI"))
 
 webSearch := project.AddWebSearchTool("web-search")
 
-project.AddPromptAgent("web-researcher", chat, &aspire.AddPromptAgentOptions{
-	Instructions: aspire.StringPtr(`
+project.AddPromptAgent("web-researcher", chat, aspire.AddPromptAgentInstructions(`
 You are the Web Researcher. Use web search for current information,
 cite sources, summarize tradeoffs, and keep answers concise and practical.
-`),
-}).
+`)).
 	WithTool(webSearch)
 
 app, err := builder.Build()
@@ -1015,7 +1009,7 @@ var existingFoundryResourceGroup = builder.AddParameter("existingFoundryResource
 var foundry = builder.AddFoundry("foundry")
     .AsExisting(existingFoundryName, existingFoundryResourceGroup);
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(foundry);
 
 // After adding all resources, run the app...
@@ -1039,7 +1033,7 @@ const foundry = await builder
   .asExisting(existingFoundryName, existingFoundryResourceGroup);
 
 await builder
-  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .addDotnetProject('api', '../ExampleProject/ExampleProject.csproj')
   .withReference(foundry);
 
 await builder.build().run();
@@ -1058,7 +1052,7 @@ existingFoundryName := builder.AddParameter("existingFoundryName")
 existingFoundryResourceGroup := builder.AddParameter("existingFoundryResourceGroup")
 
 foundry := builder.AddFoundry("foundry").
-	AsExisting(existingFoundryName, &aspire.AsExistingOptions{ResourceGroup: existingFoundryResourceGroup})
+	AsExisting(existingFoundryName, aspire.AsExistingResourceGroup(existingFoundryResourceGroup))
 
 api := builder.AddGoApp("api", "./api").
 	WithReference(foundry)
@@ -1102,7 +1096,7 @@ var foundry = builder.AddFoundry("foundry")
 
 var chat = foundry.AddDeployment("chat", FoundryModel.Local.Phi4);
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(chat)
     .WaitFor(chat);
 
@@ -1126,7 +1120,7 @@ const chat = await foundry.addDeployment('chat', {
 });
 
 await builder
-  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .addDotnetProject('api', '../ExampleProject/ExampleProject.csproj')
   .withReference(chat)
   .waitFor(chat);
 
@@ -1219,12 +1213,10 @@ const chat = await foundry
 
 ```go title="apphost.go"
 foundry := builder.AddFoundry("foundry").
-	RunAsFoundryLocal(&aspire.RunAsFoundryLocalOptions{Endpoint: aspire.StringPtr("http://windows-host:5273")})
+	RunAsFoundryLocal(aspire.RunAsFoundryLocalEndpoint("http://windows-host:5273"))
 
-chat := foundry.AddDeployment("chat", "Phi-3.5-mini-instruct", &aspire.AddDeploymentOptions{
-	ModelVersion: aspire.StringPtr("1"),
-	Format:       aspire.StringPtr("Microsoft"),
-}).
+chat := foundry.AddDeployment("chat", "Phi-3.5-mini-instruct", aspire.AddDeploymentModelVersion("1"),
+	aspire.AddDeploymentFormat("Microsoft")).
 	SetLocalModelId(aspire.StringPtr("Phi-3.5-mini-instruct-generic-gpu:1"))
 ```
 
@@ -1253,7 +1245,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var foundry = builder.AddFoundry("chat");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
   .WithRoleAssignments(foundry, CognitiveServicesBuiltInRole.CognitiveServicesUser)
   .WithReference(foundry);
 
@@ -1271,7 +1263,7 @@ const builder = await createBuilder();
 const foundry = await builder.addFoundry('chat');
 
 await builder
-  .addProject('api', '../Api/Api.csproj')
+  .addDotnetProject('api', '../Api/Api.csproj')
   .withFoundryRoleAssignments(foundry, [FoundryRole.CognitiveServicesUser])
   .withReference(foundry);
 

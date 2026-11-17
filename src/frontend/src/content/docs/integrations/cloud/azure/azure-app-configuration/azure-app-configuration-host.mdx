@@ -1,4 +1,4 @@
-﻿---
+---
 title: Set up Azure App Configuration in the AppHost
 description: Learn how to use the Aspire Azure App Configuration Hosting integration to orchestrate and configure an App Configuration store in an Aspire solution.
 ---
@@ -105,7 +105,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var appConfig = builder.AddAzureAppConfiguration("config");
 
-builder.AddProject<Projects.WebApplication>("web")
+builder.AddDotnetProject("web", "../WebApplication/WebApplication.csproj")
     .WithReference(appConfig);
 
 // After adding all resources, run the app...
@@ -123,7 +123,7 @@ const builder = await createBuilder();
 
 const appConfig = await builder.addAzureAppConfiguration("config");
 
-await builder.addProject("web", "../WebApplication/WebApplication.csproj")
+await builder.addDotnetProject("web", "../WebApplication/WebApplication.csproj")
     .withReference(appConfig);
 
 // After adding all resources, run the app...
@@ -397,11 +397,9 @@ if err != nil {
 }
 
 builder.AddAzureAppConfiguration("config").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
-			emulator.WithHostPort(aspire.IntPtr(28000))
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureEmulator(func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+		emulator.WithHostPort(aspire.IntPtr(28000))
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -458,11 +456,9 @@ if err != nil {
 }
 
 builder.AddAzureAppConfiguration("config").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
-			emulator.WithLifetime(aspire.ContainerLifetimePersistent)
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureEmulator(func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+		emulator.WithLifetime(aspire.ContainerLifetimePersistent)
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -517,11 +513,9 @@ if err != nil {
 }
 
 builder.AddAzureAppConfiguration("config").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
-			emulator.WithDataVolume()
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureEmulator(func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+		emulator.WithDataVolume()
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -578,13 +572,9 @@ if err != nil {
 }
 
 builder.AddAzureAppConfiguration("config").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureEmulator: func(emulator aspire.AzureAppConfigurationEmulatorResource) {
-			emulator.WithDataBindMount(&aspire.WithDataBindMountOptions{
-				Path: aspire.StringPtr("../Emulator/Data"),
-			})
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureEmulator(func(emulator aspire.AzureAppConfigurationEmulatorResource) {
+		emulator.WithDataBindMount(aspire.DataBindMountPath("../Emulator/Data"))
+	}))
 
 // After adding all resources, run the app...
 ```
@@ -651,7 +641,7 @@ configName := builder.AddParameter("configName")
 configResourceGroupName := builder.AddParameter("configResourceGroupName")
 
 builder.AddAzureAppConfiguration("config").
-	AsExisting(configName, &aspire.AsExistingOptions{ResourceGroup: configResourceGroupName})
+	AsExisting(configName, aspire.AsExistingResourceGroup(configResourceGroupName))
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -680,7 +670,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var config = builder.AddConnectionString("config");
 
-builder.AddProject<Projects.WebApplication>("web")
+builder.AddDotnetProject("web", "../WebApplication/WebApplication.csproj")
     .WithReference(config);
 
 // After adding all resources, run the app...
@@ -698,7 +688,7 @@ const builder = await createBuilder();
 
 const config = await builder.addConnectionString("config");
 
-await builder.addProject("web", "../WebApplication/WebApplication.csproj")
+await builder.addDotnetProject("web", "../WebApplication/WebApplication.csproj")
     .withReference(config);
 
 // After adding all resources, run the app...
@@ -759,7 +749,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var appConfig = builder.AddAzureAppConfiguration("config");
 
-builder.AddProject<Projects.WebApplication>("web")
+builder.AddDotnetProject("web", "../WebApplication/WebApplication.csproj")
     .WithReference(appConfig)
     .WithRoleAssignments(appConfig, AzureAppConfigurationRole.AppConfigurationDataReader);
 

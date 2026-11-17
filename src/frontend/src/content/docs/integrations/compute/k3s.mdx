@@ -149,7 +149,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cluster = builder.AddK3sCluster("k8s");
 
-builder.AddProject<Projects.MyOperator>("operator")
+builder.AddDotnetProject("operator", "../MyOperator/MyOperator.csproj")
     .WaitFor(cluster)
     .WithReference(cluster);   // injects KUBECONFIG automatically
 
@@ -167,7 +167,7 @@ const builder = await createBuilder();
 const cluster = await builder.addK3sCluster('k8s');
 
 await builder
-    .addProject('operator', '../MyOperator/MyOperator.csproj')
+    .addDotnetProject('operator', '../MyOperator/MyOperator.csproj')
     .withReference(cluster);   // injects KUBECONFIG automatically
 
 await builder.build().run();
@@ -257,18 +257,16 @@ const cluster = await builder
 <TabItem id="go" label="Go">
 
 ```go title="apphost.go"
-cluster := builder.AddK3sCluster("k8s", &aspire.AddK3sClusterOptions{
-	ApiServerPort: aspire.IntPtr(16443),
-	AgentCount:    aspire.IntPtr(2),
-}).
+cluster := builder.AddK3sCluster("k8s", aspire.AddK3sClusterApiServerPort(16443),
+	aspire.AddK3sClusterAgentCount(2)).
 	WithK3sVersion("v1.32.3-k3s1").
 	WithPodSubnet("10.42.0.0/16").
 	WithServiceSubnet("10.43.0.0/16").
 	WithDisabledComponent("traefik").
 	WithExtraArg("--write-kubeconfig-mode=644").
-	WithDataVolume(&aspire.WithDataVolumeOptions{Name: aspire.StringPtr("k8s-data")}).
-	WithHelmImage(&aspire.WithHelmImageOptions{Tag: aspire.StringPtr("3.18.0")}).
-	WithKubectlImage(&aspire.WithKubectlImageOptions{Tag: aspire.StringPtr("1.37.0")}).
+	WithDataVolume(aspire.DataVolumeName("k8s-data")).
+	WithHelmImage(aspire.HelmImageTag("3.18.0")).
+	WithKubectlImage(aspire.KubectlImageTag("1.37.0")).
 	WithLifetime(aspire.ContainerLifetimePersistent)
 ```
 
@@ -316,7 +314,7 @@ const cluster = await builder.addK3sCluster('k8s')
 
 ```go title="apphost.go"
 cluster := builder.AddK3sCluster("k8s").
-	WithDataVolume(&aspire.WithDataVolumeOptions{Name: aspire.StringPtr("k8s-data")}).
+	WithDataVolume(aspire.DataVolumeName("k8s-data")).
 	WithLifetime(aspire.ContainerLifetimePersistent)
 ```
 
@@ -347,7 +345,7 @@ var podinfo = cluster.AddHelmRelease(
     .WithHelmValuesFile("./deploy/podinfo-values.yaml");
 
 // Wait for the chart install to complete before starting the operator.
-builder.AddProject<Projects.MyOperator>("operator")
+builder.AddDotnetProject("operator", "../MyOperator/MyOperator.csproj")
     .WaitForCompletion(podinfo)
     .WithReference(cluster);
 ```
@@ -363,7 +361,7 @@ const podinfo = await cluster.addHelmRelease('podinfo', 'podinfo', {
 });
 
 // Wait for the chart install to complete before starting the operator.
-const operator = await builder.addProject('operator', '../MyOperator/MyOperator.csproj');
+const operator = await builder.addDotnetProject('operator', '../MyOperator/MyOperator.csproj');
 await operator.waitForCompletion(podinfo);
 await operator.withReference(cluster);
 ```
@@ -372,11 +370,9 @@ await operator.withReference(cluster);
 <TabItem id="go" label="Go">
 
 ```go title="apphost.go"
-podinfo := cluster.AddHelmRelease("podinfo", "podinfo", &aspire.AddHelmReleaseOptions{
-	Repo:      aspire.StringPtr("https://stefanprodan.github.io/podinfo"),
-	Version:   aspire.StringPtr("6.7.1"),
-	Namespace: aspire.StringPtr("podinfo"),
-}).
+podinfo := cluster.AddHelmRelease("podinfo", "podinfo", aspire.AddHelmReleaseRepo("https://stefanprodan.github.io/podinfo"),
+	aspire.AddHelmReleaseVersion("6.7.1"),
+	aspire.AddHelmReleaseNamespace("podinfo")).
 	WithHelmValue("replicaCount", "2").
 	WithHelmValuesFile("./deploy/podinfo-values.yaml")
 
@@ -464,7 +460,7 @@ var podinfoWeb = cluster
     .WaitForCompletion(podinfo);
 
 // Host processes receive http://localhost:{port}
-builder.AddProject<Projects.MyApi>("api")
+builder.AddDotnetProject("api", "../MyApi/MyApi.csproj")
     .WaitFor(podinfoWeb)
     .WithReference(podinfoWeb);
 
@@ -485,7 +481,7 @@ const podinfoWeb = await cluster
 
 // Host processes receive http://localhost:{port}
 await builder
-    .addProject('api', '../MyApi/MyApi.csproj')
+    .addDotnetProject('api', '../MyApi/MyApi.csproj')
     .withReference(podinfoWeb);
 
 // DCP-network containers receive http://host.docker.internal:{port}
@@ -499,9 +495,7 @@ await builder
 <TabItem id="go" label="Go">
 
 ```go title="apphost.go"
-podinfoWeb := cluster.AddServiceEndpoint("podinfo-web", "podinfo", 9898, &aspire.AddServiceEndpointOptions{
-	Namespace: aspire.StringPtr("podinfo"),
-})
+podinfoWeb := cluster.AddServiceEndpoint("podinfo-web", "podinfo", 9898, aspire.AddServiceEndpointNamespace("podinfo"))
 podinfoWeb.WaitForCompletion(podinfo)
 
 // Host processes receive http://localhost:{port}
@@ -530,7 +524,7 @@ Both `K3sClusterResource` and `K3sServiceEndpointResource` implement `IResourceW
 
 ```csharp title="AppHost.cs"
 // Projects and executables receive KUBECONFIG pointing to the host-accessible variant
-builder.AddProject<Projects.MyOperator>("operator")
+builder.AddDotnetProject("operator", "../MyOperator/MyOperator.csproj")
     .WithReference(cluster);   // KUBECONFIG=…/.k3s/k8s/local/kubeconfig.yaml
 
 // Containers receive a bind-mounted kubeconfig at /tmp/k3s-kubeconfig.yaml
@@ -551,10 +545,10 @@ using var client = new Kubernetes(config);
 
 ```typescript title="apphost.mts"
 // Standard withReference — injects KUBECONFIG or services__name__url
-const operator = await builder.addProject('operator', '../MyOperator/MyOperator.csproj');
+const operator = await builder.addDotnetProject('operator', '../MyOperator/MyOperator.csproj');
 await operator.withReference(cluster);
 
-const api = await builder.addProject('api', '../MyApi/MyApi.csproj');
+const api = await builder.addDotnetProject('api', '../MyApi/MyApi.csproj');
 await api.withReference(podinfoWeb);
 ```
 

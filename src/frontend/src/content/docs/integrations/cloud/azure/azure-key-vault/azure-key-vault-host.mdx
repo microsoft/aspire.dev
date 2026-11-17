@@ -104,7 +104,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var keyVault = builder.AddAzureKeyVault("key-vault");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(keyVault);
 
 // After adding all resources, run the app...
@@ -121,7 +121,7 @@ const builder = await createBuilder();
 
 const keyVault = await builder.addAzureKeyVault("key-vault");
 
-await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .withReference(keyVault);
 
 await builder.build().run();
@@ -186,7 +186,7 @@ var existingKeyVaultResourceGroup = builder.AddParameter("existingKeyVaultResour
 var keyVault = builder.AddAzureKeyVault("key-vault")
     .AsExisting(existingKeyVaultName, existingKeyVaultResourceGroup);
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(keyVault);
 
 // After adding all resources, run the app...
@@ -206,7 +206,7 @@ const existingKeyVaultName = await builder.addParameter("existingKeyVaultName");
 const keyVault = await builder.addAzureKeyVault("key-vault");
 await keyVault.asExisting(existingKeyVaultName);
 
-await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .withReference(keyVault);
 
 await builder.build().run();
@@ -229,7 +229,7 @@ existingKeyVaultName := builder.AddParameter("existingKeyVaultName")
 existingKeyVaultResourceGroup := builder.AddParameter("existingKeyVaultResourceGroup")
 
 keyVault := builder.AddAzureKeyVault("key-vault").
-	AsExisting(existingKeyVaultName, &aspire.AsExistingOptions{ResourceGroup: existingKeyVaultResourceGroup})
+	AsExisting(existingKeyVaultName, aspire.AsExistingResourceGroup(existingKeyVaultResourceGroup))
 
 api := builder.AddGoApp("apiservice", "./api").
 	WithReference(keyVault)
@@ -264,7 +264,7 @@ By default, `AddAzureKeyVault` configures a [Key Vault Administrator built-in ro
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keyVault = builder.AddAzureKeyVault("key-vault")
-    .WithRoleAssignments(builder.AddProject<Projects.ExampleProject>("apiservice"),
+    .WithRoleAssignments(builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj"),
         KeyVaultBuiltInRole.KeyVaultSecretsUser);
 
 // After adding all resources, run the app...
@@ -281,7 +281,7 @@ const builder = await createBuilder();
 
 const keyVault = await builder.addAzureKeyVault("key-vault");
 
-const api = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj");
+const api = await builder.addDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj");
 await api.withRoleAssignments(keyVault, [AzureKeyVaultRole.KeyVaultSecretsUser]);
 
 await builder.build().run();
@@ -367,7 +367,7 @@ if err != nil {
 
 keyVault := builder.AddAzureKeyVault("key-vault")
 
-apiKey := builder.AddParameter("api-key", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+apiKey := builder.AddParameter("api-key", aspire.AddParameterSecret(true))
 keyVault.AddSecret("my-api-key", apiKey)
 
 app, err := builder.Build()
@@ -398,7 +398,7 @@ var existingKeyVaultResourceGroup = builder.AddParameter("existingKeyVaultResour
 var keyVault = builder.AddAzureKeyVault("key-vault")
     .AsExisting(existingKeyVaultName, existingKeyVaultResourceGroup);
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(keyVault)
     .WithEnvironment("API_KEY", keyVault.GetSecret("my-api-key"));
 
@@ -421,7 +421,7 @@ await keyVault.asExisting(existingKeyVaultName);
 
 const secretRef = await keyVault.getSecret("my-api-key");
 
-await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .withReference(keyVault)
     .withEnvironment("API_KEY", secretRef);
 
@@ -441,7 +441,7 @@ existingKeyVaultName := builder.AddParameter("existingKeyVaultName")
 existingKeyVaultResourceGroup := builder.AddParameter("existingKeyVaultResourceGroup")
 
 keyVault := builder.AddAzureKeyVault("key-vault").
-	AsExisting(existingKeyVaultName, &aspire.AsExistingOptions{ResourceGroup: existingKeyVaultResourceGroup})
+	AsExisting(existingKeyVaultName, aspire.AsExistingResourceGroup(existingKeyVaultResourceGroup))
 
 api := builder.AddGoApp("apiservice", "./api").
 	WithReference(keyVault).

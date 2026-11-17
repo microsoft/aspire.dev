@@ -163,7 +163,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var blobs = builder.AddAzureStorage("storage")
     .AddBlobs("blobs");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(blobs)
     .WaitFor(blobs);
 
@@ -180,7 +180,7 @@ const builder = await createBuilder();
 const blobs = await builder.addAzureStorage("storage")
     .addBlobs("blobs");
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(blobs)
     .waitFor(blobs);
 
@@ -232,7 +232,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var container = builder.AddAzureStorage("storage")
     .AddBlobContainer("uploads", blobContainerName: "upload-data");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(container)
     .WaitFor(container);
 
@@ -249,7 +249,7 @@ const builder = await createBuilder();
 const container = await builder.addAzureStorage("storage")
     .addBlobContainer("uploads", { blobContainerName: "upload-data" });
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(container)
     .waitFor(container);
 
@@ -265,9 +265,7 @@ if err != nil {
 }
 
 container := builder.AddAzureStorage("storage").
-	AddBlobContainer("uploads", &aspire.AddBlobContainerOptions{
-		BlobContainerName: aspire.StringPtr("upload-data"),
-	})
+	AddBlobContainer("uploads", aspire.AddBlobContainerBlobContainerName("upload-data"))
 
 builder.AddGoApp("api", "./api").
 	WithReference(container).
@@ -300,7 +298,7 @@ var blobs = builder.AddAzureStorage("storage")
     .RunAsEmulator()
     .AddBlobs("blobs");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(blobs)
     .WaitFor(blobs);
 
@@ -318,7 +316,7 @@ const blobs = await builder.addAzureStorage("storage")
     .runAsEmulator()
     .addBlobs("blobs");
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(blobs)
     .waitFor(blobs);
 
@@ -411,13 +409,11 @@ if err != nil {
 }
 
 storage := builder.AddAzureStorage("storage").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
-			azurite.WithBlobPort(27000).
-				WithQueuePort(27001).
-				WithTablePort(27002)
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithBlobPort(27000).
+			WithQueuePort(27001).
+			WithTablePort(27002)
+	}))
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -475,11 +471,9 @@ if err != nil {
 }
 
 storage := builder.AddAzureStorage("storage").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
-			azurite.WithLifetime(aspire.ContainerLifetimePersistent)
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithLifetime(aspire.ContainerLifetimePersistent)
+	}))
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -537,11 +531,9 @@ if err != nil {
 }
 
 storage := builder.AddAzureStorage("storage").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
-			azurite.WithDataVolume()
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithDataVolume()
+	}))
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -601,13 +593,9 @@ if err != nil {
 }
 
 storage := builder.AddAzureStorage("storage").
-	RunAsEmulator(&aspire.RunAsEmulatorOptions{
-		ConfigureContainer: func(azurite aspire.AzureStorageEmulatorResource) {
-			azurite.WithDataBindMount(&aspire.WithDataBindMountOptions{
-				Path: aspire.StringPtr("../azurite/data"),
-			})
-		},
-	})
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithDataBindMount(aspire.DataBindMountPath("../azurite/data"))
+	}))
 
 // After adding all resources, run the app...
 app, err := builder.Build()
@@ -643,7 +631,7 @@ var blobs = builder.AddAzureStorage("storage")
     .AsExisting(existingStorageName, existingStorageResourceGroup)
     .AddBlobs("blobs");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(blobs);
 
 // After adding all resources, run the app...
@@ -663,7 +651,7 @@ const blobs = await builder.addAzureStorage("storage")
     .asExisting(existingStorageName, { resourceGroup: existingStorageResourceGroup })
     .addBlobs("blobs");
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(blobs);
 
 // After adding all resources, run the app...
@@ -743,7 +731,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var storage = builder.AddAzureStorage("storage");
 var blobs = storage.AddBlobs("blobs");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(blobs)
     .WithRoleAssignments(storage, AzureStorageRole.StorageBlobDataReader);
 
@@ -760,7 +748,7 @@ const builder = await createBuilder();
 const storage = await builder.addAzureStorage("storage");
 const blobs = await storage.addBlobs("blobs");
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(blobs)
     .withRoleAssignments(storage, [AzureStorageRole.StorageBlobDataReader]);
 

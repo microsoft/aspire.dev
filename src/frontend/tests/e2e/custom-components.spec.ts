@@ -177,6 +177,34 @@ test('AppHost builder types additions and selects removals before deleting them'
   await expect(codeStage).not.toContainText('.addPostgres("db")');
 });
 
+test('Go AppHost builder uses a Go API with typed options in every API variant', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  const builder = page.locator('[data-apphost-builder]').first();
+  const stage = builder.locator('[data-code-stage]');
+  await builder.locator('[data-lang="go"]').click();
+  await builder.locator('[data-toggle="api"]').click();
+
+  const toggles = ['frontend', 'database', 'container', 'deployment'];
+  for (let mask = 0; mask < 16; mask++) {
+    for (const [bit, toggle] of toggles.entries()) {
+      const button = builder.locator(`[data-toggle="${toggle}"]`);
+      const enabled = String(Boolean(mask & (1 << bit)));
+      if ((await button.getAttribute('aria-pressed')) !== enabled) {
+        await button.click();
+      }
+    }
+    await expect(stage).toContainText('builder.AddGoApp("api", "../api")');
+    await expect(stage).toContainText('aspire.HttpEndpointEnv("PORT")');
+    await expect(stage).not.toContainText('AddNodeApp');
+    await expect(stage).not.toContainText('aspire.StringPtr');
+  }
+});
+
 test('AppHost builder applies code changes immediately when reduced motion is requested', async ({
   page,
 }) => {
@@ -351,9 +379,11 @@ test('prerequisites presents runtime choices with Podman setup and WSLc limitati
 
   await expect(wslcChoice).toBeVisible();
   await expect(podmanChoice).toBeHidden();
-  await expect(wslcChoice).toContainText('Windows local development only');
-  await expect(wslcChoice).toContainText('Requires WSLc version 3.0.2.0 or later.');
-  await expect(wslcChoice).toContainText('Publishing and deployment are not supported yet.');
+  await expect(wslcChoice).toContainText('Windows only; limited publish support');
+  await expect(wslcChoice).toContainText('Requires WSLc version 3.0.4.0 or later.');
+  await expect(wslcChoice).toContainText(
+    'Publishing has limited support, and Docker Compose deployment is not supported.'
+  );
   await expect(wslcChoice.getByRole('link', { name: 'Set up WSLc' })).toHaveAttribute(
     'href',
     'https://aka.ms/aspire/containers'

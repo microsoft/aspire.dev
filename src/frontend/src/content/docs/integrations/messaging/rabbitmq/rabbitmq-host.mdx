@@ -109,7 +109,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var rabbitmq = builder.AddRabbitMQ("messaging");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
@@ -169,7 +169,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var rabbitmq = builder.AddRabbitMQ("messaging")
     .WithDataVolume(isReadOnly: false);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
@@ -193,7 +193,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 rabbitmq := builder.AddRabbitMQ("messaging").
-	WithDataVolume(&aspire.WithDataVolumeOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(rabbitmq)
@@ -219,7 +219,7 @@ var rabbitmq = builder.AddRabbitMQ("messaging")
         source: "/RabbitMQ/Data",
         isReadOnly: false);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
@@ -243,7 +243,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 rabbitmq := builder.AddRabbitMQ("messaging").
-	WithDataBindMount("/RabbitMQ/Data", &aspire.WithDataBindMountOptions{IsReadOnly: aspire.BoolPtr(false)})
+	WithDataBindMount("/RabbitMQ/Data", aspire.DataBindMountIsReadOnly(false))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(rabbitmq)
@@ -273,7 +273,7 @@ var password = builder.AddParameter("password", secret: true);
 
 var rabbitmq = builder.AddRabbitMQ("messaging", username, password);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
@@ -298,13 +298,11 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
-userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+userName := builder.AddParameter("username", aspire.AddParameterSecret(true))
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-rabbitmq := builder.AddRabbitMQ("messaging", &aspire.AddRabbitMQOptions{
-	UserName: &userName,
-	Password: &password,
-})
+rabbitmq := builder.AddRabbitMQ("messaging", aspire.AddRabbitMQUserName(userName),
+	aspire.AddRabbitMQPassword(password))
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(rabbitmq)
@@ -331,7 +329,7 @@ var password = builder.AddParameter("password", secret: true);
 var rabbitmq = builder.AddRabbitMQ("messaging", username, password)
     .WithManagementPlugin();
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
@@ -357,13 +355,11 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
-userName := builder.AddParameter("username", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
-password := builder.AddParameter("password", &aspire.AddParameterOptions{Secret: aspire.BoolPtr(true)})
+userName := builder.AddParameter("username", aspire.AddParameterSecret(true))
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
 
-rabbitmq := builder.AddRabbitMQ("messaging", &aspire.AddRabbitMQOptions{
-	UserName: &userName,
-	Password: &password,
-}).WithManagementPlugin()
+rabbitmq := builder.AddRabbitMQ("messaging", aspire.AddRabbitMQUserName(userName),
+	aspire.AddRabbitMQPassword(password)).WithManagementPlugin()
 
 builder.AddNodeApp("api", "./api", "index.js").
 	WithReference(rabbitmq)
@@ -392,7 +388,7 @@ await rabbitmq.withManagementPlugin({ port: 15672 });
 <TabItem id="go" label="Go">
 ```go title="apphost.go"
 rabbitmq := builder.AddRabbitMQ("messaging").
-	WithManagementPlugin(&aspire.WithManagementPluginOptions{Port: aspire.IntPtr(15672)})
+	WithManagementPlugin(aspire.ManagementPluginPort(15672))
 ```
 </TabItem>
 </Tabs>
@@ -468,7 +464,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var rabbitmq = builder.AddConnectionString("messaging");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
