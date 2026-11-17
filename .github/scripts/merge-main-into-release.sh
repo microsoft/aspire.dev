@@ -3,9 +3,9 @@
 # Run from a clean release checkout. The caller owns fetching and pushing.
 #
 # Data groups changed on release since the merge base keep the release snapshot;
-# untouched groups merge normally. API catalogs and generated API directories
-# form one group, samples and their assets another. Other top-level data entries
-# are independent groups. This policy applies in repair mode as well.
+# untouched groups merge normally. API catalogs and all data subdirectories
+# form one glob-based group, samples and their assets another. Other top-level
+# data files are independent groups. This policy applies in repair mode as well.
 #
 # Exit codes:
 #   0  main is merged (or was already an ancestor); HEAD is the result.
@@ -70,10 +70,7 @@ api_paths=(
   src/frontend/src/data/aspire-integrations.json
   src/frontend/src/data/integration-docs.json
   src/frontend/src/data/api-generation-failures.json
-  src/frontend/src/data/pkgs
-  src/frontend/src/data/ts-modules
-  src/frontend/src/data/go-modules
-  src/frontend/src/data/twoslash
+  ':(glob)src/frontend/src/data/*/**'
 )
 sample_paths=(
   src/frontend/src/data/samples.json
@@ -89,10 +86,11 @@ is_curated() {
 }
 
 keep_release() {
+  # Reset matching paths even when the glob has no matches on release, so
+  # main-only files and release-side deletions are handled too.
   git rm -r -q --force --ignore-unmatch -- "$1"
-  if git cat-file -e "$RELEASE_SHA:$1" 2>/dev/null; then
-    git checkout "$RELEASE_SHA" -- "$1"
-  fi
+  git reset -q "$RELEASE_SHA" -- "$1"
+  git ls-files -z -- "$1" | git checkout-index --force --stdin -z
 }
 
 conflicts_file="$(mktemp)"
@@ -111,8 +109,9 @@ trap cleanup EXIT
 
 # A release-side change owns its whole data group, including files that main
 # adds or renames without a conflict. API versions and sample assets must stay
-# consistent with their catalogs. Other top-level data entries are independent.
-git diff --name-only -z "$MERGE_BASE" "$RELEASE_SHA" -- \
+# consistent with their catalogs. New data subdirectories join the API group
+# automatically; other top-level data files are independent.
+git diff --name-only --no-renames -z "$MERGE_BASE" "$RELEASE_SHA" -- \
   src/frontend/src/data src/frontend/src/assets/samples > "$conflicts_file"
 mapfile -d '' -t release_data_changes < "$conflicts_file"
 protected_paths=()
@@ -121,10 +120,7 @@ for path in "${release_data_changes[@]}"; do
     src/frontend/src/data/aspire-integrations.json|\
     src/frontend/src/data/integration-docs.json|\
     src/frontend/src/data/api-generation-failures.json|\
-    src/frontend/src/data/pkgs/*|\
-    src/frontend/src/data/ts-modules/*|\
-    src/frontend/src/data/go-modules/*|\
-    src/frontend/src/data/twoslash/*)
+    src/frontend/src/data/*/*)
       protected_paths+=("${api_paths[@]}")
       ;;
     src/frontend/src/data/samples.json|src/frontend/src/assets/samples/*)

@@ -168,6 +168,7 @@ write_file "$catalog" main
 git mv "$package_dir/v13.json" "$package_dir/v14.json"
 write_file "$package_dir/main-only.json" main
 write_file src/frontend/src/data/ts-modules/main.json main
+write_file src/frontend/src/data/future-api/nested/main.json main
 write_file "$stats" first
 write_file "$samples" main
 git mv "$sample_dir/base.png" "$sample_dir/main.png"
@@ -183,6 +184,7 @@ run_helper
 assert_parents
 git diff --exit-code "$release_sha" HEAD -- \
   "$catalog" "$package_dir" src/frontend/src/data/ts-modules src/frontend/src/data/go-modules \
+  src/frontend/src/data/future-api \
   src/frontend/src/data/editorial.json
 git diff --exit-code main HEAD -- "$stats" "$samples" "$sample_dir"
 echo "PASS: API group stays on release while untouched data groups accept main"
@@ -202,6 +204,31 @@ git diff --exit-code "$release_sha" HEAD -- "$catalog" "$package_dir"
 [[ "$(cat "$stats")" == second ]] || fail "Untouched data stopped following main."
 echo "PASS: repeated sync preserves release ownership and advances untouched data"
 
+new_repo future-data-directory
+future_dir="src/frontend/src/data/future api/nested"
+write_file "$future_dir/base.json" base
+write_file "$catalog" base
+write_file "$stats" base
+commit_all future-base
+git switch -q main
+git merge -q --ff-only release/test
+write_file "$future_dir/main-only.json" main
+write_file src/frontend/src/data/another-api/nested/main.json main
+write_file "$catalog" main
+write_file "$package_dir/main.json" main
+write_file "$stats" main
+commit_all main-future-data
+git switch -q release/test
+git rm -q -- "$future_dir/base.json"
+commit_all release-future-deletion
+release_sha="$(git rev-parse HEAD)"
+run_helper
+assert_parents
+git diff --exit-code "$release_sha" HEAD -- src/frontend/src/data \
+  ':(exclude)src/frontend/src/data/github-stats.json'
+[[ "$(cat "$stats")" == main ]] || fail "An independent data file stopped following main."
+echo "PASS: new data directories automatically protect the API group, including complete deletions"
+
 new_repo samples-group
 write_file "$samples" base
 write_file "$sample_dir/base.png" base
@@ -213,6 +240,7 @@ write_file "$samples" main
 write_file "$sample_dir/main.png" main
 write_file "$catalog" main
 write_file "$package_dir/main.json" main
+write_file src/frontend/src/data/future-api/nested/main.json main
 commit_all main-samples
 git switch -q release/test
 git rm -q "$sample_dir/base.png"
@@ -221,7 +249,7 @@ release_sha="$(git rev-parse HEAD)"
 run_helper
 assert_parents
 git diff --exit-code "$release_sha" HEAD -- "$samples" "$sample_dir"
-git diff --exit-code main HEAD -- "$catalog" "$package_dir"
+git diff --exit-code main HEAD -- "$catalog" "$package_dir" src/frontend/src/data/future-api
 echo "PASS: release sample deletion protects its catalog without blocking main API data"
 
 new_repo unknown-conflict
