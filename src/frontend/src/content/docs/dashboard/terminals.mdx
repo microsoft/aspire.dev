@@ -14,7 +14,7 @@ import ApiReference from '@components/ApiReference.astro';
 The Aspire dashboard can display interactive terminal applications as well as logs. A terminal lets you type into a running process, respond to its prompts, and use a terminal user interface (TUI) without leaving the dashboard.
 
 :::caution[Experimental terminal features]
-Terminal features in Aspire are experimental and may change in future releases.
+AppHost-owned terminals and terminal interaction APIs are experimental and may change in future releases.
 :::
 
 ## Choose a terminal experience
@@ -76,7 +76,6 @@ await builder.build().run();
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRETERMINAL001
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddExecutable("repl", "python3", ".", "-i", "-q")
@@ -202,6 +201,18 @@ A detached window starts with the originating viewer's selected font size, then 
 
 Multiple viewers can share a terminal, but only one is the **primary** viewer that controls the process's grid dimensions. Opening a detached window requests that role. Revealing or returning to an active dock pane also requests sizing control. Explicit sizing actions can request control; ordinary typing and pasting don't. A viewer that loses control doesn't continuously reclaim it from another viewer.
 
+## Navigate scrollback and copy terminal metadata
+
+Resource terminal views and separate terminal windows show a title and, when reported by the workload, a working directory. Select either value to copy it. For a terminal in the dock, open it in a separate window to access these details. A progress indicator appears when the workload reports progress.
+
+Drag the scrollbar thumb to navigate terminal history. If your shell or application provides OSC 133 shell integration, command marks appear on the scrollbar. Select a mark to jump to an earlier command, or hover over it to see its details.
+
+By default, command marks remain available while their corresponding scrollback text is retained.
+
+## Choose a terminal color palette
+
+Use **Palette** in the terminal footer to choose **Dark** or **Light** for terminal content. The default is **Dark**. The choice is stored in your browser and applies to all terminals, independently of the dashboard theme in **Settings**. You can change the palette without reconnecting.
+
 ## Navigate with the keyboard
 
 Terminal applications handle many keys themselves, including keys normally used to navigate a web page.
@@ -213,6 +224,9 @@ Terminal applications handle many keys themselves, including keys normally used 
 | Terminal footer | <Kbd windows="F6" />                                       | Return focus to terminal input.                |
 | Dock tab header | <Kbd windows="ArrowLeft" /> / <Kbd windows="ArrowRight" /> | Select the previous or next terminal tab.      |
 | Dock tab header | <Kbd windows="Home" /> / <Kbd windows="End" />             | Select the first or last terminal tab.         |
+| Dock tab header | <Kbd windows="Alt+Shift+Left" /> / <Kbd windows="Alt+Shift+Right" /> | Move the focused tab left or right in the dock. |
+
+You can also drag a dock tab to reorder it. When tabs don't fit in the dock, use the scroll buttons to reach them.
 
 Use the [CLI attachment experience](/reference/cli/commands/aspire-terminal-attach/) if you prefer to interact through your own terminal. The browser terminal's graphical rendering isn't a guarantee that every TUI is accessible to every assistive technology; console logs remain a separate text view.
 
@@ -229,6 +243,19 @@ A **viewer** is a browser view or CLI connection. The **producer** is the proces
 | Shut down the AppHost                                                          | Cleans up its AppHost-owned terminals. Resource shutdown follows the app's resource lifecycle. |
 
 Stopping a local `docker exec` subprocess doesn't guarantee that the program it launched inside the container stops. Exit the shell or client normally before closing its tab; see [Docker exec process cleanup](/dashboard/ephemeral-terminals/#open-a-database-or-cache-repl).
+
+## Recover from a disconnected terminal
+
+When a workload exits or the connection to a terminal drops, the dashboard retains the last screen when available and shows a banner with recovery actions:
+
+- Select **Reconnect terminal** to retry the connection without restarting the resource when automatic retries have stopped.
+- For a resource terminal, select **Restart resource** to restart the workload and reconnect. This action is available on writable connections when the resource offers a start or restart command. The banner shows the exit code when available.
+- For a docked terminal, select **Close tab** to close the terminal's tab.
+- Select **Show terminal** to collapse the banner and view the retained output. Select the disconnected icon to reopen the recovery actions.
+
+:::note[Limitation]
+You can't select or copy output while the terminal is disconnected. Reconnect the terminal to select or copy its output.
+:::
 
 ## Prerequisites and limitations
 

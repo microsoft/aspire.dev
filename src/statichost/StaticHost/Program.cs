@@ -92,9 +92,19 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.MapGet("/healthz", () => Results.Ok());
+app.MapGet("/healthz", (HttpContext context) =>
+{
+    // A health probe must always reach the origin, never a cached copy.
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok();
+});
 
-// Live-status API + SSE + webhooks.
+// Live-status API + WebSocket + webhooks. Azure Front Door does not relay Server-Sent
+// Events, but it does relay WebSockets (the route must not enable caching).
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = LiveStatusEndpointRouteBuilderExtensions.WebSocketKeepAliveInterval,
+});
 app.MapLiveStatus();
 
 // OpenAPI + Scalar API reference (with custom Aspire-brand theme) in dev.

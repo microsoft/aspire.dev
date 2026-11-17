@@ -48,6 +48,33 @@ The `--output` option validates the provided path before creating the project:
 
 When running `aspire new` in interactive mode, the command asks one or more questions before generating the project. The available prompts depend on the template and options you provide.
 
+### Select a template
+
+When you run `aspire new` in an interactive terminal, the initial template picker lists the built-in templates together with templates from configured [template sources](#configure-template-sources). When at least one template source is configured, the picker groups its entries under nonselectable headings. Built-in templates appear under **Built-in templates**, and each configured source appears under its own heading. There's no separate submenu or search action for each source.
+
+Each terminal entry is shown in the form `Template Name (Template Description)`. If a template has no description, only the name is shown. In the grouped terminal picker, long entries and headings are truncated with an ellipsis to fit the terminal width. When you type to search for a template, the selection moves to a matching entry rather than filtering the list. In the grouped terminal picker, search matches only the visible text of an entry.
+
+If no template sources are configured, or if you pass `--source`, `--version`, `--channel`, or `--language`, the picker shows a flat list of the built-in templates, without headings or truncation. Those options skip the discovery of configured template sources, so templates from configured sources can't be combined with them.
+
+<Aside type="note">
+  When `aspire new` runs through the Aspire extension for VS Code, the picker
+  is a flat list without headings. Each template from a configured source is
+  labeled in the form `Template Name (short-name) - source-name`.
+</Aside>
+
+#### Configure template sources
+
+A template source is a named Git repository or local directory that contains templates. Template sources are stored in global Aspire configuration and apply to every project on the machine. Use the `aspire template source` commands to manage them rather than editing the configuration file directly:
+
+```bash title="Aspire CLI"
+aspire template source add company --repository https://github.com/example/templates
+```
+
+<LearnMore>
+  [Command reference: `aspire template source add`](../aspire-template-source-add/)
+  and [`aspire template source remove`](../aspire-template-source-remove/)
+</LearnMore>
+
 ### Use \*.dev.localhost URLs?
 
 During project creation, you may be prompted:
@@ -124,17 +151,37 @@ The following options are available:
 
   The programming language for the AppHost, such as `csharp`, `typescript`, or `go`. When you don't pass a template, `aspire new` offers only the templates that support the language.
 
+- **`--template-path <path>`**
+
+  Path to an unpacked .NET template package directory. When you also specify `--template-repository`, the path is relative to the repository root, and it defaults to the root. You can't combine this option with a template command, `--source`, `--version`, `--channel`, or `--language`.
+
+- **`--template-repository <repository>`**
+
+  Clone a Git repository that contains templates, and choose a template from it without registering a [template source](#configure-template-sources). Requires Git on your `PATH`. The same restrictions as `--template-path` apply.
+
+- **`--template-repository-ref <ref>`**
+
+  The branch, tag, or full commit SHA of the template repository to use. Requires `--template-repository`. Defaults to the repository's default branch.
+
+- **`--use-config-source [true|false]`**
+
+  Accept a Git configuration source that's available for the project, or pass `false` to use standard Aspire configuration instead. Specify this option to respond to the configuration source prompt in non-interactive mode.
+
 - **`--suppress-agent-init`**
 
-  Suppress the prompt to initialize MCP server configuration for agent environments after project creation.
+  Skip AI agent setup after project creation. To configure MCP, use a standalone `aspire agent init` command.
 
-- **`--skill-locations <skill-locations>`**
+- **`--agents <agents>`**
 
-  Comma-separated list of skill locations to configure. Use `all` to configure all supported locations or `none` to skip skill location configuration. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available locations, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+  Comma-separated agent IDs: `copilot`, `claude`, or `opencode`. Use `all` to configure all supported agents or `none` to skip agent configuration. For selection defaults, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+
+- **`--scope <project|global>`**
+
+  Write agent configuration and companion skill files at the project or the user scope. Non-interactive setup defaults to `project`.
 
 - **`--skills <skills>`**
 
-  Comma-separated list of skills to install. Use `all` to install all available skills or `none` to skip skill installation. When not specified, the command prompts interactively. Useful for non-interactive mode in scripts and CI environments. For the list of available skills, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
+  Comma-separated choices: `aspire`, `playwright-cli`, or `dotnet-inspect`. Use `all` for every applicable choice or `none` to skip them. Defaults to `aspire`, which applies all enabled skill sources. For details, see the [`aspire agent init` command reference](../aspire-agent-init/#options).
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
@@ -158,7 +205,7 @@ Each command represents a template. Pass the `--help` parameter to the template 
 | `aspire-ts-cs-starter` | Starter App (ASP.NET Core/React)         |
 | `aspire-py-starter`    | Starter App (FastAPI/React)              |
 | `aspire-ts-starter`    | Starter App (Express/React)              |
-| `aspire-go-starter`    | Starter App (Go API + Redis, Go AppHost) |
+| `aspire-go-starter`    | Starter App (Go API/React, Go AppHost)   |
 | `aspire-empty`         | Empty (C# AppHost)                       |
 | `aspire-ts-empty`      | Empty (TypeScript AppHost)               |
 | `aspire-go-empty`      | Empty (Go AppHost)                       |
@@ -173,6 +220,18 @@ The `aspire-py-starter` template accepts the following additional options:
 
   ```bash title="Aspire CLI"
   aspire new aspire-py-starter --use-redis-cache true
+  ```
+
+### aspire-go-starter options
+
+The `aspire-go-starter` template scaffolds a Go API (`api/`), a Vite and React frontend (`frontend/`), and a Go AppHost (`apphost.go`). It accepts the following additional options:
+
+- **`--use-redis-cache`**
+
+  Scaffold the template with an optional Redis cache. Accepts `true` or `false`. Interactive scaffolding prompts for Redis and defaults to yes. Non-interactive scaffolding doesn't include Redis unless you specify `--use-redis-cache true`.
+
+  ```bash title="Aspire CLI"
+  aspire new aspire-go-starter --non-interactive --use-redis-cache true
   ```
 
 ## Examples
@@ -195,16 +254,34 @@ The `aspire-py-starter` template accepts the following additional options:
   aspire new aspire-starter --channel daily
   ```
 
-- Create a new project non-interactively without installing any agent skills:
+- Create a new project non-interactively without configuring agents:
 
   ```bash title="Aspire CLI"
-  aspire new aspire-starter --name myapp --skills none --non-interactive
+  aspire new aspire-starter --name myapp --agents none --non-interactive
   ```
 
-- Create a new project non-interactively and install all skills in all supported locations:
+- Create a new project non-interactively and configure all supported agents at the project scope:
 
   ```bash title="Aspire CLI"
-  aspire new aspire-starter --name myapp --skill-locations all --skills all --non-interactive
+  aspire new aspire-starter --name myapp --agents all --skills aspire --scope project --non-interactive
+  ```
+
+- Create a project from templates in a local, unpacked template package directory:
+
+  ```bash title="Aspire CLI"
+  aspire new --template-path ./my-templates
+  ```
+
+- Create a project from templates in a Git repository:
+
+  ```bash title="Aspire CLI"
+  aspire new --template-repository https://github.com/Azure/aspire-templates
+  ```
+
+- Create a project from a template in a subdirectory of a specific branch of a Git repository:
+
+  ```bash title="Aspire CLI"
+  aspire new --template-repository https://github.com/example-org/aspire-templates --template-repository-ref custom-starter --template-path templates
   ```
 
 ## Troubleshooting
@@ -244,3 +321,15 @@ If the error persists, check the apphost server log for `Warning` entries that i
   detailed log file. Open the log and search for `LoaderExceptions` or
   `version mismatch` to identify the conflicting assembly.
 </Aside>
+
+### Git-backed configuration source or template failures
+
+When `aspire new` acquires a Git-backed configuration source or template, the CLI records Git `stdout` and `stderr` output as `Git stdout:` and `Git stderr:` entries in the CLI log file. These entries are written to the log file without `--debug`. With `--debug` or `--log-level Debug`, they also appear on the console.
+
+Git operations time out after five minutes, which allows time for browser sign-in, multifactor authentication, and credential-helper prompts. If acquiring a configuration source fails and a README URL is available, the error message includes a second line that links to that source's setup instructions.
+
+To capture the Git output for troubleshooting, specify a log file:
+
+```bash title="Aspire CLI"
+aspire new --log-file ./aspire-new.log
+```

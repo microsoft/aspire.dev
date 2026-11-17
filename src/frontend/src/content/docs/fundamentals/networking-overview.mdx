@@ -151,8 +151,8 @@ Some endpoint behavior depends on the resource type. Keep those details with the
 
 <LearnMore>
   For .NET-specific endpoint behavior, see [C# launch
-  profiles](/integrations/dotnet/launch-profiles/) and [Project
-  resources](/integrations/dotnet/project-resources/).
+  profiles](/integrations/dotnet/launch-profiles/) and [.NET / C# apps in the
+  AppHost](/integrations/frameworks/dotnet/dotnet-host/).
 </LearnMore>
 
 ## Ports and proxies
@@ -456,7 +456,7 @@ For network communication, the `Protocol` property supports **TCP** and **UDP**,
 
 For more information, see the available properties of the [EndpointAnnotation properties](https://learn.microsoft.com/dotnet/api/aspire.hosting.applicationmodel.endpointannotation#properties).
 
-For project-resource-specific endpoint filtering, see [Project resources](/integrations/dotnet/project-resources/).
+For .NET project endpoint filtering, see [Filter endpoints in environment variables](/integrations/frameworks/dotnet/dotnet-host/#filter-endpoints-in-environment-variables).
 
 ### Excluding endpoints from service discovery
 
@@ -504,11 +504,11 @@ var myService = builder.AddContainer("myservice", "myimage")
     .WithEndpoint("management", ep => ep.ExcludeReferenceEndpoint = true);
 
 // Consumer only gets the "api" endpoint — "management" is excluded
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(myService);
 
 // Opt in explicitly when the management endpoint is actually needed
-var adminApp = builder.AddProject<Projects.Admin>("admin")
+var adminApp = builder.AddDotnetProject("admin", "../Admin/Admin.csproj")
     .WithReference(myService.GetEndpoint("management"));
 ```
 
@@ -530,10 +530,10 @@ await myService.withEndpointCallback('management', async (endpoint) => {
   endpoint.setExcludeReferenceEndpoint(true);
 });
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(myService);
 
-const adminApp = await builder.addProject('admin', '../Admin/Admin.csproj');
+const adminApp = await builder.addDotnetProject('admin', '../Admin/Admin.csproj');
 await adminApp.withReference(myService.getEndpoint('management'));
 ```
 
@@ -580,7 +580,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withHttpEndpoint({ port: 5000, targetPort: 5000, isProxied: false });
 await api.withHttpEndpointCallback(
   async (endpoint) => {
@@ -598,7 +598,7 @@ await builder.build().run();
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithHttpEndpoint(port: 5000, targetPort: 5000, isProxied: false)
     .WithEndpoint("http", endpoint => endpoint.TargetHost = "0.0.0.0");
 

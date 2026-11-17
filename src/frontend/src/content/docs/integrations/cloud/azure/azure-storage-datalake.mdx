@@ -68,6 +68,27 @@ This updates your `aspire.config.json` with the Azure Storage hosting integratio
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Storage": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Add Azure Data Lake resource
@@ -82,7 +103,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var storage = builder.AddAzureStorage("storage");
 var dataLake = storage.AddDataLake("datalake");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(dataLake)
     .WaitFor(dataLake);
 
@@ -99,12 +120,46 @@ const builder = await createBuilder();
 const storage = await builder.addAzureStorage("storage");
 const dataLake = await storage.addDataLake("datalake");
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(dataLake)
     .waitFor(dataLake);
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage")
+	dataLake := storage.AddDataLake("datalake")
+
+	builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj").
+		WithReference(dataLake).
+		WaitFor(dataLake)
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 </TabItem>
 </Tabs>
@@ -132,7 +187,7 @@ var storage = builder.AddAzureStorage("storage");
 var dataLake = storage.AddDataLake("datalake");
 var fileSystem = storage.AddDataLakeFileSystem("analytics", "analytics-data");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(dataLake)
     .WithReference(fileSystem)
     .WaitFor(dataLake);
@@ -151,13 +206,50 @@ const storage = await builder.addAzureStorage("storage");
 const dataLake = await storage.addDataLake("datalake");
 const fileSystem = await storage.addDataLakeFileSystem("analytics", { dataLakeFileSystemName: "analytics-data" });
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(dataLake)
     .withReference(fileSystem)
     .waitFor(dataLake);
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage")
+	dataLake := storage.AddDataLake("datalake")
+	dataLakeFileSystemName := "analytics-data"
+	fileSystem := storage.AddDataLakeFileSystem("analytics", aspire.AddDataLakeFileSystemDataLakeFileSystemName(dataLakeFileSystemName))
+
+	builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj").
+		WithReference(dataLake).
+		WithReference(fileSystem).
+		WaitFor(dataLake)
+
+	// After adding all resources, run the app...
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 </TabItem>
 </Tabs>
@@ -192,7 +284,7 @@ var storage = builder.AddAzureStorage("storage")
 
 var dataLake = storage.AddDataLake("datalake");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(dataLake);
 
 // After adding all resources, run the app...
@@ -216,7 +308,7 @@ const storage = await builder.addAzureStorage("storage")
 
 const dataLake = await storage.addDataLake("datalake");
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(dataLake);
 
 // After adding all resources, run the app...

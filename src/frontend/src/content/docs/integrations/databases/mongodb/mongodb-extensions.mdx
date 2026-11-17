@@ -34,7 +34,7 @@ To get started with the Aspire Community Toolkit MongoDB hosting extensions, ins
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.MongoDB.Extensions" />
 
-For TypeScript AppHosts, add the Community Toolkit MongoDB extensions package to `aspire.config.json`:
+For TypeScript and Go AppHosts, add the Community Toolkit MongoDB extensions package to `aspire.config.json`:
 
 ```json title="aspire.config.json" ins={3}
 {
@@ -59,7 +59,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var mongodb = builder.AddMongoDB("mongodb")
     .WithDbGate();
 
-builder.AddProject<Projects.ExampleProject>("api")
+builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mongodb);
 
 builder.Build().Run();
@@ -76,10 +76,34 @@ const builder = await createBuilder();
 const mongodb = await builder.addMongoDB('mongodb');
 await mongodb.withDbGate();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(mongodb);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mongodb := builder.AddMongoDB("mongodb").
+	WithDbGate()
+
+builder.AddGoApp("api", "./api").
+	WithReference(mongodb)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -121,9 +145,31 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddMongoDB("mongodb").
+	WithDbx(aspire.DbxContainerName("mongodb-dbx"),
+		aspire.DbxImageTag("0.5.33"))
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
-The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript and Go bindings accept optional `containerName` and `imageTag` values.
 
 ## See also
 

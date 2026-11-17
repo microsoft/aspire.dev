@@ -85,6 +85,33 @@ export function getTsMethods<T extends TsRouteCallableLike>(
   return methods;
 }
 
+/** Resolve source-order indexes against the worker's own collection, retaining object identity. */
+export function getTsRouteItem<T extends TsTopLevelRouteItemLike>(
+  doc: { handleTypes?: T[]; dtoTypes?: T[]; enumTypes?: T[]; functions?: T[] },
+  kind: 'handle' | 'dto' | 'enum' | 'function',
+  index: number
+): T {
+  const items = kind === 'handle' ? doc.handleTypes
+    : kind === 'dto' ? doc.dtoTypes
+    : kind === 'enum' ? doc.enumTypes
+    : getTsStandaloneFunctions(doc);
+  const item = Number.isInteger(index) && index >= 0 ? items?.[index] : undefined;
+  if (!item) throw new Error(`Unknown TypeScript API ${kind} index ${index}`);
+  return item;
+}
+
+export function getTsHandleMethod<M extends TsRouteCallableLike, H extends { capabilities?: M[] }>(
+  handles: H[] | undefined,
+  handleIndex: number,
+  methodIndex: number
+): { parentType: H; method: M } {
+  const parentType = Number.isInteger(handleIndex) && handleIndex >= 0 ? handles?.[handleIndex] : undefined;
+  const method = parentType && Number.isInteger(methodIndex) && methodIndex >= 0
+    ? getTsMethods<M>(parentType)[methodIndex] : undefined;
+  if (!parentType || !method) throw new Error(`Unknown TypeScript API method ${handleIndex}/${methodIndex}`);
+  return { parentType, method };
+}
+
 export function tsSlugify(name: string): string {
   return name
     .toLowerCase()

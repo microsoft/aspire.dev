@@ -12,7 +12,7 @@ resources:
 legacyAnchors: [existing-resource-pattern]
 legacyGroup: common-patterns
 ---
-For a dependency exposed through a connection string, use `AddConnectionString` in C# or `addConnectionString` in TypeScript to represent the configured value in the AppHost.
+For a dependency exposed through a connection string, use `AddConnectionString` in C# or Go, or `addConnectionString` in TypeScript to represent the configured value in the AppHost.
 
 For a resource named `db`, Aspire reads `ConnectionStrings:db` from AppHost configuration, including the environment variable `ConnectionStrings__db`, and passes the value to referencing consumers.
 

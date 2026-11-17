@@ -20,7 +20,7 @@ Start with [Deploy to Kubernetes](/deployment/kubernetes/) for the shared Kubern
 - [Aspire prerequisites](/get-started/prerequisites/)
 - [Aspire CLI](/get-started/install-cli/) installed
 - [kubectl](https://kubernetes.io/docs/tasks/tools/) installed and available on your `PATH`
-- [Helm](https://helm.sh/docs/intro/install/) **v4.2.0 or later** installed and available on your `PATH`
+- [Helm](https://helm.sh/docs/intro/install/) **v4.0.0 or later** installed and available on your `PATH`
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and available on your `PATH`
 - An active Azure account and subscription
 
@@ -40,6 +40,12 @@ aspire add azure-kubernetes
 
 The Aspire CLI adds the [📦 Aspire.Hosting.Azure.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Azure.Kubernetes) integration to your AppHost.
 
+For the C# project examples, also add the [.NET hosting integration](/integrations/frameworks/dotnet/dotnet-host/):
+
+```bash title="Add .NET hosting"
+aspire add dotnet
+```
+
 Then add the AKS environment in your AppHost:
 
 <Tabs syncKey='aspire-lang'>
@@ -49,7 +55,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var aks = builder.AddAzureKubernetesEnvironment("aks");
 
-var api = builder.AddProject<Projects.MyApi>("api");
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj");
 
 builder.Build().Run();
 ```
@@ -74,16 +80,28 @@ await builder.build().run();
 
 When an AKS environment is present, all compute resources are automatically deployed to AKS — no additional opt-in is required.
 
+To reuse infrastructure instead of creating it, see [Use an existing AKS cluster](/integrations/cloud/azure/aks/#use-an-existing-aks-cluster) and [Use an existing container registry](/integrations/cloud/azure/aks/#use-an-existing-container-registry). Existing clusters must already have the required identities, networking, and ingress add-ons. Aspire doesn't reconfigure their cluster settings.
+
 ## What Aspire provisions
 
-When you run `aspire deploy`, Aspire provisions the following Azure resources:
+By default, when you run `aspire deploy`, Aspire provisions the following Azure resources:
 
 - **AKS cluster** — a managed Kubernetes cluster
 - **Azure Container Registry (ACR)** — to store container images for your application
-- **Managed identity** — for secure, credential-free access between AKS and ACR
+- **Cluster managed identities** — separate control-plane and kubelet identities, with scoped permissions for cluster infrastructure and ACR image pulls
 - **Azure resources** — any Azure resources referenced in your AppHost (databases, caches, messaging, etc.)
 
 Aspire builds your container images, pushes them to ACR, generates Helm charts, and installs them to the AKS cluster.
+
+## Cluster tier
+
+Starting in Aspire 17.0, Aspire provisions AKS clusters with the **Standard** control-plane tier by default. Earlier versions defaulted to **Free**. Standard provides an uptime SLA and adds a cluster-management charge to the underlying Azure resource costs. It doesn't change node VM sizes or counts and doesn't guarantee application availability. See [AKS pricing tiers](https://learn.microsoft.com/azure/aks/free-standard-pricing-tiers) for current details.
+
+:::caution
+The next infrastructure deployment changes an existing Aspire-managed cluster to Standard unless you explicitly override it. Upgrading the package alone doesn't change a deployed cluster. Referencing a pre-provisioned cluster with an existing-resource API leaves its tier unchanged.
+:::
+
+For C# and TypeScript examples that select Free for development or testing, see [Configure the cluster tier](/integrations/cloud/azure/aks/#cluster-tier). Before reprovisioning a cluster created by an earlier Aspire version, also review the [cluster identity migration guidance](/integrations/cloud/azure/aks/#upgrade-an-aspire-managed-cluster).
 
 ## Configure node pools
 
@@ -101,7 +119,11 @@ builder.AddAzureKubernetesEnvironment("aks")
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
-await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
+await aks.withSystemNodePool(async pool => {
+    pool.vmSize = 'Standard_D4s_v5';
+    pool.minCount = 1;
+    pool.maxCount = 5;
+});
 ```
 </TabItem>
 </Tabs>
@@ -123,13 +145,19 @@ builder.AddContainer("ml-worker", "my-ml-image")
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
-const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
+const gpuPool = await aks.addNodePool('gpupool', async pool => {
+    pool.vmSize = 'Standard_NC6s_v3';
+    pool.minCount = 0;
+    pool.maxCount = 5;
+});
 
 const worker = await builder.addContainer('ml-worker', 'my-ml-image');
 await worker.withNodePool(gpuPool);
 ```
 </TabItem>
 </Tabs>
+
+Starting in Aspire 17.0, callbacks also support OS SKU selection for Linux node pools. TypeScript AppHosts must use callbacks for node pool configuration. Parameter-based C# calls remain supported. For defaults, OS SKU examples, and migration precautions, see [Configure the system node pool](/integrations/cloud/azure/aks/#configure-the-system-node-pool).
 
 ## Deploy to AKS
 
@@ -291,8 +319,8 @@ Each AGC `ApplicationLoadBalancer` caps at five frontends (Gateways or Ingresses
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.MyApi>("api")
-                 .WithExternalHttpEndpoints();
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj")
+    .WithExternalHttpEndpoints();
 
 aks.AddGateway("storefront")
    .WithLoadBalancer(publicLb)
@@ -308,7 +336,7 @@ const api = await builder
 
 const storefront = await aks.addGateway('storefront');
 await storefront.withLoadBalancer(publicLb);
-await storefront.withRoute('/', api.getEndpoint('http'));
+await storefront.withGatewayPathRoute('/', api.getEndpoint('http'));
 ```
 </TabItem>
 </Tabs>
@@ -338,7 +366,7 @@ This first deploy serves plain HTTP only. Continue to the next step before expos
 var certManager = aks.AddCertManager("cert-manager");
 
 var letsencrypt = certManager.AddIssuer("letsencrypt-prod")
-    .WithLetsEncryptProduction("ops@contoso.com")
+    .WithAcmeServer("https://acme-v02.api.letsencrypt.org/directory", "ops@contoso.com")
     .WithHttp01Solver();
 
 aks.AddGateway("storefront")
@@ -352,13 +380,16 @@ aks.AddGateway("storefront")
 const certManager = await aks.addCertManager('cert-manager');
 
 const letsencrypt = await certManager.addIssuer('letsencrypt-prod');
-await letsencrypt.withLetsEncryptProduction('ops@contoso.com');
+await letsencrypt.withAcmeServer(
+    'https://acme-v02.api.letsencrypt.org/directory',
+    'ops@contoso.com'
+);
 await letsencrypt.withHttp01Solver();
 
 const storefront = await aks.addGateway('storefront');
 await storefront.withLoadBalancer(publicLb);
-await storefront.withRoute('/', api.getEndpoint('http'));
-await storefront.withTls(letsencrypt);
+await storefront.withGatewayPathRoute('/', api.getEndpoint('http'));
+await storefront.withGatewayTlsIssuer(letsencrypt);
 ```
 </TabItem>
 </Tabs>
@@ -395,8 +426,78 @@ await storefront.withTls(letsencrypt, {
 </Tabs>
 
 <Aside type="tip">
-Let's Encrypt's production endpoint enforces strict rate limits. While iterating on your AppHost, swap <ApiReference name="Aspire.Hosting.CertManagerExtensions.WithLetsEncryptProduction" /> for <ApiReference name="Aspire.Hosting.CertManagerExtensions.WithLetsEncryptStaging" /> so failed attempts don't cost you your weekly quota. Browsers will warn on staging certificates — flip back to production once everything works end-to-end.
+Let's Encrypt's production endpoint enforces strict rate limits. While iterating on your AppHost, pass the staging directory URL (`https://acme-staging-v02.api.letsencrypt.org/directory`) to <ApiReference name="Aspire.Hosting.CertManagerExtensions.WithAcmeServer" /> so failed attempts don't cost you your weekly quota. Browsers will warn on staging certificates — flip back to production once everything works end-to-end.
 </Aside>
+
+#### Choose the ACME directory per environment
+
+`WithAcmeServer` accepts the ACME directory URL and contact email either as two literal strings or as two parameters. Use parameters to select the directory per environment without changing the AppHost:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var serverUrl = builder.AddParameter("acmeserver");
+var email = builder.AddParameter("acmeemail");
+
+var issuer = certManager.AddIssuer("acme")
+    .WithAcmeServer(serverUrl, email)
+    .WithHttp01Solver();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const serverUrl = await builder.addParameter('acmeserver');
+const email = await builder.addParameter('acmeemail');
+
+const issuer = await certManager.addIssuer('acme');
+await issuer.withAcmeServer(serverUrl, email);
+await issuer.withHttp01Solver();
+```
+</TabItem>
+</Tabs>
+
+Set `Parameters__acmeserver` and `Parameters__acmeemail` before you run `aspire deploy`. You can't mix a literal URL with a parameter email; use two strings or two parameters.
+
+#### Use a certificate authority that requires External Account Binding
+
+Some ACME certificate authorities, such as ZeroSSL and Google Trust Services, require [External Account Binding (EAB)](https://www.rfc-editor.org/rfc/rfc8555.html#section-7.3.4) to link the ACME account cert-manager registers to your existing account with the provider. Get an EAB key ID and HMAC key from the provider, then call `WithExternalAccountBinding` after `WithAcmeServer`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var keyId = builder.AddParameter("acmeeabkeyid");
+var hmacKey = builder.AddParameter("acmeeabhmackey", secret: true);
+
+var zeroSsl = certManager.AddIssuer("zerossl")
+    .WithAcmeServer("https://acme.zerossl.com/v2/DV90", "ops@contoso.com")
+    .WithExternalAccountBinding(keyId, hmacKey)
+    .WithHttp01Solver();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts"
+const keyId = await builder.addParameter('acmeeabkeyid');
+const hmacKey = await builder.addParameter('acmeeabhmackey', { secret: true });
+
+const zeroSsl = await certManager.addIssuer('zerossl');
+await zeroSsl.withAcmeServer('https://acme.zerossl.com/v2/DV90', 'ops@contoso.com');
+await zeroSsl.withExternalAccountBinding(keyId, hmacKey);
+await zeroSsl.withHttp01Solver();
+```
+</TabItem>
+</Tabs>
+
+Both EAB values must be parameters, and the HMAC key must be a secret parameter. Supply them from your pipeline's secret store as `Parameters__acmeeabkeyid` and `Parameters__acmeeabhmackey`, passing the provider's HMAC key text unchanged. At deploy time, Aspire stores the HMAC key in a Kubernetes Secret named `<issuer>-eab` that cert-manager reads; the key isn't written to published artifacts, and `aspire destroy` removes the Secret. EAB only authorizes account registration—the HTTP-01 challenge still validates domain ownership.
+
+| Provider | ACME directory URL | EAB required |
+|---|---|---|
+| Let's Encrypt (production) | `https://acme-v02.api.letsencrypt.org/directory` | No |
+| Let's Encrypt (staging) | `https://acme-staging-v02.api.letsencrypt.org/directory` | No |
+| ZeroSSL | `https://acme.zerossl.com/v2/DV90` | Yes |
+| Google Trust Services (production) | `https://dv.acme-v02.api.pki.goog/directory` | Yes |
+| Google Trust Services (staging) | `https://dv.acme-v02.test-api.pki.goog/directory` | Yes |
+
+Some providers issue single-use or expiring EAB credentials. Aspire doesn't acquire or refresh them; supply a fresh pair when cert-manager needs to register a new ACME account. Existing accounts are reused.
 
 #### How the certificate gets issued
 
@@ -455,18 +556,35 @@ const hostname = builder.addParameter('hostname'); // e.g. "api.contoso.com"
 
 const storefront = await aks.addGateway('storefront');
 await storefront.withLoadBalancer(publicLb);
-await storefront.withHostname(hostname);
-await storefront.withRoute('/', api.getEndpoint('http'));
-await storefront.withTls(letsencrypt);
+await storefront.withGatewayHostnameParam(hostname);
+await storefront.withGatewayPathRoute('/', api.getEndpoint('http'));
+await storefront.withGatewayTlsIssuer(letsencrypt);
 ```
 </TabItem>
 </Tabs>
 
-Provide the hostname value at deploy time:
+Provide the hostname value at deploy time by setting the `Parameters__hostname` environment variable, then run `aspire deploy`:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
 
 ```bash title="Deploy with the hostname parameter"
-aspire deploy --parameter hostname=api.contoso.com
+export Parameters__hostname=api.contoso.com
+
+aspire deploy
 ```
+
+</div>
+<div slot="windows">
+
+```powershell title="Deploy with the hostname parameter"
+$env:Parameters__hostname = "api.contoso.com"
+
+aspire deploy
+```
+
+</div>
+</OsAwareTabs>
 
 ### Point your DNS at the AGC frontend
 
@@ -559,7 +677,7 @@ Use <ApiReference name="Aspire.Hosting.KubernetesServiceExtensions.PublishAsKube
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
 
-builder.AddProject<Projects.MyApi>("api")
+builder.AddDotnetProject("api", "../MyApi/MyApi.csproj")
     .PublishAsKubernetesService(resource =>
     {
         // Scale to 3 replicas
@@ -626,13 +744,13 @@ Common causes:
 
 - **DNS hasn't propagated yet** when using a custom domain — Let's Encrypt fetches `http://<your-host>/.well-known/acme-challenge/...` and that has to resolve to the AGC frontend.
 - **HTTP traffic is blocked** between Let's Encrypt and the gateway — HTTP-01 needs port 80 open. AGC keeps the HTTP listener that `AddGateway` generates open by default; don't remove it.
-- **Production rate limit hit** while iterating — switch the issuer to `WithLetsEncryptStaging` until everything else works, then flip back to production.
+- **Production rate limit hit** while iterating — point the issuer's `WithAcmeServer` call at the Let's Encrypt staging directory until everything else works, then flip back to production.
 - **The contact email was rejected by ACME** — see [Let's Encrypt rejects the contact email](#lets-encrypt-rejects-the-contact-email).
 - **The bootstrap TLS secret is missing** — see [Gateway HTTPS listener reports `InvalidCertificateRef`](#gateway-https-listener-reports-invalidcertificateref).
 
 ### Let's Encrypt rejects the contact email
 
-The first time you `aspire deploy` with `WithLetsEncryptProduction(email)` or `WithLetsEncryptStaging(email)`, cert-manager creates an ACME account using that email. Let's Encrypt validates the address and refuses to register accounts whose email uses a reserved or forbidden domain. The `ClusterIssuer` will report `Ready=False` and `kubectl describe clusterissuer <name>` will show one of:
+The first time you `aspire deploy` with `WithAcmeServer(serverUrl, email)` pointing at Let's Encrypt, cert-manager creates an ACME account using that email. Let's Encrypt validates the address and refuses to register accounts whose email uses a reserved or forbidden domain. The `ClusterIssuer` will report `Ready=False` and `kubectl describe clusterissuer <name>` will show one of:
 
 - `Domain name does not end with a valid public suffix` — the TLD isn't a registered public suffix. Reserved TLDs from RFC 2606 (`.test`, `.example`, `.invalid`, `.localhost`) are common offenders.
 - `contact email has forbidden domain example.com` — Let's Encrypt explicitly blocks the IANA example domains (`example.com`, `example.net`, `example.org`).

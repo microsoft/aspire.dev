@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { dismissCookieConsentIfVisible, getSiteNavigationLink } from '@tests/e2e/helpers';
 import { createRequire } from 'node:module';
@@ -54,6 +55,21 @@ async function typeSearchQuery(page: Page, query: string): Promise<void> {
   await input.fill(query);
 }
 
+// Scans the open, populated search UI (query combobox and results listbox) in
+// its current selection state.
+async function expectOpenSearchDialogAccessible(page: Page, state: string): Promise<void> {
+  const results = await new AxeBuilder({ page })
+    .include('site-search dialog[open] #starlight__search')
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+  const violations = results.violations.map(({ id, impact, nodes }) => ({
+    id,
+    impact,
+    nodes: nodes.map(({ target, failureSummary }) => ({ target, failureSummary })),
+  }));
+  expect(violations, `${state}: ${JSON.stringify(violations, null, 2)}`).toEqual([]);
+}
+
 async function navigateClient(page: Page, navigate: () => Promise<unknown>): Promise<void> {
   await page.evaluate(() => {
     Reflect.set(window, '__siteSearchPageLoaded', false);
@@ -70,6 +86,101 @@ async function navigateClient(page: Page, navigate: () => Promise<unknown>): Pro
 }
 
 test.describe('site search dialog', () => {
+  for (const theme of ['light', 'dark']) {
+    test(`search result row hit areas remain stable on hover in ${theme}`, async ({ page }) => {
+      await page.addInitScript((value) => localStorage.setItem('starlight-theme', value), theme);
+      await page.goto('/');
+      await dismissCookieConsentIfVisible(page);
+      await openSearchDialog(page);
+      // Isolate hit testing from the production-only index using Pagefind's row markup.
+      await page.evaluate(() => {
+        const container = document.createElement('div');
+        container.className = 'search-container';
+        const root = document.createElement('div');
+        root.id = 'starlight__search';
+        root.innerHTML = `
+          <div class="pagefind-ui">
+            <form class="pagefind-ui__form" role="search">
+              <input class="pagefind-ui__search-input" type="search" aria-label="Search" />
+            </form>
+            <ol class="pagefind-ui__results">
+              <li class="pagefind-ui__result">
+                <div class="pagefind-ui__result-inner">
+                  <p class="pagefind-ui__result-title">
+                    <a class="pagefind-ui__result-link" href="/reference/overview/">Overview</a>
+                  </p>
+                  <div class="pagefind-ui__result-nested">
+                    <p class="pagefind-ui__result-title">
+                      <a class="pagefind-ui__result-link" href="/reference/overview/#reference">Reference</a>
+                    </p>
+                    <p class="pagefind-ui__result-excerpt">A matching <mark>reference</mark> excerpt.</p>
+                  </div>
+                </div>
+              </li>
+            </ol>
+          </div>`;
+        document.querySelector('#starlight__search')?.remove();
+        const frame = document.querySelector('site-search .dialog-frame')!;
+        // Retain Starlight's scoped mobile layout, including space for Cancel.
+        for (const element of [container, root]) {
+          element.classList.add(...[...frame.classList].filter((name) => name.startsWith('astro-')));
+          for (const name of frame.getAttributeNames().filter((name) => name.startsWith('data-astro-cid-'))) {
+            element.setAttribute(name, '');
+          }
+        }
+        container.append(root);
+        frame.prepend(container);
+        root.addEventListener('click', (event) => {
+          const link = (event.target as Element).closest('a');
+          if (!link) return;
+          event.preventDefault();
+          event.stopPropagation();
+          root.dataset.clickedHref = link.getAttribute('href')!;
+        });
+      });
+
+      for (const selector of [
+        '.pagefind-ui__result-inner > .pagefind-ui__result-title',
+        '.pagefind-ui__result-nested',
+      ]) {
+        const row = page.locator(`#starlight__search ${selector}`);
+        const link = row.locator('.pagefind-ui__result-link');
+        const textBox = await link.boundingBox();
+        expect(textBox).not.toBeNull();
+        await page.mouse.move(textBox!.x + textBox!.width / 2, textBox!.y + textBox!.height / 2);
+        await expect(link).toHaveCSS('filter', 'none');
+        const box = await row.boundingBox();
+        expect(box).not.toBeNull();
+        const point = { x: box!.x + box!.width - 4, y: box!.y + box!.height / 2 };
+        await page.mouse.move(point.x, point.y);
+        await expect(link).toHaveCSS('filter', 'none');
+        await expect(link).toHaveCSS('cursor', 'pointer');
+        await expect.poll(() => page.evaluate(({ x, y }) => {
+          return document.elementFromPoint(x, y)?.closest('a')?.getAttribute('href');
+        }, point)).toBe(await link.getAttribute('href'));
+        const overlay = await link.evaluate((element) => {
+          const style = getComputedStyle(element, '::after');
+          return { width: style.width, height: style.height, cursor: style.cursor };
+        });
+        expect(Number.parseFloat(overlay.width)).toBeCloseTo(box!.width, 0);
+        expect(Number.parseFloat(overlay.height)).toBeCloseTo(box!.height, 0);
+        expect(overlay.cursor).toBe('pointer');
+        await page.mouse.click(point.x, point.y);
+        await expect(page.locator('#starlight__search')).toHaveAttribute(
+          'data-clicked-href', await link.getAttribute('href') as string,
+        );
+        await page.locator('#starlight__search').evaluate((root) => {
+          delete (root as HTMLElement).dataset.clickedHref;
+        });
+        await link.focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('#starlight__search')).toHaveAttribute(
+          'data-clicked-href', await link.getAttribute('href') as string,
+        );
+      }
+    });
+  }
+
   for (const theme of ['light', 'dark']) {
     test(`native Pagefind input presentation matches browse in ${theme}`, async ({ page }, testInfo) => {
       await page.addInitScript((value) => localStorage.setItem('starlight-theme', value), theme);
@@ -511,6 +622,192 @@ test.describe('site search dialog', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(input).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('auto-highlights the first result when later results render first', async ({ page }) => {
+    // Pagefind renders each result once its own fragment loads. Hold the
+    // first result's fragment so later results render before it.
+    let fragmentRequests = 0;
+    let releaseFirstFragment = () => {};
+    const firstFragmentReleased = new Promise<void>((resolve) => {
+      releaseFirstFragment = resolve;
+    });
+    await page.route('**/pagefind/fragment/**', async (route) => {
+      if (fragmentRequests++ === 0) await firstFragmentReleased;
+      await route.continue();
+    });
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const ready = await openSearchDialog(page);
+    test.skip(!ready, 'Pagefind is not available in dev mode; keyboard nav runs against astro preview.');
+
+    await typeSearchQuery(page, 'aspire');
+
+    const dialog = page.locator('site-search dialog[open]');
+    const input = dialog.locator('input.pagefind-ui__search-input');
+    const firstResult = dialog.locator('.pagefind-ui__result').first();
+    const activeTargets = dialog.locator('[data-search-active="true"]');
+
+    await expect(activeTargets).toHaveCount(1);
+    await expect(firstResult.locator('.pagefind-ui__result-link')).toHaveCount(0);
+
+    releaseFirstFragment();
+
+    const firstLink = firstResult.locator('.pagefind-ui__result-link').first();
+    await expect(firstLink).toBeVisible();
+    await expect(firstLink).toHaveAttribute('data-search-active', 'true');
+    await expect(firstLink).toHaveAttribute('aria-selected', 'true');
+    await expect(activeTargets).toHaveCount(1);
+    const firstId = (await firstLink.getAttribute('id'))!;
+    await expect(input).toHaveAttribute('aria-activedescendant', firstId);
+    await expectOpenSearchDialogAccessible(page, 'after out-of-order first result');
+
+    const firstHref = (await firstLink.getAttribute('href'))!;
+    await input.press('Enter');
+    await expect(page).toHaveURL(new URL(firstHref, page.url()).href);
+  });
+
+  test('keeps the highlight on a focused result when an earlier result renders later', async ({
+    page,
+  }) => {
+    let fragmentRequests = 0;
+    let releaseFirstFragment = () => {};
+    const firstFragmentReleased = new Promise<void>((resolve) => {
+      releaseFirstFragment = resolve;
+    });
+    await page.route('**/pagefind/fragment/**', async (route) => {
+      if (fragmentRequests++ === 0) await firstFragmentReleased;
+      await route.continue();
+    });
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const ready = await openSearchDialog(page);
+    test.skip(!ready, 'Pagefind is not available in dev mode; keyboard nav runs against astro preview.');
+
+    await typeSearchQuery(page, 'aspire');
+
+    const dialog = page.locator('site-search dialog[open]');
+    const firstResult = dialog.locator('.pagefind-ui__result').first();
+    const activeTargets = dialog.locator('[data-search-active="true"]');
+
+    await expect(activeTargets).toHaveCount(1);
+    await expect(firstResult.locator('.pagefind-ui__result-link')).toHaveCount(0);
+
+    // Focus the result that was auto-highlighted before the first one loaded.
+    const focusedHref = (await activeTargets.getAttribute('href'))!;
+    await activeTargets.focus();
+    await expect(activeTargets).toBeFocused();
+
+    releaseFirstFragment();
+
+    const firstLink = firstResult.locator('.pagefind-ui__result-link').first();
+    await expect(firstLink).toBeVisible();
+    await expect(firstLink).not.toHaveAttribute('data-search-active', 'true');
+    await expect(firstLink).not.toHaveAttribute('aria-selected', 'true');
+    await expect(activeTargets).toHaveCount(1);
+    await expect(activeTargets).toHaveAttribute('href', focusedHref);
+    await expect(activeTargets).toBeFocused();
+    await expectOpenSearchDialogAccessible(page, 'after preserving the focused result');
+  });
+
+  test('a query change hands the highlight back to the new first result', async ({ page }) => {
+    // A deterministic backend whose results for the second query still
+    // include the user's selection, but not first.
+    const pages = {
+      first: '/get-started/install-cli/',
+      selected: '/get-started/app-host/',
+      third: '/get-started/aspire-sdk/',
+      newFirst: '/get-started/deploy-first-app/',
+    };
+    await page.route('**/pagefind/pagefind.js', (route) =>
+      route.fulfill({
+        contentType: 'text/javascript',
+        body: `
+          const pages = ${JSON.stringify(pages)};
+          const result = (id) => ({
+            id,
+            score: 1,
+            words: [],
+            data: async () => ({
+              url: pages[id],
+              meta: { title: id },
+              excerpt: id,
+              sub_results: [],
+              content: id,
+              word_count: 1,
+              filters: {},
+              anchors: [],
+              weighted_locations: [],
+              locations: [],
+              raw_content: id,
+              raw_url: pages[id],
+            }),
+          });
+          const resultsFor = (term) =>
+            term === 'alpha' ? ['first', 'selected', 'third']
+            : term === 'alpha beta' ? ['newFirst', 'selected']
+            : [];
+          export async function options() {}
+          export async function filters() { return {}; }
+          export async function preload() {}
+          export async function search(term) {
+            const results = resultsFor(term).map(result);
+            return { results, filters: {}, unfilteredResultCount: results.length };
+          }
+        `,
+      })
+    );
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const ready = await openSearchDialog(page);
+    test.skip(
+      !ready,
+      'Pagefind is not available in dev mode; keyboard nav runs against astro preview.'
+    );
+
+    const dialog = page.locator('site-search dialog[open]');
+    const input = dialog.locator('input.pagefind-ui__search-input');
+    const links = dialog.locator('.pagefind-ui__result-link');
+    const activeTargets = dialog.locator('[data-search-active="true"]');
+
+    await typeSearchQuery(page, 'alpha');
+    await expect(links).toHaveCount(3);
+    await expect(links.first()).toHaveAttribute('data-search-active', 'true');
+
+    // Explicitly select the second result.
+    await input.press('ArrowDown');
+    const selected = dialog.locator(`.pagefind-ui__result-link[href="${pages.selected}"]`);
+    await expect(selected).toHaveAttribute('data-search-active', 'true');
+    await expect(selected).toBeFocused();
+
+    // Return to the input and refine the query; the selection survives in the
+    // new results, but the new first result must take over the highlight.
+    await input.focus();
+    await typeSearchQuery(page, 'alpha beta');
+    await expect(links).toHaveCount(2);
+    const newFirst = links.first();
+    await expect(newFirst).toHaveAttribute('href', pages.newFirst);
+    await expect(selected).toBeVisible();
+
+    await expect(newFirst).toHaveAttribute('data-search-active', 'true');
+    await expect(newFirst).toHaveAttribute('aria-selected', 'true');
+    await expect(selected).not.toHaveAttribute('data-search-active', 'true');
+    await expect(selected).not.toHaveAttribute('aria-selected', 'true');
+    await expect(activeTargets).toHaveCount(1);
+    await expect(input).toHaveAttribute(
+      'aria-activedescendant',
+      (await newFirst.getAttribute('id'))!
+    );
+    await expectOpenSearchDialogAccessible(page, 'after a query change');
+
+    await input.press('Enter');
+    await expect(page).toHaveURL(new URL(pages.newFirst, page.url()).href);
   });
 
   test('arrow nav also cycles through the C#/TypeScript/Go API buttons', async ({ page }) => {
