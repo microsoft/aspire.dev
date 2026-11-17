@@ -4,7 +4,7 @@ seoTitle: 'Aspire on Kubernetes overview: target a real cluster'
 description: Deploy Aspire applications to Kubernetes — whether you manage your own cluster or use Azure Kubernetes Service, Helm-based publishing, and CI/CD integrations.
 ---
 
-import { CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Use `aspire publish` or `aspire deploy` to take your Aspire application to Kubernetes. Aspire uses the Kubernetes-targeted environments in your AppHost to determine how each compute resource maps to Kubernetes objects, then generates Helm charts or provisions infrastructure depending on the target you choose.
@@ -35,7 +35,7 @@ Aspire supports two Kubernetes deployment targets:
 - [Aspire prerequisites](/get-started/prerequisites/)
 - [Aspire CLI](/get-started/install-cli/) installed
 - [kubectl](https://kubernetes.io/docs/tasks/tools/) installed and available on your `PATH`
-- [Helm](https://helm.sh/docs/intro/install/) **v4.2.0 or later** installed and available on your `PATH`
+- [Helm](https://helm.sh/docs/intro/install/) **v4.0.0 or later** installed and available on your `PATH`
 
 ## How Aspire maps resources to Kubernetes
 
@@ -52,6 +52,8 @@ When you publish or deploy, Aspire translates your application model into Kubern
 
 For durable storage that you model as first-class resources and bind to workloads, see [Persistent volumes on Kubernetes](/deployment/kubernetes/persistent-volumes/).
 
+For per-container scheduling reservations and runtime caps on either Kubernetes target, see [Configure CPU and memory requests and limits](/integrations/compute/kubernetes/#configure-cpu-and-memory-requests-and-limits). The sample uses the C# AppHost workload customization API.
+
 ## Publish vs deploy
 
 Both Kubernetes targets support `aspire publish`. The key difference is whether the target also supports `aspire deploy`:
@@ -64,6 +66,44 @@ Both Kubernetes targets support `aspire publish`. The key difference is whether 
 <LearnMore>
 For more on the pipeline model and how publish and deploy relate, see [Pipelines and app topology](/deployment/pipelines/).
 </LearnMore>
+
+## Container registries and published images
+
+Assign a container registry to a project or Dockerfile-backed resource to include its registry-qualified image name in the published Helm chart:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
+var registry = builder.AddContainerRegistry("registry", "registry.example.com", "apps");
+
+builder.AddProject<Projects.Api>("api")
+       .WithContainerRegistry(registry);
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+const registry = await builder.addContainerRegistry("registry", "registry.example.com", "apps");
+const api = await builder.addNodeApp("api", "../api", "server.js");
+await api.withContainerRegistry(registry);
+```
+
+</TabItem>
+</Tabs>
+
+For this example, `aspire publish` writes `registry.example.com/apps/api:latest` to the image parameter in `values.yaml`:
+
+```yaml title="YAML — values.yaml"
+parameters:
+  api:
+    api_image: "registry.example.com/apps/api:latest"
+```
+
+Image push options that customize the remote image name or tag are also respected. Existing container images, such as `redis:7`, are unchanged.
+
+Literal registry values and non-secret parameter defaults are resolved during publishing. Registry values that require provisioning, secrets, or parameters without defaults remain deferred, and the published placeholder is `<resource>:latest`. `aspire deploy` resolves the image names again after provisioning and supplies them through a Helm values override file. If you deploy the published chart yourself, supply the deferred image values to Helm.
 
 ## Continue learning
 

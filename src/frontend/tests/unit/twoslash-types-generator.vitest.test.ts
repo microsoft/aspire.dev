@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, test } from 'vitest';
+import { hasNestedSingleDtoOptionsWrapper } from '../../scripts/validate-generated-api-data';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
@@ -23,7 +24,7 @@ let output = '';
 beforeAll(() => {
   // The output is source-controlled, so don't unlink it. Re-run the generator
   // in place; subsequent assertions read the refreshed content.
-  // Invoke tsx directly via node to avoid cross-platform `pnpm`/`pnpm.cmd`
+  // Invoke tsx directly via node to avoid cross-platform package manager shim
   // resolution issues (and the DEP0190 warning from `shell: true`).
   const tsxBin = path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
   execFileSync(process.execPath, [tsxBin, generatorScript], { cwd: frontendRoot, stdio: 'pipe' });
@@ -121,7 +122,7 @@ describe('generate-twoslash-types', () => {
   });
 
   test('does not wrap an existing options DTO in another options object', () => {
-    expect(output).not.toMatch(/options\?: \{\s*options\?:/);
+    expect(hasNestedSingleDtoOptionsWrapper(output)).toBe(false);
   });
 
   test('does not infer ContainerResource from marker interfaces', () => {

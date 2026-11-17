@@ -4,7 +4,7 @@ termType: API contract
 description: A portable contract that exposes Aspire's .NET hosting APIs to supported guest languages through generated SDKs.
 aliases: [ATS]
 topics: [foundations, integrations]
-context: In a TypeScript AppHost, adding Redis calls a generated SDK method that invokes the exported hosting API in Aspire's .NET host.
+context: In a TypeScript or Go AppHost, adding Redis calls a generated SDK method that invokes the exported hosting API in Aspire's .NET host.
 related: [apphost, polyglot, hosting-integration]
 resources:
   - title: Understand the Aspire Type System

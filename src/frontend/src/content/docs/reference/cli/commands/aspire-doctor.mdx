@@ -33,7 +33,7 @@ This command is useful for troubleshooting when you encounter issues with Aspire
 - **AppHost checks**: Reports the AppHost Aspire SDK version when an AppHost project is present in the current directory
 - **SDK checks**: Reports .NET SDK availability and version
 - **Container checks**: Validates container runtime availability, running status, and version. On Windows, this includes WSLc in addition to Docker and Podman; on other platforms only Docker and Podman are checked. Marks the active runtime `← active`, or `← explicitly selected` when chosen via `ASPIRE_CONTAINER_RUNTIME`
-- **Environment checks**: Reports operating system information (type, version, and Linux distro details when available) and validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
+- **Environment checks**: Reports operating system information (type, version, and Linux distro details when available) and validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun) and the Go toolchain required by Go AppHosts
 - **Development tools checks**: When VS Code is detected, reports whether the [Aspire VS Code extension](https://aka.ms/aspire/vscode-extension) is installed
 
 <Aside type="note">
@@ -45,6 +45,15 @@ This command is useful for troubleshooting when you encounter issues with Aspire
   (`microsoft-aspire.aspire-vscode`) isn't installed, `aspire doctor` reports a
   warning with a link to install it from the Marketplace. When the extension is
   already installed, the check passes.
+</Aside>
+
+<Aside type="note">
+  When the AppHost is a Go AppHost (the configured AppHost, or an `apphost.go`
+  file in the current directory), `aspire doctor` checks for Go 1.26 or later.
+  The check fails when `go` isn't on `PATH`, when Go is older than 1.21, or when
+  Go is older than 1.26 and `GOTOOLCHAIN` is `local`. For Go 1.21 through 1.25,
+  it reports a warning because Go has to switch to a newer toolchain: it
+  downloads one unless `GOTOOLCHAIN` limits it to toolchains already on `PATH`.
 </Aside>
 
 <Aside type="note">
@@ -66,6 +75,18 @@ This command is useful for troubleshooting when you encounter issues with Aspire
   certificates and regenerate trusted development certificates. If the
   `openssl` command isn't installed, the fix suggestion also tells you to
   install it first.
+</Aside>
+
+<Aside type="note">
+  `aspire doctor` reports a warning in the Environment section when it finds
+  static copies of Aspire skills in the workspace or user profile. These copies
+  can override skills supplied by agent plugins. The check reports the copies
+  without modifying them. Run [`aspire agent init`](../aspire-agent-init/) to
+  configure skill sources and opt in to removing copies replaced by the default
+  Aspire skill source. Select the corresponding agents and project or global
+  scope, then confirm removal when prompted. Copies outside the selected scope
+  or not read by a selected agent remain. Non-interactive runs keep copies
+  unless you pass `--remove-skill-copies`.
 </Aside>
 
 <Aside type="note">
@@ -260,6 +281,17 @@ Development tools
        Install the Aspire extension from the VS Code Marketplace for an integrated Aspire experience.
 ```
 
+When static Aspire skill copies are found, the Environment section lists their directories and the agents that read them:
+
+```bash title="Aspire CLI"
+Environment
+  🚨 Found static copies of Aspire skills.
+       Run 'aspire agent init' to configure skill sources and remove these copies.
+       Details:
+       .agents/skills/aspire (copilot, opencode)
+       ~/.agents/skills/aspire (copilot, opencode)
+```
+
 ## Exit codes
 
 The command returns the following exit codes:
@@ -354,6 +386,22 @@ When the CLI is out of date, the `cli-version` check has `"status": "warning"` a
   "metadata": {
     "currentVersion": "%ASPIRE_VERSION%-dev",
     "latestVersion": "%ASPIRE_VERSION_PREVIEW%"
+  }
+}
+```
+
+The `aspire-skill-sources` check in the `environment` category reports `"status": "warning"` when static Aspire skill copies are found. The `details` string lists the affected directories and agents, and `metadata.workspaceRoot` provides the workspace root as context:
+
+```json title="JSON output"
+{
+  "category": "environment",
+  "name": "aspire-skill-sources",
+  "status": "warning",
+  "message": "Found static copies of Aspire skills.",
+  "fix": "Run 'aspire agent init' to configure skill sources and remove these copies.",
+  "details": ".agents/skills/aspire (copilot, opencode)\n~/.agents/skills/aspire (copilot, opencode)",
+  "metadata": {
+    "workspaceRoot": "C:\\Users\\dev\\src\\my-app"
   }
 }
 ```

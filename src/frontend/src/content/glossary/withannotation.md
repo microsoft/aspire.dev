@@ -14,6 +14,6 @@ legacyGroup: api-reference-terms
 ---
 `WithAnnotation` is part of the .NET resource-builder API. It lets integration authors attach typed metadata that other parts of Aspire can inspect and act on.
 
-The TypeScript SDK does **not** expose a general `withAnnotation` counterpart. Use supported TypeScript configuration methods, such as endpoint and environment methods, which attach the necessary metadata internally.
+The TypeScript and Go SDKs do **not** expose a general `withAnnotation` counterpart. Use supported configuration methods, such as endpoint and environment methods, which attach the necessary metadata internally.
 
 An annotation needs a consumer to give it meaning. Attaching arbitrary metadata by itself does not create a new orchestration behavior.

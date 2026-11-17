@@ -1,7 +1,7 @@
 ---
 title: Go AppHost API conventions
 seoTitle: Go AppHost API conventions for the Aspire SDK
-description: Learn how the generated Aspire Go SDK names methods, passes optional parameters with option values, reports errors through handles, and cancels a running AppHost.
+description: Learn how the generated Aspire Go SDK names methods, passes typed options, reports errors through handles, and cancels a running AppHost.
 ---
 
 The Aspire CLI generates the Go SDK from the integrations in your `aspire.config.json` file, and every integration follows the same conventions. The examples on this page use a `builder` from `aspire.CreateBuilder()`, as in [Get started with the Go AppHost](/app-host/go-apphost/).
@@ -10,51 +10,48 @@ The Aspire CLI generates the Go SDK from the integrations in your `aspire.config
 
 Every integration adds its methods to the `aspire` package, and method names are PascalCase. The TypeScript method `addRedis` is `AddRedis` in Go.
 
-Methods that add a resource, such as `AddRedis` and `AddGoApp`, return a _handle_. A handle is a Go interface that stands for the resource in the app model, for example `aspire.RedisResource`. Methods that configure a resource return the same handle type, so calls chain. Every handle has an `Err() error` method, which is described in [Errors](#errors).
+Methods that add a resource, such as `AddRedis` and `AddGoApp`, return a _handle_. A handle is a Go interface that stands for the resource in the app model, for example `aspire.RedisResource`. Methods that configure a resource return the same handle type, so calls chain. Errors are reported when you call `Build`, as described in [Errors](#errors).
 
 ## Optional parameters
 
-Optional parameters go in a trailing variadic argument of option values. Leave it out to use the defaults. The argument type is `<Method>Option`, such as `aspire.WithHttpEndpointOption`. Each optional parameter has a typed value named `<Method><Parameter>`, such as `aspire.HttpEndpointPort`, `aspire.HttpEndpointTargetPort`, and `aspire.HttpEndpointName`. Convert a literal to the typed value to set the parameter. You don't need pointer helpers or struct literals.
+Optional parameters go in a trailing variadic options argument. Leave it out to use the defaults, or pass typed option values for the settings you want to change. You don't need an options struct or pointer helpers:
 
 ```go title="apphost.go"
 builder.AddGoApp("api", "./api").
-	WithHttpEndpoint(
-		aspire.HttpEndpointPort(8080),
-		aspire.HttpEndpointName("http"),
-	)
+	WithHttpEndpoint(aspire.HttpEndpointPort(8080), aspire.HttpEndpointEnv("PORT"))
 ```
 
-The `<Method>Option` interface is sealed, so only the generated option values satisfy it. A `*aspire.<Method>Options` struct, such as `*aspire.WithHttpEndpointOptions`, is still accepted as an option for source compatibility. In that struct, scalar fields (string, number, bool, and enum) are pointers, so a field that you don't set stays `nil`. `aspire.CreateBuilder` follows the same pattern with `aspire.CreateBuilderOption`.
+Option names combine the method name without a leading `With` and the parameter name, such as `HttpEndpointPort`, `HttpEndpointEnv`, and `AddGoAppPackagePath`. Collection and callback options use the same pattern:
 
-Numeric parameters use the Go type that matches the underlying .NET type, such as `int`, `int64`, `float32`, `float64`, or an unsigned type, instead of always using `float64`. Obsolete .NET members aren't generated, unless an active method signature still needs the type.
+```go title="apphost.go"
+builder.AddGoApp("api", "./api",
+	aspire.AddGoAppPackagePath("./cmd/server"),
+	aspire.AddGoAppBuildTags([]string{"netgo", "integration"}),
+	aspire.AddGoAppRaceDetector(true),
+)
+```
 
-Generated `.go` files are formatted with `gofmt`.
+Options are applied from left to right. Omitting an option preserves the default; passing `false`, `0`, or `""` explicitly sets that value. If you repeat an option, the last value wins.
 
-The [`WithHttpEndpoint` API reference](/reference/api/go/aspire.hosting/withhttpendpoint/) describes each option of `WithHttpEndpoint`.
+The generated SDK still accepts pointer-based options structs for compatibility. DTO inputs that aren't variadic options, such as `AddContainerOptions`, retain their declared field types. Check the generated SDK for the exact types and option names available for your installed integrations.
+
+Numeric parameters use the Go type that matches the underlying .NET type, such as `int`, `int64`, `float32`, `float64`, or an unsigned type, instead of always using `float64`. Obsolete .NET members aren't generated, unless an active method signature still needs the type. Generated `.go` files are formatted with `gofmt`.
+
+The [`WithHttpEndpoint` API reference](/reference/api/go/aspire.hosting/withhttpendpoint/) describes the available endpoint settings.
 
 ## Errors
 
 The SDK reports errors in two ways.
 
-Methods that add or configure a resource return a handle instead of an error. The handle records the first failure, later calls on it do nothing, and `Err()` returns the recorded error. A child resource, such as a database that you add to a server, inherits the error of its parent, so checking the last handle in a chain is enough:
-
-```go title="apphost.go"
-db := builder.AddPostgres("postgres").AddDatabase("postgresdb")
-if err := db.Err(); err != nil {
-	log.Fatal(aspire.FormatError(err))
-}
-```
-
-A failed `Add` call records its error on the handle that it returns, not on the builder, so `builder.Err()` doesn't report it. To check several resources at once, put them in a slice of `aspire.Resource`:
+Methods that add or configure a resource return a handle instead of an error, so you can add many resources without checking each call. The SDK aggregates the errors and reports them when you call `Build`:
 
 ```go title="apphost.go"
 cache := builder.AddRedis("cache")
-api := builder.AddGoApp("api", "./api").WithReference(cache)
+builder.AddGoApp("api", "./api").WithReference(cache)
 
-for _, resource := range []aspire.Resource{cache, api} {
-	if err := resource.Err(); err != nil {
-		log.Fatal(aspire.FormatError(err))
-	}
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
 }
 ```
 
@@ -73,7 +70,7 @@ log.Println("AppHost directory:", dir)
 
 ## Cancellation
 
-A method that accepts a cancellation token takes it in its options struct. For example, `aspire.RunOptions` has a `CancellationToken` field. Create a token with `aspire.NewCancellationToken`, pass it in the options, and call its `Cancel` method to cancel the call:
+A method that accepts a cancellation token exposes a typed option for it, such as `aspire.RunCancellationToken`. Create a token with `aspire.NewCancellationToken`, pass it in the options, and call its `Cancel` method to cancel the call:
 
 ```go title="apphost.go"
 app, err := builder.Build()
@@ -85,7 +82,7 @@ if err != nil {
 token := aspire.NewCancellationToken()
 time.AfterFunc(time.Hour, token.Cancel)
 
-if err := app.Run(&aspire.RunOptions{CancellationToken: token}); err != nil {
+if err := app.Run(aspire.RunCancellationToken(token)); err != nil {
 	log.Fatal(aspire.FormatError(err))
 }
 ```

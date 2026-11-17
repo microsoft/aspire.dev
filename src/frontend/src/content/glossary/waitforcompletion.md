@@ -12,7 +12,7 @@ resources:
 legacyAnchors: [waitforcompletion]
 legacyGroup: apis-and-patterns
 ---
-`WaitForCompletion` in C# and `waitForCompletion` in TypeScript are useful for one-time jobs such as migrations, data seeding, and setup scripts.
+`WaitForCompletion` in C# and Go, and `waitForCompletion` in TypeScript, are useful for one-time jobs such as migrations, data seeding, and setup scripts.
 
 The default expected exit code is zero. A failed setup job is not the same as successful completion. Configure the dependency around the outcome your consuming service requires.
 

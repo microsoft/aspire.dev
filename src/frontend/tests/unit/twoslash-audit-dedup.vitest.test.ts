@@ -349,7 +349,7 @@ describe('twoslash audit input deduplication', () => {
   test('keeps missing declarations and unexpected filesystem failures fatal', () => {
     mocks.exists = false;
     expect(() => runAudit()).toThrow(
-      'aspire.d.ts is missing — run `pnpm twoslash-types` before auditing.'
+      'aspire.d.ts is missing — run `bun run twoslash-types` before auditing.'
     );
     expect(mocks.compiler).not.toHaveBeenCalled();
     mocks.exists = true;

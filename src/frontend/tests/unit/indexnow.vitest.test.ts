@@ -84,14 +84,20 @@ interface PostCall {
   urlList: string[];
 }
 
+/** What IndexNow answers with while it is still verifying a new key. */
+const KEY_NOT_VERIFIED = {
+  status: 403,
+  body: '{"errorCode":"SiteVerificationNotCompleted","message":"Site Verification is not completed. Please wait for some time for the verification to complete and try again.","details":null}',
+};
+
 /** A stand-in for aspire.dev and the IndexNow endpoint. */
 function createSite(paths: string[], key = KEY) {
   const site = {
     paths: [...paths],
     keyLive: true,
     liveReleases: new Set<string>(),
-    /** Statuses for the upcoming IndexNow POSTs; 200 when the queue is empty. */
-    responses: [] as number[],
+    /** Answers for the upcoming IndexNow POSTs, a status or a status with a body; 200 when empty. */
+    responses: [] as (number | { status: number; body: string })[],
     posts: [] as PostCall[],
     fetch: vi.fn<typeof fetchWithProxy>(),
   };
@@ -111,7 +117,9 @@ function createSite(paths: string[], key = KEY) {
     const target = new URL(String(input));
     if (target.origin === 'https://api.indexnow.org') {
       site.posts.push(JSON.parse(init?.body as string) as PostCall);
-      return Promise.resolve(new Response('', { status: site.responses.shift() ?? 200 }));
+      const next = site.responses.shift() ?? 200;
+      const { status, body } = typeof next === 'number' ? { status: next, body: '' } : next;
+      return Promise.resolve(new Response(body, { status }));
     }
     if (target.pathname === `/${key}.txt`) {
       return Promise.resolve(
@@ -897,6 +905,33 @@ describe('running end to end', () => {
     }
   );
 
+  test('a key IndexNow is still verifying fails the run and leaves the state alone', async () => {
+    await runDay();
+    const before = await readState();
+    site.responses = [KEY_NOT_VERIFIED];
+    const result = await runDay();
+    expect(result).toMatchObject({ outcome: 'failed', submitted: 0, stateChanged: false });
+    expect(result.failure).toContain('HTTP 403');
+    expect(result.failure).toContain('SiteVerificationNotCompleted');
+    expect(result.failure).toContain('still verifying the key');
+    expect(result.failure).not.toContain('check that the key file is live');
+    expect(result.failure).toContain('The next run tries again.');
+    expect(await readState()).toBe(before);
+
+    await runDay();
+    expect(submitted()).toEqual(urls([DOCS[3], API[0], API[1]]));
+  });
+
+  test('any other HTTP 403 still points at the key file', async () => {
+    await runDay();
+    site.responses = [403];
+    const result = await runDay();
+    expect(result).toMatchObject({ outcome: 'failed', submitted: 0, stateChanged: false });
+    expect(result.failure).toContain('HTTP 403');
+    expect(result.failure).toContain('check that the key file is live');
+    expect(result.failure).not.toContain('still verifying the key');
+  });
+
   test('a flush whose request failed still starts the release pass', async () => {
     await runDay();
     site.responses = [429];
@@ -1027,6 +1062,28 @@ describe('the command line entry point', () => {
     expect(summary).toContain('failed');
     expect(summary).toContain('did not go live');
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('did not go live'));
+  });
+
+  test('fails the first submission of a key IndexNow has not verified yet', async () => {
+    const real = await loadConfig();
+    const site = createSite(SMALL_SITE, real.key);
+    site.responses = [KEY_NOT_VERIFIED];
+    const clock = createClock();
+    const env = {
+      GITHUB_STEP_SUMMARY: path.join(stateDir, 'summary.md'),
+      GITHUB_OUTPUT: path.join(stateDir, 'output.txt'),
+    };
+    const code = await main(['--state-dir', stateDir], env, {
+      fetch: site.fetch,
+      sleep: clock.sleep,
+      now: clock.now,
+    });
+
+    expect(code).toBe(1);
+    expect(site.posts).toHaveLength(1);
+    expect(await readFile(env.GITHUB_OUTPUT, 'utf8')).toBe('state_changed=true\n');
+    expect(await readFile(env.GITHUB_STEP_SUMMARY, 'utf8')).toContain('failed');
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('still verifying the key'));
   });
 
   test('rejects invalid arguments', async () => {

@@ -40,6 +40,8 @@ test('every catalog HTML item/member path has a Markdown peer and legacy exports
     `${params.module}/${params.item}/${params.member}`,
     getTsHandleMethod<TsFunction, TsHandleType>(docs.get(props.packageName)!.handleTypes, props.handleIndex, props.methodIndex).method,
   ]));
+  // Props are resolved from freshly loaded documents, so compare by content rather than identity.
+  const sameData = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
   let canonicalCount = 0;
   let legacyCount = 0;
   const legacyMismatches: string[] = [];
@@ -79,13 +81,14 @@ test('every catalog HTML item/member path has a Markdown peer and legacy exports
           legacyCount++;
         }
       }
-      // Astro's keyed static-path cache resolves duplicate paths to the last entry.
-      for (const [url, item] of legacyItems) {
-        if (itemProps.get(url) !== item) legacyMismatches.push(url);
-      }
-      for (const [url, method] of legacyMembers) {
-        if (memberProps.get(url) !== method) legacyMismatches.push(url);
-      }
+    }
+    // Astro's keyed static-path cache resolves duplicate paths to the last entry.
+    // Compare once per module: content equality is too costly to repeat for every handle.
+    for (const [url, item] of legacyItems) {
+      if (!sameData(itemProps.get(url), item)) legacyMismatches.push(url);
+    }
+    for (const [url, method] of legacyMembers) {
+      if (!sameData(memberProps.get(url), method)) legacyMismatches.push(url);
     }
     expect(legacyMismatches).toEqual([]);
   }

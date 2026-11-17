@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 
 import { markdownResponse } from '@utils/api-markdown-shared';
+import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import { renderCSharpPackageMarkdown } from '@utils/csharp-api-markdown';
 import { getPackageDocument, getPackages, packageSlug } from '@utils/packages';
 
@@ -11,6 +12,7 @@ type RouteProps = {
 };
 
 type StaticPath = {
+  cacheKey: string;
   params: { package: string };
   props: RouteProps;
 };
@@ -19,6 +21,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
   const packages = await getPackages();
 
   return packages.map((entry) => ({
+    cacheKey: apiDocumentCacheKey(entry.data),
     params: { package: packageSlug(entry.data.package.name) },
     props: {
       packageName: entry.data.package.name,

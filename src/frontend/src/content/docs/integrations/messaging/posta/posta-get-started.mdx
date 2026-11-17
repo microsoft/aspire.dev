@@ -1,0 +1,74 @@
+---
+title: Get started with the Posta integration
+description: Run the Posta email delivery platform with PostgreSQL and Redis in Aspire, then call its HTTP API from a consuming application.
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+[Posta](https://docs.goposta.dev/) is a self-hosted email delivery platform. The Community Toolkit provides an AppHost integration that configures Posta with PostgreSQL and Redis, plus a .NET client integration for its application-facing HTTP APIs.
+
+## Prerequisites
+
+- An Aspire AppHost project
+- PostgreSQL and Redis resources for Posta's data and queueing
+
+## Add Posta to your AppHost
+
+Install the [📦 CommunityToolkit.Aspire.Hosting.Posta](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Posta) package in the AppHost. Add Posta with references to its database and Redis resources:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Posta
+```
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+const postgres = await builder.addPostgres('postgres');
+const database = await postgres.addDatabase('posta-db', 'posta');
+const redis = await builder.addRedis('redis');
+
+const posta = await builder.addPostaWithReferences('posta', database, redis);
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(posta);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Posta
+```
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+var postgres = builder.AddPostgres("postgres");
+var database = postgres.AddDatabase("posta-db", "posta");
+var redis = builder.AddRedis("redis");
+
+var posta = builder.AddPosta("posta", database, redis);
+builder.AddProject<Projects.Api>("api")
+    .WithReference(posta);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The Posta container runs its worker in the main container by default. See [Set up Posta in the AppHost](../posta-host/) for secrets, storage, SMTP settings, and optional endpoints. To register the .NET client, see [Connect to Posta](../posta-connect/).
+
+## See also
+
+- [Set up Posta in the AppHost](../posta-host/)
+- [Connect to Posta](../posta-connect/)
+- [Posta documentation](https://docs.goposta.dev/)
+- [CommunityToolkit.Aspire.Hosting.Posta source and tests](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.Posta)

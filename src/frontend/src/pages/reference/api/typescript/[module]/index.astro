@@ -8,6 +8,7 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { tsModuleSlug, getTsModuleDocument, getTsModules, simplifyType } from '@utils/ts-modules';
+import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
 import {
   getTsCallableIdentityKey,
@@ -25,6 +26,7 @@ interface Props {
 export async function getStaticPaths() {
   const packages = await getTsModules();
   return packages.map(pkg => ({
+    cacheKey: apiDocumentCacheKey(pkg.data),
     params: { module: tsModuleSlug(pkg.data.package.name) },
     props: { packageName: pkg.data.package.name },
   }));

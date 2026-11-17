@@ -1,0 +1,280 @@
+---
+title: API Management policies and named values
+description: Add inbound policies, complete policy documents, reusable fragments, and named values to Azure API Management in your Aspire AppHost.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Policies change how Azure API Management (APIM) processes requests and responses, for example to limit rates, set headers, or rewrite URLs. The Aspire Azure API Management hosting integration lets you add policy statements at the service, API, and operation scope, share statements through policy fragments, and reference configuration values through named values.
+
+This page assumes the `apim` and `catalog` resources from [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/#add-a-service-and-route-a-workload).
+
+:::caution
+Policies are arbitrary XML that APIM runs in the gateway request pipeline. Treat policy XML like code, and review it as you would any change that affects every request.
+:::
+
+## Add inbound policy statements
+
+Call `WithInboundPolicy` to append one or more policy statements to the inbound section at a scope. The method exists on the service, on APIs, and on operations.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await apim.withInboundPolicy(
+    '<set-header name="x-gateway" exists-action="override"><value>Aspire</value></set-header>');
+
+const catalogApi = await apim.addApi("catalog-api", catalog, "catalog");
+await catalogApi.withInboundPolicy('<rate-limit calls="100" renewal-period="60" />');
+
+const getProduct = await catalogApi.addOperation("get-product", "GET", "/products/{id}");
+await getProduct.withInboundPolicy(
+    '<set-header name="x-operation" exists-action="override"><value>get-product</value></set-header>');
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+apim.WithInboundPolicy("""
+    <set-header name="x-gateway" exists-action="override">
+      <value>Aspire</value>
+    </set-header>
+    """);
+
+var catalogApi = apim.AddApi("catalog-api", catalog, path: "catalog")
+    .WithInboundPolicy("""
+        <rate-limit calls="100" renewal-period="60" />
+        """);
+
+catalogApi.AddOperation("get-product", "GET", "/products/{id}")
+    .WithInboundPolicy("""
+        <set-header name="x-operation" exists-action="override">
+          <value>get-product</value>
+        </set-header>
+        """);
+```
+
+</TabItem>
+</Tabs>
+
+Each call appends statements in call order. The value must be one or more well-formed policy elements without a `policies` envelope. Aspire throws an `ArgumentException` if the XML is malformed or contains a complete `policies` document.
+
+Aspire composes the policy document for each scope:
+
+| Scope | Generated policy |
+| ----- | ---------------- |
+| Service | An `inbound` section with your statements, a `forward-request` backend section, and empty `outbound` and `on-error` sections. The service policy is the root of the hierarchy, so it has no `base` element. |
+| API | An `inbound` section with `base`, the `authentication-managed-identity` statement when the backend uses managed identity, `set-backend-service`, and then your statements. The other sections contain `base`. |
+| Operation | An `inbound` section with `base` and your statements. The other sections contain `base`. |
+
+## Replace the complete policy
+
+Call `WithPolicy` when you need full control of a policy document. The value must be a complete document with a `policies` root element. APIM replaces the whole policy at that scope.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { refExpr } from './.aspire/modules/aspire.mjs';
+
+const backend = await apim.addBackend("orders-backend", refExpr`https://orders.example.com`);
+
+const ordersApi = await apim.addApiWithoutTarget("orders-api", "orders");
+await ordersApi.withApiBackend(backend);
+await ordersApi.withPolicy(`<policies>
+  <inbound>
+    <base />
+    <set-backend-service backend-id="orders-backend" />
+    <rate-limit calls="50" renewal-period="60" />
+  </inbound>
+  <backend><base /></backend>
+  <outbound><base /></outbound>
+  <on-error><base /></on-error>
+</policies>`);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var backend = apim.AddBackend(
+    "orders-backend",
+    ReferenceExpression.Create($"https://orders.example.com"));
+
+apim.AddApi("orders-api", path: "orders")
+    .WithBackend(backend)
+    .WithPolicy("""
+        <policies>
+          <inbound>
+            <base />
+            <set-backend-service backend-id="orders-backend" />
+            <rate-limit calls="50" renewal-period="60" />
+          </inbound>
+          <backend><base /></backend>
+          <outbound><base /></outbound>
+          <on-error><base /></on-error>
+        </policies>
+        """);
+```
+
+</TabItem>
+</Tabs>
+
+Keep the following in mind when you replace a policy:
+
+- Replacing an API policy also replaces the backend routing that Aspire generates. Your document must set the backend if the API should keep forwarding requests. The backend ID of a standalone backend is its physical name, which defaults to the resource name.
+- For an API that targets a compute resource, the generated backend ID is the API resource name with hyphens replaced by underscores, followed by `Backend`, such as `catalog_apiBackend`.
+- `WithPolicy` and `WithInboundPolicy` can't be combined at the same scope. Aspire throws an `InvalidOperationException` instead of silently discarding one of them.
+- The XML must be well-formed and must have a `policies` root element.
+
+## Share statements with policy fragments
+
+A policy fragment is a reusable set of policy statements. Define it once with `AddPolicyFragment`, then include it at the service, API, or operation scope with `WithInboundPolicyFragment`.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const standardHeaders = await apim.addPolicyFragment(
+    "standard-headers",
+    `<set-header name="x-powered-by" exists-action="override">
+  <value>Aspire</value>
+</set-header>`,
+    { description: "Headers shared by every API." });
+
+await apim.withInboundPolicyFragment(standardHeaders);
+
+const catalogApi = await apim.addApi("catalog-api", catalog, "catalog");
+await catalogApi.withInboundPolicyFragment(standardHeaders);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var standardHeaders = apim.AddPolicyFragment(
+    "standard-headers",
+    """
+    <set-header name="x-powered-by" exists-action="override">
+      <value>Aspire</value>
+    </set-header>
+    """,
+    description: "Headers shared by every API.");
+
+apim.WithInboundPolicyFragment(standardHeaders);
+
+var catalogApi = apim.AddApi("catalog-api", catalog, path: "catalog");
+catalogApi.WithInboundPolicyFragment(standardHeaders);
+```
+
+</TabItem>
+</Tabs>
+
+Aspire wraps the statements in a `fragment` element and adds an `include-fragment` statement to the inbound policy at the scope where you include it. APIM deploys the policies after the fragments that they reference.
+
+The `AddPolicyFragment` method has the following parameters:
+
+| Parameter | Required | Description |
+| --------- | -------- | ----------- |
+| `name` | Yes | The Aspire resource name. It's also the default fragment identifier. |
+| `policyXml` | Yes | One or more well-formed policy elements without a `fragment` envelope. |
+| `description` | No | A description with at most 1,000 characters. |
+| `fragmentName` | No | The physical fragment identifier in APIM. Defaults to the resource name. |
+
+The fragment identifier has at most 80 characters. It can contain letters, digits, underscores, and hyphens, but it can't start or end with a hyphen. Each identifier is unique within the service, and a policy can include only fragments from its own service.
+
+## Add named values
+
+Named values are configuration entries that policies reference with the `{{name}}` syntax. Aspire supports three kinds:
+
+- A literal value, for non-secret configuration.
+- A secret parameter, for a value that you supply through [external parameters](/fundamentals/external-parameters/).
+- A Key Vault secret, which APIM reads from Azure Key Vault at run time.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await apim.addNamedValue("gateway-name", "Aspire");
+
+const apiKey = await builder.addParameter("upstream-api-key", { secret: true });
+await apim.addSecretNamedValue("upstream-api-key-value", apiKey, {
+    displayName: "UpstreamApiKey",
+});
+
+const vault = await builder.addAzureKeyVault("vault");
+const sharedSecret = await builder.addParameter("shared-secret-value", { secret: true });
+await vault.addSecret("vault-shared-secret", sharedSecret, { secretName: "shared-secret" });
+await apim.addKeyVaultNamedValue("shared-secret", vault, "shared-secret", {
+    displayName: "SharedSecret",
+});
+
+await apim.withInboundPolicy(
+    '<set-header name="x-powered-by" exists-action="override"><value>{{gateway-name}}</value></set-header>');
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+apim.AddNamedValue("gateway-name", "Aspire");
+
+var apiKey = builder.AddParameter("upstream-api-key", secret: true);
+apim.AddSecretNamedValue(
+    "upstream-api-key-value",
+    apiKey,
+    displayName: "UpstreamApiKey");
+
+var vault = builder.AddAzureKeyVault("vault");
+var sharedSecret = builder.AddParameter("shared-secret-value", secret: true);
+vault.AddSecret("vault-shared-secret", "shared-secret", sharedSecret);
+apim.AddKeyVaultNamedValue(
+    "shared-secret",
+    vault.GetSecret("shared-secret"),
+    displayName: "SharedSecret");
+
+apim.WithInboundPolicy("""
+    <set-header name="x-powered-by" exists-action="override">
+      <value>{{gateway-name}}</value>
+    </set-header>
+    """);
+```
+
+</TabItem>
+</Tabs>
+
+In the Key Vault example, the `shared-secret-value` secret parameter supplies the value, and `AddSecret` (`addSecret` in TypeScript) creates the `shared-secret` secret in the vault. APIM resolves a Key Vault-backed named value from a secret that already exists, so create the secret as shown or reference a vault that already contains it.
+
+In TypeScript, `addKeyVaultNamedValue` takes the Key Vault resource and the secret name as separate arguments. In C#, you pass the Key Vault secret reference that `GetSecret` returns.
+
+The named value methods share these parameters:
+
+| Parameter | Description |
+| --------- | ----------- |
+| `name` | The Aspire resource name. It's also the default physical named-value name. |
+| `value` | A string, a secret parameter, or a Key Vault secret. |
+| `displayName` | The name that policies use in `{{name}}`. Defaults to the resource name. It has 1 to 256 letters, digits, hyphens, periods, or underscores. |
+| `namedValueName` | The physical named-value identifier in APIM. Defaults to the resource name. |
+| `tags` | Tags that organize the named value. |
+
+Aspire enforces these rules:
+
+- A literal value isn't empty or whitespace and has at most 4,096 characters.
+- `AddSecretNamedValue` requires a parameter that's marked as secret. Aspire throws an `ArgumentException` for a parameter that isn't.
+- The physical name and the display name are each unique within the service, ignoring case.
+
+### Key Vault-backed named values
+
+APIM reads a Key Vault-backed value through the user-assigned managed identity of the service. Aspire grants that identity the Key Vault Secrets User role on the vault through the standard Azure role-assignment pipeline, and the APIM deployment waits for the role assignment. The secret reference is versionless, so APIM picks up rotated values. For a Key Vault resource that isn't an Azure provisioning resource, Aspire keeps an inline role assignment instead.
+
+For an existing APIM service, supply an identity that's already attached to the service. For more information, see [Service configuration](/integrations/cloud/azure/azure-api-management/azure-api-management-service/#use-an-existing-service).
+
+## See also
+
+- [APIs and operations](/integrations/cloud/azure/azure-api-management/azure-api-management-apis/)
+- [Backends and backend pools](/integrations/cloud/azure/azure-api-management/azure-api-management-backends/)
+- [Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started/)
+- [External parameters](/fundamentals/external-parameters/)
+- [Azure API Management policies](https://learn.microsoft.com/azure/api-management/api-management-howto-policies)
+- [Named values in Azure API Management](https://learn.microsoft.com/azure/api-management/api-management-howto-properties)

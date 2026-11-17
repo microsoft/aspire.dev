@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 
 import MemberCard from '@components/api-reference/MemberCard.astro';
 import MemberOverviewList from '@components/api-reference/MemberOverviewList.astro';
+import TsMemberCard from '@components/api-reference/TsMemberCard.astro';
 import { resolveMemberAnchors } from '@utils/packages';
 import { renderComponent } from './astro-test-utils';
 
@@ -46,4 +47,27 @@ test('member components render resolved links and legacy collision aliases', asy
   });
   expect(overview).toContain(`methods/#${anchors[0].exact}`);
   expect(overview).toContain(`methods/#${anchors[1].exact}`);
+});
+
+test('TypeScript member cards render parameter descriptions', async () => {
+  const card = await renderComponent(TsMemberCard, {
+    props: {
+      member: {
+        name: 'withIconName',
+        signature: 'withIconName(iconName: string, iconVariant?: IconVariant): IResource',
+        returnType: 'IResource',
+        parameters: [
+          {
+            name: 'iconName',
+            type: 'string',
+            description: 'The name of the FluentUI icon to use.',
+          },
+          { name: 'iconVariant', type: 'IconVariant', isOptional: true },
+        ],
+      },
+    },
+  });
+  expect(card).toContain('class="mc-param-desc');
+  expect(card).toContain('The name of the FluentUI icon to use.');
+  expect(card.match(/class="mc-param-desc/g)).toHaveLength(1);
 });

@@ -1,0 +1,158 @@
+---
+title: Host services with the Ngrok integration
+description: Configure the Aspire Community Toolkit Ngrok resource, authentication, upstream endpoints, tunnel URLs, and local API port.
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import ngrokIcon from '@assets/icons/ngrok-icon.png';
+import ngrokLightIcon from '@assets/icons/ngrok-light-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={ngrokLightIcon}
+  dark={ngrokIcon}
+  alt="ngrok logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+This page documents the AppHost APIs in the [Aspire Community Toolkit Ngrok integration](https://github.com/CommunityToolkit/Aspire). Use these APIs to run an ngrok container and configure tunnels for endpoints exposed by other AppHost resources.
+
+For an introduction, see [Get started with the Ngrok integration](/integrations/reverse-proxies/ngrok/ngrok-get-started/).
+
+## Install the package
+
+Install the hosting package in your AppHost project:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Ngrok" />
+
+The integration exports AppHost APIs for both C# and TypeScript. TypeScript support is included in the Community Toolkit package.
+
+## Add an Ngrok resource
+
+Add an ngrok resource, provide an authentication token as a secret parameter, and choose an endpoint to expose. This example reserves port `59600` on the host for ngrok's local inspection API:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const authToken = await builder.addParameter('ngrok-auth-token', {
+  secret: true,
+});
+const api = await builder.addProject('api', '../Api/Api.csproj');
+
+const ngrok = await builder.addNgrok('ngrok', {
+  endpointPort: 59600,
+  configurationVersion: 3,
+});
+
+await ngrok.withAuthToken(authToken);
+await ngrok.withTunnelEndpoint(api, 'http', {
+  ngrokUrl: 'https://example.ngrok.app',
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var authToken = builder.AddParameter("ngrok-auth-token", secret: true);
+var api = builder.AddProject<Projects.Api>("api");
+
+builder.AddNgrok("ngrok", endpointPort: 59600, configurationVersion: 3)
+    .WithAuthToken(authToken)
+    .WithTunnelEndpoint(api, "http", "https://example.ngrok.app");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Replace `https://example.ngrok.app` with a URL available to your ngrok account. To let ngrok choose a URL, omit the third argument in C# or call `await ngrok.withTunnelEndpoint(api, 'http')` in TypeScript.
+
+The integration creates an `NgrokResource` using the `ngrok/ngrok:3` container image. It generates an ngrok YAML configuration file before the resource starts, then starts the agent with `--all` when tunnel endpoints are configured or `--none` when there are none.
+
+## Configure the Ngrok resource
+
+### Exported AppHost APIs
+
+The integration exports these AppHost methods:
+
+- `AddNgrok(name, configurationFolder?, endpointPort?, endpointName?, configurationVersion?)` adds the ngrok container resource.
+- `WithAuthToken(parameter)` or `WithAuthToken(string)` configures the ngrok authentication token. TypeScript uses `withAuthToken(parameter)` or `withAuthTokenValue(string)`.
+- `WithTunnelEndpoint(resource, endpointName, ngrokUrl?, labels?)` adds an upstream endpoint to the tunnel. TypeScript passes the optional URL and labels in an options object.
+
+The required arguments are:
+
+- `name`: the resource name passed to `AddNgrok`.
+- `resource`: the AppHost resource whose endpoint should be tunneled.
+- `endpointName`: the name of the endpoint on that resource.
+
+### `AddNgrok` options
+
+`AddNgrok` accepts the following parameters:
+
+| Parameter              | Description                                                                                                                                                                        |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                 | Required resource name. The integration uses it in the generated configuration filename.                                                                                           |
+| `configurationFolder`  | Directory for generated ngrok configuration files. Defaults to `.ngrok` in the AppHost directory. The folder is bind-mounted into the container at `/var/tmp/ngrok`.               |
+| `endpointPort`         | Optional host port for ngrok's HTTP inspection endpoint, whose container target port is `4040`. If omitted, Aspire assigns a host port. Valid values are from `1` through `65535`. |
+| `endpointName`         | Optional name for the inspection endpoint. Defaults to `http`.                                                                                                                     |
+| `configurationVersion` | Optional ngrok configuration format version. The default is `3`; the integration accepts `2` or `3`.                                                                               |
+
+Use a custom `configurationFolder` when you want the generated configuration outside the default `.ngrok` directory. The integration creates the directory if it does not exist and writes a `{resource-name}.yml` file there.
+
+### Add an upstream tunnel endpoint
+
+Call `WithTunnelEndpoint` for each endpoint to expose. It accepts a resource with endpoints, the endpoint name, and an optional ngrok URL. When the URL is omitted, ngrok selects one. The endpoint name must match an endpoint on the target resource.
+
+In C#, pass the optional ngrok URL followed by the optional labels dictionary. In TypeScript, pass these values in an options object with `ngrokUrl` and `labels` properties.
+
+Configuration version `2` writes an upstream `addr` only when labels are supplied, and does not write a configured `ngrokUrl`. Version `3` writes the upstream URL and optional `ngrokUrl`, but ignores labels. Use version `3`, the default, when you need to reserve a URL.
+
+### Configure the authentication token
+
+Use a secret Aspire parameter for the ngrok authentication token, as shown in the resource example. The C# API also accepts a string token with `WithAuthToken(string)`. TypeScript uses `withAuthTokenValue(string)` for a string token. Avoid storing a literal token in AppHost source code.
+
+The token is passed to the ngrok container through the `NGROK_AUTHTOKEN` environment variable.
+
+## Query the tunneled URLs
+
+Ngrok's local inspection API returns information about active tunnels, including each tunnel's `public_url`. If you set `endpointPort` to `59600`, query it while the Aspire app is running:
+
+```bash title="Terminal"
+curl -H "Accept: application/json" -s http://localhost:59600/api/tunnels
+```
+
+When `endpointPort` is omitted, use the host port assigned to the ngrok inspection endpoint instead of `59600`. The response contains a `tunnels` array with the public URL and upstream address for each configured tunnel.
+
+<Aside type="caution">
+  A public tunnel makes the selected service reachable through an ngrok URL.
+  Expose only endpoints that are safe to make accessible, and use your
+  application's own authentication and authorization where needed.
+</Aside>
+
+## Hosting integration health checks
+
+The Ngrok integration does not add a separate Ngrok-specific health-check API. The integration configures the ngrok container and generated configuration; it does not configure health checks for the upstream application.
+
+## See also
+
+- [Get started with the Ngrok integration](/integrations/reverse-proxies/ngrok/ngrok-get-started/)
+- [Ngrok integration for Aspire](https://learn.microsoft.com/dotnet/aspire/community-toolkit/ngrok)
+- [ngrok documentation](https://ngrok.com/docs)

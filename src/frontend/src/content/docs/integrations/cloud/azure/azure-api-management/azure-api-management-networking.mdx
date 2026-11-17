@@ -1,0 +1,333 @@
+---
+title: Azure API Management virtual networking
+description: Connect Azure API Management to a virtual network with classic injection, v2 integration, Premium v2 injection, private endpoints, and private backends.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Azure API Management (APIM) can reach private backends and accept private traffic when you connect it to an Azure virtual network. The Aspire Azure API Management hosting integration supports the APIM networking models through the [Azure Virtual Network integration](/integrations/cloud/azure/azure-virtual-network/). This page assumes the `apim` resource from [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/#add-a-service-and-route-a-workload).
+
+:::danger[Experimental]
+The Azure Virtual Network integration is experimental. In C#, the virtual network, subnet, private endpoint, and internal load balancer APIs report [ASPIREAZURE003](/diagnostics/aspireazure003/). Suppress the diagnostic to use them, and expect the APIs to change.
+:::
+
+## Choose a networking model
+
+Each model applies to specific pricing tiers. Pick the one that matches the traffic that you need to secure.
+
+| Model | Method | Tiers | Effect |
+| ----- | ------ | ----- | ------ |
+| Classic virtual network injection | `WithClassicVirtualNetwork` | Developer, Premium | Places the service in an undelegated subnet, with an external or internal gateway. |
+| Outbound virtual network integration | `WithVirtualNetworkIntegration` | Standard v2, Premium v2 | Keeps the gateway public and lets APIM reach backends in the virtual network. |
+| Premium v2 virtual network injection | `WithVirtualNetworkInjection` | Premium v2 | Provides private inbound and outbound access. |
+| Inbound private endpoint | `AddPrivateEndpoint` | All tiers except Consumption and Basic v2 | Adds a private endpoint for the gateway without changing public network access. |
+
+The following rules apply to the three virtual network models: classic injection, outbound integration, and Premium v2 injection.
+
+- Each APIM service needs a dedicated subnet. A subnet that one APIM service uses can't be used by another APIM service for these models.
+- A service has one virtual network configuration. Repeating the same call is allowed, but a different configuration throws an `InvalidOperationException`.
+- An existing service can't change its virtual network configuration.
+- Aspire models one delegation for each subnet. A subnet that has a conflicting delegation causes an `InvalidOperationException`.
+
+Private endpoints don't follow these rules. A private endpoint doesn't reserve its subnet for APIM, so you don't need a separate subnet for each APIM service. Private endpoints also work with existing services because they don't modify the service. For more information, see [Add a private endpoint](#add-a-private-endpoint).
+
+## Inject a classic service into a subnet
+
+Call `WithClassicVirtualNetwork` on a Developer or Premium service. The subnet must not be delegated to another Azure service, and Azure requires a network security group (NSG) on it.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { AzureApiManagementVirtualNetworkMode, SecurityRuleProtocol } from './.aspire/modules/aspire.mjs';
+
+const vnet = await builder.addAzureVirtualNetwork("vnet");
+const apimSubnet = await vnet.addSubnet("apim-subnet", "10.0.0.0/24");
+await apimSubnet.allowInbound({ port: "3443", from: "ApiManagement", protocol: SecurityRuleProtocol.Tcp });
+await apimSubnet.allowInbound({ port: "6390", from: "AzureLoadBalancer", protocol: SecurityRuleProtocol.Tcp });
+await apimSubnet.allowInbound({ port: "443", from: "Internet", protocol: SecurityRuleProtocol.Tcp });
+
+await apim.withClassicVirtualNetwork(apimSubnet, AzureApiManagementVirtualNetworkMode.External);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003
+
+using Aspire.Hosting.Azure;
+using Azure.Provisioning.Network;
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var apimSubnet = vnet.AddSubnet("apim-subnet", "10.0.0.0/24")
+    .AllowInbound(port: "3443", from: "ApiManagement", protocol: SecurityRuleProtocol.Tcp)
+    .AllowInbound(port: "6390", from: AzureServiceTags.AzureLoadBalancer, protocol: SecurityRuleProtocol.Tcp)
+    .AllowInbound(port: "443", from: AzureServiceTags.Internet, protocol: SecurityRuleProtocol.Tcp);
+
+apim.WithClassicVirtualNetwork(apimSubnet, AzureApiManagementVirtualNetworkMode.External);
+```
+
+</TabItem>
+</Tabs>
+
+The `mode` argument selects how the gateway is exposed:
+
+| Mode | Behavior |
+| ---- | -------- |
+| `External` | Exposes APIM through a public load balancer and lets it reach private backends. |
+| `Internal` | Exposes APIM only through an internal load balancer. You manage DNS for APIM's private virtual IP address. |
+
+The NSG rules in the example allow TCP 3443 from the `ApiManagement` service tag for the management endpoint, TCP 6390 from `AzureLoadBalancer` for health probes, and TCP 443 from `Internet` while the gateway remains public. For more information about the requirements, see [Azure API Management virtual network concepts](https://learn.microsoft.com/azure/api-management/virtual-network-concepts).
+
+## Integrate a v2 service for outbound access
+
+Call `WithVirtualNetworkIntegration` on a Standard v2 or Premium v2 service. The gateway stays publicly accessible, and APIM can reach resources in the virtual network.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { AzureApiManagementSku, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const vnet = await builder.addAzureVirtualNetwork("vnet");
+const subnet = await vnet.addSubnet("apim-subnet", "10.0.0.0/24");
+
+const apim = await builder.addAzureApiManagement("apim", {
+    publisherEmail: "api-owners@example.com",
+    publisherName: "Contoso APIs",
+    sku: AzureApiManagementSku.StandardV2,
+});
+await apim.withVirtualNetworkIntegration(subnet);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003
+
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var subnet = vnet.AddSubnet("apim-subnet", "10.0.0.0/24");
+
+var apim = builder.AddAzureApiManagement("apim", new()
+{
+    PublisherEmail = "api-owners@example.com",
+    PublisherName = "Contoso APIs",
+    Sku = AzureApiManagementSku.StandardV2,
+});
+apim.WithVirtualNetworkIntegration(subnet);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Aspire delegates the subnet to `Microsoft.Web/serverFarms`. The subnet must be a `/27` or larger.
+
+## Inject a Premium v2 service
+
+Call `WithVirtualNetworkInjection` on a Premium v2 service for private inbound and outbound access. Aspire delegates the subnet to `Microsoft.Web/hostingEnvironments`, and the subnet must be a `/27` or larger.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { AzureApiManagementSku, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const vnet = await builder.addAzureVirtualNetwork("vnet");
+const subnet = await vnet.addSubnet("apim-subnet", "10.0.0.0/24");
+
+const apim = await builder.addAzureApiManagement("apim", {
+    publisherEmail: "api-owners@example.com",
+    publisherName: "Contoso APIs",
+    sku: AzureApiManagementSku.PremiumV2,
+});
+await apim.withVirtualNetworkInjection(subnet);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003
+
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var subnet = vnet.AddSubnet("apim-subnet", "10.0.0.0/24");
+
+var apim = builder.AddAzureApiManagement("apim", new()
+{
+    PublisherEmail = "api-owners@example.com",
+    PublisherName = "Contoso APIs",
+    Sku = AzureApiManagementSku.PremiumV2,
+});
+apim.WithVirtualNetworkInjection(subnet);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+You must select Premium v2 injection when the service is created. A service can't later change from injection to integration. Configure private DNS for the injected gateway host name as described in [Inject a Premium v2 API Management instance into a virtual network](https://learn.microsoft.com/azure/api-management/inject-vnet-v2).
+
+### NSG rule for Azure Key Vault
+
+Both v2 helpers require the subnet to allow outbound TCP 443 to the `AzureKeyVault` service tag. Aspire handles this for you:
+
+- When the subnet has no NSG, Aspire creates one.
+- Aspire adds an outbound allow rule named `allow-apim-key-vault`. On an existing NSG, it uses a free priority that's ahead of any outbound TCP 443 deny rule. It conservatively treats service tags and address expressions as potentially overlapping.
+- If no earlier priority is available, configuration fails instead of adding a rule that a deny rule would shadow.
+- Later changes to the modeled NSG must keep that allow rule and its ordering, or the deployment fails.
+
+## Route to a private Container Apps environment
+
+An APIM service that's injected into a virtual network can reach a Container Apps environment that has no public endpoint. Place the environment and APIM in separate subnets of the same virtual network. Configure the environment with an internal load balancer and APIM with classic external injection.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { AzureApiManagementVirtualNetworkMode, SecurityRuleProtocol, createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const vnet = await builder.addAzureVirtualNetwork("vnet");
+const containerAppsSubnet = await vnet.addSubnet("container-apps-subnet", "10.0.0.0/23");
+const apimSubnet = await vnet.addSubnet("apim-subnet", "10.0.2.0/24");
+await apimSubnet.allowInbound({ port: "3443", from: "ApiManagement", protocol: SecurityRuleProtocol.Tcp });
+await apimSubnet.allowInbound({ port: "6390", from: "AzureLoadBalancer", protocol: SecurityRuleProtocol.Tcp });
+await apimSubnet.allowInbound({ port: "443", from: "Internet", protocol: SecurityRuleProtocol.Tcp });
+
+const environment = await builder.addAzureContainerAppEnvironment("env");
+await environment.withDelegatedSubnet(containerAppsSubnet);
+await environment.withInternalLoadBalancer(vnet);
+
+const catalog = await builder.addProject("catalog", "../Catalog/Catalog.csproj")
+    .withComputeEnvironment(environment)
+    .withExternalHttpEndpoints();
+
+const apim = await builder.addAzureApiManagement("apim", {
+    publisherEmail: "api-owners@example.com",
+    publisherName: "Contoso APIs",
+});
+await apim.withClassicVirtualNetwork(apimSubnet, AzureApiManagementVirtualNetworkMode.External);
+await apim.addApi("catalog-api", catalog, "catalog");
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003
+
+using Aspire.Hosting.Azure;
+using Azure.Provisioning.Network;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var containerAppsSubnet = vnet.AddSubnet("container-apps-subnet", "10.0.0.0/23");
+var apimSubnet = vnet.AddSubnet("apim-subnet", "10.0.2.0/24")
+    .AllowInbound(port: "3443", from: "ApiManagement", protocol: SecurityRuleProtocol.Tcp)
+    .AllowInbound(port: "6390", from: AzureServiceTags.AzureLoadBalancer, protocol: SecurityRuleProtocol.Tcp)
+    .AllowInbound(port: "443", from: AzureServiceTags.Internet, protocol: SecurityRuleProtocol.Tcp);
+
+var environment = builder.AddAzureContainerAppEnvironment("env")
+    .WithDelegatedSubnet(containerAppsSubnet)
+    .WithInternalLoadBalancer(vnet);
+
+var catalog = builder.AddProject<Projects.Catalog>("catalog")
+    .WithComputeEnvironment(environment)
+    .WithExternalHttpEndpoints();
+
+var apim = builder.AddAzureApiManagement("apim", new()
+{
+    PublisherEmail = "api-owners@example.com",
+    PublisherName = "Contoso APIs",
+});
+apim.WithClassicVirtualNetwork(apimSubnet, AzureApiManagementVirtualNetworkMode.External);
+
+apim.AddApi("catalog-api", catalog, path: "catalog");
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+`WithInternalLoadBalancer` gives the Container Apps environment a private virtual IP address and creates a private DNS zone, a wildcard A record, and a virtual network link for the environment's default domain. Although `WithExternalHttpEndpoints` enables ingress from outside the environment, the environment itself has no public endpoint. APIM reaches the app over the virtual network and acts as the public gateway.
+
+Keep the following in mind:
+
+- The workload exposes an internal endpoint of the environment, so the APIM service must have virtual network connectivity to the same virtual network as the environment. Otherwise, Aspire throws an `InvalidOperationException` when you publish.
+- You can't import the OpenAPI document of such a workload with `WithOpenApiEndpoint`, because the APIM control plane can't reach the internal environment. Use `WithOpenApiDocument` instead. For more information, see [Import OpenAPI](/integrations/cloud/azure/azure-api-management/azure-api-management-openapi/).
+- Container Apps Express environments don't support an internal load balancer.
+
+For more information about delegating a subnet to a compute environment, see [Delegate subnets to compute environments](/integrations/cloud/azure/azure-virtual-network/#delegate-subnets-to-compute-environments).
+
+## Add a private endpoint
+
+Call `AddPrivateEndpoint` on a subnet and pass the APIM resource to create an inbound private endpoint for the gateway.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const vnet = await builder.addAzureVirtualNetwork("vnet");
+const privateEndpointSubnet = await vnet.addSubnet("private-endpoint-subnet", "10.0.0.0/24");
+
+await privateEndpointSubnet.addPrivateEndpoint(apim);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var privateEndpointSubnet = vnet.AddSubnet("private-endpoint-subnet", "10.0.0.0/24");
+
+privateEndpointSubnet.AddPrivateEndpoint(apim);
+```
+
+</TabItem>
+</Tabs>
+
+Aspire provisions the private endpoint for the `Gateway` group and the `privatelink.azure-api.net` private DNS zone. It works for new and existing APIM services.
+
+:::caution
+Adding a private endpoint doesn't make the gateway private-only. New services keep their default public access, and existing services keep their configured access settings. This differs from other Azure resources, where Aspire disables public network access when you add a private endpoint. To restrict gateway access to private endpoints, [disable public network access](https://learn.microsoft.com/azure/api-management/private-endpoint#optionally-disable-public-network-access) separately after you configure and approve the private endpoint.
+:::
+
+Private endpoints can't be combined with classic injection or Premium v2 injection, and Aspire throws an `InvalidOperationException` when you publish that combination. The Consumption and Basic v2 tiers don't support private endpoints. For more information about private endpoints in Aspire, see [Add private endpoints](/integrations/cloud/azure/azure-virtual-network/#add-private-endpoints).
+
+## See also
+
+- [Azure Virtual Network integration](/integrations/cloud/azure/azure-virtual-network/)
+- [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/)
+- [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/)
+- [Azure security best practices](/deployment/azure/azure-security-best-practices/)
+- [Azure API Management virtual network concepts](https://learn.microsoft.com/azure/api-management/virtual-network-concepts)
+- [Integrate a v2 API Management instance with a virtual network](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound)
+- [Connect privately to API Management with a private endpoint](https://learn.microsoft.com/azure/api-management/private-endpoint)
