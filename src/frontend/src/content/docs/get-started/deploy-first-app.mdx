@@ -1063,6 +1063,64 @@ Now that you've added the deployment package and updated your AppHost, you can d
 
     The deploy builds one image for the `app` resource. For a Go app, Aspire generates a multi-stage Dockerfile that builds the Go binary, then copies in the React build output from the `frontend` resource at `./static`. When the deployment finishes, the output includes a `print-app-summary` step with the local URL for the app.
 
+    Consider the following example output:
+
+    <Expand summary="Example output for deploying Go/React app to Docker Compose"
+            backgroundColor="--sl-color-bg">
+
+    ```bash title="Aspire CLI - Deploy Go/React app with Docker Compose"
+    🛠️ Executing step deploy
+    07:00:31 (validate-compute-environments) → Starting validate-compute-environments...
+    07:00:31 (validate-compute-environments) ✓ validate-compute-environments completed successfully
+    07:00:31 (prepare-deployment-targets-env) → Starting prepare-deployment-targets-env...
+    07:00:31 (prepare-deployment-targets-env) i [INF] Creating Docker Compose resource for env-dashboard
+    07:00:31 (prepare-deployment-targets-env) i [INF] Creating Docker Compose resource for app
+    07:00:31 (prepare-deployment-targets-env) ✓ prepare-deployment-targets-env completed successfully
+    07:00:31 (validate-docker-compose) → Starting validate-docker-compose...
+    07:00:31 (validate-docker-compose) ✓ validate-docker-compose completed successfully
+    07:00:31 (pipeline-execution) → Starting pipeline-execution...
+    07:00:31 (validate-go-dockerfile-package-path-app) ✓ validate-go-dockerfile-package-path-app completed successfully
+    07:00:31 (publish-env) i [INF] Generating Compose output
+    07:00:31 (deploy-prereq) i [INF] Initializing deployment for environment 'Production'
+    07:00:31 (deploy-prereq) i [INF] Setting default deploy tag 'aspire-deploy-20261117130031' for compute resource(s).
+    07:00:31 (publish-env) ✓ Docker Compose file written successfully to ./aspire-output/docker-compose.yaml. (0.0s)
+    07:00:34 (check-container-runtime) ✓ check-container-runtime completed successfully
+    07:00:34 (build-frontend) i [INF] Building container image for resource frontend
+    07:01:38 (build-frontend) ✓ build-frontend completed successfully
+    07:01:38 (build-app) i [INF] Building container image for resource app
+    07:02:12 (build-app) ✓ build-app completed successfully
+    07:02:13 (push-app) ✓ Successfully tagged app as app:aspire-deploy-20261117130031 (1.3s)
+    07:02:13 (docker-compose-up-env) → Running compose up for env using Docker
+    07:02:25 (docker-compose-up-env) ✓ Service env is now running with Docker Compose locally (runtime: Docker) (12.0s)
+    07:02:29 (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:65415.
+    07:02:29 (print-app-summary) i [INF] Successfully deployed app to http://localhost:65414.
+    07:02:29 (deploy) ✓ deploy completed successfully
+    07:02:29 (pipeline-execution) ✓ Completed successfully
+    ------------------------------------------------------------
+    ✓ 25/25 steps succeeded • Total time: 1m 58s
+
+    Steps Summary:
+                    Step timeline:                                      0s                      1m 58s
+                                                                        │───────┬──────┬─────┬───────│
+          1m 58s  ✓ pipeline-execution                                  │╶──────────────────────────╴│
+          25.65ms  ✓ publish-env                                        │╴                           │
+           1m 3s  ✓     build-frontend                                  │╶───────────────╴           │
+          33.67s  ✓       build-app                                     │               ╶───────╴    │
+          11.96s  ✓             docker-compose-up-env                   │                       ╶──╴ │
+           4.45s  ✓               print-app-summary                     │                         ╶─╴│
+           4.11s  ✓               print-env-dashboard-summary           │                          ╴ │
+           1.32s  ✓         push-app                                    │                       ╴    │
+          (remaining steps omitted)
+
+    ✓ Pipeline succeeded
+
+      env-dashboard: http://localhost:65415
+      app: http://localhost:65414
+    ------------------------------------------------------------
+    ```
+
+    </Expand>
+
     </TabItem>
 
     <TabItem id="azure" label="Azure">
@@ -1073,7 +1131,51 @@ Now that you've added the deployment package and updated your AppHost, you can d
     aspire deploy
     ```
 
-    The Aspire CLI prompts for the Azure subscription, location, and resource group if they aren't already configured. The deploy builds one image for the `app` resource (the Go API with the bundled React frontend), pushes it to an Azure Container Registry, and deploys it to an Azure Container Apps environment.
+    The Aspire CLI prompts for the Azure subscription, location, and resource group if they aren't already configured. To avoid prompts (for example, in CI/CD), set the `Azure__SubscriptionId`, `Azure__Location`, and `Azure__ResourceGroup` environment variables. The deploy builds one image for the `app` resource (the Go API with the bundled React frontend), pushes it to an Azure Container Registry, and deploys it to an Azure Container Apps environment.
+
+    Consider the following example output:
+
+    <Expand summary="Example output for deploying Go/React app to Azure App Containers"
+            backgroundColor="--sl-color-bg">
+
+    ```bash title="Aspire CLI - Deploy Go/React app to Azure App Containers"
+    🛠️ Executing step deploy
+    07:10:15 (prepare-azure-container-apps-env) i [INF] HTTP endpoints will use HTTPS (port 443) in Azure Container Apps: app:http. To opt out, use .WithHttpsUpgrade(false) on the container app environment.
+    07:10:15 (pipeline-execution) → Starting pipeline-execution...
+    07:10:15 (validate-go-dockerfile-package-path-app) ✓ validate-go-dockerfile-package-path-app completed successfully
+    07:10:15 (deploy-prereq) i [INF] Initializing deployment for environment 'Production'
+    07:10:15 (deploy-prereq) i [INF] Setting default deploy tag 'aspire-deploy-20261117131015' for compute resource(s).
+    07:10:18 (validate-azure-login) ✓ Azure CLI authentication validated successfully
+    07:10:18 (create-provisioning-context) i [INF] Using AzureCliCredential for provisioning.
+    07:10:22 (create-provisioning-context) i [INF] Using existing resource group rg-aspire-go-first-app.
+    07:10:24 (provision-env-acr) ✓ Using existing deployment for env-acr (0.0s)
+    07:10:24 (provision-env) ✓ Using existing deployment for env (0.0s)
+    07:10:30 (login-to-acr-env-acr) ✓ Successfully logged in to envacr6u4w7ohoverv6.azurecr.io (6.3s)
+    07:10:35 (build-frontend) ✓ build-frontend completed successfully
+    07:10:49 (build-app) ✓ build-app completed successfully
+    07:11:02 (push-app) ✓ Successfully pushed app to envacr6u4w7ohoverv6.azurecr.io/app:aspire-deploy-20261117131015 (12.9s)
+    07:11:02 (provision-app-containerapp) → Deploying app-containerapp
+    07:11:46 (provision-app-containerapp) ✓ Successfully provisioned app-containerapp (44.1s)
+    07:11:46 (print-dashboard-url-env) ✓ Dashboard available at https://aspire-dashboard.ext.<unique-id>.westus3.azurecontainerapps.io
+    07:11:46 (print-app-summary) i [INF] Successfully deployed app to https://app.<unique-id>.westus3.azurecontainerapps.io
+    07:11:46 (deploy) ✓ deploy completed successfully
+    07:11:46 (pipeline-execution) ✓ Completed successfully
+    ------------------------------------------------------------
+    ✓ 26/26 steps succeeded • Total time: 1m 31s
+
+    ✓ Pipeline succeeded
+
+      ☁️ Target: Azure
+      📦 Resource Group: rg-aspire-go-first-app
+      📜 Deployments: Azure Portal
+      🔑 Subscription: <subscription-id>
+      🌐 Location: westus3
+      📊 Dashboard: https://aspire-dashboard.ext.<unique-id>.westus3.azurecontainerapps.io
+      app: https://app.<unique-id>.westus3.azurecontainerapps.io
+    ------------------------------------------------------------
+    ```
+
+    </Expand>
 
     </TabItem>
 
@@ -1297,7 +1399,68 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
           - docker-compose.yaml
         </FileTree>
 
-        The `aspire-output` directory contains the generated environment variables, an `app.Dockerfile`, and the Docker Compose configuration. These files are generated for you, so you don't need to write them yourself. The `app.Dockerfile` is a multi-stage Dockerfile that builds the Go API and includes the React frontend under `./static`, and the `docker-compose.yaml` file defines the `app` service alongside the Aspire dashboard.
+        The `aspire-output` directory contains the generated environment variables, an `app.Dockerfile`, and the Docker Compose configuration. These files are generated for you, so you don't need to write them yourself.
+
+        The `app.Dockerfile` is a multi-stage Dockerfile that builds the Go API and includes the React frontend under `./static`:
+
+        ```dockerfile title="./aspire-output/app.Dockerfile"
+        ARG FRONTEND_IMAGENAME=frontend:latest
+
+        FROM golang:1.26-alpine AS build
+        WORKDIR /app
+        ENV CGO_ENABLED=0
+        ENV GOOS=linux
+        COPY go.mod ./
+        COPY go.sum ./
+        RUN --mount=type=cache,target=/root/go/pkg/mod \
+            go mod download
+        COPY . .
+        RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/root/go/pkg/mod \
+            go build -o /app/app .
+
+        FROM ${FRONTEND_IMAGENAME} AS frontend_stage
+
+        FROM alpine:latest
+        RUN apk --no-cache add ca-certificates tzdata
+        RUN addgroup -S app && adduser -S -G app app
+        WORKDIR /app
+        COPY --from=frontend_stage /app/dist /app/./static
+
+        COPY --from=build /app/app /app/app
+        USER app
+        ENTRYPOINT ["/app/app"]
+        ```
+
+        The `docker-compose.yaml` file defines the `app` service alongside the Aspire dashboard:
+
+        ```yaml title="./aspire-output/docker-compose.yaml"
+        services:
+          env-dashboard:
+            image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.6"
+            ports:
+              - "18888"
+            expose:
+              - "18889"
+              - "18890"
+            networks:
+              - "aspire"
+            restart: "always"
+          app:
+            image: "${APP_IMAGE}"
+            environment:
+              HOST: "0.0.0.0"
+              PORT: "8000"
+              OTEL_EXPORTER_OTLP_ENDPOINT: "http://env-dashboard:18889"
+              OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+              OTEL_SERVICE_NAME: "app"
+            ports:
+              - "8000"
+            networks:
+              - "aspire"
+        networks:
+          aspire:
+            driver: "bridge"
+        ```
 
     </TabItem>
     <TabItem id="azure" label="Azure">
@@ -1460,8 +1623,7 @@ To verify that your application is running as expected after deployment, follow 
     When deploying to Azure App Containers, you can verify that your Go/React application is running by navigating to the URL provided in the deployment output. Look for the `print-app-summary` step, which reports the URL for the `app` resource:
 
     ```bash title="Aspire CLI - Deployment summary"
-    (print-app-summary) i [INF] Successfully deployed app to
-      https://{NAME}.{LOCATION}.azurecontainerapps.io
+    (print-app-summary) i [INF] Successfully deployed app to https://app.{UNIQUE-ID}.{LOCATION}.azurecontainerapps.io
     ```
 
     Open your web browser and navigate to the provided URL to see your deployed application.
