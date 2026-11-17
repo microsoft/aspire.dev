@@ -145,10 +145,9 @@ TypeScript AppHost は、リポジトリが Node.js ワークスペース中心�
 3. `apphost.cs` でリソースを配線します:
 
    ```csharp title="apphost.cs"
-   #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+   #:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
    #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
-
-   #pragma warning disable ASPIRECSHARPAPPS001
+   #:package Aspire.Hosting.Dotnet@%ASPIRE_VERSION%
 
    var builder = DistributedApplication.CreateBuilder(args);
 
@@ -221,16 +220,16 @@ TypeScript AppHost は、リポジトリが Node.js ワークスペース中心�
        .WithLifetime(ContainerLifetime.Persistent)
        .AddDatabase("mydb");
 
-   var api = builder.AddDotnetProject("api", "../MyApp.Api/MyApp.Api.csproj")
+   var api = builder.AddDotnetProject("api", "../src/Api/MyApp.Api.csproj")
        .WithReference(db)
        .WithReference(cache)
        .WaitFor(db);
 
-   builder.AddDotnetProject("web", "../MyApp.Web/MyApp.Web.csproj")
+   builder.AddDotnetProject("web", "../src/Web/MyApp.Web.csproj")
        .WithReference(api)
        .WaitFor(api);
 
-   builder.AddDotnetProject("worker", "../MyApp.Worker/MyApp.Worker.csproj")
+   builder.AddDotnetProject("worker", "../src/Worker/MyApp.Worker.csproj")
        .WithReference(cache)
        .WithReference(db);
 
