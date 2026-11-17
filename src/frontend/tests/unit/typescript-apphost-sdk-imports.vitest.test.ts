@@ -5,6 +5,8 @@ import { describe, expect, test } from 'vitest';
 const frontendRoot = join(import.meta.dirname, '../..');
 const docsRoot = join(frontendRoot, 'src/content/docs');
 const currentSdkImport = './.aspire/modules/aspire.mjs';
+// Files nested in a package, such as src/integration.ts, reach the same layout through ../.
+const currentSdkLayout = /^(?:\.\/|(?:\.\.\/)+)\.aspire\/modules\/aspire\.mjs$/;
 
 function docs(directory: string, files: string[] = []) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -36,7 +38,7 @@ function legacySdkImports(source: string) {
     for (const [, specifier] of fence.body.matchAll(
       /\bfrom\s+['"]([^'"]*modules\/aspire\.m?js)['"]/g
     )) {
-      if (specifier !== currentSdkImport) problems.push(`line ${fence.line}: ${specifier}`);
+      if (!currentSdkLayout.test(specifier)) problems.push(`line ${fence.line}: ${specifier}`);
     }
     if (fence.body.includes(currentSdkImport) && /title="[^"]*\bapphost\.ts\b/.test(fence.info)) {
       problems.push(`line ${fence.line}: title names apphost.ts`);
@@ -56,6 +58,9 @@ describe('TypeScript AppHost SDK imports', () => {
       '```',
       '```typescript title="apphost.mts"',
       "import { createBuilder } from './.aspire/modules/aspire.mjs';",
+      '```',
+      '```typescript title="src/integration.ts"',
+      "import type { DistributedApplicationBuilder } from '../.aspire/modules/aspire.mjs';",
       '```',
     ].join('\n');
 

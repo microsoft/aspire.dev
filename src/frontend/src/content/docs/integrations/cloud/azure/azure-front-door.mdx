@@ -306,11 +306,25 @@ resource my_apiRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01' = {
 }
 
 output my_api_endpointUrl string = 'https://${my_apiEndpoint.properties.hostName}'
+
+output my_api_endpointId string = my_apiEndpoint.id
 ```
 
 Aspire passes the origin's hostname (resolved from the compute environment, not the full URL) into the `my_api_host` parameter so the Front Door origin points at the deployed backend.
 
 The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly are overwritten, so make changes through the provisioning APIs to ensure they're reflected in the generated files.
+
+#### Reference endpoint outputs
+
+Each origin produces two outputs named after the origin resource (normalized to a Bicep identifier, such as `my_api`): `{originName}_endpointUrl` with the Front Door endpoint URL, and `{originName}_endpointId` with the endpoint's Azure resource ID. In C#, get references to them by passing the origin's resource name to `GetEndpointUrl` and `GetEndpointId` on the Front Door resource. Use the endpoint ID for resources that require it, such as Azure DNS alias records for an apex domain:
+
+```csharp title="AppHost.cs"
+var frontdoor = builder.AddAzureFrontDoor("frontdoor")
+    .WithOrigin(api);
+
+var endpointUrl = frontdoor.Resource.GetEndpointUrl("api");
+var endpointId = frontdoor.Resource.GetEndpointId("api");
+```
 
 #### Customize provisioning infrastructure
 

@@ -281,6 +281,88 @@ Aspire 13.3 unified non-C# AppHost environment assignment behind a single `withE
 
 When upgrading to Aspire 13.3, replace every earlier per-kind environment helper call with `withEnvironment(name, value)`. The 13.3 TypeScript SDK doesn't generate compatibility aliases for those helpers.
 
+## Declare required commands
+
+Executables depend on tools that must be installed on the developer's machine. Use <ApiReference name="Aspire.Hosting.RequiredCommandResourceExtensions.WithRequiredCommand" /> to declare a command that a resource needs, and optionally a link to installation instructions. You can call it on any resource, not only executables, and call it more than once to declare several commands:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var frontend = builder.AddExecutable("frontend", "vercel", ".", "dev")
+    .WithRequiredCommand("vercel", helpLink: "https://vercel.com/docs/cli");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const frontend = await builder.addExecutable("frontend", "vercel", ".", ["dev"])
+    .withRequiredCommand("vercel", { helpLink: "https://vercel.com/docs/cli" });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+Before the resource starts, Aspire checks that the command exists. A command that contains a directory separator is treated as a path to a file; otherwise Aspire searches the `PATH` (on Windows, `PATHEXT` extensions are also tried). If the command isn't found, Aspire:
+
+- Logs a warning that the resource may fail to start.
+- Shows a **Missing command** notification in the dashboard, with an **Installation instructions** link when you provide `helpLink`.
+- Still lets the resource attempt to start. The check never blocks startup.
+
+When several resources require the same command with the same validation, Aspire checks it and shows the notification only once per AppHost run.
+
+### Validate the resolved command
+
+To check more than whether the command exists, such as its version or install location, pass a validation callback. The callback runs only after the command is found and receives a `RequiredCommandValidationContext` with the resolved `ResolvedPath`, a `Services` provider, and a `CancellationToken`. Return `context.Success()` or `context.Failure(message)`. In TypeScript, use `withRequiredCommandValidation`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var worker = builder.AddExecutable("worker", "python", ".", "worker.py")
+    .WithRequiredCommand(
+        "python",
+        context => Task.FromResult(
+            context.ResolvedPath.Contains(".venv")
+                ? context.Success()
+                : context.Failure($"Activate the project's virtual environment. Found: {context.ResolvedPath}")),
+        helpLink: "https://docs.python.org/3/library/venv.html");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.mts" twoslash
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const worker = await builder.addExecutable("worker", "python", ".", ["worker.py"])
+    .withRequiredCommandValidation(
+        "python",
+        async (context) => {
+            const resolvedPath = await context.resolvedPath();
+            return resolvedPath.includes(".venv")
+                ? context.success()
+                : context.failure(`Activate the project's virtual environment. Found: ${resolvedPath}`);
+        },
+        { helpLink: "https://docs.python.org/3/library/venv.html" });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+A failed validation is reported the same way as a missing command: the warning and notification include your failure message, and the resource still attempts to start.
+
 ## Publishing with PublishAsDockerFile
 
 For production deployment, executable resources need to be containerized. Use the <ApiReference name="Aspire.Hosting.ExecutableResourceBuilderExtensions.PublishAsDockerFile" /> method to specify how the executable should be packaged:

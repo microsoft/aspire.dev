@@ -1,0 +1,207 @@
+---
+title: Author hosting integrations in TypeScript
+description: Write experimental Aspire hosting integrations in TypeScript with AspireExport and defineIntegration, then consume them as builder methods from polyglot AppHosts.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+You can write a hosting integration in TypeScript instead of C#. The integration exports methods, such as `addNuxtApp`, that appear in the generated SDK of a consuming AppHost, just like the methods of a C# integration. Under the hood, Aspire runs your integration in its own Node.js process and routes each call to it, so your code configures the same resource model as a C# integration.
+
+:::caution[Experimental]
+Hosting integrations written in TypeScript are experimental and disabled by default. AppHosts that consume them must opt in, and the authoring APIs might change in future releases.
+:::
+
+To make a C# integration available to TypeScript AppHosts instead, see [Multi-language integrations](/extensibility/multi-language-integration-authoring/).
+
+## Choose a library or an exported integration
+
+You can share TypeScript AppHost code in two ways:
+
+- **Plain library**: An npm package that exports ordinary functions, such as `addKafka(builder, ...)`. A TypeScript AppHost imports and calls them directly. No opt-in is required, but the functions aren't added to the builder and AppHosts in other languages can't use them.
+- **Exported integration**: A package that marks its functions with `AspireExport` and runs as an integration host. Consuming AppHosts get fluent builder methods, such as `builder.addNuxtApp(...)`, in their generated SDK. This page describes this option.
+
+## Author an integration
+
+An integration is a library package, not an app. It has its own _aspire.config.json_ so that `aspire restore` can generate the typed Aspire SDK that your code builds on, and an entry point that starts the integration host.
+
+<Steps>
+
+1. Create a package with an _aspire.config.json_ file that declares the TypeScript language and the hosting packages your integration uses. Don't set an AppHost path:
+
+    ```json title="aspire.config.json"
+    {
+      "appHost": {
+        "language": "typescript/nodejs"
+      },
+      "packages": {
+        "Aspire.Hosting.JavaScript": ""
+      }
+    }
+    ```
+
+1. Add a _package.json_ file. Aspire starts the integration host with `node --import tsx`, so include `tsx` as a dependency:
+
+    ```json title="package.json"
+    {
+      "name": "@contoso/aspire-nuxt",
+      "version": "0.1.0",
+      "type": "module",
+      "dependencies": {
+        "tsx": "^4.21.0",
+        "vscode-jsonrpc": "8.2.1"
+      }
+    }
+    ```
+
+1. Run `aspire restore` in the package directory. It generates the SDK in _.aspire/modules/_, including the `AspireExport`, `defineIntegration`, and `runIntegrationHost` helpers.
+
+1. Write your integration. Wrap each method with `AspireExport` and use the generated builder APIs to configure resources. The `projection` describes the method's target, parameters, and return type so that consuming AppHosts can generate a typed method for it. The `typeId` of each Aspire type matches the handle types in the generated _.aspire/modules/aspire.mts_ file. Finally, group the methods with `defineIntegration`:
+
+    ```typescript title="src/integration.ts"
+    import type {
+        DistributedApplicationBuilder,
+        JavaScriptAppResource,
+    } from '../.aspire/modules/aspire.mjs';
+    import {
+        AspireExport,
+        defineIntegration,
+        type AspireTypeRef,
+    } from '../.aspire/modules/base.mjs';
+
+    const builderType: AspireTypeRef = {
+        typeId: 'Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder',
+        category: 'Handle',
+        isInterface: true,
+    };
+    const appType: AspireTypeRef = {
+        typeId: 'Aspire.Hosting.JavaScript/Aspire.Hosting.JavaScript.JavaScriptAppResource',
+        category: 'Handle',
+    };
+    const stringType: AspireTypeRef = { typeId: 'string', category: 'Primitive' };
+
+    interface AddNuxtAppArgs {
+        builder: DistributedApplicationBuilder;
+        name: string;
+        appDirectory: string;
+    }
+
+    export const addNuxtApp = AspireExport<AddNuxtAppArgs, JavaScriptAppResource>(
+        {
+            id: '@contoso/aspire-nuxt/addNuxtApp',
+            method: 'addNuxtApp',
+            description: 'Adds a Nuxt application.',
+            projection: {
+                capabilityKind: 'Method',
+                targetTypeId: builderType.typeId,
+                targetType: builderType,
+                targetParameterName: 'builder',
+                returnsBuilder: true,
+                returnType: appType,
+                parameters: [
+                    { name: 'name', type: stringType },
+                    { name: 'appDirectory', type: stringType },
+                ],
+            },
+        },
+        async ({ builder, name, appDirectory }) => {
+            return await builder.addJavaScriptApp(name, appDirectory, { runScriptName: 'dev' })
+                .withHttpEndpoint({ env: 'PORT' })
+                .withEnvironment('HOST', '0.0.0.0');
+        },
+    );
+
+    export default defineIntegration({
+        name: 'NuxtIntegration',
+        capabilities: [addNuxtApp],
+    });
+    ```
+
+    Give each method a unique `id`. Consuming AppHosts call the method by its `method` name.
+
+1. Add an entry point that starts the integration host:
+
+    ```typescript title="src/host.ts"
+    import nuxtIntegration from './integration.js';
+    import { runIntegrationHost } from '../.aspire/modules/integration-host.mjs';
+
+    await runIntegrationHost({
+        packageName: '@contoso/aspire-nuxt',
+        integrations: [nuxtIntegration],
+    });
+    ```
+
+    `runIntegrationHost` handles the connection to the AppHost, registration, and dispatching calls to your methods.
+
+</Steps>
+
+To distribute the integration, compile it and publish or pack it as an npm package. Include the compiled output and the generated _.aspire/modules/_ SDK, as the preview [`@aspire/nuxt`](https://github.com/microsoft/aspire/tree/release/17.0/src/Aspire.Hosting.Nuxt) package does.
+
+## Consume an integration
+
+<Steps>
+
+1. Enable the feature in the AppHost directory:
+
+    ```bash title="Aspire CLI"
+    aspire config set features.experimentalHostingIntegrations true
+    ```
+
+    Without this setting, the CLI rejects AppHosts that reference npm hosting integrations and shows the command to enable them. Running the command adds the `features` setting shown in the next step to _aspire.config.json_.
+
+1. Install the integration package, and then add it to the `packages` section of the AppHost's _aspire.config.json_ file. Set `source` to `npm` and `path` to the integration's host entry point, relative to _aspire.config.json_:
+
+    ```json title="aspire.config.json"
+    {
+      "appHost": {
+        "path": "apphost.mts",
+        "language": "typescript/nodejs"
+      },
+      "features": {
+        "experimentalHostingIntegrations": true
+      },
+      "packages": {
+        "Aspire.Hosting.JavaScript": "",
+        "@contoso/aspire-nuxt": {
+          "source": "npm",
+          "path": "./node_modules/@contoso/aspire-nuxt/dist/src/host.js"
+        }
+      }
+    }
+    ```
+
+    During development, `path` can also point to a TypeScript entry point in a local folder, such as `./nuxt-integration/src/host.ts`.
+
+1. Run `aspire restore`. The CLI installs the integration's dependencies, starts its host, and adds its methods to the generated SDK.
+
+1. Call the methods from your AppHost like any other builder method:
+
+    ```typescript title="apphost.mts"
+    import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+    const builder = await createBuilder();
+
+    const api = await builder.addJavaScriptApp('api', './api', { runScriptName: 'start' })
+        .withHttpEndpoint({ env: 'PORT' });
+
+    await builder.addNuxtApp('web', './web')
+        .withReference(api)
+        .waitFor(api);
+
+    await builder.build().run();
+    ```
+
+</Steps>
+
+## Current limitations
+
+- TypeScript is the only supported language for authoring these integrations.
+- You write the `projection` metadata for each method by hand.
+- `aspire add` doesn't find npm integrations. Add them to _aspire.config.json_ manually.
+- The preview `@aspire/nuxt` integration isn't published to npm. To try it, build and pack it from the [Aspire repository](https://github.com/microsoft/aspire/tree/release/17.0/src/Aspire.Hosting.Nuxt).
+- If an integration host that registered callbacks stops unexpectedly, the AppHost stops and you need to start it again.
+
+## See also
+
+- [Multi-language integrations](/extensibility/multi-language-integration-authoring/): Export C# hosting integrations to TypeScript AppHosts.
+- [TypeScript AppHost](/app-host/typescript-apphost/): Build an AppHost in TypeScript.
+- [Custom resources](/extensibility/custom-resources/): Create custom resource types.

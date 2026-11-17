@@ -23,6 +23,42 @@ When at least one source is configured, the interactive [`aspire new`](../aspire
 
 Template sources require the `aspire.config.json` configuration format. If your global configuration still uses the legacy format, these commands fail and direct you to run `aspire config info` to migrate it.
 
+### Source display names
+
+In the `aspire new` picker, each source's templates are grouped under a heading that defaults to the source name. To show a friendlier heading, set the optional `displayName` key for the source:
+
+```bash title="Aspire CLI"
+aspire config set templateSources.company.displayName "Company templates" --global
+```
+
+The source name remains the source's identity, so sources with identical display names aren't merged. An empty or whitespace-only `displayName` falls back to the source name.
+
+### Project-derived prompt defaults
+
+Template authors can show a project-derived value as the default in an `aspire new` prompt. In the template's `.template.config/aspirecli.host.json` file (or `dotnetcli.host.json` if the Aspire-specific file doesn't exist), set `defaultValueSource` on an optional string parameter to the name of the `coalesce` symbol that consumes it:
+
+```json title=".template.config/aspirecli.host.json"
+{
+  "symbolInfo": {
+    "displayName": { "defaultValueSource": "displayNameValue" }
+  }
+}
+```
+
+```json title=".template.config/template.json (symbols)"
+{
+  "displayName": { "type": "parameter", "datatype": "string", "defaultValue": "" },
+  "displayNameValue": {
+    "type": "generated",
+    "generator": "coalesce",
+    "parameters": { "sourceVariableName": "displayName", "fallbackVariableName": "name" },
+    "replaces": "DISPLAY_NAME"
+  }
+}
+```
+
+With this configuration, the `displayName` prompt shows the project name as its default. The parameter must have an empty default, and its fallback can depend only on the project name through `regex` and `coalesce` symbols. Otherwise, `aspire new` reports an invalid prompt default.
+
 ## Options
 
 The following options are available:

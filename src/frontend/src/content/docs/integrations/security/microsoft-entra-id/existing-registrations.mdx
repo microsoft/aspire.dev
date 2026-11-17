@@ -10,7 +10,7 @@ Many teams manage app registrations outside the AppHost, for example because a c
 
 ## Reference an existing registration
 
-You supply the **Directory (tenant) ID** and the **Application (client) ID** from the registration's **Overview** page. Use `AddExistingEntraApplication` when you don't want Aspire to set up Azure provisioning for the registration. You can mix existing registrations with registrations that Aspire creates in the same AppHost.
+You supply the **Directory (tenant) ID** and the **Application (client) ID** from the registration's **Overview** page. Use `AddExistingEntraIdApplication` when you don't want Aspire to set up Azure provisioning for the registration. You can mix existing registrations with registrations that Aspire creates in the same AppHost.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -23,7 +23,7 @@ const builder = await createBuilder();
 const tenantId = await builder.addParameter("entra-tenant-id");
 const apiClientId = await builder.addParameter("entra-api-client-id");
 
-const entraApi = await builder.addExistingEntraApplication("entra-api", tenantId, apiClientId);
+const entraApi = await builder.addExistingEntraIdApplication("entra-api", tenantId, apiClientId);
 
 const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(entraApi);
@@ -40,7 +40,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var tenantId = builder.AddParameter("entra-tenant-id");
 var apiClientId = builder.AddParameter("entra-api-client-id");
 
-var entraApi = builder.AddExistingEntraApplication("entra-api", tenantId, apiClientId);
+var entraApi = builder.AddExistingEntraIdApplication("entra-api", tenantId, apiClientId);
 
 builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(entraApi);
@@ -61,7 +61,7 @@ Each ID accepts a literal value or a parameter. In TypeScript, you can mix them:
 const clientId = await builder.addParameter("entra-client-id");
 const clientSecret = await builder.addParameter("entra-secret", { secret: true });
 
-const entraApi = await builder.addExistingEntraApplication(
+const entraApi = await builder.addExistingEntraIdApplication(
     "entra-api", "aaaabbbb-0000-cccc-1111-dddd2222eeee", clientId)
     .withClientSecret(clientSecret);
 
@@ -75,7 +75,7 @@ await builder.addExecutable("worker", "node", ".", ["worker.mjs"])
 ```csharp title="AppHost.cs"
 var clientSecret = builder.AddParameter("entra-secret", secret: true);
 
-var entraApi = builder.AddExistingEntraApplication(
+var entraApi = builder.AddExistingEntraIdApplication(
     "entra-api",
     tenantId: "aaaabbbb-0000-cccc-1111-dddd2222eeee",
     clientId: "00001111-aaaa-2222-bbbb-3333cccc4444")
@@ -102,7 +102,7 @@ You can also convert an `AddEntraIdApplication` resource with `AsExistingApplica
 
 | Approach | Azure provisioning | Use it when |
 |----------|--------------------|-------------|
-| `AddExistingEntraApplication` | Not enabled | The AppHost needs only the registration's settings. It needs no Azure or Microsoft Graph access. |
+| `AddExistingEntraIdApplication` | Not enabled | The AppHost needs only the registration's settings. It needs no Azure or Microsoft Graph access. |
 | `AddEntraIdApplication(...).AsExistingApplication(...)` | Kept | You start with a created registration and later point it at an existing one. |
 
 `AsExistingApplication` keeps the Azure setup that `AddEntraIdApplication` adds, so deployment can still require Azure authentication and provisioning configuration. Other Azure resources in the same AppHost keep their normal provisioning behavior in both approaches.
@@ -158,7 +158,7 @@ To reference an existing API's scopes, pass the URI that the registration alread
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
-const entraApi = await builder.addExistingEntraApplication("entra-api", tenantId, apiClientId)
+const entraApi = await builder.addExistingEntraIdApplication("entra-api", tenantId, apiClientId)
     .withApplicationIdUri({ applicationIdUri: "api://contoso-orders" })
     .withScope("Weather.Read", "Allows the app to read weather forecasts.", {
         id: "5d1f7b84-3c2e-4a6e-9a1d-0b8f2c3d4e5f",
@@ -172,7 +172,7 @@ await entraWeb.withApiPermissions(entraApi, ["Weather.Read"]);
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-var entraApi = builder.AddExistingEntraApplication("entra-api", tenantId, apiClientId)
+var entraApi = builder.AddExistingEntraIdApplication("entra-api", tenantId, apiClientId)
     .WithApplicationIdUri("api://contoso-orders")
     .WithScope("Weather.Read", "Allows the app to read weather forecasts.", scope =>
     {
