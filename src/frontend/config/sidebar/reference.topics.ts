@@ -282,6 +282,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
           slug: 'reference/cli/configuration',
         },
         {
+          label: 'Shell completion',
+          slug: 'reference/cli/shell-completion',
+        },
+        {
           label: 'Microsoft telemetry',
           translations: {
             da: 'Microsoft telemetri',
@@ -372,6 +376,20 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                 {
                   label: 'aspire certs trust',
                   slug: 'reference/cli/commands/aspire-certs-trust',
+                },
+              ],
+            },
+            {
+              label: 'aspire completions',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire completions',
+                  slug: 'reference/cli/commands/aspire-completions',
+                },
+                {
+                  label: 'aspire completions script',
+                  slug: 'reference/cli/commands/aspire-completions-script',
                 },
               ],
             },
