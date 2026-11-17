@@ -7,7 +7,6 @@ sidebar:
 ---
 
 import Include from '@components/Include.astro';
-import { Aside } from '@astrojs/starlight/components';
 
 ## Name
 
@@ -23,7 +22,7 @@ aspire terminal attach <resource> [options]
 
 The `aspire terminal attach` command connects your local terminal to the interactive pseudo-terminal (PTY) session of a resource that was registered with [`WithTerminal()`](/app-host/with-terminal/). Once attached, you interact with the resource's terminal, as if it were running directly in your console. For example, you can drive its TUI or type into its shell.
 
-The command discovers the running AppHost, verifies it supports the `terminals.v1` capability, looks up the resource, and connects to one of its terminal replicas. A singleton resource accepts its display name or exact instance ID. A replicated resource requires an exact instance ID—use [`aspire ps`](/reference/cli/commands/aspire-ps/) or `aspire describe` to discover one. An ambiguous display name without an exact instance ID fails with a non-zero exit code and lists the available instance IDs; it never prompts for a replica.
+The command discovers the running AppHost, verifies it supports the `terminals.v1` capability, looks up the resource, and connects to one of its terminal replicas. A singleton resource accepts its display name or exact instance ID. A replicated resource requires an exact instance ID. Run [`aspire describe`](/reference/cli/commands/aspire-describe/) and use the desired replica's value in the **Name** column. If a display name matches multiple instances, the command fails and lists their instance IDs instead of prompting for a replica.
 
 Multiple peers can attach to the same session at once. By default, `attach` takes the **primary** role and drives the terminal's dimensions. Pass `--viewer` to join as a passive **viewer** instead. This technique is useful when another peer, such as the dashboard, is currently driving the session.
 
@@ -42,7 +41,7 @@ The following arguments are available:
 
 - **`<resource>`**
 
-  The resource display name for a singleton, or the exact resource instance ID for a replica. Use `aspire ps` or `aspire describe` to discover instance IDs. The resource must have been registered with `.WithTerminal()`.
+  The resource display name for a singleton, or the exact resource instance ID for a replica. Use `aspire describe` to discover instance IDs. The resource must have been registered with `.WithTerminal()`.
 
 ## Options
 
@@ -74,7 +73,7 @@ The following options are available:
   aspire terminal attach agent
   ```
 
-- Attach to an exact instance of a replicated resource (find instance IDs with `aspire ps` or `aspire describe`):
+- Attach to an exact instance of a replicated resource. Replace `agent-abc123` with an instance ID from `aspire describe`:
 
   ```bash title="Aspire CLI"
   aspire terminal attach agent-abc123
@@ -86,9 +85,9 @@ The following options are available:
   aspire terminal attach agent --viewer
   ```
 
-<Aside type="note">
-  Older VS Code extensions and scripts may still pass the legacy `-r, --replica <index>` option to select a replica by its 0-based index. It's hidden from `--help` but remains functional for compatibility; new callers should use exact instance IDs instead.
-</Aside>
+:::note
+Scripts using the legacy `-r, --replica <index>` option still work, but the option is hidden from help. Use instance IDs for new scripts.
+:::
 
 ## See also
 

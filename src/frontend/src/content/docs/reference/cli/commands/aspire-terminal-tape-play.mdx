@@ -7,7 +7,6 @@ sidebar:
 ---
 
 import Include from '@components/Include.astro';
-import { Aside } from '@astrojs/starlight/components';
 
 ## Name
 
@@ -37,18 +36,13 @@ See [Tape file syntax](/dashboard/terminal-tape-playback/#tape-file-syntax) for 
 
 - **`<resource>`**
 
-  The resource display name for a singleton, or the exact resource instance ID for a replica. Use `aspire ps` or `aspire describe` to discover instance IDs.
+  The resource display name for a singleton, or the exact resource instance ID for a replica. Run [`aspire describe`](/reference/cli/commands/aspire-describe/) and use the desired replica's value in the **Name** column.
 
 ## Options
 
 - **`--tape-file <path>`** (required)
 
   Path to the tape on the CLI machine. Relative paths resolve from the CLI's working directory.
-
-<Aside type="note">
-  Older VS Code extensions and scripts may still pass the legacy `-r, --replica <index>` option to select a replica by its 0-based index. It's hidden from `--help` but remains functional for compatibility; new callers should use exact instance IDs instead.
-</Aside>
-
 
 - **`--apphost <path>`**
 
@@ -64,6 +58,10 @@ See [Tape file syntax](/dashboard/terminal-tape-playback/#tape-file-syntax) for 
 - <Include relativePath="reference/cli/includes/option-nologo.md" />
 - <Include relativePath="reference/cli/includes/option-banner.md" />
 - <Include relativePath="reference/cli/includes/option-wait.md" />
+
+:::note
+Scripts using the legacy `-r, --replica <index>` option still work, but the option is hidden from help. Use instance IDs for new scripts.
+:::
 
 ## Output and exit codes
 
@@ -89,7 +87,7 @@ Use the [complete shell smoke test and resource setup](/dashboard/terminal-tape-
 aspire terminal tape play shell --tape-file shell-smoke.tape
 ```
 
-To select an AppHost explicitly and bound playback to 30 seconds, use your AppHost's path:
+To select a replica, replace `shell-abc123` with its instance ID from `aspire describe`. This example also selects an AppHost explicitly and limits playback to 30 seconds:
 
 ```bash title="Select an AppHost explicitly"
 aspire terminal tape play shell-abc123 --tape-file shell-smoke.tape --apphost ./apphost.cs --timeout 30
