@@ -227,7 +227,7 @@ describe('resource catalog normalization', () => {
 describe('current source coverage', () => {
   it('uses existing release screenshots and preserves a fallback for articles without artwork', () => {
     const releases = catalog.filter(({ type }) => type === 'release-notes');
-    expect(releases.filter(({ image }) => image)).toHaveLength(12);
+    expect(releases.filter(({ image }) => image)).toHaveLength(13);
     expect(releases.find(({ href }) => href === '/whats-new/aspire-13-4/')?.image).toBeUndefined();
     for (const resource of releases) {
       for (const asset of [resource.image?.light, resource.image?.dark].filter((value) => value !== undefined)) {
