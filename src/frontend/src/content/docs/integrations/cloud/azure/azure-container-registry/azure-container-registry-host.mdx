@@ -396,7 +396,7 @@ Available roles include: `AcrPull`, `AcrPush`, `AcrDelete`, `AcrImageSigner`, `A
 
 ## Schedule image cleanup with purge tasks
 
-Over time, container registries accumulate old images that consume storage. Use <ApiReference name="Aspire.Hosting.AzureContainerRegistryExtensions.WithPurgeTask" /> to add a scheduled [ACR purge task](https://learn.microsoft.com/azure/container-registry/container-registry-auto-purge) that automatically removes old or unused images:
+Over time, container registries accumulate old images that consume storage. Use <ApiReference name="Aspire.Hosting.AzureContainerRegistryExtensions.WithPurgeTask" /> to add a scheduled [ACR purge task](https://learn.microsoft.com/azure/container-registry/container-registry-auto-purge) that automatically removes old image tags and untagged manifests:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -454,7 +454,17 @@ if err := app.Run(); err != nil {
 </TabItem>
 </Tabs>
 
-The preceding code creates a purge task that runs daily at 1:00 AM, removing images older than 7 days while keeping the 5 most recent images per repository. The C# `ago` parameter accepts a `TimeSpan`; the TypeScript `ago` option accepts milliseconds.
+The preceding code creates a purge task that runs daily at 1:00 AM. It removes tags that were last modified more than 7 days ago, while always keeping the 5 newest matching tags per repository. The C# `ago` parameter accepts a `TimeSpan`; the TypeScript `ago` option accepts milliseconds.
+
+The purge task applies these rules to repositories that match `filter` (all repositories and tags by default):
+
+- **`keep`** (default `3`) is a minimum, not a maximum. Tags newer than `ago` are also retained, so more than `keep` tags can remain.
+- **`ago`** defaults to zero, so without it every matching tag except the newest `keep` is eligible for removal.
+- **Untagged manifests** are always deleted, regardless of age. This includes manifests that the task just untagged and manifests that were already untagged, so removing tags actually reclaims storage. Locked artifacts and manifests that retained images depend on aren't deleted.
+
+<Aside type="caution">
+  Deleting untagged manifests is irreversible. If you pull images by digest or roll back to earlier digests, those pulls can fail after the purge task runs. Use `filter` to limit the purge task to repositories where that's acceptable.
+</Aside>
 
 ### Multiple purge tasks
 

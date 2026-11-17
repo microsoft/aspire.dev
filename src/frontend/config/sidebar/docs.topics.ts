@@ -1164,6 +1164,11 @@ export const docsTopics = {
           label: 'Multi-language integrations',
           slug: 'extensibility/multi-language-integration-authoring',
         },
+        {
+          label: 'TypeScript hosting integrations',
+          slug: 'extensibility/typescript-hosting-integrations',
+          badge: 'Experimental',
+        },
       ],
     },
     {

@@ -613,6 +613,72 @@ The preceding code maps the `emulator` endpoint to host port `7777`:
 | ------------- | ------------------------------- |
 | `emulator`    | `5672:7777`                     |
 
+### Configure the emulator's SQL Server
+
+The emulator stores its state in a SQL Server resource that Aspire creates for it. In C# AppHosts, pass a callback to `WithSqlServer` to customize that resource with the regular [SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/) APIs, such as persisting state in a data volume:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var serviceBus = builder.AddAzureServiceBus("messaging")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithSqlServer(sql => sql
+            .WithDataVolume()
+            .WithContainerName("messaging-sql"));
+    });
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+The emulator connects to the SQL Server through its `tcp` endpoint, so don't remove or rename that endpoint in the callback.
+
+To reuse a SQL Server resource that's already in your AppHost instead of creating a new one, pass it to `WithSqlServer`. The emulator waits for that SQL Server to be healthy before it starts:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddSqlServer("sql");
+
+var serviceBus = builder.AddAzureServiceBus("messaging")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithSqlServer(sql);
+    });
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const sql = await builder.addSqlServer("sql");
+
+const serviceBus = await builder.addAzureServiceBus("messaging")
+    .runAsEmulator({
+        configureContainer: async (emulator) => {
+            await emulator.withSqlServer(sql);
+        }
+    });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+You can't combine the two forms: an emulator either customizes its own SQL Server or uses an existing one.
+
 ### Configure the emulator with a custom JSON file
 
 The Service Bus emulator generates its configuration automatically from the resources you've added. To provide a fully custom configuration file instead, call <ApiReference name="Aspire.Hosting.AzureServiceBusExtensions.WithConfigurationFile" />:
