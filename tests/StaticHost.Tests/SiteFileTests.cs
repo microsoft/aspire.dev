@@ -178,6 +178,20 @@ public sealed class SiteFileTests
     }
 
     [Fact]
+    public async Task Spellings_of_one_file_share_one_cached_etag()
+    {
+        await using var server = await AgentReadinessTestServer.StartAsync(root => root.WriteFile("docs/data.json", "{}"));
+
+        foreach (var path in new[] { "/docs/data.json", "/docs//data.json", "/docs///data.json" })
+        {
+            using var response = await server.Client.GetAsync(path);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        Assert.Equal(1, server.Services.GetRequiredService<SiteFileETags>().Count);
+    }
+
+    [Fact]
     public async Task ETag_follows_a_file_that_changes()
     {
         await using var server = await AgentReadinessTestServer.StartAsync(root => root.WriteFile("data.json", "{\"v\":1}"));

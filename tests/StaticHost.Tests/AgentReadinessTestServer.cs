@@ -26,6 +26,8 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
 
     public string WebRoot => _wwwroot.Path;
 
+    public IServiceProvider Services => _host.Services;
+
     private AgentReadinessTestServer(IHost host, TestServer testServer, TempWebRoot wwwroot)
     {
         _host = host;

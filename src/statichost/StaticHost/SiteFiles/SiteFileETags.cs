@@ -21,25 +21,36 @@ internal sealed class SiteFileETags
 {
     private const int BufferSize = 64 * 1024;
 
+    // Keyed by the file's physical path, which the provider normalizes: the request paths
+    // /a/b.json, /a//b.json and /a///b.json are one file, so they share one entry, and the
+    // dictionary holds at most one entry per file of the web root. Request paths would let any
+    // client add entries without bound, each one costing a hash of the file.
     // Ordinal, as the file system is in production (Linux): two paths that differ only by case are
     // two files there, and must not share an entry. On a case-insensitive disk they are one file
     // under two keys, which costs one more hash. Canonical redirects send most requests to one casing.
     private readonly ConcurrentDictionary<string, Entry> _entries = new(StringComparer.Ordinal);
 
-    /// <param name="path">The file's path in the web root, which identifies it whatever the provider.</param>
+    internal int Count => _entries.Count;
+
+    /// <param name="path">
+    /// The file's path in the web root, the key when the provider gives no physical path.
+    /// </param>
     /// <param name="file">The file to hash.</param>
     /// <param name="cancellationToken">Cancels the hashing.</param>
     public async ValueTask<string> GetAsync(string path, IFileInfo file, CancellationToken cancellationToken)
     {
+        var key = file.PhysicalPath ?? path;
         var length = file.Length;
         var lastModified = file.LastModified;
 
-        if (_entries.TryGetValue(path, out var entry) && entry.Length == length && entry.LastModified == lastModified)
+        if (_entries.TryGetValue(key, out var entry) && entry.Length == length && entry.LastModified == lastModified)
         {
             return entry.ETag;
         }
 
-        // Two first requests for the same file may both hash it; the result is the same.
+        // Two first requests for the same file may both hash it; the result is the same. That is
+        // not worth coordinating: it happens once per file per instance, and sending the file
+        // reads it anyway.
         var hash = new XxHash128();
         var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
         try
@@ -57,7 +68,7 @@ internal sealed class SiteFileETags
         }
 
         var etag = $"\"{Convert.ToBase64String(hash.GetCurrentHash())}\"";
-        _entries[path] = new Entry(length, lastModified, etag);
+        _entries[key] = new Entry(length, lastModified, etag);
         return etag;
     }
 
