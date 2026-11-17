@@ -31,7 +31,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("my-cache");
 var db = builder.AddPostgres("postgres").AddDatabase("my-db");
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(cache)
     .WithReference(db);
 
@@ -96,7 +96,7 @@ For example:
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.Api>("my-api");
+var api = builder.AddDotnetProject("my-api", "../Api/Api.csproj");
 
 var frontend = builder.AddJavaScriptApp("frontend", "./app")
     .WithReference(api);
@@ -122,7 +122,7 @@ Aspire also generates service discovery variables for .NET service resolution. T
 services__{resource-name}__{endpoint-key}__{index}
 ```
 
-The `services` prefix and double-underscore (`__`) separators are fixed, but the resource name preserves the casing used in the AppHost. For example, `AddProject<Projects.Api>("MyApi")` with an HTTP endpoint produces `services__MyApi__http__0`. The endpoint key is the scheme for endpoints named `http` or `https`; otherwise, Aspire uses the endpoint name. Applications that don't use .NET service discovery can read the [endpoint URL variables](#endpoint-urls) instead.
+The `services` prefix and double-underscore (`__`) separators are fixed, but the resource name preserves the casing used in the AppHost. For example, `AddDotnetProject("MyApi", "../Api/Api.csproj")` with an HTTP endpoint produces `services__MyApi__http__0`. The endpoint key is the scheme for endpoints named `http` or `https`; otherwise, Aspire uses the endpoint name. Applications that don't use .NET service discovery can read the [endpoint URL variables](#endpoint-urls) instead.
 
 ### Resource properties
 

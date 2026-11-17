@@ -108,14 +108,14 @@ var database = builder.AddPostgres("postgres")
     .AddDatabase("myapp");
 
 // 適切な依存関係を備えた API プロジェクトを追加
-var api = builder.AddProject<Projects.MyApp_Api>("api")
+var api = builder.AddDotnetProject("api", "../MyApp.Api/MyApp.Api.csproj")
     .WithHttpEndpoint(port: 5000)
     .WithHttpHealthCheck("/health")
     .WithReference(database, "DefaultConnection")
     .WaitFor(database);
 
 // 依存関係を備えたフロントエンドプロジェクトを追加
-var frontend = builder.AddProject<Projects.MyApp_Frontend>("frontend")
+var frontend = builder.AddDotnetProject("frontend", "../MyApp.Frontend/MyApp.Frontend.csproj")
     .WithHttpEndpoint(port: 3000)
     .WithReference(api)
     .WithEnvironment("API_URL", api.GetEndpoint("http"))
@@ -137,14 +137,14 @@ const database = (await builder.addPostgres("postgres")
     .addDatabase("myapp");
 
 // 適切な依存関係を備えた API プロジェクトを追加
-const api = await builder.addProject("api", "./MyApp.Api/MyApp.Api.csproj")
+const api = await builder.addDotnetProject("api", "./MyApp.Api/MyApp.Api.csproj")
     .withHttpEndpoint({ port: 5000 })
     .withHttpHealthCheck("/health")
     .withReference(database, "DefaultConnection")
     .waitFor(database);
 
 // 依存関係を備えたフロントエンドプロジェクトを追加
-const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj")
+const frontend = await builder.addDotnetProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj")
     .withHttpEndpoint({ port: 3000 })
     .withReference(api)
     .withEnvironment("API_URL", api.getEndpoint("http"))
@@ -602,14 +602,14 @@ const app = await builder.addContainer("app", "myapp:latest")
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(database)  // サービス検知
     .WaitFor(database);       // スタートアップ順序
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
-const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+const api = await builder.addDotnetProject("api", "./Api/Api.csproj", { launchProfileName: "https" })
     .withReference(database)  // サービス検知
     .waitFor(database);       // スタートアップ順序
 ```
@@ -652,13 +652,13 @@ Docker Compose の正常性チェックはシェルコマンドを使用しま�
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithHttpHealthCheck("/health");
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
-const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+const api = await builder.addDotnetProject("api", "./Api/Api.csproj", { launchProfileName: "https" })
     .withHttpHealthCheck("/health");
 ```
 </TabItem>
@@ -681,7 +681,7 @@ var rabbit = builder.AddContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpi
     .WithHealthCheck("rabbitmq-health");
 
 // WaitFor は登録された正常性チェックを使用してレディネスを決定します
-var app = builder.AddProject<Projects.App>("app")
+var app = builder.AddDotnetProject("app", "../App/App.csproj")
     .WaitFor(rabbit);
 ```
 </TabItem>
@@ -691,7 +691,7 @@ const rabbit = await builder.addContainer("rabbitmq", "rabbitmq", "4.1.4-managem
     .withHealthCheck("rabbitmq-health");
 
 // WaitFor は登録された正常性チェックを使用してレディネスを決定します
-const app = await builder.addProject("app", "./App/App.csproj", "https")
+const app = await builder.addDotnetProject("app", "./App/App.csproj", { launchProfileName: "https" })
     .waitFor(rabbit);
 ```
 </TabItem>

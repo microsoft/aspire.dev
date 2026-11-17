@@ -55,7 +55,7 @@ var cache = builder.AddRedis("cache");
 
 var apiCacheInvalidationKey = builder.AddParameter("ApiCacheInvalidationKey", secret: true);
 
-var api = builder.AddProject<Projects.AspireApp_Api>("api")
+var api = builder.AddDotnetProject("api", "../AspireApp.Api/AspireApp.Api.csproj")
     .WithReference(cache)
     .WaitFor(cache)
     .WithEnvironment("ApiCacheInvalidationKey", apiCacheInvalidationKey)
@@ -151,7 +151,7 @@ app.MapPost("/cache/invalidate", static async (
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithHttpCommand(
         path: "/admin/sync",
         displayName: "Sync now",

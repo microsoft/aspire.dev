@@ -1516,9 +1516,13 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               label: 'Set up C# apps by path in the AppHost',
               slug: 'integrations/frameworks/dotnet/dotnet-host',
             },
-            { label: 'Project resources', slug: 'integrations/dotnet/project-resources' },
             { label: 'C# file-based apps', slug: 'integrations/dotnet/csharp-file-based-apps' },
             { label: 'Launch profiles', slug: 'integrations/dotnet/launch-profiles' },
+            {
+              label: 'Migrate to DotnetProjectResource',
+              slug: 'integrations/dotnet/migrate-dotnet-project-resource',
+            },
+            { label: 'Legacy project resources', slug: 'integrations/dotnet/project-resources' },
             { label: '.NET tool resources', slug: 'integrations/dotnet/dotnet-tool-resources' },
             {
               label: 'Blazor',

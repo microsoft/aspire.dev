@@ -441,7 +441,7 @@ var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
                         .WithHttpEndpoint(targetPort: 8080)
                         .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.WebApp>("webapp")
+builder.AddDotnetProject("webapp", "../WebApp/WebApp.csproj")
        .WithReference(catalogApi)
        .WaitFor(catalogApi); // Waits for /health to return HTTP 200
 ```
@@ -475,10 +475,10 @@ The <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthC
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
-var backend = builder.AddProject<Projects.Backend>("backend")
+var backend = builder.AddDotnetProject("backend", "../Backend/Backend.csproj")
                      .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.Frontend>("frontend")
+builder.AddDotnetProject("frontend", "../Frontend/Frontend.csproj")
        .WithReference(backend)
        .WaitFor(backend);
 ```
@@ -524,7 +524,7 @@ builder.Services.AddHealthChecks().AddCheck("mycheck", () =>
 var pg = builder.AddPostgres("pg")
     .WithHealthCheck("mycheck");
 
-builder.AddProject<Projects.MyApp>("myapp")
+builder.AddDotnetProject("myapp", "../MyApp/MyApp.csproj")
     .WithReference(pg)
     .WaitFor(pg); // Waits for both the Postgres container to be running
                   // AND the custom "mycheck" health check to be healthy

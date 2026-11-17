@@ -1,0 +1,80 @@
+---
+title: Compiler Warning ASPIRE012
+seoTitle: 'ASPIRE012: Aspire.AppHost.Sdk is obsolete · Aspire'
+description: Learn why Aspire.AppHost.Sdk reports warning ASPIRE012 in Aspire 17, how to move a C# AppHost to Microsoft.NET.Sdk, and how to suppress the warning.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 17.0"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> '[ProjectName]' uses the Aspire.AppHost.Sdk, which is obsolete but remains available for staged migration. Switch the project's Sdk attribute to Microsoft.NET.Sdk, add explicit PackageReference items for Aspire.Hosting.AppHost and Aspire.Hosting.Dotnet, and migrate C# resource ProjectReference items to AddDotnetProject calls. See https://aka.ms/aspire/diagnostics/aspire012 for migration guidance.
+
+This diagnostic warning is reported when a C# AppHost uses `Aspire.AppHost.Sdk`, either in a project file's `Sdk` attribute or in a file-based app's `#:sdk` directive. The SDK still works, including AppHost project references and `AddProject` resources, so you can migrate in stages.
+
+C# AppHosts now use `Microsoft.NET.Sdk` with explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` packages, and add .NET projects with `AddDotnetProject`. Running `aspire update` doesn't remove the SDK for you.
+
+## Example
+
+The following project file produces `ASPIRE012`:
+
+```xml title="MyApp.AppHost.csproj"
+<Project Sdk="Aspire.AppHost.Sdk/%ASPIRE_VERSION%">
+```
+
+The following file-based AppHost directive also produces `ASPIRE012`:
+
+```csharp title="apphost.cs"
+#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+```
+
+## To correct this warning
+
+Replace the SDK with `Microsoft.NET.Sdk` and explicit package references:
+
+```xml title="MyApp.AppHost.csproj"
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Keep your existing PropertyGroup -->
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="%ASPIRE_VERSION%" />
+    <PackageReference Include="Aspire.Hosting.Dotnet" Version="%ASPIRE_VERSION%" />
+  </ItemGroup>
+
+</Project>
+```
+
+In a file-based AppHost, replace the `#:sdk` directive with package directives:
+
+```csharp title="apphost.cs"
+#:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
+#:package Aspire.Hosting.Dotnet@%ASPIRE_VERSION%
+```
+
+Then review the AppHost's project references. Without the SDK, project references no longer generate `Projects.*` metadata automatically. Migrate resources to `AddDotnetProject`, or mark references that legacy APIs still need. For complete steps, see [Remove the obsolete AppHost SDK](/integrations/dotnet/migrate-dotnet-project-resource/#remove-the-obsolete-apphost-sdk).
+
+## Suppress the warning
+
+Suppress `ASPIRE012` only temporarily while you migrate. Set the following property in the AppHost project file:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <SuppressAspireAppHostSdkObsoleteWarning>true</SuppressAspireAppHostSdkObsoleteWarning>
+</PropertyGroup>
+```
+
+Alternatively, add `ASPIRE012` to `NoWarn`:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <NoWarn>$(NoWarn);ASPIRE012</NoWarn>
+</PropertyGroup>
+```
+
+Suppressing `ASPIRE012` doesn't suppress `CS0618` warnings for obsolete resource APIs such as `AddProject`, and doesn't remove the [Aspire CLI bundle requirement](/diagnostics/aspire013/).

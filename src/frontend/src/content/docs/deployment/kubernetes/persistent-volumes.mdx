@@ -163,7 +163,7 @@ var media = k8s.AddPersistentVolume("media")
     .WithCapacity("100Gi")
     .WithAccessMode(PersistentVolumeAccessMode.ReadWriteMany);
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPersistentVolume(media, "/srv/media");
 ```
 
@@ -175,7 +175,7 @@ const media = await k8s.addPersistentVolume('media');
 await media.withStorageClass('azurefile-csi');
 await media.withCapacity('100Gi');
 
-const api = await builder.addProject('api');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withKubernetesPersistentVolumeMount(media, '/srv/media');
 ```
 
@@ -193,7 +193,7 @@ Add the `env` parameter to expose the volume's effective storage path through an
 var data = k8s.AddPersistentVolume("data")
     .WithCapacity("20Gi");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPersistentVolume(data, "/data", env: "DATA_PATH");
 ```
 
@@ -204,7 +204,7 @@ builder.AddProject<Projects.Api>("api")
 const data = await k8s.addPersistentVolume('data');
 await data.withCapacity('20Gi');
 
-const api = await builder.addProject('api');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withKubernetesPersistentVolumeMount(data, '/data', { env: 'DATA_PATH' });
 ```
 
@@ -251,7 +251,7 @@ The default security context is applied before any <ApiReference name="Aspire.Ho
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPersistentVolume(media, "/srv/media")
     .PublishAsKubernetesService(resource =>
     {
@@ -281,7 +281,7 @@ To remove the generated pod security context entirely — for example, when owne
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithPersistentVolume(media, "/srv/media")
     .PublishAsKubernetesService(resource =>
     {

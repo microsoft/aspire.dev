@@ -257,10 +257,10 @@ All templates start with <ApiReference name="Aspire.Hosting.DistributedApplicati
     ```csharp title="AppHost.cs project-based orchestrator"
     var builder = DistributedApplication.CreateBuilder(args);
 
-    var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+    var apiService = builder.AddDotnetProject("apiservice", "../AspireApp.ApiService/AspireApp.ApiService.csproj")
         .WithHttpHealthCheck("/health");
 
-    builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+    builder.AddDotnetProject("webfrontend", "../AspireApp.Web/AspireApp.Web.csproj")
         .WithExternalHttpEndpoints()
         .WithHttpHealthCheck("/health")
         .WithReference(apiService)
@@ -272,7 +272,7 @@ All templates start with <ApiReference name="Aspire.Hosting.DistributedApplicati
     _What's happening here?_
 
     - <ApiReference name="Aspire.Hosting.DistributedApplication.CreateBuilder" /> creates the distributed application builder
-    - <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> registers your API service and web frontend
+    - <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" /> registers your API service and web frontend by their project paths
     - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> connects services. It injects the API's URL as an environment variable and sets up service discovery so you can use service names instead of hardcoded URLs
     - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> ensures the API is healthy before starting the frontend, preventing connection errors from race conditions
     - <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> monitors service health

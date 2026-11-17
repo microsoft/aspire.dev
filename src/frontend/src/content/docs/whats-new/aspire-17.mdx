@@ -366,12 +366,11 @@ Aspire 17.0 raises its minimum supported .NET version to **.NET 10**. Review you
 
 The `Aspire.Hosting.Dotnet` integration now follows stable package versioning for .NET projects added by path. The older `AddProject` APIs are deprecated, not removed. Use the path-based project model when updating your AppHost.
 
+`Aspire.AppHost.Sdk` is also obsolete. C# AppHosts that still use it report warning [`ASPIRE012`](/diagnostics/aspire012/) but keep working, so you can migrate in stages. New C# AppHosts use `Microsoft.NET.Sdk` with explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` package references, and `aspire update` doesn't remove the SDK for you. For details, see [microsoft/aspire#20867](https://github.com/microsoft/aspire/pull/20867).
+
 <LearnMore>
-  See [Add a project by
-  path](/integrations/frameworks/dotnet/dotnet-host/#add-a-c-project-or-file-based-app-by-path)
-  for the current project model, or [Migrate from legacy project
-  resources](/integrations/dotnet/project-resources/#migrate-from-legacy-project-resources)
-  to use the migration skill.
+  See [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/)
+  for project paths, launch profiles, removing the AppHost SDK, and scenarios that retain the legacy model.
 </LearnMore>
 
 :::caution[Known issue: Visual Studio project enlistment]
@@ -625,21 +624,13 @@ MongoDB moves to a new major version. Review the MongoDB 9.0 release notes befor
 
 <span id="breaking-changes"></span>
 
-| Change                                                                             | Migration                                                                                                        |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `ResourceUrlAnnotation.DisplayOrder` changed from a field to a property            | Rebuild assemblies that use the field.                                                                           |
-| Legacy `Aspire.RabbitMQ.Client.v6` and `Aspire.MongoDB.Driver.v2` packages removed | Switch to `Aspire.RabbitMQ.Client` and `Aspire.MongoDB.Driver`, and migrate to the 7.x and 3.x client libraries. |
-| Azure Cosmos DB `configureClientOptions` now receives `IServiceProvider`           | Add the service-provider parameter to callbacks and rebuild binaries that call these methods.                    |
-| Docker Swarm `UpdateConfig.MaxFailureRatio` changed from `string?` to `double?`    | Assign a number such as `0.3` instead of a string such as `"0.3"`.                                               |
-| `AddCSharpApp` is obsolete                                                         | Add `Aspire.Hosting.Dotnet` and call `AddDotnetProject`.                                                         |
-| `Aspire.AppHost.Sdk` is obsolete (`ASPIRE012`)                                     | Switch to `Microsoft.NET.Sdk` with explicit Aspire package references.                                           |
-| `TerminalOptions.ShowTerminalHost` removed                                         | Remove the assignment; terminal hosts are always hidden.                                                         |
-| Polyglot feature keys renamed                                                      | Use `experimentalPolyglotJava`, `experimentalPolyglotPython`, or `experimentalPolyglotRust`; Go needs no flag.   |
-| Let's Encrypt cert-manager shortcuts removed                                       | Call `WithAcmeServer` with the ACME directory URL.                                                               |
-| AKS clusters use user-assigned identities                                          | Plan for node pool updates and reapply custom permissions.                                                       |
-| Polyglot `addNodePool` takes a callback                                            | Configure the node pool in a callback instead of an options object.                                              |
-| SQL Server REPL no longer discovers older `sqlcmd` paths                           | Select `SqlServerReplCommand.Version17` for images with only the older client.                                   |
-
+| Change                                                                                              | Migration                                                                                              |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `ResourceUrlAnnotation.DisplayOrder` changed from a field to a property                             | Rebuild assemblies that use the field.                                                                 |
+| Legacy `Aspire.RabbitMQ.Client.v6` and `Aspire.MongoDB.Driver.v2` packages removed                  | Switch to `Aspire.RabbitMQ.Client` and `Aspire.MongoDB.Driver`, and migrate to the 7.x and 3.x client libraries. |
+| Azure Cosmos DB `configureClientOptions` now receives `IServiceProvider`                            | Add the service-provider parameter to callbacks and rebuild binaries that call these methods.          |
+| Docker Swarm `UpdateConfig.MaxFailureRatio` changed from `string?` to `double?`                    | Assign a number such as `0.3` instead of a string such as `"0.3"`.                                     |
+| `AddCSharpApp` is obsolete and reports `CS0618` instead of `ASPIRECSHARPAPPS001`                    | Add `Aspire.Hosting.Dotnet` and replace calls with `AddDotnetProject`.                                 |
 ### `ResourceUrlAnnotation.DisplayOrder` is now a property
 
 `DisplayOrder` changed from an obsolete public field to a read/write property. Its behavior is unchanged: higher values display higher in the dashboard URL list.
@@ -697,75 +688,20 @@ Change string assignments to numeric assignments:
 
 ### `AddCSharpApp` is obsolete
 
-`AddCSharpApp` now produces compiler warning CS0618. Add the `Aspire.Hosting.Dotnet` package and call `AddDotnetProject` (`addDotnetProject` in TypeScript), which returns a `DotnetProjectResource`:
+`AddCSharpApp` (and the polyglot `addCSharpApp` export) was previously experimental. Starting in Aspire 17.0, it's marked `[Obsolete]` instead of `[Experimental("ASPIRECSHARPAPPS001")]`. Existing calls now produce the compiler warning `CS0618` instead of the `ASPIRECSHARPAPPS001` error, and the TypeScript API surface emits `@deprecated` instead of `@experimental`.
 
-```bash title="Aspire CLI"
-aspire add Aspire.Hosting.Dotnet
+Add the [📦 Aspire.Hosting.Dotnet](https://www.nuget.org/packages/Aspire.Hosting.Dotnet) integration and replace calls with `AddDotnetProject` (`addDotnetProject` in TypeScript):
+
+```csharp title="AppHost.cs" del={1} ins={2}
+builder.AddCSharpApp("api", "./api/api.cs");
+builder.AddDotnetProject("api", "./api/api.cs");
 ```
 
-```diff title="AppHost.cs"
-- var api = builder.AddCSharpApp("api", "../Api");
-+ var api = builder.AddDotnetProject("api", "../Api");
-```
+`AddDotnetProject` accepts the same kinds of paths (a `.cs` file, a `.csproj` file, or a directory containing a single `.csproj`) but returns a `DotnetProjectResource` rather than a `ProjectResource` or `CSharpAppResource`. Explicitly typed resource builders and project-specific customizations might need updating. Existing `AddCSharpApp` calls keep their current launch and publishing behavior; if you treat warnings as errors, suppress `CS0618` until you migrate.
 
-### `Aspire.AppHost.Sdk` is obsolete
+<LearnMore>
+  See [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/)
+  for migration guidance. For the obsoletion details, see
+  [microsoft/aspire#20825](https://github.com/microsoft/aspire/pull/20825).
+</LearnMore>
 
-Projects that use `Aspire.AppHost.Sdk` get warning `ASPIRE012`. Follow the migration steps in [`Aspire.AppHost.Sdk` is deprecated](#aspireapphostsdk-is-deprecated), or temporarily set `SuppressAspireAppHostSdkObsoleteWarning` to `true`.
-
-### `TerminalOptions.ShowTerminalHost` removed
-
-Terminal host resources are always hidden from the dashboard, so the `ShowTerminalHost` option was removed. Delete any assignments to it.
-
-### Polyglot feature keys renamed
-
-The experimental polyglot feature flags no longer use a colon-separated suffix. Update `aspire.config.json` and any `aspire config set` scripts:
-
-| Before                        | After                        |
-| ----------------------------- | ---------------------------- |
-| `experimentalPolyglot:java`   | `experimentalPolyglotJava`   |
-| `experimentalPolyglot:go`     | Remove the flag              |
-| `experimentalPolyglot:python` | `experimentalPolyglotPython` |
-| `experimentalPolyglot:rust`   | `experimentalPolyglotRust`   |
-
-Go AppHosts no longer need a feature flag.
-
-### Let's Encrypt cert-manager shortcuts removed
-
-`WithLetsEncryptProduction` and `WithLetsEncryptStaging` were removed, along with the `WithAcmeServer` overload that mixed a literal server URL with a parameter email. Call `WithAcmeServer` with the ACME directory URL and contact email, using either two literals or two parameters. For Let's Encrypt production, the directory URL is `https://acme-v02.api.letsencrypt.org/directory`.
-
-### AKS clusters use user-assigned identities
-
-Aspire-provisioned AKS clusters now use separate user-assigned identities for the control plane and kubelet. When you redeploy an existing cluster, Azure may update its node pools, which can disrupt running workloads. Permissions you granted manually to the previous identities aren't transferred; grant them to the new identities.
-
-### Polyglot `addNodePool` takes a callback
-
-In polyglot AppHosts, `addNodePool` configures the pool through a callback instead of an options object. C# AppHosts are unchanged.
-
-<Tabs syncKey='aspire-lang'>
-  <TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.mts"
-await aks.addNodePool('workers', async (pool) => {
-  pool.osSku = 'AzureLinux';
-});
-```
-
-  </TabItem>
-  <TabItem id='go' label='Go'>
-
-```go title="apphost.go"
-aks.AddNodePool("workers", func(pool *aspire.AksNodePoolConfig) {
-    pool.OsSku = aspire.StringPtr("AzureLinux")
-})
-```
-
-  </TabItem>
-</Tabs>
-
-Python AppHosts use camelCase keys for node pool settings.
-
-### SQL Server REPL no longer discovers older `sqlcmd` paths
-
-The SQL Server dashboard REPL now launches `/opt/mssql-tools18/bin/sqlcmd` directly. For images that only include the older `/opt/mssql-tools/bin/sqlcmd` client, use `WithRepl` to set the REPL options' `Command` to `SqlServerReplCommand.Version17`.
-
-The default image and parameterless `WithRepl` call are unaffected.
