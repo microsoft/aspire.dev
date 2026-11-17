@@ -1,0 +1,16 @@
+---
+# The site's <InstallDotNetPackage> (src/components/InstallDotNetPackage.astro): {% install_dotnet_package "Aspire.Hosting.Redis" %}.
+# Synced tabs (`dotnet-install`) with three code blocks. The code blocks are written in Douze's fence markup
+# (`<pre data-lang data-meta><code class="language-x">`, site features plan 3.2), so the `code` worker step
+# (Expressive Code, after `markdown`) highlights them like Markdown fences: this shortcode depends on that step.
+# The tabs use the server shape of tabs.liquid (the client script builds the tab list).
+# Root class: cid-install-dot-net-package (plus cid-sl-tabs).
+display: block
+args: [package]
+params: []
+---
+{%- comment -%} Built with append, not capture: a capture HTML-encodes its values, and `escape` would encode them twice. {%- endcomment -%}
+{%- assign idp_cli_meta = 'frame="terminal" title=".NET CLI — Add ' | append: package | append: ' package"' -%}
+{%- assign idp_ref_meta = 'title="XML — Add ' | append: package | append: ' package reference"' -%}
+{%- assign idp_ref_code = '<PackageReference Include="' | append: package | append: '" Version="*" />' -%}
+{%- capture sc_tabs_body -%}<div role="tabpanel" data-label=".NET CLI"><pre data-lang="bash" data-meta="{{ idp_cli_meta | escape }}"><code class="language-bash">dotnet add package {{ package | escape }}</code></pre></div><div role="tabpanel" data-label="Program.cs (C# file-based app)"><pre data-lang="csharp" data-meta="title=&quot;Program.cs&quot;"><code class="language-csharp">#:package {{ package | escape }}@*</code></pre></div><div role="tabpanel" data-label="PackageReference (*.csproj)"><pre data-lang="xml" data-meta="{{ idp_ref_meta | escape }}"><code class="language-xml">{{ idp_ref_code | escape }}</code></pre></div>{%- endcapture -%}{% include "partials/tabs-markup", body: sc_tabs_body, sync: "dotnet-install", tabs_class: "cid-install-dot-net-package", tabs_attrs: nil %}

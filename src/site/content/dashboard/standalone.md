@@ -1,0 +1,298 @@
+---
+title: Standalone Aspire dashboard for OpenTelemetry
+description: Run a local OpenTelemetry viewer without an AppHost. Send OTLP logs, traces, and metrics from Python, Node.js, or another instrumented app to the Aspire dashboard.
+---
+
+Run the [Aspire dashboard](/dashboard/overview/) as a standalone OTLP viewer to inspect local application logs, distributed traces, and metrics without an AppHost. Keep your existing application startup workflow, including Docker Compose, and configure your apps to export OpenTelemetry to the dashboard.
+
+You can start the dashboard in two ways:
+
+- Use the [Aspire CLI](/reference/cli/overview/) to start the dashboard with default local endpoints.
+- Use the standalone dashboard container image when you want to run it with Docker or another OCI-compliant container runtime.
+
+Both options receive telemetry from OpenTelemetry-enabled apps. Instrumentation and export configuration are required in each application; starting the dashboard doesn't instrument your code. For language-specific setup, see [Python telemetry](/dashboard/standalone-for-python/) or [JavaScript and Node.js telemetry](/dashboard/standalone-for-nodejs/).
+
+{% image light: "/assets/images/dashboard/standalone/standalone-mode-light.png", dark: "/assets/images/dashboard/standalone/standalone-mode.png", alt: "A screenshot of the Aspire dashboard running in standalone mode." %}
+
+## Start the dashboard
+
+Choose the startup path that best fits your workflow. The Aspire CLI provides the shortest local setup, while the container image works well when you already manage tools through a container runtime.
+
+### Aspire CLI
+
+The quickest way to start the standalone dashboard is to use the Aspire CLI via `npx`.
+The `npx` command is a package runner included with [Node.js](https://nodejs.org/).
+
+To run the Aspire CLI package with `npx`:
+
+```bash title="Run with npx"
+npx -y @microsoft/aspire-cli dashboard run
+```
+
+Or install the [Aspire CLI](/get-started/install-cli/), then start the dashboard:
+
+```bash title="Aspire CLI"
+aspire dashboard run
+```
+
+The dashboard starts with the following defaults:
+
+- **Frontend UI** at `http://localhost:18888`
+- **OTLP/gRPC** endpoint at `http://localhost:4317`
+- **OTLP/HTTP** endpoint at `http://localhost:4318`
+
+The dashboard is secured with a browser token by default. A login URL with the token is displayed in the terminal output. Use `--allow-anonymous` to disable authentication during local development. For the security implications, see [Dashboard security considerations](/dashboard/security-considerations/#anonymous-access).
+
+For all available options, see the [`aspire dashboard run`](/reference/cli/commands/aspire-dashboard-run/) command reference.
+
+### Container image
+
+The dashboard also ships as a standalone container image. Use this option when a container workflow fits your environment or you want to manage dashboard hosting with your existing container tooling.
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash
+docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-dashboard \
+    mcr.microsoft.com/aspire/dashboard:latest
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell
+docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-dashboard `
+    mcr.microsoft.com/aspire/dashboard:latest
+```
+{% endtab %}
+{% endos_tabs %}
+
+The preceding Docker command:
+
+- Starts a container from the `mcr.microsoft.com/aspire/dashboard:latest` image.
+- The container exposes three ports:
+  - Mapping the dashboard's port `18888` to the host's port `18888`. Port `18888` has the dashboard UI. Navigate to `http://localhost:18888` in the browser to view the dashboard.
+  - Mapping the dashboard's OTLP/gRPC port `18889` to the host's port `4317`. Port `4317` receives OpenTelemetry data from apps using [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc).
+  - Mapping the dashboard's OTLP/HTTP port `18890` to the host's port `4318`. Port `4318` receives OpenTelemetry data from apps using [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp).
+
+### Container image repositories and migration
+
+The dashboard images are published to Microsoft Container Registry (MCR) under the `aspire` product family:
+
+| Channel | Repository | Use |
+| --- | --- | --- |
+| Stable | `mcr.microsoft.com/aspire/dashboard` | Released dashboard images; recommended for standalone use. |
+| Nightly | `mcr.microsoft.com/aspire/nightly/dashboard` | Preview builds for testing upcoming changes. |
+
+Use the [stable image catalog](https://mcr.microsoft.com/en-us/product/aspire/dashboard/tags) or [nightly image catalog](https://mcr.microsoft.com/en-us/product/aspire/nightly/dashboard/tags) to check available tags. Nightly builds aren't a substitute for stable releases.
+
+If you manage a dashboard container yourself, update the image repository in your Docker commands, Compose files, Kubernetes manifests, and image-mirroring or allowlist configuration:
+
+| Previous repository | New repository |
+| --- | --- |
+| `mcr.microsoft.com/dotnet/aspire-dashboard` | `mcr.microsoft.com/aspire/dashboard` |
+| `mcr.microsoft.com/dotnet/nightly/aspire-dashboard` | `mcr.microsoft.com/aspire/nightly/dashboard` |
+
+Preserve your stable or nightly channel and verify that your chosen tag exists in the new repository before changing it. The migration doesn't guarantee that all historical tags are available at the new names. If a version-specific tag isn't available in the new repository, keep the legacy reference rather than silently upgrading the dashboard. The `latest` tag follows the latest image in its repository; choose a published version tag to stay on a version line, or a digest when you need an immutable image reference.
+
+:::note[Aspire 13 compatibility]
+Aspire 13 images continue to be published to the legacy repositories for servicing and security updates. This compatibility covers the published fixed, minor, major, and architecture-specific tags. Legacy `latest` stays on the Aspire 13 line; it isn't a permanent alias for the new repository's `latest`. Subsequent major versions use the new repositories without this legacy syndication.
+:::
+
+The repository change doesn't rename the `aspire-dashboard` container, change its ports or environment variables, or change `aspire dashboard run`. Docker Compose and Kubernetes output generated by an older Aspire release can still contain a legacy image reference. Keep that output aligned with the publisher version rather than assuming the image repository migration changes installed tooling.
+
+## Login to the dashboard
+
+Data displayed in the dashboard can be sensitive. By default, the dashboard is secured with authentication that requires a token to login.
+
+When the dashboard is run with `aspire dashboard run`, the Aspire CLI prints the login URL directly in the terminal. Open that URL in your browser to log in.
+
+When the dashboard is run from a standalone container, the login token is printed to the container logs. The logs are displayed in the Docker Desktop user interface on the **Logs** tab for the **aspire-dashboard** container:
+
+{% image "/assets/images/dashboard/standalone/aspire-dashboard-container-log.png", alt: "Screenshot of the Aspire dashboard container logs." %}
+
+After copying the highlighted token into the login page, select the *Login* button.
+
+Alternatively, you can obtain the token from the logs by using the `docker` command:
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash frame="terminal"
+#!/bin/bash
+loginLine=$(docker container logs aspire-dashboard | grep "login?t=")
+match=$(echo "$loginLine" | sed -n 's/.*login?t=\([^[:space:]]*\).*/\1/p')
+echo -n "$match" | xclip -selection clipboard
+echo "$match"
+```
+
+:::tip
+This script requires that your system has the `sed` and `xclip` tools installed.
+:::
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell
+$loginLine =  docker container logs aspire-dashboard | Select-String "login\?t="
+$matches = [regex]::Match($loginLine, "(?<=login\?t=)(\S+)")
+$matches.Value | Set-Clipboard
+echo $matches.Value
+```
+{% endtab %}
+{% endos_tabs %}
+
+:::tip
+To avoid the login during local development, start the dashboard with `aspire dashboard run --allow-anonymous`. If you're running the dashboard container, set the `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` environment variable to `true`. See [Dashboard security considerations](/dashboard/security-considerations/#anonymous-access) for the security implications and [Dashboard configuration](/dashboard/configuration/) for additional configuration.
+:::
+
+For more information about logging into the dashboard, see [Dashboard authentication](/dashboard/explore/#dashboard-authentication).
+
+## Explore the dashboard
+
+The dashboard offers a UI for viewing telemetry. Refer to the documentation to explore the telemetry functionality:
+
+- [Structured logs page](/dashboard/explore/#structured-logs-page)
+- [Traces page](/dashboard/explore/#traces-page)
+- [Metrics page](/dashboard/explore/#metrics-page)
+
+Although there is no restriction on where the dashboard is run, the dashboard is designed for development and short-term diagnostics rather than production telemetry retention:
+
+- Telemetry is automatically removed if [telemetry limits](/dashboard/configuration/#telemetry-limits) are exceeded.
+- The dashboard can be configured to persist telemetry, but it is intended for development history and a limited number of diagnostics, not long-term production observability.
+
+### Unavailable features when standalone
+
+Telemetry service names aren't AppHost-managed resources. In standalone mode, the dashboard doesn't provide process health, console output capture, or start/stop/restart controls through the resources UI. To enable those resource features, [configure a resource service](/dashboard/configuration/#resources).
+
+An OTEL-only dashboard also doesn't have resource terminals or the AppHost terminal dock. Sending telemetry can't create a terminal session: [dashboard terminals](/dashboard/terminals/) require a live AppHost connection and a terminal producer.
+
+AI coding agents can still use the standalone dashboard via the Aspire CLI and MCP server. See [Dashboard and AI coding agents](/dashboard/ai-coding-agents/#standalone-mode) for details.
+
+## Send telemetry to the dashboard
+
+Apps send telemetry to the dashboard using [OpenTelemetry Protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/). The dashboard must expose a port for receiving OpenTelemetry data, and apps are configured to send data to that address.
+
+Both startup options shown earlier configure the dashboard to receive OpenTelemetry data on port `4317` (gRPC) and port `4318` (HTTP). The <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint addresses are `http://localhost:4317` for gRPC and `http://localhost:4318` for HTTP. The Docker command maps the container's OTLP ports to the same host ports.
+
+### Configure OpenTelemetry SDK
+
+Apps collect and send telemetry using [their language's OpenTelemetry SDK](https://opentelemetry.io/docs/languages/).
+
+Important OpenTelemetry SDK options to configure:
+
+- OTLP endpoint, which should match the dashboard's configuration, for example, `http://localhost:4317` for gRPC or `http://localhost:4318` for HTTP.
+- OTLP protocol. The dashboard supports all OTLP protocols:
+  - [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc) (`grpc`)
+  - [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp) (`http/protobuf` or `http/json`)
+
+To configure applications:
+
+- Use the OpenTelemetry SDK APIs within the application, or
+- Start the app with [known environment variables](https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options):
+  - `OTEL_EXPORTER_OTLP_PROTOCOL` with a value of `grpc`, `http/protobuf`, or `http/json`.
+  - `OTEL_EXPORTER_OTLP_ENDPOINT` with a value of `http://localhost:4317` for gRPC or `http://localhost:4318` for HTTP.
+
+:::note
+Additional configuration may be required to authenticate with the dashboard if you have configured the dashboard to secure the telemetry endpoint. For more information, see [Securing the telemetry endpoint](/dashboard/security-considerations/#secure-telemetry-endpoint).
+:::
+
+## Query telemetry with the Aspire CLI
+
+The [Aspire CLI](/reference/cli/overview/) can query telemetry data directly from the dashboard's API, allowing you to view logs, traces, and spans from the terminal without opening the dashboard UI.
+
+The dashboard's telemetry API is secured with API key authentication by default. When using the CLI commands, you can pass the dashboard's login URL (including the browser token) via `--dashboard-url` and the token is automatically exchanged for an API key. Alternatively, if the dashboard is started with `aspire dashboard run --allow-anonymous` or the `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` environment variable is set to `true`, no authentication is required. See [Dashboard security considerations](/dashboard/security-considerations/#anonymous-access) for the security implications.
+
+### View telemetry with `aspire otel`
+
+The [`aspire otel`](/reference/cli/commands/aspire-otel/) commands retrieve telemetry from the dashboard. Use `--dashboard-url` to point at a standalone dashboard — you can paste the full login URL and the browser token is automatically exchanged for an API key:
+
+```bash title="Aspire CLI"
+aspire otel logs --dashboard-url "http://localhost:18888/login?t=<token>"
+aspire otel traces --dashboard-url "http://localhost:18888/login?t=<token>"
+aspire otel spans --dashboard-url "http://localhost:18888/login?t=<token>"
+```
+
+For more details, see the [`aspire otel logs`](/reference/cli/commands/aspire-otel-logs/), [`aspire otel traces`](/reference/cli/commands/aspire-otel-traces/), and [`aspire otel spans`](/reference/cli/commands/aspire-otel-spans/) command references.
+
+### Use AI agents with `aspire agent mcp`
+
+The [`aspire agent mcp`](/reference/cli/commands/aspire-agent-mcp/) command starts an MCP (Model Context Protocol) server that AI assistants can connect to. When used with `--dashboard-url`, it runs in dashboard-only mode and exposes telemetry tools (structured logs and traces) to MCP-compatible clients:
+
+Unlike `aspire otel`, the MCP command doesn't exchange the browser token from a login URL. Start the dashboard with an explicit telemetry API key:
+
+```bash title="Aspire CLI"
+aspire dashboard run --Dashboard:Api:AuthMode=ApiKey --Dashboard:Api:PrimaryApiKey="<api-key>"
+```
+
+Then start the MCP server in a separate terminal with the dashboard base URL and the same key:
+
+```bash title="Aspire CLI"
+aspire agent mcp --dashboard-url "http://localhost:18888" --api-key "<api-key>"
+```
+
+Use a high-entropy key and don't commit or share it. For more information, see [Secure the telemetry API endpoint](/dashboard/security-considerations/#telemetry-api-endpoint).
+
+## Enable persistence
+
+The standalone dashboard defaults to no persistence and telemetry is lost when the dashboard shuts down. To retain data, choose one of the persistent modes:
+
+- `Run` preserves each dashboard session as a separate run and enables selection of historical runs.
+- `Resume` continues the same telemetry history across dashboard restarts. New telemetry is appended.
+
+For more information about persistence modes, run history, and retention, see [Aspire dashboard data persistence](/dashboard/data-persistence/).
+
+### Aspire CLI persistence
+
+Pass a persistent mode and a stable application name to `aspire dashboard run`.
+
+```bash title="Aspire CLI"
+aspire dashboard run --application-name my-app --persistence run
+```
+
+The application name partitions persisted data.
+
+### Persist data between container runs
+
+For a dashboard container more configuration is required because the local filesystem is ephemeral. You must mount persistent storage.
+
+{% os_tabs sync: "terminal" %}
+{% tab "Bash", icon: "seti:shell" %}
+```bash title="Create the volume and run the dashboard"
+docker volume create aspire-dashboard-data
+
+docker run --rm -d --name aspire-dashboard \
+  -p 18888:18888 \
+  -p 4317:18889 \
+  -p 4318:18890 \
+  --mount type=volume,source=aspire-dashboard-data,target=/home/app \
+  -e ASPIRE_DASHBOARD_APPLICATION_NAME=my-app \
+  -e ASPIRE_DASHBOARD_DATA_DIRECTORY=/home/app/dashboard-data \
+  -e ASPIRE_DASHBOARD_PERSISTENCE_MODE=run \
+  mcr.microsoft.com/aspire/dashboard:latest
+```
+{% endtab %}
+{% tab "PowerShell", icon: "seti:powershell" %}
+```powershell title="Create the volume and run the dashboard"
+docker volume create aspire-dashboard-data
+
+docker run --rm -d --name aspire-dashboard `
+  -p 18888:18888 `
+  -p 4317:18889 `
+  -p 4318:18890 `
+  --mount type=volume,source=aspire-dashboard-data,target=/home/app `
+  -e ASPIRE_DASHBOARD_APPLICATION_NAME=my-app `
+  -e ASPIRE_DASHBOARD_DATA_DIRECTORY=/home/app/dashboard-data `
+  -e ASPIRE_DASHBOARD_PERSISTENCE_MODE=run `
+  mcr.microsoft.com/aspire/dashboard:latest
+```
+{% endtab %}
+{% endos_tabs %}
+
+The dashboard container runs as a non-root user, so the volume is mounted at that user's home directory, `/home/app`. Docker gives a new volume the ownership of the directory it's mounted over. A volume mounted at a path that doesn't exist in the image is owned by root, and the dashboard fails to start with an "Access to the path is denied" error.
+
+Stop the container and run the same `docker run` command again to access the retained data. Keep the volume, application name, and persistence mode unchanged between container runs.
+
+Persisted telemetry can contain sensitive data. Restrict access to the volume and see [Aspire dashboard data persistence](/dashboard/data-persistence/) for persistence behavior and [Dashboard security considerations](/dashboard/security-considerations/#protect-persisted-data) for security requirements.
+
+## Sample
+
+For a sample of using the standalone dashboard, see the [Standalone Aspire dashboard sample app](https://github.com/microsoft/aspire-samples/tree/main/samples/standalone-dashboard).
+
+## Next steps
+
+- [Configure the Aspire dashboard](/dashboard/configuration/)

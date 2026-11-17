@@ -1,0 +1,33 @@
+---
+# The page skeleton of every chrome page: Starlight 0.41's Page.astro with the site's PageFrame override
+# (src/frontend/src/components/starlight/PageFrame.astro), TwoColumnContent and PageSidebar.
+# Inner layouts (docs, splash, hub, glossary) render the content of <main> (Page.astro's banner and content panels)
+# and set, in their front matter, `has_sidebar` (the topic sidebar column; false: the mobile site links menu) and
+# `has_toc` (the right-hand table of contents, also off with `tableOfContents: false`).
+# Root classes (components.css scopes, contract C1): <html> and <main> cid-sl-page (main is Page.astro markup
+# slotted into the frame), .page cid-starlight-page-frame,
+# the two columns cid-sl-two-column-content, the right sidebar cid-sl-page-sidebar.
+has_sidebar: false
+has_toc: false
+---
+{%- include "partials/page-vars" -%}
+<!doctype html>
+<html lang="{{ sl_lang }}" dir="{{ sl_dir }}" data-theme="dark"{% if sl_has_toc %} data-has-toc{% endif %}{% if has_sidebar %} data-has-sidebar{% endif %}{% if hero %} data-has-hero{% endif %} class="cid-sl-page">
+<head>
+{% include "partials/head" %}
+</head>
+<body>
+{% include "partials/skip-link" %}
+{%- capture sl_main -%}
+<div class="lg:sl-flex cid-sl-two-column-content">
+{%- if sl_has_toc %}
+<aside class="right-sidebar-container print:hidden"><div class="right-sidebar">{% include "partials/page-sidebar" %}</div></aside>
+{%- endif %}
+<div class="main-pane"><main class="cid-sl-page"{% if sl_pagefind %} data-pagefind-body{% endif %} lang="{{ sl_content_lang }}" dir="{{ sl_content_dir }}">{{ content }}</main></div>
+</div>
+{%- endcapture -%}
+{% include "partials/page-frame" %}
+{%- comment -%} The client bundle (scripts/client/site.ts, built by scripts/build-client.mjs): every module script of the chrome and the components. {%- endcomment %}
+<script type="module" src="/assets/js/site.js"></script>
+</body>
+</html>

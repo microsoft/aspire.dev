@@ -1,0 +1,13 @@
+{%- comment -%}
+  simplifyType of src/frontend/src/utils/ts-modules.ts, as a value: without the `Assembly/` prefix and the namespace
+  of the outer name. An include used as a function: reads tsi_in, sets tsi_out.
+{%- endcomment -%}
+{%- assign tsi_out = tsi_in | default: "" -%}
+{%- if tsi_out contains "/" -%}{%- assign tsi_head = tsi_out | split: "/" | first -%}{%- assign tsi_start = tsi_head.size | plus: 1 -%}{%- assign tsi_out = tsi_out | slice: tsi_start, tsi_out.size -%}{%- endif -%}
+{%- if tsi_out contains "<" -%}
+  {%- assign tsi_prefix = tsi_out | split: "<" | first -%}
+  {%- assign tsi_suffix = tsi_out | slice: tsi_prefix.size, tsi_out.size -%}
+  {%- assign tsi_out = tsi_prefix | split: "." | last | append: tsi_suffix -%}
+{%- else -%}
+  {%- assign tsi_out = tsi_out | split: "." | last -%}
+{%- endif -%}

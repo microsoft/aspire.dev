@@ -1,0 +1,38 @@
+{%- comment -%}
+  formatCSharpTypeReferenceMarkdown of src/frontend/src/utils/csharp-api-markdown.ts: a link to the type's twin when it
+  is a type of the package (after stripping `?`, `Task<...>` and `System.Collections.Generic.X<...>`), or inline code.
+  Inputs: raw, pkg.
+{%- endcomment -%}
+{%- assign cleaned = raw -%}
+{%- assign lastc = raw | slice: -1 -%}
+{%- if lastc == "?" -%}{%- assign n = raw.size | minus: 1 -%}{%- assign cleaned = raw | slice: 0, n -%}{%- endif -%}
+{%- assign lastc = cleaned | slice: -1 -%}
+{%- if lastc == ">" -%}
+  {%- assign head = cleaned | slice: 0, 28 -%}
+  {%- if head == "System.Threading.Tasks.Task<" and cleaned.size > 29 -%}
+    {%- assign n = cleaned.size | minus: 29 -%}{%- assign cleaned = cleaned | slice: 28, n -%}
+  {%- endif -%}
+{%- endif -%}
+{%- assign lastc = cleaned | slice: -1 -%}
+{%- if lastc == ">" -%}
+  {%- assign head = cleaned | slice: 0, 27 -%}
+  {%- if head == "System.Collections.Generic." -%}
+    {%- assign rest = cleaned | slice: 27, cleaned.size -%}
+    {%- assign word = rest | split: "<" | first -%}
+    {%- assign wordEnd = word.size | plus: 1 -%}
+    {%- assign innerLength = rest.size | minus: wordEnd | minus: 1 -%}
+    {%- if rest contains "<" and word != "" and innerLength > 0 -%}
+      {%- unless word contains "." or word contains " " or word contains "`" or word contains "," -%}
+        {%- assign cleaned = rest | slice: wordEnd, innerLength -%}
+      {%- endunless -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endif -%}
+{%- assign match = pkg.types | find: "fullName", cleaned -%}
+{%- if match == nil -%}{%- assign match = pkg.types | find: "fullName", raw -%}{%- endif -%}
+{%- capture label -%}{%- render 'api/md/short-type', t: raw -%}{%- endcapture -%}
+{%- if match -%}
+[{{ label }}](/reference/api/csharp/{{ pkg.package.name | downcase }}/{% render 'api/md/type-slug', t: match %}.md)
+{%- else -%}
+`{{ label }}`
+{%- endif -%}

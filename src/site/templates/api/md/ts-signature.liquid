@@ -1,0 +1,44 @@
+{%- comment -%}
+  formatTsSignature of src/frontend/src/utils/ts-modules.ts: one parameter per line when there are several (the
+  parameter list ends at the first `)` where the depth of ( < ) > is back to zero, as in the TypeScript). Input: sig.
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- if sig contains "(" and sig contains "," -%}
+  {%- assign chars = sig | split: "" -%}
+  {%- assign open = -1 -%}{%- assign close = -1 -%}{%- assign depth = 0 -%}
+  {%- for ch in chars -%}
+    {%- if open < 0 -%}
+      {%- if ch == "(" -%}{%- assign open = forloop.index0 -%}{%- assign depth = 1 -%}{%- endif -%}
+    {%- else -%}
+      {%- case ch -%}
+        {%- when "(", "<" -%}{%- assign depth = depth | plus: 1 -%}
+        {%- when ">" -%}{%- assign depth = depth | minus: 1 -%}
+        {%- when ")" -%}{%- assign depth = depth | minus: 1 -%}{%- if depth == 0 -%}{%- assign close = forloop.index0 -%}{%- break -%}{%- endif -%}
+      {%- endcase -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if close > open -%}
+    {%- assign start = open | plus: 1 -%}{%- assign length = close | minus: start -%}
+    {%- assign paramStr = sig | slice: start, length -%}
+    {%- assign pieces = paramStr | split: "," -%}
+    {%- assign fresh = true -%}{%- assign count = 0 -%}
+    {%- capture params -%}
+      {%- for piece in pieces -%}
+        {%- if fresh -%}{%- assign acc = piece -%}{%- assign fresh = false -%}{%- else -%}{%- assign acc = acc | append: "," | append: piece -%}{%- endif -%}
+        {%- assign d1 = acc | append: "#" | split: "<" | size -%}{%- assign d2 = acc | append: "#" | split: "(" | size -%}
+        {%- assign d3 = acc | append: "#" | split: ">" | size -%}{%- assign d4 = acc | append: "#" | split: ")" | size -%}
+        {%- assign d = d1 | plus: d2 | minus: d3 | minus: d4 -%}
+        {%- if d == 0 and forloop.last == false -%}{{ acc | strip }}␟{%- assign count = count | plus: 1 -%}{%- assign fresh = true -%}
+        {%- elsif forloop.last -%}{%- assign last = acc | strip -%}{%- if last != "" -%}{{ last }}␟{%- assign count = count | plus: 1 -%}{%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endcapture -%}
+    {%- if count > 1 -%}
+      {%- assign list = params | split: "␟" -%}
+      {{- sig | slice: 0, start -}}
+      {%- for i in (1..count) -%}{%- assign j = i | minus: 1 -%}{{ nl }}    {{ list[j] }}{%- if i < count -%},{%- endif -%}{%- endfor -%}
+      {{- sig | slice: close, sig.size -}}
+    {%- else -%}{{ sig }}{%- endif -%}
+  {%- else -%}{{ sig }}{%- endif -%}
+{%- else -%}{{ sig }}{%- endif -%}

@@ -1,0 +1,21 @@
+---
+# Starlight's <LinkButton> (user-components/LinkButton.astro):
+#   {% linkbutton "/get-started/", variant: "secondary", icon: "right-arrow", icon_placement: "start" %}Get started{% endlinkbutton %}
+# variant: primary (default) | secondary | minimal; icon_placement: end (default) | start; `class`, `target`, `rel`,
+# `aria_label` and `link_title` (the `title` attribute; not `title`, which a page's scope defines) pass through. A body that rendered to a single paragraph is unwrapped (the component's slot
+# is inline text). Root class: cid-sl-link-button.
+block: true
+display: inline
+args: [href]
+params: [variant, icon, icon_placement, class, target, rel, aria_label, link_title]
+---
+{%- assign lb_text = body | strip -%}
+{%- assign lb_head = lb_text | slice: 0, 3 -%}
+{%- assign lb_tail = lb_text | slice: -4, 4 -%}
+{%- if lb_head == "<p>" and lb_tail == "</p>" -%}
+  {%- assign lb_len = lb_text.size | minus: 7 -%}
+  {%- assign lb_inner = lb_text | slice: 3, lb_len -%}
+  {%- unless lb_inner contains "<p>" -%}{%- assign lb_text = lb_inner -%}{%- endunless -%}
+{%- endif -%}
+{%- assign lb_placement = icon_placement | default: "end" -%}
+<a href="{{ href }}" class="sl-link-button not-content {{ variant | default: 'primary' }}{% if class %} {{ class }}{% endif %} cid-sl-link-button"{% if target %} target="{{ target }}"{% endif %}{% if rel %} rel="{{ rel }}"{% endif %}{% if link_title %} title="{{ link_title | escape }}"{% endif %}{% if aria_label %} aria-label="{{ aria_label | escape }}"{% endif %}>{% if icon and lb_placement == "start" %}{% icon icon, size: "1.5rem" %}{% endif %}{{ lb_text | raw }}{% if icon and lb_placement != "start" %}{% icon icon, size: "1.5rem" %}{% endif %}</a>

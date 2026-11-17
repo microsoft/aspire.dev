@@ -1,0 +1,37 @@
+---
+# The site's <TopicHero> (src/components/TopicHero.astro):
+#   {% topic_hero title: "Deploy", highlight: "anywhere", subtitle: "Use `aspire deploy` ...", accent: "blue", icon: "rocket",
+#      primary_cta: { label, href }, secondary_cta: { label, href }, floating_icons: ["seti:docker", "rocket"] %}
+# accent: purple (default) | blue | green | orange | magenta | cyan | red | yellow. Backticks in the subtitle become <code>.
+# DEVIATION: the component places the floating icons with a seeded random layout computed at build time
+# (floating-icon-layout.ts: bitwise hash and PRNG, not expressible in Liquid). Here the icons are rendered without
+# position; the client script ports buildFloatingIconLayout(seed, icons) and sets each `.floating-icon`'s
+# `top`, `right`, `font-size`, `animation-delay` and `animation-duration` from the container's `data-floating-seed`
+# (the title, as the component seeds it). Root class: cid-topic-hero.
+display: block
+params: [title, highlight, subtitle, accent, primary_cta, secondary_cta, icon, floating_icons]
+---
+{%- case accent -%}
+  {%- when "blue" -%}{%- assign th_accent = "var(--sl-color-blue)" -%}
+  {%- when "green" -%}{%- assign th_accent = "var(--sl-color-green)" -%}
+  {%- when "orange" -%}{%- assign th_accent = "var(--sl-color-orange)" -%}
+  {%- when "magenta" -%}{%- assign th_accent = "var(--color-magenta)" -%}
+  {%- when "cyan" -%}{%- assign th_accent = "var(--color-cyan)" -%}
+  {%- when "red" -%}{%- assign th_accent = "var(--sl-color-red)" -%}
+  {%- when "yellow" -%}{%- assign th_accent = "var(--color-yellow)" -%}
+  {%- else -%}{%- assign th_accent = "var(--sl-color-purple)" -%}
+{%- endcase -%}
+{%- assign th_segments = subtitle | split: "`" -%}
+<section class="topic-hero not-content cid-topic-hero" style="--topic-accent: {{ th_accent }}"><div class="topic-hero-grid" aria-hidden="true"></div><div class="topic-hero-content">
+{%- if icon %}<div class="topic-hero-icon">{% icon icon %}</div>{% endif -%}
+<p class="topic-hero-title">{{ title | escape }} {% if highlight %}<span class="topic-hero-highlight">{{ highlight | escape }}</span>{% endif %}</p>
+<p class="topic-hero-subtitle">{% for seg in th_segments %}{% if seg == "" %}{% continue %}{% endif %}{% assign th_odd = forloop.index0 | modulo: 2 %}{% if th_odd == 1 %}<code>{{ seg | escape }}</code>{% else %}{{ seg | escape }}{% endif %}{% endfor %}</p>
+{%- if primary_cta or secondary_cta -%}<div class="topic-hero-actions">
+{%- if primary_cta %}<a href="{{ primary_cta.href }}" class="topic-btn topic-btn-primary">{{ primary_cta.label | escape }}{% icon "right-arrow", size: "1.25rem" %}</a>{% endif -%}
+{%- if secondary_cta %}<a href="{{ secondary_cta.href }}" class="topic-btn topic-btn-secondary">{{ secondary_cta.label | escape }}</a>{% endif -%}
+</div>{%- endif -%}
+</div>
+{%- if floating_icons and floating_icons.size > 0 -%}
+<div class="topic-hero-floating-icons" aria-hidden="true" data-floating-seed="{{ title | escape }}">{% for fi in floating_icons %}<span class="floating-icon">{% icon fi, size: "1em" %}</span>{% endfor %}</div>
+{%- endif -%}
+<div class="topic-hero-glow" aria-hidden="true"></div></section>

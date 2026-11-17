@@ -1,0 +1,250 @@
+---
+title: RustFS client integration and configuration
+description: Read RustFS connection details from Aspire configuration and create an S3-compatible client for an endpoint and bucket.
+---
+
+{% badge "⭐ Community Toolkit", variant: "tip", size: "large" %}
+
+The RustFS integration provides AppHost hosting APIs, not a dedicated client package. Connect with any S3-compatible SDK using the endpoint and credentials injected by an AppHost reference. This page uses the AWS SDK for .NET.
+
+## Connection properties
+
+When a consuming project references the RustFS resource named `rustfs`, Aspire provides the `ConnectionStrings:rustfs` value:
+
+```text
+Endpoint=http://{host}:{port};AccessKey={key};SecretKey={secret}
+```
+
+When the AppHost references a bucket resource, the connection string also includes `Bucket={bucketName}`. The connection name in the consuming app must match the name of the RustFS resource or bucket resource in the AppHost.
+
+Bucket resource names include the parent name. For example, `builder.AddRustFs("rustfs").AddBucket("images")` creates the resource `rustfs-images`; read `ConnectionStrings:rustfs-images` in .NET or `ConnectionStrings__rustfs-images` in other languages when referencing that bucket.
+
+## Add an S3 client
+
+Install the AWS SDK S3 package in the consuming .NET project:
+
+{% install_dotnet_package "AWSSDK.S3" %}
+
+Read the connection string injected by Aspire, then pass the service URL and credentials to `AmazonS3Client`. Use path-style addressing for a local S3-compatible endpoint:
+
+```csharp title="Program.cs"
+using System.Data.Common;
+using Amazon.Runtime;
+using Amazon.S3;
+
+var builder = WebApplication.CreateBuilder(args);
+
+var connectionString = builder.Configuration.GetConnectionString("rustfs")
+    ?? throw new InvalidOperationException("The rustfs connection string is missing.");
+var values = new DbConnectionStringBuilder { ConnectionString = connectionString };
+
+var s3Config = new AmazonS3Config
+{
+    ServiceURL = (string)values["Endpoint"],
+    AuthenticationRegion = "us-east-1",
+    ForcePathStyle = true
+};
+var credentials = new BasicAWSCredentials(
+    (string)values["AccessKey"],
+    (string)values["SecretKey"]);
+
+builder.Services.AddSingleton<IAmazonS3>(
+    new AmazonS3Client(credentials, s3Config));
+
+var app = builder.Build();
+app.Run();
+```
+
+If the connection string includes `Bucket`, read it from the same parsed values and use it as the bucket name for S3 operations.
+
+## Configure with appsettings.json
+
+AppHost references populate connection strings for local development. For an app running outside Aspire, configure an equivalent connection string through `appsettings.json` or another configuration provider:
+
+```json title="appsettings.json"
+{
+  "ConnectionStrings": {
+    "rustfs": "Endpoint=http://localhost:9000;AccessKey=local-access-key;SecretKey=local-secret-key"
+  }
+}
+```
+
+Supply development credentials through user secrets or environment variables instead of committing real keys. Set `ServiceURL` from `Endpoint` and configure the SDK for path-style requests as in the preceding example.
+
+:::caution
+The example includes placeholder credentials for local use. Do not store
+production credentials in `appsettings.json`.
+:::
+
+## Configure the client inline
+
+For clients created in code, set the S3 endpoint, credentials, and path-style setting directly:
+
+```csharp title="Program.cs"
+using Amazon.Runtime;
+using Amazon.S3;
+
+var s3Config = new AmazonS3Config
+{
+    ServiceURL = "http://localhost:9000",
+    AuthenticationRegion = "us-east-1",
+    ForcePathStyle = true
+};
+
+var credentials = new BasicAWSCredentials("local-access-key", "local-secret-key");
+using var s3Client = new AmazonS3Client(credentials, s3Config);
+```
+
+Replace the local endpoint with the `Endpoint` value from the Aspire connection string. Use the same key and secret that the AppHost configures for RustFS.
+
+Set the client's signing region to match your server. The connection string does not include the region configured by `WithSigningRegion`; the examples use `us-east-1`.
+
+## Use another S3 client
+
+The hosting package exposes a standard S3-compatible endpoint. The following examples use the AWS SDK for JavaScript, Python, and Go. An AppHost reference supplies the connection string in `ConnectionStrings__rustfs`; each example reads its endpoint and credentials from that value.
+
+Install the SDK for the language you use:
+
+```bash title="Terminal"
+npm install @aws-sdk/client-s3
+python -m pip install boto3
+go get github.com/aws/aws-sdk-go-v2/config github.com/aws/aws-sdk-go-v2/credentials github.com/aws/aws-sdk-go-v2/service/s3
+```
+
+{% tabs sync: "s3-client-language" %}
+{% tab "TypeScript", id: "typescript" %}
+```typescript title="src/storage.ts"
+import { ListBucketsCommand, S3Client } from '@aws-sdk/client-s3';
+
+const connectionString = process.env.ConnectionStrings__rustfs;
+if (!connectionString) {
+  throw new Error(
+    'The ConnectionStrings__rustfs environment variable is missing.'
+  );
+}
+
+const connection = Object.fromEntries(
+  connectionString
+    .split(';')
+    .filter((entry) => entry.includes('='))
+    .map((entry) => {
+      const separator = entry.indexOf('=');
+      return [entry.slice(0, separator), entry.slice(separator + 1)];
+    })
+) as Record<string, string>;
+
+const s3 = new S3Client({
+  endpoint: connection.Endpoint,
+  region: 'us-east-1',
+  forcePathStyle: true,
+  credentials: {
+    accessKeyId: connection.AccessKey,
+    secretAccessKey: connection.SecretKey,
+  },
+});
+
+const buckets = await s3.send(new ListBucketsCommand({}));
+console.log(buckets.Buckets);
+```
+{% endtab %}
+{% tab "Python", id: "python" %}
+```python title="storage.py"
+import os
+
+import boto3
+from botocore.config import Config
+
+connection = dict(
+    item.split("=", 1)
+    for item in os.environ["ConnectionStrings__rustfs"].split(";")
+    if "=" in item
+)
+
+s3 = boto3.client(
+    "s3",
+    endpoint_url=connection["Endpoint"],
+    region_name="us-east-1",
+    aws_access_key_id=connection["AccessKey"],
+    aws_secret_access_key=connection["SecretKey"],
+    config=Config(s3={"addressing_style": "path"}),
+)
+
+print(s3.list_buckets())
+```
+{% endtab %}
+{% tab "Go", id: "go" %}
+```go title="main.go"
+package main
+
+import (
+	"context"
+	"log"
+	"os"
+	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+)
+
+func parseConnectionString(value string) map[string]string {
+	fields := make(map[string]string)
+	for _, item := range strings.Split(value, ";") {
+		if key, field, found := strings.Cut(item, "="); found {
+			fields[key] = field
+		}
+	}
+	return fields
+}
+
+func main() {
+	ctx := context.Background()
+	connectionString := os.Getenv("ConnectionStrings__rustfs")
+	if connectionString == "" {
+		log.Fatal("ConnectionStrings__rustfs environment variable is missing")
+	}
+	connection := parseConnectionString(connectionString)
+
+	cfg, err := config.LoadDefaultConfig(
+		ctx,
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			connection["AccessKey"],
+			connection["SecretKey"],
+			"",
+		)),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := s3.NewFromConfig(cfg, func(options *s3.Options) {
+		options.BaseEndpoint = aws.String(connection["Endpoint"])
+		options.UsePathStyle = true
+	})
+	_, err = client.ListBuckets(ctx, &s3.ListBucketsInput{})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+```
+{% endtab %}
+{% endtabs %}
+
+## Health checks and telemetry
+
+The RustFS hosting package configures the server-side `/health` check. It does not register a consuming-app client health check, add telemetry instrumentation, or provide an Aspire-specific S3 SDK builder. Configure health checks and telemetry according to the S3 client SDK and your application.
+
+:::note
+The Community Toolkit package is hosting-only. `AWSSDK.S3` is the client
+library used in these examples, not a RustFS-specific Aspire client
+integration.
+:::
+
+## See also
+
+- [Host RustFS in the AppHost](/integrations/databases/rustfs/rustfs-host/)
+- [Get started with the RustFS integration](/integrations/databases/rustfs/rustfs-get-started/)
+- [AWS SDK for .NET: Amazon S3](https://docs.aws.amazon.com/sdk-for-net/v3/developer-guide/net-dg-examples.html)
+- [📦 CommunityToolkit.Aspire.Hosting.RustFs](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.RustFs)

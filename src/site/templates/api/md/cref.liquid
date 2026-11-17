@@ -1,0 +1,108 @@
+{%- comment -%}
+  A cref as Markdown: resolveCrefMarkdown of src/frontend/src/utils/csharp-api-markdown.ts (types and members of the
+  package only, members matched by short parameter types, else the first overload), or cleanCrefLabel as inline code.
+  Inputs: cref, pkg, tstart (index of the package's first entry in api.routes["csharp-types"]).
+{%- endcomment -%}
+{%- assign prefix = "" -%}{%- assign fullName = cref -%}
+{%- if cref contains ":" -%}
+  {%- assign p = cref | split: ":" | first -%}
+  {%- if p != "" -%}{%- assign prefix = p -%}{%- assign start = p.size | plus: 1 -%}{%- assign fullName = cref | slice: start, cref.size -%}{%- endif -%}
+{%- endif -%}
+{%- assign pslug = pkg.package.name | downcase -%}
+{%- assign href = nil -%}
+{%- if prefix == "T" or prefix == "" -%}
+  {%- assign match = pkg.types | find: "fullName", fullName -%}
+  {%- if match -%}
+    {%- capture href -%}/reference/api/csharp/{{ pslug }}/{% render 'api/md/type-slug', t: match %}.md{%- endcapture -%}
+    {%- capture label -%}{%- render 'api/md/short-type', t: fullName -%}{%- endcapture -%}
+  {%- endif -%}
+{%- elsif prefix == "M" or prefix == "P" or prefix == "F" or prefix == "E" -%}
+  {%- capture name -%}{%- render 'api/md/cref-name', cref: cref -%}{%- endcapture -%}
+  {%- assign segments = name | split: "." -%}
+  {%- if segments.size > 1 and segments[0] != "" or segments.size > 2 -%}
+    {%- assign memberName = segments | last -%}
+    {%- assign n = segments.size | minus: 1 -%}
+    {%- assign ownerFullName = segments | slice: 0, n | join: "." -%}
+    {%- assign ownerIndex = pkg.types | find_index: "fullName", ownerFullName -%}
+    {%- if ownerIndex != nil and ownerIndex >= 0 -%}
+      {%- assign owner = pkg.types[ownerIndex] -%}
+      {%- case prefix -%}
+        {%- when "P" -%}{%- assign memberKind = "property" -%}
+        {%- when "F" -%}{%- assign memberKind = "field" -%}
+        {%- when "E" -%}{%- assign memberKind = "event" -%}
+        {%- else -%}{%- if memberName == ".ctor" -%}{%- assign memberKind = "constructor" -%}{%- else -%}{%- assign memberKind = "method" -%}{%- endif -%}
+      {%- endcase -%}
+      {%- comment -%} splitCrefParams: the parameter types shortened, compared joined {%- endcomment -%}
+      {%- assign wanted = "" -%}{%- assign wantedCount = 0 -%}
+      {%- if fullName contains "(" -%}
+        {%- assign beforeParams = fullName | split: "(" | first -%}
+        {%- assign start = beforeParams.size | plus: 1 -%}
+        {%- assign afterOpen = fullName | slice: start, fullName.size -%}
+        {%- assign closeParts = afterOpen | append: "#" | split: ")" -%}
+        {%- assign n = closeParts.size | minus: 1 -%}
+        {%- assign paramList = closeParts | slice: 0, n | join: ")" -%}
+        {%- if paramList != "" -%}
+          {%- assign pieces = paramList | split: "," -%}
+          {%- assign fresh = true -%}
+          {%- capture wanted -%}
+            {%- for piece in pieces -%}
+              {%- if fresh -%}{%- assign acc = piece -%}{%- assign fresh = false -%}{%- else -%}{%- assign acc = acc | append: "," | append: piece -%}{%- endif -%}
+              {%- assign opens = acc | append: "#" | split: "<" | size -%}{%- assign opens2 = acc | append: "#" | split: "(" | size -%}
+              {%- assign closes = acc | append: "#" | split: ">" | size -%}{%- assign closes2 = acc | append: "#" | split: ")" | size -%}
+              {%- assign depth = opens | plus: opens2 | minus: closes | minus: closes2 -%}
+              {%- if depth == 0 or forloop.last -%}
+                {%- assign arg = acc | strip -%}
+                {%- if arg != "" or forloop.last == false -%}{%- assign wantedCount = wantedCount | plus: 1 -%}|{%- render 'api/md/short-type', t: arg -%}{%- endif -%}
+                {%- assign fresh = true -%}
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endcapture -%}
+        {%- endif -%}
+      {%- endif -%}
+      {%- assign firstIndex = nil -%}{%- assign matchedIndex = nil -%}
+      {%- for member in owner.members -%}
+        {%- if member.name == memberName -%}
+          {%- if firstIndex == nil -%}{%- assign firstIndex = forloop.index0 -%}{%- endif -%}
+          {%- assign count = member.parameters.size | default: 0 -%}
+          {%- if count == wantedCount -%}
+            {%- capture types -%}{%- for p in member.parameters -%}|{%- render 'api/md/short-type', t: p.type -%}{%- endfor -%}{%- endcapture -%}
+            {%- if types == wanted -%}{%- assign matchedIndex = forloop.index0 -%}{%- break -%}{%- endif -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- if matchedIndex == nil -%}{%- assign matchedIndex = firstIndex -%}{%- endif -%}
+      {%- if matchedIndex != nil -%}{%- assign matched = owner.members[matchedIndex] -%}{%- assign memberKind = matched.kind -%}{%- endif -%}
+      {%- case memberKind -%}
+        {%- when "constructor" -%}{%- assign kindSlug = "constructors" -%}
+        {%- when "property" -%}{%- assign kindSlug = "properties" -%}
+        {%- when "method" -%}{%- assign kindSlug = "methods" -%}
+        {%- when "field" -%}{%- assign kindSlug = "fields" -%}
+        {%- when "event" -%}{%- assign kindSlug = "events" -%}
+        {%- when "indexer" -%}{%- assign kindSlug = "indexers" -%}
+        {%- else -%}{%- assign kindSlug = "undefined" -%}
+      {%- endcase -%}
+      {%- capture href -%}/reference/api/csharp/{{ pslug }}/{% render 'api/md/type-slug', t: owner %}/{{ kindSlug }}.md{%- endcapture -%}
+      {%- if matchedIndex != nil -%}
+        {%- comment -%} The owner's route entry holds its member anchors (resolveMemberAnchors). {%- endcomment -%}
+        {%- assign typeRoutes = api.routes["csharp-types"] -%}
+        {%- assign anchor = nil -%}
+        {%- for k in (0..12) -%}
+          {%- assign position = tstart | plus: ownerIndex | minus: k -%}
+          {%- if position >= 0 -%}
+            {%- assign r = typeRoutes[position] -%}
+            {%- if r.type == ownerIndex and r.package == pkg.package.name -%}{%- assign anchor = r.anchors[matchedIndex].exact -%}{%- break -%}{%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- if anchor -%}{%- assign href = href | append: "#" | append: anchor -%}{%- endif -%}
+        {%- capture label -%}{{ owner.name }}.{% render 'api/md/member-display', m: matched, ctor: owner.name %}{%- endcapture -%}
+      {%- else -%}
+        {%- capture label -%}{%- render 'api/md/cref-name', cref: cref, label: true -%}{%- endcapture -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endif -%}
+{%- if href -%}
+[{{ label }}]({{ href }})
+{%- else -%}
+`{% render 'api/md/cref-name', cref: cref, label: true %}`
+{%- endif -%}

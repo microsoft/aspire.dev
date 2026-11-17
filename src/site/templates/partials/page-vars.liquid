@@ -1,0 +1,28 @@
+{%- comment -%}
+  Shared values of the chrome partials, included at the top of every layout (base.liquid and the inner layouts, which
+  render first: values assigned in one layout do not reach the next). Every partial is an `include`, so it sees them.
+  Douze's `url` is the output path (/get-started/first-app/index.html); `locale_url` (localize step) is the url
+  without index.html and without the locale prefix; `locale` is the locale key (en, ja, pt-br...), `lang` its BCP 47
+  tag, `dir` its direction. Sets: sl_url, sl_locale_key, sl_prefix, sl_locale_url, sl_lang, sl_dir, sl_is_home,
+  sl_default_locale_only (an English-only page: partials/default-locale-only),
+  sl_is_404, sl_is_splash, sl_has_toc, sl_pagefind, sl_content_lang, sl_content_dir, and sb_current_key (the
+  current sidebar topic, partials/current-topic).
+{%- endcomment -%}
+{%- assign sl_url = url | replace: "index.html", "" -%}
+{%- assign sl_locale_key = locale | default: "en" -%}
+{%- assign sl_prefix = "" -%}
+{%- for language in site.languages -%}{%- if language.key == sl_locale_key -%}{%- assign sl_prefix = language.prefix -%}{%- endif -%}{%- endfor -%}
+{%- if locale_url -%}{%- assign sl_locale_url = locale_url -%}{%- elsif sl_prefix != "" -%}{%- assign sl_locale_url = sl_url | remove_first: sl_prefix -%}{%- else -%}{%- assign sl_locale_url = sl_url -%}{%- endif -%}
+{%- assign sl_lang = lang | default: "en" -%}
+{%- assign sl_dir = dir | default: "ltr" -%}
+{%- if sl_locale_url == "/" -%}{%- assign sl_is_home = true -%}{%- else -%}{%- assign sl_is_home = false -%}{%- endif -%}
+{%- assign dlo_path = sl_locale_url -%}{%- include "partials/default-locale-only" -%}{%- assign sl_default_locale_only = dlo -%}
+{%- if sl_locale_url == "/404.html" or sl_locale_url == "/404/" -%}{%- assign sl_is_404 = true -%}{%- else -%}{%- assign sl_is_404 = false -%}{%- endif -%}
+{%- if has_sidebar -%}{%- assign sl_is_splash = false -%}{%- else -%}{%- assign sl_is_splash = true -%}{%- endif -%}
+{%- comment -%} Starlight builds a table of contents for every non-splash page unless `tableOfContents: false`. {%- endcomment -%}
+{%- if has_toc and tableOfContents != false -%}{%- assign sl_has_toc = true -%}{%- else -%}{%- assign sl_has_toc = false -%}{%- endif -%}
+{%- comment -%} Pagefind indexes <main> unless the page opts out, and never the 404 page. {%- endcomment -%}
+{%- if pagefind == false or sl_is_404 -%}{%- assign sl_pagefind = false -%}{%- else -%}{%- assign sl_pagefind = true -%}{%- endif -%}
+{%- comment -%} The content language: a fallback copy shows the default locale's content inside the locale's chrome. {%- endcomment -%}
+{%- if fallback -%}{%- assign sl_content_lang = "en" -%}{%- assign sl_content_dir = "ltr" -%}{%- else -%}{%- assign sl_content_lang = sl_lang -%}{%- assign sl_content_dir = sl_dir -%}{%- endif -%}
+{%- include "partials/current-topic" -%}

@@ -1,0 +1,239 @@
+---
+# /reference/api/typescript/<module>/<item>/: src/frontend/src/pages/reference/api/typescript/[module]/[item]/index.astro
+# (handle, DTO, enum and standalone function pages). The item is api["ts-modules"][route.file][route.collection][route.index].
+# Method slugs are the slugified method names (no two methods of a handle share one in the data), and an
+# "Applies to" target links to the slugified name of the module's type of that name.
+layout: api.liquid
+# The search controller (scripts/client/api/typescript-item.js), loaded by the layout as a module script of the document.
+api_search: typescript-item
+pagination: { data: api.routes.typescript-items, size: 1, alias: route }
+permalink: "{{ route.url }}"
+---
+{%- assign doc = api["ts-modules"][route.file] -%}
+{%- assign item = doc[route.collection][route.index] -%}
+{%- assign item_kind = route.itemKind -%}
+{%- assign pkg_name = doc.package.name -%}
+{%- assign module_url = "/reference/api/typescript/" | append: route.moduleSlug | append: "/" -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign getters = item.capabilities | where: "kind", "PropertyGetter" -%}
+{%- assign setters = item.capabilities | where: "kind", "PropertySetter" -%}
+{%- assign methods = item.capabilities | where: "kind", "Method" -%}
+{%- assign instance_methods = item.capabilities | where: "kind", "InstanceMethod" -%}
+{%- assign methods = methods | concat: instance_methods | sort_natural: "name" -%}
+{%- comment -%} Kind labels {%- endcomment -%}
+{%- assign extension_style = false -%}
+{%- if item_kind == "function" and item.expandedTargetTypes.size > 0 -%}{%- assign extension_style = true -%}{%- endif -%}
+{%- case item_kind -%}
+  {%- when "handle" -%}
+    {%- if item.isInterface -%}{%- assign kind_label = "Interface" -%}{%- assign kind_pill = "kind-interface" -%}{%- assign tint = "interface" -%}{%- else -%}{%- assign kind_label = "Handle" -%}{%- assign kind_pill = "kind-handle" -%}{%- assign tint = "handle" -%}{%- endif -%}
+  {%- when "dto" -%}{%- assign kind_label = "Type" -%}{%- assign kind_pill = "kind-struct" -%}{%- assign tint = "type" -%}
+  {%- when "function" -%}
+    {%- if extension_style -%}{%- assign kind_label = "Method" -%}{%- else -%}{%- assign kind_label = "Function" -%}{%- endif -%}{%- assign kind_pill = "kind-method" -%}{%- assign tint = "function" -%}
+  {%- else -%}{%- assign kind_label = "Enum" -%}{%- assign kind_pill = "kind-enum" -%}{%- assign tint = "enum" -%}
+{%- endcase -%}
+{%- capture title %}{{ item.name | raw }}{% endcapture -%}
+{%- capture description %}{{ kind_label | raw }} — TypeScript API reference for {{ item.name | raw }} in {{ pkg_name | raw }}{% endcapture -%}
+{%- comment -%} Getters with a matching setter (setX for x) {%- endcomment -%}
+{%- assign setter_bases = "¦" -%}
+{%- for s in setters -%}
+  {%- assign s_base = s.name -%}{%- assign s_head = s.name | slice: 0, 3 -%}
+  {%- if s_head == "set" -%}{%- assign s_base = s.name | slice: 3, s.name.size -%}{%- endif -%}
+  {%- assign setter_bases = setter_bases | append: s_base | downcase | append: "¦" -%}
+{%- endfor -%}
+{%- assign getter_names = "¦" -%}
+{%- for g in getters -%}{%- assign getter_names = getter_names | append: g.name | downcase | append: "¦" -%}{%- endfor -%}
+{%- comment -%} The declaration of the hero {%- endcomment -%}
+{%- assign decl = "" -%}
+{%- if item_kind == "handle" -%}
+  {%- assign decl_members = "" -%}
+  {%- for g in getters -%}
+    {%- assign g_key = "¦" | append: g.name | downcase | append: "¦" -%}
+    {%- if setter_bases contains g_key -%}{%- assign ro = "" -%}{%- else -%}{%- assign ro = "readonly " -%}{%- endif -%}
+    {%- assign decl_members = decl_members | append: nl | append: "  " | append: ro | append: g.name | append: ": " | append: g.returnType | append: ";" -%}
+  {%- endfor -%}
+  {%- for s in setters -%}
+    {%- assign s_base = s.name -%}{%- assign s_head = s.name | slice: 0, 3 -%}
+    {%- if s_head == "set" -%}{%- assign s_base = s.name | slice: 3, s.name.size -%}{%- endif -%}
+    {%- assign s_key = "¦" | append: s_base | downcase | append: "¦" -%}
+    {%- unless getter_names contains s_key -%}
+      {%- assign s_type = s.parameters[0].type | default: "unknown" -%}
+      {%- assign decl_members = decl_members | append: nl | append: "  " | append: s.name | append: "(value: " | append: s_type | append: "): void;" -%}
+    {%- endunless -%}
+  {%- endfor -%}
+  {%- for m in methods -%}
+    {%- assign raw_sig = m.name | append: "(" -%}
+    {%- for p in m.parameters -%}
+      {%- unless forloop.first -%}{%- assign raw_sig = raw_sig | append: ", " -%}{%- endunless -%}
+      {%- assign p_type = p.type -%}{%- if p.isCallback and p.callbackSignature -%}{%- assign p_type = p.callbackSignature -%}{%- endif -%}
+      {%- assign raw_sig = raw_sig | append: p.name -%}{%- if p.isOptional -%}{%- assign raw_sig = raw_sig | append: "?" -%}{%- endif -%}
+      {%- assign raw_sig = raw_sig | append: ": " | append: p_type -%}
+    {%- endfor -%}
+    {%- assign raw_sig = raw_sig | append: "): " | append: m.returnType | append: ";" -%}
+    {%- capture tfs_out -%}{%- render 'api/ts-format-sig', tfs_sig: raw_sig -%}{%- endcapture -%}
+    {%- assign indented = tfs_out | split: nl | join: "¶  " | prepend: "  " | replace: "¶", nl -%}
+    {%- assign decl_members = decl_members | append: nl | append: indented -%}
+  {%- endfor -%}
+  {%- assign extends = "" -%}
+  {%- assign iface_count = item.implementedInterfaces.size | default: 0 -%}
+  {%- for i in item.implementedInterfaces -%}
+    {%- assign tsi_in = i -%}{%- include 'api/ts-simplify' -%}
+    {%- if iface_count == 1 -%}{%- assign extends = " extends " | append: tsi_out -%}
+    {%- elsif forloop.first -%}{%- assign extends = nl | append: "  extends " | append: tsi_out -%}
+    {%- else -%}{%- assign extends = extends | append: "," | append: nl | append: "    " | append: tsi_out -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if decl_members != "" -%}{%- assign body = " {" | append: decl_members | append: nl | append: "}" -%}{%- else -%}{%- assign body = " { }" -%}{%- endif -%}
+  {%- assign decl = "interface " | append: item.name | append: extends | append: body -%}
+{%- elsif item_kind == "dto" -%}
+  {%- if item.fields.size > 0 -%}
+    {%- assign decl = "type " | append: item.name | append: " = {" -%}
+    {%- for f in item.fields -%}
+      {%- assign decl = decl | append: nl | append: "  " | append: f.name -%}{%- if f.isOptional -%}{%- assign decl = decl | append: "?" -%}{%- endif -%}
+      {%- assign decl = decl | append: ": " | append: f.type | append: ";" -%}
+    {%- endfor -%}
+    {%- assign decl = decl | append: nl | append: "}" -%}
+  {%- else -%}{%- assign decl = "type " | append: item.name | append: " = { }" -%}{%- endif -%}
+{%- elsif item_kind == "enum" -%}
+  {%- if item.members.size > 0 -%}
+    {%- assign decl = "enum " | append: item.name | append: " {" -%}
+    {%- for m in item.members -%}{%- assign decl = decl | append: nl | append: "  " | append: m | append: " = " | append: forloop.index0 | append: "," -%}{%- endfor -%}
+    {%- assign decl = decl | append: nl | append: "}" -%}
+  {%- else -%}{%- assign decl = "enum " | append: item.name | append: " { }" -%}{%- endif -%}
+{%- elsif item_kind == "function" -%}
+  {%- assign member_sig = item.name | append: "(" -%}
+  {%- for p in item.parameters -%}
+    {%- unless forloop.first -%}{%- assign member_sig = member_sig | append: ", " -%}{%- endunless -%}
+    {%- assign member_sig = member_sig | append: p.name -%}{%- if p.isOptional -%}{%- assign member_sig = member_sig | append: "?" -%}{%- endif -%}
+    {%- assign member_sig = member_sig | append: ": " | append: p.type -%}
+  {%- endfor -%}
+  {%- assign fn_return = item.returnType | default: "void" -%}
+  {%- assign member_sig = member_sig | append: "): " | append: fn_return -%}
+  {%- if extension_style -%}
+    {%- assign tfs_sig = member_sig | append: ";" -%}{%- capture tfs_out -%}{%- render 'api/ts-format-sig', tfs_sig: tfs_sig -%}{%- endcapture -%}
+    {%- assign indented = tfs_out | split: nl | join: "¶  " | prepend: "  " | replace: "¶", nl -%}
+    {%- assign tsi_in = item.expandedTargetTypes[0] -%}{%- include 'api/ts-simplify' -%}
+    {%- assign decl = "interface " | append: tsi_out | append: " {" | append: nl | append: "  // ... omitted for brevity" | append: nl | append: indented | append: nl | append: "}" -%}
+  {%- else -%}
+    {%- capture tfs_out -%}{%- render 'api/ts-format-sig', tfs_sig: member_sig -%}{%- endcapture -%}
+    {%- assign decl = "function " | append: tfs_out -%}
+  {%- endif -%}
+{%- endif -%}
+{%- comment -%} The item-scoped search index {%- endcomment -%}
+{%- assign member_count = getters.size | plus: setters.size | plus: methods.size -%}
+{%- if item_kind == "dto" -%}{%- assign member_count = member_count | plus: item.fields.size -%}{%- endif -%}
+{%- if item_kind == "enum" -%}{%- assign member_count = member_count | plus: item.members.size -%}{%- endif -%}
+{%- assign kinds_list = "" -%}
+{%- if member_count >= 5 -%}
+{%- capture type_index -%}
+[
+  {%- assign first_entry = true -%}
+  {%- if item_kind == "handle" -%}
+    {%- for g in getters -%}
+      {%- assign ta_in = g.name -%}{%- include 'api/ts-anchor' -%}{%- assign kinds_list = kinds_list | append: "¦property" -%}
+      {%- unless first_entry %},{% endunless -%}{%- assign first_entry = false -%}
+      {"n":{{ g.name | json | raw }},"k":"property","s":{{ g.description | default: "" | json | raw }}{% if g.returnType != nil %},"r":{{ g.returnType | json | raw }}{% endif %},"a":{{ ta_out | json | raw }}}
+    {%- endfor -%}
+    {%- for m in methods -%}
+      {%- assign kinds_list = kinds_list | append: "¦method" -%}{%- assign m_slug = m.name | downcase -%}
+      {%- unless first_entry %},{% endunless -%}{%- assign first_entry = false -%}
+      {"n":{{ m.name | json | raw }},"k":"method","s":{{ m.description | default: "" | json | raw }}{% if m.returnType != nil %},"r":{{ m.returnType | json | raw }}{% endif %},"a":{{ m_slug | json | raw }}}
+    {%- endfor -%}
+  {%- elsif item_kind == "dto" -%}
+    {%- for f in item.fields -%}
+      {%- assign ta_in = f.name -%}{%- include 'api/ts-anchor' -%}{%- assign kinds_list = kinds_list | append: "¦field" -%}
+      {%- unless first_entry %},{% endunless -%}{%- assign first_entry = false -%}
+      {"n":{{ f.name | json | raw }},"k":"field","s":""{% if f.type != nil %},"r":{{ f.type | json | raw }}{% endif %},"a":{{ ta_out | json | raw }}}
+    {%- endfor -%}
+  {%- elsif item_kind == "enum" -%}
+    {%- for m in item.members -%}
+      {%- assign ta_in = m -%}{%- include 'api/ts-anchor' -%}{%- assign kinds_list = kinds_list | append: "¦enum member" -%}
+      {%- unless first_entry %},{% endunless -%}{%- assign first_entry = false -%}
+      {"n":{{ m | json | raw }},"k":"enum member","s":"","a":{{ ta_out | json | raw }}}
+    {%- endfor -%}
+  {%- endif -%}
+]
+{%- endcapture -%}
+{%- endif -%}
+{%- assign search_kinds = kinds_list | remove_first: "¦" | split: "¦" | uniq | sort -%}
+<div class="cid-api-page-typescript-item">
+{%- assign crumbs = "Docs§/docs/§docs¦Reference§/reference/overview/¦Search TypeScript APIs§/reference/api/typescript/¦" | append: pkg_name | append: "§" | append: module_url | append: "¦" | append: item.name %}
+{% render 'api/breadcrumb', crumbs: crumbs %}
+<div class="not-content kind-tint-{{ tint }}">
+<div class="api-hero type-hero not-content"><div class="type-hero-top"><div class="type-hero-badges"><span class="api-kind-pill {{ kind_pill }}">{{ kind_label }}</span></div></div><span class="type-hero-pkg">📦 {{ pkg_name }} {% if doc.package.version %}<span class="type-hero-ver">v{{ doc.package.version }}</span>{% endif %}</span>
+{%- if decl != "" -%}<div class="ts not-content"><div class="ts-code">{% render 'api/code-block', code: decl, lang: "typescript" %}</div></div>{%- endif -%}
+{%- if item.implementedInterfaces.size > 0 -%}
+<div class="type-hero-footer"><div class="type-hero-footer-left"><div class="type-hero-implements"><span class="api-meta-label type-hero-section-label">Implements</span><ul class="impl-list">
+{%- for i in item.implementedInterfaces -%}{%- assign tsi_in = i -%}{%- include 'api/ts-simplify' -%}<li><code>{{ tsi_out }}</code></li>{%- endfor -%}
+</ul></div></div></div>
+{%- endif -%}
+</div>
+{%- if member_count >= 5 -%}
+{%- if member_count == 1 -%}{%- assign stats = "1 member" -%}{%- else -%}{%- assign stats = member_count | append: " members" -%}{%- endif -%}
+{%- assign placeholder = "Search members of " | append: item.name | append: "…" -%}
+<div class="type-search-section not-content" data-api-search-language="typescript" data-api-search-kind="item" data-member-count="{{ member_count }}"><script type="application/json" data-api-search-index>{{ type_index }}</script>
+{% render 'api/inpage-search', id: "type", placeholder: placeholder, kinds: search_kinds, default_stats: stats, size: "lg" %}
+</div>
+{%- endif -%}
+<div id="type-content-sections">
+{%- if item_kind == "handle" -%}
+  {%- if getters.size > 0 or setters.size > 0 -%}
+<section><h2 id="properties">Properties</h2><div class="api-list ts-member-stack">
+    {%- for g in getters -%}
+      {%- assign g_key = "¦" | append: g.name | downcase | append: "¦" -%}
+      {%- if setter_bases contains g_key -%}{%- assign accessor = "get · set" -%}{%- else -%}{%- assign accessor = "get" -%}{%- endif -%}
+      {%- assign ta_in = g.name -%}{%- include 'api/ts-anchor' -%}
+<div id="{{ ta_out }}">{% render 'api/ts-member-card', member: g, variant: "property", accessor_label: accessor %}</div>
+    {%- endfor -%}
+    {%- for s in setters -%}
+      {%- assign s_base = s.name -%}{%- assign s_head = s.name | slice: 0, 3 -%}
+      {%- if s_head == "set" -%}{%- assign s_base = s.name | slice: 3, s.name.size -%}{%- endif -%}
+      {%- assign s_key = "¦" | append: s_base | downcase | append: "¦" -%}
+      {%- unless getter_names contains s_key -%}
+        {%- assign ta_in = s.name -%}{%- include 'api/ts-anchor' -%}
+<div id="{{ ta_out }}">{% render 'api/ts-member-card', member: s, variant: "property", accessor_label: "set" %}</div>
+      {%- endunless -%}
+    {%- endfor -%}
+</div></section>
+  {%- endif -%}
+  {%- if methods.size > 0 -%}
+<section><h2 id="methods">Methods</h2><div class="api-list ts-member-stack">
+    {%- for m in methods -%}
+      {%- assign m_slug = m.name | downcase -%}{%- assign m_href = route.url | append: m_slug | append: "/" -%}
+<div id="{{ m_slug }}">{% render 'api/ts-member-card', member: m, variant: "method", href: m_href %}</div>
+    {%- endfor -%}
+</div></section>
+  {%- endif -%}
+{%- elsif item_kind == "dto" and item.fields.size > 0 -%}
+<section><h2 id="fields">Fields</h2><div class="api-list ts-member-stack">
+  {%- for f in item.fields -%}
+    {%- assign ta_in = f.name -%}{%- include 'api/ts-anchor' -%}
+<div id="{{ ta_out }}">{% render 'api/ts-member-card', member: f, variant: "field" %}</div>
+  {%- endfor -%}
+</div></section>
+{%- elsif item_kind == "enum" and item.members.size > 0 -%}
+<section><h2 id="values">Values</h2><div class="api-list ts-member-stack">
+  {%- for m in item.members -%}
+    {%- assign ta_in = m -%}{%- include 'api/ts-anchor' -%}
+<div id="{{ ta_out }}"><div class="api-list-item mc"><div class="api-list-header"><code class="mc-param-name">{{ m }}</code><span class="mc-param-type mc-param-type-1"><code>{{ forloop.index0 }}</code></span></div></div></div>
+  {%- endfor -%}
+</div></section>
+{%- elsif item_kind == "function" -%}
+<section><h2 id="signature">Signature</h2><div class="api-list ts-member-stack">{% render 'api/ts-member-card', member: item, variant: "method" %}</div></section>
+  {%- if item.expandedTargetTypes.size > 0 -%}
+    {%- if extension_style -%}{%- assign applies_word = "method" -%}{%- else -%}{%- assign applies_word = "function" -%}{%- endif -%}
+<section><h2 id="applies-to">Applies to</h2><p class="fn-applies-desc">This {{ applies_word }} applies to the following types:</p><div class="api-list not-content">
+    {%- for t in item.expandedTargetTypes -%}
+      {%- assign tsi_in = t -%}{%- include 'api/ts-simplify' -%}
+      {%- assign target = doc.handleTypes | where: "name", tsi_out | first -%}
+      {%- unless target -%}{%- assign target = doc.dtoTypes | where: "name", tsi_out | first -%}{%- endunless -%}
+      {%- unless target -%}{%- assign target = doc.enumTypes | where: "name", tsi_out | first -%}{%- endunless -%}
+      {%- if target -%}{%- assign tsl_in = target.name -%}{%- include 'api/ts-slugify' -%}{%- assign target_slug = tsl_out -%}{%- else -%}{%- assign target_slug = tsi_out | downcase -%}{%- endif -%}
+<a href="{{ module_url }}{{ target_slug }}/" class="api-list-item"><div class="api-list-header"><span class="api-kind-pill kind-interface">type</span><code class="api-type-link">{{ tsi_out }}</code></div></a>
+    {%- endfor -%}
+</div></section>
+  {%- endif -%}
+{%- endif -%}
+</div>
+</div>
+</div>

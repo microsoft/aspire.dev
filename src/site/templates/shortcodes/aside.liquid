@@ -1,0 +1,20 @@
+---
+# Starlight's <Aside> (user-components/Aside.astro): {% aside "tip", title: "Title", icon: "rocket" %}...{% endaside %}.
+# The same markup as the Markdown `:::tip[Title]` container (Douze's aside renderer, douze.yml `markdown.aside`).
+# The default title is the locale's `aside.<type>` string; the default icon is Starlight's per type.
+# Root class: cid-sl-aside (Starlight styles asides globally in style/asides.css; the class is for consistency).
+block: true
+args: [type]
+params: [title, icon]
+---
+{%- assign aside_type = type | default: "note" -%}
+{%- case aside_type -%}
+  {%- when "tip" -%}{%- assign aside_icon = "rocket" -%}
+  {%- when "caution" -%}{%- assign aside_icon = "warning" -%}
+  {%- when "danger" -%}{%- assign aside_icon = "error" -%}
+  {%- else -%}{%- assign aside_type = "note" -%}{%- assign aside_icon = "information" -%}
+{%- endcase -%}
+{%- if icon -%}{%- assign aside_icon = icon -%}{%- endif -%}
+{%- assign aside_key = "aside." | append: aside_type -%}
+{%- if title -%}{%- assign aside_title = title -%}{%- else -%}{%- assign aside_title = aside_key | t -%}{%- endif -%}
+<aside aria-label="{{ aside_title | escape }}" class="starlight-aside starlight-aside--{{ aside_type }} cid-sl-aside"><p class="starlight-aside__title" aria-hidden="true">{% icon aside_icon, class: "starlight-aside__icon" %}{{ aside_title | escape }}</p><div class="starlight-aside__content">{{ body | strip }}</div></aside>

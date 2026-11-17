@@ -1,0 +1,72 @@
+---
+# The Markdown twin of a C# package page: renderCSharpPackageMarkdown of src/frontend/src/utils/csharp-api-markdown.ts.
+# Difference: namespaces and types are sorted with sort_natural (case-insensitive ordinal) instead of localeCompare,
+# which orders `_` differently (no package of the data is affected).
+layout: false
+pagination: { data: api.routes.csharp-packages, size: 1, alias: route }
+permalink: "{{ route.md }}"
+---
+{%- assign pkg = api.pkgs[route.file] -%}
+{%- assign tstart = api.routes["csharp-types"] | find_index: "file", route.file -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign repo = pkg.package.sourceRepository -%}{%- assign commit = pkg.package.sourceCommit -%}
+{%- assign sourceHref = nil -%}
+{%- if repo and commit -%}
+  {%- assign common = nil -%}{%- assign done = false -%}
+  {%- for type in pkg.types -%}
+    {%- if type.name and type.sourceFile -%}
+      {%- assign segments = type.sourceFile | split: "/" -%}
+      {%- assign n = segments.size | minus: 1 -%}{%- assign dir = segments | slice: 0, n -%}
+      {%- if common == nil -%}{%- assign common = dir -%}
+      {%- elsif done == false -%}
+        {%- assign k = 0 -%}
+        {%- for segment in common -%}{%- if dir[forloop.index0] == segment -%}{%- assign k = forloop.index -%}{%- else -%}{%- break -%}{%- endif -%}{%- endfor -%}
+        {%- assign common = common | slice: 0, k -%}
+        {%- if k == 0 -%}{%- assign done = true -%}{%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if common != nil -%}
+    {%- assign commonPath = common | join: "/" -%}
+    {%- capture sourceHref -%}{{ repo }}/tree/{{ commit }}{% if commonPath != "" and done == false %}/{{ commonPath }}{% endif %}{%- endcapture -%}
+  {%- endif -%}
+{%- endif -%}
+{%- capture text -%}
+# {{ pkg.package.name }}
+␞- Package: `{{ pkg.package.name }}`{{ nl }}- Version: `{{ pkg.package.version }}`{{ nl }}- Target framework: `{{ pkg.package.targetFramework }}`
+{%- if sourceHref -%}{{ nl }}- Source: [GitHub]({{ sourceHref }}){%- endif -%}
+{{ nl }}- NuGet: [{{ pkg.package.name }}](https://www.nuget.org/packages/{{ pkg.package.name }})
+␞## Namespaces
+{%- assign namespaces = pkg.types | map: "namespace" | uniq | sort_natural -%}
+{%- for ns in namespaces -%}
+  {{- nl }}{{ nl }}### {{ ns }}{{ nl }}
+  {%- assign types = pkg.types | where: "namespace", ns | sort_natural: "name" -%}
+  {%- for type in types -%}
+    {%- if type.name -%}
+      {{- nl }}- [{% render 'api/md/type-display', t: type %}](/reference/api/csharp/{{ route.slug }}/{% render 'api/md/type-slug', t: type %}.md) — `{{ type.kind }}`
+      {%- if type.isAbstract %} `abstract`{% endif -%}
+      {%- if type.isStatic %} `static`{% endif -%}
+      {%- if type.isSealed -%}{%- unless type.kind == "enum" or type.kind == "delegate" or type.kind == "struct" or type.kind == "record struct" %} `sealed`{% endunless -%}{%- endif -%}
+      {%- if type.isReadOnly %} `readonly`{% endif -%}
+      {%- assign obsolete = false -%}{%- assign atsExport = false -%}{%- assign atsDto = false -%}{%- assign atsIgnored = false -%}
+      {%- for attribute in type.attributes -%}
+        {%- assign short = attribute.name | split: "." | last | default: "" -%}
+        {%- assign suffix = short | slice: -9, 9 -%}
+        {%- if suffix == "Attribute" -%}{%- assign n = short.size | minus: 9 -%}{%- assign short = short | slice: 0, n -%}{%- endif -%}
+        {%- case short -%}
+          {%- when "Obsolete" -%}{%- assign obsolete = true -%}
+          {%- when "AspireExport" -%}{%- assign atsExport = true -%}
+          {%- when "AspireDto" -%}{%- assign atsDto = true -%}
+          {%- when "AspireExportIgnore" -%}{%- assign atsIgnored = true -%}
+        {%- endcase -%}
+      {%- endfor -%}
+      {%- if obsolete %} `obsolete`{% endif -%}{%- if atsExport %} `ats export`{% endif -%}{%- if atsDto %} `ats dto`{% endif -%}{%- if atsIgnored %} `ats ignored`{% endif -%}
+      {%- capture summary -%}{%- render 'api/md/doc', content: type.docs.summary, pkg: pkg, tstart: tstart -%}{%- endcapture -%}
+      {%- assign summary = summary | split: " " | join: " " -%}
+      {%- if summary != "" %} — {{ summary }}{% endif -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endfor -%}
+{%- endcapture -%}
+{%- render 'api/md/finalize', text: text -%}

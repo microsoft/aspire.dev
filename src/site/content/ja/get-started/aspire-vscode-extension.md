@@ -1,0 +1,150 @@
+---
+title: Aspire Visual Studio Code 拡張機能
+description: Aspire Visual Studio Code 拡張機能を使用して、Aspire ソリューションの作成、構成、実行、デプロイを行う方法を学びます。
+---
+
+[Visual Studio Code](https://code.visualstudio.com/) 用の公式 Aspire 拡張機能は、ポリグロットな Aspire アプリの構築、デバッグ、リリースを一流の体験で行える環境へ VS Code を進化させます。
+{% kbd windows: "F5" %} を押すだけで、AppHost のビルド、リソースの起動、サポート対象リソース (C#、TypeScript、Python、ブラウザー アプリ、Azure Functions) のデバッグを、Aspire ダッシュボードと並行して実行できます。
+
+:::note[前提条件]
+最新の [Visual Studio Code](https://code.visualstudio.com/) と **Aspire CLI** が必要です。CLI は、コマンド パレットから **Aspire: Install Aspire CLI (stable)** コマンドを実行してインストールするか、[インストール ガイド](/ja/get-started/install-cli/) の手順に従ってインストールしてください。
+:::
+
+## 拡張機能をインストールする
+
+{% steps %}
+1. VS Code を開きます。
+1. **拡張機能** ビュー ({% kbd windows: "Ctrl+Shift+X", mac: "Command+Shift+X" %}) を開きます。
+1. **Aspire** で検索し、**Microsoft** が発行している拡張機能をインストールするか、[VS Code Marketplace](https://aka.ms/aspire/vscode) から直接インストールします。
+{% endsteps %}
+
+## はじめに
+
+{% steps %}
+1. VS Code で既存の Aspire プロジェクトを開くか、コマンド パレット ({% kbd windows: "Ctrl+Shift+P", mac: "Command+Shift+P" %}) から **Aspire: New Aspire project** を実行して新しいプロジェクトを作成します。
+1. **Aspire: Configure launch.json file** を実行し、デバッグ構成をセットアップします。
+1. {% kbd windows: "F5" %} を押して、Aspire アプリのデバッグを開始します。
+{% endsteps %}
+
+{% image dark: "/assets/images/get-started/code-extension-create-aspire-project.png", light: "/assets/images/get-started/code-extension-create-aspire-project-light.png", alt: "VS Code のコマンド パレットで Aspire: New Aspire project を実行し、Blazor、React + C#、Express + TypeScript、FastAPI + TypeScript、空の AppHost といったスターター テンプレートが表示されている様子のスクリーンショット。" %}
+
+<p><em><strong>Aspire: New Aspire project</strong> コマンドで、Blazor、React + C#、Express + TypeScript、FastAPI + TypeScript、空の AppHost のスターター テンプレートが表示されている様子。</em></p>
+
+拡張機能は `aspire.config.json` を読み取って AppHost を自動検出するため、プロジェクト形式の C# AppHost (`*.csproj`) と TypeScript AppHost (`apphost.mts`) のいずれも、追加の設定なしで利用できます。
+
+:::tip[ガイド付きツアーを試したい場合]
+**ヘルプ** > **ようこそ** > **Get started with Aspire** を選択すると、CLI のインストール、プロジェクトの作成、実行、ダッシュボードの確認までを網羅した組み込みのウォークスルーが、VS Code を開いたまま起動します。
+:::
+
+## スキャフォルドと統合の追加
+
+コマンド パレットには、よく使うタスク向けのコマンドが用意されています:
+
+- **Aspire: Add an integration** は、AppHost に追加できるホスティング統合 (`Aspire.Hosting.*`) の一覧を表示します。
+- **Aspire: Initialize Aspire in an existing codebase** は、まだ Aspire 化されていないリポジトリに Aspire を組み込みます。
+- **Aspire: Update integrations** は、ホスティング統合と Aspire SDK を更新します。
+- **Aspire: Open Aspire terminal** は、Aspire CLI へ `PATH` が通った状態のターミナルを開き、UI でカバーされない操作を実行できるようにします。
+- **Aspire: Update Aspire CLI** および **Aspire: Install Aspire CLI** で、CLI のインストールを管理できます。
+
+## エディターとのライブ連携
+
+AppHost の実行中、拡張機能はライブの状態をエディター上に直接表示します。
+
+**CodeLens** は、C# および TypeScript の AppHost 内の各リソース定義の上に表示されます。現在の状態と正常性を示し、リソースが公開するカスタム コマンドに加えて、`Start`、`Stop`、`Restart`、`View Logs` といったワンクリックのアクションを提供します。
+
+**エディターのタイトル バー ボタン** により、AppHost ファイルを開いている際は、標準の実行/デバッグ ボタンの隣に **Run Aspire AppHost** および **Debug Aspire AppHost** アクションが追加されます。
+
+**正常性に応じたガター装飾** を使うと、エディターをテキストで埋めることなく、リソースの正常性と状態をひと目で把握できます。次の形と色で表示されます:
+
+| アイコン | 意味 |
+|------|---------|
+| ✓ (緑のチェック) | 実行中で正常 |
+| ⊙ (灰色の円にチェック) | 完了 — 正常終了 (終了コード 0) |
+| ⚠ (黄色の三角形に `!`) | 実行中だが異常 (ヘルス チェックに失敗) |
+| ✕ (赤の X) | 起動に失敗、終了コードが非 0 で終了、または実行中に異常 |
+| ⌛ (青の砂時計) | 起動中、停止中、ビルド中、または待機中 |
+| ○ (灰色の中抜き円) | 未開始 |
+
+{% image dark: "/assets/images/get-started/code-extension-sidebar.png", light: "/assets/images/get-started/code-extension-sidebar-light.png", alt: "Aspire ビューにリソースのツリーが表示されており、正常性に応じたアイコンと、ホバー時のツールチップにエンドポイント URL の一覧が表示されている様子。" %}
+
+## Aspire ビュー
+
+Aspire は VS Code に AppHost ビューを登録します。**Workspace** モードでは現在のワークスペース内の AppHost が表示され、ビューのヘッダーで **Global** に切り替えると、マシン上で実行中のすべての AppHost を管理できます。
+
+各リソースには、種類、状態、正常性のサマリー、終了コードに加えて、正常性に応じたアイコンと、エンドポイント URL の一覧を含む Markdown のツールチップが表示されます。ヘルス チェックを持つリソースには、展開可能な **Health Checks** グループが表示されます。AppHost 項目で **Expand all** を実行すると、すべてを一度に展開できます。リソースを右クリックすると、開始、停止、再起動、ログの表示、リソース固有のコマンドの実行、ダッシュボードのオープンといった操作を行えます。
+
+## 実行、デバッグ、デプロイ
+
+**Aspire: Configure launch.json file** は、任意の言語で記述された AppHost に対応する最小限の起動構成を `.vscode/launch.json` に追加します。AppHost はワークスペース内から自動的に検出されます。
+
+{% learnmore %}
+特定の AppHost を起動したい場合は、[aspire.config.json](/ja/reference/cli/configuration/) に `appHost.path` プロパティを設定してください。
+{% endlearnmore %}
+
+
+```json title=".vscode/launch.json — launch"
+{
+  "type": "aspire",
+  "request": "launch",
+  "name": "Aspire: Launch AppHost",
+  "program": "${workspaceFolder}"
+}
+```
+
+サポートされている起動コマンドは次の 4 つです:
+- `run` は AppHost を実行します (省略した場合の既定)。
+- `deploy` は、AppHost で定義されたデプロイ先にプッシュします。
+- `publish` は、ターゲットへのプッシュを行わずに、Kubernetes マニフェストや Bicep ファイルなどのデプロイ成果物を生成します。
+- `do` は、AppHost のデプロイ パイプラインで定義された特定のステップを実行します。`step` には、実行するステップ名を設定します。
+
+これらのコマンドはすべてデバッグ可能で、アプリケーション コードと同様に、カスタム パブリッシャーやデプロイ ステップへステップ インできます。
+
+{% image dark: "/assets/images/get-started/code-extension-debug.png", light: "/assets/images/get-started/code-extension-debug-light.png", alt: "VS Code の実行とデバッグ ビューに、AppHost、.NET プロジェクト、Node サービス、ブラウザー アプリといった複数のデバッグ セッションがダッシュボードと共にアタッチされている様子。" %}
+
+`debuggers` プロパティは、特定のデバッガーへ構成を渡します。利用できるキーは `apphost`、`project` (C#/.NET)、`node`、`python`、`browser`、`azure-functions` です。
+
+また、AppHost プロセスの環境変数とコマンド ライン引数は、`env` と `args` で指定できます。
+
+```json title=".vscode/launch.json — debugger 設定、env、args を伴う deploy"
+{
+  "type": "aspire",
+  "request": "launch",
+  "name": "Aspire: Deploy AppHost",
+  "program": "${workspaceFolder}",
+  "command": "deploy",
+  "env": {
+    "MY_ENV_VAR": "value"
+  },
+  "args": [
+    "--hello", "world"
+  ],
+  "debuggers": {
+    "apphost": { "stopAtEntry": true },
+    "project": { "console": "integratedTerminal" },
+    "node": { "skipFiles": ["<node_internals>/**"] },
+    "python": { "justMyCode": false }
+  }
+}
+```
+
+{% learnmore %}
+詳しくは、[Aspire の発行とデプロイの概要](/ja/deployment/deploy-with-aspire/) を参照してください。
+{% endlearnmore %}
+
+## 対応言語
+
+拡張機能は各リソースの言語を検出し、それに応じたデバッガーをアタッチします:
+
+| 言語 | デバッガー | 必要な VS Code 拡張機能 |
+|---|---|---|
+| Node.js / ブラウザー アプリ | `js-debug` | なし (VS Code に組み込み) |
+| Python | `debugpy` | [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python) |
+| C# / .NET | `coreclr` | [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit) (推奨) または [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) |
+| Azure Functions | 言語ごとに異なる | [Azure Functions](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azurefunctions) と、Function アプリの言語拡張機能 (C#、JavaScript/TypeScript、または Python) |
+
+## フィードバックと問題の報告
+
+不具合の報告や機能のリクエストは、[microsoft/aspire](https://github.com/microsoft/aspire/issues) リポジトリで受け付けています:
+
+- [バグを報告する](https://github.com/microsoft/aspire/issues/new?template=10_bug_report.yml&labels=area-extension)
+- [機能をリクエストする](https://github.com/microsoft/aspire/issues/new?template=20_feature-request.yml&labels=area-extension)

@@ -1,0 +1,14 @@
+{%- comment -%}
+  simplifyType of src/frontend/src/utils/ts-modules.ts: without the `Assembly/` prefix and the namespace of the outer
+  name. (Its regex for assembly-qualified generic arguments matches nothing in the data: no argument has a comma.)
+  Input: t.
+{%- endcomment -%}
+{%- assign s = t -%}
+{%- if s contains "/" -%}{%- assign head = s | split: "/" | first -%}{%- assign start = head.size | plus: 1 -%}{%- assign s = s | slice: start, s.size -%}{%- endif -%}
+{%- if s contains "<" -%}
+  {%- assign prefix = s | split: "<" | first -%}
+  {%- assign suffix = s | slice: prefix.size, s.size -%}
+  {{- prefix | split: "." | last }}{{ suffix -}}
+{%- else -%}
+  {{- s | split: "." | last -}}
+{%- endif -%}
