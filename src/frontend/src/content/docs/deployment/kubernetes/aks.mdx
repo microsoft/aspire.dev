@@ -74,16 +74,28 @@ await builder.build().run();
 
 When an AKS environment is present, all compute resources are automatically deployed to AKS — no additional opt-in is required.
 
+To reuse infrastructure instead of creating it, see [Use an existing AKS cluster](/integrations/cloud/azure/aks/#use-an-existing-aks-cluster) and [Use an existing container registry](/integrations/cloud/azure/aks/#use-an-existing-container-registry). Existing clusters must already have the required identities, networking, and ingress add-ons. Aspire doesn't reconfigure their cluster settings.
+
 ## What Aspire provisions
 
-When you run `aspire deploy`, Aspire provisions the following Azure resources:
+By default, when you run `aspire deploy`, Aspire provisions the following Azure resources:
 
 - **AKS cluster** — a managed Kubernetes cluster
 - **Azure Container Registry (ACR)** — to store container images for your application
-- **Managed identity** — for secure, credential-free access between AKS and ACR
+- **Cluster managed identities** — separate control-plane and kubelet identities, with scoped permissions for cluster infrastructure and ACR image pulls
 - **Azure resources** — any Azure resources referenced in your AppHost (databases, caches, messaging, etc.)
 
 Aspire builds your container images, pushes them to ACR, generates Helm charts, and installs them to the AKS cluster.
+
+## Cluster tier
+
+Starting in Aspire 17.0, Aspire provisions AKS clusters with the **Standard** control-plane tier by default. Earlier versions defaulted to **Free**. Standard provides an uptime SLA and adds a cluster-management charge to the underlying Azure resource costs. It doesn't change node VM sizes or counts and doesn't guarantee application availability. See [AKS pricing tiers](https://learn.microsoft.com/azure/aks/free-standard-pricing-tiers) for current details.
+
+:::caution
+The next infrastructure deployment changes an existing Aspire-managed cluster to Standard unless you explicitly override it. Upgrading the package alone doesn't change a deployed cluster. Referencing a pre-provisioned cluster with an existing-resource API leaves its tier unchanged.
+:::
+
+For C# and TypeScript examples that select Free for development or testing, see [Configure the cluster tier](/integrations/cloud/azure/aks/#cluster-tier). Before reprovisioning a cluster created by an earlier Aspire version, also review the [cluster identity migration guidance](/integrations/cloud/azure/aks/#upgrade-an-aspire-managed-cluster).
 
 ## Configure node pools
 
@@ -101,7 +113,11 @@ builder.AddAzureKubernetesEnvironment("aks")
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
-await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
+await aks.withSystemNodePool(async pool => {
+    pool.vmSize = 'Standard_D4s_v5';
+    pool.minCount = 1;
+    pool.maxCount = 5;
+});
 ```
 </TabItem>
 </Tabs>
@@ -123,13 +139,19 @@ builder.AddContainer("ml-worker", "my-ml-image")
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
 const aks = await builder.addAzureKubernetesEnvironment('aks');
-const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
+const gpuPool = await aks.addNodePool('gpupool', async pool => {
+    pool.vmSize = 'Standard_NC6s_v3';
+    pool.minCount = 0;
+    pool.maxCount = 5;
+});
 
 const worker = await builder.addContainer('ml-worker', 'my-ml-image');
 await worker.withNodePool(gpuPool);
 ```
 </TabItem>
 </Tabs>
+
+Starting in Aspire 17.0, callbacks also support OS SKU selection for Linux node pools. TypeScript AppHosts must use callbacks for node pool configuration. Parameter-based C# calls remain supported. For defaults, OS SKU examples, and migration precautions, see [Configure the system node pool](/integrations/cloud/azure/aks/#configure-the-system-node-pool).
 
 ## Deploy to AKS
 
