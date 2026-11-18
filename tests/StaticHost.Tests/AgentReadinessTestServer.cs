@@ -58,6 +58,7 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
                         // Match production order: canonical redirects and
                         // agent-readiness BEFORE default files (see Program.cs).
                         app.UseCanonicalPathRedirects();
+                        app.UseLocaleFallback();
                         app.UseAgentReadiness();
                         app.UseDefaultFiles();
                         app.UseStaticFiles();

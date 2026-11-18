@@ -112,3 +112,18 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..ec1f9b15f677f0c7ae98160eef1c9dc7
  		}
  	}
  	customElements.define('site-search', SiteSearch);
+diff --git a/utils/routing/index.ts b/utils/routing/index.ts
+index c4af65f6c1c711399b58a984a3301ff56e39e2d5..042e435c4cbc0aabe300f5f42ee359630d8aa0c6 100644
+--- a/utils/routing/index.ts
++++ b/utils/routing/index.ts
+@@ -96,7 +96,9 @@ export function getRouteBySlugParam(slugParam: string | undefined): Route | unde
+ }
+ 
+ function getPaths(): Path[] {
+-	return routes.map((route) => ({
++	// Fallback pages aren't emitted: the host serves the default-locale page in place.
++	const pageRoutes = routes.filter((route) => !route.isFallback);
++	return pageRoutes.map((route) => ({
+ 		params: { slug: slugToParam(route.id) },
+ 		props: route,
+ 	}));

@@ -3,6 +3,7 @@ import { normalizeApiReferenceSidebarHref } from './utils/api-reference-routes';
 import { isDefaultLocaleOnlyPath } from './utils/default-locale-only-routes';
 import { getOgMetadata } from './utils/page-metadata';
 import { stripLocaleFromPath } from './utils/locale-routes';
+import { isTranslatedPath } from './utils/translated-routes';
 
 /**
  * Custom route middleware that applies implicit pagination rules:
@@ -32,6 +33,10 @@ export const onRequest = defineRouteMiddleware((context) => {
   // for other locales, so those alternates (e.g. /de/hub/) point at 404s.
   if (isDefaultLocaleOnlyPath(context.url.pathname)) {
     removeHreflangAlternates(routeData.head);
+  } else {
+    // Untranslated locale routes aren't built; the host serves the English
+    // page in place, so they aren't distinct alternates.
+    removeUntranslatedHreflangAlternates(routeData.head);
   }
 
   // --- Step 0: Canonicalize API reference sidebar links ---
@@ -247,6 +252,22 @@ function removeHreflangAlternates(head: MetaHeadEntry[]): void {
   for (let i = head.length - 1; i >= 0; i--) {
     const { tag, attrs } = head[i];
     if (tag === 'link' && attrs?.rel === 'alternate' && attrs.hreflang) {
+      head.splice(i, 1);
+    }
+  }
+}
+
+function removeUntranslatedHreflangAlternates(head: MetaHeadEntry[]): void {
+  if (!Array.isArray(head)) return;
+  for (let i = head.length - 1; i >= 0; i--) {
+    const { tag, attrs } = head[i];
+    if (
+      tag === 'link' &&
+      attrs?.rel === 'alternate' &&
+      attrs.hreflang &&
+      typeof attrs.href === 'string' &&
+      !isTranslatedPath(new URL(attrs.href, 'https://aspire.dev').pathname)
+    ) {
       head.splice(i, 1);
     }
   }

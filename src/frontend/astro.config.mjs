@@ -4,6 +4,8 @@ import { unified } from '@astrojs/markdown-remark';
 import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
 import { locales } from './config/locales.ts';
+import { getTranslatedPaths } from './config/translated-paths.mjs';
+import { localeFallbackDevIntegration } from './config/locale-fallback-dev-integration.mjs';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
 import { aspireProject } from './src/data/aspire-project.ts';
@@ -69,6 +71,9 @@ export default defineConfig({
     define: {
       // Resolve filesystem-backed redirects before prerender modules are bundled.
       __ASPIRE_REDIRECT_PATHS__: JSON.stringify(Object.keys(redirects)),
+      // Untranslated locale routes aren't built (see the Starlight patch), so
+      // hreflang alternates only list localized routes that really exist.
+      __ASPIRE_TRANSLATED_PATHS__: JSON.stringify(getTranslatedPaths()),
     },
     ...(staticHostUrl
       ? {
@@ -246,6 +251,7 @@ export default defineConfig({
     }),
     ...(isBuildTimingEnabled ? [buildTiming()] : []),
     aspireVersionPlaceholdersIntegration(),
+    localeFallbackDevIntegration(),
   ],
   build: {
     concurrency: buildConcurrency,

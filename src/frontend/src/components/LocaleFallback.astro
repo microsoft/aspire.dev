@@ -1,0 +1,41 @@
+---
+import { fallbackLocales, getLocaleFallbackDictionaryPath } from '@utils/locale-fallback';
+
+/*
+ * Rendered only on default-locale (English) pages. The static host serves
+ * those pages in place of untranslated locale routes such as
+ * `/de/get-started/install-cli/`; this marks the document before first paint
+ * so the chrome stays hidden until `@scripts/locale-fallback` localizes it.
+ */
+const dictionaryPathTemplate = getLocaleFallbackDictionaryPath('{locale}');
+---
+
+<script is:inline define:vars={{ fallbackLocales, dictionaryPathTemplate }}>
+  (function () {
+    var root = document.documentElement;
+    var match = location.pathname.match(/^\/([a-z]{2}(?:-[a-z]{2,4})?)(?=\/|$)/i);
+    var locale = match && match[1].toLowerCase();
+    if (!locale || fallbackLocales.indexOf(locale) === -1 || root.lang.toLowerCase() !== 'en')
+      return;
+    root.dataset.localeFallback = locale;
+    var preload = document.createElement('link');
+    preload.rel = 'preload';
+    preload.as = 'fetch';
+    preload.crossOrigin = 'anonymous';
+    preload.href = dictionaryPathTemplate.replace('{locale}', locale);
+    document.head.appendChild(preload);
+    // Never keep the chrome hidden if the dictionary is slow or unavailable.
+    setTimeout(function () {
+      root.dataset.localeReady = '';
+    }, 2000);
+  })();
+</script>
+<script>
+  import '@scripts/locale-fallback';
+</script>
+<style is:global>
+  html[data-locale-fallback]:not([data-locale-ready])
+    :is(header.header, nav.sidebar, .right-sidebar, .pagination-links, footer) {
+    visibility: hidden;
+  }
+</style>

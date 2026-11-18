@@ -1,0 +1,139 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, test } from 'vitest';
+import { getLocaleFallbackDevPath } from '../../config/locale-fallback-dev-integration.mjs';
+import { getTranslatedPaths } from '../../config/translated-paths.mjs';
+import {
+  collectSidebarLabelTranslations,
+  getFallbackLocale,
+  localizeHref,
+  translateUiText,
+} from '../../src/utils/locale-fallback';
+import { isTranslatedPath } from '../../src/utils/translated-routes';
+
+describe('getFallbackLocale', () => {
+  test('returns the requested locale when the English page is served in place', () => {
+    expect(getFallbackLocale('/de/get-started/install-cli/', 'en')).toBe('de');
+    expect(getFallbackLocale('/pt-br/get-started/', 'en-US')).toBe('pt-br');
+  });
+
+  test.each([
+    ['/get-started/install-cli/', 'en'],
+    ['/ja/get-started/install-cli/', 'ja'],
+    ['/xx/get-started/', 'en'],
+    ['/de/', 'de'],
+  ])('ignores %s served as %s', (pathname, lang) => {
+    expect(getFallbackLocale(pathname, lang)).toBeUndefined();
+  });
+});
+
+describe('localizeHref', () => {
+  test.each([
+    ['/get-started/install-cli/', '/de/get-started/install-cli/'],
+    ['/docs/?tab=cli#install', '/de/docs/?tab=cli#install'],
+    ['/', '/de/'],
+  ])('prefixes page link %s', (href, expected) => {
+    expect(localizeHref(href, 'de')).toBe(expected);
+  });
+
+  test.each([
+    'https://github.com/microsoft/aspire',
+    '//cdn.example.com/x/',
+    '#overview',
+    '/ja/get-started/',
+    '/hub/',
+    '/reference/api/csharp/',
+    '/get-started/install-cli.md',
+    '/_astro/site.css',
+    '/locale-fallback/de.json',
+  ])('leaves %s unchanged', (href) => {
+    expect(localizeHref(href, 'de')).toBeUndefined();
+  });
+});
+
+describe('translateUiText', () => {
+  const strings = { 'On this page': 'Auf dieser Seite', Same: 'Same' };
+
+  test('translates exact matches and keeps surrounding whitespace', () => {
+    expect(translateUiText('\n  On this page ', strings)).toBe('\n  Auf dieser Seite ');
+  });
+
+  test.each(['On this page now', '', '   ', 'Same', 'toString'])('ignores %j', (text) => {
+    expect(translateUiText(text, strings)).toBeUndefined();
+  });
+});
+
+test('collectSidebarLabelTranslations reads topic labels and item translations', () => {
+  const topics = [
+    {
+      label: { en: 'Foundations', de: 'Grundlagen' },
+      items: [
+        {
+          label: 'Welcome',
+          translations: { de: 'Willkommen', 'pt-BR': 'Bem-vindo' },
+          items: ['get-started/overview', { label: 'Untranslated' }],
+        },
+      ],
+    },
+  ];
+
+  expect(collectSidebarLabelTranslations(topics, 'de')).toEqual({
+    Foundations: 'Grundlagen',
+    Welcome: 'Willkommen',
+  });
+  expect(collectSidebarLabelTranslations(topics, 'pt-BR')).toEqual({ Welcome: 'Bem-vindo' });
+});
+
+describe('translated paths', () => {
+  test('getLocaleFallbackDevPath mirrors StaticHost for untranslated routes', () => {
+    const translated = new Set(['/ja/get-started/install-cli/']);
+    expect(getLocaleFallbackDevPath('/de/get-started/install-cli/', translated)).toBe(
+      '/get-started/install-cli/'
+    );
+    expect(getLocaleFallbackDevPath('/de/get-started/install-cli.md', translated)).toBe(
+      '/get-started/install-cli.md'
+    );
+    for (const pathname of [
+      '/ja/get-started/install-cli/',
+      '/ja/get-started/install-cli.md',
+      '/de/og/image.png',
+      '/de/',
+      '/de/get-started',
+      '/get-started/install-cli/',
+      '/xx/get-started/install-cli/',
+    ]) {
+      expect(getLocaleFallbackDevPath(pathname, translated)).toBeUndefined();
+    }
+  });
+
+  test('getTranslatedPaths lists locale docs as route paths', () => {
+    const docsDir = mkdtempSync(join(tmpdir(), 'aspire-docs-'));
+    try {
+      const write = (file: string) => {
+        mkdirSync(join(docsDir, file, '..'), { recursive: true });
+        writeFileSync(join(docsDir, file), '---\ntitle: T\n---\n');
+      };
+      write('get-started/install-cli.mdx');
+      write('de/index.mdx');
+      write('ja/get-started/index.mdx');
+      write('ja/get-started/Install-CLI.mdx');
+      write('ja/assets/diagram.svg');
+
+      expect(getTranslatedPaths(docsDir)).toEqual([
+        '/de/',
+        '/ja/get-started/',
+        '/ja/get-started/install-cli/',
+      ]);
+    } finally {
+      rmSync(docsDir, { recursive: true, force: true });
+    }
+  });
+
+  test('isTranslatedPath checks localized routes only', () => {
+    const paths = new Set(['/ja/get-started/install-cli/']);
+    expect(isTranslatedPath('/get-started/install-cli/', paths)).toBe(true);
+    expect(isTranslatedPath('/ja/get-started/install-cli', paths)).toBe(true);
+    expect(isTranslatedPath('/de/get-started/install-cli/', paths)).toBe(false);
+  });
+});
