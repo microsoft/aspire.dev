@@ -711,6 +711,8 @@ test('Developer Hub typography and glossary controls reflow in both themes', asy
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
       await page.goto('/hub/glossary/');
+      // The controls are server-rendered hidden; glossary-browser shows them once its script runs.
+      await expect(page.getByRole('search', { name: 'Search the glossary' })).toBeVisible();
       await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
       const layout = await page.evaluate(() => {
         const heading = getComputedStyle(document.querySelector('main h1')!);
@@ -1132,7 +1134,7 @@ test('Developer Hub remains browsable without JavaScript and reflows at narrow w
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   const staticPage = await context.newPage();
   await staticPage.goto('/hub/');
-  await expect(staticPage.locator('.onboarding-options > li, .language-links > li, .cloud-links > li, .featured-samples > li, .reference-links > li, #dashboard, .video-links > li, .blog-links > li')).toHaveCount(30);
+  await expect(staticPage.locator('.onboarding-options > li, .language-links > li, .cloud-links > li, .featured-samples > li, .reference-links > li, #dashboard, .video-links > li, .blog-links > li')).toHaveCount(31);
   await expect(staticPage.getByRole('button', { name: 'Search Aspire documentation' })).toBeDisabled();
   await context.close();
   for (const width of [320, 390, 640, 1024, 1440]) {

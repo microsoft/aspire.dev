@@ -67,7 +67,7 @@ for (const fallback of [false, true]) {
       await page.evaluate(() => Reflect.set(window, '__dependencySession', true));
       const diagrams = page.locator('pre.mermaid');
       const expectRenders = async () => {
-        await expect(diagrams).toHaveCount(2);
+        await expect(diagrams).toHaveCount(3);
         for (const diagram of await diagrams.all()) {
           await expect(diagram.locator(':scope > svg')).toHaveCount(1, { timeout: 30000 });
           await expect(diagram).toHaveAttribute('data-processed', 'true');

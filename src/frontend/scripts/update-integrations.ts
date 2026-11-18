@@ -17,6 +17,11 @@ const COMMUNITY_TOOLKIT_QUERIES = ['CommunityToolkit.Aspire'];
 // Third-party packages whose IDs don't start with `Aspire.` or `CommunityToolkit.Aspire`.
 // They are fetched by exact package ID and must still be verified and non-deprecated.
 export const THIRD_PARTY_PACKAGES = ['Particular.Aspire.Hosting.ServicePlatform'];
+// Packages whose docs target a prerelease that is newer than the latest stable release, so
+// the newest prerelease is selected instead of the older stable version.
+const PRERELEASE_PREFERRED_PACKAGES = new Set([
+  'communitytoolkit.aspire.microsoft.entityframeworkcore.sqlite',
+]);
 const THIRD_PARTY_QUERIES = THIRD_PARTY_PACKAGES.map((id) => `packageid:${id}`);
 const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
@@ -536,7 +541,11 @@ async function getPreferredNonDeprecatedVersion(
 ): Promise<RegistrationLeaf | null> {
   try {
     const leaves = await getAllRegistrationLeaves(registrationBase, id, Boolean(pinnedVersion));
-    const version = selectPreferredPackageVersion(leaves, pinnedVersion);
+    const version = selectPreferredPackageVersion(
+      leaves,
+      pinnedVersion,
+      PRERELEASE_PREFERRED_PACKAGES.has(id.toLowerCase())
+    );
     return leaves.find((leaf) => leaf.version === version) ?? null;
   } catch (error: unknown) {
     if (pinnedVersion) {
@@ -551,7 +560,8 @@ async function getPreferredNonDeprecatedVersion(
 
 export function selectPreferredPackageVersion(
   leaves: RegistrationLeaf[],
-  pinnedVersion?: string
+  pinnedVersion?: string,
+  preferLatestPrerelease = false
 ): string | null {
   if (pinnedVersion) {
     const match = leaves.find((leaf) => leaf.version.toLowerCase() === pinnedVersion.toLowerCase());
@@ -569,7 +579,8 @@ export function selectPreferredPackageVersion(
     return null;
   }
 
-  const pickFrom = nonDeprecatedStable.length > 0 ? nonDeprecatedStable : nonDeprecated;
+  const pickFrom =
+    nonDeprecatedStable.length > 0 && !preferLatestPrerelease ? nonDeprecatedStable : nonDeprecated;
   pickFrom.sort((a, b) => cmpSemVer(a.version, b.version));
   return pickFrom.at(-1)?.version ?? null;
 }
@@ -784,7 +795,9 @@ async function applyNuGetPageDownloads(output: IntegrationOutput[]): Promise<Int
       }
 
       try {
-        const res = await fetch(`https://www.nuget.org/packages/${encodeURIComponent(entry.title)}`);
+        const res = await fetch(
+          `https://www.nuget.org/packages/${encodeURIComponent(entry.title)}`
+        );
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }

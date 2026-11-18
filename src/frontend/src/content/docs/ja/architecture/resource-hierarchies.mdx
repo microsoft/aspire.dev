@@ -72,7 +72,7 @@ Aspire は、これらの関係を **異種混在の有向非巡回グラフ（<
 var builder = DistributedApplication.CreateBuilder(args);
 
 var db = builder.AddPostgres("pg");
-var api = builder.AddProject("api").WithReference(db);
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj").WithReference(db);
 var web = builder.AddJavaScriptApp("web", "../web").WithReference(api);
 
 builder.Build().Run();
@@ -379,7 +379,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var redis = builder.AddContainer("redis", "redis")
                    .WithEndpoint(name: "tcp", targetPort: 6379);
 
-builder.AddProject<Projects.Worker>("worker")
+builder.AddDotnetProject("worker", "../Worker/Worker.csproj")
        .WithReference(redis.GetEndpoint("tcp"));
 
 builder.Build().Run();
@@ -397,7 +397,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var redis = builder.AddContainer("redis", "redis")
                    .WithEndpoint(name: "tcp", targetPort: 6379);
 
-builder.AddProject<Worker>("worker")
+builder.AddDotnetProject("worker", "../Worker/Worker.csproj")
        .WithEnvironment("RedisUrl", redis.GetEndpoint("tcp"));
 
 builder.Build().Run();
@@ -422,7 +422,7 @@ C# では `endpoint.Property(...)` を呼び出してそのフィールドを取
 var redis = builder.AddContainer("redis", "redis")
                    .WithEndpoint("tcp", 6379);
 
-builder.AddProject("worker")
+builder.AddDotnetProject("worker", "../Worker/Worker.csproj")
        .WithEnvironment(ctx =>
        {
            var ep = redis.GetEndpoint("tcp");
@@ -447,7 +447,7 @@ const redisHost = await ep.property(EndpointProperty.Host);
 const redisPort = await ep.property(EndpointProperty.Port);
 
 await builder
-  .addProject('worker', '../Worker/Worker.csproj')
+  .addDotnetProject('worker', '../Worker/Worker.csproj')
   .withEnvironment('REDIS_HOST', redisHost)
   .withEnvironment('REDIS_PORT', redisPort);
 
@@ -585,7 +585,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder.AddKeycloak("keycloak", 8080);
 var grafana = builder.AddContainer("grafana", "grafana/grafana");
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithEnvironment(async ctx =>
     {
         var keyCloakEndpoint = keycloak.GetEndpoint("http");
@@ -621,7 +621,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder.AddKeycloak("keycloak", 8080);
 var grafana = builder.AddContainer("grafana", "grafana/grafana");
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithEnvironment(ctx =>
     {
         var keyCloakEndpoint = keycloak.GetEndpoint("http");

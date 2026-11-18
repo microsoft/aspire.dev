@@ -79,12 +79,24 @@ jobs:
             -f base="$BRANCH" \
             --jq '.[0].html_url // empty')
 
-          if [[ -n "$existing" ]]; then
-            echo "::notice::Skipping sync: repair PR $existing is still open."
-            echo "## Release sync skipped" >> "$GITHUB_STEP_SUMMARY"
-            echo "Repair PR $existing is open. Resolve and merge it with **Create a merge commit** to resume syncing." >> "$GITHUB_STEP_SUMMARY"
-          fi
           echo "url=$existing" >> "$GITHUB_OUTPUT"
+          if [[ -n "$existing" ]]; then
+            {
+              echo "## :x: \`$BRANCH\` was not updated"
+              echo
+              echo "Release sync is paused until repair PR $existing lands. It holds an earlier \`main\` merge with conflicts a human must resolve."
+              echo
+              echo "### Action required"
+              echo
+              echo "1. Open $existing and resolve its conflicts on \`release-sync/${BRANCH#release/}\` (see the PR description for the file list)."
+              echo "2. Mark it ready for review and wait for checks."
+              echo "3. Merge it, preferably with **Create a merge commit**."
+              echo "4. Re-run this workflow, or wait for the next push to \`main\`, to sync the remaining changes."
+            } >> "$GITHUB_STEP_SUMMARY"
+            # Fail so a stalled release branch is visible instead of a green no-op.
+            echo "::error::$BRANCH was not updated: repair PR $existing is still open."
+            exit 1
+          fi
 
       - name: Checkout release branch
         if: ${{ steps.find-branch.outputs.branch != '' && steps.repair-pr.outputs.url == '' }}
@@ -246,8 +258,21 @@ jobs:
             --title "Resolve release sync conflicts for $BRANCH" \
             --body-file "$body_file")
 
-          echo "::warning::Release sync needs human review: $pr_url"
           {
-            echo "## Release sync needs human review"
-            echo "Opened repair PR: $pr_url"
+            echo "## :x: \`$BRANCH\` was not updated"
+            echo
+            echo "Merging \`main\` (\`$MAIN_SHA\`) into \`$BRANCH\` hit conflicts. Opened draft repair PR $pr_url with the conflicts left in place."
+            echo
+            echo "### Conflicted files"
+            echo
+            awk -F'\t' '{ print "- `" $2 "` (" $1 ")" }' "$conflicts_file"
+            echo
+            echo "### Action required"
+            echo
+            echo "1. Check out \`$repair_branch\` and resolve each file above without discarding release-only work. The PR description explains each conflict type."
+            echo "2. Push the fix, mark $pr_url ready for review, and wait for checks."
+            echo "3. Merge it, preferably with **Create a merge commit**."
+            echo "4. Re-run this workflow, or wait for the next push to \`main\`, to resume syncing."
           } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::$BRANCH was not updated: merge conflicts need human review in $pr_url"
+          exit 1

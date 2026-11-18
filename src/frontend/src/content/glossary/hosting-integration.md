@@ -13,6 +13,6 @@ legacyGroup: resource-types
 ---
 Hosting integrations configure the infrastructure side of an application: resources, networking, health checks, volumes, and connection information. The exact capabilities vary by integration.
 
-For example, `Aspire.Hosting.PostgreSQL` supplies `AddPostgres` in a C# AppHost and `addPostgres` in a TypeScript AppHost. It models a PostgreSQL server; you can add named databases and reference them from services.
+For example, `Aspire.Hosting.PostgreSQL` supplies `AddPostgres` in C# and Go AppHosts and `addPostgres` in a TypeScript AppHost. It models a PostgreSQL server; you can add named databases and reference them from services.
 
 A hosting integration does not install or configure the database client inside your application. That is the role of application code or a client integration.

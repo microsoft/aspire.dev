@@ -25,8 +25,7 @@ For more information, see [Endpoint extension methods](/fundamentals/networking-
 Custom resource URLs are supported for the following resource types:
 
 - `ContainerResource`
-- `ExecutableResource`
-- `ProjectResource`
+- `ExecutableResource`, including `DotnetProjectResource`
 
 ## Customize resource URLs
 
@@ -35,7 +34,7 @@ Use the appropriate <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.AspireApp_Api>("api");
+var api = builder.AddDotnetProject("api", "../AspireApp.Api/AspireApp.Api.csproj");
 
 api.WithUrl("/admin", "Admin Portal");
 
@@ -59,7 +58,7 @@ To customize the URL for the first associated resource endpoint, use the `WithUr
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.AspireApp_Api>("api")
+builder.AddDotnetProject("api", "../AspireApp.Api/AspireApp.Api.csproj")
     .WithUrlForEndpoint("https", url =>
     {
         url.DisplayText = "Scalar (HTTPS)";
@@ -75,6 +74,24 @@ When the resource is started, the URL is available in the dashboard.
 
 Alternatively, you could use the overload that accepts a `Func<EndpointReference, ResourceUrlAnnotation>` as a callback. This allows you to specify deep-links on target `EndpointReference` instances.
 
+### Control URL display order
+
+When a resource exposes multiple custom URLs, use the `DisplayOrder` property on `ResourceUrlAnnotation` to control the order they appear in the dashboard. Higher values sort higher (first) in the list. `DisplayOrder` is a nullable `int`, so URLs without an explicit value fall back to the default ordering.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDotnetProject("api", "../AspireApp.Api/AspireApp.Api.csproj")
+    .WithUrlForEndpoint("https", url =>
+    {
+        url.DisplayText = "Scalar (HTTPS)";
+        url.Url = "/scalar";
+        url.DisplayOrder = 1000;
+    });
+
+builder.Build().Run();
+```
+
 ### Customize multiple resource URLs
 
 To customize multiple URLs for a resource, use the `WithUrls` method. This method allows you to specify multiple URLs for a resource, each with its own display text. The following example demonstrates how to set multiple URLs for a project resource:
@@ -82,7 +99,7 @@ To customize multiple URLs for a resource, use the `WithUrls` method. This metho
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.AspireApp_Api>("api")
+builder.AddDotnetProject("api", "../AspireApp.Api/AspireApp.Api.csproj")
     .WithUrls(context =>
     {
         foreach (var url in context.Urls)

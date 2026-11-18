@@ -1,0 +1,375 @@
+---
+title: Azure API Management backends and pools
+description: Add HTTP, SOAP, Azure OpenAI, Foundry, and Blob Storage backends to Azure API Management, and group them into weighted or priority-based pools.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A backend in Azure API Management (APIM) is a reusable definition of a service that the gateway forwards requests to. A backend pool groups several backends so that APIM load balances across them. The Aspire Azure API Management hosting integration models these as `AzureApiManagementBackendResource` and `AzureApiManagementBackendPoolResource` children of the service, and an API selects one of them with `WithBackend`.
+
+You don't need to add a backend when you route an Aspire workload with `AddApi`, because that overload creates the backend for you. Use the APIs on this page when an API forwards to something else.
+
+This page assumes the `apim` resource from [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/#add-a-service-and-route-a-workload).
+
+## Add a backend
+
+Call `AddBackend` with a deferred URI. In C#, create the URI with `ReferenceExpression.Create`. In TypeScript, use the `refExpr` tagged template.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { refExpr } from './.aspire/modules/aspire.mjs';
+
+const backend = await apim.addBackend("orders-backend", refExpr`https://orders.example.com`);
+
+const ordersApi = await apim.addApiWithoutTarget("orders-api", "orders");
+await ordersApi.withApiBackend(backend);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var backend = apim.AddBackend(
+    "orders-backend",
+    ReferenceExpression.Create($"https://orders.example.com"));
+
+apim.AddApi("orders-api", path: "orders")
+    .WithBackend(backend);
+```
+
+</TabItem>
+</Tabs>
+
+### Backend options
+
+Pass an options object to `AddBackend` to configure the protocol, TLS validation, managed identity authentication, and a circuit breaker.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { AzureApiManagementBackendProtocol, refExpr } from './.aspire/modules/aspire.mjs';
+
+const backend = await apim.addBackend(
+    "custom-backend",
+    refExpr`https://backend.example.com`,
+    {
+        options: {
+            protocol: AzureApiManagementBackendProtocol.Soap,
+            managedIdentityResource: "api://backend",
+            validateCertificateName: false,
+            circuitBreaker: {
+                name: "serverErrors",
+                failureCount: 3,
+                failureIntervalSeconds: 30,
+                tripDurationSeconds: 60,
+                statusCodeRanges: [{ minimum: 500, maximum: 599 }],
+            },
+        },
+    });
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var backend = apim.AddBackend(
+    "custom-backend",
+    ReferenceExpression.Create($"https://backend.example.com"),
+    new AzureApiManagementBackendOptions
+    {
+        Protocol = AzureApiManagementBackendProtocol.Soap,
+        ManagedIdentityResource = "api://backend",
+        ValidateCertificateName = false,
+        CircuitBreaker = new AzureApiManagementCircuitBreakerOptions
+        {
+            Name = "serverErrors",
+            FailureCount = 3,
+            FailureIntervalSeconds = 30,
+            TripDurationSeconds = 60,
+            StatusCodeRanges = [new(500, 599)],
+        },
+    });
+```
+
+</TabItem>
+</Tabs>
+
+The backend options have these properties:
+
+| Option | Default | Description |
+| ------ | ------- | ----------- |
+| `Title` | The resource name | The backend display title. It has 1 to 300 characters. |
+| `Protocol` | `Http` | The protocol to the backend: `Http` for HTTP or HTTPS, or `Soap`. |
+| `ValidateCertificateChain` | `true` | Whether APIM validates the backend certificate chain. |
+| `ValidateCertificateName` | `true` | Whether APIM validates the backend certificate host name. |
+| `ManagedIdentityResource` | None | The Microsoft Entra resource URI that APIM requests a token for, such as `https://storage.azure.com/`. Leave it unset for anonymous or policy-defined authentication. |
+| `CircuitBreaker` | None | The circuit breaker rule. |
+
+The `AddBackend` method also accepts a `backendName` that sets the physical backend identifier in APIM. It defaults to the resource name, has at most 80 characters, can't contain `*`, `#`, `&`, `+`, `:`, `<`, `>`, or `?`, and must be unique across all backends and backend pools of the service.
+
+TLS certificate-chain and host name validation are on by default. Turn them off only for a specific backend that can't present a valid certificate.
+
+### Authenticate with managed identity
+
+When you set `ManagedIdentityResource`, the generated API policy includes an `authentication-managed-identity` statement for that resource URI. It selects APIM's user-assigned managed identity explicitly by client ID, because APIM otherwise defaults to a system-assigned identity.
+
+Generic backends don't infer Azure role assignments, because the required role depends on the target service. Grant the APIM identity access to the target yourself. In C#, the identity is available as `apim.Resource.Identity`, and its principal ID is available as `apim.Resource.PrincipalId`. For more information about the identity, see [Service configuration](/integrations/cloud/azure/azure-api-management/azure-api-management-service/#managed-identity).
+
+### Configure a circuit breaker
+
+A circuit breaker stops APIM from sending requests to a backend that's failing. Circuit breakers aren't supported on the Consumption tier.
+
+| Option | Default | Description |
+| ------ | ------- | ----------- |
+| `Name` | `default` | The rule name. |
+| `FailureCount` | `1` | The number of failures within the interval that opens the circuit. Minimum 1. |
+| `FailureIntervalSeconds` | `10` | The interval, in seconds, during which failures are counted. Minimum 1. |
+| `StatusCodeRanges` | None | The inclusive HTTP status-code ranges that count as failures. Each minimum is 200 to 599, each maximum is at least its minimum and at most 599, and a rule has at most 10 ranges. |
+| `TripDurationSeconds` | `10` | How long, in seconds, the circuit stays open. Minimum 1. |
+| `AcceptRetryAfter` | `false` | Whether APIM honors the backend's `Retry-After` response header. |
+
+## Add a backend for an Azure service
+
+The specialized methods create a backend for a modeled Azure resource. Each one sets the URL, the managed identity resource URI, and the role assignment that the APIM identity needs.
+
+| Method | Target | Managed identity resource | Role granted to the APIM identity | Circuit breaker |
+| ------ | ------ | ------------------------- | --------------------------------- | --------------- |
+| `AddAzureOpenAIBackend` | An Azure OpenAI deployment | `https://cognitiveservices.azure.com` | Cognitive Services OpenAI User on the account | Opens on HTTP 429 and honors `Retry-After` |
+| `AddFoundryBackend` | A Foundry deployment that uses the OpenAI format | `https://cognitiveservices.azure.com` | Cognitive Services User on the account | Opens on HTTP 429 and honors `Retry-After` |
+| `AddBlobStorageBackend` | An Azure Blob Storage resource | `https://storage.azure.com/` | Storage Blob Data Reader on the storage account | None |
+
+The Azure OpenAI and Foundry backends use the deployment URL `{account endpoint}openai/deployments/{deployment name}`. They aren't supported on the Consumption tier, and `AddFoundryBackend` throws an `InvalidOperationException` for a deployment that doesn't use the OpenAI format.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const openai = await builder.addAzureOpenAI("openai");
+const chat = await openai.addDeployment("chat", "gpt-4o", "2024-08-06");
+
+const openAIBackend = await apim.addAzureOpenAIBackend("openai-backend", chat);
+
+const storage = await builder.addAzureStorage("storage");
+const blobs = await storage.addBlobs("blobs");
+
+const blobBackend = await apim.addBlobStorageBackend("blob-backend", blobs);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var openai = builder.AddAzureOpenAI("openai");
+var chat = openai.AddDeployment("chat", "gpt-4o", "2024-08-06");
+
+var openAIBackend = apim.AddAzureOpenAIBackend("openai-backend", chat);
+
+var storage = builder.AddAzureStorage("storage");
+var blobs = storage.AddBlobs("blobs");
+
+var blobBackend = apim.AddBlobStorageBackend("blob-backend", blobs);
+```
+
+</TabItem>
+</Tabs>
+
+The principal that runs `aspire deploy` needs `Microsoft.Authorization/roleAssignments/write` on each target account, for example through the User Access Administrator or Owner role. For more information about role assignments, see [Azure role assignments](/integrations/cloud/azure/role-assignments/).
+
+## Add a backend pool
+
+A backend pool is a backend that load balances across its members. Create a pool with `AddBackendPool`, then add members with `WithBackend` in C# or `addBackendPoolMember` in TypeScript. Attach the pool to an API with `WithBackend` in C# or `withApiBackendPool` in TypeScript.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { refExpr } from './.aspire/modules/aspire.mjs';
+
+const primary = await apim.addBackend("primary", refExpr`https://primary.example.com`);
+const secondary = await apim.addBackend("secondary", refExpr`https://secondary.example.com`);
+
+const pool = await apim.addBackendPool("backend-pool");
+await pool.addBackendPoolMember(primary, { priority: 1, weight: 3 });
+await pool.addBackendPoolMember(secondary, { priority: 1, weight: 1 });
+
+const pooledApi = await apim.addApiWithoutTarget("pooled-api", "pooled");
+await pooledApi.withApiBackendPool(pool);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var primary = apim.AddBackend(
+    "primary",
+    ReferenceExpression.Create($"https://primary.example.com"));
+var secondary = apim.AddBackend(
+    "secondary",
+    ReferenceExpression.Create($"https://secondary.example.com"));
+
+var pool = apim.AddBackendPool("backend-pool")
+    .WithBackend(primary, priority: 1, weight: 3)
+    .WithBackend(secondary, priority: 1, weight: 1);
+
+apim.AddApi("pooled-api", path: "pooled")
+    .WithBackend(pool);
+```
+
+</TabItem>
+</Tabs>
+
+Members at the same priority share traffic according to their weights, so the example sends about three of every four requests to `primary`. A lower priority number is preferred. APIM uses the members at the next priority when every member in the preferred group has an open circuit.
+
+Aspire enforces these rules for pools:
+
+- Priority and weight are each 0 to 100, and both default to 1.
+- A pool has at most 30 members, and a backend can be added to a pool only once.
+- The pool and its members belong to the same APIM service.
+- All members use the same `ManagedIdentityResource` value. The API that uses the pool authenticates with that audience.
+- A pool contains at least one backend when you deploy.
+- The physical pool name follows the same rules as a backend name, and the `displayName` has 1 to 300 characters.
+
+An API accepts either a single backend or a pool. The Azure OpenAI and Foundry backends include a circuit breaker by default. For generic backends, set `CircuitBreaker` if you want APIM to take a failing member out of rotation.
+
+### Load balance OpenAI deployments
+
+The following example balances an OpenAI-compatible API across two Foundry accounts. Each backend uses the managed identity of APIM, and each has a circuit breaker for HTTP 429 responses.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const primaryFoundry = await builder.addFoundry("foundry-primary");
+const primaryChat = await primaryFoundry.addDeployment("chat-primary", {
+    name: "gpt-5-mini",
+    version: "2025-08-07",
+    format: "OpenAI",
+});
+
+const secondaryFoundry = await builder.addFoundry("foundry-secondary");
+const secondaryChat = await secondaryFoundry.addDeployment("chat-secondary", {
+    name: "gpt-5-mini",
+    version: "2025-08-07",
+    format: "OpenAI",
+});
+
+const primaryBackend = await apim.addFoundryBackend("primary-backend", primaryChat);
+const secondaryBackend = await apim.addFoundryBackend("secondary-backend", secondaryChat);
+
+const pool = await apim.addBackendPool("openai-pool");
+await pool.addBackendPoolMember(primaryBackend, { priority: 1, weight: 3 });
+await pool.addBackendPoolMember(secondaryBackend, { priority: 1, weight: 1 });
+
+const openAIApi = await apim.addOpenAIApi("openai-api", "openai", {
+    subscriptionRequired: false,
+});
+await openAIApi.withApiBackendPool(pool);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Foundry;
+
+var primaryFoundry = builder.AddFoundry("foundry-primary");
+var primaryChat = primaryFoundry.AddDeployment(
+    "chat-primary",
+    FoundryModel.OpenAI.Gpt5Mini);
+
+var secondaryFoundry = builder.AddFoundry("foundry-secondary");
+var secondaryChat = secondaryFoundry.AddDeployment(
+    "chat-secondary",
+    FoundryModel.OpenAI.Gpt5Mini);
+
+var primaryBackend = apim.AddFoundryBackend("primary-backend", primaryChat);
+var secondaryBackend = apim.AddFoundryBackend("secondary-backend", secondaryChat);
+
+var pool = apim.AddBackendPool("openai-pool")
+    .WithBackend(primaryBackend, priority: 1, weight: 3)
+    .WithBackend(secondaryBackend, priority: 1, weight: 1);
+
+apim.AddOpenAIApi(
+        "openai-api",
+        path: "openai",
+        subscriptionRequired: false)
+    .WithBackend(pool);
+```
+
+</TabItem>
+</Tabs>
+
+A request through the gateway maps to the selected deployment. For example, a request such as:
+
+```text
+POST https://<gateway>.azure-api.net/openai/chat/completions?api-version=<version>
+```
+
+is forwarded to the selected account at:
+
+```text
+POST https://<account>/openai/deployments/<deployment>/chat/completions?api-version=<version>
+```
+
+### Load balance Blob Storage accounts
+
+The same pool model works with other services. This example shares traffic between two Blob Storage accounts and adds the `x-ms-version` header that the Blob Storage REST API expects:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const primaryStorage = await builder.addAzureStorage("storage-primary");
+const primaryBlobs = await primaryStorage.addBlobs("blobs-primary");
+const secondaryStorage = await builder.addAzureStorage("storage-secondary");
+const secondaryBlobs = await secondaryStorage.addBlobs("blobs-secondary");
+
+const primaryBackend = await apim.addBlobStorageBackend("blob-primary", primaryBlobs);
+const secondaryBackend = await apim.addBlobStorageBackend("blob-secondary", secondaryBlobs);
+
+const pool = await apim.addBackendPool("blob-pool");
+await pool.addBackendPoolMember(primaryBackend, { weight: 3 });
+await pool.addBackendPoolMember(secondaryBackend);
+
+const blobApi = await apim.addApiWithoutTarget("blob-api", "blobs");
+await blobApi.withApiBackendPool(pool);
+await blobApi.withInboundPolicy(
+    '<set-header name="x-ms-version" exists-action="override"><value>2023-11-03</value></set-header>');
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var primaryBlobs = builder.AddAzureStorage("storage-primary").AddBlobs("blobs-primary");
+var secondaryBlobs = builder.AddAzureStorage("storage-secondary").AddBlobs("blobs-secondary");
+
+var primaryBackend = apim.AddBlobStorageBackend("blob-primary", primaryBlobs);
+var secondaryBackend = apim.AddBlobStorageBackend("blob-secondary", secondaryBlobs);
+
+var pool = apim.AddBackendPool("blob-pool")
+    .WithBackend(primaryBackend, weight: 3)
+    .WithBackend(secondaryBackend);
+
+apim.AddApi("blob-api", path: "blobs")
+    .WithBackend(pool)
+    .WithInboundPolicy(
+        """<set-header name="x-ms-version" exists-action="override"><value>2023-11-03</value></set-header>""");
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [APIs and operations](/integrations/cloud/azure/azure-api-management/azure-api-management-apis/)
+- [Policies and named values](/integrations/cloud/azure/azure-api-management/azure-api-management-policies/)
+- [Azure AI Foundry integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/)
+- [Azure OpenAI integration](/integrations/cloud/azure/azure-openai/azure-openai-get-started/)
+- [Azure Storage Blobs integration](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-get-started/)
+- [Backends in Azure API Management](https://learn.microsoft.com/azure/api-management/backends)

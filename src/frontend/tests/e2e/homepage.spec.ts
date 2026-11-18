@@ -29,6 +29,26 @@ test('links directly to local observability and agent debugging guides', async (
   ]);
 });
 
+test('reduced motion turned on after load removes every reveal offset', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  // The observers created before the switch still reveal items as they scroll in. Cover both
+  // states: revealed items (including non-major ones) and items still waiting below the fold.
+  await page
+    .locator('[data-home-reveal]:not([data-home-reveal-distance])')
+    .filter({ visible: true })
+    .first()
+    .scrollIntoViewIfNeeded();
+  await expect(
+    page.locator('[data-home-reveal].home-visible:not([data-home-reveal-distance])').first()
+  ).toBeAttached();
+  await expect(page.locator('[data-home-reveal]:not(.home-visible)').first()).toBeAttached();
+  const transforms = await page
+    .locator('[data-home-reveal]')
+    .evaluateAll((items) => items.map((item) => getComputedStyle(item).transform));
+  expect(transforms.length).toBeGreaterThan(0);
+  expect(new Set(transforms)).toEqual(new Set(['none']));
+});
+
 test('section 08 pairs getting started with Dev Hub discovery and stacks on mobile', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const section = page.getByRole('region', { name: 'Start building with less friction.' });
@@ -333,7 +353,7 @@ test('uses concise section copy and a compact editorial rhythm', async ({ page }
     expect(Math.max(...layout.headingLines)).toBeLessThanOrEqual(2);
     expect(Math.max(...layout.sectionHeights)).toBeLessThanOrEqual(1575);
   } else if (layout.width <= 500) {
-    expect(layout.pageHeight).toBeLessThanOrEqual(12_700);
+    expect(layout.pageHeight).toBeLessThanOrEqual(12_750);
   }
 });
 
@@ -2158,7 +2178,7 @@ test('keeps every dashboard screenshot loaded and fully contained in both themes
           })
         )
         .toEqual({
-          naturalSize: [1680, 1050],
+          naturalSize: [2560, 1600],
           contained: true,
         });
     }

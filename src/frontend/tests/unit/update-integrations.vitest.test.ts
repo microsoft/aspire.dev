@@ -120,6 +120,12 @@ describe('release package version pinning', () => {
     );
   });
 
+  test('selects the newest prerelease when a package prefers it over older stable', () => {
+    expect(
+      selectPreferredPackageVersion([leaf('9.7.2'), leaf('13.6.2-beta.959')], undefined, true)
+    ).toBe('13.6.2-beta.959');
+  });
+
   test('does not substitute another version when the requested build is absent', () => {
     expect(selectPreferredPackageVersion([leaf('14.0.0-preview.1')], pin)).toBeNull();
     expect(selectPreferredPackageVersion([], pin)).toBeNull();
@@ -357,9 +363,7 @@ describe('integration update automation', () => {
       "$publishedSchemaPattern = '^src/frontend/src/data/schemas/aspire-config\\..+\\.schema\\.json$'"
     );
     expect(scopeCheck).toContain("$isNewFile = $statusCode -eq '??' -or $statusCode[0] -eq 'A'");
-    expect(scopeCheck).toMatch(
-      /if \(\$changedPublishedSchemas\.Count -gt 0\) \{[^}]*exit 1/
-    );
+    expect(scopeCheck).toMatch(/if \(\$changedPublishedSchemas\.Count -gt 0\) \{[^}]*exit 1/);
     expect(scopeCheck.indexOf('$changedPublishedSchemas.Count -gt 0')).toBeLessThan(
       scopeCheck.indexOf('All changes are within the allowed data paths.')
     );

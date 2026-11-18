@@ -1,0 +1,111 @@
+---
+title: aspire template source command
+description: Learn about the aspire template source command and its usage. This command group manages global template sources that aspire new uses to discover templates.
+---
+
+import Include from '@components/Include.astro';
+
+## Name
+
+`aspire template source` - Manage global template sources.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire template source [command] [options]
+```
+
+## Description
+
+The `aspire template source` command manages global template sources. A template source is a named location that contains templates: either a Git repository or an absolute local directory. Sources are stored in the global Aspire configuration, so they apply to every project on the machine.
+
+When at least one source is configured, the interactive [`aspire new`](../aspire-new/#select-a-template) template picker lists templates from each source alongside the built-in templates. If a configured source can't be read when `aspire new` discovers templates, the command warns about that source and continues with the others.
+
+Template sources require the `aspire.config.json` configuration format. If your global configuration still uses the legacy format, these commands fail and direct you to run `aspire config info` to migrate it.
+
+### Source display names
+
+In the `aspire new` picker, each source's templates are grouped under a heading that defaults to the source name. To show a friendlier heading, set the optional `displayName` key for the source:
+
+```bash title="Aspire CLI"
+aspire config set templateSources.company.displayName "Company templates" --global
+```
+
+The source name remains the source's identity, so sources with identical display names aren't merged. An empty or whitespace-only `displayName` falls back to the source name.
+
+### Project-derived prompt defaults
+
+Template authors can show a project-derived value as the default in an `aspire new` prompt. In the template's `.template.config/aspirecli.host.json` file (or `dotnetcli.host.json` if the Aspire-specific file doesn't exist), set `defaultValueSource` on an optional string parameter to the name of the `coalesce` symbol that consumes it:
+
+```json title=".template.config/aspirecli.host.json"
+{
+  "symbolInfo": {
+    "displayName": { "defaultValueSource": "displayNameValue" }
+  }
+}
+```
+
+```json title=".template.config/template.json (symbols)"
+{
+  "displayName": { "type": "parameter", "datatype": "string", "defaultValue": "" },
+  "displayNameValue": {
+    "type": "generated",
+    "generator": "coalesce",
+    "parameters": { "sourceVariableName": "displayName", "fallbackVariableName": "name" },
+    "replaces": "DISPLAY_NAME"
+  }
+}
+```
+
+With this configuration, the `displayName` prompt shows the project name as its default. The parameter must have an empty default, and its fallback can depend only on the project name through `regex` and `coalesce` symbols. Otherwise, `aspire new` reports an invalid prompt default.
+
+## Options
+
+The following options are available:
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
+
+- <Include relativePath="reference/cli/includes/option-wait.md" />
+
+## Commands
+
+The following commands are available:
+
+| Command                                                                   | Function                                                   |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| [`aspire template source add <name>`](../aspire-template-source-add/)     | Add a named template source after confirming you trust it. |
+| [`aspire template source list`](../aspire-template-source-list/)          | List the configured template sources.                      |
+| [`aspire template source remove <name>`](../aspire-template-source-remove/) | Remove a named template source.                          |
+
+## Examples
+
+- Add a template source from a Git repository:
+
+  ```bash title="Aspire CLI"
+  aspire template source add company --repository https://github.com/example/templates
+  ```
+
+- List the configured template sources:
+
+  ```bash title="Aspire CLI"
+  aspire template source list
+  ```
+
+- Remove a template source:
+
+  ```bash title="Aspire CLI"
+  aspire template source remove company
+  ```
+
+## See also
+
+- [aspire new command](../aspire-new/)
+- [aspire template command](../aspire-template/)

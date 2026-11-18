@@ -53,7 +53,7 @@ var python = builder.AddPythonApp(
         scriptPath: "main.py")
     .WithHttpEndpoint(port: 8000, env: "PORT");
 
-builder.AddProject<Projects.ExampleProject>("example")
+builder.AddDotnetProject("example", "../ExampleProject/ExampleProject.csproj")
     .WithReference(python);
 
 builder.Build().Run();
@@ -74,7 +74,7 @@ const python = await builder.addPythonApp(
 );
 await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 
-const example = await builder.addProject(
+const example = await builder.addDotnetProject(
   'example',
   '../ExampleProject/ExampleProject.csproj'
 );
@@ -199,7 +199,7 @@ var python = builder.AddUvicornApp(
         app: "main:app")
     .WithHttpEndpoint(port: 8000, env: "PORT");
 
-builder.AddProject<Projects.ExampleProject>("example")
+builder.AddDotnetProject("example", "../ExampleProject/ExampleProject.csproj")
     .WithReference(python);
 
 builder.Build().Run();
@@ -220,7 +220,7 @@ const python = await builder.addUvicornApp(
 );
 await python.withHttpEndpoint({ port: 8000, env: 'PORT' });
 
-const example = await builder.addProject(
+const example = await builder.addDotnetProject(
   'example',
   '../ExampleProject/ExampleProject.csproj'
 );
@@ -701,7 +701,7 @@ var publicApi = builder.AddUvicornApp("public-api", "../public-api", "main:app")
     .WithExternalHttpEndpoints();
 // publicApi IS exposed publicly
 
-builder.AddProject<Projects.WebFrontend>("frontend")
+builder.AddDotnetProject("frontend", "../WebFrontend/WebFrontend.csproj")
     .WithReference(internalApi)
     .WithReference(publicApi);
 
@@ -733,7 +733,7 @@ await publicApi.withHttpEndpoint({ port: 8000, env: 'PORT' });
 await publicApi.withExternalHttpEndpoints();
 // publicApi IS exposed publicly
 
-const frontend = await builder.addProject(
+const frontend = await builder.addDotnetProject(
   'frontend',
   '../WebFrontend/WebFrontend.csproj'
 );
@@ -782,6 +782,12 @@ CMD ["python", "main.py"]
 :::note
 The generated Dockerfile is tailored to your detected Python version and dependency configuration.
 :::
+
+### Use an existing Dockerfile
+
+If the app directory already contains a `Dockerfile`, Aspire uses it instead of generating one. A custom `Dockerfile` can't honor an entrypoint that was changed after the resource was created, so publishing fails when `WithEntrypoint(...)` re-points the resource to a different entrypoint than the one passed to `AddPython*`. The error names the resource, the requested entrypoint, and the `Dockerfile` path. Passing the same entrypoint again isn't a conflict, and a script path such as `./main.py` is treated as the same file as `main.py`.
+
+To resolve the error, remove the `WithEntrypoint(...)` call, rename the `Dockerfile` so Aspire generates one, or set the container entrypoint explicitly with `PublishAsDockerFile(c => c.WithEntrypoint(...))`.
 
 ## See also
 

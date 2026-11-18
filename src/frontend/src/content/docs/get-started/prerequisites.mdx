@@ -79,6 +79,15 @@ Ready to dive into Aspire? Before you begin, make sure your development environm
             'An open-source, daemonless runtime for building and running Open Container Initiative (OCI) containers.',
         },
         {
+          id: 'wslc',
+          title: 'WSLc',
+          href: 'https://aka.ms/aspire/containers',
+          linkLabel: 'Set up WSLc',
+          statusLabel: 'Windows only; limited publish support',
+          description:
+            'A supported container runtime on Windows. Requires WSLc version 3.0.4.0 or later. Publishing has limited support, and Docker Compose deployment is not supported.',
+        },
+        {
           id: 'rancher',
           title: 'Rancher Desktop',
           href: 'https://rancherdesktop.io/',
@@ -97,7 +106,22 @@ Ready to dive into Aspire? Before you begin, make sure your development environm
     />
 
     :::tip[Choose one runtime]{icon='approve-check-circle'}
-    Install one option from the tabs above. For most users, choose **Docker Desktop**; don't install Podman or Rancher Desktop unless you specifically want to use one of them instead.
+    Install only one container runtime. For most users, choose **Docker Desktop**. Choose Podman, WSLc on Windows, or Rancher Desktop only if you prefer an alternative.
+    :::
+
+    :::note[WSLc on Windows]
+    `aspire doctor` auto-detects installed runtimes in Docker, Podman, WSLc priority order.
+    Set `ASPIRE_CONTAINER_RUNTIME=wslc` to select WSLc explicitly. WSLc isn't supported
+    when Aspire runs inside a Linux WSL distribution.
+
+    WSLc has limited publishing support. It can build Dockerfile images for the host
+    platform, tag, remove, and push images, sign in to registries, and publish
+    single-platform .NET SDK container images to its local image store. Dockerfile
+    resources target `linux/amd64` by default when publishing, which WSLc can't select,
+    so set the target platform to `null` with `WithContainerBuildOptions` to build for the
+    WSLc host platform. Docker Compose deployment, multi-platform images in the local
+    image store, and manifest inspection aren't supported. Unsupported operations fail
+    with an error instead of falling back to another runtime.
     :::
 
 1. ## Install an integrated development environment (IDE)

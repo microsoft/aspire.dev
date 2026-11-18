@@ -338,9 +338,9 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("cache")
                    .WithClearCommand();
 
-var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice");
+var apiService = builder.AddDotnetProject("apiservice", "../AspireApp.ApiService/AspireApp.ApiService.csproj");
 
-builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+builder.AddDotnetProject("webfrontend", "../AspireApp.Web/AspireApp.Web.csproj")
     .WithExternalHttpEndpoints()
     .WithReference(cache)
     .WaitFor(cache)
@@ -392,9 +392,9 @@ await cache.withCommand(
         },
     });
 
-const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 
-const web = await builder.addProject("webfrontend", "../Web/Web.csproj");
+const web = await builder.addDotnetProject("webfrontend", "../Web/Web.csproj");
 await web.withExternalHttpEndpoints();
 await web.withReference(cache);
 await web.waitFor(cache);
@@ -458,7 +458,7 @@ var database = builder.AddPostgres("postgres")
         return CommandResults.Success();
     });
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(cache)
     .WithReference(database)
     .WithCommand("reset-all", "Reset Everything", async (context, ct) =>
@@ -513,7 +513,7 @@ await database.withCommand("restart", "Restart Database", async () => {
     return { success: true };
 });
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(cache);
 await api.withReference(database);
 await api.withCommand("reset-all", "Reset Everything", async (ctx) => {
@@ -709,7 +709,7 @@ using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.MyService>("myservice")
+builder.AddDotnetProject("myservice", "../MyService/MyService.csproj")
     .WithCommand(
         name: "issue-access-token",
         displayName: "Issue Access Token",
@@ -735,7 +735,7 @@ using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.MyService>("myservice")
+builder.AddDotnetProject("myservice", "../MyService/MyService.csproj")
     .WithCommand(
         name: "issue-access-token",
         displayName: "Issue Access Token",
@@ -843,7 +843,7 @@ using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.MyService>("myservice")
+builder.AddDotnetProject("myservice", "../MyService/MyService.csproj")
     .WithCommand(
         name: "migrate-database",
         displayName: "Migrate Database",
@@ -1054,7 +1054,7 @@ using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.MyService>("myservice")
+builder.AddDotnetProject("myservice", "../MyService/MyService.csproj")
     .WithCommand(
         name: "send-message",
         displayName: "Send Message",
@@ -1217,7 +1217,7 @@ using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.MyService>("myservice")
+builder.AddDotnetProject("myservice", "../MyService/MyService.csproj")
     .WithCommand(
         name: "deploy",
         displayName: "Deploy",
@@ -1320,7 +1320,7 @@ using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.MyService>("myservice")
+builder.AddDotnetProject("myservice", "../MyService/MyService.csproj")
     // Only exposed through the API/MCP — not shown in the dashboard
     .WithCommand(
         name: "get-metrics",
@@ -1391,7 +1391,7 @@ Commands can display a progress dialog in the dashboard while they execute. The 
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithCommand(
         name: "seed-database",
         displayName: "Seed Database",

@@ -85,28 +85,7 @@ export function getTsMethods<T extends TsRouteCallableLike>(
   return methods;
 }
 
-/**
- * Resolve a handle and one of its methods from their positions. Member routes
- * pass indexes through `props` so the handle is not cloned for every method.
- */
-export function getTsHandleMethod<M extends TsRouteCallableLike, H extends { capabilities?: M[] }>(
-  handles: H[] | undefined,
-  handleIndex: number,
-  methodIndex: number
-): { parentType: H; method: M } {
-  const parentType = handles?.[handleIndex];
-  const method = parentType ? getTsMethods<M>(parentType)[methodIndex] : undefined;
-  if (!parentType || !method) {
-    throw new Error(`TypeScript method ${handleIndex}/${methodIndex} was not found.`);
-  }
-  return { parentType, method };
-}
-
-/**
- * Resolve a top-level item from its kind and position. Item routes pass indexes
- * through `props` so rendering reads the item from the loaded document, where its
- * slug index lives, rather than from a structured clone made for a prerender worker.
- */
+/** Resolve source-order indexes against the worker's own collection, retaining object identity. */
 export function getTsRouteItem<T extends TsTopLevelRouteItemLike>(
   doc: { handleTypes?: T[]; dtoTypes?: T[]; enumTypes?: T[]; functions?: T[] },
   kind: 'handle' | 'dto' | 'enum' | 'function',
@@ -116,11 +95,21 @@ export function getTsRouteItem<T extends TsTopLevelRouteItemLike>(
     : kind === 'dto' ? doc.dtoTypes
     : kind === 'enum' ? doc.enumTypes
     : getTsStandaloneFunctions(doc);
-  const item = items?.[index];
-  if (!item) {
-    throw new Error(`TypeScript ${kind} ${index} was not found.`);
-  }
+  const item = Number.isInteger(index) && index >= 0 ? items?.[index] : undefined;
+  if (!item) throw new Error(`Unknown TypeScript API ${kind} index ${index}`);
   return item;
+}
+
+export function getTsHandleMethod<M extends TsRouteCallableLike, H extends { capabilities?: M[] }>(
+  handles: H[] | undefined,
+  handleIndex: number,
+  methodIndex: number
+): { parentType: H; method: M } {
+  const parentType = Number.isInteger(handleIndex) && handleIndex >= 0 ? handles?.[handleIndex] : undefined;
+  const method = parentType && Number.isInteger(methodIndex) && methodIndex >= 0
+    ? getTsMethods<M>(parentType)[methodIndex] : undefined;
+  if (!parentType || !method) throw new Error(`Unknown TypeScript API method ${handleIndex}/${methodIndex}`);
+  return { parentType, method };
 }
 
 export function tsSlugify(name: string): string {

@@ -1,6 +1,6 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
 
-export const docsTopics: StarlightSidebarTopicsUserConfig = {
+export const docsTopics = {
   label: {
     da: 'Grundlag',
     de: 'Grundlagen',
@@ -91,32 +91,8 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       collapsed: true,
       items: [
         {
-          label: 'Aspire 13.6',
-          slug: 'whats-new/aspire-13-6',
-        },
-        {
-          label: 'Aspire 13.5',
-          slug: 'whats-new/aspire-13-5',
-        },
-        {
-          label: 'Aspire 13.4',
-          slug: 'whats-new/aspire-13-4',
-        },
-        {
-          label: 'Aspire 13.3',
-          slug: 'whats-new/aspire-13-3',
-        },
-        {
-          label: 'Aspire 13.2',
-          slug: 'whats-new/aspire-13-2',
-        },
-        {
-          label: 'Aspire 13.1',
-          slug: 'whats-new/aspire-13-1',
-        },
-        {
-          label: 'Aspire 13.0',
-          slug: 'whats-new/aspire-13',
+          label: 'Aspire 17.0',
+          slug: 'whats-new/aspire-17',
         },
         {
           label: 'Previous versions',
@@ -140,28 +116,68 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
           items: [
             {
-              label: 'Aspire 9.5',
-              slug: 'whats-new/aspire-9-5',
+              label: 'Aspire 13.x',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Aspire 13.6',
+                  slug: 'whats-new/aspire-13-6',
+                },
+                {
+                  label: 'Aspire 13.5',
+                  slug: 'whats-new/aspire-13-5',
+                },
+                {
+                  label: 'Aspire 13.4',
+                  slug: 'whats-new/aspire-13-4',
+                },
+                {
+                  label: 'Aspire 13.3',
+                  slug: 'whats-new/aspire-13-3',
+                },
+                {
+                  label: 'Aspire 13.2',
+                  slug: 'whats-new/aspire-13-2',
+                },
+                {
+                  label: 'Aspire 13.1',
+                  slug: 'whats-new/aspire-13-1',
+                },
+                {
+                  label: 'Aspire 13.0',
+                  slug: 'whats-new/aspire-13',
+                },
+              ],
             },
             {
-              label: 'Aspire 9.4',
-              slug: 'whats-new/aspire-9-4',
-            },
-            {
-              label: 'Aspire 9.3',
-              slug: 'whats-new/aspire-9-3',
-            },
-            {
-              label: 'Aspire 9.2',
-              slug: 'whats-new/aspire-9-2',
-            },
-            {
-              label: 'Aspire 9.1',
-              slug: 'whats-new/aspire-9-1',
-            },
-            {
-              label: 'Aspire 9.0',
-              slug: 'whats-new/aspire-9',
+              label: 'Aspire 9.x',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Aspire 9.5',
+                  slug: 'whats-new/aspire-9-5',
+                },
+                {
+                  label: 'Aspire 9.4',
+                  slug: 'whats-new/aspire-9-4',
+                },
+                {
+                  label: 'Aspire 9.3',
+                  slug: 'whats-new/aspire-9-3',
+                },
+                {
+                  label: 'Aspire 9.2',
+                  slug: 'whats-new/aspire-9-2',
+                },
+                {
+                  label: 'Aspire 9.1',
+                  slug: 'whats-new/aspire-9-1',
+                },
+                {
+                  label: 'Aspire 9.0',
+                  slug: 'whats-new/aspire-9',
+                },
+              ],
             },
           ],
         },
@@ -1000,7 +1016,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               collapsed: false,
               items: [
                 {
-                  label: 'Aspire SDK',
+                  label: 'AppHost project configuration',
                   slug: 'get-started/aspire-sdk',
                 },
                 {
@@ -1033,6 +1049,20 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'TypeScript',
               slug: 'app-host/typescript-apphost',
+            },
+            {
+              label: 'Go',
+              collapsed: false,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'app-host/go-apphost',
+                },
+                {
+                  label: 'API conventions',
+                  slug: 'app-host/go-apphost-conventions',
+                },
+              ],
             },
           ],
         },
@@ -1133,6 +1163,15 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
         {
           label: 'Multi-language integrations',
           slug: 'extensibility/multi-language-integration-authoring',
+        },
+        {
+          label: 'TypeScript hosting integrations',
+          slug: 'extensibility/typescript-hosting-integrations',
+          badge: 'Experimental',
+        },
+        {
+          label: 'Configuration sources',
+          slug: 'extensibility/config-sources',
         },
       ],
     },
@@ -1470,4 +1509,4 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       ],
     },
   ],
-};
+} satisfies StarlightSidebarTopicsUserConfig[number];
